@@ -188,6 +188,61 @@ TEST_CASE(invalidation_removes_stored_and_pending_responses)
     EXPECT(!cache->open_entry(url, "HEAD"sv, *request_headers, HTTP::CacheMode::Default).has_value());
 }
 
+TEST_CASE(abandoned_response_is_not_stored)
+{
+    auto cache = HTTP::MemoryCache::create();
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = create_cacheable_response_headers();
+
+    cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
+    cache->abandon_entry(url, "GET"sv, *request_headers, *response_headers);
+    cache->finalize_entry(url, "GET"sv, *request_headers, 200, *response_headers, immutable_bytes("partial"sv));
+
+    EXPECT(!cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default).has_value());
+}
+
+TEST_CASE(abandoning_a_response_leaves_other_pending_responses)
+{
+    auto cache = HTTP::MemoryCache::create();
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = create_cacheable_response_headers();
+
+    cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
+    cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
+    cache->abandon_entry(url, "GET"sv, *request_headers, *response_headers);
+    cache->finalize_entry(url, "GET"sv, *request_headers, 200, *response_headers, immutable_bytes("complete"sv));
+
+    auto entry = cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default);
+    VERIFY(entry.has_value());
+    EXPECT_EQ(entry->response_body.bytes(), "complete"sv.bytes());
+}
+
+TEST_CASE(abandoning_a_response_matches_its_vary_headers)
+{
+    auto cache = HTTP::MemoryCache::create();
+    auto url = parse_url("https://example.com/resource"sv);
+    auto abandoned_request_headers = HTTP::HeaderList::create({
+        { "Accept"sv, "*/*"sv },
+        { "User-Agent"sv, "Abandoned"sv },
+    });
+    auto completed_request_headers = HTTP::HeaderList::create({
+        { "Accept"sv, "*/*"sv },
+        { "User-Agent"sv, "Completed"sv },
+    });
+    auto response_headers = create_vary_user_agent_response_headers();
+
+    cache->create_entry(url, "GET"sv, *abandoned_request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
+    cache->create_entry(url, "GET"sv, *completed_request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
+    cache->abandon_entry(url, "GET"sv, *abandoned_request_headers, *response_headers);
+    cache->finalize_entry(url, "GET"sv, *abandoned_request_headers, 200, *response_headers, immutable_bytes("partial"sv));
+    cache->finalize_entry(url, "GET"sv, *completed_request_headers, 200, *response_headers, immutable_bytes("complete"sv));
+
+    EXPECT(!cache->open_entry(url, "GET"sv, *abandoned_request_headers, HTTP::CacheMode::Default).has_value());
+    EXPECT(cache->open_entry(url, "GET"sv, *completed_request_headers, HTTP::CacheMode::Default).has_value());
+}
+
 TEST_CASE(non_storable_response_retires_stored_response)
 {
     auto cache = HTTP::MemoryCache::create();
