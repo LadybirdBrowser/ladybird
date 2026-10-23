@@ -250,7 +250,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
     auto used_transition_names = AK::OrderedHashTable<Utf16FlyString>();
 
     // 4. Let captureElements be a new list of elements.
-    auto capture_elements = AK::Vector<DOM::Element&>();
+    GC::RootVector<GC::Ref<DOM::Element>> capture_elements;
 
     // 5. If the snapshot containing block size exceeds an implementation-defined maximum, then return failure.
     auto snapshot_containing_block = document.navigable()->snapshot_containing_block();
@@ -285,7 +285,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
         // 5. If usedTransitionNames contains transitionName, then:
         if (used_transition_names.contains(transition_name.value())) {
             // 1. For each element in captureElements:
-            for (auto& element : capture_elements)
+            for (DOM::Element& element : capture_elements)
                 // 1. Set element’s captured in a view transition to false.
                 element.set_captured_in_a_view_transition(false);
 
@@ -312,7 +312,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
         return Error::from_string_literal("Cannot include multiple elements with the same view-transition-name in a view transition.");
 
     // 8. For each element in captureElements:
-    for (auto& element : capture_elements) {
+    for (DOM::Element& element : capture_elements) {
         // 1. Let capture be a new captured element struct.
         auto capture = GC::Heap::the().allocate<CapturedElement>();
 
@@ -362,7 +362,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
     }
 
     // 9. For each element in captureElements:
-    for (auto& element : capture_elements) {
+    for (DOM::Element& element : capture_elements) {
         // 1. Set element’s captured in a view transition to false.
         element.set_captured_in_a_view_transition(false);
     }
