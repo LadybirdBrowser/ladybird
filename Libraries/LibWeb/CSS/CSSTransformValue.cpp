@@ -21,7 +21,7 @@ GC_DEFINE_ALLOCATOR(CSSTransformValue);
 
 GC::Ref<CSSTransformValue> CSSTransformValue::create(ReadonlySpan<GC::Ref<CSSTransformComponent>> transforms)
 {
-    Vector<GC::Ref<CSSTransformComponent>> converted_transforms;
+    GC::RootVector<GC::Ref<CSSTransformComponent>> converted_transforms;
     converted_transforms.ensure_capacity(transforms.size());
     for (auto const& transform : transforms)
         converted_transforms.append(transform);
