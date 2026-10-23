@@ -110,11 +110,22 @@ impl HitTestList {
                     && x < rect.right().to_float()
                     && y >= rect.top().to_float()
                     && y < rect.bottom().to_float();
-                in_rect
-                    && item
-                        .path
-                        .as_ref()
-                        .is_some_and(|path| path.contains(x, y, item.winding_rule))
+                if !in_rect {
+                    return false;
+                }
+                let Some(path) = item.path.as_ref() else {
+                    return false;
+                };
+                if item.svg_hit_areas & svg_hit_area::BOUNDING_BOX != 0 {
+                    let [box_x, box_y, box_width, box_height] = path.bounding_box();
+                    return x >= box_x && x <= box_x + box_width && y >= box_y && y <= box_y + box_height;
+                }
+                (item.svg_hit_areas & svg_hit_area::FILL != 0 && path.contains(x, y, item.winding_rule))
+                    || (item.svg_hit_areas & svg_hit_area::STROKE != 0
+                        && item
+                            .svg_stroke
+                            .as_ref()
+                            .is_some_and(|stroke| stroke.contains(path, x, y)))
             }
             HitTestItemKind::TextFragment => item.rect.contains_point(local_point),
             // Empty lines are caret targets only; they never contain a point for regular hit testing.

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 24 tests
 
-9 Pass
-15 Fail
+24 Pass
 Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (27, 46)
 Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (98, 33)
 Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (202, 53)
@@ -13,18 +12,18 @@ Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (91
 Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (27, 240)
 Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (336, 166)
 Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (337, 214)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (31, 18)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (209, 31)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (132, 47)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (229, 43)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (245, 180)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (45, 180)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (130, 95)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (130, 295)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (212, 255)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (280, 235)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (301, 247)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (378, 88)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (335, 122)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (333, 190)
-Fail	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (377, 66)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (31, 18)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (209, 31)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (132, 47)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (229, 43)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (245, 180)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (45, 180)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (130, 95)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (130, 295)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (212, 255)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (280, 235)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (301, 247)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (378, 88)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (335, 122)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (333, 190)
+Pass	elementFromPoint(...) on <ellipse>s with continuous strokes, element at (377, 66)

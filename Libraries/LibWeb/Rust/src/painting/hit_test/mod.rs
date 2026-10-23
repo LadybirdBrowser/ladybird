@@ -55,6 +55,10 @@ pub struct HitTestItem {
     pub border_radii: BorderRadii,
     pub path: Option<Arc<libgfx_rust::path::OwnedPath>>,
     pub winding_rule: i32,
+    /// For an SVG path, the `svg_hit_area` flags naming which of its areas pointer events can target.
+    pub svg_hit_areas: u8,
+    /// For an SVG path whose stroke pointer events can target, the shape of that stroke.
+    pub svg_stroke: Option<Arc<SvgStrokeHitRegion>>,
     pub writing_mode: u8,
     pub inline_axis_is_reverse: bool,
     pub block_axis_is_reverse: bool,
@@ -66,6 +70,56 @@ impl HitTestItem {
     fn recorded_caret_line(&self) -> Option<(ContextRef, NodeSlotId, usize)> {
         self.caret_line_index
             .map(|index| (self.context, self.block_container, index))
+    }
+}
+
+/// The areas of an SVG graphics element that pointer events can target.
+pub mod svg_hit_area {
+    pub const FILL: u8 = 1 << 0;
+    pub const STROKE: u8 = 1 << 1;
+    pub const BOUNDING_BOX: u8 = 1 << 2;
+}
+
+/// The stroke of an SVG path as hit testing reads it. The outline of the stroke is only built when a point first
+/// reaches it, and the copies of an item that later recordings reuse share it.
+#[derive(Debug)]
+pub struct SvgStrokeHitRegion {
+    style: libgfx_rust::path::StrokeStyle,
+    outline: std::sync::OnceLock<libgfx_rust::path::OwnedPath>,
+}
+
+impl SvgStrokeHitRegion {
+    pub fn new(style: libgfx_rust::path::StrokeStyle) -> Self {
+        Self {
+            style,
+            outline: std::sync::OnceLock::new(),
+        }
+    }
+
+    /// How far past the path its stroke can reach.
+    pub fn outset(&self) -> f32 {
+        let mut factor = 1.0f32;
+        if self.style.join_style == libgfx_rust::JoinStyle::Miter {
+            factor = factor.max(self.style.miter_limit);
+        }
+        if self.style.cap_style == libgfx_rust::CapStyle::Square {
+            factor = factor.max(std::f32::consts::SQRT_2);
+        }
+        self.style.thickness / 2.0 * factor
+    }
+
+    pub fn contains(&self, path: &libgfx_rust::path::OwnedPath, x: f32, y: f32) -> bool {
+        self.outline.get_or_init(|| path.stroke_to_fill(&self.style)).contains(
+            x,
+            y,
+            libgfx_rust::WindingRule::Nonzero as i32,
+        )
+    }
+}
+
+impl PartialEq for SvgStrokeHitRegion {
+    fn eq(&self, other: &Self) -> bool {
+        self.style == other.style
     }
 }
 

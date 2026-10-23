@@ -8,6 +8,7 @@ use crate::painting::paint_read::{GeometryRead, PaintRead, PaintRow};
 use crate::painting::record::trace::Observer;
 
 use super::{PaintPhase, PaintRecorder};
+use crate::css::computed_value_types::SVG_PAINT_NONE;
 use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::{DomPaintFact, NodeKind, NodeSlotId};
@@ -43,8 +44,53 @@ pub(crate) struct HitTestFacts {
     pub(crate) has_resizer: bool,
     pub(crate) could_be_scrolled_horizontally: bool,
     pub(crate) could_be_scrolled_vertically: bool,
-    pub(crate) svg_path_has_fill: bool,
+    pub(crate) svg_hit_areas: u8,
     pub(crate) svg_path_winding_rule: WindingRule,
+}
+
+// https://svgwg.org/svg2-draft/interact.html#PointerEventsProperty
+fn svg_hit_areas(pointer_events: u8, visibility_is_visible: bool, fill_is_none: bool, stroke_is_none: bool) -> u8 {
+    use css_enums::pointer_events;
+    let fill_and_stroke = svg_hit_area::FILL | svg_hit_area::STROKE;
+    // The pointer is over a painted area if it is over the interior (i.e., fill) of the element and the fill property
+    // has an actual value other than none or it is over the perimeter (i.e., stroke) of the element and the stroke
+    // property has an actual value other than none.
+    let painted_areas =
+        (if fill_is_none { 0 } else { svg_hit_area::FILL }) | (if stroke_is_none { 0 } else { svg_hit_area::STROKE });
+    let if_visible = |areas: u8| if visibility_is_visible { areas } else { 0 };
+    match pointer_events {
+        // auto: The default behavior, which is the same as for visiblePainted.
+        // visiblePainted: The given element can be the target element for pointer events when the visibility property
+        //                 is set to visible and when the pointer is over a "painted" area.
+        pointer_events::AUTO | pointer_events::VISIBLEPAINTED => if_visible(painted_areas),
+        // bounding-box: The given element can be a target element for pointer events when the pointer is over the
+        //               bounding box of the element.
+        pointer_events::BOUNDING_BOX => svg_hit_area::BOUNDING_BOX,
+        // visibleFill: The given element can be the target element for pointer events when the visibility property is
+        //              set to visible and when the pointer is over the interior (i.e., fill) of the element.
+        pointer_events::VISIBLEFILL => if_visible(svg_hit_area::FILL),
+        // visibleStroke: The given element can be the target element for pointer events when the visibility property
+        //                is set to visible and when the pointer is over the perimeter (i.e., stroke) of the element.
+        pointer_events::VISIBLESTROKE => if_visible(svg_hit_area::STROKE),
+        // visible: The given element can be the target element for pointer events when the visibility property is set
+        //          to visible and the pointer is over either the interior (i.e., fill) or the perimeter (i.e.,
+        //          stroke) of the element.
+        pointer_events::VISIBLE => if_visible(fill_and_stroke),
+        // painted: The given element can be the target element for pointer events when the pointer is over a "painted"
+        //          area.
+        pointer_events::PAINTED => painted_areas,
+        // fill: The given element can be the target element for pointer events when the pointer is over the interior
+        //       (i.e., fill) of the element.
+        pointer_events::FILL => svg_hit_area::FILL,
+        // stroke: The given element can be the target element for pointer events when the pointer is over the
+        //         perimeter (i.e., stroke) of the element.
+        pointer_events::STROKE => svg_hit_area::STROKE,
+        // all: The given element can be the target element for pointer events whenever the pointer is over either the
+        //      interior (i.e., fill) or the perimeter (i.e., stroke) of the element.
+        pointer_events::ALL => fill_and_stroke,
+        // none: The given element does not receive pointer events.
+        _ => 0,
+    }
 }
 
 pub(crate) fn hit_test_facts(arena: &impl PaintRead, paintable: NodeSlotId) -> HitTestFacts {
@@ -64,7 +110,25 @@ pub(crate) fn hit_test_facts(arena: &impl PaintRead, paintable: NodeSlotId) -> H
         has_resizer: crate::painting::chrome_geometry::has_resizer(arena, paintable),
         could_be_scrolled_horizontally: wheel_axes.horizontal,
         could_be_scrolled_vertically: wheel_axes.vertical,
-        svg_path_has_fill: svg_path && crate::painting::record::paint::svg::svg_paint_color(&svg.fill).is_some(),
+        svg_hit_areas: if svg_path {
+            let areas = svg_hit_areas(
+                style.inherited_ui().pointer_events,
+                style.visibility() == css_enums::visibility::VISIBLE,
+                svg.fill.kind == SVG_PAINT_NONE,
+                svg.stroke.kind == SVG_PAINT_NONE,
+            );
+            // For text elements, hit-testing is performed on a character cell basis, so the text receives events
+            // anywhere within a character cell whenever its fill or its stroke would.
+            if matches!(row.kind(), NodeKind::SVGTextBox | NodeKind::SVGTextPathBox)
+                && areas & (svg_hit_area::FILL | svg_hit_area::STROKE) != 0
+            {
+                svg_hit_area::FILL
+            } else {
+                areas
+            }
+        } else {
+            0
+        },
         svg_path_winding_rule: if svg_path && svg.fill_rule == css_enums::fill_rule::EVENODD {
             WindingRule::EvenOdd
         } else {
@@ -329,20 +393,35 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         let Some(path) = paintable_geometry::committed_svg_path(self.source, paintable) else {
             return;
         };
-        if !self.visibility_is_visible(paintable) || !self.visible_for_hit_testing(paintable) {
+        if !self.visible_for_hit_testing(paintable) {
             return;
         }
         let facts = self.paintable_facts(paintable);
-        // FIXME: Hit test the stroked region of paths without a fill.
-        if !facts.svg_path_has_fill {
+        if facts.svg_hit_areas == 0 {
             return;
         }
-        // The item rect rounds outward so fixed-point quantization can never reject a valid hit.
-        let [x, y, width, height] = path.bounding_box();
+        let stroke = if facts.svg_hit_areas & svg_hit_area::STROKE != 0 {
+            self.svg_stroke_hit_region(paintable)
+        } else {
+            None
+        };
+        if facts.svg_hit_areas & !svg_hit_area::STROKE == 0 && stroke.is_none() {
+            return;
+        }
+        let [mut x, mut y, mut width, mut height] = path.bounding_box();
+        if let Some(stroke) = &stroke {
+            let outset = stroke.outset();
+            x -= outset;
+            y -= outset;
+            width += outset * 2.0;
+            height += outset * 2.0;
+        }
+        // The item rect rounds outward, past the far edges, so fixed-point quantization can never reject a valid hit
+        // and points on those edges stay inside it.
         let x1 = x.floor() as i32;
         let y1 = y.floor() as i32;
-        let x2 = (x + width).ceil() as i32;
-        let y2 = (y + height).ceil() as i32;
+        let x2 = (x + width).floor() as i32 + 1;
+        let y2 = (y + height).floor() as i32 + 1;
         let bounding_box = CssPixelRect::new(
             CssPixels::from_integer(i64::from(x1)),
             CssPixels::from_integer(i64::from(y1)),
@@ -353,7 +432,49 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             return;
         }
         let context = self.data(paintable).accumulated_visual_context;
-        self.append_svg_path(paintable, path, facts.svg_path_winding_rule, bounding_box, context);
+        let item = HitTestItem {
+            rect: bounding_box,
+            path: Some(path),
+            winding_rule: facts.svg_path_winding_rule as i32,
+            svg_hit_areas: facts.svg_hit_areas,
+            svg_stroke: stroke,
+            ..self.base_hit_test_item(HitTestItemKind::SvgPath, paintable, context)
+        };
+        self.list.append(item);
+    }
+
+    fn svg_stroke_hit_region(&self, paintable: NodeSlotId) -> Option<std::sync::Arc<SvgStrokeHitRegion>> {
+        let style = self.source.node_style_if_live(paintable)?;
+        let stroke = crate::painting::record::paint::svg::svg_stroke_style(self.source, paintable, &style);
+        let mut thickness = stroke.width;
+        let mut dash_array = stroke.dash_array;
+        let mut dash_offset = stroke.dash_offset;
+        // https://svgwg.org/svg2-draft/painting.html#PaintingVectorEffects
+        // With the non-scaling-stroke vector effect, stroke outline shall be calculated in the "host" coordinate
+        // space instead of user coordinate system.
+        if stroke.non_scaling_stroke {
+            let accumulated_scale = self.own_accumulated_2d_scale(paintable);
+            let accumulated_scale_area = accumulated_scale.width * accumulated_scale.height;
+            if accumulated_scale_area > 0.0 {
+                let scale = accumulated_scale_area.sqrt();
+                thickness /= scale;
+                dash_array.iter_mut().for_each(|value| *value /= scale);
+                dash_offset /= scale;
+            }
+        }
+        if thickness.is_nan() || thickness <= 0.0 {
+            return None;
+        }
+        Some(std::sync::Arc::new(SvgStrokeHitRegion::new(
+            libgfx_rust::path::StrokeStyle {
+                thickness,
+                cap_style: stroke.cap_style,
+                join_style: stroke.join_style,
+                miter_limit: stroke.miter_limit,
+                dash_array,
+                dash_offset,
+            },
+        )))
     }
 
     fn record_empty_editable_hit_test_item(&mut self, paintable: NodeSlotId) {
@@ -508,29 +629,14 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             border_radii: BorderRadii::default(),
             path: None,
             winding_rule: 0,
+            svg_hit_areas: 0,
+            svg_stroke: None,
             writing_mode: self.writing_mode_of(target),
             inline_axis_is_reverse: self.inline_axis_is_reverse_of(target),
             block_axis_is_reverse: self.block_axis_is_reverse_of(target),
             containing_block: self.layout_containing_block_of(target),
             can_produce_caret_position: false,
         }
-    }
-
-    fn append_svg_path(
-        &mut self,
-        target: NodeSlotId,
-        path: std::sync::Arc<libgfx_rust::path::OwnedPath>,
-        winding_rule: libgfx_rust::WindingRule,
-        bounding_box: CssPixelRect,
-        context: ContextRef,
-    ) {
-        let item = HitTestItem {
-            rect: bounding_box,
-            path: Some(path),
-            winding_rule: winding_rule as i32,
-            ..self.base_hit_test_item(HitTestItemKind::SvgPath, target, context)
-        };
-        self.list.append(item);
     }
 
     fn append_text_fragment(&mut self, owner: NodeSlotId, fragment_index: u32, context: ContextRef) {
