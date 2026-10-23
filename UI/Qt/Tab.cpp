@@ -141,9 +141,10 @@ public:
         });
     }
 
-    void set_actions(QAction& reload_action, QAction& stop_action)
+    void set_actions(QAction& reload_action, QAction& reload_bypassing_cache_action, QAction& stop_action)
     {
         m_reload_action = &reload_action;
+        m_reload_bypassing_cache_action = &reload_bypassing_cache_action;
         m_stop_action = &stop_action;
     }
 
@@ -157,6 +158,17 @@ protected:
     {
         ToolbarButton::leaveEvent(event);
         change_mode(m_intended_mode, ForceChange::Yes);
+    }
+
+    // A Shift-click on the reload button reloads bypassing the HTTP cache, and one on the stop button stops the load as
+    // any other click there does. QToolButton triggers its default action from here, once a click has completed.
+    virtual void nextCheckState() override
+    {
+        if (m_visible_mode == Mode::Reload && QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier)) {
+            m_reload_bypassing_cache_action->trigger();
+            return;
+        }
+        ToolbarButton::nextCheckState();
     }
 
 private:
@@ -190,6 +202,7 @@ private:
     }
 
     QAction* m_reload_action { nullptr };
+    QAction* m_reload_bypassing_cache_action { nullptr };
     QAction* m_stop_action { nullptr };
     Mode m_visible_mode { Mode::Reload };
     Mode m_intended_mode { Mode::Reload };
@@ -798,6 +811,8 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
     m_navigate_back_action = create_application_action(*this, view().navigate_back_action());
     m_navigate_forward_action = create_application_action(*this, view().navigate_forward_action());
     m_reload_action = create_application_action(*this, application.reload_action());
+    m_reload_bypassing_cache_action = create_application_action(*this, application.reload_bypassing_cache_action());
+    addAction(m_reload_bypassing_cache_action);
     m_stop_action = new QAction("Stop", this);
     m_stop_action->setToolTip("Stop loading this page");
     QObject::connect(m_stop_action, &QAction::triggered, this, [this] {
@@ -899,7 +914,7 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
     navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_back_action, -1));
     navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action, 1));
     m_reload_button = create_toolbar_button<ReloadButton>(*navigation_button_cluster, *m_reload_action);
-    m_reload_button->set_actions(*m_reload_action, *m_stop_action);
+    m_reload_button->set_actions(*m_reload_action, *m_reload_bypassing_cache_action, *m_stop_action);
     navigation_button_layout->addWidget(m_reload_button);
 
     auto* location_edit_container = new QWidget(m_toolbar);

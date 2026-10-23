@@ -348,6 +348,7 @@ public:
     NonnullRefPtr<Core::Promise<Empty>> clear_browsing_data(ClearBrowsingDataOptions const&);
 
     Action& reload_action() { return *m_reload_action; }
+    Action& reload_bypassing_cache_action() { return *m_reload_bypassing_cache_action; }
     Action& copy_selection_action() { return *m_copy_selection_action; }
     Action& undo_action() { return *m_undo_action; }
     Action& redo_action() { return *m_redo_action; }
@@ -670,6 +671,7 @@ private:
     OwnPtr<ProcessManager> m_process_manager;
 
     RefPtr<Action> m_reload_action;
+    RefPtr<Action> m_reload_bypassing_cache_action;
     RefPtr<Action> m_copy_selection_action;
     RefPtr<Action> m_undo_action;
     RefPtr<Action> m_redo_action;

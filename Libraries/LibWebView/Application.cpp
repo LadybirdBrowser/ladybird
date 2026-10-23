@@ -2511,6 +2511,10 @@ void Application::initialize_actions()
         if (auto view = active_web_view(); view.has_value())
             view->reload();
     });
+    m_reload_bypassing_cache_action = Action::create("Reload Without Cache"sv, ActionID::ReloadBypassingCache, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->reload(BypassCache::Yes);
+    });
 
     m_undo_action = Action::create("Undo"sv, ActionID::Undo, [this]() {
         if (auto view = active_web_view(); view.has_value())

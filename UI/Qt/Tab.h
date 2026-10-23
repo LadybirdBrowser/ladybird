@@ -296,6 +296,7 @@ private:
     QAction* m_navigate_back_action { nullptr };
     QAction* m_navigate_forward_action { nullptr };
     QAction* m_reload_action { nullptr };
+    QAction* m_reload_bypassing_cache_action { nullptr };
     QAction* m_stop_action { nullptr };
     ReloadButton* m_reload_button { nullptr };
     QAction* m_open_downloads_page_action { nullptr };
