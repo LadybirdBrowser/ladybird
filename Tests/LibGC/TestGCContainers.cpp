@@ -241,6 +241,34 @@ TEST_CASE(cleared_container_reports_no_roots)
     EXPECT_EQ(roots.size(), 0u);
 }
 
+TEST_CASE(root_vector_adopts_moved_vector)
+{
+    auto& heap = test_heap();
+    Vector<GC::Ref<TestCell>> vector;
+
+    auto cell = heap.allocate<TestCell>();
+    vector.append(cell);
+    GC::RootVector<GC::Ref<TestCell>> root_vector { move(vector) };
+
+    HashMap<GC::Cell*, GC::HeapRoot> roots;
+    root_vector.gather_roots(roots);
+
+    EXPECT(roots.contains(cell.ptr()));
+    EXPECT_EQ(roots.size(), 1u);
+}
+
+TEST_CASE(conservative_vector_adopts_moved_vector)
+{
+    auto& heap = test_heap();
+    Vector<GC::Ref<TestCell>> vector;
+
+    auto cell = heap.allocate<TestCell>();
+    vector.append(cell);
+    GC::ConservativeVector<GC::Ref<TestCell>> conservative_vector { move(vector) };
+
+    EXPECT(possible_values_contain(conservative_vector, cell.ptr()));
+}
+
 TEST_CASE(conservative_vector_reports_possible_values)
 {
     auto& heap = test_heap();
@@ -335,6 +363,22 @@ static void expect_transferred_container_keeps_cell_alive(AddCell add_cell, Tran
     scrub_stack();
     heap.collect_garbage();
     EXPECT(weak_cell);
+}
+
+TEST_CASE(root_hash_table_adopts_moved_hash_table)
+{
+    auto& heap = test_heap();
+    HashTable<GC::Ref<TestCell>> table;
+
+    auto cell = heap.allocate<TestCell>();
+    table.set(cell);
+    GC::RootHashTable<GC::Ref<TestCell>> root_table { move(table) };
+
+    HashMap<GC::Cell*, GC::HeapRoot> roots;
+    root_table.gather_roots(roots);
+
+    EXPECT(roots.contains(cell.ptr()));
+    EXPECT_EQ(roots.size(), 1u);
 }
 
 TEST_CASE(copied_and_moved_root_hash_maps_keep_cells_alive)
