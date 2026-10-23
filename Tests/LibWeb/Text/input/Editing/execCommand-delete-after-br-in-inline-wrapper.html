@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="direct" contenteditable>foo<br>abc<div>bar</div></div>
+<div id="wrapped" contenteditable>foo<span>x<br></span>abc<div>bar</div></div>
+<script>
+    test(() => {
+        for (const id of ["direct", "wrapped"]) {
+            const host = document.getElementById(id);
+            host.focus();
+            const abc = host.querySelector("div").previousSibling;
+            getSelection().setBaseAndExtent(abc, 0, host.querySelector("div").firstChild, 0);
+            println(`${id} before: ${host.innerHTML}`);
+            document.execCommand("delete");
+            println(`${id} after: ${host.innerHTML}`);
+        }
+    });
+</script>

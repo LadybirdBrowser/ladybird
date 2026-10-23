@@ -2,28 +2,28 @@ Harness status: OK
 
 Found 25 tests
 
-2 Pass
-23 Fail
-Fail	document.execCommand("delete") at abc<br>{<br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at abc<br>{<br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("delete") at <br>[abc<br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at <br>[abc<br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("delete") at <br>{<br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at <br>{<br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("delete") at {<br><br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at {<br><br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("delete") at [abc<br><br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at [abc<br><br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("delete") at abc<br>{<br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at abc<br>{<br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("delete") at <br>[abc<br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at <br>[abc<br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("delete") at <br>{<br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at <br>{<br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("delete") at {<br><br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at {<br><br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("delete") at [abc<br><br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at [abc<br><br><div id="child">d]ef<br>ghi</div>
+22 Pass
+3 Fail
+Pass	document.execCommand("delete") at abc<br>{<br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at abc<br>{<br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("delete") at <br>[abc<br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at <br>[abc<br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("delete") at <br>{<br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at <br>{<br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("delete") at {<br><br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at {<br><br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("delete") at [abc<br><br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at [abc<br><br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("delete") at abc<br>{<br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at abc<br>{<br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("delete") at <br>[abc<br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at <br>[abc<br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("delete") at <br>{<br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at <br>{<br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("delete") at {<br><br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at {<br><br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("delete") at [abc<br><br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at [abc<br><br><div id="child">d]ef<br>ghi</div>
 Pass	document.execCommand("delete") at abc<br><br><div id="child">[]def<br>ghi</div>
 Pass	document.execCommand("delete") at <br><br><div id="child">[]def<br>ghi</div>
 Fail	document.execCommand("delete") at <br><div id="child">[]def<br>ghi</div>

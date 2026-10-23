@@ -1,33 +1,53 @@
 Harness status: OK
 
-Found 27 tests
+Found 47 tests
 
-2 Pass
-25 Fail
-Fail	Backspace at abc<br>{<br><div id="child">]def<br>ghi</div>
-Fail	Typing "X" at abc<br>{<br><div id="child">]def<br>ghi</div>
-Fail	Backspace at <br>[abc<br><div id="child">]def<br>ghi</div>
-Fail	Typing "X" at <br>[abc<br><div id="child">]def<br>ghi</div>
-Fail	Backspace at <br>{<br><div id="child">]def<br>ghi</div>
-Fail	Typing "X" at <br>{<br><div id="child">]def<br>ghi</div>
-Fail	Backspace at {<br><br><div id="child">]def<br>ghi</div>
-Fail	Typing "X" at {<br><br><div id="child">]def<br>ghi</div>
-Fail	Backspace at [abc<br><br><div id="child">]def<br>ghi</div>
-Fail	Typing "X" at [abc<br><br><div id="child">]def<br>ghi</div>
-Fail	Backspace at abc<br>{<br><div id="child">d]ef<br>ghi</div>
-Fail	Typing "X" at abc<br>{<br><div id="child">d]ef<br>ghi</div>
-Fail	Backspace at <br>[abc<br><div id="child">d]ef<br>ghi</div>
-Fail	Typing "X" at <br>[abc<br><div id="child">d]ef<br>ghi</div>
-Fail	Backspace at <br>{<br><div id="child">d]ef<br>ghi</div>
-Fail	Typing "X" at <br>{<br><div id="child">d]ef<br>ghi</div>
-Fail	Backspace at {<br><br><div id="child">d]ef<br>ghi</div>
-Fail	Typing "X" at {<br><br><div id="child">d]ef<br>ghi</div>
-Fail	Backspace at [abc<br><br><div id="child">d]ef<br>ghi</div>
-Fail	Typing "X" at [abc<br><br><div id="child">d]ef<br>ghi</div>
+37 Pass
+10 Fail
+Pass	Backspace at abc<br>{<br><div id="child">]def<br>ghi</div>
+Pass	Typing "X" at abc<br>{<br><div id="child">]def<br>ghi</div>
+Pass	Backspace at <br>[abc<br><div id="child">]def<br>ghi</div>
+Pass	Typing "X" at <br>[abc<br><div id="child">]def<br>ghi</div>
+Pass	Backspace at <br>{<br><div id="child">]def<br>ghi</div>
+Pass	Typing "X" at <br>{<br><div id="child">]def<br>ghi</div>
+Pass	Backspace at {<br><br><div id="child">]def<br>ghi</div>
+Pass	Typing "X" at {<br><br><div id="child">]def<br>ghi</div>
+Pass	Backspace at [abc<br><br><div id="child">]def<br>ghi</div>
+Pass	Typing "X" at [abc<br><br><div id="child">]def<br>ghi</div>
+Pass	Backspace at abc<br>{<br><div id="child">d]ef<br>ghi</div>
+Pass	Typing "X" at abc<br>{<br><div id="child">d]ef<br>ghi</div>
+Pass	Backspace at <br>[abc<br><div id="child">d]ef<br>ghi</div>
+Pass	Typing "X" at <br>[abc<br><div id="child">d]ef<br>ghi</div>
+Pass	Backspace at <br>{<br><div id="child">d]ef<br>ghi</div>
+Pass	Typing "X" at <br>{<br><div id="child">d]ef<br>ghi</div>
+Pass	Backspace at {<br><br><div id="child">d]ef<br>ghi</div>
+Pass	Typing "X" at {<br><br><div id="child">d]ef<br>ghi</div>
+Pass	Backspace at [abc<br><br><div id="child">d]ef<br>ghi</div>
+Pass	Typing "X" at [abc<br><br><div id="child">d]ef<br>ghi</div>
 Pass	Backspace at abc<br><br><div id="child">[]def<br>ghi</div>
 Pass	Backspace at <br><br><div id="child">[]def<br>ghi</div>
 Fail	Backspace at <br><div id="child">[]def<br>ghi</div>
 Fail	Backspace at <b>abc<br><br></b></b><div id="child">[]def<br>ghi</div>
 Fail	Backspace at <b><br></b><div id="child">[]def<br>ghi</div>
+Fail	getTargetRanges() for Backspace at abc<br>{<br><div id="child">]def<br>ghi</div> should return a range before the child <div>
+Pass	getTargetRanges() for Typing "X" at abc<br>{<br><div id="child">]def<br>ghi</div> should return a range ending in the child <div>
+Fail	getTargetRanges() for Backspace at <br>[abc<br><div id="child">]def<br>ghi</div> should return a range before the child <div>
+Pass	getTargetRanges() for Typing "X" at <br>[abc<br><div id="child">]def<br>ghi</div> should return a range ending in the child <div>
+Fail	getTargetRanges() for Backspace at <br>{<br><div id="child">]def<br>ghi</div> should return a range before the child <div>
+Pass	getTargetRanges() for Typing "X" at <br>{<br><div id="child">]def<br>ghi</div> should return a range ending in the child <div>
+Fail	getTargetRanges() for Backspace at {<br><br><div id="child">]def<br>ghi</div> should return a range before the child <div>
+Pass	getTargetRanges() for Typing "X" at {<br><br><div id="child">]def<br>ghi</div> should return a range ending in the child <div>
+Fail	getTargetRanges() for Backspace at [abc<br><br><div id="child">]def<br>ghi</div> should return a range before the child <div>
+Pass	getTargetRanges() for Typing "X" at [abc<br><br><div id="child">]def<br>ghi</div> should return a range ending in the child <div>
+Pass	getTargetRanges() for Backspace at abc<br>{<br><div id="child">d]ef<br>ghi</div> should return a range ends at start of the child <div>
+Pass	getTargetRanges() for Typing "X" at abc<br>{<br><div id="child">d]ef<br>ghi</div> should return a range ends at start of the child <div>
+Pass	getTargetRanges() for Backspace at <br>[abc<br><div id="child">d]ef<br>ghi</div> should return a range ends at start of the child <div>
+Pass	getTargetRanges() for Typing "X" at <br>[abc<br><div id="child">d]ef<br>ghi</div> should return a range ends at start of the child <div>
+Pass	getTargetRanges() for Backspace at <br>{<br><div id="child">d]ef<br>ghi</div> should return a range ends at start of the child <div>
+Pass	getTargetRanges() for Typing "X" at <br>{<br><div id="child">d]ef<br>ghi</div> should return a range ends at start of the child <div>
+Pass	getTargetRanges() for Backspace at {<br><br><div id="child">d]ef<br>ghi</div> should return a range ends at start of the child <div>
+Pass	getTargetRanges() for Typing "X" at {<br><br><div id="child">d]ef<br>ghi</div> should return a range ends at start of the child <div>
+Pass	getTargetRanges() for Backspace at [abc<br><br><div id="child">d]ef<br>ghi</div> should return a range ends at start of the child <div>
+Pass	getTargetRanges() for Typing "X" at [abc<br><br><div id="child">d]ef<br>ghi</div> should return a range ends at start of the child <div>
 Fail	getTargetRanges() for Backspace at abc<br><br><div id="child">[]def<br>ghi</div> should return a range before the child <div>
 Fail	getTargetRanges() for Backspace at <br><br><div id="child">[]def<br>ghi</div> should return a range before the child <div>
