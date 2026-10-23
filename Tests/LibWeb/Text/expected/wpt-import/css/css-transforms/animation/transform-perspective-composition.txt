@@ -2,22 +2,21 @@ Harness status: OK
 
 Found 28 tests
 
-26 Pass
-2 Fail
+28 Pass
 Pass	Compositing CSS Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (-0.5) should be [perspective(4.12px)]
 Pass	Compositing CSS Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (0) should be [perspective(5px)]
 Pass	Compositing CSS Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (0.25) should be [perspective(5.45px)]
 Pass	Compositing CSS Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (0.5) should be [perspective(6.15px)]
 Pass	Compositing CSS Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (0.75) should be [perspective(7.06px)]
 Pass	Compositing CSS Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (1) should be [perspective(8.33px)]
-Fail	Compositing CSS Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (1.5) should be [perspective(10px)]
+Pass	Compositing CSS Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (1.5) should be [perspective(10px)]
 Pass	Compositing Web Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (-0.5) should be [perspective(4.12px)]
 Pass	Compositing Web Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (0) should be [perspective(5px)]
 Pass	Compositing Web Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (0.25) should be [perspective(5.45px)]
 Pass	Compositing Web Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (0.5) should be [perspective(6.15px)]
 Pass	Compositing Web Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (0.75) should be [perspective(7.06px)]
 Pass	Compositing Web Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (1) should be [perspective(8.33px)]
-Fail	Compositing Web Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (1.5) should be [perspective(10px)]
+Pass	Compositing Web Animations: property <transform> underlying [perspective(10px)] from add [perspective(10px)] to add [perspective(50px)] at (1.5) should be [perspective(10px)]
 Pass	Compositing CSS Animations: property <transform> underlying [perspective(10px)] from accumulate [perspective(10px)] to accumulate [perspective(50px)] at (-0.5) should be [perspective(4.12px)]
 Pass	Compositing CSS Animations: property <transform> underlying [perspective(10px)] from accumulate [perspective(10px)] to accumulate [perspective(50px)] at (0) should be [perspective(5px)]
 Pass	Compositing CSS Animations: property <transform> underlying [perspective(10px)] from accumulate [perspective(10px)] to accumulate [perspective(50px)] at (0.25) should be [perspective(5.45px)]

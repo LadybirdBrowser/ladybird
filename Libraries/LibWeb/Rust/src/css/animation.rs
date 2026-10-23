@@ -5847,23 +5847,14 @@ fn interpolate_transform_list(
         else {
             return None;
         };
-        if from_function == to_function
-            && *from_function == TRANSFORM_FUNCTION_PERSPECTIVE
-            && index + 1 == from_values.len()
-        {
+        if from_function == to_function && *from_function == TRANSFORM_FUNCTION_PERSPECTIVE {
             let ([from_argument], [to_argument]) = (from_arguments.as_slice(), to_arguments.as_slice()) else {
                 return None;
             };
-            let reciprocal_depth = |argument: &RetainedStyleValueData| match argument.data() {
-                StyleValueData::Length { value, unit } => Some((1.0 / value.max(1.0), Some(*unit))),
-                StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
-                    Some((0.0, None))
-                }
-                _ => None,
-            };
-            let (Some((from_reciprocal_depth, from_unit)), Some((to_reciprocal_depth, to_unit))) =
-                (reciprocal_depth(from_argument), reciprocal_depth(to_argument))
-            else {
+            let (Some((from_reciprocal_depth, from_unit)), Some((to_reciprocal_depth, to_unit))) = (
+                reciprocal_perspective_depth(from_argument),
+                reciprocal_perspective_depth(to_argument),
+            ) else {
                 return None;
             };
             if from_unit.is_some() && to_unit.is_some() && from_unit != to_unit {
@@ -5877,16 +5868,7 @@ fn interpolate_transform_list(
             //               interpolating that component and inverting it produces the same result without materializing
             //               and decomposing two matrices.
             let reciprocal_depth = interpolate_f64(from_reciprocal_depth, to_reciprocal_depth, delta, None);
-            let argument = if reciprocal_depth == 0.0 {
-                retained_none_keyword()
-            } else {
-                RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Length {
-                    value: 1.0 / reciprocal_depth,
-                    unit: from_unit
-                        .or(to_unit)
-                        .unwrap_or_else(crate::css::style_compute::px_length_unit),
-                }))
-            };
+            let argument = perspective_from_reciprocal_depth(reciprocal_depth, from_unit.or(to_unit));
             let transformation = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Transformation {
                 property: *from_property,
                 transform_function: *from_function,
