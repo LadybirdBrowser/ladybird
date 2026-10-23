@@ -1,0 +1,4 @@
+a1: x=0 y=0 width=100 height=30
+a2: x=0 y=30 width=100 height=70
+b1: x=0 y=100 width=30 height=0
+b2: x=30 y=100 width=70 height=0

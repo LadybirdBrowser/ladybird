@@ -1,0 +1,4 @@
+sideways-lr-left: y=90
+sideways-lr-right: y=0
+vertical-lr-left: y=0
+vertical-lr-right: y=90
