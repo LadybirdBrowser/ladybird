@@ -3907,6 +3907,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn layout_items(&mut self, run: &FormattingContextRun<'pass>) {
+        let mut baseline_aligned_items = Vec::new();
         for item_index in 0..self.items.len() {
             let item = self.items[item_index];
             let area = self.grid_area(item);
@@ -4005,12 +4006,110 @@ impl<'pass> GridFormattingContext<'pass> {
             // Resolve relative-position insets before placement seals the
             // item's committed metrics.
             abspos_engine::compute_inset_native(run, item.box_, area.size.inline_size, area.size.block_size);
+            if self.item_participates_in_row_baseline_alignment(item) {
+                // NB: Baseline-aligned items are placed once every item in their baseline-sharing group is laid out.
+                baseline_aligned_items.push((item_index, offset));
+                continue;
+            }
             formatting_context::place_child(&self.run, item.box_, offset, None);
         }
+        self.place_baseline_aligned_items(&baseline_aligned_items);
         self.derived_baselines_of_root_box = DerivedBaselines {
             first: self.baseline_of_items(formatting_context::BaselineSet::First),
             last: self.baseline_of_items(formatting_context::BaselineSet::Last),
         };
+    }
+
+    // NB: Only the vertical Row axis aligns items by their baselines, using the horizontal baselines of items in a
+    //     horizontal writing mode, while items in other writing modes synthesize theirs.
+    // FIXME: Align items by their baselines in the horizontal Column axis and in a reversed Row axis, align by last
+    //        baselines, and shim baseline-aligned items for track sizing.
+    fn item_participates_in_row_baseline_alignment(&self, item: GridItem) -> bool {
+        if self.rows_are_reversed || self.item_alignment(item, Axis::Row) != Alignment::Baseline {
+            return false;
+        }
+        // https://drafts.csswg.org/css-grid-2/#auto-margins
+        // Auto margins in either axis absorb positive free space prior to alignment via the box alignment properties,
+        // thereby disabling the effects of any self-alignment properties in that axis.
+        let style = self.style(item.box_);
+        if style.margin_top().is_auto() || style.margin_bottom().is_auto() {
+            return false;
+        }
+        // https://drafts.csswg.org/css-grid-2/#row-align
+        // If baseline alignment is specified on a grid item whose size in that axis depends on the size of an
+        // intrinsically-sized track (whose size is therefore dependent on both the item’s size and baseline alignment,
+        // creating a cyclic dependency), that item does not participate in baseline alignment, and instead uses its
+        // fallback alignment as if that were originally specified. For this purpose, <flex> track sizes count as
+        // “intrinsically-sized” when the grid container has an indefinite size in the relevant axis.
+        let size_depends_on_tracks = self.item_preferred_size(item, Axis::Row).contains_percentage()
+            || style.min_height().contains_percentage()
+            || style.max_height().contains_percentage();
+        if !size_depends_on_tracks {
+            return true;
+        }
+        let available = self.axis_available(Axis::Row);
+        let container_size_is_definite =
+            matches!(self.container_available_space().block_size, AvailableSize::Definite(_));
+        let start = item.row.max(0) as usize;
+        let end = start.saturating_add(item.row_span).min(self.rows.len());
+        !self.rows[start.min(end)..end].iter().any(|track| {
+            track.min_sizing.is_intrinsic(available)
+                || track.max_sizing.is_intrinsic(available)
+                || (!container_size_is_definite && track.max_sizing.flex_factor().is_some())
+        })
+    }
+
+    /// The distance from the start of the item's grid area to its alignment baseline, as the item is laid out at the
+    /// start of its area.
+    fn item_row_baseline(&self, item: GridItem) -> CssPixels {
+        let used = self.used(item);
+        let collapsed = used.uses_collapsing_borders_model.get();
+        let distance_from_margin_box_top =
+            if self.style(item.box_).writing_mode() == writing_mode::HORIZONTAL_TB && used.has_first_baseline.get() {
+                formatting_context::box_baseline(
+                    &self.run.callbacks,
+                    item.box_,
+                    used,
+                    formatting_context::BaselineSet::First,
+                )
+            } else {
+                // https://drafts.csswg.org/css-align-3/#synthesize-baseline
+                // NB: The alphabetic baseline is synthesized from the line-under edge of the border box.
+                used.margin_box_top(collapsed) + used.content_block_size.get() + used.border_box_bottom(collapsed)
+            };
+        item.extra_margin_top + distance_from_margin_box_top
+    }
+
+    // https://drafts.csswg.org/css-align-3/#align-by-baseline
+    // Given a set of alignment subjects and their baselines that all belong to a single baseline-sharing group, the
+    // alignment subjects are baseline-aligned as follows:
+    // [...]
+    // Position the aligned baseline-sharing group within the alignment container according to its fallback alignment.
+    // NB: The fallback alignment is start, so the item with the largest distance from the start of its grid area to its
+    //     baseline is placed at the start of its area, and the other items are moved down to line up with it.
+    fn place_baseline_aligned_items(&self, items: &[(usize, FfiCssPixelPoint)]) {
+        if items.is_empty() {
+            return;
+        }
+        // https://drafts.csswg.org/css-align-3/#baseline-sharing-group
+        // (For example, grid items with align-self: baseline are baseline-aligning along the grid’s block axis, and
+        // therefore participate with other items in their row.)
+        // [...] a table cell spanning three rows participates in first-baseline alignment with the table cells in the
+        // first row that it spans [...]
+        let mut shared_baselines = HashMap::<i32, CssPixels>::default();
+        for &(item_index, _) in items {
+            let item = self.items[item_index];
+            let baseline = self.item_row_baseline(item);
+            shared_baselines
+                .entry(item.row)
+                .and_modify(|shared| *shared = (*shared).max(baseline))
+                .or_insert(baseline);
+        }
+        for &(item_index, mut offset) in items {
+            let item = self.items[item_index];
+            offset.y += shared_baselines[&item.row] - self.item_row_baseline(item);
+            formatting_context::place_child(&self.run, item.box_, offset, None);
+        }
     }
 
     // https://drafts.csswg.org/css-grid-2/#grid-baselines
