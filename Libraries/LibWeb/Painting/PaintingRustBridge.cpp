@@ -224,7 +224,7 @@ Vector<u32> rust_owned_visual_context_node_indices(Layout::Node const& layout_no
     auto slot = committed_row_slot(layout_node);
     indices.resize(Layout::RustFFI::render_state_paintable_visual_context_node_count(host, slot, list));
     if (!indices.is_empty())
-        Layout::RustFFI::render_state_paintable_visual_context_copy_node_indices(host, slot, list, indices.data(), indices.size());
+        Layout::RustFFI::render_state_paintable_visual_context_copy_node_indices(host, slot, list, indices.span());
     return indices;
 }
 

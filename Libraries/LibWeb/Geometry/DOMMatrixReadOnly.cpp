@@ -55,7 +55,7 @@ bool web_dom_matrix_parse_transform_list(FlatPtr transform_list_raw, Array<doubl
     // NB: A <length> without an absolute unit is a failure as well, which Rust reports when it cannot resolve a function.
     Array<float, 16> matrix;
     bool is_2d_transform = true;
-    if (!CSS::ComputedValuesFFI::rust_transform_list_to_abstract_matrix(transform_style_value->rust_style_value_data(), matrix.data(), &is_2d_transform))
+    if (!CSS::ComputedValuesFFI::rust_transform_list_to_abstract_matrix(transform_style_value->rust_style_value_data(), matrix.span(), &is_2d_transform))
         return false;
 
     // 7. Return matrix and 2dTransform.

@@ -123,7 +123,7 @@ static void describe_node_for_bound_failure(Document& document, Layout::BegunRea
                 CSS::StyleEngineFFI::style_engine_begin_bound_failure_trace(engine_host);
                 bool styled = document.update_style_for_element(AbstractElement { *element });
                 Array<u8, 512> trace_buffer;
-                auto trace_length = CSS::StyleEngineFFI::style_engine_end_bound_failure_trace(engine_host, trace_buffer.data(), trace_buffer.size());
+                auto trace_length = CSS::StyleEngineFFI::style_engine_end_bound_failure_trace(engine_host, trace_buffer.span());
                 builder.appendff(" targeted-update:{} trace:[{}] counters:[", styled ? "styled"sv : "unstyled"sv, StringView { reinterpret_cast<char const*>(trace_buffer.data()), trace_length });
                 bool first_counter = true;
                 for (size_t index = 0; index < counters_before.size(); ++index) {

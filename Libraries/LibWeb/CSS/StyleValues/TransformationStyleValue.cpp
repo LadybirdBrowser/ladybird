@@ -55,7 +55,7 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     case TransformFunction::Matrix3d: {
         Array<float, 16> transform_as_matrix;
         bool is_2d_matrix = true;
-        if (!ComputedValuesFFI::rust_transform_list_to_abstract_matrix(rust_style_value_data(), transform_as_matrix.data(), &is_2d_matrix))
+        if (!ComputedValuesFFI::rust_transform_list_to_abstract_matrix(rust_style_value_data(), transform_as_matrix.span(), &is_2d_matrix))
             return nullptr;
 
         // NB: The matrix is row by row, as Gfx::Matrix4x4 takes it.

@@ -6303,32 +6303,20 @@ pub(crate) enum FontDescriptorKind {
 /// on success. A null return is disambiguated by `out_status`.
 ///
 /// # Safety
-/// All non-null pointers must remain readable for their accompanying lengths
-/// for the duration of this call. `out_status` must be a valid writable
-/// pointer.
+/// The pointers `context` holds must remain readable for their accompanying lengths during this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_css_value(
     context: Option<&ParseContext>,
     property_id: u16,
     source: FfiUtf16View,
-    out_status: *mut FfiParseStatus,
+    out_status: Option<&mut FfiParseStatus>,
 ) -> *const c_void {
-    let invalid_ffi_result = || {
-        if !out_status.is_null() {
-            unsafe { *out_status = FfiParseStatus::NotHandled };
-        }
-        std::ptr::null()
+    let Some(out_status) = out_status else {
+        return std::ptr::null();
     };
-
-    let Some(context) = context else {
-        return invalid_ffi_result();
-    };
-
-    if out_status.is_null() {
-        return invalid_ffi_result();
-    }
-    let Some(source) = source.units() else {
-        return invalid_ffi_result();
+    let (Some(context), Some(source)) = (context, source.units()) else {
+        *out_status = FfiParseStatus::NotHandled;
+        return std::ptr::null();
     };
     let mut source_utf16 = Vec::with_capacity(source.len());
     source.append_to(&mut source_utf16);
@@ -6348,41 +6336,24 @@ pub unsafe extern "C" fn rust_parse_css_value(
         }
         Err(()) => ParseOutcome::NotHandled,
     };
-    match outcome {
-        ParseOutcome::Parsed(value) => {
-            unsafe {
-                *out_status = FfiParseStatus::Parsed;
-            }
-            Arc::into_raw(value).cast()
-        }
-        ParseOutcome::Invalid => {
-            unsafe {
-                *out_status = FfiParseStatus::Invalid;
-            }
-            std::ptr::null()
-        }
-        ParseOutcome::NotHandled => {
-            unsafe {
-                *out_status = FfiParseStatus::NotHandled;
-            }
-            std::ptr::null()
-        }
-    }
+    let (status, value) = match outcome {
+        ParseOutcome::Parsed(value) => (FfiParseStatus::Parsed, Arc::into_raw(value).cast()),
+        ParseOutcome::Invalid => (FfiParseStatus::Invalid, std::ptr::null()),
+        ParseOutcome::NotHandled => (FfiParseStatus::NotHandled, std::ptr::null()),
+    };
+    *out_status = status;
+    value
 }
 
 /// Returns a substitution-function presence bitmap for CSS source.
-///
-/// # Safety
-/// The source pointer must be valid for its accompanying length and
-/// `out_presence` must be writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_collect_arbitrary_substitution_function_presence_from_source(
+pub extern "C" fn rust_collect_arbitrary_substitution_function_presence_from_source(
     source: FfiUtf16View,
-    out_presence: *mut u8,
+    out_presence: Option<&mut u8>,
 ) -> bool {
-    if out_presence.is_null() {
+    let Some(out_presence) = out_presence else {
         return false;
-    }
+    };
     let Some(source) = source.units() else {
         return false;
     };
@@ -6392,7 +6363,7 @@ pub unsafe extern "C" fn rust_collect_arbitrary_substitution_function_presence_f
     let Some(presence) = substitution_function_presence_bits(&values) else {
         return false;
     };
-    unsafe { *out_presence = presence };
+    *out_presence = presence;
     true
 }
 
