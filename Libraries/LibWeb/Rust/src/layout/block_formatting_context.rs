@@ -5039,9 +5039,14 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             let (first, last) = laid_out_children.unwrap_or_else(|| (callbacks.first_child(root), Node::INVALID));
             callbacks.siblings_from(first, last).collect()
         };
+        let participates = |child: Node| {
+            let child_facts = NodeFacts::new(&callbacks, child);
+            child_facts.is_flow_layout_participant() && !child_facts.is_floating()
+        };
+        let last_participant = flow_children.iter().copied().rev().find(|&child| participates(child));
         for child in flow_children {
             let child_facts = NodeFacts::new(&callbacks, child);
-            if !child_facts.is_flow_layout_participant() || child_facts.is_floating() {
+            if !participates(child) {
                 continue;
             }
             let Some(child_used) = records.used_values_if_owned(child) else {
@@ -5053,13 +5058,22 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             // Margins cannot collapse out of a BFC root: below the last real in-flow
             // child, the run's trailing collapsed margin (which folds in any trailing
             // collapse-through siblings) replaces that child's own bottom margin.
+            let collapsed = child_used.uses_collapsing_borders_model.get();
             let margin_bottom = match trailing_collapsed_margin {
                 Some((last_real_child, aggregate)) if last_real_child == child => aggregate,
+                // NB: The margins of an empty box collapse through it into those of the boxes after it, which
+                //     are placed past them, so its own bottom margin reaches no further than theirs.
+                _ if Some(child) != last_participant
+                    && child_used.border_box_block_size(collapsed) == CssPixels::default()
+                    && formatting_context::formatting_context_type_created_by_box(child_facts).is_none() =>
+                {
+                    CssPixels::default()
+                }
                 _ => child_used.margin_bottom.get(),
             };
             let child_bottom = child_used.content_offset.get().y
                 + child_used.content_block_size.get()
-                + child_used.border_box_bottom(child_used.uses_collapsing_borders_model.get())
+                + child_used.border_box_bottom(collapsed)
                 + margin_bottom;
             bottom = Some(bottom.map_or(child_bottom, |value: CssPixels| value.max(child_bottom)));
         }

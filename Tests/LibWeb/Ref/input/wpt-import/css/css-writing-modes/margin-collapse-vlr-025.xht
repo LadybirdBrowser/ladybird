@@ -1,0 +1,60 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: 'vertical-lr' and margin collapsing - collapse through empty siblings</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css-writing-modes-3/#logical-direction-layout" title="7.4 Flow-Relative Mappings" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/../reference/ref-filled-green-100px-square.xht" />
+
+  <!--
+  Test adapted from
+  http://test.csswg.org/suites/css2.1/nightly-unstable/html4/margin-collapse-016.htm
+
+  "
+  The margin collapsing rules apply exactly with the block-start margin substituted for the top margin and the block-end margin substituted for the bottom margin.
+  "
+  -->
+
+  <meta content="ahem image" name="flags" />
+  <meta name="assert" content="This test checks that margins can collapse through empty elements in 'vertical-lr' writing-mode." />
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+    {
+      font: 25px/1em Ahem;
+      height: 4em;
+    }
+
+  div#wrapper
+    {
+      background-image: url("support/margin-collapse-2em-space-wm-vert.png");
+      background-position: -1em top;
+      border-left: green solid 1em;
+      border-right: green solid 1em;
+      writing-mode: vertical-lr;
+    }
+
+  div.widthless
+    {
+      margin-right: 2em;
+    }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <div id="wrapper">
+    <div class="widthless"></div>
+    <div class="widthless"></div>
+  </div>
+
+ </body>
+</html>
