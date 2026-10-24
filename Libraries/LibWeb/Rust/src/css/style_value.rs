@@ -11,6 +11,7 @@
 //! [`StyleValueData`] is exposed to C++
 //! through cbindgen so that hot accessors compile to inline field reads with no FFI call.
 
+use crate::css::ffi_support::OwnedArc;
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -420,6 +421,10 @@ impl RetainedStyleValueData {
     pub(crate) fn from_arc(value: Arc<StyleValueData>) -> Self {
         // SAFETY: Arc::into_raw transfers one strong reference to this handle.
         unsafe { Self::from_retained_pointer(Arc::into_raw(value)) }
+    }
+
+    pub(crate) fn from_optional_arc(value: Option<Arc<StyleValueData>>) -> Self {
+        value.map_or_else(Self::none, Self::from_arc)
     }
 
     /// Borrow the handles' pointer storage without copying or transferring ownership.
@@ -3110,13 +3115,13 @@ pub extern "C" fn rust_style_value_create_time(value: f64, unit: u8) -> *const S
 
 /// Takes ownership of one strong reference to each of the numerator and denominator.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_ratio(
-    numerator: *const StyleValueData,
-    denominator: *const StyleValueData,
+pub extern "C" fn rust_style_value_create_ratio(
+    numerator: OwnedArc<StyleValueData>,
+    denominator: OwnedArc<StyleValueData>,
 ) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::Ratio {
-        numerator: unsafe { RetainedStyleValueData::from_retained_pointer(numerator) },
-        denominator: unsafe { RetainedStyleValueData::from_retained_pointer(denominator) },
+        numerator: RetainedStyleValueData::from_arc(numerator.into_arc()),
+        denominator: RetainedStyleValueData::from_arc(denominator.into_arc()),
     }))
 }
 
@@ -3186,25 +3191,25 @@ pub extern "C" fn rust_style_value_create_guaranteed_invalid() -> *const StyleVa
 
 /// Takes ownership of one strong reference to the original shorthand value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_pending_substitution(
-    original_shorthand_value: *const StyleValueData,
+pub extern "C" fn rust_style_value_create_pending_substitution(
+    original_shorthand_value: OwnedArc<StyleValueData>,
 ) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::PendingSubstitution {
-        original_shorthand_value: unsafe { RetainedStyleValueData::from_retained_pointer(original_shorthand_value) },
+        original_shorthand_value: RetainedStyleValueData::from_arc(original_shorthand_value.into_arc()),
     }))
 }
 
 /// Takes ownership of one strong reference to the filter's value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_filter(
+pub extern "C" fn rust_style_value_create_filter(
     kind: u8,
     color_operation: u8,
-    value: *const StyleValueData,
+    value: OwnedArc<StyleValueData>,
 ) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::Filter {
         kind,
         color_operation,
-        value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
+        value: RetainedStyleValueData::from_arc(value.into_arc()),
     }))
 }
 
@@ -3223,44 +3228,44 @@ pub unsafe extern "C" fn rust_style_value_create_custom_ident(custom_ident: usiz
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_function(
     name: usize,
-    value: *const StyleValueData,
+    value: OwnedArc<StyleValueData>,
 ) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::Function {
         name: unsafe { CssString::from_leaked_raw(name) },
-        value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
+        value: RetainedStyleValueData::from_arc(value.into_arc()),
     }))
 }
 
 /// Takes ownership of one strong reference to the angle value data if it is non-null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_font_style(
+pub extern "C" fn rust_style_value_create_font_style(
     font_style: u8,
-    angle_value: *const StyleValueData,
+    angle_value: OwnedArc<StyleValueData>,
 ) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::FontStyle {
         font_style,
-        angle_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(angle_value) },
+        angle_value: RetainedStyleValueData::from_optional_arc(angle_value.into_option()),
     }))
 }
 
 /// Takes ownership of one strong reference to each non-null style value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_shadow(
+pub extern "C" fn rust_style_value_create_shadow(
     shadow_type: u8,
-    color: *const StyleValueData,
-    offset_x: *const StyleValueData,
-    offset_y: *const StyleValueData,
-    blur_radius: *const StyleValueData,
-    spread_distance: *const StyleValueData,
+    color: OwnedArc<StyleValueData>,
+    offset_x: OwnedArc<StyleValueData>,
+    offset_y: OwnedArc<StyleValueData>,
+    blur_radius: OwnedArc<StyleValueData>,
+    spread_distance: OwnedArc<StyleValueData>,
     placement: u8,
 ) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::Shadow {
         shadow_type,
-        color: unsafe { RetainedStyleValueData::from_retained_optional_pointer(color) },
-        offset_x: unsafe { RetainedStyleValueData::from_retained_pointer(offset_x) },
-        offset_y: unsafe { RetainedStyleValueData::from_retained_pointer(offset_y) },
-        blur_radius: unsafe { RetainedStyleValueData::from_retained_optional_pointer(blur_radius) },
-        spread_distance: unsafe { RetainedStyleValueData::from_retained_optional_pointer(spread_distance) },
+        color: RetainedStyleValueData::from_optional_arc(color.into_option()),
+        offset_x: RetainedStyleValueData::from_arc(offset_x.into_arc()),
+        offset_y: RetainedStyleValueData::from_arc(offset_y.into_arc()),
+        blur_radius: RetainedStyleValueData::from_optional_arc(blur_radius.into_option()),
+        spread_distance: RetainedStyleValueData::from_optional_arc(spread_distance.into_option()),
         placement,
     }))
 }
@@ -3438,13 +3443,13 @@ pub unsafe extern "C" fn rust_style_value_create_color_function(
     has_color_type: bool,
     color_type: u8,
     color_syntax: u8,
-    channel_0: *const StyleValueData,
-    channel_1: *const StyleValueData,
-    channel_2: *const StyleValueData,
-    alpha: *const StyleValueData,
+    channel_0: OwnedArc<StyleValueData>,
+    channel_1: OwnedArc<StyleValueData>,
+    channel_2: OwnedArc<StyleValueData>,
+    alpha: OwnedArc<StyleValueData>,
     has_name: bool,
     name: usize,
-    origin_color: *const StyleValueData,
+    origin_color: OwnedArc<StyleValueData>,
 ) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::ColorFunction {
         color_base: ColorBase {
@@ -3452,13 +3457,13 @@ pub unsafe extern "C" fn rust_style_value_create_color_function(
             color_type,
             color_syntax,
         },
-        channel_0: unsafe { RetainedStyleValueData::from_retained_pointer(channel_0) },
-        channel_1: unsafe { RetainedStyleValueData::from_retained_pointer(channel_1) },
-        channel_2: unsafe { RetainedStyleValueData::from_retained_pointer(channel_2) },
-        alpha: unsafe { RetainedStyleValueData::from_retained_optional_pointer(alpha) },
+        channel_0: RetainedStyleValueData::from_arc(channel_0.into_arc()),
+        channel_1: RetainedStyleValueData::from_arc(channel_1.into_arc()),
+        channel_2: RetainedStyleValueData::from_arc(channel_2.into_arc()),
+        alpha: RetainedStyleValueData::from_optional_arc(alpha.into_option()),
         has_name,
         name: unsafe { CssString::from_leaked_raw(name) },
-        origin_color: unsafe { RetainedStyleValueData::from_retained_optional_pointer(origin_color) },
+        origin_color: RetainedStyleValueData::from_optional_arc(origin_color.into_option()),
     }))
 }
 

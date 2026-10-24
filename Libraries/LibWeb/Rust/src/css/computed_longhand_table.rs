@@ -1452,21 +1452,18 @@ pub extern "C" fn rust_computed_longhand_table_create_with_inherited_values(
 /// winning declaration's cascade source slot when its value carries style
 /// sheet context, and -1 otherwise; storing without a slot clears any slot a
 /// previous store recorded for the longhand.
-///
-/// # Safety
-/// `table` must be a valid, unfrozen, uniquely owned table and `data` must
-/// point at live `StyleValueData`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_set(
+pub extern "C" fn rust_computed_longhand_table_set(
     table: &mut ComputedLonghandTable,
     property_id: u16,
-    data: *const c_void,
+    data: crate::css::ffi_support::ArcRef<'_, StyleValueData>,
     source_slot: i64,
 ) {
-    let value = unsafe {
-        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(data.cast()))
-    };
-    table.set(property_id, value, source_slot);
+    table.set(
+        property_id,
+        RetainedStyleValueData::from_arc(data.to_arc()),
+        source_slot,
+    );
 }
 
 /// Replaces the table's contents with `source`'s, for the C++ builder that

@@ -7095,18 +7095,12 @@ fn expand_shorthands(property_id: u16, data: &RetainedStyleValueData) -> Shortha
 
 /// Expands a declared property into one owned batch of longhand assignments, recursing through
 /// shorthand and pending-substitution values.
-///
-/// # Safety
-/// `data` must point to live Rust-owned style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_expand_property_shorthands(
+pub extern "C" fn rust_expand_property_shorthands(
     property_id: u16,
-    data: *const c_void,
+    data: crate::css::ffi_support::ArcRef<'_, StyleValueData>,
 ) -> FfiShorthandExpansion {
-    // SAFETY: Guaranteed by the caller.
-    let data = unsafe {
-        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(data.cast()))
-    };
+    let data = RetainedStyleValueData::from_arc(data.to_arc());
     let expansion = Box::new(expand_shorthands(property_id, &data));
     let properties = expansion.properties.as_ptr();
     let count = expansion.properties.len();

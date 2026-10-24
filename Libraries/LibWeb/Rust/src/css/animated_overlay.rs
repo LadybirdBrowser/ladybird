@@ -224,21 +224,15 @@ pub extern "C" fn rust_animated_overlay_free(overlay: OwnedBox<AnimatedOverlay>)
 }
 
 /// Stores or replaces the overlay entry for a longhand, retaining `value`.
-///
-/// # Safety
-/// `overlay` must be a valid overlay and `value` must point at live style
-/// value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_overlay_set(
+pub extern "C" fn rust_animated_overlay_set(
     overlay: &mut AnimatedOverlay,
     property: u16,
-    value: *const c_void,
+    value: crate::css::ffi_support::ArcRef<'_, StyleValueData>,
     inherited: bool,
     result_of_transition: bool,
 ) {
-    let retained = unsafe {
-        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value.cast()))
-    };
+    let retained = RetainedStyleValueData::from_arc(value.to_arc());
     overlay.set_owned(property, retained, inherited, result_of_transition);
 }
 
