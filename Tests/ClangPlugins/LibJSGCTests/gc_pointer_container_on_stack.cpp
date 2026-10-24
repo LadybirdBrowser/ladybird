@@ -104,9 +104,60 @@ void lambda_local()
     }();
 }
 
+// expected-error@+1 {{'Vector<GC::Ref<GC::Cell>>' keeps GC pointers in heap memory that is not scanned for roots}}
 void parameter_by_value(Vector<GC::Ref<GC::Cell>> cells, State& state)
 {
     state.cells = move(cells);
+}
+
+// expected-error@+1 {{'Vector<GC::Ref<GC::Cell>>' keeps GC pointers in heap memory that is not scanned for roots}}
+void state_by_value(State state)
+{
+    (void)state;
+}
+
+void declared_without_body(Vector<GC::Ref<GC::Cell>>);
+
+class Holder {
+public:
+    // expected-error@+1 {{keeps GC pointers in heap memory that is not scanned for roots}}
+    Holder(Vector<GC::Ref<GC::Cell>> cells)
+        : m_cells(move(cells))
+    {
+    }
+
+    Holder(Vector<GC::Ref<GC::Cell>>&& cells, int)
+        : m_cells(move(cells))
+    {
+    }
+
+    void set_cells(Vector<GC::Ref<GC::Cell>>&& cells) { m_cells = move(cells); }
+
+    void declared_elsewhere(Vector<GC::Ref<GC::Cell>>);
+
+private:
+    Vector<GC::Ref<GC::Cell>> m_cells;
+};
+
+// expected-error@+1 {{keeps GC pointers in heap memory that is not scanned for roots}}
+void Holder::declared_elsewhere(Vector<GC::Ref<GC::Cell>> cells)
+{
+    m_cells = move(cells);
+}
+
+void lambda_parameter()
+{
+    // expected-error@+1 {{keeps GC pointers in heap memory that is not scanned for roots}}
+    auto lambda = [](Vector<GC::Ref<GC::Cell>> cells) { (void)cells; };
+    (void)lambda;
+}
+
+void rooted_or_borrowed_parameters(GC::RootVector<GC::Ref<GC::Cell>> root_vector, Vector<GC::Ref<GC::Cell>> const& reference, Vector<GC::Ref<GC::Cell>>&& rvalue_reference, Span<GC::Ref<GC::Cell>> span)
+{
+    (void)root_vector;
+    (void)reference;
+    (void)rvalue_reference;
+    (void)span;
 }
 
 void rooted_or_not_holding_gc_pointers(State& state)
