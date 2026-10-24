@@ -262,10 +262,9 @@ DecoderErrorOr<bool> DecodedAudioProducer::ThreadData::replace_drained_decoder()
         return false;
     auto frame = m_frame_awaiting_decoder_replacement.release_value();
     m_converter->flush();
-    if (!frame.new_codec_configuration().has_value()) {
-        TRY(m_demuxer->seek_to_most_recent_keyframe(m_track, frame.presentation_timestamp(), DemuxerSeekOptions::Force | DemuxerSeekOptions::NeedCodecConfiguration));
-        frame = TRY(m_demuxer->get_next_sample_for_track(m_track));
-    }
+    m_decoder.clear();
+    if (!frame.new_codec_configuration().has_value())
+        return DecoderError::with_description(DecoderErrorCategory::NeedsResubmission, "The frame awaiting a new decoder carries no codec configuration"sv);
     TRY(create_decoder_for_frame(frame));
     TRY(receive_into_decoder(frame));
     return true;
@@ -385,7 +384,6 @@ bool DecodedAudioProducer::ThreadData::handle_auto_suspension()
 
     m_queue.clear();
     m_decoder.clear();
-    m_decoder_needs_codec_configuration_next_seek = true;
     m_auto_suspend_requested = false;
     m_current_halting_status = PipelineStatus::Suspended;
     // The consumer's last peek predates the suspension, so wake it regardless of what it saw.
@@ -496,10 +494,12 @@ bool DecodedAudioProducer::ThreadData::seek_to_replace_decoder_if_it_cannot_deco
 
 void DecodedAudioProducer::ThreadData::seek_to_resubmit_while_locked()
 {
-    m_decoder_needs_codec_configuration_next_seek = true;
-    if (m_last_processed_seek_id == m_seek_id)
-        m_seek_timestamp = m_earliest_available_timestamp;
+    m_seek_reason = SeekReason::DecoderResetNeeded;
+    auto seek_is_pending = m_last_processed_seek_id != m_seek_id;
     m_seek_id++;
+    // Interrupt the decode loop without hiding the held blocks from peek().
+    if (!seek_is_pending)
+        m_last_processed_seek_id = m_seek_id.load();
     m_downstream_needs_wake = true;
 }
 
@@ -508,33 +508,52 @@ void DecodedAudioProducer::ThreadData::handle_seek()
     VERIFY(m_decode_thread_id.is_current_thread());
 
     auto seek_id = m_seek_id.load();
-    if (m_last_processed_seek_id == seek_id)
+    auto seek_was_externally_requested = seek_id != m_last_processed_seek_id;
+    auto seek_reason = m_seek_reason;
+    if (!seek_was_externally_requested && seek_reason != SeekReason::DecoderResetNeeded)
         return;
 
     AK::Duration timestamp;
     AudioBlock last_block;
 
+    auto resolve_handled_seek_while_locked = [&] {
+        resolve_seek(seek_id);
+        if (m_seek_id == seek_id)
+            m_seek_reason = SeekReason::Normal;
+    };
+
     auto handle_error = [&](DecoderError&& error) {
         auto locker = take_lock();
         enter_halting_state(PipelineStatus::Error, move(error));
-        resolve_seek(seek_id);
+        resolve_handled_seek_while_locked();
     };
 
     while (true) {
         {
             auto locker = take_lock();
             seek_id = m_seek_id;
+            seek_was_externally_requested = seek_id != m_last_processed_seek_id;
+            seek_reason = m_seek_reason;
+
             timestamp = m_seek_timestamp;
             m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
-            m_queue.clear();
-            m_earliest_available_timestamp = timestamp;
+
+            if (seek_reason == SeekReason::DecoderResetNeeded && !seek_was_externally_requested) {
+                timestamp = m_earliest_available_timestamp;
+                if (!m_queue.is_empty())
+                    timestamp = m_queue.tail().block.media_time_end();
+            } else {
+                m_queue.clear();
+                m_earliest_available_timestamp = timestamp;
+            }
+
             m_current_halting_status = PipelineStatus::Pending;
             m_frame_awaiting_decoder_replacement.clear();
         }
 
         // All of our audio codecs have independently decodable frames, so always moving the demuxer is cheap.
         auto seek_options = DemuxerSeekOptions::Force;
-        if (m_decoder_needs_codec_configuration_next_seek)
+        if (m_decoder == nullptr)
             seek_options |= DemuxerSeekOptions::NeedCodecConfiguration;
         auto demuxer_seek_result_or_error = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp, seek_options);
         if (demuxer_seek_result_or_error.is_error() && demuxer_seek_result_or_error.error().category() != DecoderErrorCategory::EndOfStream) {
@@ -543,8 +562,6 @@ void DecodedAudioProducer::ThreadData::handle_seek()
             handle_error(demuxer_seek_result_or_error.release_error());
             return;
         }
-
-        m_decoder_needs_codec_configuration_next_seek = false;
 
         flush_decoder();
         last_block.clear();
@@ -573,7 +590,7 @@ void DecodedAudioProducer::ThreadData::handle_seek()
                             continue;
 
                         auto locker = take_lock();
-                        resolve_seek(seek_id);
+                        resolve_handled_seek_while_locked();
                         if (!last_block.is_empty())
                             queue_block(last_block);
                         return;
@@ -592,14 +609,14 @@ void DecodedAudioProducer::ThreadData::handle_seek()
 
                 if (current_block.contains_media_time(timestamp)) {
                     auto locker = take_lock();
-                    resolve_seek(seek_id);
+                    resolve_handled_seek_while_locked();
                     queue_block(current_block);
                     return;
                 }
 
                 if (current_block.media_time_start() > timestamp) {
                     auto locker = take_lock();
-                    resolve_seek(seek_id);
+                    resolve_handled_seek_while_locked();
 
                     if (!last_block.is_empty())
                         queue_block(last_block);
@@ -621,7 +638,7 @@ void DecodedAudioProducer::ThreadData::handle_seek()
                 if (category == DecoderErrorCategory::EndOfStream) {
                     if (m_decoder == nullptr) {
                         auto locker = take_lock();
-                        resolve_seek(seek_id);
+                        resolve_handled_seek_while_locked();
                         return;
                     }
                     m_decoder->signal_end_of_stream();

@@ -80,7 +80,7 @@ private:
         DecoderErrorOr<void> receive_into_decoder(CodedFrame const&, DecodeIntent);
         DecoderErrorOr<void> create_decoder_for_frame(CodedFrame const&);
         DecoderErrorOr<void> receive_coded_frame(CodedFrame const&, DecodeIntent);
-        DecoderErrorOr<bool> replace_drained_decoder(u32 seek_id);
+        DecoderErrorOr<bool> replace_drained_decoder();
         bool check_if_seek_is_needed_or_allow_demuxer_reads(u32 seek_id);
         void release_decoder();
         void exit();
@@ -159,7 +159,6 @@ private:
         OwnPtr<VideoDecoder> m_decoder;
         NonReferenceFrameDetector m_non_reference_frame_detector;
         bool m_decoder_needs_keyframe_next_seek { false };
-        bool m_decoder_needs_codec_configuration_next_seek { true };
 
         FrameQueue m_queue;
         RefPtr<VideoFrame> m_last_queued_frame;
@@ -169,11 +168,16 @@ private:
         ReadBlockedChangeHandler m_read_blocked_change_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
 
+        enum class SeekReason : u8 {
+            Normal,
+            DecoderResetNeeded,
+            DataInvalidated,
+        };
+
         Atomic<u32> m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };
         AK::Duration m_seek_timestamp;
-        // Stays set until a seek discards the queue, so that a later seek cannot resolve from the stale frames.
-        bool m_held_frames_are_invalid { false };
+        Atomic<SeekReason> m_seek_reason { SeekReason::Normal };
 
         SynchronizedWakeHandler m_wake_handler;
         mutable bool m_downstream_needs_wake { true };
