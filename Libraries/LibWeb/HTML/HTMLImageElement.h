@@ -120,6 +120,14 @@ public:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
+    CSSPixelSize density_corrected_natural_width_and_height() const;
+    struct Dimensions {
+        double width { 0 };
+        double height { 0 };
+    };
+    Dimensions dimensions(DOM::UpdateLayoutReason) const;
+    Dimensions determine_the_dimensions(Optional<CSSPixelSize> natural_dimensions, DOM::UpdateLayoutReason) const;
+
     HTMLImageElement(DOM::Document&, DOM::QualifiedName);
 
     void update_the_image_data_impl(bool restart_the_animations, bool maybe_omit_events, u64 update_the_image_data_count);
