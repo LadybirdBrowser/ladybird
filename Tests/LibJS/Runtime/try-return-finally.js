@@ -78,3 +78,99 @@ test("return from async through finally", () => {
         expect(value).toEqual({ y: 5 });
     });
 });
+
+test("return through a for-of loop restores the environment for finally", () => {
+    let capturedT;
+    function f() {
+        let a = "a";
+        try {
+            {
+                let t = "t";
+                capturedT = () => t;
+                for (const x of [1, 2]) {
+                    return () => a;
+                }
+            }
+        } finally {
+            a = "assigned";
+        }
+    }
+
+    const capturedA = f();
+    expect(capturedA()).toBe("assigned");
+    expect(capturedT()).toBe("t");
+});
+
+test("return through a nested try/finally restores the environment for finally", () => {
+    let capturedT;
+    function f() {
+        let a = "a";
+        try {
+            {
+                let t = "t";
+                capturedT = () => t;
+                try {
+                    return () => a;
+                } finally {
+                }
+            }
+        } finally {
+            a = "assigned";
+        }
+    }
+
+    const capturedA = f();
+    expect(capturedA()).toBe("assigned");
+    expect(capturedT()).toBe("t");
+});
+
+test("generator return through a for-of loop restores the environment for finally", () => {
+    let capturedA;
+    let capturedT;
+    function* g() {
+        let a = "a";
+        capturedA = () => a;
+        try {
+            {
+                let t = "t";
+                capturedT = () => t;
+                for (const x of [1, 2]) {
+                    yield 1;
+                }
+            }
+        } finally {
+            a = "assigned";
+        }
+    }
+
+    const generator = g();
+    generator.next();
+    generator.return();
+    expect(capturedA()).toBe("assigned");
+    expect(capturedT()).toBe("t");
+});
+
+test("generator return through an array destructuring restores the environment for finally", () => {
+    let capturedA;
+    let capturedT;
+    function* g() {
+        let a = "a";
+        capturedA = () => a;
+        try {
+            {
+                let t = "t";
+                capturedT = () => t;
+                let x;
+                [x = yield] = [undefined];
+            }
+        } finally {
+            a = "assigned";
+        }
+    }
+
+    const generator = g();
+    generator.next();
+    generator.return();
+    expect(capturedA()).toBe("assigned");
+    expect(capturedT()).toBe("t");
+});

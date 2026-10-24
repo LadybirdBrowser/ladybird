@@ -1849,6 +1849,29 @@ impl Generator {
         }
     }
 
+    pub fn forward_completion_to_outer_finally(
+        &mut self,
+        outer_index: usize,
+        completion_type: &ScopedOperand,
+        completion_value: &ScopedOperand,
+    ) {
+        let outer = &self.finally_contexts[outer_index];
+        let outer_completion_type = outer.completion_type.clone();
+        let outer_completion_value = outer.completion_value.clone();
+        let outer_finally_body = outer.finally_body;
+        let outer_environment = outer.lexical_environment_at_entry.clone();
+        self.emit_mov(&outer_completion_type, completion_type);
+        self.emit_mov(&outer_completion_value, completion_value);
+        if let Some(environment) = outer_environment {
+            self.emit(Instruction::SetLexicalEnvironment {
+                environment: environment.operand(),
+            });
+        }
+        self.emit(Instruction::Jump {
+            target: outer_finally_body,
+        });
+    }
+
     pub fn add_constant_i32(&mut self, val: i32) -> ScopedOperand {
         self.add_constant_number(val as f64)
     }
