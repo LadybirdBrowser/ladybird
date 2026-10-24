@@ -294,20 +294,36 @@ intptr_t TransportMachPort::io_thread_loop()
     auto buffer = Vector<u8>();
     buffer.resize(RECV_BUFFER_SIZE);
 
+    // Messages the peer's queue had no room for. They stay here, in order, ahead of anything posted since, and the
+    // loop keeps receiving while it retries them: a thread that blocked in a send would stop draining its own queue,
+    // and two such threads facing each other would wait on each other for good. The ones already sent stay in place
+    // behind a cursor until the whole backlog has gone, so a retry costs nothing per message still waiting.
+    Vector<PendingMessage> backlog;
+    size_t backlog_sent = 0;
+
     for (;;) {
         if (m_io_thread_state.load() == IOThreadState::Stopped)
             break;
 
-        Vector<PendingMessage> messages_to_send;
         {
             MutexLocker locker(m_send_mutex);
-            messages_to_send = move(m_pending_send_messages);
-            if (!messages_to_send.is_empty())
+            backlog.extend(move(m_pending_send_messages));
+            m_pending_send_messages.clear();
+            if (backlog_sent < backlog.size())
                 m_send_in_progress = true;
         }
-        for (auto& message : messages_to_send)
-            send_mach_message(message);
-        if (!messages_to_send.is_empty()) {
+        bool const had_messages_to_send = backlog_sent < backlog.size();
+        while (backlog_sent < backlog.size()) {
+            if (send_mach_message(backlog[backlog_sent]) == SendOutcome::WouldBlock)
+                break;
+            ++backlog_sent;
+        }
+        bool const backlog_is_empty = backlog_sent == backlog.size();
+        if (backlog_is_empty) {
+            backlog.clear();
+            backlog_sent = 0;
+        }
+        if (had_messages_to_send && backlog_is_empty) {
             MutexLocker locker(m_send_mutex);
             m_send_in_progress = false;
             m_sent_cv.broadcast();
@@ -315,17 +331,27 @@ intptr_t TransportMachPort::io_thread_loop()
 
         if (m_io_thread_state.load() == IOThreadState::SendPendingMessagesAndStop) {
             MutexLocker locker(m_send_mutex);
-            if (!m_pending_send_messages.is_empty())
+            if (m_pending_send_messages.is_empty() && backlog_is_empty) {
+                m_io_thread_state = IOThreadState::Stopped;
+                break;
+            }
+            // Newly posted messages go out at the top of the loop. A backlog waits for the peer, so the timed receive
+            // below is where this thread waits for it, rather than spinning on the send.
+            if (backlog_is_empty)
                 continue;
-            m_io_thread_state = IOThreadState::Stopped;
-            break;
         }
 
         auto* header = reinterpret_cast<mach_msg_header_t*>(buffer.data());
         // Wait on the whole port set so one loop can handle peer messages, internal wakeups, and kernel
         // notifications like MACH_NOTIFY_NO_SENDERS.
-        auto const ret = mach_msg(header, MACH_RCV_MSG | MACH_RCV_LARGE, 0, buffer.size(),
-            m_port_set.port(), MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+        // With a backlog, the wait is short, so the sends are retried as the peer makes room.
+        auto const receive_options = MACH_RCV_MSG | MACH_RCV_LARGE | (backlog_is_empty ? 0 : MACH_RCV_TIMEOUT);
+        auto const receive_timeout = backlog_is_empty ? MACH_MSG_TIMEOUT_NONE : 1;
+        auto const ret = mach_msg(header, receive_options, 0, buffer.size(),
+            m_port_set.port(), receive_timeout, MACH_PORT_NULL);
+
+        if (ret == MACH_RCV_TIMED_OUT)
+            continue;
 
         if (ret == MACH_RCV_TOO_LARGE) {
             auto needed_size = header->msgh_size + sizeof(mach_msg_trailer_t);
@@ -387,7 +413,7 @@ intptr_t TransportMachPort::io_thread_loop()
     return 0;
 }
 
-void TransportMachPort::send_mach_message(PendingMessage& msg)
+TransportMachPort::SendOutcome TransportMachPort::send_mach_message(PendingMessage& msg)
 {
     auto const& bytes = msg.bytes;
     auto& attachments = msg.attachments;
@@ -458,7 +484,26 @@ void TransportMachPort::send_mach_message(PendingMessage& msg)
 
     // Send one Mach message so attachment right transfer stays atomic with the serialized IPC payload.
     // Small payloads are copied inline to avoid allocating a VM region for the out-of-line descriptor path.
-    auto const ret = mach_msg(header, MACH_SEND_MSG, msg_size, 0, MACH_PORT_NULL, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+    // A message that carries nothing but bytes can wait its turn in user space when the peer's queue is full: it is
+    // rebuilt from msg.bytes on every try. A timed-out send comes back pseudo-received, holding what the kernel took
+    // in for it: a send right of its own on the destination, and for an out-of-line payload a copy the kernel made.
+    // Both are released here, or every timeout would leave a right behind and the peer would never hear that its
+    // last sender was gone. One with port rights can't be retried as is — the rights come back changed under it —
+    // so those still wait in the kernel.
+    bool const may_wait_in_user_space = port_count == 0;
+    auto const send_options = MACH_SEND_MSG | (may_wait_in_user_space ? MACH_SEND_TIMEOUT : 0);
+    auto const send_timeout = may_wait_in_user_space ? 0 : MACH_MSG_TIMEOUT_NONE;
+    auto const ret = mach_msg(header, send_options, msg_size, 0, MACH_PORT_NULL, send_timeout, MACH_PORT_NULL);
+    if (ret == MACH_SEND_TIMED_OUT) {
+        if (MACH_MSGH_BITS_REMOTE(header->msgh_bits) == MACH_MSG_TYPE_MOVE_SEND && header->msgh_remote_port != MACH_PORT_NULL)
+            mach_port_deallocate(mach_task_self(), header->msgh_remote_port);
+        if (!send_payload_inline) {
+            auto* ool_desc = reinterpret_cast<mach_msg_ool_descriptor_t*>(&port_descriptors[port_count]);
+            if (ool_desc->address && ool_desc->address != bytes.data())
+                vm_deallocate(mach_task_self(), reinterpret_cast<vm_address_t>(ool_desc->address), ool_desc->size);
+        }
+        return SendOutcome::WouldBlock;
+    }
     if (ret != KERN_SUCCESS) {
         if (ret == MACH_SEND_INVALID_DEST) {
             for (size_t i = 0; i < port_count; ++i) {
@@ -469,6 +514,7 @@ void TransportMachPort::send_mach_message(PendingMessage& msg)
         dbgln("TransportMachPort: send failed: {} (send_port={:x})", mach_error_string(ret), m_send_port.port());
         mark_peer_eof();
     }
+    return SendOutcome::Sent;
 }
 
 void TransportMachPort::process_received_message(u8* buffer)
