@@ -25,6 +25,7 @@ namespace Gfx {
 namespace FFI {
 
 struct PathGeometry;
+struct PathGeometryData;
 
 }
 
@@ -51,6 +52,8 @@ enum class PathVerb : u8 {
 // The contours of a path, valid until the path changes or is destroyed. A path with a point that is not finite has
 // none.
 struct PathData {
+    static PathData from_ffi(FFI::PathGeometryData const&);
+
     ReadonlySpan<PathVerb> verbs;
     ReadonlySpan<FloatPoint> points;
     ReadonlySpan<float> conic_weights;

@@ -442,7 +442,7 @@ sk_sp<SkTextBlob> DisplayListRasterCache::text_blob(DisplayListResourceStorage c
     return blob;
 }
 
-SkPath DisplayListRasterCache::clip_path(u64 path_identity, Gfx::Path const& path)
+SkPath DisplayListRasterCache::clip_path(u64 path_identity, Gfx::PathData const& path)
 {
     if (auto it = m_clip_paths.find(path_identity); it != m_clip_paths.end())
         return it->value->path;

@@ -78,7 +78,7 @@ struct DisplayListPlayer::ReplayCallbacks {
                 return static_cast<DisplayListPlayer*>(context)->would_be_fully_clipped_by_painter(rect);
             },
             .push_clip = [](void* context, ReplayClip const* clip) { static_cast<DisplayListPlayer*>(context)->push_clip(*clip); },
-            .push_clip_path = [](void* context, void const* path, u64 path_identity, Gfx::WindingRule winding_rule) { static_cast<DisplayListPlayer*>(context)->push_clip_path(*static_cast<Gfx::Path const*>(path), path_identity, winding_rule); },
+            .push_clip_path = [](void* context, Gfx::FFI::PathGeometryData const* path, u64 path_identity, Gfx::WindingRule winding_rule) { static_cast<DisplayListPlayer*>(context)->push_clip_path(Gfx::PathData::from_ffi(*path), path_identity, winding_rule); },
             .push_layer = [](void* context, ReplayLayer const* layer) { static_cast<DisplayListPlayer*>(context)->push_layer(*layer); },
             .push_mask = [](void* context, ReplayMask const* mask, ReplayLayer const* backdrop) { static_cast<DisplayListPlayer*>(context)->push_mask(*mask, backdrop); },
             .pop_mask = [](void* context, ReplayMask const* mask, EffectNodeIndex effect) { static_cast<DisplayListPlayer*>(context)->pop_mask(*mask, effect); },
