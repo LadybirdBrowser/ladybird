@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // An isolated iframe's policy blocks its navigation of a sibling that another process hosts. The violation
+    // belongs to the source iframe, so the document the sibling is showing sees no securitypolicyviolation event.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const targetHostname = uniqueLocalhostHostname("oop-violation-target");
+
+        const echo = async (path, headers, body, hostname) => {
+            const url = new URL(
+                await httpServer.createEcho("GET", path, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html", ...headers },
+                    body,
+                })
+            );
+            url.hostname = hostname;
+            return url;
+        };
+
+        const targetFirstUrl = await echo(
+            `/oop-violation-target-first-${runId}`,
+            {},
+            `<!DOCTYPE html>first<script>
+                document.addEventListener("securitypolicyviolation", () => top.postMessage("securitypolicyviolation fired in the sibling", "*"));
+            <\/script>`,
+            targetHostname
+        );
+        const targetSecondUrl = await echo(
+            `/oop-violation-target-second-${runId}`,
+            {},
+            `<!DOCTYPE html><script>top.postMessage("sibling navigated", "*");<\/script>`,
+            targetHostname
+        );
+        const blockedUrl = await echo(
+            `/oop-violation-blocked-${runId}`,
+            {},
+            `<!DOCTYPE html><script>top.postMessage("blocked navigation went through", "*");<\/script>`,
+            uniqueLocalhostHostname("oop-violation-blocked")
+        );
+        const sourceUrl = await echo(
+            `/oop-violation-source-${runId}`,
+            { "Content-Security-Policy": `frame-src ${targetSecondUrl.origin}` },
+            `<!DOCTYPE html>
+            <a id="blocked" target="target" href="${blockedUrl.href}">blocked</a>
+            <a id="allowed" target="target" href="${targetSecondUrl.href}">allowed</a>
+            <script>
+                addEventListener("message", () => document.getElementById("allowed").click());
+                document.getElementById("blocked").click();
+            <\/script>`,
+            uniqueLocalhostHostname("oop-violation-source")
+        );
+
+        const target = document.createElement("iframe");
+        target.name = "target";
+        target.src = targetFirstUrl;
+        document.body.appendChild(target);
+        await new Promise(resolve => (target.onload = resolve));
+
+        const messages = [];
+        const navigated = new Promise(resolve => {
+            addEventListener("message", event => {
+                messages.push(event.data);
+                if (event.data === "sibling navigated")
+                    resolve();
+            });
+        });
+        const blockedNavigationLoaded = new Promise(resolve => target.addEventListener("load", resolve, { once: true }));
+
+        const source = document.createElement("iframe");
+        source.src = sourceUrl;
+        document.body.appendChild(source);
+
+        // The source navigates the sibling again only once its blocked navigation has finished.
+        await blockedNavigationLoaded;
+        source.contentWindow.postMessage("navigate the sibling", "*");
+        await navigated;
+
+        for (const message of messages)
+            println(message);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

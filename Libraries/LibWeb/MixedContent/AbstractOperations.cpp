@@ -67,6 +67,8 @@ ProhibitsMixedSecurityContexts does_settings_prohibit_mixed_security_contexts(GC
         return ProhibitsMixedSecurityContexts::ProhibitsMixedSecurityContexts;
 
     // 2. If settings’ global object is a window, then:
+    // FIXME: A settings object standing in for an environment another process hosts reads the global object it
+    //        borrows here, not the one of the environment it stands for.
     if (auto* window = HTML::window_from_global_object(settings->global_object())) {
         // 1. Set document to settings’ global object's associated Document.
         auto document = window->document();
