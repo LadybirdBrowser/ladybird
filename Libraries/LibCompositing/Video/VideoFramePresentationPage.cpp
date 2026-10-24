@@ -7,6 +7,7 @@
 #include <LibCompositing/Video/VideoFramePresentationPage.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibMediaCodecs/Limits.h>
 
 namespace Compositing {
 
@@ -91,7 +92,12 @@ void VideoFramePresentationPage::publish_presented_frame(PresentedFrame const& p
 
 Optional<VideoFramePresentationPage::PresentedFrame> VideoFramePresentationPage::presented_frame() const
 {
-    return m_shared_state->presented_frame.read();
+    auto presented_frame = m_shared_state->presented_frame.read();
+    if (!presented_frame.has_value())
+        return {};
+    if (presented_frame->width > Media::MAX_VIDEO_FRAME_DIMENSION || presented_frame->height > Media::MAX_VIDEO_FRAME_DIMENSION)
+        return {};
+    return presented_frame;
 }
 
 VideoFramePresentationPage::ReleaseResult VideoFramePresentationPage::release_hold_if_current(u64 generation)
