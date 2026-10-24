@@ -29,9 +29,11 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
+#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
@@ -446,7 +448,7 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
         if (element.type_state() == HTMLInputElement::TypeAttributeState::Color) {
             auto weak_element = GC::Weak<HTMLInputElement> { element };
             element.set_is_open(true);
-            element.document().page().did_request_color_picker(weak_element, Color::from_utf16_string(element.value()).value_or(Color(0, 0, 0)));
+            element.document().page().did_request_color_picker(weak_element, element.value_as_color());
         }
     }
 }
@@ -579,8 +581,8 @@ void HTMLInputElement::did_pick_color(Optional<Color> picked_color, ColorPickerU
 {
     if (type_state() == TypeAttributeState::Color && picked_color.has_value()) {
         // then when the user changes the element's value
-        m_value = value_sanitization_algorithm(picked_color->to_utf16_string_without_alpha());
         m_dirty_value = true;
+        m_value = value_sanitization_algorithm(picked_color->to_utf16_string_without_alpha());
 
         update_color_well_element();
 
@@ -1663,6 +1665,18 @@ void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString 
 
             update_shadow_tree();
         }
+    } else if (name == HTML::AttributeNames::alpha || name == HTML::AttributeNames::colorspace) {
+        // https://html.spec.whatwg.org/multipage/input.html#color-state-(type=color)
+        // Whenever the element's alpha or colorspace attributes are changed, the user agent must run update a color
+        // well control color given the element.
+        if (type_state() == TypeAttributeState::Color) {
+            auto old_value = move(m_value);
+            m_value = update_a_color_well_control_color(old_value);
+            if (m_value != old_value) {
+                relevant_value_was_changed();
+                update_color_well_element();
+            }
+        }
     } else if (name == HTML::AttributeNames::placeholder) {
         if (m_placeholder_text_node) {
             m_placeholder_text_node->set_data(placeholder());
@@ -1934,21 +1948,157 @@ bool HTMLInputElement::can_have_text_editing_cursor() const
     return true;
 }
 
-// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-simple-colour
-static bool is_valid_simple_color(Utf16View const& value)
+// https://drafts.csswg.org/css-color/#parse-a-css-color-value
+static RefPtr<CSS::StyleValue const> parse_a_css_color_value(Utf16View input)
 {
-    // if it is exactly seven characters long,
-    if (value.length_in_code_units() != 7)
-        return false;
-    // and the first character is a U+0023 NUMBER SIGN character (#),
-    if (!value.starts_with('#'))
-        return false;
-    // and the remaining six characters are all ASCII hex digits
-    for (size_t i = 1; i < value.length_in_code_units(); i++)
-        if (!is_ascii_hex_digit(value.code_unit_at(i)))
-            return false;
+    // 1. Parse input as a <color>. If the result is failure, return failure; otherwise, let color be the result.
+    auto color = parse_css_type(CSS::Parser::ParsingParams {}, input, CSS::ValueType::Color);
+    if (!color)
+        return nullptr;
 
-    return true;
+    // 3. Let used color be the result of resolving color to a used color. If the value of other properties on the
+    //    element a <color> is on is required to do the resolution (such as resolving a 'currentcolor' or system
+    //    color), use element if it was passed, or the initial values of the properties if not.
+    // 4. Return used color.
+    // NB: The used color is resolved against the initial values when it is converted to a color space.
+    return color;
+}
+
+// NB: Resolves color to a used color against the initial values of the properties, and converts it to the color
+//     space of color_type.
+static Array<float, 4> used_color_components_in_color_space(CSS::StyleValue const& color, CSS::ColorStyleValue::ColorType color_type)
+{
+    auto resolved = CSS::StyleValueFFI::rust_style_value_to_color_components(color.rust_style_value_data(), nullptr, to_underlying(color_type));
+    if (!resolved.resolved)
+        return { 0, 0, 0, 1 };
+
+    // NB: Converting a color with infinite components to another color space can produce infinite or NaN
+    //     components, which serialize to strings that do not parse as a color. Keep the components finite.
+    Array<float, 4> components;
+    for (size_t i = 0; i < components.size(); ++i) {
+        auto component = resolved.components[i];
+        components[i] = isnan(component) ? 0.0f : clamp(component, NumericLimits<float>::lowest(), NumericLimits<float>::max());
+    }
+    return components;
+}
+
+Color HTMLInputElement::value_as_color() const
+{
+    auto color = parse_a_css_color_value(m_value);
+    if (!color)
+        return Color::Black;
+    return color->to_color({}).value_or(Color::Black);
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#update-a-color-well-control-color
+// NB: This returns the string that the element's value is set to, as the value sanitization algorithm does.
+//     Callers that are about to set the element's value to element_value pass it, as the value sanitization
+//     algorithm runs before the new value is stored.
+Utf16String HTMLInputElement::update_a_color_well_control_color(Utf16View element_value) const
+{
+    // 1. Assert: element is an input element whose type attribute is in the Color state.
+    VERIFY(type_state() == TypeAttributeState::Color);
+
+    // 2. Let value be the result of running these steps:
+    auto value = [&] {
+        // 1. If element's dirty value flag is false, then return the result of getting an attribute by namespace and
+        //    local name given null, "value", and element.
+        if (!m_dirty_value)
+            return get_attribute_value(AttributeNames::value);
+
+        // 2. Return element's value.
+        return Utf16String::from_utf16(element_value);
+    }();
+
+    // 3. Let color be the result of parsing value.
+    auto color = parse_a_css_color_value(value);
+
+    // 4. If color is failure, then set color to opaque black.
+    if (!color)
+        color = CSS::ColorStyleValue::create_from_color(Color::Black, CSS::ColorSyntax::Legacy);
+
+    // 5. Set element's value to the result of serializing a color well control color given element and color.
+    return serialize_a_color_well_control_color(*color);
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#attr-input-colorspace
+HTMLInputElement::ColorSpaceState HTMLInputElement::color_space_state() const
+{
+    // The attribute's missing value default and invalid value default are both the Limited sRGB state.
+    if (auto value = attribute(AttributeNames::colorspace); value.has_value() && value->equals_ignoring_ascii_case(u"display-p3"sv))
+        return ColorSpaceState::DisplayP3;
+    return ColorSpaceState::LimitedSRGB;
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#serialize-a-color-well-control-color
+Utf16String HTMLInputElement::serialize_a_color_well_control_color(CSS::StyleValue const& color) const
+{
+    // 1. Assert: element is an input element whose type attribute is in the Color state.
+    VERIFY(type_state() == TypeAttributeState::Color);
+
+    // 2. Let htmlCompatible be false.
+    bool html_compatible = false;
+
+    // 3. If element's alpha attribute is not specified, then set color's alpha component to be fully opaque.
+    // NB: Converting color to another color space keeps its alpha component, so this is applied as part of the
+    //     conversion below.
+    auto has_alpha_attribute = has_attribute(AttributeNames::alpha);
+    auto convert_color = [&](CSS::ColorStyleValue::ColorType color_type) {
+        auto components = used_color_components_in_color_space(color, color_type);
+        if (!has_alpha_attribute)
+            components[3] = 1.0f;
+        return components;
+    };
+
+    Array<float, 4> components;
+    CSS::ColorStyleValue::ColorType color_type;
+
+    // 4. If element's colorspace attribute is in the Limited sRGB state:
+    if (color_space_state() == ColorSpaceState::LimitedSRGB) {
+        // 1. Set color to color converted to the 'srgb' color space.
+        color_type = CSS::ColorStyleValue::ColorType::sRGB;
+        components = convert_color(color_type);
+
+        // 2. Round each of color's components so they are in the range 0 to 255, inclusive. Components are to be
+        //    rounded towards +∞.
+        for (auto& component : components)
+            component = floorf(clamp(component * 255.0f, 0.0f, 255.0f) + 0.5f);
+
+        // 3. If element's alpha attribute is not specified, then set htmlCompatible to true.
+        if (!has_alpha_attribute) {
+            html_compatible = true;
+        }
+        // NOTE: This intentionally uses a different serialization path for compatibility with an earlier version of
+        //       the color well control.
+        // 4. Otherwise, set color to color converted using the 'color()' function.
+        else {
+            for (auto& component : components)
+                component /= 255.0f;
+        }
+    }
+    // Otherwise:
+    else {
+        // 1. Assert: element's colorspace attribute is in the Display P3 state.
+        VERIFY(color_space_state() == ColorSpaceState::DisplayP3);
+
+        // 2. Set color to color converted to the 'display-p3' color space.
+        color_type = CSS::ColorStyleValue::ColorType::DisplayP3;
+        components = convert_color(color_type);
+    }
+
+    // 5. Return the result of serializing color. If htmlCompatible is true, then do so with HTML-compatible
+    //    serialization requested.
+    // https://drafts.csswg.org/css-color-4/#HTML-compatible-serialization-of-srgb
+    if (html_compatible)
+        return Utf16String::formatted("#{:02x}{:02x}{:02x}", static_cast<u8>(components[0]), static_cast<u8>(components[1]), static_cast<u8>(components[2]));
+
+    auto serialized_color = CSS::ColorFunctionStyleValue::create(
+        color_type,
+        CSS::NumberStyleValue::create(components[0]),
+        CSS::NumberStyleValue::create(components[1]),
+        CSS::NumberStyleValue::create(components[2]),
+        CSS::NumberStyleValue::create(components[3]));
+    return serialized_color->to_utf16_string(CSS::SerializationMode::Normal);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#value-sanitization-algorithm
@@ -2110,11 +2260,8 @@ Utf16String HTMLInputElement::value_sanitization_algorithm(Utf16View value) cons
     }
     // https://html.spec.whatwg.org/multipage/input.html#color-state-(type=color):value-sanitization-algorithm
     else if (type_state() == HTMLInputElement::TypeAttributeState::Color) {
-        // If the value of the element is a valid simple color, then set it to the value of the element converted to
-        // ASCII lowercase; otherwise, set it to the string "#000000".
-        if (is_valid_simple_color(value))
-            return value.to_ascii_lowercase();
-        return "#000000"_utf16;
+        // Run update a color well control color for the element.
+        return update_a_color_well_control_color(value);
     }
 
     return Utf16String::from_utf16(value);
@@ -4031,7 +4178,7 @@ bool HTMLInputElement::suffering_from_bad_input() const
     case TypeAttributeState::Color:
         // https://html.spec.whatwg.org/multipage/input.html#color-state-(type%3Dcolor)%3Asuffering-from-bad-input
         // While the element's value is not the empty string and parsing it returns failure, the control is suffering from bad input.
-        return !relevant_value.is_empty() && !is_valid_simple_color(relevant_value);
+        return !relevant_value.is_empty() && !parse_a_css_color_value(relevant_value);
     default:
         break;
     }

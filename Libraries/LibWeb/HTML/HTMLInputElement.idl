@@ -1,13 +1,22 @@
+// https://html.spec.whatwg.org/multipage/input.html#attr-input-colorspace
+[MissingValueDefault=limited-srgb, InvalidValueDefault=limited-srgb]
+enum ColorSpaceAttribute {
+    "limited-srgb",
+    "display-p3"
+};
+
 // https://html.spec.whatwg.org/multipage/input.html#htmlinputelement
 [Exposed=Window]
 interface HTMLInputElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, Reflect] attribute DOMString accept;
+    [CEReactions, Reflect] attribute boolean alpha;
     [CEReactions, Reflect] attribute DOMString alt;
     [CEReactions] attribute DOMString autocomplete;
     [CEReactions, Reflect=checked] attribute boolean defaultChecked;
     attribute boolean checked;
+    [CEReactions, Reflect=colorspace, Enumerated=ColorSpaceAttribute] attribute DOMString colorSpace;
     [CEReactions, Reflect=dirname] attribute DOMString dirName;
     [CEReactions, Reflect] attribute boolean disabled;
     readonly attribute HTMLFormElement? form;

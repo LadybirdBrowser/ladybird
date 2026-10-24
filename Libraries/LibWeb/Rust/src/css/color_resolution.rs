@@ -2622,3 +2622,39 @@ pub unsafe extern "C" fn rust_style_value_to_color(
         },
     }
 }
+
+#[repr(C)]
+pub struct FfiResolvedColorComponents {
+    pub resolved: bool,
+    pub components: [f32; 4],
+}
+
+/// Resolves a parsed style value to a used color against a style, converted to the color space of
+/// `target_color_type` (a ColorStyleValue::ColorType), or declines. Unlike rust_style_value_to_color(), the
+/// components keep their full precision and range, with missing components as 0.
+///
+/// # Safety
+/// `value` must point at live style value data, and `style` must be null or point at a style whose group payloads
+/// outlive the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_to_color_components(
+    value: *const core::ffi::c_void,
+    style: *const FfiColorResolutionStyle,
+    target_color_type: u8,
+) -> FfiResolvedColorComponents {
+    let value = unsafe { &*value.cast::<StyleValueData>() };
+    // SAFETY: Guaranteed by the caller.
+    let resolution_input = unsafe { ColorResolutionInput::for_ffi_style(style) };
+    let components = resolve_color_for_interpolation(value, &resolution_input)
+        .and_then(|resolved| color_conversion::convert(resolved.color_type, target_color_type, resolved.components));
+    match components {
+        Some(components) => FfiResolvedColorComponents {
+            resolved: true,
+            components,
+        },
+        None => FfiResolvedColorComponents {
+            resolved: false,
+            components: [0.0; 4],
+        },
+    }
+}

@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	<input type=color>: alpha attribute
-Fail	<input type=color>: colorspace attribute
+2 Pass
+Pass	<input type=color>: alpha attribute
+Pass	<input type=color>: colorspace attribute

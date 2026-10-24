@@ -22,6 +22,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(alink, "alink")                                                     \
     __ENUMERATE_HTML_ATTRIBUTE(allow, "allow")                                                     \
     __ENUMERATE_HTML_ATTRIBUTE(allowfullscreen, "allowfullscreen")                                 \
+    __ENUMERATE_HTML_ATTRIBUTE(alpha, "alpha")                                                     \
     __ENUMERATE_HTML_ATTRIBUTE(alt, "alt")                                                         \
     __ENUMERATE_HTML_ATTRIBUTE(archive, "archive")                                                 \
     __ENUMERATE_HTML_ATTRIBUTE(as, "as")                                                           \
@@ -53,6 +54,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(codebase, "codebase")                                               \
     __ENUMERATE_HTML_ATTRIBUTE(codetype, "codetype")                                               \
     __ENUMERATE_HTML_ATTRIBUTE(color, "color")                                                     \
+    __ENUMERATE_HTML_ATTRIBUTE(colorspace, "colorspace")                                           \
     __ENUMERATE_HTML_ATTRIBUTE(cols, "cols")                                                       \
     __ENUMERATE_HTML_ATTRIBUTE(colspan, "colspan")                                                 \
     __ENUMERATE_HTML_ATTRIBUTE(command, "command")                                                 \
