@@ -27,7 +27,7 @@
                         BlockContainer<HTML>/block RUN (cache=miss)
                           BlockContainer<DIV>#inline-block-whose-max-content-no-longer-fits/block RUN (cache=miss)
                             BlockContainer<DIV>#inline-block-whose-max-content-no-longer-fits MEASURE max-content inline (cache=hit)
-                            BlockContainer<DIV>#inline-block-whose-max-content-no-longer-fits MEASURE min-content inline (cache=hit) FROM MAX-CONTENT
+                            BlockContainer<DIV>#inline-block-whose-max-content-no-longer-fits MEASURE min-content inline (cache=hit)
                 `,
                 check: equal => {
                     equal(before, "0,0,240,20", "rect before");

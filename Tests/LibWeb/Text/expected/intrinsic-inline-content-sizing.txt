@@ -36,6 +36,25 @@ inline grid: 210x20, 100x60, 210x20, 120x60
 inline table: 210x20, 100x40, 210x20, 120x40
 containment: 35x25, 35x25, 35x25, 35x25
 scroll container: 160x20, 50x60, 160x20, 120x40
+hanging indent: 160x20, 63x60, 160x20, 120x40
+each-line indent: 113x40, 63x60, 113x40, 113x40
+percentage indent: 160x40, 50x60, 160x40, 120x40
+negative indent before break: 40x40, 40x40, 40x40, 40x40
+indent around block: 123x60, 70x120, 123x60, 120x80
+indent before leading block: 113x40, 63x60, 113x40, 113x40
+hanging indent around block: 63x60, 63x60, 63x60, 63x60
+each-line indent around block: 63x80, 63x80, 63x80, 63x80
+block between inline edges: 60x60, 60x60, 60x60, 60x60
+block with constraints: 80x80, 80x80, 80x80, 80x80
+block with percentage width: 160x80, 50x80, 160x80, 120x80
+anywhere inside inline edges: 164x20, 17x280, 164x20, 120x40
+break-word: 150x20, 10x280, 150x20, 120x40
+scroll container with indent: 173x20, 63x60, 173x20, 120x40
+scroll container with block: 100x60, 50x80, 100x60, 100x60
+hanging indent wider than first line: 50x20, 60x20, 50x20, 50x20
+negative indent wider than first line: 30x20, 50x20, 30x20, 30x20
+negative indent wider than content: 0x20, 20x20, 0x20, 0x20
+negative margin wider than first line: 30x20, 50x20, 30x20, 30x20
 words, min-content: [80,90]
 words, max-content: [200,30]
 words, fit-content: [200,30]

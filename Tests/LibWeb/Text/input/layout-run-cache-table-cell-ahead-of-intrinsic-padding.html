@@ -94,10 +94,8 @@
                         BlockContainer<HTML>/block RUN (cache=miss)
                           BlockContainer<TD>#text-cell MEASURE min-content inline (cache=hit)
                           BlockContainer<TD>#text-cell MEASURE max-content inline (cache=hit)
-                          BlockContainer<TD>#markup-cell MEASURE min-content inline (cache=miss)
-                            BlockContainer<TD>#markup-cell/block (measurement, intrinsic) RUN (cache=bypass)
-                              BlockContainer<TD>#markup-cell INLINE SIZE FROM ITEMS
-                          BlockContainer<TD>#markup-cell MEASURE max-content inline (cache=miss) FROM ITEMS
+                          BlockContainer<TD>#markup-cell MEASURE min-content inline (cache=miss) FROM ITEMS
+                          BlockContainer<TD>#markup-cell MEASURE max-content inline (cache=hit)
                           TableWrapper(anonymous)/block RUN (cache=miss)
                             Box<TABLE>#table/table RUN (cache=miss)
                               BlockContainer<TD>#text-cell MEASURE min-content inline (cache=hit)
@@ -131,14 +129,10 @@
                     layout FULL
                       @viewport/block RUN (cache=bypass)
                         BlockContainer<HTML>/block RUN (cache=miss)
-                          BlockContainer<TD>#text-cell MEASURE min-content inline (cache=miss)
-                            BlockContainer<TD>#text-cell/block (measurement, intrinsic) RUN (cache=bypass)
-                              BlockContainer<TD>#text-cell INLINE SIZE FROM ITEMS
-                          BlockContainer<TD>#text-cell MEASURE max-content inline (cache=miss) FROM ITEMS
-                          BlockContainer<TD>#markup-cell MEASURE min-content inline (cache=miss)
-                            BlockContainer<TD>#markup-cell/block (measurement, intrinsic) RUN (cache=bypass)
-                              BlockContainer<TD>#markup-cell INLINE SIZE FROM ITEMS
-                          BlockContainer<TD>#markup-cell MEASURE max-content inline (cache=miss) FROM ITEMS
+                          BlockContainer<TD>#text-cell MEASURE min-content inline (cache=miss) FROM ITEMS
+                          BlockContainer<TD>#text-cell MEASURE max-content inline (cache=hit)
+                          BlockContainer<TD>#markup-cell MEASURE min-content inline (cache=miss) FROM ITEMS
+                          BlockContainer<TD>#markup-cell MEASURE max-content inline (cache=hit)
                           TableWrapper(anonymous)/block RUN (cache=miss)
                             Box<TABLE>#table/table RUN (cache=miss)
                               BlockContainer<TD>#text-cell MEASURE min-content inline (cache=hit)
