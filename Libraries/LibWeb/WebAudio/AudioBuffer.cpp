@@ -100,6 +100,7 @@ ErrorOr<GC::Ref<AudioBuffer>> AudioBuffer::create(WebIDL::UnsignedLong number_of
     TRY(buffer->m_channels.try_ensure_capacity(options.number_of_channels));
     for (WebIDL::UnsignedLong i = 0; i < options.number_of_channels; ++i)
         buffer->m_channels.unchecked_append({ TRY(JS::DataBlock::OwnedBackingStore::create_zeroed(channel_byte_length)) });
+    GC::Heap::the().did_allocate_external_memory(buffer->external_memory_size());
 
     return buffer;
 }
@@ -147,6 +148,7 @@ RefPtr<Rendering::AudioBufferContents> AudioBuffer::acquire_contents()
         }
     }
     m_contents = make_ref_counted<Rendering::AudioBufferContents>(move(channels), m_sample_rate);
+    GC::Heap::the().did_allocate_external_memory(m_channels.size() * m_length * sizeof(float));
 
     // 4. Attach ArrayBuffers containing copies of the data to the AudioBuffer, to be returned by the next call to
     //    getChannelData().
