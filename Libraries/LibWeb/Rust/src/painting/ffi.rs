@@ -352,16 +352,12 @@ pub extern "C" fn render_state_paintable_visual_context_node_count(
     })
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread; `out` must have room for `capacity` indices.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_paintable_visual_context_copy_node_indices(
+pub extern "C" fn render_state_paintable_visual_context_copy_node_indices(
     host: &DocumentHost,
     slot: NodeSlotId,
     list: crate::painting::host::FfiVisualContextBoxNodeList,
-    out: *mut u32,
-    capacity: usize,
+    out: ak::SpanMut<'_, u32>,
 ) {
     let indices = {
         read_arena(host, node_read(), (slot, list), |arena, (slot, list)| {
@@ -375,9 +371,7 @@ pub unsafe extern "C" fn render_state_paintable_visual_context_copy_node_indices
             })
         })
     };
-    assert!(indices.len() <= capacity);
-    // SAFETY: the caller warrants `capacity` writable indices behind `out`.
-    unsafe { std::ptr::copy_nonoverlapping(indices.as_ptr(), out, indices.len()) };
+    out.into_slice()[..indices.len()].copy_from_slice(&indices);
 }
 
 pub(super) fn apply_walk_assignments(

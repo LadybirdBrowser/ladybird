@@ -1035,19 +1035,15 @@ pub(crate) fn transformation_to_matrix(
 /// two-dimensional. False when a function needs a box or a font to resolve: a relative length, a
 /// percentage of a length, a calculation that does not simplify, or a tree-counting function.
 /// https://drafts.fxtf.org/geometry/#parse-a-string-into-an-abstract-matrix
-///
-/// # Safety
-/// `value` must be a live style value, and `out_matrix` must point at 16 writable floats, row by
-/// row.
+/// The matrix is written to the 16 floats of `out_matrix`, row by row.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_transform_list_to_abstract_matrix(
-    value: *const c_void,
-    out_matrix: *mut f32,
-    out_is_2d: *mut bool,
+pub extern "C" fn rust_transform_list_to_abstract_matrix(
+    value: &StyleValueData,
+    out_matrix: ak::SpanMut<'_, f32>,
+    out_is_2d: &mut bool,
 ) -> bool {
     use crate::css::serialize::transform_function as functions;
 
-    let value = unsafe { &*value.cast::<StyleValueData>() };
     // The keyword none is no function at all.
     let transform_list = match value {
         StyleValueData::ValueList { values, .. } => values.as_slice(),
@@ -1098,11 +1094,8 @@ pub unsafe extern "C" fn rust_transform_list_to_abstract_matrix(
             elements: std::array::from_fn(|row| std::array::from_fn(|column| function_matrix[row * 4 + column])),
         });
     }
-    // SAFETY: The caller provides room for the 16 elements and the flag.
-    unsafe {
-        std::ptr::copy_nonoverlapping(matrix.elements.as_flattened().as_ptr(), out_matrix, 16);
-        *out_is_2d = is_2d;
-    }
+    out_matrix.into_slice().copy_from_slice(matrix.elements.as_flattened());
+    *out_is_2d = is_2d;
     true
 }
 

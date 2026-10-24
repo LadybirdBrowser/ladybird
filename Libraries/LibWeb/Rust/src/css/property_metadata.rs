@@ -233,33 +233,27 @@ pub extern "C" fn rust_property_metadata_is_inherited(property_id: u16) -> bool 
     property_is_inherited(property_id)
 }
 
-/// # Safety
-/// `out_length` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_property_metadata_numeric_ranges(
+pub extern "C" fn rust_property_metadata_numeric_ranges(
     property_id: u16,
-    out_length: *mut usize,
+    out_length: &mut usize,
 ) -> *const FfiPropertyNumericRange {
     let ranges = property_numeric_ranges(property_id);
-    unsafe { *out_length = ranges.len() };
+    *out_length = ranges.len();
     ranges.as_ptr()
 }
 
-/// # Safety
-/// All out-pointers must be valid.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_property_metadata_bounds(
-    out_first_longhand: *mut u16,
-    out_last_longhand: *mut u16,
-    out_first_inherited: *mut u16,
-    out_last_inherited: *mut u16,
+pub extern "C" fn rust_property_metadata_bounds(
+    out_first_longhand: &mut u16,
+    out_last_longhand: &mut u16,
+    out_first_inherited: &mut u16,
+    out_last_inherited: &mut u16,
 ) {
-    unsafe {
-        *out_first_longhand = FIRST_LONGHAND_PROPERTY_ID;
-        *out_last_longhand = LAST_LONGHAND_PROPERTY_ID;
-        *out_first_inherited = FIRST_INHERITED_PROPERTY_ID;
-        *out_last_inherited = LAST_INHERITED_PROPERTY_ID;
-    }
+    *out_first_longhand = FIRST_LONGHAND_PROPERTY_ID;
+    *out_last_longhand = LAST_LONGHAND_PROPERTY_ID;
+    *out_first_inherited = FIRST_INHERITED_PROPERTY_ID;
+    *out_last_inherited = LAST_INHERITED_PROPERTY_ID;
 }
 
 pub fn property_is_shorthand(property_id: u16) -> bool {
@@ -512,14 +506,12 @@ pub extern "C" fn rust_property_metadata_is_shorthand(property_id: u16) -> bool 
     property_is_shorthand(property_id)
 }
 
-/// # Safety
-/// `out_length` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_property_metadata_longhands_for_shorthand(
+pub extern "C" fn rust_property_metadata_longhands_for_shorthand(
     property_id: u16,
-    out_length: *mut usize,
+    out_length: &mut usize,
 ) -> *const u16 {
     let longhands = longhands_for_shorthand(property_id);
-    unsafe { *out_length = longhands.len() };
+    *out_length = longhands.len();
     longhands.as_ptr()
 }

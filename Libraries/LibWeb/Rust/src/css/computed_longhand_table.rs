@@ -1580,15 +1580,12 @@ pub extern "C" fn rust_computed_longhand_table_metadata(
 /// The recorded inheritance-dependent specified values as a borrowed span.
 /// The span stays valid while the caller's table reference is live and no
 /// further add or remove mutates the table.
-///
-/// # Safety
-/// `table` must be a valid table and `out_count` writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_inheritance_dependent_values(
+pub extern "C" fn rust_computed_longhand_table_inheritance_dependent_values(
     table: &ComputedLonghandTable,
-    out_count: *mut usize,
+    out_count: &mut usize,
 ) -> *const FfiTableInheritanceDependentValue {
-    unsafe { *out_count = table.inheritance_dependent_view.len() };
+    *out_count = table.inheritance_dependent_view.len();
     table.inheritance_dependent_view.as_ptr()
 }
 
