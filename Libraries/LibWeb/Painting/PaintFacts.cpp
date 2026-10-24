@@ -344,7 +344,7 @@ static void push_image_map_area_facts_onto(GC::Ptr<HTML::HTMLMapElement> map_ele
             return TraversalDecision::Continue;
         });
     }
-    Layout::RustFFI::render_state_publish_image_map_areas(layout_node.document_host(), Layout::Node::slot_id(&layout_node), areas.data(), areas.size(), coords.data(), coords.size());
+    Layout::RustFFI::render_state_publish_image_map_areas(layout_node.document_host(), Layout::Node::slot_id(&layout_node), areas.span(), coords.span());
 }
 
 // Which map an image is associated with is a hash-name reference resolved against the image's root, so any map or area

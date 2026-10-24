@@ -1857,7 +1857,7 @@ void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot
     versions.ensure_capacity(effects.size());
     for (auto const& effect : effects)
         versions.unchecked_append({ .identity = effect->animation_preparation_identity(), .generation = effect->animation_preparation_generation() });
-    if (StyleEngineFFI::style_engine_describes_animation_effects(style_engine->host(), element.style_node_id().value(), slot, versions.data(), versions.size()))
+    if (StyleEngineFFI::style_engine_describes_animation_effects(style_engine->host(), element.style_node_id().value(), slot, versions.span()))
         return;
 
     Vector<StyleEngineFFI::FfiPublishedAnimationEffect> ffi_effects;

@@ -582,8 +582,8 @@ void StyleScope::publish_animation_keyframes()
         return;
     StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(
         document().style_computer().style_engine().host(), style_engine_tree_scope().value(),
-        bit_cast<FlatPtr>(as_if<DOM::ShadowRoot>(*m_node)), name_lengths.data(), name_units.data(), name_units.size(),
-        keyframe_sets.data(), name_lengths.size());
+        bit_cast<FlatPtr>(as_if<DOM::ShadowRoot>(*m_node)), name_lengths.span(), name_units.span(),
+        keyframe_sets.span());
     m_published_keyframe_sets = move(published);
 }
 

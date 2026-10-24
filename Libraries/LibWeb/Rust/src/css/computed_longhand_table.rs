@@ -1537,22 +1537,13 @@ pub extern "C" fn rust_computed_longhand_table_inheritance_bits(table: &Computed
 
 /// Replaces the whole importance and inheritance bitmaps, for the builder
 /// seeding a fresh table from an existing style's published bitmaps.
-///
-/// # Safety
-/// `table` must be a valid, unfrozen, uniquely owned table; each bitmap must
-/// have exactly `LONGHAND_BITMAP_BYTES` readable bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_load_flag_bitmaps(
+pub extern "C" fn rust_computed_longhand_table_load_flag_bitmaps(
     table: &mut ComputedLonghandTable,
-    importance: *const u8,
-    importance_count: usize,
-    inheritance: *const u8,
-    inheritance_count: usize,
+    importance: ak::Span<'_, u8>,
+    inheritance: ak::Span<'_, u8>,
 ) {
-    table.load_flag_bitmaps(
-        unsafe { ak::slice_from_raw_parts(importance, importance_count) },
-        unsafe { ak::slice_from_raw_parts(inheritance, inheritance_count) },
-    );
+    table.load_flag_bitmaps(importance.as_slice(), inheritance.as_slice());
 }
 
 /// Resets the state a fresh drive must not inherit from the style its table

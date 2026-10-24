@@ -356,16 +356,6 @@ pub(super) fn queue(host: &DocumentHost, write: EngineWrite) {
     host.queue_change(ArenaChange::Engine(write));
 }
 
-/// A copy of the `count` values at `values`.
-///
-/// # Safety
-///
-/// `values` must point at `count` readable values, or `count` be zero.
-unsafe fn owned<T: Copy>(values: *const T, count: usize) -> Box<[T]> {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { borrow(values, count) }.into()
-}
-
 /// Publishes the document's `@font-face` table and the memo of the cascades resolved from it, which every later font
 /// resolution of the engine reads. Takes one reference to each. The shadow tree scopes that declare
 /// `@font-feature-values` are the ones whose values the table carries beside the document's.
@@ -459,15 +449,12 @@ pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
     host.queue_change(ArenaChange::Engine(write));
 }
 
-/// Makes the `count` identities at `nodes`, which the host minted, live.
-///
-/// # Safety
-/// `host` must be a live document host, and `nodes` must point at `count` readable `u32` values.
+/// Makes the identities `nodes`, which the host minted, live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_mint_style_nodes(host: &DocumentHost, nodes: *const u32, count: usize) {
-    // SAFETY: Guaranteed by the caller.
-    let nodes = unsafe { owned(nodes, count) };
-    host.queue_change(ArenaChange::Engine(EngineWrite::MintStyleNodes(nodes)));
+pub extern "C" fn style_engine_mint_style_nodes(host: &DocumentHost, nodes: ak::Span<'_, u32>) {
+    host.queue_change(ArenaChange::Engine(EngineWrite::MintStyleNodes(
+        nodes.as_slice().into(),
+    )));
 }
 
 /// Stages the tree delta `delta` for the input the host submits next.

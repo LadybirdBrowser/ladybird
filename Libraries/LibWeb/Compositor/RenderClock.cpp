@@ -74,7 +74,7 @@ bool ClockTicksHandle::tick(i64 frame_time_nanoseconds, ReadonlySpan<Web::Compos
             continue;
         scrollers.append({ scroll_offset.scroll_node.node_id.value(), scroll_offset.offset.x().to_double(), scroll_offset.offset.y().to_double() });
     }
-    return Layout::RustFFI::clock_ticks_tick(m_ticks, frame_time_nanoseconds, scrollers.data(), scrollers.size());
+    return Layout::RustFFI::clock_ticks_tick(m_ticks, frame_time_nanoseconds, scrollers.span());
 }
 
 PointerAnswer ClockTicksHandle::pointer_moved(Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame, u64 input_event_id) const

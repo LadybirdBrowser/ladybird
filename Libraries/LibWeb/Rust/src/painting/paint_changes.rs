@@ -244,28 +244,17 @@ pub extern "C" fn render_state_set_viewport_scroll_offset(host: &DocumentHost, o
     queue(host, PaintChange::SetViewportScrollOffset(offset.into()));
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread, and `entries` must point at `entry_count` readable
-/// entries.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_apply_selection(
+pub extern "C" fn render_state_apply_selection(
     host: &DocumentHost,
     viewport: NodeSlotId,
-    entries: *const FfiSelectionEntry,
-    entry_count: usize,
+    entries: ak::Span<'_, FfiSelectionEntry>,
     start_offset: usize,
     end_offset: usize,
 ) {
-    let entries = if entry_count == 0 {
-        Box::default()
-    } else {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { ak::slice_from_raw_parts(entries, entry_count) }.into()
-    };
     let change = PaintChange::ApplySelection {
         viewport,
-        entries,
+        entries: entries.as_slice().into(),
         start_offset,
         end_offset,
     };
@@ -277,36 +266,19 @@ pub extern "C" fn render_state_clear_selection(host: &DocumentHost, viewport: No
     queue(host, PaintChange::ClearSelection { viewport });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread, `ranges` must point at `range_count` readable
-/// ranges and `entries` at `entry_count` readable entries.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_apply_search_text(
+pub extern "C" fn render_state_apply_search_text(
     host: &DocumentHost,
     viewport: NodeSlotId,
-    ranges: *const FfiSearchTextRange,
-    range_count: usize,
-    entries: *const FfiSelectionEntry,
-    entry_count: usize,
+    ranges: ak::Span<'_, FfiSearchTextRange>,
+    entries: ak::Span<'_, FfiSelectionEntry>,
 ) {
-    let ranges = if range_count == 0 {
-        Box::default()
-    } else {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { ak::slice_from_raw_parts(ranges, range_count) }.into()
-    };
-    let entries = if entry_count == 0 {
-        Box::default()
-    } else {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { ak::slice_from_raw_parts(entries, entry_count) }.into()
-    };
-    host.host_tables().shows_search_text.set(range_count != 0);
+    let ranges: Box<[FfiSearchTextRange]> = ranges.as_slice().into();
+    host.host_tables().shows_search_text.set(!ranges.is_empty());
     let change = PaintChange::ApplySearchText {
         viewport,
         ranges,
-        entries,
+        entries: entries.as_slice().into(),
     };
     queue(host, change);
 }
@@ -321,24 +293,14 @@ pub extern "C" fn render_state_clear_search_text(host: &DocumentHost) {
     queue(host, PaintChange::ClearSearchText);
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread, and `errors` must point at `error_count` readable
-/// errors.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_apply_spelling_errors(
+pub extern "C" fn render_state_apply_spelling_errors(
     host: &DocumentHost,
     viewport: NodeSlotId,
-    errors: *const FfiSpellingError,
-    error_count: usize,
+    errors: ak::Span<'_, FfiSpellingError>,
 ) {
-    let errors = if error_count == 0 {
-        Box::default()
-    } else {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { ak::slice_from_raw_parts(errors, error_count) }.into()
-    };
-    host.host_tables().shows_spelling_errors.set(error_count != 0);
+    let errors: Box<[FfiSpellingError]> = errors.as_slice().into();
+    host.host_tables().shows_spelling_errors.set(!errors.is_empty());
     queue(host, PaintChange::ApplySpellingErrors { viewport, errors });
 }
 
@@ -533,29 +495,17 @@ pub unsafe extern "C" fn render_state_set_video_paint_facts(
 }
 
 /// Publishes the `<area>` elements of the image map the image `node` is associated with, in tree order. Publishing no
-/// area is how an image with no image map is named.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread; `areas` must point at `area_count` readable areas,
-/// and `coords` at `coords_count` readable coordinates, which the areas index.
+/// area is how an image with no image map is named. The areas index `coords`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_publish_image_map_areas(
+pub extern "C" fn render_state_publish_image_map_areas(
     host: &DocumentHost,
     node: NodeSlotId,
-    areas: *const FfiImageMapArea,
-    area_count: usize,
-    coords: *const f64,
-    coords_count: usize,
+    areas: ak::Span<'_, FfiImageMapArea>,
+    coords: ak::Span<'_, f64>,
 ) {
-    // SAFETY: Guaranteed by the caller.
-    let (areas, coords) = unsafe {
-        (
-            ak::slice_from_raw_parts(areas, area_count),
-            ak::slice_from_raw_parts(coords, coords_count),
-        )
-    };
+    let coords = coords.as_slice();
     let areas = areas
+        .as_slice()
         .iter()
         .map(|area| {
             let start = area.coords_offset as usize;

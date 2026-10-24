@@ -67,9 +67,9 @@ void StyleEngine::mint_style_nodes(Span<StyleNodeID> nodes)
 {
     if (nodes.is_empty())
         return;
-    auto* raw_nodes = reinterpret_cast<u32*>(nodes.data());
-    StyleEngineFFI::style_node_id_allocator_mint(m_style_node_ids, false, raw_nodes, nodes.size());
-    StyleEngineFFI::style_engine_mint_style_nodes(m_render_document->host(), raw_nodes, nodes.size());
+    Span<u32> raw_nodes { reinterpret_cast<u32*>(nodes.data()), nodes.size() };
+    StyleEngineFFI::style_node_id_allocator_mint(m_style_node_ids, false, raw_nodes);
+    StyleEngineFFI::style_engine_mint_style_nodes(m_render_document->host(), raw_nodes);
     // An element minted beside a style transaction that flew is unknown to it, whenever its arrival is recorded.
     if (has_flown_style_transaction()) {
         for (auto node : nodes)
@@ -81,9 +81,9 @@ void StyleEngine::mint_text_style_nodes(Span<StyleNodeID> nodes)
 {
     if (nodes.is_empty())
         return;
-    auto* raw_nodes = reinterpret_cast<u32*>(nodes.data());
-    StyleEngineFFI::style_node_id_allocator_mint(m_style_node_ids, true, raw_nodes, nodes.size());
-    StyleEngineFFI::style_engine_mint_style_nodes(m_render_document->host(), raw_nodes, nodes.size());
+    Span<u32> raw_nodes { reinterpret_cast<u32*>(nodes.data()), nodes.size() };
+    StyleEngineFFI::style_node_id_allocator_mint(m_style_node_ids, true, raw_nodes);
+    StyleEngineFFI::style_engine_mint_style_nodes(m_render_document->host(), raw_nodes);
 }
 
 HashTable<StyleNodeID> StyleEngine::take_deferred_element_initial_features()

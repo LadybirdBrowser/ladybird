@@ -723,7 +723,7 @@ void Node::dom_node_style_node_changed(DOM::Node& dom_node, CSS::StyleNodeID old
             generated_for.append(encode_generated_for(pseudo_element));
         });
     }
-    RustFFI::render_state_style_node_changed(arena->host(), old_style_node.value(), new_style_node.value(), generated_for.data(), generated_for.size());
+    RustFFI::render_state_style_node_changed(arena->host(), old_style_node.value(), new_style_node.value(), generated_for.span());
     // The arena tells a node about a change to its layout node through its StyleNodeID, so a node whose StyleNodeID
     // changes is one it cannot name. Its box presence is committed again here instead. A node that had no StyleNodeID
     // had no layout node either, and a fresh StyleNodeID has none bound yet, so it has nothing to commit.

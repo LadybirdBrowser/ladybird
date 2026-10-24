@@ -1559,7 +1559,7 @@ void Node::detach_remaining_layout_nodes_for_removal()
     if (style_nodes.is_empty())
         return;
     // The detach is queued for the render state, and the host pays what it owes once the job that applies it is done.
-    Layout::RustFFI::render_state_detach_remaining_rows_for_removal(arena->host(), style_nodes.data(), style_nodes.size());
+    Layout::RustFFI::render_state_detach_remaining_rows_for_removal(arena->host(), style_nodes.span());
 }
 
 GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> Node::descendant_slots_before_removal(Node& parent_root)

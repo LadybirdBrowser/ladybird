@@ -389,8 +389,7 @@ void publish_svg_attribute_facts(DOM::Element& element)
         element.document().layout_node_arena().host(),
         element.style_node_id().value(),
         build_svg_attribute_facts(element),
-        reinterpret_cast<RustFFI::FfiFloatPoint const*>(points.data()),
-        points.size());
+        ReadonlySpan<RustFFI::FfiFloatPoint> { reinterpret_cast<RustFFI::FfiFloatPoint const*>(points.data()), points.size() });
 }
 
 // The unit of a published MathML length. Mirrors Rust `math_length_unit`.

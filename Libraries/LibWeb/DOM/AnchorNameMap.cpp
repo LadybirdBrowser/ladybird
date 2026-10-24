@@ -67,8 +67,7 @@ void AnchorNameMap::publish(Utf16FlyString const& name, Document& document, Opti
         arena->host(),
         scope_host.value_or(CSS::StyleNodeID {}).value(),
         name.raw_identity(),
-        style_nodes.data(),
-        style_nodes.size());
+        style_nodes.span());
 }
 
 }

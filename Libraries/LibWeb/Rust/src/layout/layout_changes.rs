@@ -465,21 +465,12 @@ pub extern "C" fn render_state_set_needs_layout_update(
 /// Detaches what is left of the boxes of the `count` nodes `style_nodes` names as they leave the document (see
 /// [`super::tree_builder::detach_remaining_rows_for_removal`]), as a write queued for the render state: the host pays what it owes
 /// once the job that applies it is done. An identity of 0 names no node.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and `style_nodes` must point at `count` identities.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_detach_remaining_rows_for_removal(
-    host: &DocumentHost,
-    style_nodes: *const u32,
-    count: usize,
-) {
-    if count == 0 {
+pub extern "C" fn render_state_detach_remaining_rows_for_removal(host: &DocumentHost, style_nodes: ak::Span<'_, u32>) {
+    let style_nodes = style_nodes.as_slice();
+    if style_nodes.is_empty() {
         return;
     }
-    // SAFETY: Guaranteed by the caller.
-    let style_nodes = unsafe { ak::slice_from_raw_parts(style_nodes, count) };
     host.queue_change(ArenaChange::DetachForRemoval(style_nodes.into()));
 }
 
@@ -501,24 +492,14 @@ pub extern "C" fn render_state_record_partial_relayout_escape(host: &DocumentHos
     queue(host, LayoutChange::RecordPartialRelayoutEscape);
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread, and `generated_for` must point at `count` readable
-/// pseudo-element kinds.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_style_node_changed(
+pub extern "C" fn render_state_style_node_changed(
     host: &DocumentHost,
     old: u32,
     new: u32,
-    generated_for: *const u8,
-    count: usize,
+    generated_for: ak::Span<'_, u8>,
 ) {
-    let generated_for = if count == 0 {
-        SmallVec::new()
-    } else {
-        // SAFETY: Guaranteed by the caller.
-        SmallVec::from_slice(unsafe { ak::slice_from_raw_parts(generated_for, count) })
-    };
+    let generated_for = SmallVec::from_slice(generated_for.as_slice());
     let new = StyleNodeID::from_raw(new);
     let change = LayoutChange::StyleNodeChanged {
         old: StyleNodeID::from_raw(old),
@@ -531,28 +512,22 @@ pub unsafe extern "C" fn render_state_style_node_changed(
     }
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread, and `elements` must point at `count` readable
-/// element identities.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_anchor_name_elements(
+pub extern "C" fn render_state_set_anchor_name_elements(
     host: &DocumentHost,
     scope_host: u32,
     anchor_name: usize,
-    elements: *const u32,
-    count: usize,
+    elements: ak::Span<'_, u32>,
 ) {
-    let elements: &[u32] = if count == 0 {
-        &[]
-    } else {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { ak::slice_from_raw_parts(elements, count) }
-    };
     let change = LayoutChange::SetAnchorNameElements {
         scope_host: StyleNodeID::from_raw(scope_host),
         anchor_name,
-        elements: elements.iter().copied().filter_map(StyleNodeID::from_raw).collect(),
+        elements: elements
+            .as_slice()
+            .iter()
+            .copied()
+            .filter_map(StyleNodeID::from_raw)
+            .collect(),
     };
     queue(host, change);
 }
@@ -594,31 +569,20 @@ pub extern "C" fn render_state_set_identity_in_focused_text_control(host: &Docum
 
 /// Publishes what the SVG element `element` names parses to. A `<polyline>` or `<polygon>` passes its `points` list
 /// beside the facts, since it is the one geometry attribute that is not a fixed number of values.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread, and `points` must point at `count` readable points.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_svg_attribute_facts(
+pub extern "C" fn render_state_set_svg_attribute_facts(
     host: &DocumentHost,
     element: u32,
     facts: FfiSvgAttributeFacts,
-    points: *const FfiFloatPoint,
-    count: usize,
+    points: ak::Span<'_, FfiFloatPoint>,
 ) {
     let Some(element) = StyleNodeID::from_raw(element) else {
         return;
     };
-    let points = if count == 0 {
-        &[][..]
-    } else {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { ak::slice_from_raw_parts(points, count) }
-    };
     let change = LayoutChange::SvgAttributeFacts {
         element,
         facts: Box::new(facts),
-        points: points.into(),
+        points: points.as_slice().into(),
     };
     queue(host, change);
 }
