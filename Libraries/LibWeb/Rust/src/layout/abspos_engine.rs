@@ -5,6 +5,7 @@
  */
 
 use super::*;
+use crate::css::style::tree::StyleNodeID;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 
 pub(super) fn axis_modes(style: StyleValues) -> (abspos_inputs::AbsposAxisMode, abspos_inputs::AbsposAxisMode) {
@@ -406,22 +407,63 @@ impl AbsposEngine<'_> {
         let arena = self.callbacks.arena();
         // A pseudo-element queries from its generator. Any other anonymous box stands for no element
         // and has no tree scope to search.
-        let querying_element = if arena.node_is_generated_for_pseudo_element(positioned_box) {
+        let is_pseudo_element = arena.node_is_generated_for_pseudo_element(positioned_box);
+        let querying_element = if is_pseudo_element {
             arena.node_style_node(positioned_box)
         } else {
             arena.dom_node_style_node(positioned_box)
         }?;
+        // NB: A pseudo-element is a descendant of its generator, so the generator's anchor-scope applies to it.
+        let querier_scope_start = if is_pseudo_element {
+            Some(querying_element)
+        } else {
+            arena.style_node_parent(querying_element)
+        };
         let containing_block = arena.node_containing_block_if_live(positioned_box)?;
         let mut scope_host = arena.tree_scope_host(querying_element);
         loop {
+            // https://drafts.csswg.org/css-anchor-position-1/#anchor-scope
+            // NB: An anchor-scope element both keeps the matching anchor names of its subtree from everything outside
+            //     it, and limits lookups from its descendants to anchors inside it. So an anchor is visible exactly
+            //     when the nearest element that scopes its name around it also scopes the name around the querier.
+            let querier_scope =
+                querier_scope_start.and_then(|start| self.nearest_anchor_scope(start, anchor_name, scope_host));
             let found = arena.last_element_with_anchor_name(scope_host, anchor_name, |&element| {
                 self.anchor_is_acceptable(arena.bound_row(element), positioned_box, containing_block)
+                    && self.nearest_anchor_scope(element, anchor_name, scope_host) == querier_scope
             });
             if let Some(element) = found {
                 return Some(arena.bound_row(element));
             }
             scope_host = arena.tree_scope_host(scope_host?);
         }
+    }
+
+    /// The nearest inclusive ancestor of `element` whose anchor-scope covers `anchor_name`, among the elements of the
+    /// tree scope `scope_host` names.
+    /// https://drafts.csswg.org/css-anchor-position-1/#anchor-scope
+    fn nearest_anchor_scope(
+        &self,
+        element: StyleNodeID,
+        anchor_name: usize,
+        scope_host: Option<StyleNodeID>,
+    ) -> Option<StyleNodeID> {
+        let arena = self.callbacks.arena();
+        let mut candidate = Some(element);
+        while let Some(current) = candidate {
+            if let Some(payloads) = arena.style_node_style_payloads(current) {
+                let anchor = ComputedValuesView::new(&payloads.groups).anchor();
+                // The <anchor-name> represents a strictly matched tree-scoped name, i.e. it can only match against
+                // anchor names in the same shadow tree.
+                if (anchor.anchor_scope_all || anchor.anchor_scope_names.raws().contains(&anchor_name))
+                    && arena.tree_scope_host(current) == scope_host
+                {
+                    return Some(current);
+                }
+            }
+            candidate = arena.style_node_parent(current);
+        }
+        None
     }
 
     /// Whether `anchor_box` may act as the anchor of `positioned_box`: it must have used values

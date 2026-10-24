@@ -2167,6 +2167,11 @@ impl LayoutNodeArena {
             .find(is_acceptable)
     }
 
+    /// The parent element of `element` in the style tree, if any.
+    pub(crate) fn style_node_parent(&self, element: StyleNodeID) -> Option<StyleNodeID> {
+        self.with_style_store(|engine| engine.tree().parent(element))
+    }
+
     /// The shadow host of the shadow tree `element` is in, or none in the document tree. A shadow
     /// root has no layout row, so the tree scope is named by its host.
     pub(crate) fn tree_scope_host(&self, element: StyleNodeID) -> Option<StyleNodeID> {
