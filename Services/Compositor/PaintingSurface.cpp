@@ -210,6 +210,15 @@ void PaintingSurface::copy_from_surface(PaintingSurface& source)
 {
     source.flush();
 
+    // OPTIMIZATION: Pixels in memory are written straight into this surface, which for a surface on the GPU is one
+    //               upload. A snapshot of them would copy them first, and the GPU would upload the copy into a texture
+    //               of its own before drawing it here.
+    SkPixmap source_pixels;
+    if (source.size() == size() && source.m_impl->surface->peekPixels(&source_pixels)) {
+        m_impl->surface->writePixels(source_pixels, 0, 0);
+        return;
+    }
+
     auto image = source.m_impl->surface->makeImageSnapshot();
     if (!image)
         return;
