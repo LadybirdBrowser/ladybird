@@ -15,7 +15,7 @@ use crate::css::css_tokenizer::{
 use crate::css::declaration_block::{DeclarationBlock, DeclarationBlockData, DeclaredProperty};
 use crate::css::descriptor_block::{DescriptorBlockData, DescriptorData, FfiDescriptorBlock};
 use crate::css::descriptor_metadata::{CUSTOM_DESCRIPTOR_ID, descriptor_longhands};
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{ArcRef, FfiUtf16View, OwnedArc};
 pub use crate::css::font_feature_values::FontFeatureValuesRuleKind;
 use crate::css::font_feature_values::{FontFeatureValuesData, FontFeatureValuesRule};
 use crate::css::function_signature::{FunctionParameterData, FunctionSignature};
@@ -2430,11 +2430,8 @@ impl ParsedStyleSheet {
 }
 
 #[unsafe(no_mangle)]
-/// # Safety
-/// `parse` must point to a live stylesheet owned by an `Arc`.
-pub unsafe extern "C" fn rust_css_syntax_native_rules(parse: *const ParsedStyleSheet) -> *const NativeRuleList {
-    unsafe { Arc::increment_strong_count(parse) };
-    Rc::into_raw(NativeRuleList::from_parsed(unsafe { Arc::from_raw(parse) }))
+pub extern "C" fn rust_css_syntax_native_rules(parse: ArcRef<'_, ParsedStyleSheet>) -> *const NativeRuleList {
+    Rc::into_raw(NativeRuleList::from_parsed(parse.to_arc()))
 }
 
 #[unsafe(no_mangle)]
@@ -3921,13 +3918,9 @@ pub unsafe extern "C" fn rust_page_selector_list_retain(list: *const PageSelecto
     list
 }
 
-/// # Safety
-/// `list` must be null or own a reference to a live page-selector list.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_page_selector_list_release(list: *const PageSelectorList) {
-    if !list.is_null() {
-        unsafe { Arc::decrement_strong_count(list) };
-    }
+pub extern "C" fn rust_page_selector_list_release(list: OwnedArc<PageSelectorList>) {
+    drop(list);
 }
 
 #[unsafe(no_mangle)]
@@ -4044,14 +4037,9 @@ pub(crate) fn parse_shared_block(
     Arc::new(parse.finish())
 }
 
-/// # Safety
-/// `parse` must be null or an owned syntax parse handle on the current thread.
-/// Each owned reference must only be freed once.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_css_syntax_parse_free(parse: *const ParsedStyleSheet) {
-    if !parse.is_null() {
-        drop(unsafe { Arc::from_raw(parse) });
-    }
+pub extern "C" fn rust_css_syntax_parse_free(parse: OwnedArc<ParsedStyleSheet>) {
+    drop(parse);
 }
 
 #[cfg(test)]
@@ -4190,7 +4178,11 @@ mod tests {
         assert_eq!(super::rust_css_syntax_root_count(&parse), 2);
         super::rust_css_syntax_visit_diagnostics(&parse, diagnostic);
         super::rust_css_syntax_visit_declaration_errors(&parse, declaration);
-        let rules = unsafe { std::rc::Rc::from_raw(super::rust_css_syntax_native_rules(&*parse)) };
+        let rules = unsafe {
+            std::rc::Rc::from_raw(super::rust_css_syntax_native_rules(
+                crate::css::ffi_support::ArcRef::new(&parse),
+            ))
+        };
         assert_eq!(crate::css::rule::rust_rule_list_count(&rules), 1);
     }
 

@@ -19,7 +19,7 @@ use ak::ScopeGuard;
 
 use crate::css::calc::CanonicalNumericType;
 use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, TokenizerInput, tokenize_for_parser};
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{FfiUtf16View, OwnedArc};
 use crate::css::function_signature::FunctionSignature;
 use crate::css::parser::arbitrary_substitution::{
     arbitrary_substitution_function, arguments_are_valid, collect_arbitrary_substitution_function_presence,
@@ -3959,12 +3959,9 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
 }
 
 /// Gives up the document's reference to its registry.
-///
-/// # Safety
-/// `registry` must be the document's live registry, which it gives up once.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_registry_destroy(registry: *const c_void) {
-    drop(unsafe { Arc::from_raw(registry.cast::<CustomPropertyRegistry>()) });
+pub extern "C" fn rust_custom_property_registry_destroy(registry: OwnedArc<CustomPropertyRegistry>) {
+    drop(registry);
 }
 
 /// Takes a reference of its own to the document registry `registry`, for a style transaction that
@@ -4082,13 +4079,9 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
 }
 
 /// Releases one store reference returned by `rust_custom_property_store_create`.
-///
-/// # Safety
-/// `store` must be a non-null pointer returned by `rust_custom_property_store_create` that has
-/// not already been released.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_store_destroy(store: *const c_void) {
-    drop(unsafe { Arc::from_raw(store.cast::<CustomPropertyStore>()) });
+pub extern "C" fn rust_custom_property_store_destroy(store: OwnedArc<CustomPropertyStore>) {
+    drop(store);
 }
 
 /// Hands every custom property a store declares itself to `callback`, in declaration order, with

@@ -5,7 +5,7 @@
  */
 
 use crate::css::css_string::CssString;
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{FfiUtf16View, OwnedArc};
 use crate::css::parser::query_parser::{
     CONTAINER_QUERY_REQUIRES_BLOCK_SIZE, CONTAINER_QUERY_REQUIRES_HEIGHT, CONTAINER_QUERY_REQUIRES_INLINE_SIZE,
     CONTAINER_QUERY_REQUIRES_SCROLL_STATE, CONTAINER_QUERY_REQUIRES_WIDTH, FfiQueryHandle,
@@ -63,10 +63,8 @@ pub unsafe extern "C" fn rust_container_conditions_retain(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_container_conditions_release(conditions: *const ContainerConditionsData) {
-    if !conditions.is_null() {
-        unsafe { Arc::decrement_strong_count(conditions) };
-    }
+pub extern "C" fn rust_container_conditions_release(conditions: OwnedArc<ContainerConditionsData>) {
+    drop(conditions);
 }
 
 #[unsafe(no_mangle)]

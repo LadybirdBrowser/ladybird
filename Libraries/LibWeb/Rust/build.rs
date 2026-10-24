@@ -2480,6 +2480,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     .map(String::from)
     .to_vec();
     expose_compositing_types_as_cpp_types(&mut style_value_config);
+    // A calculation's Typed OM reification is opaque to C++, which holds it by pointer.
+    style_value_config
+        .export
+        .rename
+        .insert("CalcReificationStorage".to_string(), "void".to_string());
+    style_value_config
+        .export
+        .exclude
+        .push("CalcReificationStorage".to_string());
     // A compositor keyframe value is substituted by the document's style engine, which the document host reaches.
     declare_document_host_of_layout_header(&mut style_value_config);
 
@@ -2740,6 +2749,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         .rename
         .insert("OptionalF64".to_string(), "Optional<double>".to_string());
     computed_values_config.includes.push("AK/Optional.h".to_string());
+    // The custom property registry and stores, a sample's animated custom properties and a shorthand expansion are
+    // opaque to C++, which holds each by pointer.
+    for name in [
+        "CustomPropertyRegistry",
+        "CustomPropertyStore",
+        "AnimatedCustomPropertyResults",
+        "ShorthandExpansion",
+    ] {
+        computed_values_config
+            .export
+            .rename
+            .insert(name.to_string(), "void".to_string());
+        computed_values_config.export.exclude.push(name.to_string());
+    }
     computed_values_config.export.rename.insert(
         "DeclarationBlockData".to_string(),
         "Web::CSS::Parser::ValueParserFFI::DeclarationBlockData".to_string(),
@@ -2812,6 +2835,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiReplacedContentFacts".to_string(),
         "FfiStylePayloads".to_string(),
         "FfiUtf16View".to_string(),
+        // Handed back through the layout header, which builds on this one.
+        "OwnedArc".to_string(),
+        "OwnedBox".to_string(),
         "NodeFlag".to_string(),
         "NodeKind".to_string(),
     ];

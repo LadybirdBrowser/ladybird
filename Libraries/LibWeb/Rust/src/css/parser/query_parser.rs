@@ -8,7 +8,7 @@ use crate::css::css_enums::keyword_from_ascii_case_insensitive;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_tokenizer::{ParserString, ParserTokenKind, TextDetacher, TokenizerInput, tokenize_for_parser};
 use crate::css::custom_properties::environment_variable_is_known;
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{FfiUtf16View, OwnedArc};
 use crate::css::parser::component_value::{
     ComponentKind, ComponentValue, consume_a_list_of_component_values, trim_whitespace,
 };
@@ -2988,14 +2988,9 @@ pub unsafe extern "C" fn css_query_ref(handle: *const FfiQueryHandle) -> *const 
 }
 
 /// Releases one strong reference to a query handle.
-///
-/// # Safety
-/// `handle` must be null or own one strong reference to a live query handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn css_query_unref(handle: *const FfiQueryHandle) {
-    if !handle.is_null() {
-        unsafe { Arc::decrement_strong_count(handle) };
-    }
+pub extern "C" fn css_query_unref(handle: OwnedArc<FfiQueryHandle>) {
+    drop(handle);
 }
 
 /// Evaluates a retained supports condition whose feature results were captured while parsing.

@@ -6,7 +6,7 @@
 
 use super::parser::{Input, Parser as Lexer};
 use crate::css::css_tokenizer::TokenizerInput;
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{FfiUtf16View, OwnedBox};
 use libgfx_rust::path::Path;
 use libgfx_rust::{FloatPoint, FloatSize};
 use std::ffi::c_void;
@@ -1349,11 +1349,9 @@ pub extern "C" fn rust_svg_path_clone(path: &ParsedPath) -> *mut ParsedPath {
     Box::into_raw(Box::new(path.clone()))
 }
 
-/// # Safety
-/// `path` must be a `ParsedPath` allocation returned by this module that has not yet been destroyed.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_svg_path_destroy(path: *mut ParsedPath) {
-    drop(unsafe { Box::from_raw(path) });
+pub extern "C" fn rust_svg_path_destroy(path: OwnedBox<ParsedPath>) {
+    drop(path);
 }
 
 #[unsafe(no_mangle)]

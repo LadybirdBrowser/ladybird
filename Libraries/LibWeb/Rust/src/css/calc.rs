@@ -13,6 +13,7 @@
 //! Nothing constructs these yet; the FFI construction surface follows with
 //! the C++ staging.
 
+use crate::css::ffi_support::{OwnedArc, OwnedBox};
 use std::sync::Arc;
 
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
@@ -1246,12 +1247,9 @@ pub unsafe extern "C" fn rust_calc_node_create_variadic(
 }
 
 /// Creates a single-child node: kind selects negate (0) or invert (1).
-///
-/// # Safety
-/// `child` must be a valid transferred handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_create_unary(kind: u8, child: *const CalcNode) -> *const CalcNode {
-    let child = unsafe { Arc::from_raw(child) };
+pub extern "C" fn rust_calc_node_create_unary(kind: u8, child: OwnedArc<CalcNode>) -> *const CalcNode {
+    let child = child.into_arc();
     let node = match kind {
         0 => CalcNode::Negate(child),
         1 => CalcNode::Invert(child),
@@ -1260,26 +1258,22 @@ pub unsafe extern "C" fn rust_calc_node_create_unary(kind: u8, child: *const Cal
     handle(node)
 }
 
-/// # Safety
-/// All three children must be valid transferred handles.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_create_clamp(
-    min: *const CalcNode,
-    center: *const CalcNode,
-    max: *const CalcNode,
+pub extern "C" fn rust_calc_node_create_clamp(
+    min: OwnedArc<CalcNode>,
+    center: OwnedArc<CalcNode>,
+    max: OwnedArc<CalcNode>,
 ) -> *const CalcNode {
     handle(CalcNode::Clamp {
-        min: unsafe { Arc::from_raw(min) },
-        center: unsafe { Arc::from_raw(center) },
-        max: unsafe { Arc::from_raw(max) },
+        min: min.into_arc(),
+        center: center.into_arc(),
+        max: max.into_arc(),
     })
 }
 
-/// # Safety
-/// `node` must be a valid transferred handle; this releases it.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
-    drop(unsafe { Arc::from_raw(node) });
+pub extern "C" fn rust_calc_node_release(node: OwnedArc<CalcNode>) {
+    drop(node);
 }
 
 /// https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
@@ -4925,7 +4919,7 @@ pub struct FfiCalcReification {
     pub storage: *mut std::ffi::c_void,
 }
 
-struct CalcReificationStorage {
+pub struct CalcReificationStorage {
     nodes: Box<[FfiCalcReificationNode]>,
     children: Box<[usize]>,
 }
@@ -5040,12 +5034,7 @@ pub extern "C" fn rust_calc_describe_for_typed_om(
     }
 }
 
-/// # Safety
-/// `storage` must be null or a value returned by `rust_calc_describe_for_typed_om` that has not
-/// already been released.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_reification_release(storage: *mut std::ffi::c_void) {
-    if !storage.is_null() {
-        drop(unsafe { Box::from_raw(storage.cast::<CalcReificationStorage>()) });
-    }
+pub extern "C" fn rust_calc_reification_release(storage: OwnedBox<CalcReificationStorage>) {
+    drop(storage);
 }

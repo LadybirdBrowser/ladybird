@@ -5,7 +5,7 @@
  */
 
 use crate::css::css_string::CssString;
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{FfiUtf16View, OwnedArc};
 use crate::css::parser::value_parser::equals_ascii_case_insensitive;
 use crate::css::style_value::StyleValueData;
 use std::cell::RefCell;
@@ -78,13 +78,9 @@ impl FontFeatureValuesRule {
     }
 }
 
-/// # Safety
-/// Data must be null or own an Arc reference returned by a rule view.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_font_feature_values_data_release(data: *const FontFeatureValuesData) {
-    if !data.is_null() {
-        drop(unsafe { Arc::from_raw(data) });
-    }
+pub extern "C" fn rust_font_feature_values_data_release(data: OwnedArc<FontFeatureValuesData>) {
+    drop(data);
 }
 
 #[unsafe(no_mangle)]

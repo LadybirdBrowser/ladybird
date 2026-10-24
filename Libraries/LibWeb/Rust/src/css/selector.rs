@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 pub use crate::css::ffi_support::FfiStringView;
-use crate::css::ffi_support::ascii_lowercase;
+use crate::css::ffi_support::{OwnedBox, ascii_lowercase};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 
 pub type SelectorString = crate::css::css_string::CssString;
@@ -643,15 +643,9 @@ pub fn is_ascii_case_insensitive_html_attribute(name: &RetainedUtf16FlyString) -
     })
 }
 
-/// # Safety
-/// `selector` must be an owned selector handle that has not already been destroyed.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_destroy(selector: *mut RustSelector) {
-    if !selector.is_null() {
-        // SAFETY: The caller guarantees that this is an owned handle returned by
-        // a selector-producing FFI function and that it has not already been destroyed.
-        drop(unsafe { Box::from_raw(selector) });
-    }
+pub extern "C" fn rust_selector_destroy(selector: OwnedBox<RustSelector>) {
+    drop(selector);
 }
 
 /// Returns the selector's specificity in the packed representation used by the DevTools protocol.
