@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<title>Test colorSpaceConversion option for createImageBitmap</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="../../../../../html/canvas/resources/canvas-tests.js"></script>
+<script src="../../../../../common/media.js"></script>
+<script src="common.sub.js"></script>
+<link rel="stylesheet" href="../../../../../html/canvas/resources/canvas-tests.css">
+<body>
+<script>
+function testCanvasDisplayingPattern(canvas, width, height, expected)
+{
+    var tolerance = 10; // high tolerance for differing color management results
+    const check = (x, y, rgba) =>
+        _assertPixelApprox(canvas, x,y, rgba[0], rgba[1], rgba[2], rgba[3], tolerance);
+
+    check(1 * width / 4, 1 * height / 4, expected[0]);
+    check(3 * width / 4, 1 * height / 4, expected[1]);
+    check(1 * width / 4, 3 * height / 4, expected[2]);
+    check(3 * width / 4, 3 * height / 4, expected[3]);
+}
+
+
+function testDrawImageBitmap(source, options, expected)
+{
+    var canvas = document.createElement("canvas");
+    canvas.width = 20;
+    canvas.height = 20;
+    var ctx = canvas.getContext("2d");
+    return createImageBitmap(source, options).then(imageBitmap => {
+        ctx.drawImage(imageBitmap, 0, 0);
+        testCanvasDisplayingPattern(canvas, 20, 20, expected);
+    });
+}
+
+const wide_gamut_pattern_expected = [[124,0,27,255],[0,124,46,255],[60,0,123,255],[0,0,0,255]];
+const video_bb0000_expected = [[187,0,0,255],[187,0,0,255],[187,0,0,255],[187,0,0,255]];
+
+var wideGamutImageSourceTypes = [
+    {name: 'a bitmap HTMLImageElement',
+     factory: makeMakeHTMLImage("/images/wide-gamut-pattern.png"),
+     expected: wide_gamut_pattern_expected},
+    {name: 'a Blob',
+     factory: makeBlob("/images/wide-gamut-pattern.png"),
+     expected: wide_gamut_pattern_expected},
+    {name: 'a Video',
+     factory: makeMakeVideo("/html/canvas/element/manual/wide-gamut-canvas/resources/Display-P3-BB0000"),
+     expected: video_bb0000_expected}
+];
+
+for (let { name, factory, expected } of wideGamutImageSourceTypes) {
+    promise_test(function() {
+        return factory().then(function(img) {
+            return testDrawImageBitmap(img, {colorSpaceConversion: "none"}, expected);
+        });
+    }, `createImageBitmap from ${name}, and drawImage on the created ImageBitmap with colorSpaceConversion: none`);
+}
+</script>
+</body>
+</html>

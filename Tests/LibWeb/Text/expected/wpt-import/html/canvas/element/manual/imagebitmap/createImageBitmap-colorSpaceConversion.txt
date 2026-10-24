@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Pass	createImageBitmap from a bitmap HTMLImageElement, and drawImage on the created ImageBitmap with colorSpaceConversion: none
+Pass	createImageBitmap from a Blob, and drawImage on the created ImageBitmap with colorSpaceConversion: none
+Fail	createImageBitmap from a Video, and drawImage on the created ImageBitmap with colorSpaceConversion: none
