@@ -62,9 +62,9 @@ bool web_blob_is_file(void* blob);
 // Called by Bindings/Rust/src/file_api/blob.rs.
 void web_blob_bytes_destroy(BlobBytes*);
 JSObject* web_blob_get_stream(void* realm, ReadonlyBytes);
-JSObject* web_blob_text(void* realm, ReadonlyBytes);
-JSObject* web_blob_array_buffer(void* realm, ReadonlyBytes);
-JSObject* web_blob_bytes(void* realm, ReadonlyBytes);
+WebIDL::Promise* web_blob_text(void* realm, ReadonlyBytes);
+WebIDL::Promise* web_blob_array_buffer(void* realm, ReadonlyBytes);
+WebIDL::Promise* web_blob_bytes(void* realm, ReadonlyBytes);
 JSCompletion web_blob_deserialize_byte_sequence(Bindings::RustSerializationReader*, BlobBytesABI* out_bytes);
 }
 
@@ -191,7 +191,7 @@ JSObject* web_blob_get_stream(void* realm, ReadonlyBytes blob_bytes)
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-text
-JSObject* web_blob_text(void* realm, ReadonlyBytes blob_bytes)
+WebIDL::Promise* web_blob_text(void* realm, ReadonlyBytes blob_bytes)
 {
     auto& js_realm = *static_cast<JS::Realm*>(realm);
     auto& vm = js_realm.vm();
@@ -205,11 +205,11 @@ JSObject* web_blob_text(void* realm, ReadonlyBytes blob_bytes)
         auto text = TRY_OR_THROW_OOM(vm, TextCodec::utf8_decode_to_utf16(ReadonlyBytes { array_buffer.data_at(0), array_buffer.byte_length() }));
         return JS::PrimitiveString::create(vm, move(text));
     }));
-    return JS::HostABI::object_to_abi(promise->promise().ptr());
+    return promise.ptr();
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-arraybuffer
-JSObject* web_blob_array_buffer(void* realm, ReadonlyBytes blob_bytes)
+WebIDL::Promise* web_blob_array_buffer(void* realm, ReadonlyBytes blob_bytes)
 {
     auto& js_realm = *static_cast<JS::Realm*>(realm);
 
@@ -221,11 +221,11 @@ JSObject* web_blob_array_buffer(void* realm, ReadonlyBytes blob_bytes)
 
         return JS::ArrayBuffer::create(js_realm, MUST(ByteBuffer::copy(ReadonlyBytes { array_buffer.data_at(0), array_buffer.byte_length() })));
     }));
-    return JS::HostABI::object_to_abi(promise->promise().ptr());
+    return promise.ptr();
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-bytes
-JSObject* web_blob_bytes(void* realm, ReadonlyBytes blob_bytes)
+WebIDL::Promise* web_blob_bytes(void* realm, ReadonlyBytes blob_bytes)
 {
     auto& js_realm = *static_cast<JS::Realm*>(realm);
 
@@ -236,7 +236,7 @@ JSObject* web_blob_bytes(void* realm, ReadonlyBytes blob_bytes)
         auto& array_buffer = static_cast<JS::ArrayBuffer&>(object);
         return JS::Uint8Array::create(js_realm, array_buffer.byte_length(), array_buffer);
     }));
-    return JS::HostABI::object_to_abi(promise->promise().ptr());
+    return promise.ptr();
 }
 
 void web_blob_bytes_destroy(BlobBytes* bytes)

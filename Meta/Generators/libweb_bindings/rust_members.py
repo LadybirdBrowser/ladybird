@@ -27,12 +27,22 @@ from Utils.webidl_parser import Constructor
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Operation
+from Utils.webidl_parser import OperationParameter
 
 RUST_METHOD_NAME = re.compile(r"[a-z][a-z0-9_]*")
 
 # The extended attributes of the members of an interface that the Rust bindings handle.
 SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {"CachedAccessor", "FIXME", "ImplementedAs", "NewObject", "SameObject"}
-SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {"Default", "Exposed", "FIXME", "ImplementedAs", "NewObject", "SameObject"}
+# NB: The context of an operation that is [NeedsCallerRealm] has the current realm, not the realm of the object.
+SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {
+    "Default",
+    "Exposed",
+    "FIXME",
+    "ImplementedAs",
+    "NeedsCallerRealm",
+    "NewObject",
+    "SameObject",
+}
 SUPPORTED_STRINGIFIER_EXTENDED_ATTRIBUTES = {"Exposed"}
 
 # The value of [Exposed] that the Rust bindings handle on a member: a member that only a Window has, which the
@@ -163,6 +173,25 @@ class RustPairIterator:
 
 
 @dataclass
+class RustAsyncIterator:
+    """The value asynchronously iterable declaration of an interface, https://webidl.spec.whatwg.org/#idl-async-iterable,
+    whose asynchronous iterator initialization steps the implementation runs through its method
+    asynchronous_iterator_initialization_steps, and whose other steps it gives through its implementation of
+    AsyncIterable."""
+
+    parameters: List[OperationParameter]
+    # Whether the asynchronous iterator prototype object has a "return" method: [DefinesAsyncIteratorReturn].
+    defines_return: bool
+
+    function = "values_function"
+    method = "asynchronous_iterator_initialization_steps"
+
+    @property
+    def length(self) -> int:
+        return parameter_list_length(self.parameters)
+
+
+@dataclass
 class RustConstant:
     name: str
     value: int
@@ -193,6 +222,7 @@ class RustMembers:
     stringifier: Optional[RustStringifier] = None
     indexed_property_getter: Optional[RustIndexedPropertyGetter] = None
     pair_iterator: Optional[RustPairIterator] = None
+    async_iterator: Optional[RustAsyncIterator] = None
     constructors: List[RustConstructor] = field(default_factory=list)
     constants: List[RustConstant] = field(default_factory=list)
     # The regular attributes in the order of the IDL, as the prototype defines them: an attribute of `attributes`, or
@@ -218,6 +248,8 @@ class RustMembers:
             names.append(self.indexed_property_getter.operation.operation.name)
         if self.pair_iterator is not None:
             names.extend(self.pair_iterator.function_names)
+        if self.async_iterator is not None:
+            names.append("values")
         names.extend(constant.name for constant in self.constants)
         return names
 
@@ -256,13 +288,19 @@ def rust_members(interface: Interface) -> RustMembers:
     ]
     if any(special_operations):
         fail("it has special operations other than an indexed property getter")
-    if interface.async_iterable or interface.maplike or interface.setlike:
-        fail("it is async iterable or a maplike or setlike")
+    if interface.maplike or interface.setlike:
+        fail("it is a maplike or setlike")
+    if interface.async_iterable is not None and interface.async_iterable.key_type is not None:
+        fail("it has a pair asynchronously iterable declaration")
     has_value_iterator = interface.iterable is not None and interface.iterable.key_type is None
     if interface.static_attributes:
         fail("it has static attributes")
 
     members = RustMembers()
+    if interface.async_iterable is not None:
+        members.async_iterator = RustAsyncIterator(
+            interface.async_iterable.parameters, "DefinesAsyncIteratorReturn" in interface.extended_attributes
+        )
     if interface.iterable is not None and interface.iterable.key_type is not None:
         members.pair_iterator = RustPairIterator(interface.iterable.key_type, interface.iterable.value_type)
 

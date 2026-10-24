@@ -14,11 +14,18 @@
 //! Values and cells live in locals while a binding runs, which the collector scans; a binding that gathers values in
 //! a container keeps them in a MarkedVec.
 
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "the asynchronous iterator steps are built-in functions, which can throw"
+)]
+pub(crate) mod async_iterable;
+pub(crate) mod callback;
 pub(crate) mod conversions;
 #[cfg(web_idl_bindings)]
 pub(crate) mod generated;
 pub(crate) mod interface;
 pub(crate) mod iterable;
+pub(crate) mod promise;
 pub(crate) mod realm_data;
 pub(crate) mod services;
 pub(crate) mod structured_data;
@@ -72,6 +79,14 @@ impl From<Throw> for Exception {
 }
 
 impl Exception {
+    pub(crate) fn type_error(message: &str) -> Self {
+        Self::TypeError(Utf16String::from_utf8(message))
+    }
+
+    pub(crate) fn range_error(message: &str) -> Self {
+        Self::RangeError(Utf16String::from_utf8(message))
+    }
+
     pub(crate) fn index_size_error(message: Utf16String) -> Self {
         Self::Dom("IndexSizeError", message)
     }
@@ -111,3 +126,18 @@ fn thrown(completion: ThrowCompletionOr<()>) -> Throw {
 }
 
 pub(crate) type WebIdlResult<T> = Result<T, Exception>;
+
+/// The value of a WebIDL result that cannot be an exception, as `!` asserts of an abstract operation.
+pub(crate) trait MustNotThrow<T> {
+    fn must(self) -> T;
+}
+
+impl<T> MustNotThrow<T> for WebIdlResult<T> {
+    #[track_caller]
+    fn must(self) -> T {
+        match self {
+            Ok(value) => value,
+            Err(_) => panic!("a step that cannot throw threw"),
+        }
+    }
+}

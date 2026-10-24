@@ -549,7 +549,7 @@ TexImageSourceResult web_webgl_read_tex_image_pixels(u8 const* pixels, u32 width
 
 void* web_webgl_make_xr_compatible(void* context)
 {
-    return static_cast<WebGLRenderingContextBase*>(context)->make_xr_compatible()->promise().ptr();
+    return static_cast<WebGLRenderingContextBase*>(context)->make_xr_compatible().ptr();
 }
 
 }

@@ -55,7 +55,6 @@ from Generators.libweb_bindings.rust_types import is_implemented_in_rust
 from Generators.libweb_bindings.rust_types import is_promise_type
 from Generators.libweb_bindings.rust_types import rust_interface_path
 from Generators.libweb_bindings.rust_types import rust_parameter_type
-from Generators.libweb_bindings.rust_types import rust_result_type
 from Generators.libweb_bindings.rust_types import rust_type
 from Generators.libweb_bindings.rust_usage import DefinitionUsage
 from Generators.libweb_bindings.wrappers import wrapper_name
@@ -66,6 +65,8 @@ from Utils.webidl_parser import OperationParameter
 
 # The extended attributes of an interface that the Rust bindings handle.
 SUPPORTED_INTERFACE_EXTENDED_ATTRIBUTES = {
+    # NB: The asynchronous iterator prototype object of the interface has a "return" method.
+    "DefinesAsyncIteratorReturn",
     "Experimental",
     "Exposed",
     "ImplementedIn",
@@ -98,6 +99,10 @@ def wrapper_host_class_symbol(interface: Interface) -> str:
 
 def iterator_host_class_symbol(interface: Interface) -> str:
     return f"web_bindings_{rust_module_name(interface)}_iterator_host_class"
+
+
+def async_iterator_host_class_symbol(interface: Interface) -> str:
+    return f"web_bindings_{rust_module_name(interface)}_async_iterator_host_class"
 
 
 def interface_name_values(intrinsics: List[Interface]) -> Dict[str, int]:
@@ -163,6 +168,18 @@ public:
 extern "C" JSHostClass const {iterator_host_class_symbol(interface)};
 
 struct {interface.name}IteratorPrototype {{
+public:
+    static void initialize(JS::Realm&, JS::Object&);
+}};
+
+"""
+        )
+    if rust_members(interface).async_iterator is not None:
+        out.write(
+            f"""// The class of the default asynchronous iterator objects of {interface.name}, whose cells the Rust bindings create.
+extern "C" JSHostClass const {async_iterator_host_class_symbol(interface)};
+
+struct {interface.name}AsyncIteratorPrototype {{
 public:
     static void initialize(JS::Realm&, JS::Object&);
 }};
@@ -292,6 +309,21 @@ void {interface.name}IteratorPrototype::initialize(JS::Realm& realm, JS::Object&
 
 """
         )
+    if rust_members(interface).async_iterator is not None:
+        initialize_async_iterator_prototype = rust_entry_point_name(interface, "initialize_async_iterator_prototype")
+        out.write(
+            f"""extern "C" void {initialize_async_iterator_prototype}(JSVM*, void* realm, JSObject* prototype);
+
+constexpr JSHostClass {async_iterator_host_class_symbol(interface)} = JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}AsyncIterator"sv,
+    nullptr, nullptr, nullptr, 0);
+
+void {interface.name}AsyncIteratorPrototype::initialize(JS::Realm& realm, JS::Object& object)
+{{
+    {initialize_async_iterator_prototype}(JS::HostABI::vm_to_abi(realm.vm()), &realm, JS::HostABI::object_to_abi(&object));
+}}
+
+"""
+        )
 
 
 def write_ensure_web_prototype_declaration(out: TextIO) -> None:
@@ -346,11 +378,18 @@ JSObject* {function}(void* realm, u16 interface_name)
             f'ensure_web_constructor<{interface.prototype_class}>(js_realm, "{interface.namespaced_name}"_utf16_fly_string)'
         ),
     )
+    # NB: An interface has a pair iterator or an asynchronously iterable declaration, not both.
     write_switch(
         "web_bindings_ensure_web_iterator_prototype",
-        [interface for interface in rust_interfaces if rust_members(interface).pair_iterator is not None],
+        [
+            interface
+            for interface in rust_interfaces
+            if rust_members(interface).pair_iterator is not None or rust_members(interface).async_iterator is not None
+        ],
         lambda interface: (
-            f'ensure_web_prototype<{interface.name}IteratorPrototype>(js_realm, "{interface.name}Iterator"_utf16_fly_string)'
+            f'ensure_web_prototype<{interface.name}AsyncIteratorPrototype>(js_realm, "{interface.name}AsyncIterator"_utf16_fly_string)'
+            if rust_members(interface).async_iterator is not None
+            else f'ensure_web_prototype<{interface.name}IteratorPrototype>(js_realm, "{interface.name}Iterator"_utf16_fly_string)'
         ),
     )
 
@@ -453,12 +492,13 @@ def implementation_method_signatures(
         )
     for attribute in members.attributes:
         what = f"{interface.name}.{attribute.attribute.name}"
-        attribute_type = rust_type(attribute.attribute.type, context, what)
         if not attribute.attribute.inherit:
+            result_type = rust_type(attribute.attribute.type, context, what, is_result=True)
             signatures.append(
-                f"fn {attribute.getter_method}(&self, cx: &mut CallContext) -> WebIdlResult<{attribute_type}>"
+                f"fn {attribute.getter_method}(&self, cx: &mut CallContext) -> WebIdlResult<{result_type}>"
             )
         if attribute.setter_method is not None:
+            attribute_type = rust_type(attribute.attribute.type, context, what)
             signatures.append(
                 f"fn {attribute.setter_method}(&self, cx: &mut CallContext, value: {attribute_type}) -> "
                 "WebIdlResult<()>"
@@ -471,7 +511,7 @@ def implementation_method_signatures(
             parameters = parameter_list(what, overload.operation.parameters)
             signatures.append(
                 f"fn {overload.method}(&self, cx: &mut CallContext{parameters}) -> "
-                f"WebIdlResult<{rust_result_type(overload.operation.return_type, context, what)}>"
+                f"WebIdlResult<{rust_type(overload.operation.return_type, context, what, is_result=True)}>"
             )
     if members.stringifier is not None and members.stringifier.defines_method:
         signatures.append(f"fn {members.stringifier.method}(&self, cx: &mut CallContext) -> WebIdlResult<Utf16String>")
@@ -481,13 +521,25 @@ def implementation_method_signatures(
             f"impl PairIterable with Key = {key_type} and Value = {value_type}: "
             "fn value_pairs_to_iterate_over(&self) -> impl Deref<Target = [(Self::Key, Self::Value)]> + '_"
         )
+    if members.async_iterator is not None:
+        what = f"the asynchronously iterable declaration of {interface.name}"
+        parameters = parameter_list(what, members.async_iterator.parameters)
+        signatures.append(
+            f"fn {members.async_iterator.method}(&self, cx: &mut CallContext{parameters}) -> "
+            "WebIdlResult<<Self as AsyncIterable>::IteratorState>"
+        )
+        signatures.append(
+            "impl AsyncIterable: fn get_the_next_iteration_result(cx: &CallContext, state: &Self::IteratorState) -> "
+            "WebIdlPromise, fn asynchronous_iterator_return(cx: &CallContext, state: &Self::IteratorState, value: "
+            "Value) -> WebIdlPromise"
+        )
     if members.indexed_property_getter is not None:
         getter = members.indexed_property_getter.operation
         what = f"{interface.name}.{getter.operation.name}()"
         parameters = parameter_list(what, getter.operation.parameters)
         signatures.append(
             f"fn {getter.method}(&self, cx: &mut CallContext{parameters}) -> "
-            f"WebIdlResult<{rust_result_type(getter.operation.return_type, context, what)}>"
+            f"WebIdlResult<{rust_type(getter.operation.return_type, context, what, is_result=True)}>"
         )
     for operation_set in members.static_operation_sets:
         for overload in operation_set.overloads:
@@ -495,7 +547,7 @@ def implementation_method_signatures(
             parameters = parameter_list(what, overload.operation.parameters)
             signatures.append(
                 f"fn {overload.method}(cx: &mut CallContext{parameters}) -> "
-                f"WebIdlResult<{rust_result_type(overload.operation.return_type, context, what)}>"
+                f"WebIdlResult<{rust_type(overload.operation.return_type, context, what, is_result=True)}>"
             )
     return signatures
 
@@ -558,6 +610,86 @@ def write_rust_pair_iterator(out: TextIO, interface: Interface) -> None:
     )
 
 
+def write_rust_async_iterator(out: TextIO, context: GenerationContext, interface: Interface) -> None:
+    """The classes of the default asynchronous iterator objects of the interface, the steps of its asynchronous
+    iterator prototype object, which the bindings runtime implements for every interface with a value asynchronously
+    iterable declaration, https://webidl.spec.whatwg.org/#es-asynchronous-iterator-prototype-object, and the steps of
+    its "values" method, https://webidl.spec.whatwg.org/#es-asynchronous-iterable"""
+    async_iterator = rust_members(interface).async_iterator
+    assert async_iterator is not None
+    define_return = ""
+    if async_iterator.defines_return:
+        define_return = (
+            '        define_operation(vm, realm, prototype, "return", '
+            "raw_native!(async_iterator_return::<Implementation>), 1);\n"
+        )
+    out.write(
+        f"""
+    /// The class of the cells of the default asynchronous iterator objects of the interface.
+    static ASYNC_ITERATOR_CELL_CLASS: EmbedderClass<DefaultAsyncIterator<Implementation>> = EmbedderClass::new("{interface.name} AsyncIterator");
+
+    unsafe extern "C" {{
+        static {async_iterator_host_class_symbol(interface)}: JSHostClass;
+    }}
+
+    impl DefaultAsyncIteratorClasses for Implementation {{
+        const ASYNC_ITERATOR_CELL_CLASS: &'static EmbedderClass<DefaultAsyncIterator<Self>> = &ASYNC_ITERATOR_CELL_CLASS;
+
+        fn async_iterator_class() -> &'static JSHostClass {{
+            // SAFETY: LibWeb defines the class of the default asynchronous iterator objects as constant data.
+            unsafe {{ &{async_iterator_host_class_symbol(interface)} }}
+        }}
+    }}
+
+    /// The steps of {interface.name}AsyncIteratorPrototype::initialize() of LibWeb's C++ bindings.
+    ///
+    /// # Safety
+    ///
+    /// The pointers must be the VM, a realm and the asynchronous iterator prototype object of the realm.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn {rust_entry_point_name(interface, "initialize_async_iterator_prototype")}(
+        vm: *mut c_void,
+        realm: *mut c_void,
+        prototype: *mut c_void,
+    ) {{
+        // SAFETY: The caller passes live pointers.
+        let (vm, realm, prototype) = unsafe {{ entry_point_arguments(vm, realm, prototype) }};
+        define_to_string_tag(vm, prototype, "{interface.name} AsyncIterator");
+        define_operation(vm, realm, prototype, "next", raw_native!(async_iterator_next::<Implementation>), 0);
+{define_return}    }}
+
+    /// The "values" and %Symbol.asyncIterator% methods of the interface prototype object,
+    /// https://webidl.spec.whatwg.org/#es-asynchronous-iterable
+    fn {async_iterator.function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
+        // 1. Let jsValue be ? ToObject(this value).
+        // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "%Symbol.asyncIterator%",
+        //    and "method".
+        // 3. If jsValue does not implement definition, then throw a TypeError.
+        let (implementation, mut cx) = this_implementation(vm)?;
+
+        // 4. Let idlArgs be the result of converting arguments for an asynchronous iterator method given arguments.
+"""
+    )
+    write_parameter_conversions(
+        out, f"the asynchronously iterable declaration of {interface.name}", async_iterator.parameters, context
+    )
+    arguments = "".join(f", {rust_local_name(parameter.name)}" for parameter in async_iterator.parameters)
+    out.write(
+        f"""
+        // 5. Let iterator be a newly created default asynchronous iterator object for definition with jsValue as its
+        //    target, "value" as its kind, and is finished set to false.
+        // 6. Run the asynchronous iterator initialization steps for definition with jsValue, iterator, and idlArgs, if
+        //    any such steps exist.
+        let state = Implementation::{async_iterator.method}(&implementation, &mut cx{arguments})
+            .map_err(|exception| exception.throw(&cx))?;
+
+        // 7. Return iterator.
+        Ok(create_default_async_iterator::<Implementation>(&cx, state))
+    }}
+"""
+    )
+
+
 def write_rust_interface(
     out: TextIO, context: GenerationContext, module: Module, interface: Interface, interface_name_value: int
 ) -> None:
@@ -589,7 +721,7 @@ def write_rust_interface(
         sequence_to_js, to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface,
         to_cpp_interface_in_union, to_dom_string,
         to_dom_string_treating_null_as_empty, to_double, to_float, to_long, to_long_enforcing_range, to_long_long,
-        to_long_long_clamping, to_long_long_enforcing_range, to_typed_array, to_unrestricted_double,
+        to_long_long_clamping, to_long_long_enforcing_range, to_object, to_typed_array, to_unrestricted_double,
         to_unrestricted_float, to_unsigned_long, to_unsigned_long_enforcing_range, to_unsigned_long_long,
         to_unsigned_long_long_enforcing_range, to_usv_string,
     }};
@@ -600,10 +732,16 @@ def write_rust_interface(
         entry_point_arguments, implementation_if, implementation_of, prototype_from_new_target, realm_is_window,
         rejected_promise, set_dictionary_member, set_interface_prototype_object_prototype, this_object, to_interface,
     }};
+    use crate::bindings::async_iterable::{{
+        AsyncIterable, DefaultAsyncIterator, DefaultAsyncIteratorClasses, async_iterator_next, async_iterator_return,
+        create_default_async_iterator, define_async_iterator_properties,
+    }};
     use crate::bindings::iterable::{{
         DefaultIterator, DefaultIteratorClasses, define_pair_iterator_properties, entries, for_each, iterator_next, keys,
         values,
     }};
+    use crate::bindings::callback::{{CallbackFunction, PromiseCallbackFunction}};
+    use crate::bindings::promise::WebIdlPromise;
     use crate::bindings::structured_data;
     use crate::bindings::{{CallContext, WebIdlResult}};
 
@@ -653,10 +791,19 @@ def write_rust_interface(
         call = f"Implementation::{attribute.getter_method}(&implementation, &mut cx)"
         if attribute.attribute.inherit:
             call = inherited_attribute_getter_call(context, interface, attribute)
+        this_check = "this_implementation(vm)?"
+        if is_promise_type(attribute.attribute.type) and not attribute.attribute.type.nullable:
+            # https://webidl.spec.whatwg.org/#dfn-attribute-getter
+            this_check = """match this_implementation(vm) {
+            Ok(this) => this,
+            // If the attribute's type is a promise type, a this value that does not implement the interface rejects
+            // a new promise.
+            Err(throw) => return Ok(rejected_promise(vm, throw)),
+        }"""
         out.write(
             f"""
     pub(super) fn {attribute.getter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
-        let (implementation, mut cx) = this_implementation(vm)?;
+        let (implementation, mut cx) = {this_check};
         let result = {call}
             .map_err(|exception| exception.throw(&cx))?;
         {conversion}
@@ -697,6 +844,9 @@ def write_rust_interface(
 
     if members.pair_iterator is not None:
         write_rust_pair_iterator(out, interface)
+
+    if members.async_iterator is not None:
+        write_rust_async_iterator(out, context, interface)
 
     for operation_set in members.static_operation_sets:
         if len(operation_set.overloads) > 1:
@@ -781,6 +931,18 @@ def write_rust_interface(
 """
         )
         defined_property_names.extend(members.pair_iterator.function_names)
+    if members.async_iterator is not None:
+        out.write(
+            f"""        define_async_iterator_properties(
+            vm,
+            realm,
+            prototype,
+            raw_native!({members.async_iterator.function}),
+            {members.async_iterator.length},
+        );
+"""
+        )
+        defined_property_names.append("values")
     if members.constants:
         out.write("        define_constants(vm, prototype, &CONSTANTS);\n")
         defined_property_names.extend(constant.name for constant in members.constants)
@@ -1235,7 +1397,14 @@ def write_rust_operation(
     operation = overload.operation
     what = f"{interface.name}.{name}()"
     steps = StringIO()
-    steps.write("        let (implementation, mut cx) = this_implementation(vm)?;\n")
+    if "NeedsCallerRealm" in operation.extended_attributes:
+        steps.write(
+            """        let (implementation, _) = this_implementation(vm)?;
+        let mut cx = CallContext::new(vm, vm.current_realm().expect("a native function runs in a realm"));
+"""
+        )
+    else:
+        steps.write("        let (implementation, mut cx) = this_implementation(vm)?;\n")
     write_argument_count_check(steps, name, overload.length)
     if operation.parameters:
         steps.write("        let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());\n")
@@ -1253,10 +1422,7 @@ def write_rust_operation(
 """
         )
     else:
-        if returns_promise:
-            conversion = "result.to_js(&cx)"
-        else:
-            conversion = rust_to_js_value(operation.return_type, "result", "&cx", context, what)
+        conversion = rust_to_js_value(operation.return_type, "result", "&cx", context, what)
         steps.write(
             f"""        let result = {call}
             .map_err(|exception| exception.throw(&cx))?;
@@ -1351,6 +1517,7 @@ pub(crate) mod definitions {
     };
 
     use crate::bindings::CallContext;
+    use crate::bindings::callback::{CallbackFunction, PromiseCallbackFunction};
     use crate::bindings::conversions::{
         ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
         buffer_source_if, dictionary_member, dictionary_object, enumeration_value_to_js, implements_cpp_interface,
@@ -1358,9 +1525,9 @@ pub(crate) mod definitions {
         sequence_to_js, throw_no_union_types_matched, to_array_buffer_view, to_boolean, to_buffer_source,
         to_cpp_interface,
         to_dom_string, to_dom_string_treating_null_as_empty, to_double, to_enumeration_value, to_float, to_long,
-        to_long_enforcing_range, to_long_long, to_long_long_enforcing_range, to_typed_array, to_unrestricted_double,
-        to_unrestricted_float, to_unsigned_long, to_unsigned_long_enforcing_range, to_unsigned_long_long,
-        to_unsigned_long_long_enforcing_range, to_usv_string,
+        to_long_enforcing_range, to_long_long, to_long_long_enforcing_range, to_object, to_typed_array,
+        to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_enforcing_range,
+        to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string,
     };
     use crate::bindings::interface::{
         Interface, Ref, create_dictionary_object, implementation_if, implementation_of, set_dictionary_member,

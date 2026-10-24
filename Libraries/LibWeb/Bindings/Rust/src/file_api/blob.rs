@@ -18,6 +18,7 @@ use libwebcommon_rust::mime_sniff::mime_type::MimeType;
 use super::file::File;
 use crate::bindings::conversions::{BufferSource, CppInterface, UsvString};
 use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate, cell_into_abi};
+use crate::bindings::promise::{WebIdlPromise, promise_from_abi};
 use crate::bindings::structured_data::{Serializable, SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, WebIdlResult};
 
@@ -476,10 +477,10 @@ impl Blob {
     }
 
     // https://w3c.github.io/FileAPI/#dom-blob-text
-    pub(crate) fn text(&self, cx: &mut CallContext) -> WebIdlResult<Gc<Object>> {
+    pub(crate) fn text(&self, cx: &mut CallContext) -> WebIdlResult<WebIdlPromise> {
         // SAFETY: The realm is live, LibWeb copies the bytes, and it returns a new promise.
         Ok(unsafe {
-            object_from_abi(web_blob_text(
+            promise_from_abi(web_blob_text(
                 cx.realm().as_ptr().cast(),
                 ak::Span::new(&self.raw_bytes()),
             ))
@@ -487,10 +488,10 @@ impl Blob {
     }
 
     // https://w3c.github.io/FileAPI/#dom-blob-arraybuffer
-    pub(crate) fn array_buffer(&self, cx: &mut CallContext) -> WebIdlResult<Gc<Object>> {
+    pub(crate) fn array_buffer(&self, cx: &mut CallContext) -> WebIdlResult<WebIdlPromise> {
         // SAFETY: The realm is live, LibWeb copies the bytes, and it returns a new promise.
         Ok(unsafe {
-            object_from_abi(web_blob_array_buffer(
+            promise_from_abi(web_blob_array_buffer(
                 cx.realm().as_ptr().cast(),
                 ak::Span::new(&self.raw_bytes()),
             ))
@@ -498,10 +499,10 @@ impl Blob {
     }
 
     // https://w3c.github.io/FileAPI/#dom-blob-bytes
-    pub(crate) fn bytes(&self, cx: &mut CallContext) -> WebIdlResult<Gc<Object>> {
+    pub(crate) fn bytes(&self, cx: &mut CallContext) -> WebIdlResult<WebIdlPromise> {
         // SAFETY: The realm is live, LibWeb copies the bytes, and it returns a new promise.
         Ok(unsafe {
-            object_from_abi(web_blob_bytes(
+            promise_from_abi(web_blob_bytes(
                 cx.realm().as_ptr().cast(),
                 ak::Span::new(&self.raw_bytes()),
             ))

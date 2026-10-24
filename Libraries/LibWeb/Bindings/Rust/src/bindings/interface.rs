@@ -344,6 +344,16 @@ pub(crate) fn realm_is_window(realm: Gc<Realm>) -> bool {
 /// Runs the steps while an execution context of the realm is on the stack, for steps that can run script but that do not
 /// run on behalf of script, as an HTML::TemporaryExecutionContext does for C++.
 pub(crate) fn with_temporary_execution_context<F: FnOnce() -> R, R>(realm: Gc<Realm>, steps: F) -> R {
+    run_with_temporary_execution_context(realm, false, steps)
+}
+
+/// Runs the steps as with_temporary_execution_context() does, with the realm prepared to run callbacks as well, as an
+/// HTML::TemporaryExecutionContext with CallbacksEnabled::Yes does for C++.
+pub(crate) fn with_temporary_execution_context_and_callbacks<F: FnOnce() -> R, R>(realm: Gc<Realm>, steps: F) -> R {
+    run_with_temporary_execution_context(realm, true, steps)
+}
+
+fn run_with_temporary_execution_context<F: FnOnce() -> R, R>(realm: Gc<Realm>, callbacks_enabled: bool, steps: F) -> R {
     unsafe extern "C" fn run_steps<F: FnOnce() -> R, R>(context: *mut c_void) {
         // SAFETY: The context is the steps and the slot for their result, which outlive the call.
         let (steps, result) = unsafe { &mut *context.cast::<(Option<F>, Option<R>)>() };
@@ -355,6 +365,7 @@ pub(crate) fn with_temporary_execution_context<F: FnOnce() -> R, R>(realm: Gc<Re
     unsafe {
         web_bindings_with_temporary_execution_context(
             realm.as_ptr().cast(),
+            callbacks_enabled,
             (&raw mut context).cast(),
             run_steps::<F, R>,
         );
