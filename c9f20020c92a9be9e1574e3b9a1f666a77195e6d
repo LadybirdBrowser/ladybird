@@ -1,0 +1,16 @@
+Ctrl/Cmd+W on a pinned tab selects the first unpinned tab in Ladybird,
+rather than closing the pinned one, and only when the shortcut came
+from the keyboard. Firefox does the same in closeTabOrWindow()
+(browser-commands.js). Chromium instead shows a ToastId::kClosePinnedTab
+confirmation toast first, and closes the tab on a second press.
+
+Middle-click closes a pinned tab in Ladybird, as it does in Chromium’s
+Tab::OnMouseReleased() and in the auxclick handler in Firefox’s tabs.js.
+Close Tabs to Left/Right and Close Other Tabs skip pinned tabs in
+Ladybird, as Chromium’s TabStripModel::GetIndicesClosedByCommand()
+and Firefox’s _getTabsToTheStartFrom(), _getTabsToTheEndFrom(),
+and removeAllTabsBut() do. Duplicate Tab gives an unpinned copy in
+Ladybird, as Firefox’s duplicateTab() does (tabState.pinned = false);
+Chromium’s DuplicateTabAt() pins the copy. And a drag never changes
+a tab’s pin state in Ladybird, while Firefox’s adoptTab() pins an
+adopted tab by its drop index.
