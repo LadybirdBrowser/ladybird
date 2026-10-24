@@ -32,9 +32,8 @@ void SVGFEColorMatrixElement::attribute_changed(Utf16FlyString const& name, Opti
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    // FIXME: Support reflection instead of invalidating the list.
-    if (name == AttributeNames::values)
-        m_values = {};
+    if (name == AttributeNames::values && m_values)
+        m_values->synchronize();
 }
 
 GC::Ref<SVGAnimatedString> SVGFEColorMatrixElement::in1()
@@ -58,18 +57,8 @@ GC::Ref<SVGAnimatedEnumeration> SVGFEColorMatrixElement::type()
 
 GC::Ref<SVGAnimatedNumberList> SVGFEColorMatrixElement::values()
 {
-    if (!m_values) {
-        auto numbers = parse_table_values(get_attribute_value(AttributeNames::values));
-
-        auto items = GC::Heap::the().allocate<SVGNumberList::List>();
-        items->elements().ensure_capacity(numbers.size());
-        for (auto number : numbers)
-            items->elements().unchecked_append(SVGNumber::create(number, SVGNumber::ReadOnly::Yes));
-
-        auto number_list = SVGNumberList::create(items, ReadOnlyList::Yes);
-        m_values = SVGAnimatedNumberList::create(number_list);
-    }
-
+    if (!m_values)
+        m_values = SVGAnimatedNumberList::create(*this, AttributeNames::values);
     return *m_values;
 }
 

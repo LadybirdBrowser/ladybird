@@ -70,6 +70,23 @@ public:
 
     ReadOnly read_only() const { return m_read_only; }
 
+    // https://svgwg.org/svg2-draft/types.html#TermAttach
+    void attach(GC::Ref<SVGLengthList>, GC::Ref<SVGElement>, Directionality, ReadOnly);
+
+    // https://svgwg.org/svg2-draft/types.html#TermDetach
+    void detach();
+
+    bool is_detached() const { return !m_list && m_source.has<DetachedSource>(); }
+
+    // Creates a detached, writable SVGLength that has the same value as this one.
+    [[nodiscard]] GC::Ref<SVGLength> create_detached_copy() const;
+
+    // Parses a value using the CSS syntax [ <number> | <length> | <percentage> ], if it parses to a scalar value.
+    static Optional<SVGLengthValue> parse_scalar_value(Utf16View);
+
+    // Sets the value when the list this length belongs to is synchronized with its reflected attribute.
+    void set_value_from_reflected_attribute(SVGLengthValue);
+
 private:
     // An SVGLength object can be associated with a particular element, as well as being designated with a
     // directionality: horizontal, vertical or unspecified.
@@ -92,7 +109,7 @@ private:
 
     // 3. reflect an element of the base value of a reflected animatable attribute (being exposed through the methods on
     //    the baseVal member of an SVGAnimatedLengthList), or
-    // FIXME: Implement this - we currently use a detached SVGLength for this.
+    // NB: Such a length holds its value like a detached one, and additionally has the list it is an element of.
 
     // 4. be detached, which is the case for SVGLength objects created with createSVGLength.
     struct DetachedSource {
@@ -113,6 +130,9 @@ private:
     InternalValue internal_value() const;
 
     Source m_source;
+
+    // The list this length is an element of, if it reflects an element of the base value of a reflected attribute.
+    GC::Ptr<SVGLengthList> m_list;
 
     // https://svgwg.org/svg2-draft/types.html#ReadOnlyLength
     ReadOnly m_read_only;

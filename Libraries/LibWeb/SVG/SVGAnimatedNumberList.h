@@ -18,21 +18,26 @@ class SVGAnimatedNumberList final : public Bindings::GCAllocatedWrappable {
 
 public:
     static constexpr size_t base_val_offset() { return offsetof(SVGAnimatedNumberList, m_base_val); }
-    [[nodiscard]] static GC::Ref<SVGAnimatedNumberList> create(GC::Ref<SVGNumberList>);
+    static constexpr size_t anim_val_offset() { return offsetof(SVGAnimatedNumberList, m_anim_val); }
+    [[nodiscard]] static GC::Ref<SVGAnimatedNumberList> create(GC::Ref<SVGElement>, Utf16FlyString reflected_attribute);
     virtual ~SVGAnimatedNumberList() override = default;
 
     // https://www.w3.org/TR/SVG2/types.html#__svg__SVGAnimatedLengthList__baseVal
     GC::Ref<SVGNumberList> base_val() const { return m_base_val; }
 
     // https://www.w3.org/TR/SVG2/types.html#__svg__SVGAnimatedLengthList__animVal
-    GC::Ref<SVGNumberList> anim_val() const { return m_base_val; }
+    GC::Ref<SVGNumberList> anim_val() const { return m_anim_val; }
+
+    // https://svgwg.org/svg2-draft/types.html#SynchronizingReflectedValues
+    void synchronize();
 
 private:
-    SVGAnimatedNumberList(GC::Ref<SVGNumberList>);
+    SVGAnimatedNumberList(GC::Ref<SVGNumberList> base_val, GC::Ref<SVGNumberList> anim_val);
 
     virtual void visit_edges(Visitor&) override;
 
     GC::Ref<SVGNumberList> m_base_val;
+    GC::Ref<SVGNumberList> m_anim_val;
 };
 
 }

@@ -14,6 +14,7 @@
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGLength.h>
+#include <LibWeb/SVG/SVGLengthList.h>
 
 namespace Web::SVG {
 
@@ -22,6 +23,16 @@ GC_DEFINE_ALLOCATOR(SVGLength);
 GC::Ref<SVGLength> SVGLength::create_detached(JS::Realm& realm, SVGLengthValue value, ReadOnly read_only)
 {
     return realm.create<SVGLength>(realm, nullptr, Directionality::Unspecified, DetachedSource { .value = value }, read_only);
+}
+
+GC::Ref<SVGLength> SVGLength::create_detached_copy() const
+{
+    auto value = internal_value().visit(
+        [](SVGLengthValue const& scalar) -> Variant<SVGLengthValue, Utf16String> { return scalar; },
+        [](NonnullRefPtr<CSS::StyleValue const> const& style_value) -> Variant<SVGLengthValue, Utf16String> {
+            return style_value->to_utf16_string(CSS::SerializationMode::Normal);
+        });
+    return m_realm->create<SVGLength>(*m_realm, nullptr, Directionality::Unspecified, DetachedSource { .value = move(value) }, ReadOnly::No);
 }
 
 GC::Ref<SVGLength> SVGLength::create_reflected_attribute(JS::Realm& realm, GC::Ref<SVGElement> element, Utf16FlyString name, Directionality directionality, ReflectedAttributeType type, SVGLengthValue default_value, ReadOnly read_only)
@@ -42,9 +53,42 @@ SVGLength::SVGLength(JS::Realm& realm, GC::Ptr<SVGElement> associated_element, D
 void SVGLength::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    if (m_source.has<ReflectedAttributeSource>())
-        visitor.visit(m_element);
+    visitor.visit(m_element);
     visitor.visit(m_realm);
+    visitor.visit(m_list);
+}
+
+// https://svgwg.org/svg2-draft/types.html#TermAttach
+void SVGLength::attach(GC::Ref<SVGLengthList> list, GC::Ref<SVGElement> element, Directionality directionality, ReadOnly read_only)
+{
+    // Associate the SVGLength with the element that the list interface object is associated with and set its
+    // directionality to that specified by the attribute being reflected. Additionally, depending on which IDL attribute
+    // the list interface object is reflected through:
+    // baseVal: Set the SVGLength to reflect an element of the base value.
+    // animVal: Set the SVGLength to reflect an element of the base value. Set the SVGLength to be read only.
+    VERIFY(m_source.has<DetachedSource>());
+    m_list = list;
+    m_element = element;
+    m_directionality = directionality;
+    m_read_only = read_only;
+}
+
+// https://svgwg.org/svg2-draft/types.html#TermDetach
+void SVGLength::detach()
+{
+    // Set the SVGLength to no longer be associated with any element. If the SVGLength is read only, set it to be no
+    // longer read only. Set the SVGLength to have unspecified directionality.
+    VERIFY(m_source.has<DetachedSource>());
+    m_list = nullptr;
+    m_element = nullptr;
+    m_read_only = ReadOnly::No;
+    m_directionality = Directionality::Unspecified;
+}
+
+void SVGLength::set_value_from_reflected_attribute(SVGLengthValue value)
+{
+    VERIFY(m_source.has<DetachedSource>());
+    m_source.get<DetachedSource>().value = value;
 }
 
 SVGLength::~SVGLength() = default;
@@ -271,6 +315,14 @@ static RefPtr<CSS::StyleValue const> parse_css_length_value(Utf16View const& val
     return nullptr;
 }
 
+Optional<SVGLengthValue> SVGLength::parse_scalar_value(Utf16View value)
+{
+    auto parsed_value = parse_css_length_value(value);
+    if (!parsed_value)
+        return {};
+    return SVGLengthValue::from_style_value(*parsed_value);
+}
+
 SVGLength::InternalValue SVGLength::internal_value() const
 {
     return m_source.visit(
@@ -407,8 +459,9 @@ WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
 
     // 4. If the SVGLength reflects the base value of a reflected attribute, reflects a presentation attribute, or
     //    reflects an element of the base value of a reflected attribute, then reserialize the reflected attribute.
-    // FIXME: Implement this for "reflects a presentation attribute" and "reflects an element of the base value of a
-    //        reflected attribute" if/when we support those modes.
+    // FIXME: Implement this for "reflects a presentation attribute" if/when we support that mode.
+    if (m_list)
+        m_list->reserialize_reflected_attribute();
     if (m_source.has<ReflectedAttributeSource>()) {
         // NB: All attribute reflecting lengths should have an associated element
         VERIFY(m_element);
@@ -481,8 +534,9 @@ WebIDL::ExceptionOr<void> SVGLength::set_value_in_specified_units(float value)
     // 6. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
     //    a reflected attribute, then reserialize the reflected attribute.
 
-    // FIXME: Implement this for "reflects an element of the base value of a reflected attribute" when we support it.
     // FIXME: Should this also happen for "reflects a presentation attribute" as we do with set_value()?
+    if (m_list)
+        m_list->reserialize_reflected_attribute();
     if (m_source.has<ReflectedAttributeSource>()) {
         // NB: All attribute reflecting lengths should have an associated element
         VERIFY(m_element);
@@ -559,8 +613,9 @@ WebIDL::ExceptionOr<void> SVGLength::set_value_as_string(Utf16String value)
 
     // 6. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
     //    a reflected attribute, then reserialize the reflected attribute.
-    // FIXME: Implement this for "reflects an element of the base value of a reflected attribute" when we support it.
     // FIXME: Should this also happen for "reflects a presentation attribute" as we do with set_value()?
+    if (m_list)
+        m_list->reserialize_reflected_attribute();
     if (m_source.has<ReflectedAttributeSource>()) {
         // NB: All attribute reflecting lengths should have an associated element
         VERIFY(m_element);
@@ -636,8 +691,9 @@ WebIDL::ExceptionOr<void> SVGLength::new_value_specified_units(u16 unit_type, fl
 
     // 4. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
     //    a reflected attribute, then reserialize the reflected attribute.
-    // FIXME: Implement this for "reflects an element of the base value of a reflected attribute" when we support it.
     // FIXME: Should this also happen for "reflects a presentation attribute" as we do with set_value()?
+    if (m_list)
+        m_list->reserialize_reflected_attribute();
     if (m_source.has<ReflectedAttributeSource>()) {
         // NB: All attribute reflecting lengths should have an associated element
         VERIFY(m_element);
@@ -700,8 +756,9 @@ WebIDL::ExceptionOr<void> SVGLength::convert_to_specified_units(u16 unit_type)
 
     // 8. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
     //    a reflected attribute, then reserialize the reflected attribute.
-    // FIXME: Implement this for "reflects an element of the base value of a reflected attribute" when we support it.
     // FIXME: Should this also happen for "reflects a presentation attribute" as we do with set_value()?
+    if (m_list)
+        m_list->reserialize_reflected_attribute();
     if (m_source.has<ReflectedAttributeSource>()) {
         // NB: All attribute reflecting lengths should have an associated element
         VERIFY(m_element);

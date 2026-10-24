@@ -39,9 +39,8 @@ void SVGComponentTransferFunctionElement::attribute_changed(Utf16FlyString const
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    // FIXME: Support reflection instead of invalidating the list.
-    if (name == AttributeNames::tableValues)
-        m_table_values = {};
+    if (name == AttributeNames::tableValues && m_table_values)
+        m_table_values->synchronize();
 
     // Clear our cached color table on any attribute change.
     m_cached_color_table.clear();
@@ -76,17 +75,8 @@ GC::Ref<SVGAnimatedEnumeration> SVGComponentTransferFunctionElement::type()
 // https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecomponenttransfer-tablevalues
 GC::Ref<SVGAnimatedNumberList> SVGComponentTransferFunctionElement::table_values()
 {
-    if (!m_table_values) {
-        auto numbers = parse_table_values(get_attribute_value(AttributeNames::tableValues));
-
-        auto items = GC::Heap::the().allocate<SVGNumberList::List>();
-        items->elements().ensure_capacity(numbers.size());
-        for (auto number : numbers)
-            items->elements().unchecked_append(SVGNumber::create(number, SVGNumber::ReadOnly::Yes));
-
-        auto number_list = SVGNumberList::create(items, ReadOnlyList::Yes);
-        m_table_values = SVGAnimatedNumberList::create(number_list);
-    }
+    if (!m_table_values)
+        m_table_values = SVGAnimatedNumberList::create(*this, AttributeNames::tableValues);
     return *m_table_values;
 }
 

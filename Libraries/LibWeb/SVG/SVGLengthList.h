@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGC/HeapVector.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGLength.h>
 #include <LibWeb/SVG/SVGList.h>
@@ -21,17 +21,28 @@ class SVGLengthList final
     GC_DECLARE_ALLOCATOR(SVGLengthList);
 
 public:
-    using List = GC::HeapVector<GC::Ref<SVGLength>>;
-
-    [[nodiscard]] static GC::Ref<SVGLengthList> create(GC::Ref<List>, ReadOnlyList);
-    [[nodiscard]] static GC::Ref<SVGLengthList> create(ReadOnlyList);
+    [[nodiscard]] static GC::Ref<SVGLengthList> create(GC::Ref<SVGElement>, Utf16FlyString reflected_attribute, SVGLength::Directionality, ReadOnlyList);
     virtual ~SVGLengthList() override = default;
 
+    // https://svgwg.org/svg2-draft/types.html#TermSynchronizeList
+    void synchronize();
+
+    // https://svgwg.org/svg2-draft/types.html#TermReserialize
+    virtual void reserialize_reflected_attribute() override;
+
 private:
-    SVGLengthList(GC::Ref<List>, ReadOnlyList);
-    explicit SVGLengthList(ReadOnlyList);
+    SVGLengthList(GC::Ref<SVGElement>, Utf16FlyString reflected_attribute, SVGLength::Directionality, ReadOnlyList);
 
     virtual void visit_edges(Visitor&) override;
+
+    virtual void attach(GC::Ref<SVGLength> const&) override;
+    virtual void detach(GC::Ref<SVGLength> const&) override;
+    virtual GC::Ref<SVGLength> copy_if_not_detached(GC::Ref<SVGLength>) override;
+
+    GC::Ref<SVGElement> m_element;
+    Utf16FlyString m_reflected_attribute;
+    SVGLength::Directionality m_directionality;
+    bool m_is_reserializing { false };
 };
 
 }

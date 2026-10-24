@@ -1,6 +1,5 @@
 initial length: 1
 initial [0]: 5
 same wrapper: true
-existing index: NoModificationAllowedError: Cannot modify a read-only list
-new index: NoModificationAllowedError: Cannot modify a read-only list
+new index: IndexSizeError: List index out of bounds
 wrong type: TypeError: Value must be an SVGLength
