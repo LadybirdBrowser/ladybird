@@ -4073,7 +4073,9 @@ impl<'pass> GridFormattingContext<'pass> {
             // Resolve relative-position insets before placement seals the
             // item's committed metrics.
             abspos_engine::compute_inset_native(run, item.box_, area.size.inline_size, area.size.block_size);
-            if self.item_participates_in_row_baseline_alignment(item) {
+            if self.item_participates_in_row_baseline_alignment(item)
+                || self.item_participates_in_column_baseline_alignment(item)
+            {
                 // NB: Baseline-aligned items are placed once every item in their baseline-sharing group is laid out.
                 baseline_aligned_items.push((item_index, offset));
                 continue;
@@ -4126,6 +4128,43 @@ impl<'pass> GridFormattingContext<'pass> {
         })
     }
 
+    // NB: In a frame whose horizontal axis is vertical in the physical plane, the horizontal Column axis aligns items
+    //     by their baselines too: items in an orthogonal flow by their own, which lie across that axis, and other
+    //     items by synthesized ones.
+    fn item_participates_in_column_baseline_alignment(&self, item: GridItem) -> bool {
+        if !self.run.callbacks.frame.is_transposed()
+            || self.columns_are_reversed
+            || self.item_alignment(item, Axis::Column) != Alignment::Baseline
+        {
+            return false;
+        }
+        let style = self.style(item.box_);
+        if style.margin_left().is_auto() || style.margin_right().is_auto() {
+            return false;
+        }
+        !(self.item_preferred_size(item, Axis::Column).contains_percentage()
+            || style.min_width().contains_percentage()
+            || style.max_width().contains_percentage())
+    }
+
+    /// The distance from the start of the item's grid area to its alignment baseline in the Column axis, as the item is
+    /// laid out at the start of its area.
+    fn item_column_baseline(&self, item: GridItem) -> CssPixels {
+        let used = self.used(item);
+        let collapsed = used.uses_collapsing_borders_model.get();
+        let margin_box_left = used.margin_left.get() + used.border_box_left(collapsed);
+        let baseline = self
+            .sizing()
+            .establishes_orthogonal_flow(item.box_)
+            .then(|| used.orthogonal_flow_baselines().and_then(|baselines| baselines.first))
+            .flatten();
+        match baseline {
+            Some(baseline) => margin_box_left + baseline,
+            // https://drafts.csswg.org/css-align-3/#synthesize-baseline
+            None => margin_box_left + used.content_inline_size.get() + used.border_box_right(collapsed),
+        }
+    }
+
     /// The distance from the start of the item's grid area to its alignment baseline, as the item is laid out at the
     /// start of its area.
     fn item_row_baseline(&self, item: GridItem) -> CssPixels {
@@ -4164,17 +4203,32 @@ impl<'pass> GridFormattingContext<'pass> {
         // [...] a table cell spanning three rows participates in first-baseline alignment with the table cells in the
         // first row that it spans [...]
         let mut shared_baselines = HashMap::<i32, CssPixels>::default();
+        let mut shared_column_baselines = HashMap::<i32, CssPixels>::default();
         for &(item_index, _) in items {
             let item = self.items[item_index];
-            let baseline = self.item_row_baseline(item);
-            shared_baselines
-                .entry(item.row)
-                .and_modify(|shared| *shared = (*shared).max(baseline))
-                .or_insert(baseline);
+            if self.item_participates_in_row_baseline_alignment(item) {
+                let baseline = self.item_row_baseline(item);
+                shared_baselines
+                    .entry(item.row)
+                    .and_modify(|shared| *shared = (*shared).max(baseline))
+                    .or_insert(baseline);
+            }
+            if self.item_participates_in_column_baseline_alignment(item) {
+                let baseline = self.item_column_baseline(item);
+                shared_column_baselines
+                    .entry(item.column)
+                    .and_modify(|shared| *shared = (*shared).max(baseline))
+                    .or_insert(baseline);
+            }
         }
         for &(item_index, mut offset) in items {
             let item = self.items[item_index];
-            offset.y += shared_baselines[&item.row] - self.item_row_baseline(item);
+            if self.item_participates_in_row_baseline_alignment(item) {
+                offset.y += shared_baselines[&item.row] - self.item_row_baseline(item);
+            }
+            if self.item_participates_in_column_baseline_alignment(item) {
+                offset.x += shared_column_baselines[&item.column] - self.item_column_baseline(item);
+            }
             formatting_context::place_child(&self.run, item.box_, offset, None);
         }
     }

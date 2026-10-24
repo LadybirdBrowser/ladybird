@@ -2385,6 +2385,30 @@ fn leave_own_frame(
         } else {
             result.automatic_content_inline_size
         };
+        // NB: The root's baselines lie across its own block axis, which is the horizontal axis of its parent's frame.
+        let block_start_is_left = matches!(
+            own_frame.side_in(geometry::Side::Top, parent_frame),
+            geometry::Side::Left
+        );
+        let content_block_size = used.content_block_size.get();
+        let along_parent_horizontal_axis = |baseline: Option<CssPixels>| {
+            baseline.map(|baseline| {
+                if block_start_is_left {
+                    baseline
+                } else {
+                    content_block_size - baseline
+                }
+            })
+        };
+        let orthogonal_flow_baselines = DerivedBaselines {
+            first: along_parent_horizontal_axis(result.baselines.first),
+            last: along_parent_horizontal_axis(result.baselines.last),
+        };
+        if orthogonal_flow_baselines != DerivedBaselines::default() {
+            used.rare_data_mut().orthogonal_flow_baselines = Some(orthogonal_flow_baselines);
+        } else if used.orthogonal_flow_baselines().is_some() {
+            used.rare_data_mut().orthogonal_flow_baselines = None;
+        }
         result.automatic_content_inline_size = result.automatic_content_block_size;
         result.min_content_inline_size_from_max_content_layout = None;
         result.automatic_content_block_size = content_inline_size;

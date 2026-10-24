@@ -2540,19 +2540,38 @@ impl<'pass> FlexFormattingContext<'pass> {
     // https://drafts.csswg.org/css-align-3/#synthesize-baseline
     // NB: An item in another writing mode has no baseline in this container's axis, so it synthesizes one.
     fn item_baseline_is_synthesized(&self, index: usize) -> bool {
+        if self.run.callbacks.frame.is_transposed() {
+            // NB: An item has a baseline across its block axis, so only in the cross axis that its block axis runs
+            //     along.
+            return self.item_establishes_orthogonal_flow(index) != self.cross_axis_is_horizontal();
+        }
         self.style(self.flex_items[index].box_).writing_mode() != writing_mode::HORIZONTAL_TB
     }
 
+    fn item_establishes_orthogonal_flow(&self, index: usize) -> bool {
+        self.sizing().establishes_orthogonal_flow(self.flex_items[index].box_)
+    }
+
     fn item_participates_in_baseline_alignment(&self, index: usize) -> bool {
-        // FIXME: box_baseline() only understands horizontal-tb line box geometry, so items can only be baseline-aligned
-        //        in a horizontal-tb container unless they are horizontal-tb themselves.
+        // FIXME: Items in a horizontal-tb container only align by baselines across the vertical axis, where a
+        //        horizontal-tb item is aligned by its own baselines and any other item by synthesized ones.
         self.alignment_for_item(self.flex_items[index].box_) == align_items::BASELINE
-            && (!self.item_baseline_is_synthesized(index)
-                || self.style(self.run.box_).writing_mode() == writing_mode::HORIZONTAL_TB)
+            && (!self.item_baseline_is_synthesized(index) || !self.run.callbacks.frame.is_transposed())
     }
 
     fn item_box_baseline(&self, index: usize) -> CssPixels {
         let item = &self.flex_items[index];
+        if self.run.callbacks.frame.is_transposed() && self.cross_axis_is_horizontal() {
+            // NB: The cross axis is the horizontal axis of the frame, along which an item in an orthogonal flow
+            //     has its baselines.
+            let used = self.item_used(index);
+            let collapsed = used.uses_collapsing_borders_model.get();
+            let margin_box_left = used.margin_left.get() + used.border_box_left(collapsed);
+            return match used.orthogonal_flow_baselines().and_then(|baselines| baselines.first) {
+                Some(baseline) => margin_box_left + baseline,
+                None => margin_box_left + used.content_inline_size.get() + used.border_box_right(collapsed),
+            };
+        }
         if self.item_baseline_is_synthesized(index) {
             let used = self.item_used(index);
             let collapsed = used.uses_collapsing_borders_model.get();
