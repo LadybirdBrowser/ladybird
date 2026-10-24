@@ -3107,6 +3107,14 @@ pub unsafe extern "C" fn rust_style_value_create_ratio(
     }))
 }
 
+/// Takes ownership of one strong reference to the number, percentage or calculated value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_opacity_value(value: *const StyleValueData) -> *const StyleValueData {
+    Arc::into_raw(Arc::new(StyleValueData::OpacityValue {
+        value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
+    }))
+}
+
 /// Takes ownership of one strong reference to the length-percentage value.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_text_indent(

@@ -2,25 +2,25 @@ Harness status: OK
 
 Found 31 tests
 
-27 Pass
-4 Fail
+26 Pass
+5 Fail
 Pass	Can set 'shape-image-threshold' to CSS-wide keywords: initial
 Pass	Can set 'shape-image-threshold' to CSS-wide keywords: inherit
 Pass	Can set 'shape-image-threshold' to CSS-wide keywords: unset
 Pass	Can set 'shape-image-threshold' to CSS-wide keywords: revert
 Pass	Can set 'shape-image-threshold' to var() references:  var(--A)
-Fail	Can set 'shape-image-threshold' to a number: 0
-Fail	Can set 'shape-image-threshold' to a number: -3.14
-Fail	Can set 'shape-image-threshold' to a number: 3.14
+Pass	Can set 'shape-image-threshold' to a number: 0
+Pass	Can set 'shape-image-threshold' to a number: -3.14
+Pass	Can set 'shape-image-threshold' to a number: 3.14
 Fail	Can set 'shape-image-threshold' to a number: calc(2 + 3)
 Pass	Setting 'shape-image-threshold' to a length: 0px throws TypeError
 Pass	Setting 'shape-image-threshold' to a length: -3.14em throws TypeError
 Pass	Setting 'shape-image-threshold' to a length: 3.14cm throws TypeError
 Pass	Setting 'shape-image-threshold' to a length: calc(0px + 0em) throws TypeError
-Pass	Setting 'shape-image-threshold' to a percent: 0% throws TypeError
-Pass	Setting 'shape-image-threshold' to a percent: -3.14% throws TypeError
-Pass	Setting 'shape-image-threshold' to a percent: 3.14% throws TypeError
-Pass	Setting 'shape-image-threshold' to a percent: calc(0% + 0%) throws TypeError
+Fail	Setting 'shape-image-threshold' to a percent: 0% throws TypeError
+Fail	Setting 'shape-image-threshold' to a percent: -3.14% throws TypeError
+Fail	Setting 'shape-image-threshold' to a percent: 3.14% throws TypeError
+Fail	Setting 'shape-image-threshold' to a percent: calc(0% + 0%) throws TypeError
 Pass	Setting 'shape-image-threshold' to a time: 0s throws TypeError
 Pass	Setting 'shape-image-threshold' to a time: -3.14ms throws TypeError
 Pass	Setting 'shape-image-threshold' to a time: 3.14s throws TypeError
