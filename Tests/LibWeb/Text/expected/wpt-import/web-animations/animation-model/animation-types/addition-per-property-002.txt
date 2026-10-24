@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 332 tests
 
-317 Pass
-15 Fail
+322 Pass
+10 Fail
 Pass	Setup
 Pass	isolation (type: discrete) has testAddition function
 Pass	isolation: "isolate" onto "auto"
@@ -178,11 +178,11 @@ Pass	scroll-snap-type: "x mandatory" onto "none"
 Pass	scroll-snap-type: "none" onto "x mandatory"
 Pass	scrollbar-color (type: colorPair) has testAddition function
 Fail	scrollbar-color supports animating as color pair of rgb() with overflowed  from and to values
-Fail	scrollbar-color supports animating as color pair of #RGB
-Fail	scrollbar-color supports animating as color pair of hsl()
-Fail	scrollbar-color supports animating as color pair of #RGBa
-Fail	scrollbar-color supports animating as color pair of rgba()
-Fail	scrollbar-color supports animating as color pair of hsla()
+Pass	scrollbar-color supports animating as color pair of #RGB
+Pass	scrollbar-color supports animating as color pair of hsl()
+Pass	scrollbar-color supports animating as color pair of #RGBa
+Pass	scrollbar-color supports animating as color pair of rgba()
+Pass	scrollbar-color supports animating as color pair of hsla()
 Pass	scrollbar-gutter (type: discrete) has testAddition function
 Pass	scrollbar-gutter: "stable" onto "auto"
 Pass	scrollbar-gutter: "auto" onto "stable"
