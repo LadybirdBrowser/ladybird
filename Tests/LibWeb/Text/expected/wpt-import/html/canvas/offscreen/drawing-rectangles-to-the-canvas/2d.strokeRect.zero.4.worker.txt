@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	strokeRect of Nx0 pixels draws a closed line with no caps
+1 Pass
+Pass	strokeRect of Nx0 pixels draws a closed line with no caps

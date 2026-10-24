@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Zero-length line segments from lineTo are removed before stroking
+1 Pass
+Pass	Zero-length line segments from lineTo are removed before stroking
