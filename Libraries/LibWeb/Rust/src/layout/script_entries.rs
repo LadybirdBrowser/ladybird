@@ -616,3 +616,47 @@ pub unsafe extern "C" fn layout_script_find_matching_text(
         unsafe { append(context, range) };
     }
 }
+
+/// A min or max sizing property, whose anchor-size() functions the abspos engine resolves.
+#[repr(u8)]
+#[derive(Clone, Copy)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
+pub enum FfiAnchorSizedProperty {
+    MinWidth,
+    MinHeight,
+    MaxWidth,
+    MaxHeight,
+}
+
+/// Writes the size `property` of the absolutely positioned box `slot` resolved to in the committed layout to `out`,
+/// when its anchor-size() functions resolved against an anchor box.
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_script_anchor_resolved_size(
+    host: &DocumentHost,
+    slot: NodeSlotId,
+    property: FfiAnchorSizedProperty,
+    out: &mut crate::css::css_pixels::CssPixels,
+) -> bool {
+    use super::style_values::ResolvedSizeOverride;
+    let resolved = read_rows(host, |arena| {
+        if !arena.paintable_row_is_populated(slot) {
+            return None;
+        }
+        arena.with_committed_fragment_link(slot, |link| {
+            let sizes = link?.abspos_layout_inputs.as_ref()?.resolved_anchor_sizes;
+            match property {
+                FfiAnchorSizedProperty::MinWidth => sizes.min_width,
+                FfiAnchorSizedProperty::MinHeight => sizes.min_height,
+                FfiAnchorSizedProperty::MaxWidth => sizes.max_width,
+                FfiAnchorSizedProperty::MaxHeight => sizes.max_height,
+            }
+        })
+    });
+    // NB: A size resolved to a keyword holds an anchor function with neither an anchor box nor a fallback value, which
+    //     makes the declaration invalid at computed-value time however its other functions resolve.
+    let Some(ResolvedSizeOverride::Length(px)) = resolved else {
+        return false;
+    };
+    *out = px;
+    true
+}

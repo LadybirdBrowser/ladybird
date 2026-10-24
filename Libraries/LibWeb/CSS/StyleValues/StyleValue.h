@@ -232,6 +232,8 @@ public:
     // of the property on the element, and "global" information that cannot be changed by CSS.
     bool is_computationally_independent() const;
 
+    bool contains_anchor_function() const;
+
 protected:
     StyleValue(Type, StyleValueFFI::StyleValueData const*);
 
