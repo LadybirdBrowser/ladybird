@@ -1,0 +1,2 @@
+without-allow: position 1.25, 2.5
+allow-none: error 1

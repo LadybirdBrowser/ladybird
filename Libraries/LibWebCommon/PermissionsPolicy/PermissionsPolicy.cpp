@@ -30,6 +30,8 @@ StringView policy_controlled_feature_token(PolicyControlledFeature feature)
         return "fullscreen"sv;
     case PolicyControlledFeature::Gamepad:
         return "gamepad"sv;
+    case PolicyControlledFeature::Geolocation:
+        return "geolocation"sv;
     case PolicyControlledFeature::Microphone:
         return "microphone"sv;
     case PolicyControlledFeature::PictureInPicture:
@@ -65,6 +67,8 @@ DefaultAllowlist default_allowlist(PolicyControlledFeature feature)
     case PolicyControlledFeature::FocusWithoutUserActivation:
     // https://fullscreen.spec.whatwg.org/#permissions-policy-integration
     case PolicyControlledFeature::Fullscreen:
+    // https://w3c.github.io/geolocation/#permissions-policy
+    case PolicyControlledFeature::Geolocation:
     // https://w3c.github.io/mediacapture-main/#permissions-policy-integration
     case PolicyControlledFeature::Microphone:
     // https://w3c.github.io/window-management/#api-permission-policy-integration
