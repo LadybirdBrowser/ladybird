@@ -10,10 +10,10 @@
 #include <LibDatabase/Database.h>
 #include <LibWebView/StorageJar.h>
 
-namespace WebView {
+using Web::StorageAPI::quota_for;
+using Web::StorageAPI::storage_quota_size;
 
-// Quota size is specified in https://storage.spec.whatwg.org/#registered-storage-endpoints
-static constexpr size_t LOCAL_STORAGE_QUOTA = 5 * MiB;
+namespace WebView {
 
 static constexpr u32 WEB_STORAGE_SCHEMA_BASELINE_VERSION = 2u;
 
@@ -67,12 +67,6 @@ StorageJar::StorageJar(Optional<PersistedStorage> persisted_storage)
 }
 
 StorageJar::~StorageJar() = default;
-
-static size_t storage_quota_size(Utf16String const& string)
-{
-    auto utf8_string = string.to_utf8();
-    return utf8_string.bytes().size();
-}
 
 Optional<Utf16String> StorageJar::get_item(StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key)
 {
@@ -173,7 +167,7 @@ StorageSetResult StorageJar::TransientStorage::set_item(StorageLocation const& k
     }
 
     auto new_size = storage_quota_size(key.bottle_key) + storage_quota_size(value);
-    if (current_size + new_size > LOCAL_STORAGE_QUOTA)
+    if (auto quota = quota_for(key.storage_endpoint); quota.has_value() && current_size + new_size > *quota)
         return StorageOperationError::QuotaExceededError;
 
     bottle.items.set(key.bottle_key, { value, UnixDateTime::now(), new_size });
@@ -276,7 +270,7 @@ StorageSetResult StorageJar::PersistedStorage::set_item(StorageLocation const& k
         key.bottle_key);
 
     auto new_size = storage_quota_size(key.bottle_key) + storage_quota_size(value);
-    if (current_size + new_size > LOCAL_STORAGE_QUOTA)
+    if (auto quota = quota_for(key.storage_endpoint); quota.has_value() && current_size + new_size > *quota)
         return StorageOperationError::QuotaExceededError;
 
     database->execute_statement(

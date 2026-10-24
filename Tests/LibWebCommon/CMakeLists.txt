@@ -5,6 +5,7 @@ set(TEST_SOURCES
     TestKeyEvent.cpp
     TestPermissionsPolicy.cpp
     TestSiteCompatibility.cpp
+    TestStorageEndpoint.cpp
     TestStrings.cpp
 )
 
@@ -16,3 +17,4 @@ target_link_libraries(TestSiteCompatibility PRIVATE LibURL)
 target_link_libraries(TestGamepadStateBuffer PRIVATE LibCore LibIPC)
 target_link_libraries(TestKeyEvent PRIVATE LibIPC)
 target_link_libraries(TestPermissionsPolicy PRIVATE LibHTTP LibIPC LibURL)
+target_link_libraries(TestStorageEndpoint PRIVATE LibIPC)
