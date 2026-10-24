@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setGeolocationEmulatedPosition(1.25, 2.5, 100);
+
+        const childSource = `<!DOCTYPE html><script>
+            navigator.geolocation.getCurrentPosition(
+                position => parent.postMessage(\`position \${position.coords.latitude}, \${position.coords.longitude}\`, "*"),
+                error => parent.postMessage(\`error \${error.code}\`, "*"));
+        <\/script>`;
+
+        const frame = async (name, allow) => {
+            const iframe = document.createElement("iframe");
+            if (allow !== undefined)
+                iframe.setAttribute("allow", allow);
+            iframe.srcdoc = childSource;
+            const result = await new Promise(resolve => {
+                addEventListener("message", event => resolve(event.data), { once: true });
+                document.body.appendChild(iframe);
+            });
+            println(`${name}: ${result}`);
+            iframe.remove();
+        };
+
+        await frame("without-allow");
+        await frame("allow-none", "geolocation 'none'");
+
+        done();
+    });
+</script>

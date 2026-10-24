@@ -19,6 +19,7 @@
 
         const result = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
         const iframe = document.createElement("iframe");
+        iframe.allow = "geolocation";
         iframe.src = childUrl;
         document.body.appendChild(iframe);
 
