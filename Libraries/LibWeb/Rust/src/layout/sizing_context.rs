@@ -13,9 +13,9 @@ pub(crate) struct AtomicRootInlineSizeResolution {
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct AtomicInlineContribution {
-    pub(crate) content_inline_size: CssPixels,
-    pub(crate) min_content_inline_size: Option<CssPixels>,
+pub(crate) struct OuterInlineContributions {
+    pub(crate) min_content_inline_size: CssPixels,
+    pub(crate) max_content_inline_size: CssPixels,
     pub(crate) margin_start: CssPixels,
     pub(crate) border_start: CssPixels,
     pub(crate) padding_start: CssPixels,
@@ -24,8 +24,16 @@ pub(crate) struct AtomicInlineContribution {
     pub(crate) margin_end: CssPixels,
 }
 
-impl AtomicInlineContribution {
-    pub(crate) fn inline_advance(&self, content_inline_size: CssPixels) -> CssPixels {
+impl OuterInlineContributions {
+    pub(crate) fn outer_min_content_contribution(&self) -> CssPixels {
+        self.inline_advance(self.min_content_inline_size)
+    }
+
+    pub(crate) fn outer_max_content_contribution(&self) -> CssPixels {
+        self.inline_advance(self.max_content_inline_size)
+    }
+
+    fn inline_advance(&self, content_inline_size: CssPixels) -> CssPixels {
         line_box::inline_advance(
             self.margin_start,
             self.border_start + self.padding_start,
@@ -2134,12 +2142,6 @@ impl<'pass> SizingContext<'pass> {
         }
     }
 
-    pub(crate) fn atomic_inline_size_follows_from_style(&self, node: Node) -> bool {
-        formatting_context::independent_formatting_context_type(node, &self.callbacks)
-            == formatting_context::FormattingContextType::Block
-            && self.block_root_inline_size_follows_from_style(node)
-    }
-
     fn block_root_inline_size_follows_from_style(&self, node: Node) -> bool {
         let facts = self.facts(node);
         !self.establishes_orthogonal_flow(node)
@@ -2150,30 +2152,75 @@ impl<'pass> SizingContext<'pass> {
             && !facts.is_fieldset_box()
     }
 
-    pub(crate) fn atomic_inline_contribution(
+    pub(crate) fn outer_inline_contributions(
+        &self,
+        node: Node,
+        available_block_size: AvailableSize,
+        constraints: ContainingBlockConstraints,
+    ) -> OuterInlineContributions {
+        let root = used_values::create_used_values(&self.callbacks, node, constraints);
+        let indefinite_inline_basis = CssPixels::default();
+        root.resolve_box_model(&self.style(node), indefinite_inline_basis);
+        let (
+            min_content_inline_size,
+            max_content_inline_size,
+            percentage_block_size_dependency_its_layout_would_report,
+        ) = RunRecords::with_content_sizing_root(
+            self.callbacks,
+            node,
+            self.callbacks.in_flow_containing_block(node),
+            &root,
+            |records, callbacks| {
+                let sizing = SizingContext::new(self.purpose, records, callbacks);
+                let inline_size_under = |inline_size| {
+                    sizing.atomic_root_content_inline_size(
+                        node,
+                        AvailableSpace {
+                            inline_size,
+                            block_size: available_block_size,
+                        },
+                        constraints,
+                    )
+                };
+                let max_content_inline_size = inline_size_under(AvailableSize::MaxContent);
+                let min_content_inline_size = inline_size_under(AvailableSize::MinContent);
+                (
+                    min_content_inline_size,
+                    max_content_inline_size,
+                    root.depends_on_percentage_block_size.get()
+                        || sizing.skipped_child_depends_on_percentage_block_size(node),
+                )
+            },
+        );
+        formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
+            self.records,
+            &self.callbacks,
+            node,
+            percentage_block_size_dependency_its_layout_would_report,
+        );
+        OuterInlineContributions {
+            min_content_inline_size,
+            max_content_inline_size,
+            margin_start: root.margin_left.get(),
+            border_start: root.border_left.get(),
+            padding_start: root.padding_left.get(),
+            padding_end: root.padding_right.get(),
+            border_end: root.border_right.get(),
+            margin_end: root.margin_right.get(),
+        }
+    }
+
+    fn atomic_root_content_inline_size(
         &self,
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-    ) -> AtomicInlineContribution {
-        let style = self.style(node);
-        let basis = available_space.inline_size.to_px_or_zero();
-        AtomicInlineContribution {
-            content_inline_size: self
-                .calculate_atomic_root_content_inline_size(node, available_space, constraints, None)
-                .content_inline_size,
-            min_content_inline_size: self.paired_min_content_inline_size_for_atomic_root(
-                node,
-                available_space,
-                constraints,
-            ),
-            margin_start: style.margin_left().to_px(basis),
-            border_start: style.border_left_width(),
-            padding_start: style.padding_left().to_px(basis),
-            padding_end: style.padding_right().to_px(basis),
-            border_end: style.border_right_width(),
-            margin_end: style.margin_right().to_px(basis),
+    ) -> CssPixels {
+        if self.box_is_sized_as_replaced_element(node, available_space, constraints) {
+            return self.compute_inline_size_for_replaced_element(node, available_space, constraints);
         }
+        self.calculate_atomic_root_content_inline_size(node, available_space, constraints, None)
+            .content_inline_size
     }
 
     pub(crate) fn paired_min_content_inline_size_for_atomic_root(
