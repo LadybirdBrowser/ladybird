@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	detects whether point is in the area contained by the stroke of the path
+1 Pass
+Pass	detects whether point is in the area contained by the stroke of the path
