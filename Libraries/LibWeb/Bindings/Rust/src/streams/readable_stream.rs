@@ -651,7 +651,11 @@ impl ReadableStream {
             // 1. If stream.[[controller]] implements ReadableByteStreamController,
             ReadableStreamController::ReadableByteStreamController(controller) => {
                 // 1. Perform ! ReadableByteStreamControllerClose(stream.[[controller]]).
-                readable_byte_stream_controller_close(cx, controller).must();
+                // AD-HOC: This throws, having errored the stream, when a pending pull-into holds part of an element.
+                //         See: https://github.com/whatwg/streams/issues/1387
+                if readable_byte_stream_controller_close(cx, controller).is_err() {
+                    return;
+                }
 
                 // 2. If stream.[[controller]].[[pendingPullIntos]] is not empty, perform
                 //    ! ReadableByteStreamControllerRespond(stream.[[controller]], 0).
