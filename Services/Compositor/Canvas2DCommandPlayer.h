@@ -15,13 +15,13 @@
 #include <AK/Span.h>
 #include <Compositor/Forward.h>
 #include <LibCompositing/DisplayList/DisplayListCommandsGenerated.h>
-#include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
 
 class SkImage;
+class SkImageFilter;
 template<typename T>
 class sk_sp;
 
@@ -67,7 +67,7 @@ private:
 
     ReadonlyBytes inline_data(Compositing::DisplayListDataSpan) const;
     Gfx::Path path_from(Compositing::DisplayListDataSpan) const;
-    Optional<Gfx::Filter> filter_from(Compositing::Canvas2DCompositing const&) const;
+    sk_sp<SkImageFilter> image_filter_from(Compositing::Canvas2DCompositing const&) const;
     RefPtr<Gfx::PaintStyle> paint_style_from(Compositing::Canvas2DPaint const&) const;
 
     NonnullRefPtr<Gfx::PaintingSurface> m_surface;

@@ -11,7 +11,6 @@
 #include <AK/Span.h>
 #include <Compositor/PaintingSurface.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
-#include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Path.h>
@@ -20,6 +19,9 @@
 #include <LibGfx/WindingRule.h>
 
 class SkFont;
+class SkImageFilter;
+template<typename T>
+class sk_sp;
 
 namespace Gfx {
 
@@ -37,12 +39,12 @@ public:
 
     void clear_rect(Gfx::FloatRect const&, Color);
     void fill_rect(Gfx::FloatRect const&, Color);
-    void draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame const& source, Gfx::IntRect const& src_rect, Gfx::ScalingMode, Optional<Gfx::Filter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
+    void draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame const& source, Gfx::IntRect const& src_rect, Gfx::ScalingMode, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
     void stroke_path(Gfx::Path const&, Gfx::Color, float thickness, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle, Gfx::Path::JoinStyle, float miter_limit, Vector<float> const& dash_array, float dash_offset);
-    void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, Optional<Gfx::Filter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const&, Gfx::Path::JoinStyle const&, float miter_limit, Vector<float> const&, float dash_offset);
+    void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, sk_sp<SkImageFilter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const&, Gfx::Path::JoinStyle const&, float miter_limit, Vector<float> const&, float dash_offset);
     void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
-    void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, Optional<Gfx::Filter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule);
-    void draw_glyph_run(Font const&, SkFont, ReadonlySpan<CanvasGlyph>, FloatPoint translation, PaintStyle const&, Optional<Filter>, float global_alpha, CompositingAndBlendingOperator);
+    void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule);
+    void draw_glyph_run(Font const&, SkFont, ReadonlySpan<CanvasGlyph>, FloatPoint translation, PaintStyle const&, sk_sp<SkImageFilter>, float global_alpha, CompositingAndBlendingOperator);
     void set_transform(Gfx::AffineTransform const&);
     void save();
     void restore();

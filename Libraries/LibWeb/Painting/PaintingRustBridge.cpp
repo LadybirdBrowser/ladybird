@@ -12,7 +12,6 @@
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Environment.h>
 #include <LibGfx/CornerRadii.h>
-#include <LibGfx/Filter.h>
 #include <LibGfx/GradientInterpolation.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Path.h>

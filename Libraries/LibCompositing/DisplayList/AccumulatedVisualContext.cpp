@@ -226,13 +226,13 @@ bool AccumulatedVisualContextTree::has_unisolated_destination_reading_effect() c
     return Compositing::RustFFI::visual_context_tree_has_unisolated_destination_reading_effect(m_rust_tree);
 }
 
-void AccumulatedVisualContextTree::for_each_effects_filter_bytes(Function<void(ReadonlyBytes)> const& visit) const
+void AccumulatedVisualContextTree::for_each_effects_filter_image_frame_id(Function<void(u64)> const& visit) const
 {
-    struct FilterBytesVisitor {
-        Function<void(ReadonlyBytes)> const& visit;
+    struct ImageFrameIdVisitor {
+        Function<void(u64)> const& visit;
     } visitor { visit };
-    Compositing::RustFFI::visual_context_tree_for_each_effects_filter_bytes(m_rust_tree, &visitor, [](void* context, u8 const* bytes, size_t size) {
-        static_cast<FilterBytesVisitor*>(context)->visit(ReadonlyBytes { bytes, size });
+    Compositing::RustFFI::visual_context_tree_for_each_effects_filter_image_frame_id(m_rust_tree, &visitor, [](void* context, u64 image_frame_id) {
+        static_cast<ImageFrameIdVisitor*>(context)->visit(image_frame_id);
     });
 }
 

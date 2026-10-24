@@ -10,7 +10,6 @@
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/RustFFI.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
 #include <LibMediaCodecs/VideoFrame.h>
 
@@ -253,10 +252,8 @@ void DisplayListResourceStorage::collect_referenced_resources(
     AccumulatedVisualContextTree const& visual_context_tree,
     DisplayListResourceSet& referenced_resources) const
 {
-    visual_context_tree.for_each_effects_filter_bytes([&](ReadonlyBytes filter_bytes) {
-        Gfx::for_each_filter_image_frame_id(filter_bytes, [&](u64 image_id) {
-            referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
-        });
+    visual_context_tree.for_each_effects_filter_image_frame_id([&](u64 image_id) {
+        referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
     });
 }
 
