@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let controller;
+        const readable = new ReadableStream({
+            start(c) {
+                controller = c;
+            },
+        });
+        const written = [];
+        const writable = new WritableStream({
+            write(chunk) {
+                written.push(chunk);
+            },
+        });
+        const abortController = new AbortController();
+        const pipe = readable.pipeTo(writable, { signal: abortController.signal });
+
+        controller.enqueue("a");
+        abortController.abort();
+
+        try {
+            await pipe;
+            println("FAIL: pipe resolved");
+        } catch (error) {
+            println(`pipe rejected: ${error.name}`);
+        }
+        println(`written: [${written.join(", ")}]`);
+        done();
+    });
+</script>

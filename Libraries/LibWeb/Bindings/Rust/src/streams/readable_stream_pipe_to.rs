@@ -7,6 +7,8 @@
 //! ReadableStreamPipeTo, https://streams.spec.whatwg.org/#readable-stream-pipe-to, whose reading of chunks from its
 //! source and writing them to its destination in parallel happens in the state of the pipe.
 
+use std::collections::VecDeque;
+
 use core::cell::Cell;
 
 use libjs_rust::api::{
@@ -81,7 +83,7 @@ pub(crate) struct PipeTo {
     #[gc(untraced)]
     signal_algorithm_id: Cell<Option<u64>>,
     last_write_promise: Cell<Option<WebIdlPromise>>,
-    unwritten_chunks: GcRefCell<Vec<Value>>,
+    unwritten_chunks: GcRefCell<VecDeque<Value>>,
     #[gc(untraced)]
     prevent_close: bool,
     #[gc(untraced)]
@@ -297,7 +299,7 @@ impl PipeTo {
 
     // chunk steps, given chunk, of the read request of the pipe
     pub(crate) fn read_request_chunk_steps(this: PipeToRef, vm: &Vm, chunk: Value) {
-        this.unwritten_chunks.borrow_mut().push(chunk);
+        this.unwritten_chunks.borrow_mut().push_back(chunk);
 
         if Self::check_for_error_and_close_states(this, vm) {
             return;
@@ -332,7 +334,10 @@ impl PipeTo {
             return;
         }
 
-        let chunk = this.unwritten_chunks.borrow_mut().remove(0);
+        // NB: Shutdown writes every unwritten chunk, which can run before the write that a read queued.
+        let Some(chunk) = this.unwritten_chunks.borrow_mut().pop_front() else {
+            return;
+        };
         let promise = writable_stream_default_writer_write(vm, this.writer, chunk);
         mark_promise_as_handled(vm, promise);
 
@@ -555,7 +560,7 @@ pub(crate) fn readable_stream_pipe_to(
             signal: GcRefCell::new(None),
             signal_algorithm_id: Cell::new(None),
             last_write_promise: Cell::new(None),
-            unwritten_chunks: GcRefCell::new(Vec::new()),
+            unwritten_chunks: GcRefCell::new(VecDeque::new()),
             prevent_close,
             prevent_abort,
             prevent_cancel,

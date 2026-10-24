@@ -1,0 +1,2 @@
+pipe rejected: AbortError
+written: [a]
