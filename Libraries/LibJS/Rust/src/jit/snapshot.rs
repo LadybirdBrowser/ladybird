@@ -41,9 +41,7 @@ use crate::layout::function_object::{
     DirectGetterFunction, EcmascriptFunctionObject, FunctionObject, RawNativeFunction,
 };
 use crate::layout::object::{Object, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID, TypedArrayBase};
-use crate::layout::property_lookup_cache::{
-    GlobalVariableCache, PropertyLookupCache, PropertyLookupCacheEntry, PropertyLookupCacheEntryType,
-};
+use crate::layout::property_lookup_cache::{GlobalVariableCache, PropertyLookupCache, PropertyLookupCacheEntryType};
 use crate::layout::value::Value;
 use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::array_constructor::ArrayConstructor;
@@ -278,13 +276,12 @@ fn prototype_property_value(entry: &PropertyLookupCacheEntryData) -> Option<Valu
 
 /// The function of the accessor an entry calls: for a GetPropertyInPrototypeChain
 /// entry, the getter of the accessor its prototype holds in the property, for a ChangePropertyInPrototypeChain entry
-/// its setter, and for a GetOwnProperty entry the getter of the accessor the interpreter last called the getter of.
-fn entry_accessor_function(slot: &PropertyLookupCacheEntry) -> Option<Gc<FunctionObject>> {
-    let entry = slot.get();
+/// its setter, and for a GetOwnProperty entry the getter the interpreter last called.
+fn entry_accessor_function(entry: &PropertyLookupCacheEntryData) -> Option<Gc<FunctionObject>> {
     let (accessor, setter) = match entry.entry_type {
-        PropertyLookupCacheEntryType::GetOwnProperty if entry.key == 0 => (slot.accessor.get()?, false),
+        PropertyLookupCacheEntryType::GetOwnProperty if entry.key == 0 => return entry.getter,
         entry_type => {
-            let value = prototype_property_value(&entry)?;
+            let value = prototype_property_value(entry)?;
             if !value.is_accessor() {
                 return None;
             }
@@ -299,11 +296,10 @@ fn entry_accessor_function(slot: &PropertyLookupCacheEntry) -> Option<Gc<Functio
 
 /// Whether the property of an entry held an accessor: the accessor the interpreter last called the getter of for a
 /// GetOwnProperty entry, or the value its prototype holds in the property for entries of a prototype.
-fn entry_holds_accessor(slot: &PropertyLookupCacheEntry) -> bool {
-    let entry = slot.get();
+fn entry_holds_accessor(entry: &PropertyLookupCacheEntryData) -> bool {
     match entry.entry_type {
-        PropertyLookupCacheEntryType::GetOwnProperty if entry.key == 0 => slot.accessor.get().is_some(),
-        _ => prototype_property_value(&entry).is_some_and(|value| value.is_accessor()),
+        PropertyLookupCacheEntryType::GetOwnProperty if entry.key == 0 => entry.getter.is_some(),
+        _ => prototype_property_value(entry).is_some_and(|value| value.is_accessor()),
     }
 }
 
@@ -434,7 +430,7 @@ impl SnapshotBuilder<'_> {
                 .and_then(|value| value.as_accessor().cached_value_key())
                 .and_then(|key| entry.shape?.lookup(&PropertyKey::from_symbol(key)))
                 .map(|metadata| metadata.offset);
-            let accessor_function = entry_accessor_function(slot).map(|function| {
+            let accessor_function = entry_accessor_function(&entry).map(|function| {
                 let cell = self.cell(function);
                 AccessorFunctionSnapshot {
                     cached_value_offset,
@@ -444,7 +440,7 @@ impl SnapshotBuilder<'_> {
                         Some(Value::from_object(function.upcast::<Object>()).as_cell()),
                         caller,
                     ),
-                    native: self.native_accessor_target(function, cell, entry.direct_getter_validated),
+                    native: self.native_accessor_target(function, cell, entry.getter == Some(function)),
                 }
             });
             entries.push(PropertyCacheEntrySnapshot {
@@ -472,7 +468,7 @@ impl SnapshotBuilder<'_> {
                     self.inline_executable_index(Some(Value::from_object(object).as_cell()), caller)
                 }),
                 accessor_function,
-                holds_accessor: entry_holds_accessor(slot),
+                holds_accessor: entry_holds_accessor(&entry),
             });
         }
         if sees_primitives {

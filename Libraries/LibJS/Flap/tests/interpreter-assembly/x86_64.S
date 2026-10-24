@@ -5176,7 +5176,7 @@ asm_handler_PutByValue:
     shr r11, 48
     cmp r11w, 65532
     je .Lasm_PutByValue.ssa_block_3
-    cmp BYTE PTR [rax + 13], 0
+    cmp BYTE PTR [rax + 12], 0
     jz .Lasm_PutByValue.ssa_block_3
     mov eax, DWORD PTR [r14 + r13 + 12]
     mov rax, QWORD PTR [rbx + rax * 8]
@@ -5332,7 +5332,7 @@ asm_handler_PutById:
     shr r11, 48
     cmp r11w, 65532
     je .Lasm_PutById.ssa_block_2
-    cmp BYTE PTR [rax + 13], 0
+    cmp BYTE PTR [rax + 12], 0
     jz .Lasm_PutById.ssa_block_2
     mov eax, DWORD PTR [r14 + r13 + 12]
     mov rax, QWORD PTR [rbx + rax * 8]
@@ -13562,8 +13562,8 @@ asm_handler_PutByValue_cold_end:
 asm_handler_GetById_cold:
 # Cold paths for GetById
 .Lasm_GetById.ssa_block_24:
-    cmp BYTE PTR [rdx + 12], 0
-    jz .Lasm_GetById.ssa_block_3
+    cmp QWORD PTR [rdx + 56], rcx
+    jne .Lasm_GetById.ssa_block_3
     movzx eax, WORD PTR [rsi + 12]
     test eax, 512
     jz .Lasm_GetById.ssa_block_3

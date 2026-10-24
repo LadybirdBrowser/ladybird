@@ -177,7 +177,7 @@ pub fn get_by_id_cached_accessor(
             let completed_holder = completed.prototype.unwrap_or(object);
             let completed_value = completed_holder.get_direct(completed.property_offset);
             if completed_value.is_accessor() && completed_value.as_accessor().getter() == Some(getter) {
-                completed_entry.direct_getter_validated.set(true);
+                completed_entry.getter.set(Some(getter));
             }
         }
     }
@@ -1404,15 +1404,16 @@ pub fn try_inline_get_by_id_accessor(vm: &Vm, pc: u32, instruction: &op::GetById
     let holder = entry.prototype.unwrap_or(object);
     let value = holder.get_direct(entry.property_offset);
     assert!(value.is_accessor());
-    if entry.prototype.is_none()
-        && let Some(slot) = cache.first_entry_slot()
-    {
-        slot.accessor.set(Some(value.as_accessor()));
-    }
-
     let Some(getter) = value.as_accessor().getter() else {
         return false;
     };
+    if entry.prototype.is_none()
+        && !function_object_as_object(getter).is_direct_getter_function()
+        && let Some(slot) = cache.first_entry_slot()
+    {
+        slot.getter.set(Some(getter));
+    }
+
     let Some(getter_function) = as_ecmascript_function_object(getter) else {
         return false;
     };

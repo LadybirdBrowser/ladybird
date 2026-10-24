@@ -593,7 +593,7 @@ pub struct NativeCallTarget {
     /// Where the function, a getter of a platform object attribute backed by
     /// a field, finds the wrapper it would return, if it is one and the
     /// interpreter validated the cache entry for it (see
-    /// `PropertyLookupCacheEntry::direct_getter_validated`).
+    /// `PropertyLookupCacheEntry::getter`).
     pub direct_getter: Option<DirectGetterFields>,
 }
 

@@ -216,13 +216,13 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.constant("PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_MISSING_PROPERTY", PropertyLookupCacheEntryType::GetMissingProperty as u32);
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_PROPERTY_OFFSET", "PropertyLookupCache.property_offset", "u32", PropertyLookupCacheEntry, property_offset, 4, "nullable", "scalar", "cache_details");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_DICTIONARY_GENERATION", "PropertyLookupCache.shape_dictionary_generation", "u32", PropertyLookupCacheEntry, shape_dictionary_generation, 4, "nullable", "scalar", "cache_details");
-    field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_DIRECT_GETTER_VALIDATED", "PropertyLookupCache.direct_getter_validated", "bool", PropertyLookupCacheEntry, direct_getter_validated, 1, "nullable", "scalar");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_WRITES_DATA_PROPERTY", "PropertyLookupCache.writes_data_property", "bool", PropertyLookupCacheEntry, writes_data_property, 1, "nullable", "scalar");
     offset!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_FROM_SHAPE", PropertyLookupCacheEntry, from_shape);
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_SHAPE", "PropertyLookupCache.shape", "Shape", PropertyLookupCacheEntry, shape, 8, "nullable", "cell", "cache_target");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE", "PropertyLookupCache.prototype", "Object", PropertyLookupCacheEntry, prototype, 8, "nullable", "cell", "cache_target");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE_CHAIN_VALIDITY", "PropertyLookupCache.prototype_chain_validity", "WatchpointSet", PropertyLookupCacheEntry, prototype_chain_validity, 8, "nullable", "cell");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_KEY", "PropertyLookupCache.key", "Value", PropertyLookupCacheEntry, key, 8, "nullable", "scalar");
+    field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_GETTER", "PropertyLookupCache.getter", "FunctionObject", PropertyLookupCacheEntry, getter, 8, "nullable", "cell");
     size!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_SIZE", PropertyLookupCacheEntry);
     w.constant("PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_OWN_PROPERTY", PropertyLookupCacheEntryType::GetOwnProperty as u32);
 

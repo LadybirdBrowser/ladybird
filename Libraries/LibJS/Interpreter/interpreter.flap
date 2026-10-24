@@ -3140,7 +3140,7 @@ handler GetById(
         guard flags has OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION else invoke_accessor_slow;
 
         if flags has OBJECT_FLAG_IS_DIRECT_GETTER_FUNCTION {
-            if property_cache.direct_getter_validated != 0 {
+            if property_cache.getter == getter {
                 guard let result = load_direct_getter_value(function, receiver_object) else invoke_accessor_slow;
                 record_value_feedback(value_feedback, result);
                 store(dst, result);
