@@ -1026,21 +1026,24 @@ impl SvgShapeGeometry {
 /// The geometry a shape element draws, in the user units of a viewport of `viewport_size`, from
 /// the shape `geometry` names and the computed style in `payloads`. The DOM's geometry queries
 /// measure this path. Only the `geometry_kind` and `line_*` fields of `geometry` are read.
-/// Returns a heap-allocated `Gfx::Path` that the caller owns.
+/// Calls `append` once with the byte form of the path, which `Gfx::Path` reads.
 ///
 /// # Safety
 ///
 /// `payloads` must point at `payload_count` live style group payloads, and `points` at
-/// `point_count` points.
+/// `point_count` points. `context` must be valid for `append` for the duration of this call.
+#[allow(clippy::too_many_arguments)]
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn svg_geometry_element_path(
+pub unsafe extern "C" fn svg_geometry_element_encode_path(
     geometry: FfiSvgAttributeFacts,
     payloads: *const *const c_void,
     payload_count: usize,
     points: *const FfiFloatPoint,
     point_count: usize,
     viewport_size: FfiCssPixelSize,
-) -> *mut c_void {
+    context: *mut c_void,
+    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) {
     assert!(!payloads.is_null(), "style group payload array is null");
     let mut style_payloads = FfiStylePayloads::default();
     // SAFETY: Guaranteed by the caller.
@@ -1053,9 +1056,11 @@ pub unsafe extern "C" fn svg_geometry_element_path(
         viewport_width: viewport_size.width,
         viewport_height: viewport_size.height,
     };
-    shape_geometry
+    let bytes = shape_geometry
         .path(geometry, StyleValues::new(&style_payloads), Some(points))
-        .into_raw()
+        .serialize_to_bytes();
+    // SAFETY: Guaranteed by the caller.
+    unsafe { append(context, bytes.as_ptr(), bytes.len()) };
 }
 
 impl<'pass> SvgFormattingContext<'pass> {
