@@ -22,7 +22,8 @@ use super::selector::{
 };
 use super::selector::{
     AttributeSelector, CompiledSelector, CompoundSelector, NameSelector, PseudoClassSelector, PseudoElementSelector,
-    PseudoElementValue, QualifiedName, SelectorList, SimpleSelector,
+    PseudoElementValue, QualifiedName, SelectorList, SimpleSelector, TransitionNameAndClassSelector,
+    TransitionNameSelector,
 };
 use super::selector::{RustSelector, search_text_match_filter};
 
@@ -982,22 +983,51 @@ impl<'a> SelectorParser<'a> {
                 }
                 Ok(PseudoElementValue::Identifiers(identifiers.into_boxed_slice()))
             }
-            PseudoElementParameterType::PTNameSelector => {
-                let (is_universal, value) = if stream.peek().is_some_and(|value| value.is_delim(b'*')) {
-                    stream.position += 1;
-                    (true, SelectorString::default())
-                } else {
-                    let ident = stream.next().and_then(ComponentValue::ident).ok_or(())?;
+            // https://drafts.csswg.org/css-view-transitions-2/#typedef-pt-name-and-class-selector
+            // <pt-name-and-class-selector> = <pt-name-selector> <pt-class-selector>? | <pt-class-selector>
+            // <pt-class-selector> = ['.' <custom-ident>]+
+            // When interpreting the above grammar, white space is forbidden:
+            // * Between <pt-name-selector> and <pt-class-selector>
+            // * Between any of the components of <pt-class-selector>.
+            PseudoElementParameterType::PTNameAndClassSelector => {
+                fn custom_ident(value: Option<&ComponentValue>) -> Result<SelectorString, ()> {
+                    let ident = value.and_then(ComponentValue::ident).ok_or(())?;
                     if is_css_wide_keyword(ident) || ascii_eq(ident, "default") {
                         return Err(());
                     }
-                    (false, ident.into())
+                    Ok(ident.into())
+                }
+
+                // https://drafts.csswg.org/css-view-transitions-1/#typedef-pt-name-selector
+                // <pt-name-selector> = '*' | <custom-ident>
+                let name = if stream.peek().is_some_and(|value| value.is_delim(b'*')) {
+                    stream.position += 1;
+                    Some(TransitionNameSelector::Universal)
+                } else if stream.peek().is_some_and(|value| value.ident().is_some()) {
+                    Some(TransitionNameSelector::Name(custom_ident(stream.next())?))
+                } else {
+                    None
                 };
+
+                let mut classes = Vec::new();
+                while stream.peek().is_some_and(|value| value.is_delim(b'.')) {
+                    stream.position += 1;
+                    classes.push(custom_ident(stream.next())?);
+                }
+                if name.is_none() && classes.is_empty() {
+                    return Err(());
+                }
+
                 stream.discard_whitespace();
                 if !stream.is_empty() {
                     return Err(());
                 }
-                Ok(PseudoElementValue::TransitionName { is_universal, value })
+                Ok(PseudoElementValue::TransitionName(Box::new(
+                    TransitionNameAndClassSelector {
+                        name,
+                        classes: classes.into_boxed_slice(),
+                    },
+                )))
             }
         }
     }

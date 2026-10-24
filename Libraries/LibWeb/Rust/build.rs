@@ -627,7 +627,7 @@ fn generate_selector_pseudo_types(manifest_dir: &Path, out_dir: &Path) -> Result
             None => "None",
             Some("<compound-selector>") => "CompoundSelector",
             Some("<ident>+") => "IdentList",
-            Some("<pt-name-selector>") => "PTNameSelector",
+            Some("<pt-name-and-class-selector>") => "PTNameAndClassSelector",
             Some(argument) => return Err(format!("unsupported pseudo-element parameter type {argument}").into()),
         };
         writeln!(
