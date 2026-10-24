@@ -21,6 +21,11 @@ class WEB_API DOMPoint final : public Bindings::RustInterfaceCell {
 
 public:
     static GC::Ref<DOMPoint> create(double x = 0, double y = 0, double z = 0, double w = 1);
+
+    double x() const;
+    double y() const;
+
+    void set_x_and_y(double x, double y);
 };
 
 }

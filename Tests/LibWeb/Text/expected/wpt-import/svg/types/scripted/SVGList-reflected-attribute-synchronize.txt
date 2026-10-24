@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 59 tests
 
-50 Pass
-9 Fail
+59 Pass
 Pass	SVGNumberList (rotate on text): getItem returns the same object for one index, with no attribute change
 Pass	SVGNumberList (rotate on text): a same-count change updates the values of the held items
 Pass	SVGNumberList (rotate on text): a same-count change keeps the held item in the list
@@ -24,16 +23,16 @@ Pass	SVGLengthList (x on text): a shrink detaches the truncated item, which keep
 Pass	SVGLengthList (x on text): the truncated item stops reaching the element and stops being read only
 Pass	SVGLengthList (x on text): the list interface object survives the change
 Pass	SVGLengthList (x on text): an empty string empties the list and detaches every item
-Fail	SVGPointList (points on polyline): getItem returns the same object for one index, with no attribute change
-Fail	SVGPointList (points on polyline): a same-count change updates the values of the held items
-Fail	SVGPointList (points on polyline): a same-count change keeps the held item in the list
-Fail	SVGPointList (points on polyline): the held item is still attached after a same-count change
-Fail	SVGPointList (points on polyline): a grow updates the held item and appends new ones
-Fail	SVGPointList (points on polyline): a shrink updates the held items that are still in range
-Fail	SVGPointList (points on polyline): a shrink detaches the truncated item, which keeps its value
-Fail	SVGPointList (points on polyline): the truncated item stops reaching the element and stops being read only
+Pass	SVGPointList (points on polyline): getItem returns the same object for one index, with no attribute change
+Pass	SVGPointList (points on polyline): a same-count change updates the values of the held items
+Pass	SVGPointList (points on polyline): a same-count change keeps the held item in the list
+Pass	SVGPointList (points on polyline): the held item is still attached after a same-count change
+Pass	SVGPointList (points on polyline): a grow updates the held item and appends new ones
+Pass	SVGPointList (points on polyline): a shrink updates the held items that are still in range
+Pass	SVGPointList (points on polyline): a shrink detaches the truncated item, which keeps its value
+Pass	SVGPointList (points on polyline): the truncated item stops reaching the element and stops being read only
 Pass	SVGPointList (points on polyline): the list interface object survives the change
-Fail	SVGPointList (points on polyline): an empty string empties the list and detaches every item
+Pass	SVGPointList (points on polyline): an empty string empties the list and detaches every item
 Pass	SVGTransformList (transform on g): getItem returns the same object for one index, with no attribute change
 Pass	SVGTransformList (transform on g): a same-count change updates the values of the held items
 Pass	SVGTransformList (transform on g): a same-count change keeps the held item in the list

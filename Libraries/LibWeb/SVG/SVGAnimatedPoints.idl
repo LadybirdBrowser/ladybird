@@ -1,0 +1,5 @@
+// https://svgwg.org/svg2-draft/shapes.html#InterfaceSVGAnimatedPoints
+interface mixin SVGAnimatedPoints {
+    [SameObject, ImplementedAs=points_for_bindings] readonly attribute SVGPointList points;
+    [SameObject] readonly attribute SVGPointList animatedPoints;
+};

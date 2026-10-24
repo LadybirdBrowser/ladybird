@@ -468,6 +468,7 @@ SVGNumberList
 SVGPathElement
 SVGPatternElement
 SVGPoint
+SVGPointList
 SVGPolygonElement
 SVGPolylineElement
 SVGPreserveAspectRatio
