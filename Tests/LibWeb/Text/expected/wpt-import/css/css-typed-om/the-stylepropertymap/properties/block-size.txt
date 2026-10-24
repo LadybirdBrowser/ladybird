@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 95 tests
 
-92 Pass
-3 Fail
+95 Pass
 Pass	Can set 'block-size' to CSS-wide keywords: initial
 Pass	Can set 'block-size' to CSS-wide keywords: inherit
 Pass	Can set 'block-size' to CSS-wide keywords: unset
@@ -11,7 +10,7 @@ Pass	Can set 'block-size' to CSS-wide keywords: revert
 Pass	Can set 'block-size' to var() references:  var(--A)
 Pass	Can set 'block-size' to the 'auto' keyword: auto
 Pass	Can set 'block-size' to a percent: 0%
-Fail	Can set 'block-size' to a percent: -3.14%
+Pass	Can set 'block-size' to a percent: -3.14%
 Pass	Can set 'block-size' to a percent: 3.14%
 Pass	Can set 'block-size' to a percent: calc(0% + 0%)
 Pass	Can set 'block-size' to a length: 0px
@@ -42,7 +41,7 @@ Pass	Can set 'min-block-size' to CSS-wide keywords: unset
 Pass	Can set 'min-block-size' to CSS-wide keywords: revert
 Pass	Can set 'min-block-size' to var() references:  var(--A)
 Pass	Can set 'min-block-size' to a percent: 0%
-Fail	Can set 'min-block-size' to a percent: -3.14%
+Pass	Can set 'min-block-size' to a percent: -3.14%
 Pass	Can set 'min-block-size' to a percent: 3.14%
 Pass	Can set 'min-block-size' to a percent: calc(0% + 0%)
 Pass	Can set 'min-block-size' to a length: 0px
@@ -74,7 +73,7 @@ Pass	Can set 'max-block-size' to CSS-wide keywords: revert
 Pass	Can set 'max-block-size' to var() references:  var(--A)
 Pass	Can set 'max-block-size' to the 'none' keyword: none
 Pass	Can set 'max-block-size' to a percent: 0%
-Fail	Can set 'max-block-size' to a percent: -3.14%
+Pass	Can set 'max-block-size' to a percent: -3.14%
 Pass	Can set 'max-block-size' to a percent: 3.14%
 Pass	Can set 'max-block-size' to a percent: calc(0% + 0%)
 Pass	Can set 'max-block-size' to a length: 0px

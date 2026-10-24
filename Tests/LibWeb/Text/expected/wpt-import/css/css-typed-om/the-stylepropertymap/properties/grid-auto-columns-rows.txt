@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 72 tests
 
-66 Pass
-6 Fail
+68 Pass
+4 Fail
 Pass	Can set 'grid-auto-columns' to CSS-wide keywords: initial
 Pass	Can set 'grid-auto-columns' to CSS-wide keywords: inherit
 Pass	Can set 'grid-auto-columns' to CSS-wide keywords: unset
@@ -17,7 +17,7 @@ Pass	Can set 'grid-auto-columns' to a length: -3.14em
 Pass	Can set 'grid-auto-columns' to a length: 3.14cm
 Pass	Can set 'grid-auto-columns' to a length: calc(0px + 0em)
 Pass	Can set 'grid-auto-columns' to a percent: 0%
-Fail	Can set 'grid-auto-columns' to a percent: -3.14%
+Pass	Can set 'grid-auto-columns' to a percent: -3.14%
 Pass	Can set 'grid-auto-columns' to a percent: 3.14%
 Pass	Can set 'grid-auto-columns' to a percent: calc(0% + 0%)
 Fail	Can set 'grid-auto-columns' to a flexible length: 0fr
@@ -53,7 +53,7 @@ Pass	Can set 'grid-auto-rows' to a length: -3.14em
 Pass	Can set 'grid-auto-rows' to a length: 3.14cm
 Pass	Can set 'grid-auto-rows' to a length: calc(0px + 0em)
 Pass	Can set 'grid-auto-rows' to a percent: 0%
-Fail	Can set 'grid-auto-rows' to a percent: -3.14%
+Pass	Can set 'grid-auto-rows' to a percent: -3.14%
 Pass	Can set 'grid-auto-rows' to a percent: 3.14%
 Pass	Can set 'grid-auto-rows' to a percent: calc(0% + 0%)
 Fail	Can set 'grid-auto-rows' to a flexible length: 0fr

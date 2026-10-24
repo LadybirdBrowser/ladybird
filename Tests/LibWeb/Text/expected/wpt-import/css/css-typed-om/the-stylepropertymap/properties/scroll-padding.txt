@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 252 tests
 
-244 Pass
-8 Fail
+252 Pass
 Pass	Can set 'scroll-padding-top' to CSS-wide keywords: initial
 Pass	Can set 'scroll-padding-top' to CSS-wide keywords: inherit
 Pass	Can set 'scroll-padding-top' to CSS-wide keywords: unset
 Pass	Can set 'scroll-padding-top' to CSS-wide keywords: revert
 Pass	Can set 'scroll-padding-top' to var() references:  var(--A)
 Pass	Can set 'scroll-padding-top' to a percent: 0%
-Fail	Can set 'scroll-padding-top' to a percent: -3.14%
+Pass	Can set 'scroll-padding-top' to a percent: -3.14%
 Pass	Can set 'scroll-padding-top' to a percent: 3.14%
 Pass	Can set 'scroll-padding-top' to a percent: calc(0% + 0%)
 Pass	Can set 'scroll-padding-top' to a length: 0px
@@ -41,7 +40,7 @@ Pass	Can set 'scroll-padding-left' to CSS-wide keywords: unset
 Pass	Can set 'scroll-padding-left' to CSS-wide keywords: revert
 Pass	Can set 'scroll-padding-left' to var() references:  var(--A)
 Pass	Can set 'scroll-padding-left' to a percent: 0%
-Fail	Can set 'scroll-padding-left' to a percent: -3.14%
+Pass	Can set 'scroll-padding-left' to a percent: -3.14%
 Pass	Can set 'scroll-padding-left' to a percent: 3.14%
 Pass	Can set 'scroll-padding-left' to a percent: calc(0% + 0%)
 Pass	Can set 'scroll-padding-left' to a length: 0px
@@ -72,7 +71,7 @@ Pass	Can set 'scroll-padding-right' to CSS-wide keywords: unset
 Pass	Can set 'scroll-padding-right' to CSS-wide keywords: revert
 Pass	Can set 'scroll-padding-right' to var() references:  var(--A)
 Pass	Can set 'scroll-padding-right' to a percent: 0%
-Fail	Can set 'scroll-padding-right' to a percent: -3.14%
+Pass	Can set 'scroll-padding-right' to a percent: -3.14%
 Pass	Can set 'scroll-padding-right' to a percent: 3.14%
 Pass	Can set 'scroll-padding-right' to a percent: calc(0% + 0%)
 Pass	Can set 'scroll-padding-right' to a length: 0px
@@ -103,7 +102,7 @@ Pass	Can set 'scroll-padding-bottom' to CSS-wide keywords: unset
 Pass	Can set 'scroll-padding-bottom' to CSS-wide keywords: revert
 Pass	Can set 'scroll-padding-bottom' to var() references:  var(--A)
 Pass	Can set 'scroll-padding-bottom' to a percent: 0%
-Fail	Can set 'scroll-padding-bottom' to a percent: -3.14%
+Pass	Can set 'scroll-padding-bottom' to a percent: -3.14%
 Pass	Can set 'scroll-padding-bottom' to a percent: 3.14%
 Pass	Can set 'scroll-padding-bottom' to a percent: calc(0% + 0%)
 Pass	Can set 'scroll-padding-bottom' to a length: 0px
@@ -134,7 +133,7 @@ Pass	Can set 'scroll-padding-inline-start' to CSS-wide keywords: unset
 Pass	Can set 'scroll-padding-inline-start' to CSS-wide keywords: revert
 Pass	Can set 'scroll-padding-inline-start' to var() references:  var(--A)
 Pass	Can set 'scroll-padding-inline-start' to a percent: 0%
-Fail	Can set 'scroll-padding-inline-start' to a percent: -3.14%
+Pass	Can set 'scroll-padding-inline-start' to a percent: -3.14%
 Pass	Can set 'scroll-padding-inline-start' to a percent: 3.14%
 Pass	Can set 'scroll-padding-inline-start' to a percent: calc(0% + 0%)
 Pass	Can set 'scroll-padding-inline-start' to a length: 0px
@@ -165,7 +164,7 @@ Pass	Can set 'scroll-padding-block-start' to CSS-wide keywords: unset
 Pass	Can set 'scroll-padding-block-start' to CSS-wide keywords: revert
 Pass	Can set 'scroll-padding-block-start' to var() references:  var(--A)
 Pass	Can set 'scroll-padding-block-start' to a percent: 0%
-Fail	Can set 'scroll-padding-block-start' to a percent: -3.14%
+Pass	Can set 'scroll-padding-block-start' to a percent: -3.14%
 Pass	Can set 'scroll-padding-block-start' to a percent: 3.14%
 Pass	Can set 'scroll-padding-block-start' to a percent: calc(0% + 0%)
 Pass	Can set 'scroll-padding-block-start' to a length: 0px
@@ -196,7 +195,7 @@ Pass	Can set 'scroll-padding-inline-end' to CSS-wide keywords: unset
 Pass	Can set 'scroll-padding-inline-end' to CSS-wide keywords: revert
 Pass	Can set 'scroll-padding-inline-end' to var() references:  var(--A)
 Pass	Can set 'scroll-padding-inline-end' to a percent: 0%
-Fail	Can set 'scroll-padding-inline-end' to a percent: -3.14%
+Pass	Can set 'scroll-padding-inline-end' to a percent: -3.14%
 Pass	Can set 'scroll-padding-inline-end' to a percent: 3.14%
 Pass	Can set 'scroll-padding-inline-end' to a percent: calc(0% + 0%)
 Pass	Can set 'scroll-padding-inline-end' to a length: 0px
@@ -227,7 +226,7 @@ Pass	Can set 'scroll-padding-block-end' to CSS-wide keywords: unset
 Pass	Can set 'scroll-padding-block-end' to CSS-wide keywords: revert
 Pass	Can set 'scroll-padding-block-end' to var() references:  var(--A)
 Pass	Can set 'scroll-padding-block-end' to a percent: 0%
-Fail	Can set 'scroll-padding-block-end' to a percent: -3.14%
+Pass	Can set 'scroll-padding-block-end' to a percent: -3.14%
 Pass	Can set 'scroll-padding-block-end' to a percent: 3.14%
 Pass	Can set 'scroll-padding-block-end' to a percent: calc(0% + 0%)
 Pass	Can set 'scroll-padding-block-end' to a length: 0px
