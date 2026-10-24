@@ -2668,12 +2668,12 @@ fn generate_for_statement(
     preferred_dst: Option<&ScopedOperand>,
 ) -> Option<ScopedOperand> {
     // ForStatement : `for` `(` LexicalDeclaration Expression? `;` Expression? `)` Statement
-    // NB: The resources of a `using` declaration in the head are disposed of when the loop ends,
+    // NB: The resources of a `using` or `await using` declaration in the head are disposed of when the loop ends,
     //     including when its declaration is abrupt.
     if let Some(ForInit::Declaration(declaration)) = init
-        && contains_using_declaration(core::iter::once(declaration.as_ref()))
+        && let Some(kind) = disposal_kind_of_statements(core::iter::once(declaration.as_ref()))
     {
-        return generate_with_disposable_resource_stack(generator, |generator| {
+        return generate_with_disposable_resource_stack(generator, kind, |generator| {
             generate_for_statement_without_disposal(generator, init, test, update, body, preferred_dst)
         });
     }
@@ -2948,25 +2948,40 @@ fn generate_block_statement(
     result
 }
 
-/// Whether a statement list has `using` declarations directly in it.
-fn contains_using_declaration<'a>(mut statements: impl Iterator<Item = &'a Statement>) -> bool {
-    // FIXME: Dispose of the resources of `await using` declarations.
-    statements.any(|statement| matches!(&statement.inner, StatementKind::UsingDeclaration(data) if !data.is_await))
+/// How the resources of a scope are disposed of, if the scope has `using` or `await using` declarations.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DisposalKind {
+    Sync,
+    Async,
 }
 
-/// Generate the children of a scope, disposing of the resources of the `using` declarations in it when control
-/// leaves it. Scopes without such declarations are generated exactly like generate_scope_children.
+/// The disposal kind of a statement list, from the `using` and `await using` declarations directly in it.
+fn disposal_kind_of_statements<'a>(statements: impl Iterator<Item = &'a Statement>) -> Option<DisposalKind> {
+    let mut kind = None;
+    for statement in statements {
+        if let StatementKind::UsingDeclaration(data) = &statement.inner {
+            if data.is_await {
+                return Some(DisposalKind::Async);
+            }
+            kind = Some(DisposalKind::Sync);
+        }
+    }
+    kind
+}
+
+/// Generate the children of a scope, disposing of the resources of the `using` and `await using` declarations in
+/// it when control leaves it. Scopes without such declarations are generated exactly like generate_scope_children.
 fn generate_scope_children_with_disposal(
     generator: &mut Generator,
     scope: &ScopeData,
     preferred_dst: Option<&ScopedOperand>,
 ) -> Option<ScopedOperand> {
-    if !contains_using_declaration(scope.children.iter()) {
-        return generate_scope_children(generator, scope, preferred_dst);
+    match disposal_kind_of_statements(scope.children.iter()) {
+        None => generate_scope_children(generator, scope, preferred_dst),
+        Some(kind) => generate_with_disposable_resource_stack(generator, kind, |generator| {
+            generate_scope_children(generator, scope, preferred_dst)
+        }),
     }
-    generate_with_disposable_resource_stack(generator, |generator| {
-        generate_scope_children(generator, scope, preferred_dst)
-    })
 }
 
 /// Generate code that has a new [[DisposableResourceStack]], whose resources are disposed of however control leaves
@@ -2974,6 +2989,7 @@ fn generate_scope_children_with_disposal(
 // https://tc39.es/ecma262/#sec-disposeresources
 fn generate_with_disposable_resource_stack(
     generator: &mut Generator,
+    kind: DisposalKind,
     body: impl FnOnce(&mut Generator) -> Option<ScopedOperand>,
 ) -> Option<ScopedOperand> {
     let stack = generator.allocate_register();
@@ -3039,11 +3055,66 @@ fn generate_with_disposable_resource_stack(
 
     // Dispose of the resources, which replaces the completion with a throw completion if a dispose method throws.
     generator.switch_to_basic_block(dispose_block);
-    generator.emit(Instruction::DisposeResources {
-        stack: stack.operand(),
-        completion_type: completion_type.operand(),
-        completion_value: completion_value.operand(),
-    });
+    match kind {
+        DisposalKind::Sync => {
+            generator.emit(Instruction::DisposeResources {
+                stack: stack.operand(),
+                completion_type: completion_type.operand(),
+                completion_value: completion_value.operand(),
+            });
+        }
+        DisposalKind::Async => {
+            // NB: DisposeResources awaits between some of its steps here, so the bytecode performs it one step at a
+            //     time, with an Await after each step that asks for one.
+            let await_completion = generator.allocate_register();
+            let await_completion_type = generator.allocate_register();
+            let await_completion_value = generator.allocate_register();
+            let done = generator.allocate_register();
+            let awaited_value = generator.allocate_register();
+            let normal_type = generator.add_constant_number(f64::from(CompletionType::Normal as u32));
+            let undefined = generator.add_constant_undefined();
+            generator.emit_mov(&await_completion_type, &normal_type);
+            generator.emit_mov(&await_completion_value, &undefined);
+
+            let step_block = generator.make_block();
+            let await_block = generator.make_block();
+            let continuation_block = generator.make_block();
+            let done_block = generator.make_block();
+            generator.emit(Instruction::Jump { target: step_block });
+
+            generator.switch_to_basic_block(step_block);
+            generator.emit(Instruction::AsyncDisposeResourcesStep {
+                done: done.operand(),
+                awaited_value: awaited_value.operand(),
+                stack: stack.operand(),
+                completion_type: completion_type.operand(),
+                completion_value: completion_value.operand(),
+                await_completion_type: await_completion_type.operand(),
+                await_completion_value: await_completion_value.operand(),
+            });
+            generator.emit_jump_if(&done, done_block, await_block);
+
+            generator.switch_to_basic_block(await_block);
+            let acc = generator.accumulator();
+            generator.emit_mov(&await_completion, &acc);
+            generator.emit(Instruction::Await {
+                continuation_label: continuation_block,
+                argument: awaited_value.operand(),
+            });
+
+            generator.switch_to_basic_block(continuation_block);
+            let acc = generator.accumulator();
+            generator.emit_mov(&await_completion, &acc);
+            generator.emit(Instruction::GetCompletionFields {
+                type_dst: await_completion_type.operand(),
+                value_dst: await_completion_value.operand(),
+                completion: await_completion.operand(),
+            });
+            generator.emit(Instruction::Jump { target: step_block });
+
+            generator.switch_to_basic_block(done_block);
+        }
+    }
 
     let next_block = generator.make_block();
     emit_finally_dispatch(generator, ctx_index, &completion_type, &completion_value, next_block);
@@ -3061,13 +3132,15 @@ fn generate_with_disposable_resource_stack(
 // UsingDeclaration : `using` BindingList `;`
 // AwaitUsingDeclaration : CoverAwaitExpressionAndAwaitUsingDeclarationHead BindingList `;`
 fn generate_using_declaration(generator: &mut Generator, data: &UsingDeclarationData) {
-    if data.is_await {
-        emit_await_using_declaration_todo(generator);
-        return;
-    }
-
-    // 1. Perform ? BindingEvaluation of BindingList with argument sync-dispose.
-    let kind = DisposableResourceKind::SyncDispose;
+    // UsingDeclaration:
+    //     1. Perform ? BindingEvaluation of BindingList with argument sync-dispose.
+    // AwaitUsingDeclaration:
+    //     1. Perform ? BindingEvaluation of BindingList with argument async-dispose.
+    let kind = if data.is_await {
+        DisposableResourceKind::AsyncDispose
+    } else {
+        DisposableResourceKind::SyncDispose
+    };
     for declaration in &data.declarations {
         let VariableDeclaratorTarget::Identifier(id) = &declaration.target else {
             unreachable!("using declarations only bind identifiers");
@@ -3076,21 +3149,6 @@ fn generate_using_declaration(generator: &mut Generator, data: &UsingDeclaration
         emit_add_disposable_resource_and_initialize_binding(generator, *id, &value, kind);
     }
     // 2. Return empty.
-}
-
-// FIXME: Dispose of the resources of `await using` declarations.
-fn emit_await_using_declaration_todo(generator: &mut Generator) {
-    let error = generator.allocate_register();
-    let msg = generator.intern_string(utf16!("TODO: AwaitUsingDeclaration"));
-    generator.emit(Instruction::NewTypeError {
-        dst: error.operand(),
-        error_string: msg,
-    });
-    generator.perform_needed_unwinds();
-    generator.emit(Instruction::Throw { src: error.operand() });
-    // Switch to a dead block so subsequent codegen doesn't crash.
-    let dead = generator.make_block();
-    generator.switch_to_basic_block(dead);
 }
 
 /// Evaluates the Initializer of a LexicalBinding, as NamedEvaluation with the name of the binding if it is an
@@ -7771,19 +7829,19 @@ fn generate_for_of_statement_inner(
         None
     };
 
-    let has_using_declaration = match lhs {
-        ForInOfLhs::Declaration(statement) => contains_using_declaration(core::iter::once(statement.as_ref())),
-        _ => false,
+    let disposal_kind = match lhs {
+        ForInOfLhs::Declaration(statement) => disposal_kind_of_statements(core::iter::once(statement.as_ref())),
+        _ => None,
     };
 
-    if has_using_declaration {
-        // NB: The resource of a `using` declaration is disposed of at the end of each iteration,
+    if let Some(disposal_kind) = disposal_kind {
+        // NB: The resource of a `using` or `await using` declaration is disposed of at the end of each iteration,
         //     including when the declaration is abrupt, and before the iterator is closed.
         generator.begin_continuable_scope(update_block, labels, completion.clone());
         if needs_lexical_env {
             generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
         }
-        generate_with_disposable_resource_stack(generator, |generator| {
+        generate_with_disposable_resource_stack(generator, disposal_kind, |generator| {
             assign_to_for_in_of_lhs(generator, lhs, &next_value);
             if !generator.is_current_block_terminated() {
                 generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
@@ -8087,7 +8145,7 @@ fn generate_for_of_statement_inner(
 fn assign_to_for_in_of_lhs(generator: &mut Generator, lhs: &ForInOfLhs, value: &ScopedOperand) {
     match lhs {
         ForInOfLhs::Declaration(statement) => {
-            // NB: For a `using` declaration, these are steps 8.h.vii.4 and 8.h.vii.6 of
+            // NB: For a `using` or `await using` declaration, these are steps 8.h.vii.4 and 8.h.vii.6 of
             //     ForIn/OfBodyEvaluation.
             if let StatementKind::UsingDeclaration(data) = &statement.inner {
                 // 4. If declKind is not normal, then
@@ -8100,16 +8158,12 @@ fn assign_to_for_in_of_lhs(generator: &mut Generator, lhs: &ForInOfLhs, value: &
                 let VariableDeclaratorTarget::Identifier(id) = &data.declarations[0].target else {
                     unreachable!("using declarations only bind identifiers");
                 };
-                if data.is_await {
-                    emit_await_using_declaration_todo(generator);
-                    return;
-                }
-                emit_add_disposable_resource_and_initialize_binding(
-                    generator,
-                    *id,
-                    value,
-                    DisposableResourceKind::SyncDispose,
-                );
+                let kind = if data.is_await {
+                    DisposableResourceKind::AsyncDispose
+                } else {
+                    DisposableResourceKind::SyncDispose
+                };
+                emit_add_disposable_resource_and_initialize_binding(generator, *id, value, kind);
                 return;
             }
             // The declaration is a VariableDeclaration with a single declarator

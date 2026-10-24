@@ -26,7 +26,7 @@ use crate::runtime::array_iterator::{
 use crate::runtime::async_from_sync_iterator_prototype::create_async_from_sync_iterator;
 use crate::runtime::async_generator::AsyncGenerator;
 use crate::runtime::completion::{Completion, CompletionType, Must, ThrowCompletionOr, completion_type_from_bytecode};
-use crate::runtime::disposable_resource_stack::DisposableResourceStack;
+use crate::runtime::disposable_resource_stack::{AsyncDisposeResourcesStep, DisposableResourceStack};
 use crate::runtime::environment::InitializeBindingHint;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
@@ -650,8 +650,11 @@ pub fn add_disposable_resource(
     instruction: &op::AddDisposableResource,
     values: &mut op::AddDisposableResourceValues,
 ) -> SlowPathControl {
-    debug_assert_eq!(instruction.hint, DisposableResourceKind::SyncDispose as u32);
-    let hint = InitializeBindingHint::SyncDispose;
+    let hint = if instruction.hint == DisposableResourceKind::AsyncDispose as u32 {
+        InitializeBindingHint::AsyncDispose
+    } else {
+        InitializeBindingHint::SyncDispose
+    };
     let stack = DisposableResourceStack::from_value(values.stack);
     asm_try!(vm, pc, stack.add_disposable_resource(vm, values.value, hint));
     SlowPathControl::continue_at(pc + op::AddDisposableResource::LENGTH)
@@ -676,6 +679,37 @@ pub fn dispose_resources(vm: &Vm, pc: u32, values: &mut op::DisposeResourcesValu
         return handle_asm_exception(vm, pc, result.value());
     }
     SlowPathControl::continue_at(pc + op::DisposeResources::LENGTH)
+}
+
+pub fn async_dispose_resources_step(
+    vm: &Vm,
+    pc: u32,
+    values: &mut op::AsyncDisposeResourcesStepValues,
+) -> SlowPathControl {
+    let stack = DisposableResourceStack::from_value(values.stack);
+    let completion = completion_of_scope(values.completion_type, values.completion_value);
+    let await_completion = if values.await_completion_type.is_int32()
+        && values.await_completion_type.as_i32() == CompletionType::Throw as i32
+    {
+        Completion::new(CompletionType::Throw, values.await_completion_value)
+    } else {
+        Completion::normal(values.await_completion_value)
+    };
+    match asm_try!(
+        vm,
+        pc,
+        stack.async_dispose_resources_step(vm, completion, await_completion)
+    ) {
+        AsyncDisposeResourcesStep::Await(value) => {
+            values.done = Value::from_bool(false);
+            values.awaited_value = value;
+        }
+        AsyncDisposeResourcesStep::Done => {
+            values.done = Value::from_bool(true);
+            values.awaited_value = Value::UNDEFINED;
+        }
+    }
+    SlowPathControl::continue_at(pc + op::AsyncDisposeResourcesStep::LENGTH)
 }
 
 pub fn get_completion_fields(_vm: &Vm, pc: u32, values: &mut op::GetCompletionFieldsValues) -> SlowPathControl {

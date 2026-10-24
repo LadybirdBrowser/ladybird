@@ -297,6 +297,7 @@ impl FinallyContext {
 #[repr(u32)]
 pub enum DisposableResourceKind {
     SyncDispose = 0,
+    AsyncDispose = 1,
 }
 
 /// A break/continue target registered with a FinallyContext.

@@ -1390,6 +1390,15 @@ impl RuntimeFunctions for Runtime {
         control::dispose_resources(vm, pc, values)
     }
 
+    fn async_dispose_resources_step(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::AsyncDisposeResourcesStep,
+        values: &mut op::AsyncDisposeResourcesStepValues,
+    ) -> SlowPathControl {
+        control::async_dispose_resources_step(vm, pc, values)
+    }
+
     fn get_completion_fields(
         vm: &Vm,
         pc: u32,
