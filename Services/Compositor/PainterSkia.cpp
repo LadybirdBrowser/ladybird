@@ -46,6 +46,13 @@ static void apply_paint_style(SkPaint& paint, PaintStyle const& style, SkColorSp
     if (auto const& solid_color = as_if<SolidColorPaintStyle>(style)) {
         set_color(paint, solid_color->color(), color_space);
     } else if (auto const& linear_gradient = as_if<Gfx::CanvasLinearGradientPaintStyle>(style)) {
+        // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createlineargradient
+        // If x0 = x1 and y0 = y1, then the linear gradient must paint nothing.
+        if (linear_gradient->start_point() == linear_gradient->end_point()) {
+            paint.setColor(SK_ColorTRANSPARENT);
+            return;
+        }
+
         auto const& color_stops = linear_gradient->color_stops();
 
         Vector<SkColor4f> colors;
@@ -64,6 +71,13 @@ static void apply_paint_style(SkPaint& paint, PaintStyle const& style, SkColorSp
         auto shader = SkShaders::LinearGradient(points.data(), gradient, &matrix);
         paint.setShader(shader);
     } else if (auto const* radial_gradient = as_if<CanvasRadialGradientPaintStyle>(style)) {
+        // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createradialgradient
+        // 1. If x0 = x1 and y0 = y1 and r0 = r1, then the radial gradient must paint nothing. Return.
+        if (radial_gradient->start_center() == radial_gradient->end_center() && radial_gradient->start_radius() == radial_gradient->end_radius()) {
+            paint.setColor(SK_ColorTRANSPARENT);
+            return;
+        }
+
         auto const& color_stops = radial_gradient->color_stops();
 
         Vector<SkColor4f> colors;
