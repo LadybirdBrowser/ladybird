@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<title>SVGPointList: error handling that does not depend on a valid prefix</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/shapes.html#DataTypePoints">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/shapes.html#PolylineElementPointsAttribute">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#TermInitialValue">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<svg id="svg" width="200" height="200"></svg>
+<script>
+// w3c/svgwg#764 asks whether a points value that fails to parse should render the
+// coordinate pairs before the error, as SVG 1.1 required, or nothing, which is what
+// SVG 2 gives once the general initial-value rule applies. That question is open, so
+// this file deliberately avoids it.
+//
+// What it covers is the part both answers agree on:
+//
+//   * an odd number of coordinates, which SVG 2 keeps an explicit rule for and which
+//     matches SVG 1.1;
+//   * an error at or before the start of the list, where there is no valid prefix for
+//     the two readings to disagree about;
+//   * an empty or whitespace-only value, whose observable is the same whether it is
+//     treated as valid-and-empty or as invalid.
+//
+// Both layers are asserted together on every row. Nothing else checks that
+// points.numberOfItems and the rendered geometry agree, and they are what a partial
+// parse would put out of step.
+//
+// A value with an error AFTER at least one complete coordinate pair is intentionally
+// absent from this file until svgwg#764 resolves.
+
+const svg = document.getElementById("svg");
+const ELEMENTS = ["polyline", "polygon"];
+
+function shape(tag, points) {
+    const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    if (points !== null)
+        element.setAttribute("points", points);
+    element.setAttribute("fill", "none");
+    svg.append(element);
+    return element;
+}
+
+function assertRendersNothing(element, description) {
+    assert_equals(element.points.numberOfItems, 0, description + ": numberOfItems");
+    assert_throws_dom("IndexSizeError", () => element.points.getItem(0),
+        description + ": getItem(0)");
+    const bbox = element.getBBox();
+    assert_equals(bbox.width, 0, description + ": bbox width");
+    assert_equals(bbox.height, 0, description + ": bbox height");
+}
+
+for (const tag of ELEMENTS) {
+    test(function() {
+        const errored = shape(tag, "10,10 70,10 40,50 20");
+        const truncated = shape(tag, "10,10 70,10 40,50");
+
+        // Guard against a vacuous comparison of two empty shapes.
+        assert_equals(truncated.points.numberOfItems, 3, "the truncated list has 3 items");
+        assert_greater_than(truncated.getBBox().width, 0, "the truncated shape has width");
+
+        assert_equals(errored.points.numberOfItems, 3, "numberOfItems");
+        assert_equals(errored.points.getItem(0).x, 10, "getItem(0).x");
+        assert_equals(errored.points.getItem(0).y, 10, "getItem(0).y");
+
+        const a = errored.getBBox();
+        const b = truncated.getBBox();
+        assert_equals(a.x, b.x, "bbox x");
+        assert_equals(a.y, b.y, "bbox y");
+        assert_equals(a.width, b.width, "bbox width");
+        assert_equals(a.height, b.height, "bbox height");
+    }, tag + " with an odd number of coordinates drops the last one and keeps the rest");
+
+    test(function() {
+        assertRendersNothing(shape(tag, "bogus 10,10 70,10 40,50"),
+            "non-numeric token before any coordinate");
+    }, tag + " whose points value begins with a non-numeric token renders nothing");
+
+    test(function() {
+        assertRendersNothing(shape(tag, ",10,10 70,10 40,50"),
+            "separator before the first coordinate");
+    }, tag + " whose points value begins with a separator renders nothing");
+
+    test(function() {
+        assertRendersNothing(shape(tag, ","), "a separator alone");
+    }, tag + " with a points value of a single separator renders nothing");
+
+    test(function() {
+        const element = shape(tag, "");
+
+        assert_equals(element.points.numberOfItems, 0, "numberOfItems");
+        const bbox = element.getBBox();
+        assert_equals(bbox.width, 0, "bbox width");
+        assert_equals(bbox.height, 0, "bbox height");
+    }, tag + " with an empty points value renders nothing");
+
+    test(function() {
+        const element = shape(tag, "   ");
+
+        assert_equals(element.points.numberOfItems, 0, "numberOfItems");
+        const bbox = element.getBBox();
+        assert_equals(bbox.width, 0, "bbox width");
+        assert_equals(bbox.height, 0, "bbox height");
+    }, tag + " with a whitespace-only points value renders nothing");
+
+    test(function() {
+        const element = shape(tag, null);
+
+        assert_equals(element.getAttribute("points"), null, "the attribute is absent");
+        assert_equals(element.points.numberOfItems, 0, "numberOfItems");
+        const bbox = element.getBBox();
+        assert_equals(bbox.width, 0, "bbox width");
+        assert_equals(bbox.height, 0, "bbox height");
+    }, tag + " with no points attribute renders nothing");
+
+    test(function() {
+        const points = "bogus 10,10 70,10 40,50";
+        const element = shape(tag, points);
+
+        assert_equals(element.getAttribute("points"), points,
+            "the content attribute keeps what was specified");
+    }, tag + " with a points value in error does not rewrite the content attribute");
+}
+</script>

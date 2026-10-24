@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<title>SVGAnimatedEnumeration, invalid values</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+// Enumerated attributes revert to their initial value when the attribute value does not
+// match the grammar in the attribute definition table, while the content attribute keeps
+// whatever was specified. https://w3c.github.io/svgwg/svg2-draft/types.html#InvalidValues
+const attributes = [
+  { interface: 'SVGClipPathElement', element: 'clipPath', attribute: 'clipPathUnits',
+    initial: () => SVGUnitTypes.SVG_UNIT_TYPE_USERSPACEONUSE, valid: 'objectBoundingBox' },
+  { interface: 'SVGComponentTransferFunctionElement', element: 'feFuncA', attribute: 'type',
+    initial: () => SVGComponentTransferFunctionElement.SVG_FECOMPONENTTRANSFER_TYPE_IDENTITY, valid: 'table' },
+  { interface: 'SVGFEBlendElement', element: 'feBlend', attribute: 'mode',
+    initial: () => SVGFEBlendElement.SVG_FEBLEND_MODE_NORMAL, valid: 'screen' },
+  { interface: 'SVGFEColorMatrixElement', element: 'feColorMatrix', attribute: 'type',
+    initial: () => SVGFEColorMatrixElement.SVG_FECOLORMATRIX_TYPE_MATRIX, valid: 'saturate' },
+  { interface: 'SVGFECompositeElement', element: 'feComposite', attribute: 'operator',
+    initial: () => SVGFECompositeElement.SVG_FECOMPOSITE_OPERATOR_OVER, valid: 'in' },
+  { interface: 'SVGFEConvolveMatrixElement', element: 'feConvolveMatrix', attribute: 'edgeMode',
+    initial: () => SVGFEConvolveMatrixElement.SVG_EDGEMODE_DUPLICATE, valid: 'wrap' },
+  { interface: 'SVGFEDisplacementMapElement', element: 'feDisplacementMap', attribute: 'xChannelSelector',
+    initial: () => SVGFEDisplacementMapElement.SVG_CHANNEL_A, valid: 'R' },
+  { interface: 'SVGFEDisplacementMapElement', element: 'feDisplacementMap', attribute: 'yChannelSelector',
+    initial: () => SVGFEDisplacementMapElement.SVG_CHANNEL_A, valid: 'G' },
+  { interface: 'SVGFEGaussianBlurElement', element: 'feGaussianBlur', attribute: 'edgeMode',
+    initial: () => SVGFEGaussianBlurElement.SVG_EDGEMODE_NONE, valid: 'wrap' },
+  { interface: 'SVGFEMorphologyElement', element: 'feMorphology', attribute: 'operator',
+    initial: () => SVGFEMorphologyElement.SVG_MORPHOLOGY_OPERATOR_ERODE, valid: 'dilate' },
+  { interface: 'SVGFETurbulenceElement', element: 'feTurbulence', attribute: 'stitchTiles',
+    initial: () => SVGFETurbulenceElement.SVG_STITCHTYPE_NOSTITCH, valid: 'stitch' },
+  { interface: 'SVGFETurbulenceElement', element: 'feTurbulence', attribute: 'type',
+    initial: () => SVGFETurbulenceElement.SVG_TURBULENCE_TYPE_TURBULENCE, valid: 'fractalNoise' },
+  { interface: 'SVGFilterElement', element: 'filter', attribute: 'filterUnits',
+    initial: () => SVGUnitTypes.SVG_UNIT_TYPE_OBJECTBOUNDINGBOX, valid: 'userSpaceOnUse' },
+  { interface: 'SVGFilterElement', element: 'filter', attribute: 'primitiveUnits',
+    initial: () => SVGUnitTypes.SVG_UNIT_TYPE_USERSPACEONUSE, valid: 'objectBoundingBox' },
+  { interface: 'SVGGradientElement', element: 'linearGradient', attribute: 'gradientUnits',
+    initial: () => SVGUnitTypes.SVG_UNIT_TYPE_OBJECTBOUNDINGBOX, valid: 'userSpaceOnUse' },
+  { interface: 'SVGGradientElement', element: 'linearGradient', attribute: 'spreadMethod',
+    initial: () => SVGGradientElement.SVG_SPREADMETHOD_PAD, valid: 'repeat' },
+  { interface: 'SVGMarkerElement', element: 'marker', attribute: 'markerUnits',
+    initial: () => SVGMarkerElement.SVG_MARKERUNITS_STROKEWIDTH, valid: 'userSpaceOnUse' },
+  { interface: 'SVGMarkerElement', element: 'marker', attribute: 'orientType', contentAttribute: 'orient',
+    initial: () => SVGMarkerElement.SVG_MARKER_ORIENT_ANGLE, valid: 'auto' },
+  { interface: 'SVGMaskElement', element: 'mask', attribute: 'maskUnits',
+    initial: () => SVGUnitTypes.SVG_UNIT_TYPE_OBJECTBOUNDINGBOX, valid: 'userSpaceOnUse' },
+  { interface: 'SVGMaskElement', element: 'mask', attribute: 'maskContentUnits',
+    initial: () => SVGUnitTypes.SVG_UNIT_TYPE_USERSPACEONUSE, valid: 'objectBoundingBox' },
+  { interface: 'SVGPatternElement', element: 'pattern', attribute: 'patternUnits',
+    initial: () => SVGUnitTypes.SVG_UNIT_TYPE_OBJECTBOUNDINGBOX, valid: 'userSpaceOnUse' },
+  { interface: 'SVGPatternElement', element: 'pattern', attribute: 'patternContentUnits',
+    initial: () => SVGUnitTypes.SVG_UNIT_TYPE_USERSPACEONUSE, valid: 'objectBoundingBox' },
+  { interface: 'SVGTextContentElement', element: 'text', attribute: 'lengthAdjust',
+    initial: () => SVGTextContentElement.LENGTHADJUST_SPACING, valid: 'spacingAndGlyphs' },
+  { interface: 'SVGTextPathElement', element: 'textPath', attribute: 'method',
+    initial: () => SVGTextPathElement.TEXTPATH_METHODTYPE_ALIGN, valid: 'stretch' },
+  { interface: 'SVGTextPathElement', element: 'textPath', attribute: 'spacing',
+    initial: () => SVGTextPathElement.TEXTPATH_SPACINGTYPE_EXACT, valid: 'auto' },
+];
+
+function create(info) {
+  return document.createElementNS('http://www.w3.org/2000/svg', info.element);
+}
+
+for (let info of attributes) {
+  let contentAttribute = info.contentAttribute || info.attribute;
+  let label = document.title + ', ' + info.interface + '.prototype.' + info.attribute;
+
+  test(function() {
+    let e = create(info);
+    let initial = info.initial();
+    assert_equals(e[info.attribute].baseVal, initial, 'initial before');
+    e.setAttribute(contentAttribute, info.valid);
+    assert_not_equals(e[info.attribute].baseVal, initial, 'new value');
+    e.setAttribute(contentAttribute, '');
+    assert_equals(e[info.attribute].baseVal, initial, 'initial after');
+  }, label + ' (empty string)');
+
+  test(function() {
+    let e = create(info);
+    let initial = info.initial();
+    e.setAttribute(contentAttribute, info.valid);
+    assert_not_equals(e[info.attribute].baseVal, initial, 'new value');
+    e.setAttribute(contentAttribute, 'foobar');
+    assert_equals(e[info.attribute].baseVal, initial, 'initial after');
+    assert_equals(e.getAttribute(contentAttribute), 'foobar', 'content attribute');
+  }, label + ' (content attribute is not rewritten)');
+}
+
+// feBlend's mode is <blend-mode>, which is the 16 keywords of "Compositing and Blending Level 1"
+// and does not include plus-darker or plus-lighter. Those two are worth their own subtest because
+// they are not arbitrary garbage: an implementation sharing one blend-mode parser with CSS can
+// accept them here without noticing they are outside the grammar of this attribute.
+// https://drafts.csswg.org/filter-effects-1/#feBlendElement
+// https://drafts.csswg.org/compositing-1/#ltblendmodegt
+for (let keyword of ['plus-darker', 'plus-lighter']) {
+  test(function() {
+    let e = document.createElementNS('http://www.w3.org/2000/svg', 'feBlend');
+    e.setAttribute('mode', 'screen');
+    assert_equals(e.mode.baseVal, SVGFEBlendElement.SVG_FEBLEND_MODE_SCREEN, 'new value');
+    e.setAttribute('mode', keyword);
+    assert_equals(e.mode.baseVal, SVGFEBlendElement.SVG_FEBLEND_MODE_NORMAL, 'initial after');
+    assert_equals(e.getAttribute('mode'), keyword, 'content attribute');
+  }, document.title + ', SVGFEBlendElement.prototype.mode (' + keyword + ' is not a blend mode)');
+}
+</script>

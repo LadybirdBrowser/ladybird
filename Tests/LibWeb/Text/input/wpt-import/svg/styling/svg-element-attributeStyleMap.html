@@ -1,0 +1,63 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SVGElement attributeStyleMap and StylePropertyMap Read/Write Tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-elementcssinlinestyle-attributestylemap">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymap">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../svg/resources/svg-tags.js"></script>
+
+<body>
+  <div id="svg-container"></div>
+
+  <script>
+    function createSVGElement(tag) {
+      const container = document.getElementById('svg-container');
+      const el = document.createElementNS(SVG_NS, tag);
+      container.appendChild(el);
+      return el;
+    }
+
+    // Test Read, Write, Delete, and Sync Operations Across ALL SVG Elements
+    for (const tag of SVG_ELEMENT_TAGS) {
+      test(t => {
+        const element = createSVGElement(tag);
+        assert_true(!!element, `SVG element <${tag}> should be created successfully`);
+
+        const styleMap = element.attributeStyleMap;
+
+        assert_true(!!styleMap, `attributeStyleMap should return a non-null object on <${tag}>`);
+        assert_true(
+          styleMap instanceof StylePropertyMap,
+          `attributeStyleMap should be an instance of StylePropertyMap on <${tag}>`
+        );
+
+        // 1. set() operations using standard CSS properties & keywords
+        styleMap.set('opacity', '0.5');
+        styleMap.set('cursor', new CSSKeywordValue('pointer'));
+
+        // 2. has() and get() assertions
+        assert_true(styleMap.has('opacity'), `styleMap.has('opacity') should return true on <${tag}>`);
+        assert_equals(styleMap.get('opacity').toString(), '0.5', `styleMap.get 'opacity' should match the value previously set on <${tag}>`);
+        assert_equals(styleMap.get('cursor').value, 'pointer', `styleMap.get 'cursor' should match the value previously set on <${tag}>`);
+
+        // 3. Synchronization with DOM CSSStyleDeclaration (element.style)
+        assert_equals(element.style.opacity, '0.5', `Inline style 'opacity' should match the value previously set on <${tag}>`);
+        assert_equals(element.style.cursor, 'pointer', `Inline style 'cursor' should match the value previously set on <${tag}>`);
+
+        // 4. delete() operation
+        styleMap.delete('opacity');
+        assert_false(styleMap.has('opacity'), `styleMap.has('opacity') should return false after delete() on <${tag}>`);
+        assert_equals(element.style.opacity, '', `Inline style 'opacity' should be cleared after delete() on <${tag}>`);
+        assert_equals(element.style.cursor, 'pointer', `Inline style 'cursor' should stay unchanged after delete() on <${tag}>`);
+
+        // 5. clear() operation
+        styleMap.clear();
+        assert_equals(styleMap.size, 0, `styleMap.size should be 0 after clear() on <${tag}>`);
+        assert_equals(element.style.cursor, '', `Inline style 'cursor' should be empty after clear() on <${tag}>`);
+
+      }, `attributeStyleMap set, get, has, delete, and clear sync correctly on <${tag}>`);
+    }
+
+  </script>
+</body>

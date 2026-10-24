@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<title>SVGAnimatedEnumeration, keyword values</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+// Enumerated attribute values are matched literally against the keywords in the attribute's
+// grammar. A value differing only by case does not match, so the attribute is treated as having
+// its initial value. https://w3c.github.io/svgwg/svg2-draft/types.html#InvalidValues
+const enumerations = [
+  { interface: 'SVGComponentTransferFunctionElement', element: 'feFuncA', attribute: 'type',
+    initial: 'SVG_FECOMPONENTTRANSFER_TYPE_IDENTITY',
+    keywords: {
+      'identity': 'SVG_FECOMPONENTTRANSFER_TYPE_IDENTITY',
+      'table': 'SVG_FECOMPONENTTRANSFER_TYPE_TABLE',
+      'discrete': 'SVG_FECOMPONENTTRANSFER_TYPE_DISCRETE',
+      'linear': 'SVG_FECOMPONENTTRANSFER_TYPE_LINEAR',
+      'gamma': 'SVG_FECOMPONENTTRANSFER_TYPE_GAMMA',
+    } },
+  { interface: 'SVGFEBlendElement', element: 'feBlend', attribute: 'mode',
+    initial: 'SVG_FEBLEND_MODE_NORMAL',
+    keywords: {
+      'normal': 'SVG_FEBLEND_MODE_NORMAL',
+      'multiply': 'SVG_FEBLEND_MODE_MULTIPLY',
+      'screen': 'SVG_FEBLEND_MODE_SCREEN',
+      'darken': 'SVG_FEBLEND_MODE_DARKEN',
+      'lighten': 'SVG_FEBLEND_MODE_LIGHTEN',
+      'overlay': 'SVG_FEBLEND_MODE_OVERLAY',
+      'color-dodge': 'SVG_FEBLEND_MODE_COLOR_DODGE',
+      'color-burn': 'SVG_FEBLEND_MODE_COLOR_BURN',
+      'hard-light': 'SVG_FEBLEND_MODE_HARD_LIGHT',
+      'soft-light': 'SVG_FEBLEND_MODE_SOFT_LIGHT',
+      'difference': 'SVG_FEBLEND_MODE_DIFFERENCE',
+      'exclusion': 'SVG_FEBLEND_MODE_EXCLUSION',
+      'hue': 'SVG_FEBLEND_MODE_HUE',
+      'saturation': 'SVG_FEBLEND_MODE_SATURATION',
+      'color': 'SVG_FEBLEND_MODE_COLOR',
+      'luminosity': 'SVG_FEBLEND_MODE_LUMINOSITY',
+    } },
+  { interface: 'SVGFEColorMatrixElement', element: 'feColorMatrix', attribute: 'type',
+    initial: 'SVG_FECOLORMATRIX_TYPE_MATRIX',
+    keywords: {
+      'matrix': 'SVG_FECOLORMATRIX_TYPE_MATRIX',
+      'saturate': 'SVG_FECOLORMATRIX_TYPE_SATURATE',
+      'hueRotate': 'SVG_FECOLORMATRIX_TYPE_HUEROTATE',
+      'luminanceToAlpha': 'SVG_FECOLORMATRIX_TYPE_LUMINANCETOALPHA',
+    } },
+  { interface: 'SVGFECompositeElement', element: 'feComposite', attribute: 'operator',
+    initial: 'SVG_FECOMPOSITE_OPERATOR_OVER',
+    keywords: {
+      'over': 'SVG_FECOMPOSITE_OPERATOR_OVER',
+      'in': 'SVG_FECOMPOSITE_OPERATOR_IN',
+      'out': 'SVG_FECOMPOSITE_OPERATOR_OUT',
+      'atop': 'SVG_FECOMPOSITE_OPERATOR_ATOP',
+      'xor': 'SVG_FECOMPOSITE_OPERATOR_XOR',
+      'arithmetic': 'SVG_FECOMPOSITE_OPERATOR_ARITHMETIC',
+    } },
+  { interface: 'SVGFEConvolveMatrixElement', element: 'feConvolveMatrix', attribute: 'edgeMode',
+    initial: 'SVG_EDGEMODE_DUPLICATE',
+    keywords: {
+      'duplicate': 'SVG_EDGEMODE_DUPLICATE',
+      'wrap': 'SVG_EDGEMODE_WRAP',
+      'none': 'SVG_EDGEMODE_NONE',
+    } },
+  { interface: 'SVGFEDisplacementMapElement', element: 'feDisplacementMap', attribute: 'xChannelSelector',
+    initial: 'SVG_CHANNEL_A',
+    keywords: {
+      'R': 'SVG_CHANNEL_R',
+      'G': 'SVG_CHANNEL_G',
+      'B': 'SVG_CHANNEL_B',
+      'A': 'SVG_CHANNEL_A',
+    } },
+  { interface: 'SVGFEGaussianBlurElement', element: 'feGaussianBlur', attribute: 'edgeMode',
+    initial: 'SVG_EDGEMODE_NONE',
+    keywords: {
+      'duplicate': 'SVG_EDGEMODE_DUPLICATE',
+      'wrap': 'SVG_EDGEMODE_WRAP',
+      'none': 'SVG_EDGEMODE_NONE',
+    } },
+  { interface: 'SVGFEMorphologyElement', element: 'feMorphology', attribute: 'operator',
+    initial: 'SVG_MORPHOLOGY_OPERATOR_ERODE',
+    keywords: {
+      'erode': 'SVG_MORPHOLOGY_OPERATOR_ERODE',
+      'dilate': 'SVG_MORPHOLOGY_OPERATOR_DILATE',
+    } },
+  { interface: 'SVGFETurbulenceElement', element: 'feTurbulence', attribute: 'type',
+    initial: 'SVG_TURBULENCE_TYPE_TURBULENCE',
+    keywords: {
+      'fractalNoise': 'SVG_TURBULENCE_TYPE_FRACTALNOISE',
+      'turbulence': 'SVG_TURBULENCE_TYPE_TURBULENCE',
+    } },
+  { interface: 'SVGFETurbulenceElement', element: 'feTurbulence', attribute: 'stitchTiles',
+    initial: 'SVG_STITCHTYPE_NOSTITCH',
+    keywords: {
+      'stitch': 'SVG_STITCHTYPE_STITCH',
+      'noStitch': 'SVG_STITCHTYPE_NOSTITCH',
+    } },
+  { interface: 'SVGGradientElement', element: 'linearGradient', attribute: 'spreadMethod',
+    initial: 'SVG_SPREADMETHOD_PAD',
+    keywords: {
+      'pad': 'SVG_SPREADMETHOD_PAD',
+      'reflect': 'SVG_SPREADMETHOD_REFLECT',
+      'repeat': 'SVG_SPREADMETHOD_REPEAT',
+    } },
+  { interface: 'SVGGradientElement', element: 'linearGradient', attribute: 'gradientUnits',
+    constants: 'SVGUnitTypes', initial: 'SVG_UNIT_TYPE_OBJECTBOUNDINGBOX',
+    keywords: {
+      'userSpaceOnUse': 'SVG_UNIT_TYPE_USERSPACEONUSE',
+      'objectBoundingBox': 'SVG_UNIT_TYPE_OBJECTBOUNDINGBOX',
+    } },
+  { interface: 'SVGMarkerElement', element: 'marker', attribute: 'markerUnits',
+    initial: 'SVG_MARKERUNITS_STROKEWIDTH',
+    keywords: {
+      'userSpaceOnUse': 'SVG_MARKERUNITS_USERSPACEONUSE',
+      'strokeWidth': 'SVG_MARKERUNITS_STROKEWIDTH',
+    } },
+  { interface: 'SVGTextContentElement', element: 'text', attribute: 'lengthAdjust',
+    initial: 'LENGTHADJUST_SPACING',
+    keywords: {
+      'spacing': 'LENGTHADJUST_SPACING',
+      'spacingAndGlyphs': 'LENGTHADJUST_SPACINGANDGLYPHS',
+    } },
+  { interface: 'SVGTextPathElement', element: 'textPath', attribute: 'method',
+    initial: 'TEXTPATH_METHODTYPE_ALIGN',
+    keywords: {
+      'align': 'TEXTPATH_METHODTYPE_ALIGN',
+      'stretch': 'TEXTPATH_METHODTYPE_STRETCH',
+    } },
+  { interface: 'SVGTextPathElement', element: 'textPath', attribute: 'spacing',
+    initial: 'TEXTPATH_SPACINGTYPE_EXACT',
+    keywords: {
+      'auto': 'TEXTPATH_SPACINGTYPE_AUTO',
+      'exact': 'TEXTPATH_SPACINGTYPE_EXACT',
+    } },
+];
+
+function create(info) {
+  return document.createElementNS('http://www.w3.org/2000/svg', info.element);
+}
+
+function constant(info, name) {
+  return self[info.constants || info.interface][name];
+}
+
+function swapCase(keyword) {
+  let swapped = keyword.toUpperCase();
+  return swapped == keyword ? keyword.toLowerCase() : swapped;
+}
+
+for (let info of enumerations) {
+  let label = document.title + ', ' + info.interface + '.prototype.' + info.attribute;
+
+  test(function() {
+    for (let keyword of Object.keys(info.keywords)) {
+      let e = create(info);
+      e.setAttribute(info.attribute, keyword);
+      assert_equals(e[info.attribute].baseVal, constant(info, info.keywords[keyword]), keyword);
+    }
+  }, label + ' (keywords)');
+
+  test(function() {
+    // Set a keyword whose value differs from the initial first, so that reverting is observable.
+    let keywords = Object.keys(info.keywords);
+    let other = keywords.find(k => constant(info, info.keywords[k]) != constant(info, info.initial));
+    for (let keyword of keywords) {
+      let wrongCase = swapCase(keyword);
+      let e = create(info);
+      e.setAttribute(info.attribute, other);
+      assert_not_equals(e[info.attribute].baseVal, constant(info, info.initial), other);
+      e.setAttribute(info.attribute, wrongCase);
+      assert_equals(e[info.attribute].baseVal, constant(info, info.initial), wrongCase);
+      assert_equals(e.getAttribute(info.attribute), wrongCase, wrongCase + ' content attribute');
+    }
+  }, label + ' (case-sensitive)');
+}
+</script>

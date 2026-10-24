@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 19 tests
+
+8 Pass
+11 Fail
+Pass	getBBox on detached element
+Pass	getBBox on polygon with no points attribute
+Pass	getBBox on polyline with no points attribute
+Pass	getBBox on path with no d attribute
+Pass	getBBox on path with no valid path segments in d attribute
+Pass	getBBox on polygon with no valid point in the points attribute
+Pass	getBBox on polyline with no valid point in the points attribute
+Fail	polygon doesn't contribute to parent bbox
+Fail	group with hidden child
+Fail	path doesn't contribute to parent bbox
+Fail	path with only invalid segments doesn't contribute to parent bbox
+Fail	polyline doesn't contribute to parent bbox
+Fail	polygon with no valid points doesn't contribute to parent bbox
+Fail	polyline with no valid points doesn't contribute to parent bbox
+Pass	getBBox on path with no height
+Fail	path with no height should contribute to parent bbox
+Fail	arc bbox should be tight
+Fail	empty foreignObject does not contribute to parent bbox
+Fail	empty image does not contribute to parent bbox

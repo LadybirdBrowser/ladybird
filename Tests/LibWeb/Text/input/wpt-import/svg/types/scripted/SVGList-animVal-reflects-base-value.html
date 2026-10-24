@@ -1,0 +1,132 @@
+<!DOCTYPE HTML>
+<title>animVal of a list attribute reflects the base value when nothing is animating</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#DOMInterfacesForReflectingSVGAttributes">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGAnimatedNumberList">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#ReadOnlyList">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<svg id="stage" width="200" height="100" viewBox="0 0 200 100"></svg>
+<script>
+// "The baseVal and animVal IDL attributes represent the current non-animated
+// value of the reflected attribute. On getting baseVal or animVal, an
+// SVGNumberList object is returned that reflects the base value of the
+// reflected attribute."
+//
+// There is no animation anywhere in this file, so SVG 1.1 and SVG 2 ask for the
+// same thing here and the SVG 2 "animVal is an alias of baseVal" wording does not
+// have to be settled for these subtests to be meaningful.
+//
+// The order of the two reads is the whole point. Reading animVal BEFORE the
+// attribute changes is what catches an implementation that builds animVal once
+// and never refreshes it; the same assertions after the change would pass there.
+
+const SVGNS = "http://www.w3.org/2000/svg";
+const stage = document.getElementById("stage");
+
+const SUBJECTS = [
+  {
+    name: "SVGNumberList (rotate on text)",
+    attr: "rotate", v3: "10 20 30", v2: "40 50", shrunkAt0: 40,
+    build() {
+      const e = document.createElementNS(SVGNS, "text");
+      e.setAttribute("rotate", this.v3);
+      e.setAttribute("x", "5");
+      e.setAttribute("y", "20");
+      stage.appendChild(e);
+      return e;
+    },
+    base: e => e.rotate.baseVal,
+    anim: e => e.rotate.animVal,
+    read: it => it.value,
+    write: (it, v) => { it.value = v; },
+  },
+  {
+    name: "SVGLengthList (x on text)",
+    attr: "x", v3: "1 2 3", v2: "7 8", shrunkAt0: 7,
+    build() {
+      const e = document.createElementNS(SVGNS, "text");
+      e.setAttribute("x", this.v3);
+      e.setAttribute("y", "45");
+      stage.appendChild(e);
+      return e;
+    },
+    base: e => e.x.baseVal,
+    anim: e => e.x.animVal,
+    read: it => it.value,
+    write: (it, v) => { it.value = v; },
+  },
+  {
+    name: "SVGPointList (points on polyline, animatedPoints)",
+    attr: "points", v3: "1,2 3,4 5,6", v2: "11,12 13,14", shrunkAt0: 11,
+    build() {
+      const e = document.createElementNS(SVGNS, "polyline");
+      e.setAttribute("points", this.v3);
+      e.setAttribute("fill", "none");
+      e.setAttribute("stroke", "black");
+      stage.appendChild(e);
+      return e;
+    },
+    base: e => e.points,
+    anim: e => e.animatedPoints,
+    read: it => it.x,
+    write: (it, v) => { it.x = v; },
+  },
+  {
+    name: "SVGTransformList (gradientTransform on linearGradient)",
+    attr: "gradientTransform",
+    v3: "translate(1,2) translate(3,4) translate(5,6)",
+    v2: "translate(11,12) translate(13,14)", shrunkAt0: 11,
+    build() {
+      const e = document.createElementNS(SVGNS, "linearGradient");
+      e.setAttribute("gradientTransform", this.v3);
+      stage.appendChild(e);
+      return e;
+    },
+    base: e => e.gradientTransform.baseVal,
+    anim: e => e.gradientTransform.animVal,
+    read: it => it.matrix.e,
+    write: (it, v) => { it.setTranslate(v, 0); },
+  },
+];
+
+for (const s of SUBJECTS) {
+  test(() => {
+    const el = s.build();
+    const anim = s.anim(el);
+    assert_equals(anim.numberOfItems, 3, "before the change");
+    el.setAttribute(s.attr, s.v2);
+    assert_equals(s.base(el).numberOfItems, 2, "baseVal after the change");
+    assert_equals(anim.numberOfItems, 2, "animVal after the change");
+  }, s.name + ": animVal read before an attribute change reports the new item count");
+
+  test(() => {
+    const el = s.build();
+    const anim = s.anim(el);
+    anim.getItem(0);
+    el.setAttribute(s.attr, s.v2);
+    assert_equals(s.read(anim.getItem(0)), s.shrunkAt0);
+  }, s.name + ": animVal read before an attribute change reports the new value");
+
+  test(() => {
+    const el = s.build();
+    const anim = s.anim(el);
+    el.setAttribute(s.attr, s.v2);
+    assert_equals(s.anim(el), anim, "animVal is [SameObject]");
+  }, s.name + ": the animVal list object survives an attribute change");
+
+  test(() => {
+    const el = s.build();
+    const anim = s.anim(el);
+    const n = anim.numberOfItems;
+    s.base(el).removeItem(2);
+    assert_equals(n, 3, "before the change");
+    assert_equals(anim.numberOfItems, 2, "animVal after the change");
+  }, s.name + ": animVal reports the new item count after a baseVal DOM change");
+
+  test(() => {
+    const el = s.build();
+    const item = s.anim(el).getItem(0);
+    assert_throws_dom("NoModificationAllowedError", () => { s.write(item, 42); });
+  }, s.name + ": animVal items are read only");
+}
+</script>

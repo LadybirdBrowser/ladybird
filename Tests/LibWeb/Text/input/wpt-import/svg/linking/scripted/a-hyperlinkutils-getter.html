@@ -1,0 +1,78 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SVGAElement HyperlinkElementUtils getters with href and xlink:href attributes</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<svg>
+  <a id="test-anchor">anchor</a>
+</svg>
+<script>
+  const XLINK_NS = "http://www.w3.org/1999/xlink";
+
+  // Test cases
+  // Format: [property, expectedResult, primaryURL, fallbackURL]
+  // - primaryURL: Used in 'href', 'xlink', and as the winning 'href' in 'both' mode.
+  // - fallbackURL: Used as the ignored 'xlink:href' attribute in 'both' mode to prove priority.
+  const getterTests = [
+    ["origin", "http://google.com:1234", "http://google.com:1234/somedir", "http://ignored.com:9999/somedir"],
+    ["protocol", "http:", "http://google.com/somedir", "https://ignored.com/somedir"],
+    ["username", "anonymous", "https://anonymous:pwd@developer.mozilla.org:1234/en-US/", "https://wronguser:pwd@ignored.com:1234/"],
+    ["password", "flabada", "https://anonymous:flabada@developer.mozilla.org/en-US/docs/", "https://anonymous:wrong@ignored.com/"],
+    ["host", "google.com:1234", "http://google.com:1234/somedir", "http://ignored.com:9999/somedir"],
+    ["hostname", "google.com", "http://google.com:1234/somedir", "http://ignored.com:1234/somedir"],
+    ["port", "1234", "http://google.com:1234/somedir", "http://google.com:9999/somedir"],
+    ["pathname", "/somedir/someotherdir/index.html", "http://google.com:1234/somedir/someotherdir/index.html", "http://google.com:1234/wrongpath/x.html"],
+    ["search", "?hi", "http://google.com?hi", "http://ignored.com?wrong"],
+    ["hash", "#somehash", "http://google.com#somehash", "http://ignored.com#wrong"],
+  ];
+
+  /**
+   * Reads a SVG property or href.baseVal on SVGAElement.
+   */
+  function getSVGProperty(element, property) {
+    if (property === "href") {
+      return element.href.baseVal;
+    }
+    return element[property];
+  }
+
+  ["href", "xlink", "both"].forEach(mode => {
+    for (let i = 0; i < getterTests.length; i++) {
+      test(t => {
+        const [property, expectedResult, primaryURL, fallbackURL] = getterTests[i];
+        const a = document.getElementById("test-anchor");
+
+        t.add_cleanup(() => {
+          a.removeAttribute("href");
+          a.removeAttributeNS(XLINK_NS, "href");
+        });
+
+        // Setup DOM attributes based on mode
+        switch (mode) {
+          case "href":
+            a.setAttribute("href", primaryURL);
+            break;
+          case "xlink":
+            a.setAttributeNS(XLINK_NS, "xlink:href", primaryURL);
+            break;
+          case "both":
+            // Standard href attribute should take precedence over xlink:href (SVG2 spec)
+            // See https://svgwg.org/svg2-draft/linking.html#XLinkRefAttrs
+            a.setAttribute("href", primaryURL);
+            a.setAttributeNS(XLINK_NS, "xlink:href", fallbackURL);
+            break;
+          default:
+            assert_unreached(`Unexpected mode: ${mode}`);
+        }
+
+        const actualValue = getSVGProperty(a, property);
+        assert_equals(
+          actualValue,
+          expectedResult,
+          `Getter mismatch for property '${property}' under mode '${mode}'`
+        );
+
+      }, `SVGAElement HyperlinkElementUtils getter [Mode: ${mode}] (${i}): ${getterTests[i][0]}`);
+    }
+  });
+</script>

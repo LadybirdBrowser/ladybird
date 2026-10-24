@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 10 tests
+
+2 Pass
+8 Fail
+Fail	SVGAnimatedInteger, initial values, SVGFEConvolveMatrixElement.prototype.orderX (remove)
+Fail	SVGAnimatedInteger, initial values, SVGFEConvolveMatrixElement.prototype.orderX (invalid value)
+Fail	SVGAnimatedInteger, initial values, SVGFEConvolveMatrixElement.prototype.orderY (remove)
+Fail	SVGAnimatedInteger, initial values, SVGFEConvolveMatrixElement.prototype.orderY (invalid value)
+Fail	SVGAnimatedInteger, initial values, SVGFEConvolveMatrixElement.prototype.targetX (remove)
+Fail	SVGAnimatedInteger, initial values, SVGFEConvolveMatrixElement.prototype.targetX (invalid value)
+Fail	SVGAnimatedInteger, initial values, SVGFEConvolveMatrixElement.prototype.targetY (remove)
+Fail	SVGAnimatedInteger, initial values, SVGFEConvolveMatrixElement.prototype.targetY (invalid value)
+Pass	SVGAnimatedInteger, initial values, SVGFETurbulenceElement.prototype.numOctaves (remove)
+Pass	SVGAnimatedInteger, initial values, SVGFETurbulenceElement.prototype.numOctaves (invalid value)

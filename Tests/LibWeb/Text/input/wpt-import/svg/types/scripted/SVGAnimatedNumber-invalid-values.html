@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<title>SVGAnimatedNumber, invalid values</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+// An attribute whose value does not match its grammar is assumed to have been specified as the
+// initial value, while the content attribute keeps whatever was specified.
+// https://w3c.github.io/svgwg/svg2-draft/types.html#syntax
+//
+// SVGAnimatedNumber-initial-values.html covers every attribute, but only for removeAttribute()
+// and one unparseable string. This covers the parsing itself, so one representative is used per
+// combination of grammar and initial value rather than every attribute.
+
+const numbers = [
+  { interface: 'SVGComponentTransferFunctionElement', element: 'feFuncA', attribute: 'slope', initial: 1 },
+  { interface: 'SVGComponentTransferFunctionElement', element: 'feFuncA', attribute: 'intercept', initial: 0 },
+  { interface: 'SVGFEDropShadowElement', element: 'feDropShadow', attribute: 'dx', initial: 2 },
+  { interface: 'SVGFEDiffuseLightingElement', element: 'feDiffuseLighting', attribute: 'surfaceScale', initial: 1 },
+  { interface: 'SVGGeometryElement', element: 'rect', attribute: 'pathLength', initial: 0 },
+  { interface: 'SVGFECompositeElement', element: 'feComposite', attribute: 'k2', initial: 0 },
+];
+
+// One content attribute drives two properties.
+const pairs = [
+  { interface: 'SVGFEGaussianBlurElement', element: 'feGaussianBlur', contentAttribute: 'stdDeviation',
+    x: 'stdDeviationX', y: 'stdDeviationY', initial: 0 },
+  { interface: 'SVGFEDropShadowElement', element: 'feDropShadow', contentAttribute: 'stdDeviation',
+    x: 'stdDeviationX', y: 'stdDeviationY', initial: 2 },
+  { interface: 'SVGFEMorphologyElement', element: 'feMorphology', contentAttribute: 'radius',
+    x: 'radiusX', y: 'radiusY', initial: 0 },
+  { interface: 'SVGFETurbulenceElement', element: 'feTurbulence', contentAttribute: 'baseFrequency',
+    x: 'baseFrequencyX', y: 'baseFrequencyY', initial: 0 },
+];
+
+function create(element) {
+  return document.createElementNS('http://www.w3.org/2000/svg', element);
+}
+
+// Each test sets a value different from the initial one first, so that reverting to the initial
+// value is distinguishable from keeping the previous value. Where the initial value is 0 the two
+// are otherwise identical.
+const primer = '7';
+
+// <number> is defined using CSS syntax, which ignores whitespace around the value.
+const surroundedByWhitespace = [
+  { label: 'spaces', value: ' 5 ' },
+  { label: 'newlines', value: '\n5\n' },
+  { label: 'tabs', value: '\t5\t' },
+];
+
+const unparseable = [
+  // Chrome falls back to 0 rather than the initial value for an empty value, so it fails this for
+  // any attribute whose initial value is not 0. Firefox reverts correctly.
+  { label: 'empty string', value: '' },
+  { label: 'unit suffix', value: '5px' },
+  { label: 'trailing junk', value: '12abc' },
+  { label: 'trailing dot', value: '5.' },
+  { label: 'two signs', value: '--3' },
+  { label: 'lone sign', value: '-' },
+];
+
+for (let info of numbers) {
+  let label = document.title + ', ' + info.interface + '.prototype.' + info.attribute;
+
+  for (let { label: caseLabel, value } of surroundedByWhitespace) {
+    test(function() {
+      let e = create(info.element);
+      e.setAttribute(info.attribute, primer);
+      e.setAttribute(info.attribute, value);
+      assert_equals(e[info.attribute].baseVal, 5, 'whitespace is ignored');
+    }, label + ' (' + caseLabel + ' around the value)');
+  }
+
+  for (let { label: caseLabel, value } of unparseable) {
+    test(function() {
+      let e = create(info.element);
+      e.setAttribute(info.attribute, primer);
+      assert_not_equals(e[info.attribute].baseVal, info.initial, 'primed');
+      e.setAttribute(info.attribute, value);
+      assert_equals(e[info.attribute].baseVal, info.initial, 'initial after');
+    }, label + ' (' + caseLabel + ')');
+  }
+
+  test(function() {
+    let e = create(info.element);
+    e.setAttribute(info.attribute, primer);
+    e.setAttribute(info.attribute, 'foobar');
+    assert_equals(e[info.attribute].baseVal, info.initial, 'initial after');
+    assert_equals(e.getAttribute(info.attribute), 'foobar', 'content attribute');
+  }, label + ' (content attribute is not rewritten)');
+
+  test(function() {
+    let e = create(info.element);
+    e.setAttribute(info.attribute, primer);
+    e.setAttribute(info.attribute, '3 4');
+    assert_equals(e[info.attribute].baseVal, info.initial, 'initial after');
+  }, label + ' (a second number is not allowed)');
+
+  test(function() {
+    let e = create(info.element);
+    e.setAttribute(info.attribute, '+5');
+    assert_equals(e[info.attribute].baseVal, 5, 'explicit plus');
+    e.setAttribute(info.attribute, '.5');
+    assert_equals(e[info.attribute].baseVal, 0.5, 'leading dot');
+  }, label + ' (accepted number syntax)');
+}
+
+for (let info of pairs) {
+  let label = document.title + ', ' + info.interface + '.prototype.' + info.contentAttribute;
+
+  test(function() {
+    let e = create(info.element);
+    e.setAttribute(info.contentAttribute, ' 3 ');
+    assert_equals(e[info.x].baseVal, 3, 'x');
+    assert_equals(e[info.y].baseVal, 3, 'y');
+  }, label + ' (one number, surrounded by whitespace)');
+
+  test(function() {
+    let e = create(info.element);
+    e.setAttribute(info.contentAttribute, ' 3 4 ');
+    assert_equals(e[info.x].baseVal, 3, 'x');
+    assert_equals(e[info.y].baseVal, 4, 'y');
+  }, label + ' (two numbers, surrounded by whitespace)');
+
+  for (let value of ['3,4', '3, 4']) {
+    test(function() {
+      let e = create(info.element);
+      e.setAttribute(info.contentAttribute, value);
+      assert_equals(e[info.x].baseVal, 3, 'x');
+      assert_equals(e[info.y].baseVal, 4, 'y');
+    }, label + ' (comma separated, "' + value + '")');
+  }
+
+  // A pair fails as a whole, so both properties revert. Keeping the first number would leave the
+  // element in a state the author never asked for.
+  for (let value of ['3 abc', '3px', '']) {
+    test(function() {
+      let e = create(info.element);
+      e.setAttribute(info.contentAttribute, primer);
+      assert_not_equals(e[info.x].baseVal, info.initial, 'primed');
+      e.setAttribute(info.contentAttribute, value);
+      assert_equals(e[info.x].baseVal, info.initial, 'x reverted');
+      assert_equals(e[info.y].baseVal, info.initial, 'y reverted');
+      assert_equals(e.getAttribute(info.contentAttribute), value, 'content attribute');
+    }, label + ' (both revert, "' + value + '")');
+  }
+}
+</script>

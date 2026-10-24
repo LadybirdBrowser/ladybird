@@ -1,0 +1,126 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SVGAElement HyperlinkElementUtils getters and setters with attributes</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<svg>
+  <a id="test-anchor">anchor</a>
+</svg>
+<script>
+  // Elements for each test: [property, oldresult, newvalue, newresult, oldurl, newurl]
+  //                         [0]       [1]        [2]       [3]        [4]     [5]
+  const tests = [
+    ["hash", "#somehash", "someother", "#someother",
+      "http://google.com/index.html#somehash",
+      "http://google.com/index.html#someother"],
+    ["hash", "#somehash", "#someother", "#someother",
+      "http://google.com/index.html#somehash",
+      "http://google.com/index.html#someother"],
+    ["host", "google.com:1234", "github.com:4444", "github.com:4444",
+      "http://google.com:1234/somedir",
+      "http://github.com:4444/somedir"],
+    ["hostname", "google.com", "github.com", "github.com",
+      "http://google.com:1234/somedir",
+      "http://github.com:1234/somedir"],
+    ["href", "http://google.com:1234/somedir", "http://goo-gle.com:1234/other/x.html", "http://goo-gle.com:1234/other/x.html",
+      "http://google.com:1234/somedir",
+      "http://goo-gle.com:1234/other/x.html"],
+    ["password", "flabada", "blubb", "blubb",
+      "https://anonymous:flabada@developer.mozilla.org/en-US/docs/",
+      "https://anonymous:blubb@developer.mozilla.org/en-US/docs/"],
+    ["pathname", "/somedir/someotherdir/index.html", "/newpath/x.txt", "/newpath/x.txt",
+      "http://google.com:1234/somedir/someotherdir/index.html",
+      "http://google.com:1234/newpath/x.txt"],
+    ["port", "1234", "4444", "4444", "http://google.com:1234/somedir", "http://google.com:4444/somedir"],
+    ["protocol", "http:", "ftp:", "ftp:", "http://google.com/somedir", "ftp://google.com/somedir"],
+    ["protocol", "http:", "ftp", "ftp:", "http://google.com/somedir", "ftp://google.com/somedir"],
+    ["search", "?ho", "?hi", "?hi", "http://google.com/q.php?ho", "http://google.com/q.php?hi"],
+    ["search", "?ho", "hi", "?hi", "http://google.com/q.php?ho", "http://google.com/q.php?hi"],
+    ["search", "?ho", "?hi", "?hi", "http://google.com/?ho", "http://google.com/?hi"],
+    ["search", "?ho", "hi", "?hi", "http://google.com/?ho", "http://google.com/?hi"],
+    ["username", "anonymous", "wellknown", "wellknown",
+      "https://anonymous:pwd@developer.mozilla.org:1234/en-US/",
+      "https://wellknown:pwd@developer.mozilla.org:1234/en-US/"]
+  ];
+
+  const XLINK_NS = "http://www.w3.org/1999/xlink";
+
+  function setupInitialURL(element, mode, url) {
+    if(mode === "href" || mode === "both") {
+      // It's the same as `element.setAttribute("href", url);`
+      element.href.baseVal = url;
+    }
+    if(mode === "xlink" || mode === "both") {
+      element.setAttributeNS(XLINK_NS, "xlink:href", url);
+    }
+  }
+
+  function getSVGProperty(element, property) {
+    if (property === "href") {
+      return element.href.baseVal;
+    }
+    return element[property];
+  }
+
+  function setSVGProperty(element, property, value) {
+    if (property === "href") {
+      element.href.baseVal = value;
+    } else {
+      element[property] = value;
+    }
+  }
+
+  function assertFinalURL(element, mode, oldurl, newurl) {
+    assert_equals(element.href.baseVal, newurl, "IDL href.baseVal mismatch");
+
+    switch (mode) {
+      case "href":
+        assert_equals(element.getAttribute("href"), newurl, "Standard href should be updated");
+        break;
+      case "xlink":
+        assert_equals(element.getAttributeNS(XLINK_NS, "href"), newurl, "XLink href should be updated when href is absent");
+        break;
+      case "both":
+        /**
+         * When the ‘href’ attribute is present in both the XLink namespace and without a namespace,
+         * the value of the attribute without a namespace shall be used.
+         *
+         * The attribute in the XLink namespace shall be ignored.
+         * See https://svgwg.org/svg2-draft/linking.html#XLinkRefAttrs
+         */
+        assert_equals(element.getAttribute("href"), newurl, "Standard href must be updated in 'both' mode");
+        assert_equals(element.getAttributeNS(XLINK_NS, "href"), oldurl, "XLink href should remain unchanged in 'both' mode due to SVG2 priority rules");
+        break;
+      default:
+        assert_unreached(`Unexpected mode: ${mode}`);
+    }
+  }
+
+  ["href", "xlink", "both"].forEach(mutationMode => {
+
+    for (let i = 0; i < tests.length; i++) {
+      test(function (t) {
+        const [property, oldresult, newval, newresult, oldurl, newurl] = tests[i];
+        const a = document.getElementById("test-anchor");
+
+        t.add_cleanup(() => {
+          a.removeAttribute("href");
+          a.removeAttributeNS(XLINK_NS, "href");
+        });
+
+        setupInitialURL(a, mutationMode, oldurl);
+
+        const r1 = getSVGProperty(a, property);
+        assert_equals(r1, oldresult, `Initial getter fail for ${property}`);
+
+        setSVGProperty(a, property, newval);
+
+        const r2 = getSVGProperty(a, property);
+        assert_equals(r2, newresult, `Post-mutation getter fail for ${property}`);
+
+        assertFinalURL(a, mutationMode, oldurl, newurl);
+
+      }, `SVGAElement mutation [Mode: ${mutationMode}] (${i}): ${tests[i][0]}`);
+    }
+  });
+</script>

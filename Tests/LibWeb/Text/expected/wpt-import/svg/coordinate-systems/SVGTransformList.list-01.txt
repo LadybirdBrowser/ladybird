@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 14 tests
+
+6 Pass
+8 Fail
+Fail	SVGTransformList interface, animVal distinct from baseVal
+Pass	SVGTransformList interface, animVal is read-only
+Fail	SVGTransformList interface, legacy getters / list length
+Pass	SVGTransformList interface, initialize() invalid arguments
+Fail	SVGTransformList interface, getItem() arguments
+Pass	SVGTransformList interface, insertItemBefore() invalid arguments
+Fail	SVGTransformList interface, insertItemBefore()
+Pass	SVGTransformList interface, replaceItem() invalid arguments
+Pass	SVGTransformList interface, indexed setter
+Fail	SVGTransformList interface, replaceItem()
+Fail	SVGTransformList interface, removeItem()
+Pass	SVGTransformList interface, appendItem() invalid arguments
+Fail	SVGTransformList interface, appendItem()
+Fail	SVGTransformList interface, clear()
