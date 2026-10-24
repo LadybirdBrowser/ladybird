@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A response with a null body status carries no media. The resource fetch must fail through the resource selection
+    // algorithm's failure steps rather than read the body it does not have.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const mediaURL = await server.createEcho("GET", `/echo/bodyless-response-${crypto.randomUUID()}.mp3`, {
+            status: 204,
+            headers: {
+                "Content-Type": "audio/mpeg",
+                "Cache-Control": "no-store",
+            },
+        });
+
+        const audio = document.createElement("audio");
+        audio.preload = "auto";
+        audio.src = mediaURL;
+        audio.addEventListener("error", () => {
+            println("error event fired at the media element");
+            println(`error code is MEDIA_ERR_SRC_NOT_SUPPORTED: ${audio.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED}`);
+            println(`networkState is NETWORK_NO_SOURCE: ${audio.networkState === HTMLMediaElement.NETWORK_NO_SOURCE}`);
+            done();
+        });
+        audio.addEventListener("loadedmetadata", () => {
+            println("FAIL: loadedmetadata fired for a bodyless response");
+            done();
+        });
+        document.body.append(audio);
+    });
+</script>
