@@ -1,0 +1,71 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: 'vertical-rl' and margin collapsing - left margin of a block collapses with left margin of its last child</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css-writing-modes-3/#logical-direction-layout" title="7.4 Flow-Relative Mappings" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/../reference/ref-filled-green-100px-square.xht" />
+
+  <!--
+  "
+  The margin collapsing rules apply exactly with the block-start margin substituted for the top margin and the block-end margin substituted for the bottom margin.
+  "
+  -->
+
+  <meta content="ahem image" name="flags" />
+  <meta name="assert" content="This test checks that, in a vertical-rl context, the left margin an in-flow block box collapses with its last in-flow block-level child's left margin if the element has no left padding and no left border and the child's left margin does not collapse with a right margin that has clearance." />
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+    {
+      font: 25px/1em Ahem;
+      height: 4em;
+    }
+
+  div#wrapper
+    {
+      background: red url("support/margin-collapse-2em-space-wm-vert.png");
+      border-right: green solid 1em;
+      width: 3em;
+      writing-mode: vertical-rl;
+    }
+
+  div#parent
+    {
+      background-color: green;
+      margin-left: 2em; /* block-end margin */
+    }
+
+  div#last-child
+    {
+      margin-left: 2em; /* block-end margin of last child */
+    }
+
+  div#following-parent
+    {
+      background-color: green;
+      width: 1em;
+    }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <div id="wrapper">
+    <div id="parent">
+      <div id="widthless-child"></div>
+      <div id="last-child"></div>
+    </div>
+    <div id="following-parent"></div>
+  </div>
+
+ </body>
+</html>

@@ -225,9 +225,24 @@ impl<'a> PaintableCommit<'a> {
         previous_offset: Option<used_values::FfiCssPixelPoint>,
     ) -> ReplacedCommittedFragmentLink {
         let fragment = &link.fragment;
-        let new_content_size = used_values::FfiCssPixelSize {
-            width: fragment.content_inline_size,
-            height: fragment.content_block_size,
+        let frame = link.frame;
+        let new_content_size = frame.size_to_physical(fragment.content_inline_size, fragment.content_block_size);
+        let new_offset: used_values::FfiCssPixelPoint = if frame.is_physical() {
+            link.committed_offset
+        } else {
+            crate::painting::paintable_geometry::physical_content_rect_in_containing_block(
+                self.arena(),
+                frame,
+                self.committed_containing_block(node, Some(link)),
+                CssPixelRect::new(
+                    link.committed_offset.x,
+                    link.committed_offset.y,
+                    fragment.content_inline_size,
+                    fragment.content_block_size,
+                ),
+            )
+            .location()
+            .into()
         };
         let mut content_size_change = None;
         let mut own_paint_unchanged = false;
@@ -263,10 +278,10 @@ impl<'a> PaintableCommit<'a> {
                 own_paint_unchanged &= old_link.has_same_placement(link);
                 (
                     old_link.fragment.identity,
-                    used_values::FfiCssPixelSize {
-                        width: old_link.fragment.content_inline_size,
-                        height: old_link.fragment.content_block_size,
-                    },
+                    frame.size_to_physical(
+                        old_link.fragment.content_inline_size,
+                        old_link.fragment.content_block_size,
+                    ),
                 )
             })
         });
@@ -296,7 +311,7 @@ impl<'a> PaintableCommit<'a> {
         // A reused run root can have a new identity while its box and subtree are unchanged.
         let fragment_content_unchanged =
             (reuses_committed_subtree && root_box_unchanged) || (old_identity != 0 && !fragment_content_changed);
-        let offset_unchanged = previous_offset == Some(link.committed_offset);
+        let offset_unchanged = previous_offset == Some(new_offset);
         let enclosing_inline_paint_changed = painted_geometry_lives_in_enclosing_line_root
             && (enclosing_line_root_changes.inline_content_changed
                 || (enclosing_line_root_changes.fragment_changed
@@ -350,8 +365,9 @@ impl<'a> PaintableCommit<'a> {
             let arena = self.arena_mut();
             let mut paintable_rows = arena.paintable_rows_mut();
             let mut data = paintable_rows.paintable_data_mut(node);
+            data.set_frame(frame);
             data.content_size = new_content_size;
-            data.offset = link.committed_offset;
+            data.offset = new_offset;
         }
         self.arena().set_committed_fragment_link(
             node,
@@ -462,6 +478,15 @@ impl<'a> PaintableCommit<'a> {
         if !node_painting::has_lines(self.arena(), slot) {
             return LineDataChange::default();
         }
+        let writing_mode = line_data.writing_mode;
+        let physical_line_data;
+        let line_data = if writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB {
+            line_data
+        } else {
+            let content_size = self.arena().live_paintable_data(slot).content_size;
+            physical_line_data = std::sync::Arc::new(line_data.in_physical_plane(writing_mode, content_size));
+            &physical_line_data
+        };
         let has_pieces = !line_data.inline_box_pieces.is_empty();
         let (content_changed, item_order_changed) = previous_fragmented_content.map_or((false, false), |previous| {
             if std::sync::Arc::ptr_eq(&previous, line_data) || *previous == **line_data {

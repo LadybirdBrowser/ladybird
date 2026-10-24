@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Testing Available Space in Orthogonal Flows / height + min-height parent</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://www.w3.org/TR/css-writing-modes-3/#orthogonal-auto">
+<link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/reference/available-size-002-ref.html">
+<meta name="assert" content="When an orthogonal flow's parent has a height and a min-height larger than the height, use min-height as the available size.">
+<style>
+body > div {
+  font-family: monospace; /* to be able to reliably measure things in ch*/
+  font-size: 20px;
+  height: 4ch;
+  min-height: 8ch;
+  color: transparent;
+  position: relative; /* to act as a container of #green */
+}
+
+div > div { writing-mode: vertical-rl; }
+
+span {
+  background: green;
+  display: inline-block; /* This should not change it's size or position, but makes the size of the background predictable*/
+}
+
+#red {
+  position: absolute;
+  background: red;
+  left: 0;
+  writing-mode: vertical-rl;
+  z-index: -1;
+}
+</style>
+
+<p>Test passes if there is a <strong>green rectangle</strong> below and <strong>no red</strong>.
+
+<div>
+  <aside id="red">0</aside>
+  <div>0 0 0 0 <span>0</span> 0 0 0</div> <!-- If this div takes its height from
+  the min-height of its parent (which it should)
+  it should wrap just right for the green 0 to
+  overlap with the red one. -->
+</div>

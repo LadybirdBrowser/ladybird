@@ -25,6 +25,8 @@ pub struct InlineContent {
     pub lines_after_clamp_point_rect: Option<Box<used_values::FfiCssPixelRect>>,
     /// Where the content that text-overflow elided from the end of a line would be, by line index.
     pub elided_content_rects: Vec<(u32, used_values::FfiCssPixelRect)>,
+    /// The writing mode whose frame the lines were laid out in.
+    pub writing_mode: u8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -137,7 +139,12 @@ pub struct InlineBoxPieceRecord {
 }
 
 impl InlineContent {
-    pub(crate) fn finish(data: used_values::LineData, arena: &LayoutNodeArena, content_inline_size: CssPixels) -> Self {
+    pub(crate) fn finish(
+        data: used_values::LineData,
+        arena: &LayoutNodeArena,
+        content_inline_size: CssPixels,
+        writing_mode: u8,
+    ) -> Self {
         let mut lines = Vec::with_capacity(data.line_boxes.len());
         let mut fragment_count = 0usize;
         let mut elided_content_rects = Vec::new();
@@ -201,6 +208,7 @@ impl InlineContent {
             items: Vec::new(),
             lines_after_clamp_point_rect: data.lines_after_clamp_point_rect,
             elided_content_rects,
+            writing_mode,
         };
         // Plain text needs no interleaving and keeps its single foreground producer.
         if content.inline_box_pieces.is_empty() && !content.fragments.iter().any(|fragment| fragment.is_atomic_inline) {
@@ -258,7 +266,10 @@ impl InlineContent {
 
     fn combine(contents: &[(&InlineContent, u32, used_values::FfiCssPixelPoint)]) -> std::sync::Arc<InlineContent> {
         let interleaves = contents.iter().any(|(content, ..)| !content.items.is_empty());
-        let mut combined = InlineContent::default();
+        let mut combined = InlineContent {
+            writing_mode: contents.first().map_or(0, |(content, ..)| content.writing_mode),
+            ..InlineContent::default()
+        };
         for (content, box_fragment, offset) in contents {
             combined.append_translated(content, interleaves, *box_fragment, *offset);
         }
@@ -358,6 +369,84 @@ impl InlineContent {
         }
     }
 
+    /// The content as painting sees it: laid out in the frame of `writing_mode` within a line root whose content box
+    /// has the physical size `content_size`, mapped onto the physical plane.
+    pub(crate) fn in_physical_plane(&self, writing_mode: u8, content_size: used_values::FfiCssPixelSize) -> Self {
+        use crate::css::css_pixels::CssPixelRect;
+        let frame = super::geometry::Frame::of(writing_mode);
+        let mut content = self.clone();
+        if frame.is_physical() {
+            return content;
+        }
+        let to_physical = |rect: used_values::FfiCssPixelRect| -> used_values::FfiCssPixelRect {
+            frame.rect_to_physical(CssPixelRect::from(rect), content_size).into()
+        };
+        let delta_to_physical = |delta: used_values::FfiCssPixelPoint| -> used_values::FfiCssPixelPoint {
+            let origin = frame.rect_to_physical(CssPixelRect::default(), content_size);
+            let moved = frame.rect_to_physical(
+                CssPixelRect::new(delta.x, delta.y, CssPixels::default(), CssPixels::default()),
+                content_size,
+            );
+            used_values::FfiCssPixelPoint {
+                x: moved.x - origin.x,
+                y: moved.y - origin.y,
+            }
+        };
+        // NB: Glyphs that run along a vertical line are turned a quarter turn clockwise, so their line-over side
+        //     faces the physical right side. That is the block-start side of the frame of vertical-rl, but the
+        //     block-end side of the frame of vertical-lr, where each line is laid out mirrored in the block axis.
+        //     https://drafts.csswg.org/css-writing-modes-4/#line-orientation
+        // FIXME: Turn the glyphs of sideways-lr a quarter turn counterclockwise instead, so that they face its
+        //        line-over side on the left and run upwards like its inline axis.
+        let lines_are_mirrored = writing_mode == crate::css::css_enums::writing_mode::VERTICAL_LR;
+        let mirror_in_line = |line_index: u32, block_offset: CssPixels, block_length: CssPixels| -> CssPixels {
+            if !lines_are_mirrored {
+                return block_offset;
+            }
+            let Some(line) = self.lines.get(line_index as usize) else {
+                return block_offset;
+            };
+            let line_block_start = line.block_end - line.block_length;
+            line_block_start + line.block_end - block_offset - block_length
+        };
+        for line in &mut content.lines {
+            line.rect = to_physical(line.rect);
+            line.writing_mode = writing_mode;
+        }
+        for (_, rect) in &mut content.elided_content_rects {
+            *rect = to_physical(*rect);
+        }
+        if let Some(rect) = content.lines_after_clamp_point_rect.as_deref_mut() {
+            *rect = to_physical(*rect);
+        }
+        for fragment in &mut content.fragments {
+            let block_offset = mirror_in_line(fragment.line_index, fragment.block_offset, fragment.block_length);
+            let rect = frame.rect_to_physical(
+                CssPixelRect::new(
+                    fragment.inline_offset,
+                    block_offset,
+                    fragment.inline_length,
+                    fragment.block_length,
+                ),
+                content_size,
+            );
+            // NB: A vertical fragment keeps its inline offset and length along the physical vertical axis.
+            fragment.writing_mode = writing_mode;
+            fragment.inline_offset = rect.y;
+            fragment.block_offset = rect.x;
+            fragment.inline_length = rect.height;
+            fragment.block_length = rect.width;
+            fragment.relpos_delta = delta_to_physical(fragment.relpos_delta);
+        }
+        for piece in &mut content.inline_box_pieces {
+            let mut rect = piece.border_box_rect;
+            rect.y = mirror_in_line(piece.line_index, rect.y, rect.height);
+            piece.border_box_rect = to_physical(rect);
+            piece.relpos_delta = delta_to_physical(piece.relpos_delta);
+        }
+        content
+    }
+
     fn item_position(&self, item: InlineItem) -> (NodeSlotId, u32) {
         match item {
             InlineItem::BoxPiece(index) => {
@@ -419,10 +508,6 @@ impl FragmentRecord {
 
     pub(crate) fn size(&self) -> (CssPixels, CssPixels) {
         super::geometry::to_physical(self.writing_mode, self.inline_length, self.block_length)
-    }
-
-    pub(crate) fn physical_horizontal_extent(&self) -> CssPixels {
-        super::geometry::to_physical(self.writing_mode, self.inline_length, self.block_length).0
     }
 
     pub(crate) fn physical_vertical_extent(&self) -> CssPixels {

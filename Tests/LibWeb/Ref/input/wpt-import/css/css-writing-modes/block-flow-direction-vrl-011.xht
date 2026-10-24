@@ -1,0 +1,106 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: inline-block and 'vertical-rl' - block flow direction of block-level boxes</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css-writing-modes-3/#block-flow" title="3.1 Block Flow Direction: the writing-mode property" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/block-flow-direction-001-ref.xht" />
+
+  <meta content="ahem" name="flags" />
+  <meta content="This test checks that an inline-block with its 'writing-mode' set to 'vertical-rl' establishes a block formating context with a right-to-left block flow direction." name="assert" />
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body
+    {
+      color: yellow;
+      font: 20px/1 Ahem;
+    }
+
+  div#inline-block
+    {
+      background-color: blue;
+      border-top: blue solid 1em;
+      display: inline-block;
+      height: 8em;
+      vertical-align: top;
+  /*
+  Why 'vertical-align: top' ?
+  See
+  http://lists.w3.org/Archives/Public/public-css-testsuite/2014Dec/0013.html
+  for explanations
+  */
+      writing-mode: vertical-rl;
+    }
+
+  span
+    {
+      display: block;
+    }
+
+  span.right-border
+    {
+      border-right: blue solid 1em;
+    }
+
+  span#left-border
+    {
+      border-left: blue solid 1em;
+    }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+
+    <div id="inline-block">
+
+<!-- The right-most line of right-most "S" --> <span class="right-border">A&nbsp; BBBB</span>
+
+<!-- The 2nd right-most line of right-most "S" --> <span>C&nbsp; D&nbsp; E</span>
+
+<!-- The 3rd right-most line of right-most "S" --> <span>F&nbsp; G&nbsp; H</span>
+
+<!-- The 4th right-most line of right-most "S" --> <span>JJJJ&nbsp; K</span>
+
+
+
+<!-- The right-most line of left-most "S" --> <span class="right-border">L&nbsp; MMMM</span>
+
+<!-- The 2nd right-most line of left-most "S" --> <span>Q&nbsp; R&nbsp; S</span>
+
+<!-- The 3rd right-most line of left-most "S" --> <span>T&nbsp; U&nbsp; V</span>
+
+<!-- The 4th right-most line of left-most "S" --> <span>WWWW&nbsp; X</span>
+
+
+
+<!-- The right-most line of "A" --> <span class="right-border">YYYYYYY</span>
+
+<!-- The 2nd right-most line of "A" --> <span>Z&nbsp; a&nbsp;&nbsp; </span>
+
+<!-- The 3rd right-most line of "A" --> <span>b&nbsp; c&nbsp;&nbsp; </span>
+
+<!-- The 4th right-most line of "A" --> <span>ddddddd</span>
+
+
+
+<!-- The right-most line of "P" --> <span class="right-border">eeee&nbsp;&nbsp; </span>
+
+<!-- The 2nd right-most line of "P" --> <span>f&nbsp; g&nbsp;&nbsp; </span>
+
+<!-- The 3rd right-most line of "P" --> <span>h&nbsp; j&nbsp;&nbsp; </span>
+
+<!-- The 4th right-most line of "P" --> <span id="left-border">kkkkkkk</span>
+
+    </div>
+
+  </div>
+
+ </body>
+</html>

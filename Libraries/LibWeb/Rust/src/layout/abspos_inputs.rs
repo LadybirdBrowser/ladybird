@@ -24,6 +24,75 @@ pub(crate) struct StaticPositionRect {
     pub(crate) is_known: bool,
 }
 
+impl StaticPositionAlignment {
+    fn reversed(self) -> Self {
+        match self {
+            Self::Start => Self::End,
+            Self::Center => Self::Center,
+            Self::End => Self::Start,
+        }
+    }
+}
+
+impl StaticPositionRect {
+    /// The rect, laid out in frame `from` within a box whose physical size is `container_size`, as frame `to` sees
+    /// it.
+    pub(crate) fn in_frame(
+        mut self,
+        from: geometry::Frame,
+        to: geometry::Frame,
+        container_size: crate::css::css_pixels::FfiCssPixelSize,
+    ) -> Self {
+        if from == to {
+            return self;
+        }
+        let rect = crate::css::css_pixels::CssPixelRect {
+            x: self.rect.offset.inline_offset,
+            y: self.rect.offset.block_offset,
+            width: self.rect.size.inline_size,
+            height: self.rect.size.block_size,
+        };
+        let rect = from.rect_in(rect, to, container_size);
+        self.rect = geometry::LogicalRect {
+            offset: geometry::LogicalOffset {
+                inline_offset: rect.x,
+                block_offset: rect.y,
+            },
+            size: geometry::LogicalSize {
+                inline_size: rect.width,
+                block_size: rect.height,
+            },
+        };
+        // NB: An alignment is towards the left or top of an axis of the frame, which may run along the other
+        //     physical axis, or the other way along it, in another frame.
+        let along_physical_axis = |frame: geometry::Frame, alignment: StaticPositionAlignment, horizontal: bool| {
+            let reversed = if horizontal {
+                frame.horizontal_axis_is_reversed()
+            } else {
+                frame.vertical_axis_is_reversed()
+            };
+            if reversed { alignment.reversed() } else { alignment }
+        };
+        let (physical_horizontal, physical_vertical) = {
+            let horizontal = along_physical_axis(from, self.inline_alignment, true);
+            let vertical = along_physical_axis(from, self.block_alignment, false);
+            if from.is_transposed() {
+                (vertical, horizontal)
+            } else {
+                (horizontal, vertical)
+            }
+        };
+        let (frame_horizontal, frame_vertical) = if to.is_transposed() {
+            (physical_vertical, physical_horizontal)
+        } else {
+            (physical_horizontal, physical_vertical)
+        };
+        self.inline_alignment = along_physical_axis(to, frame_horizontal, true);
+        self.block_alignment = along_physical_axis(to, frame_vertical, false);
+        self
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AbsposAxisMode {
     StaticPosition,

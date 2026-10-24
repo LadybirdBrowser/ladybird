@@ -4645,6 +4645,7 @@ pub(crate) unsafe fn drive_property_computation(
     let mut box_type_input = *box_type_input;
     box_type_input.display = display_before;
     box_type_input.float_value = computed_float.expect("float must be computed by the longhand driver");
+    box_type_input.writing_mode = computed_writing_mode_and_direction(longhand_table).0;
     box_type_input.position = computed_position.expect("position must be computed by the longhand driver");
     box_type_input.webkit_box_layout_transformation_applies =
         webkit_box_layout_transformation_applies(longhand_table, None);
@@ -5576,6 +5577,11 @@ fn keyword_from_style_value(value: &StyleValueData) -> u16 {
     *keyword
 }
 
+pub(crate) fn effective_writing_mode(table: &ComputedLonghandTable, overlay: Option<&AnimatedOverlay>) -> u8 {
+    keyword_to_writing_mode(effective_keyword(table, overlay, property_id::WRITING_MODE))
+        .unwrap_or(crate::css::css_enums::writing_mode::HORIZONTAL_TB)
+}
+
 pub(crate) fn effective_display(table: &ComputedLonghandTable, overlay: Option<&AnimatedOverlay>) -> FfiDisplay {
     let StyleValueData::Display { raw } = effective_longhand_data(table, overlay, property_id::DISPLAY) else {
         unreachable!("display must have a display value")
@@ -5608,6 +5614,9 @@ pub unsafe extern "C" fn rust_create_document_longhand_table(
             is_mathml_mtr: false,
             is_mathml_mtd: false,
             has_parent_display: false,
+            writing_mode: crate::css::css_enums::writing_mode::HORIZONTAL_TB,
+            parent_writing_mode: crate::css::css_enums::writing_mode::HORIZONTAL_TB,
+            is_svg_element: false,
             parent_display: FfiDisplay::block(),
             is_wbr_element: false,
             disallow_display_contents: false,
@@ -7148,6 +7157,11 @@ pub struct FfiBoxTypeTransformationInput {
     pub is_mathml_mtd: bool,
     pub has_parent_display: bool,
     pub parent_display: FfiDisplay,
+    /// The computed writing-mode of the element and of the box it would be the child of.
+    pub writing_mode: u8,
+    pub parent_writing_mode: u8,
+    /// Whether the element is an SVG element, whose boxes are not laid out by the CSS display types.
+    pub is_svg_element: bool,
     pub is_wbr_element: bool,
     pub disallow_display_contents: bool,
     pub rewrite_inline_flow: bool,
@@ -7176,6 +7190,7 @@ pub(crate) fn rust_box_type_transformation_input(
     target: FfiStyleAdjustmentTarget,
     has_parent_display: bool,
     parent_display: FfiDisplay,
+    parent_writing_mode: u8,
 ) -> FfiBoxTypeTransformationInput {
     use crate::css::style::bridge::element_adjustment_fact as fact;
 
@@ -7193,6 +7208,9 @@ pub(crate) fn rust_box_type_transformation_input(
         is_mathml_mtd: has(fact::IS_MATHML_MTD),
         has_parent_display,
         parent_display,
+        writing_mode: crate::css::css_enums::writing_mode::HORIZONTAL_TB,
+        parent_writing_mode,
+        is_svg_element: has(fact::IS_SVG_ELEMENT),
         is_wbr_element: adjust_element && has(fact::IS_WBR),
         disallow_display_contents: adjust_element && has(fact::DISALLOW_DISPLAY_CONTENTS),
         rewrite_inline_flow: adjust_element && has(fact::REWRITE_INLINE_FLOW),
@@ -7222,7 +7240,13 @@ pub extern "C" fn rust_animated_box_type_transformation_input(
         Some(node) => crate::css::style::engine_calls::with_engine(read, host, |engine| {
             engine.composition_box_type_transformation_input(node, pseudo_kind)
         }),
-        None => rust_box_type_transformation_input(0, FfiStyleAdjustmentTarget::Element, false, FfiDisplay::block()),
+        None => rust_box_type_transformation_input(
+            0,
+            FfiStyleAdjustmentTarget::Element,
+            false,
+            FfiDisplay::block(),
+            crate::css::css_enums::writing_mode::HORIZONTAL_TB,
+        ),
     }
 }
 
@@ -7472,6 +7496,30 @@ fn transform_box_type(input: &FfiBoxTypeTransformationInput) -> FfiBoxTypeTransf
         }
     }
 
+    // https://drafts.csswg.org/css-writing-modes-4/#block-flow
+    // If a box has a different 'writing-mode' value than its parent box (i.e. nearest ancestor without
+    // 'display: contents'):
+    if input.has_parent_display
+        && input.writing_mode != input.parent_writing_mode
+        && !input.is_svg_element
+        && new_display.is_outside_and_inside()
+    {
+        // - If the box would otherwise become an in-flow box with a computed 'display' of 'inline', its 'display'
+        //   computes instead to 'inline-block'.
+        // - If the box is a block container, then it establishes an independent block formatting context.
+        // - More generally, if its specified inner display type is 'flow', then its computed inner display type
+        //   becomes 'flow-root'.
+        // NB: Layout makes a block container with another writing mode than its parent box establish an
+        //     independent formatting context, so only the inline box's display changes here.
+        if new_display.is_flow_inside() && new_display.is_inline_outside() {
+            new_display = FfiDisplay::outside_and_inside(
+                new_display.outside,
+                crate::css::css_enums::display_inside::FLOW_ROOT,
+                new_display.list_item,
+            );
+        }
+    }
+
     FfiBoxTypeTransformation {
         set_float_none,
         changed_display: new_display != display_before_transformation,
@@ -7666,6 +7714,7 @@ fn finalize_animated_box_type(
     };
     box_type.position = effective_keyword(longhand_table, view, prop::POSITION);
     box_type.float_value = effective_keyword(longhand_table, view, prop::FLOAT);
+    box_type.writing_mode = effective_writing_mode(longhand_table, view);
     box_type.webkit_box_layout_transformation_applies = webkit_box_layout_transformation_applies(longhand_table, view);
     // An axis the overlay does not animate is adjusted from its keyword before the base adjusted it against the other
     // axis, which the overlay may animate out of that adjustment.
@@ -8126,6 +8175,9 @@ mod tests {
             is_mathml_mtr: false,
             is_mathml_mtd: false,
             has_parent_display: false,
+            writing_mode: crate::css::css_enums::writing_mode::HORIZONTAL_TB,
+            parent_writing_mode: crate::css::css_enums::writing_mode::HORIZONTAL_TB,
+            is_svg_element: false,
             parent_display: FfiDisplay::block(),
             is_wbr_element: false,
             disallow_display_contents: false,

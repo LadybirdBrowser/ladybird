@@ -189,7 +189,8 @@ impl LayoutNodeArena {
             formatting_context_type_created_by_node_data(
                 data,
                 style,
-                node_facts::node_is_flex_or_grid_container(parent_style)
+                node_facts::node_is_flex_or_grid_container(parent_style),
+                || parent_style.map(|style| style.writing_mode()),
             ),
             Some(
                 FormattingContextType::Block
@@ -609,7 +610,8 @@ impl LayoutNodeArena {
             formatting_context_type_created_by_node_data(
                 parent_data,
                 parent_style,
-                node_facts::node_is_flex_or_grid_container(grandparent_style)
+                node_facts::node_is_flex_or_grid_container(grandparent_style),
+                || grandparent_style.map(|style| style.writing_mode()),
             ),
             None | Some(FormattingContextType::Block | FormattingContextType::Flex)
         ) {

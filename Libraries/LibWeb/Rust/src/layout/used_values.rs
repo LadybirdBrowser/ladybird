@@ -136,6 +136,13 @@ impl<T: Copy> SealableCell<T> {
         self.sealed.set(true);
     }
 
+    /// Sets the value even where it is sealed, for moving a box's metrics between the frames of writing modes: that
+    /// changes how they read, not what they are.
+    #[inline]
+    pub(crate) fn set_ignoring_seal(&self, value: T) {
+        self.value.set(value);
+    }
+
     pub(crate) fn is_sealed(&self) -> bool {
         self.sealed.get()
     }
@@ -503,6 +510,7 @@ impl UsedValues {
                 std::mem::take(data.as_mut()),
                 callbacks.arena(),
                 self.content_inline_size.get(),
+                callbacks.frame.writing_mode(),
             )),
         };
         *state = LineDataState::Finished(content.clone());
@@ -540,6 +548,45 @@ impl UsedValues {
         self.inset_bottom.seal();
         self.has_content_offset.seal();
         self.content_offset.seal();
+    }
+
+    /// Moves the box's sizes, size constraints and box sides from frame `from` to frame `to`, keeping its placement.
+    pub(crate) fn move_box_metrics_to_frame(&self, from: geometry::Frame, to: geometry::Frame) {
+        if from == to {
+            return;
+        }
+        let state = UsedValuesCellState::capture(self).in_frame(from, to);
+        macro_rules! move_sealable {
+            ($($field:ident),+) => {
+                $(self.$field.set_ignoring_seal(state.$field);)+
+            };
+        }
+        move_sealable!(
+            content_inline_size,
+            content_block_size,
+            margin_left,
+            margin_right,
+            margin_top,
+            margin_bottom,
+            border_left,
+            border_right,
+            border_top,
+            border_bottom,
+            padding_left,
+            padding_right,
+            padding_top,
+            padding_bottom,
+            inset_left,
+            inset_right,
+            inset_top,
+            inset_bottom
+        );
+        self.has_definite_inline_size.set(state.has_definite_inline_size);
+        self.has_definite_block_size.set(state.has_definite_block_size);
+        self.inline_size_constraint.set(state.inline_size_constraint);
+        self.block_size_constraint.set(state.block_size_constraint);
+        self.has_first_baseline.set(state.has_first_baseline);
+        self.has_last_baseline.set(state.has_last_baseline);
     }
 
     pub(crate) fn own_metrics_are_sealed(&self) -> bool {
@@ -632,6 +679,47 @@ used_values_cell_state! {
 }
 
 impl UsedValuesCellState {
+    /// The state, with the sizes, size constraints and box sides it holds in frame `from` read in frame `to` instead.
+    pub(crate) fn in_frame(mut self, from: geometry::Frame, to: geometry::Frame) -> Self {
+        if from == to {
+            return self;
+        }
+        [self.margin_top, self.margin_right, self.margin_bottom, self.margin_left] = from.sides_in(
+            [self.margin_top, self.margin_right, self.margin_bottom, self.margin_left],
+            to,
+        );
+        [self.border_top, self.border_right, self.border_bottom, self.border_left] = from.sides_in(
+            [self.border_top, self.border_right, self.border_bottom, self.border_left],
+            to,
+        );
+        [
+            self.padding_top,
+            self.padding_right,
+            self.padding_bottom,
+            self.padding_left,
+        ] = from.sides_in(
+            [
+                self.padding_top,
+                self.padding_right,
+                self.padding_bottom,
+                self.padding_left,
+            ],
+            to,
+        );
+        [self.inset_top, self.inset_right, self.inset_bottom, self.inset_left] = from.sides_in(
+            [self.inset_top, self.inset_right, self.inset_bottom, self.inset_left],
+            to,
+        );
+        if from.is_orthogonal_to(to) {
+            std::mem::swap(&mut self.content_inline_size, &mut self.content_block_size);
+            std::mem::swap(&mut self.has_definite_inline_size, &mut self.has_definite_block_size);
+            std::mem::swap(&mut self.inline_size_constraint, &mut self.block_size_constraint);
+            self.has_first_baseline = false;
+            self.has_last_baseline = false;
+        }
+        self
+    }
+
     pub(crate) fn materialize_record(&self) -> UsedValues {
         let record = UsedValues::default();
         self.apply_to_record(&record);
@@ -971,6 +1059,7 @@ pub(crate) fn create_used_values(
                 && facts.display().is_block_outside()
                 && facts.parent_is_unfloated_flow_container()
                 && containing_block_has_definite_size(Axis::Inline)
+                && !formatting_context::frame_established_by(callbacks, node).is_orthogonal_to(callbacks.frame)
             {
                 let available = containing_block_size_for_axis(Axis::Inline);
                 return Some(clamp_to_max_dimension_value(

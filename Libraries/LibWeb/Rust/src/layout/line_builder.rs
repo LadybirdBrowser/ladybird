@@ -61,7 +61,6 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     text_indent_hanging: bool,
     text_indent_each_line: bool,
     direction: u8,
-    writing_mode: u8,
     last_line_needs_update: bool,
     is_continuation: bool,
     should_advance_to_last_line_box_block_end: bool,
@@ -113,7 +112,6 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             text_indent_hanging: style.text_indent_hanging(),
             text_indent_each_line: style.text_indent_each_line(),
             direction: style.direction(),
-            writing_mode: style.writing_mode(),
             last_line_needs_update: false,
             is_continuation: false,
             should_advance_to_last_line_box_block_end: false,
@@ -153,7 +151,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             .line_boxes
             .push(line_box::LineBoxData::new(
                 self.direction,
-                self.writing_mode,
+                // NB: Lines are laid out in the frame of their formatting context, where they run horizontally.
+                writing_mode::HORIZONTAL_TB,
                 self.context().current_line_start.get(),
             ));
     }
@@ -538,23 +537,12 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     ) {
         let used = self.context().used(node);
         assert!(used.has_content_offset.get());
-        let (inline_offset, block_offset) = geometry::to_logical(
-            self.writing_mode,
-            used.content_offset.get().x,
-            used.content_offset.get().y,
-        );
-        let (inline_length, block_length) = geometry::to_logical(
-            self.writing_mode,
-            used.content_inline_size.get(),
-            used.content_block_size.get(),
-        );
+        let inline_offset = used.content_offset.get().x;
+        let block_offset = used.content_offset.get().y;
+        let inline_length = used.content_inline_size.get();
+        let block_length = used.content_block_size.get();
         let border_start = used.border_box_top(false);
-        let line_inline_length = geometry::to_logical(
-            self.writing_mode,
-            used.margin_box_inline_size(false),
-            used.margin_box_block_size(false),
-        )
-        .0;
+        let line_inline_length = used.margin_box_inline_size(false);
         let ensured_line_index = self.ensure_last_line_index();
         assert_eq!(line_index, ensured_line_index);
         assert!(self.line(line_index).fragments.is_empty());
@@ -568,7 +556,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             block_length,
             border_start,
             self.direction,
-            self.writing_mode,
+            writing_mode::HORIZONTAL_TB,
             None,
             self.fragment_facts(node),
         );
@@ -714,11 +702,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             // A top- or bottom-aligned box is the root of an aligned subtree, laid out on the baseline here and
             // shifted into place once the final line box size is known. These arms therefore only see boxes that
             // form no aligned subtree: the containing block itself, whose alignment does not apply to the line box
-            // it establishes, and every box in a writing mode below.
-            // FIXME: Line box alignment still uses physical vertical metrics in non-horizontal writing modes.
-            vertical_align::TOP if self.writing_mode == writing_mode::HORIZONTAL_TB => alphabetic,
-            vertical_align::TOP => self.current_block_offset + metrics.effective_box_block_start_offset,
-            vertical_align::BOTTOM => alphabetic,
+            // it establishes.
+            vertical_align::TOP | vertical_align::BOTTOM => alphabetic,
             vertical_align::TEXT_TOP => {
                 self.current_block_offset + line_box_baseline
                     - CssPixels::nearest_value_for_f32(parent_style.font_ascent())
@@ -737,12 +722,6 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
 
     // https://drafts.csswg.org/css2/#line-height
     fn line_relative_aligned_subtree_root(&self, style_source: Node) -> Option<(Node, u8)> {
-        // FIXME: Line box alignment still uses physical vertical metrics in non-horizontal writing modes, where
-        //        top and bottom are approximated without forming aligned subtrees.
-        if self.writing_mode != writing_mode::HORIZONTAL_TB {
-            return None;
-        }
-
         // An aligned subtree contains its inline-level box and the aligned subtrees of all children except any
         // descendant subtree whose root is itself aligned to the line box. Walking outwards therefore stops at the
         // nearest ancestor aligned to the line box, and at the first ancestor that is not an inline box of this
@@ -854,11 +833,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 }
         };
         let inline_offset = aligned_inline_offset(self.line(line_index).inline_length);
-        let mut block_offset = CssPixels::default();
-        if self.writing_mode != writing_mode::HORIZONTAL_TB {
-            block_offset =
-                self.available_inline_size_for_current_line.to_px_or_zero() - self.line(line_index).block_length;
-        }
+        let block_offset = CssPixels::default();
 
         let strut_baseline = Self::baseline_for_style(containing_style, containing_style.line_height());
         let mut should_align_strut_to_line_box_baseline = false;
@@ -1104,7 +1079,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
 
             let is_text_node = self.line(line_index).fragments[fragment_index].is_block_ellipsis
                 || self.facts(snapshot.layout_node).is_text_node();
-            if is_text_node && self.writing_mode == writing_mode::HORIZONTAL_TB {
+            if is_text_node {
                 let font_box_size = normal_line_height(style);
                 let font_baseline = Self::baseline_for_style(style, font_box_size);
                 let fragment_mut = &mut self.line_mut(line_index).fragments[fragment_index];

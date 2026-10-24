@@ -556,6 +556,25 @@ impl AbsposEngine<'_> {
         is_from_end: bool,
         is_horizontal_axis: bool,
     ) -> Option<CssPixels> {
+        let frame = self.callbacks.frame;
+        // NB: The physical sides an anchor() names lie on the sides of the frame the box is laid out in.
+        let side = match side {
+            AnchorSide::Top | AnchorSide::Right | AnchorSide::Bottom | AnchorSide::Left if !frame.is_physical() => {
+                let physical_side = match side {
+                    AnchorSide::Top => geometry::Side::Top,
+                    AnchorSide::Right => geometry::Side::Right,
+                    AnchorSide::Bottom => geometry::Side::Bottom,
+                    _ => geometry::Side::Left,
+                };
+                match frame.frame_side(physical_side) {
+                    geometry::Side::Top => AnchorSide::Top,
+                    geometry::Side::Right => AnchorSide::Right,
+                    geometry::Side::Bottom => AnchorSide::Bottom,
+                    geometry::Side::Left => AnchorSide::Left,
+                }
+            }
+            side => side,
+        };
         let (axis_start, axis_end) = if is_horizontal_axis {
             (rect.left(), rect.right())
         } else {
@@ -567,7 +586,9 @@ impl AbsposEngine<'_> {
         // or the positioned box's containing block (for start and end).
         let start_and_end_sides = |writing_mode_box: Node| {
             let style = self.style(writing_mode_box);
-            if geometry::start_is_left_or_top(style.writing_mode(), style.direction(), is_horizontal_axis) {
+            // NB: The start side may run either way along the axis of the frame the box is laid out in.
+            if geometry::start_is_low_side_in_frame(frame, style.writing_mode(), style.direction(), is_horizontal_axis)
+            {
                 (axis_start, axis_end)
             } else {
                 (axis_end, axis_start)
@@ -620,15 +641,20 @@ impl AbsposEngine<'_> {
             |writing_mode_box: Node| self.style(writing_mode_box).writing_mode() == writing_mode::HORIZONTAL_TB;
         // If the <anchor-size> keyword is omitted, it defaults to behaving as whatever keyword matches the axis of
         // the property that anchor-size() is used in.
+        let measures_physical_width = |anchor_size: u8| match anchor_size {
+            anchor_size::WIDTH => true,
+            anchor_size::HEIGHT => false,
+            anchor_size::INLINE => inline_axis_is_horizontal(containing_block),
+            anchor_size::BLOCK => !inline_axis_is_horizontal(containing_block),
+            anchor_size::SELF_INLINE => inline_axis_is_horizontal(positioned_box),
+            anchor_size::SELF_BLOCK => !inline_axis_is_horizontal(positioned_box),
+            _ => unreachable!("anchor-size() holds an unknown <anchor-size> keyword"),
+        };
+        // NB: The rect and the axis of the property lie in the frame the box is laid out in, whose horizontal axis is
+        //     the physical vertical axis in a vertical writing mode.
         let measures_width = match anchor_size {
             None => is_horizontal_axis,
-            Some(anchor_size::WIDTH) => true,
-            Some(anchor_size::HEIGHT) => false,
-            Some(anchor_size::INLINE) => inline_axis_is_horizontal(containing_block),
-            Some(anchor_size::BLOCK) => !inline_axis_is_horizontal(containing_block),
-            Some(anchor_size::SELF_INLINE) => inline_axis_is_horizontal(positioned_box),
-            Some(anchor_size::SELF_BLOCK) => !inline_axis_is_horizontal(positioned_box),
-            Some(_) => unreachable!("anchor-size() holds an unknown <anchor-size> keyword"),
+            Some(anchor_size) => measures_physical_width(anchor_size) != self.callbacks.frame.is_transposed(),
         };
         if measures_width { rect.width } else { rect.height }
     }
@@ -715,11 +741,24 @@ impl AbsposEngine<'_> {
             },
             None => default_scroll_shift,
         };
+        // NB: Scrolling is physical, while the axes the shift was resolved in are those of the frame.
+        let (compensates_for_horizontal_scroll, compensates_for_vertical_scroll) =
+            if self.callbacks.frame.is_transposed() {
+                (
+                    default_scroll_shift.compensates_for_vertical_scroll,
+                    default_scroll_shift.compensates_for_horizontal_scroll,
+                )
+            } else {
+                (
+                    default_scroll_shift.compensates_for_horizontal_scroll,
+                    default_scroll_shift.compensates_for_vertical_scroll,
+                )
+            };
         self.callbacks.arena().set_default_scroll_shift(
             node,
             default_scroll_shift.default_anchor_box,
-            default_scroll_shift.compensates_for_horizontal_scroll,
-            default_scroll_shift.compensates_for_vertical_scroll,
+            compensates_for_horizontal_scroll,
+            compensates_for_vertical_scroll,
         );
         resolved
     }
@@ -833,8 +872,9 @@ impl AbsposEngine<'_> {
         containing_block_geometry: &ContainingBlockGeometry,
         entry_coordinate_space_box: Node,
     ) -> style_values::ResolvedAnchorSizes {
-        // NB: Read the computed values themselves, not what an earlier resolution made of them.
-        let style = *StyleValues::for_node(&self.callbacks, node);
+        // NB: Read the computed values themselves, not what an earlier resolution made of them, in the frame the box
+        //     is laid out in.
+        let style = StyleValues::for_node(&self.callbacks, node);
         // NB: Each resolution also tells whether any of its anchor functions resolved against an anchor box.
         let resolve = |calculated: *const c_void, is_horizontal: bool, containing_block_extent: CssPixels| {
             let mut resolution_state = AnchorResolutionState::NO_SCROLL_SHIFT;
@@ -871,12 +911,12 @@ impl AbsposEngine<'_> {
             }
         };
         let mut resolved = style_values::ResolvedAnchorSizes {
-            width: resolve_size(style.width(), true, ComputedSizeKind::Auto),
-            min_width: resolve_size(style.min_width(), true, ComputedSizeKind::Auto),
-            max_width: resolve_size(style.max_width(), true, ComputedSizeKind::None),
-            height: resolve_size(style.height(), false, ComputedSizeKind::Auto),
-            min_height: resolve_size(style.min_height(), false, ComputedSizeKind::Auto),
-            max_height: resolve_size(style.max_height(), false, ComputedSizeKind::None),
+            width: resolve_size(style.unresolved_width(), true, ComputedSizeKind::Auto),
+            min_width: resolve_size(style.unresolved_min_width(), true, ComputedSizeKind::Auto),
+            max_width: resolve_size(style.unresolved_max_width(), true, ComputedSizeKind::None),
+            height: resolve_size(style.unresolved_height(), false, ComputedSizeKind::Auto),
+            min_height: resolve_size(style.unresolved_min_height(), false, ComputedSizeKind::Auto),
+            max_height: resolve_size(style.unresolved_max_height(), false, ComputedSizeKind::None),
             ..Default::default()
         };
         let resolve_margin = |margin: &ComputedLengthPercentageOrAuto, is_horizontal: bool| {
@@ -891,10 +931,10 @@ impl AbsposEngine<'_> {
                     .unwrap_or_default(),
             )
         };
-        resolved.margin_top = resolve_margin(style.margin_top(), false);
-        resolved.margin_right = resolve_margin(style.margin_right(), true);
-        resolved.margin_bottom = resolve_margin(style.margin_bottom(), false);
-        resolved.margin_left = resolve_margin(style.margin_left(), true);
+        resolved.margin_top = resolve_margin(style.unresolved_margin_top(), false);
+        resolved.margin_right = resolve_margin(style.unresolved_margin_right(), true);
+        resolved.margin_bottom = resolve_margin(style.unresolved_margin_bottom(), false);
+        resolved.margin_left = resolve_margin(style.unresolved_margin_left(), true);
         resolved
     }
 
@@ -940,6 +980,7 @@ impl AbsposEngine<'_> {
                 .anchor_resolved_values
                 .set(Box::new(style_values::AnchorResolvedValues::new(
                     &inputs.resolved_anchor_sizes,
+                    self.callbacks.frame,
                 )));
         }
     }
@@ -1079,7 +1120,8 @@ impl AbsposEngine<'_> {
                 writing_mode: style.writing_mode(),
                 direction: style.direction(),
             },
-        )?;
+        )?
+        .in_frame(self.callbacks.frame);
 
         let anchor_box = self.anchor_lookup(positioned_box, style.position_anchor_name())?;
         let anchor_rect = self.anchor_rect(
@@ -1226,6 +1268,40 @@ struct PositionAreaTrackRange {
 struct PositionAreaTracks {
     horizontal: PositionAreaTrackRange,
     vertical: PositionAreaTrackRange,
+}
+
+impl PositionAreaTrackRange {
+    fn reversed(self) -> Self {
+        Self {
+            first: 2 - self.last,
+            last: 2 - self.first,
+        }
+    }
+}
+
+impl PositionAreaTracks {
+    /// The tracks along the axes of `frame`, counted from its left or top, rather than along the physical axes.
+    fn in_frame(self, frame: geometry::Frame) -> Self {
+        if frame.is_physical() {
+            return self;
+        }
+        let along_frame_axis = |frame_side: geometry::Side| {
+            let physical_low_side = frame.physical_side(frame_side);
+            let range = match physical_low_side {
+                geometry::Side::Left | geometry::Side::Right => self.horizontal,
+                geometry::Side::Top | geometry::Side::Bottom => self.vertical,
+            };
+            if matches!(physical_low_side, geometry::Side::Right | geometry::Side::Bottom) {
+                range.reversed()
+            } else {
+                range
+            }
+        };
+        Self {
+            horizontal: along_frame_axis(geometry::Side::Left),
+            vertical: along_frame_axis(geometry::Side::Top),
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -1767,9 +1843,33 @@ impl AbsposEngine<'_> {
                 constraints.percentage_basis_block_size,
             ),
         };
+        // https://drafts.csswg.org/css-position-3/#resolving-inset-auto
+        // If both inset properties in a given axis are auto, then, depending on the box’s self-alignment property in
+        // the relevant axis:
+        // - for self-start alignment or its equivalent: Set its start-edge inset property to the static position, and
+        //   its end-edge inset property to zero.
+        // - for self-end alignment or its equivalent: Set its end-edge inset property to the static position, and its
+        //   start-edge inset property to zero.
+        // NB: The static position rect's alignment is that of the static position it stands for.
+        // FIXME: Implement the center alignment case.
+        let (static_alignment, static_start, static_size) = match axis {
+            SizingAxis::Inline => (
+                static_position_rect.inline_alignment,
+                static_position_rect.rect.offset.inline_offset,
+                static_position_rect.rect.size.inline_size,
+            ),
+            SizingAxis::Block => (
+                static_position_rect.block_alignment,
+                static_position_rect.rect.offset.block_offset,
+                static_position_rect.rect.size.block_size,
+            ),
+        };
+        let static_end_distance = containing_block_size - static_start - static_size;
+        let static_position_is_at_end = static_alignment == StaticPositionAlignment::End;
+        let both_auto = start.is_auto() && end.is_auto();
         let start_offset = if !start.is_auto() {
             start.to_px(containing_block_size)
-        } else if end.is_auto() {
+        } else if both_auto && !static_position_is_at_end {
             let static_offset = self.static_offset(node, static_position_rect);
             match axis {
                 SizingAxis::Inline => static_offset.inline_offset,
@@ -1778,10 +1878,12 @@ impl AbsposEngine<'_> {
         } else {
             CssPixels::default()
         };
-        let end_offset = if end.is_auto() {
-            CssPixels::default()
-        } else {
+        let end_offset = if !end.is_auto() {
             end.to_px(containing_block_size)
+        } else if both_auto && static_position_is_at_end {
+            static_end_distance
+        } else {
+            CssPixels::default()
         };
         let stretch_fit_size = sizing.stretch_fit_inner_size(
             node,
@@ -2198,7 +2300,31 @@ impl AbsposEngine<'_> {
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         pass: BlockSizePass,
+        stretch_fit_block_size: CssPixels,
     ) -> AutoPx {
+        let sizing = self.sizing();
+        if sizing.establishes_orthogonal_flow(node) {
+            // https://drafts.csswg.org/css-writing-modes-4/#orthogonal-flows
+            // In the sizing phase [...] the dimensions of the box and the containing block are mapped to the inline
+            // size and block size and calculations are performed accordingly using the writing mode of the box
+            // establishing the orthogonal flow.
+            // NB: That makes the automatic block size the shrink-to-fit size of the box's own inline axis, within the
+            //     inset-modified containing block, as it is in the inline axis of a box in the frame's writing mode.
+            if let BlockSizePass::AfterInsideLayout { .. } = pass {
+                return Some(self.used(node).content_block_size.get());
+            }
+            let inline_size = self.used(node).content_inline_size.get();
+            let preferred = sizing.calculate_max_content_block_size(node, inline_size, constraints);
+            let size = if preferred <= stretch_fit_block_size {
+                preferred
+            } else {
+                sizing
+                    .calculate_min_content_block_size(node, inline_size, constraints)
+                    .max(stretch_fit_block_size)
+                    .min(preferred)
+            };
+            return Some(size);
+        }
         if self.facts(node).creates_block_formatting_context() {
             let BlockSizePass::AfterInsideLayout {
                 automatic_content_block_size_of_inside_layout,
@@ -2211,10 +2337,7 @@ impl AbsposEngine<'_> {
         let inner = self
             .used(node)
             .available_inner_space_or_constraints_from(available_space);
-        Some(
-            self.sizing()
-                .calculate_fit_content_size(node, SizingAxis::Block, inner, constraints),
-        )
+        Some(sizing.calculate_fit_content_size(node, SizingAxis::Block, inner, constraints))
     }
 
     #[expect(clippy::too_many_arguments)]
@@ -2263,7 +2386,13 @@ impl AbsposEngine<'_> {
 
         if solution.top.is_none() && solution.block_size.is_none() && solution.bottom.is_none() {
             solution.zero_out_auto_margins();
-            let Some(automatic) = self.automatic_block_size(node, available_space, constraints, pass) else {
+            let Some(automatic) = self.automatic_block_size(
+                node,
+                available_space,
+                constraints,
+                pass,
+                solve_for(solution.block_size, true, solution),
+            ) else {
                 return solution;
             };
             solution.block_size = Some(automatic);
@@ -2295,7 +2424,13 @@ impl AbsposEngine<'_> {
             solution.zero_out_auto_margins();
 
             if solution.top.is_none() && solution.block_size.is_none() && solution.bottom.is_some() {
-                let Some(automatic) = self.automatic_block_size(node, available_space, constraints, pass) else {
+                let Some(automatic) = self.automatic_block_size(
+                    node,
+                    available_space,
+                    constraints,
+                    pass,
+                    solve_for(solution.block_size, true, solution),
+                ) else {
                     return solution;
                 };
                 solution.block_size = Some(automatic);
@@ -2304,7 +2439,13 @@ impl AbsposEngine<'_> {
                 solution.top = Some(self.static_offset(node, static_position_rect).block_offset);
                 solution.bottom = Some(solve_for(solution.bottom, false, solution));
             } else if solution.block_size.is_none() && solution.bottom.is_none() && solution.top.is_some() {
-                let Some(automatic) = self.automatic_block_size(node, available_space, constraints, pass) else {
+                let Some(automatic) = self.automatic_block_size(
+                    node,
+                    available_space,
+                    constraints,
+                    pass,
+                    solve_for(solution.block_size, true, solution),
+                ) else {
                     return solution;
                 };
                 solution.block_size = Some(automatic);
@@ -2445,6 +2586,11 @@ impl AbsposEngine<'_> {
         let used = self.used(node);
         used.set_content_block_size(auto_px_value(solution.block_size));
         if style.height().is_auto() && pass == BlockSizePass::BeforeInsideLayout {
+            // NB: A box that establishes an orthogonal flow is sized in this axis before its contents are laid out,
+            //     which they are at that size.
+            if solution.block_size.is_some() && self.sizing().establishes_orthogonal_flow(node) {
+                used.has_definite_block_size.set(true);
+            }
             return;
         }
         if !style.height().is_intrinsic_sizing_constraint() {
@@ -3134,10 +3280,7 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
         if batch.is_empty() {
             break;
         }
-        let engine = AbsposEngine::for_run(&run);
-        for entry in batch {
-            engine.layout_pending_child(&run, entry);
-        }
+        formatting_context::lay_out_pending_abspos_children(&run, batch);
     }
 }
 

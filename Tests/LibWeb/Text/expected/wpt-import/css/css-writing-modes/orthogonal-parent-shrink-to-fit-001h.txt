@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	8: Shrink-to-fit inline-block with a child of orthogonal inline with borders in inline-block
+1 Pass
+Pass	8: Shrink-to-fit inline-block with a child of orthogonal inline with borders in inline-block

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	12: Shrink-to-fit float with a child of orthogonal inline with borders
+1 Pass
+Pass	12: Shrink-to-fit float with a child of orthogonal inline with borders

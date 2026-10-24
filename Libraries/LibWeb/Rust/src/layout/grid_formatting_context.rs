@@ -1204,13 +1204,16 @@ impl<'pass> GridFormattingContext<'pass> {
             row_alignment_container_size: CssPixels::default(),
             use_row_alignment_container_size: false,
             use_row_sizes_for_column_percentages: false,
-            grid_axes_are_transposed: container_style.writing_mode() != writing_mode::HORIZONTAL_TB,
-            columns_are_reversed: !geometry::start_is_left_or_top(
+            grid_axes_are_transposed: geometry::Frame::of(container_style.writing_mode())
+                .is_orthogonal_to(run.callbacks.frame),
+            columns_are_reversed: !geometry::start_is_low_side_in_frame(
+                run.callbacks.frame,
                 container_style.writing_mode(),
                 container_style.direction(),
                 true,
             ),
-            rows_are_reversed: !geometry::start_is_left_or_top(
+            rows_are_reversed: !geometry::start_is_low_side_in_frame(
+                run.callbacks.frame,
                 container_style.writing_mode(),
                 container_style.direction(),
                 false,
@@ -1297,7 +1300,7 @@ impl<'pass> GridFormattingContext<'pass> {
     /// Picks whichever of the per-grid-axis values of a grid item that is itself a grid container belongs to the given
     /// physical axis, following the item's own writing mode, as select_grid_axis() does for the grid container.
     fn select_item_grid_axis<T>(&self, item: Node, axis: Axis, column: T, row: T) -> T {
-        if self.style(item).writing_mode() != writing_mode::HORIZONTAL_TB {
+        if self.sizing().establishes_orthogonal_flow(item) {
             axis.select(row, column)
         } else {
             axis.select(column, row)
@@ -3274,8 +3277,12 @@ impl<'pass> GridFormattingContext<'pass> {
             // corresponding to the alignment subject’s end side in the appropriate axis.
             Alignment::SelfStart | Alignment::SelfEnd => {
                 let horizontal = axis.is_column();
-                let item_start_is_left_or_top =
-                    geometry::start_is_left_or_top(item_style.writing_mode(), item_style.direction(), horizontal);
+                let item_start_is_left_or_top = geometry::start_is_low_side_in_frame(
+                    self.run.callbacks.frame,
+                    item_style.writing_mode(),
+                    item_style.direction(),
+                    horizontal,
+                );
                 let shares_start_side = item_start_is_left_or_top == self.axis_start_is_left_or_top(axis);
                 if shares_start_side == (alignment == Alignment::SelfStart) {
                     Alignment::Start
@@ -3317,10 +3324,15 @@ impl<'pass> GridFormattingContext<'pass> {
     // right: Aligns the alignment subject to be flush with the alignment container’s line-right or physical right
     // edge, whichever is in the appropriate axis.
     fn resolve_left_or_right(&self, axis: Axis, alignment: Alignment) -> Alignment {
-        // NB: The Row axis of a grid container in a vertical writing mode is its inline axis, whose line-left side is
-        //     the top, except in sideways-lr, where it is the bottom.
-        let line_left_is_left_or_top =
-            axis.is_column() || self.style(self.run.box_).writing_mode() != writing_mode::SIDEWAYS_LR;
+        // NB: The Column axis is the inline axis of the frame, whose line-left side is its left side. Along the Row
+        //     axis, left and right are physical sides, which a transposed frame may run either way.
+        let frame = self.run.callbacks.frame;
+        let line_left_is_left_or_top = axis.is_column()
+            || !frame.is_transposed()
+            || matches!(
+                frame.frame_side(geometry::Side::Left),
+                geometry::Side::Left | geometry::Side::Top
+            );
         let aligns_to_left_or_top = (alignment == Alignment::Left) == line_left_is_left_or_top;
         if self.axis_start_is_left_or_top(axis) == aligns_to_left_or_top {
             Alignment::Start
@@ -3542,7 +3554,7 @@ impl<'pass> GridFormattingContext<'pass> {
             //     at that width, so block contents must be measured against the same basis. Orthogonal items with
             //     inline contents instead contribute their inline-axis size to the physical row axis.
             let use_resolved_content_width = !axis.is_column()
-                && (style.writing_mode() == writing_mode::HORIZONTAL_TB || !facts.children_are_inline());
+                && (!self.sizing().establishes_orthogonal_flow(item.box_) || !facts.children_are_inline());
             let available_inline = if use_resolved_content_width {
                 self.used(item).content_inline_size.get()
             } else {
@@ -4120,7 +4132,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let used = self.used(item);
         let collapsed = used.uses_collapsing_borders_model.get();
         let distance_from_margin_box_top =
-            if self.style(item.box_).writing_mode() == writing_mode::HORIZONTAL_TB && used.has_first_baseline.get() {
+            if !self.sizing().establishes_orthogonal_flow(item.box_) && used.has_first_baseline.get() {
                 formatting_context::box_baseline(
                     &self.run.callbacks,
                     item.box_,

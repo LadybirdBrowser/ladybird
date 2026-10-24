@@ -1,0 +1,74 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: sizing of orthogonal 'vertical-lr' block with percent inline-size inside auto-sized 'horizontal-tb' containing block</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="https://www.w3.org/TR/css-writing-modes-3/#orthogonal-auto" title="7.3.1 Available Sizes in Orthogonal Flows" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/sizing-orthog-prct-vlr-in-htb-002-ref.xht" />
+
+  <meta name="DC.date.created" content="2016-10-04T09:54:03+11:00" scheme="W3CDTF" />
+  <meta name="DC.date.modified" content="2017-01-03T09:54:03+11:00" scheme="W3CDTF" />
+
+  <meta name="assert" content="In this test, the inline size of the orthogonal block is '50%' and its containing block's block size is 'auto'. Since the height of the containing block is indefinite in this test, then the initial containing block's size is used as a fallback which is, in this test, equal to the height of the viewport." />
+
+  <!--
+
+  Inside this batch of 8 sizing-orthog-prct-vlr-in-htb tests:
+  001-004: body has 100px margin-bottom and 100px margin-top
+  005-008: body has no vertical margins
+
+  Inside each sub-batch of 4 tests:
+  001-002: containing block's height is 'auto' therefore indefinite
+  003-004: containing block's height is 400px therefore definite
+
+  Inside each sub-sub-batch of 2 tests:
+  001: containing block has 1 sentence before and after
+  002: containing block has no sentence before and no sentence after
+
+  001 and 005 tests use a 35px thick border.
+
+  -->
+
+  <style type="text/css"><![CDATA[
+  body
+    {
+      font-size: 16px;
+      line-height: 1.25; /* therefore, each line box is 20px tall */
+      margin-bottom: 100px;
+      margin-top: 100px;
+      /* Nota bene: margin-top of p#sentence-before will collapse with body's margin-top */
+    }
+
+  div#auto-sized-htb-containing-block
+    {
+      height: auto;
+      /*
+      'height: auto' causes the measurement of the orthogonal
+      box's containing block to be indefinite
+      */
+    }
+
+  div#ortho-block-vlr
+    {
+      border: blue solid 3px;
+      height: 50%;
+      writing-mode: vertical-lr;
+    }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <div id="auto-sized-htb-containing-block">
+
+    <div id="ortho-block-vlr">01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 00</div>
+
+  </div>
+
+ </body>
+</html>

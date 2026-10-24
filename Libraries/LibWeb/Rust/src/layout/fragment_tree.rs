@@ -60,6 +60,8 @@ pub(crate) struct FragmentLink {
     /// Boxed, as few links place an absolutely positioned box and the inputs are larger than the rest of the link.
     pub(crate) abspos_layout_inputs: Option<Box<abspos_inputs::AbsposLayoutInputs>>,
     pub(crate) containing_block: crate::layout::node_data::NodeSlotId,
+    /// The frame the box was laid out in, in which the link and the fragment hold its geometry.
+    pub(crate) frame: geometry::Frame,
 }
 
 fn same_allocation<T>(left: Option<&std::sync::Arc<T>>, right: Option<&std::sync::Arc<T>>) -> bool {
@@ -259,6 +261,7 @@ impl FragmentLink {
             containing_line_box_index: None,
             abspos_layout_inputs: None,
             containing_block: crate::layout::node_data::NodeSlotId::INVALID,
+            frame: geometry::Frame::PHYSICAL,
         }
     }
 
@@ -276,6 +279,7 @@ impl FragmentLink {
             && self.containing_line_box_index == previous.containing_line_box_index
             && self.abspos_layout_inputs == previous.abspos_layout_inputs
             && self.containing_block == previous.containing_block
+            && self.frame == previous.frame
     }
 }
 
@@ -310,6 +314,9 @@ trait PropagatedPayload {
     fn coordinate_space_box(&self) -> crate::layout::node_data::NodeSlotId;
     fn set_coordinate_space_box(&mut self, node: crate::layout::node_data::NodeSlotId);
     fn translate_by(&mut self, offset: FfiCssPixelPoint);
+    /// Maps the payload from frame `from` to frame `to`, within a box whose content box has the physical size
+    /// `container_size`.
+    fn move_to_frame(&mut self, from: geometry::Frame, to: geometry::Frame, container_size: FfiCssPixelSize);
 }
 
 impl PropagatedPayload for abspos_inputs::PendingAbsposChild {
@@ -322,6 +329,9 @@ impl PropagatedPayload for abspos_inputs::PendingAbsposChild {
     fn translate_by(&mut self, offset: FfiCssPixelPoint) {
         self.static_position_rect =
             formatting_context::translate_static_position_rect(self.static_position_rect, offset);
+    }
+    fn move_to_frame(&mut self, from: geometry::Frame, to: geometry::Frame, container_size: FfiCssPixelSize) {
+        self.static_position_rect = self.static_position_rect.in_frame(from, to, container_size);
     }
 }
 
@@ -336,6 +346,9 @@ impl PropagatedPayload for InlineContainingBlockRect {
         self.rect.x += offset.x;
         self.rect.y += offset.y;
     }
+    fn move_to_frame(&mut self, from: geometry::Frame, to: geometry::Frame, container_size: FfiCssPixelSize) {
+        self.rect = from.rect_in(self.rect, to, container_size);
+    }
 }
 
 impl PropagatedPayload for AnchorCandidate {
@@ -349,6 +362,17 @@ impl PropagatedPayload for AnchorCandidate {
         self.border_box_rect.x += offset.x;
         self.border_box_rect.y += offset.y;
     }
+    fn move_to_frame(&mut self, from: geometry::Frame, to: geometry::Frame, container_size: FfiCssPixelSize) {
+        self.border_box_rect = from.rect_in(self.border_box_rect, to, container_size);
+    }
+}
+
+/// How payloads laid out in the frame a placed box establishes map into the frame of its containing block.
+#[derive(Clone, Copy)]
+struct PlacedBoxFrames {
+    own: geometry::Frame,
+    containing_block: geometry::Frame,
+    physical_content_size: FfiCssPixelSize,
 }
 
 fn propagate_payload_into_containing_block_space<Payload: PropagatedPayload>(
@@ -356,10 +380,14 @@ fn propagate_payload_into_containing_block_space<Payload: PropagatedPayload>(
     placed_box: crate::layout::node_data::NodeSlotId,
     containing_block: Option<crate::layout::node_data::NodeSlotId>,
     placed_box_content_offset: FfiCssPixelPoint,
+    frames: Option<PlacedBoxFrames>,
 ) {
     if payload.coordinate_space_box() == placed_box
         && let Some(containing_block) = containing_block
     {
+        if let Some(frames) = frames {
+            payload.move_to_frame(frames.own, frames.containing_block, frames.physical_content_size);
+        }
         payload.translate_by(placed_box_content_offset);
         payload.set_coordinate_space_box(containing_block);
     }
@@ -514,6 +542,7 @@ pub(crate) struct PlacementData {
     pub(crate) containing_line_box_index: Option<usize>,
     pub(crate) abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
     pub(crate) containing_block: crate::layout::node_data::NodeSlotId,
+    pub(crate) frame: geometry::Frame,
 }
 
 impl PlacementData {
@@ -521,8 +550,10 @@ impl PlacementData {
         used: &UsedValues,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
+        frame: geometry::Frame,
     ) -> Self {
         Self {
+            frame,
             committed_offset,
             inset_left: used.inset_left.get(),
             inset_right: used.inset_right.get(),
@@ -546,6 +577,7 @@ fn link_fragment(fragment: std::sync::Arc<Fragment>, placement: PlacementData) -
         containing_line_box_index: placement.containing_line_box_index,
         abspos_layout_inputs: placement.abspos_layout_inputs.map(Box::new),
         containing_block: placement.containing_block,
+        frame: placement.frame,
     }
 }
 
@@ -1229,7 +1261,7 @@ impl RunFragmentBuilder {
         let fragment = snapshot_fragment(callbacks, node, children, used);
         let link = link_fragment(
             fragment.clone(),
-            PlacementData::from_record(used, containing_line_box_index, committed_offset),
+            PlacementData::from_record(used, containing_line_box_index, committed_offset, callbacks.frame),
         );
         self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
         let exports_payloads = !pending_abspos_from_placed_box.is_empty()
@@ -1237,13 +1269,25 @@ impl RunFragmentBuilder {
             || !inline_containing_block_rects_from_placed_box.is_empty()
             || own_anchor_candidate_border_box_rect.is_some();
         let content_offset = used.content_offset.get();
+        let frames = exports_payloads
+            .then(|| {
+                let own = formatting_context::frame_established_by(callbacks, node);
+                (own != callbacks.frame).then(|| PlacedBoxFrames {
+                    own,
+                    containing_block: callbacks.frame,
+                    physical_content_size: callbacks
+                        .frame
+                        .size_to_physical(used.content_inline_size.get(), used.content_block_size.get()),
+                })
+            })
+            .flatten();
         for mut entry in pending_abspos_from_placed_box {
             debug_assert!(
                 entry.containing_block() != node,
                 "an abspos registration outlived its containing block's placement drain (slot {})",
                 entry.child_box.slot_index()
             );
-            propagate_payload_into_containing_block_space(&mut entry, node, containing_block, content_offset);
+            propagate_payload_into_containing_block_space(&mut entry, node, containing_block, content_offset, frames);
             match inner
                 .pending_fragments
                 .get_mut(&entry.coordinate_space_box.slot_index())
@@ -1258,7 +1302,13 @@ impl RunFragmentBuilder {
             coordinate_space_box: containing_block.unwrap_or(node),
         });
         for mut candidate in anchor_candidates_from_placed_box.into_iter().chain(own_candidate) {
-            propagate_payload_into_containing_block_space(&mut candidate, node, containing_block, content_offset);
+            propagate_payload_into_containing_block_space(
+                &mut candidate,
+                node,
+                containing_block,
+                content_offset,
+                frames,
+            );
             match inner
                 .pending_fragments
                 .get_mut(&candidate.coordinate_space_box.slot_index())
@@ -1268,7 +1318,7 @@ impl RunFragmentBuilder {
             }
         }
         for mut payload in inline_containing_block_rects_from_placed_box {
-            propagate_payload_into_containing_block_space(&mut payload, node, containing_block, content_offset);
+            propagate_payload_into_containing_block_space(&mut payload, node, containing_block, content_offset, frames);
             match inner
                 .pending_fragments
                 .get_mut(&payload.coordinate_space_box.slot_index())
@@ -1296,6 +1346,7 @@ impl RunFragmentBuilder {
         containing_block_is_sealed: bool,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
+        frame: geometry::Frame,
     ) {
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
@@ -1305,7 +1356,7 @@ impl RunFragmentBuilder {
         );
         let link = link_fragment(
             fragment,
-            PlacementData::from_record(used, containing_line_box_index, committed_offset),
+            PlacementData::from_record(used, containing_line_box_index, committed_offset, frame),
         );
         self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
         if reuses_subtree {
@@ -1397,7 +1448,7 @@ impl RunFragmentBuilder {
             let used = records.used_values(pending_fragment.node);
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(callbacks, pending_fragment.node, pending_fragment.children, used),
-                PlacementData::from_record(used, None, used.content_offset.get()),
+                PlacementData::from_record(used, None, used.content_offset.get(), callbacks.frame),
             ));
         }
         // NB: A reused subtree root its run never placed has no children of its own in this run, as an empty held
@@ -1415,7 +1466,7 @@ impl RunFragmentBuilder {
             }
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(callbacks, node, Vec::new(), used),
-                PlacementData::from_record(used, None, used.content_offset.get()),
+                PlacementData::from_record(used, None, used.content_offset.get(), callbacks.frame),
             ));
         }
         let child_roots_awaiting_placement = std::mem::take(&mut inner.child_roots_awaiting_placement);
@@ -1423,7 +1474,7 @@ impl RunFragmentBuilder {
             let used = records.used_values(root.node);
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(callbacks, root.node, root.scoped_descendants, used),
-                PlacementData::from_record(used, None, used.content_offset.get()),
+                PlacementData::from_record(used, None, used.content_offset.get(), callbacks.frame),
             ));
         }
         for entry in &mut propagated_pending_abspos {

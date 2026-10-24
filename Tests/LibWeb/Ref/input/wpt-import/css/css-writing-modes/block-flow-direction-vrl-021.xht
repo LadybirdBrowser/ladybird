@@ -1,0 +1,109 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: list and vertical-rl - block flow direction of block-level boxes</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css-writing-modes-3/#block-flow" title="3.1 Block Flow Direction: the writing-mode property" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/block-flow-direction-002-ref.xht" />
+
+  <meta content="ahem image" name="flags" />
+  <meta content="This test checks that block-level boxes in a block formating context with 'writing-mode' set to 'vertical-rl' are laid out one after the other with the first beginning at the right-hand side of its containing block; they are ordered from right to left meaning that the 1st block box is the rightmost one and then the 2nd block is juxtaposed to its left-hand side, the 3rd block is juxtaposed to the 2nd block on its left-hand side, etc... " name="assert" />
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  html
+    {
+      writing-mode: vertical-rl;
+    }
+  /*
+  "
+  The principal writing mode of the document is determined by the writing-mode
+  and direction values specified on the root element.
+  "
+  */
+
+  body
+    {
+      color: yellow;
+      font: 20px/1 Ahem;
+      height: 9em;
+    }
+
+  ul
+    {
+      background-color: blue;
+      border-bottom: blue solid 1em;
+      list-style: none outside url("support/blue1x1.png");
+      margin: 0em;
+      padding-top: 1em; /* overriding default padding-start: 40px in several browsers */
+    }
+
+  ul.right-border
+    {
+      border-right: blue solid 1em;
+    }
+
+  ul#left-border
+    {
+      border-left: blue solid 1em;
+    }
+
+  /*
+     This test depends on the blue ::marker image being placed inside the (blue)
+     padding area.  That depends on how the spacing between it and the list-item
+     box is calculated, which depends on font metrics.  The following rule is
+     to avoid these uncertainties and place it inside the padding for sure.
+  */
+  ::marker
+    {
+      font-size: 0;
+    }
+  ]]></style>
+ </head>
+
+ <body>
+
+<!-- The right-most line of right-most "S" --> <ul class="right-border"><li>A&nbsp; BBBB</li></ul>
+
+<!-- The 2nd right-most line of right-most "S" --> <ul><li>C&nbsp; D&nbsp; E</li></ul>
+
+<!-- The 3rd right-most line of right-most "S" --> <ul><li>F&nbsp; G&nbsp; H</li></ul>
+
+<!-- The 4th right-most line of right-most "S" --> <ul><li>JJJJ&nbsp; K</li></ul>
+
+
+
+<!-- The right-most line of left-most "S" --> <ul class="right-border"><li>L&nbsp; MMMM</li></ul>
+
+<!-- The 2nd right-most line of left-most "S" --> <ul><li>Q&nbsp; R&nbsp; S</li></ul>
+
+<!-- The 3rd right-most line of left-most "S" --> <ul><li>T&nbsp; U&nbsp; V</li></ul>
+
+<!-- The 4th right-most line of left-most "S" --> <ul><li>WWWW&nbsp; X</li></ul>
+
+
+
+<!-- The right-most line of "A" --> <ul class="right-border"><li>YYYYYYY</li></ul>
+
+<!-- The 2nd right-most line of "A" --> <ul><li>Z&nbsp; a&nbsp;&nbsp; </li></ul>
+
+<!-- The 3rd right-most line of "A" --> <ul><li>b&nbsp; c&nbsp;&nbsp; </li></ul>
+
+<!-- The 4th right-most line of "A" --> <ul><li>ddddddd</li></ul>
+
+
+
+<!-- The right-most line of "P" --> <ul class="right-border"><li>eeee&nbsp;&nbsp; </li></ul>
+
+<!-- The 2nd right-most line of "P" --> <ul><li>f&nbsp; g&nbsp;&nbsp; </li></ul>
+
+<!-- The 3rd right-most line of "P" --> <ul><li>h&nbsp; j&nbsp;&nbsp; </li></ul>
+
+<!-- The 4th right-most line of "P" --> <ul id="left-border"><li>kkkkkkk</li></ul>
+
+ </body>
+</html>

@@ -455,17 +455,13 @@ fn nesting_depth(context: &InlineFormattingContext, node: Node) -> u32 {
     depth
 }
 
-fn edge_bits(horizontal: bool, low: bool, high: bool) -> u8 {
-    let mut edges = if horizontal {
-        EDGE_TOP | EDGE_BOTTOM
-    } else {
-        EDGE_LEFT | EDGE_RIGHT
-    };
+fn edge_bits(low: bool, high: bool) -> u8 {
+    let mut edges = EDGE_TOP | EDGE_BOTTOM;
     if low {
-        edges |= if horizontal { EDGE_LEFT } else { EDGE_TOP };
+        edges |= EDGE_LEFT;
     }
     if high {
-        edges |= if horizontal { EDGE_RIGHT } else { EDGE_BOTTOM };
+        edges |= EDGE_RIGHT;
     }
     edges
 }
@@ -492,7 +488,6 @@ struct FirstAndLastContentLineCorners {
 pub(crate) fn compute(
     context: &InlineFormattingContext,
 ) -> (Vec<InlineBoxPieceData>, Vec<InlineContainingBlockRectCandidate>) {
-    let horizontal = context.style(context.containing_block).writing_mode() == writing_mode::HORIZONTAL_TB;
     let collect_inline_containing_block_rects = context
         .run
         .fragments
@@ -521,41 +516,26 @@ pub(crate) fn compute(
             );
             let position = fragment.offset();
             let size = fragment.size();
-            let mut inline_start = if horizontal { position.0 } else { position.1 };
-            let mut inline_end = inline_start + if horizontal { size.0 } else { size.1 };
-            let block_start = if horizontal { position.1 } else { position.0 };
-            let block_length = if horizontal { size.1 } else { size.0 };
+            let mut inline_start = position.0;
+            let mut inline_end = inline_start + size.0;
+            let block_start = position.1;
+            let block_length = size.1;
 
             if !interrupting && fragment.is_atomic_inline {
                 let used = context.used(fragment.layout_node);
-                if horizontal {
-                    inline_start -= used.margin_left.get() + used.border_box_left(false);
-                    inline_end += used.margin_right.get() + used.border_box_right(false);
-                } else {
-                    inline_start -= used.margin_top.get() + used.border_box_top(false);
-                    inline_end += used.margin_bottom.get() + used.border_box_bottom(false);
-                }
+                inline_start -= used.margin_left.get() + used.border_box_left(false);
+                inline_end += used.margin_right.get() + used.border_box_right(false);
             }
 
             let interrupting_block = if interrupting {
                 let block_used = context.used(fragment.layout_node);
                 let collapsed = block_used.uses_collapsing_borders_model.get();
-                let (border_box_inline_low, border_box_block_low, border_box_inline_size, border_box_block_size) =
-                    if horizontal {
-                        (
-                            block_used.border_box_left(collapsed),
-                            block_used.border_box_top(collapsed),
-                            block_used.border_box_inline_size(collapsed),
-                            block_used.border_box_block_size(collapsed),
-                        )
-                    } else {
-                        (
-                            block_used.border_box_top(collapsed),
-                            block_used.border_box_left(collapsed),
-                            block_used.border_box_block_size(collapsed),
-                            block_used.border_box_inline_size(collapsed),
-                        )
-                    };
+                let (border_box_inline_low, border_box_block_low, border_box_inline_size, border_box_block_size) = (
+                    block_used.border_box_left(collapsed),
+                    block_used.border_box_top(collapsed),
+                    block_used.border_box_inline_size(collapsed),
+                    block_used.border_box_block_size(collapsed),
+                );
                 let extent_inline_start = inline_start - border_box_inline_low;
                 let extent_block_start = block_start - border_box_block_low;
                 Some((
@@ -655,25 +635,14 @@ pub(crate) fn compute(
             border_padding_block_high,
             margin_low,
             margin_high,
-        ) = if horizontal {
-            (
-                used.border_box_left(false),
-                used.border_box_right(false),
-                used.border_box_top(false),
-                used.border_box_bottom(false),
-                used.margin_left.get(),
-                used.margin_right.get(),
-            )
-        } else {
-            (
-                used.border_box_top(false),
-                used.border_box_bottom(false),
-                used.border_box_left(false),
-                used.border_box_right(false),
-                used.margin_top.get(),
-                used.margin_bottom.get(),
-            )
-        };
+        ) = (
+            used.border_box_left(false),
+            used.border_box_right(false),
+            used.border_box_top(false),
+            used.border_box_bottom(false),
+            used.margin_left.get(),
+            used.margin_right.get(),
+        );
 
         let node_is_inline_containing_block = collect_inline_containing_block_rects
             && context
@@ -713,7 +682,7 @@ pub(crate) fn compute(
                             relpos_delta: FfiCssPixelPoint::default(),
                             baseline: inline_box_baseline,
                             accumulated_vertical_shift: inline_box_vertical_shift,
-                            present_edges: edge_bits(horizontal, true, true),
+                            present_edges: edge_bits(true, true),
                             is_geometry_only_placeholder: true,
                         },
                         depth,
@@ -752,20 +721,11 @@ pub(crate) fn compute(
             let border_block_start = content_block_start - border_padding_block_low;
             let border_block_length = content_block_length + border_padding_block_low + border_padding_block_high;
             let (inline_box_baseline, inline_box_vertical_shift) = inline_box_anchor();
-            let rect = if horizontal {
-                FfiCssPixelRect {
-                    x: border_inline_start,
-                    y: border_block_start,
-                    width: border_inline_end - border_inline_start,
-                    height: border_block_length,
-                }
-            } else {
-                FfiCssPixelRect {
-                    x: border_block_start,
-                    y: border_inline_start,
-                    width: border_block_length,
-                    height: border_inline_end - border_inline_start,
-                }
+            let rect = FfiCssPixelRect {
+                x: border_inline_start,
+                y: border_block_start,
+                width: border_inline_end - border_inline_start,
+                height: border_block_length,
             };
             staged.push(StagedPiece {
                 piece: InlineBoxPieceData {
@@ -777,7 +737,7 @@ pub(crate) fn compute(
                     relpos_delta: FfiCssPixelPoint::default(),
                     baseline: inline_box_baseline,
                     accumulated_vertical_shift: inline_box_vertical_shift,
-                    present_edges: edge_bits(horizontal, has_low_edge, has_high_edge),
+                    present_edges: edge_bits(has_low_edge, has_high_edge),
                     is_geometry_only_placeholder: false,
                 },
                 depth,
@@ -813,7 +773,6 @@ pub(crate) fn compute(
             && let Some(rect) = padding_box_rect_spanning_first_and_last_content_lines(
                 &corners,
                 used,
-                horizontal,
                 reversed,
                 container_inline_axis_is_reverse,
             )
@@ -828,16 +787,9 @@ pub(crate) fn compute(
     for (index, node) in without_fragments.into_iter().enumerate() {
         context.used(node);
         let line_height = context.style(node).line_height();
-        let placeholder_rect = if horizontal {
-            FfiCssPixelRect {
-                height: line_height,
-                ..Default::default()
-            }
-        } else {
-            FfiCssPixelRect {
-                width: line_height,
-                ..Default::default()
-            }
+        let placeholder_rect = FfiCssPixelRect {
+            height: line_height,
+            ..Default::default()
         };
         if collect_inline_containing_block_rects
             && context
@@ -866,7 +818,7 @@ pub(crate) fn compute(
                 relpos_delta: FfiCssPixelPoint::default(),
                 baseline: CssPixels::default(),
                 accumulated_vertical_shift: CssPixels::default(),
-                present_edges: edge_bits(horizontal, true, true),
+                present_edges: edge_bits(true, true),
                 is_geometry_only_placeholder: true,
             },
             depth: nesting_depth(context, node),
@@ -881,28 +833,18 @@ pub(crate) fn compute(
 fn padding_box_rect_spanning_first_and_last_content_lines(
     corners: &FirstAndLastContentLineCorners,
     used: &UsedValues,
-    horizontal: bool,
     inline_axis_is_reverse: bool,
     container_inline_axis_is_reverse: bool,
 ) -> Option<CssPixelRect> {
     let first = corners.first?;
     let last = corners.last?;
 
-    let (border_inline_low, border_inline_high, border_block_low, border_block_high) = if horizontal {
-        (
-            used.border_left.get(),
-            used.border_right.get(),
-            used.border_top.get(),
-            used.border_bottom.get(),
-        )
-    } else {
-        (
-            used.border_top.get(),
-            used.border_bottom.get(),
-            used.border_left.get(),
-            used.border_right.get(),
-        )
-    };
+    let (border_inline_low, border_inline_high, border_block_low, border_block_high) = (
+        used.border_left.get(),
+        used.border_right.get(),
+        used.border_top.get(),
+        used.border_bottom.get(),
+    );
     let direction_matches = inline_axis_is_reverse == container_inline_axis_is_reverse;
     let (contracted_inline_low, contracted_inline_high) = if direction_matches {
         (border_inline_low, border_inline_high)
@@ -922,20 +864,11 @@ fn padding_box_rect_spanning_first_and_last_content_lines(
         let size = (start - end).max(CssPixels::default());
         (start - size, size)
     };
-    Some(if horizontal {
-        CssPixelRect {
-            x: inline_low,
-            y: block_start,
-            width: inline_size,
-            height: block_size,
-        }
-    } else {
-        CssPixelRect {
-            x: block_start,
-            y: inline_low,
-            width: block_size,
-            height: inline_size,
-        }
+    Some(CssPixelRect {
+        x: inline_low,
+        y: block_start,
+        width: inline_size,
+        height: block_size,
     })
 }
 #[derive(Clone, Copy, Debug, Default)]
@@ -1423,10 +1356,6 @@ impl<'context> InlineFormattingContext<'context> {
     ) -> (Vec<line_box::LineBoxData>, usize) {
         if self.containing_block != self.run.box_
             || !previous.inline_box_pieces.is_empty()
-            || previous
-                .lines
-                .iter()
-                .any(|line| line.writing_mode != writing_mode::HORIZONTAL_TB)
             || iterator
                 .items()
                 .iter()
@@ -2655,9 +2584,7 @@ pub(crate) fn inline_content_is_measurable_from_items(
     style: StyleValues<'_>,
     inline_basis: CssPixels,
 ) -> bool {
-    !facts.is_scroll_container()
-        && style.writing_mode() == writing_mode::HORIZONTAL_TB
-        && style.text_indent().to_px(inline_basis) == CssPixels::default()
+    !facts.is_scroll_container() && style.text_indent().to_px(inline_basis) == CssPixels::default()
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2736,23 +2663,10 @@ enum TextItemWrapOpportunity {
 }
 
 pub(crate) fn line_physical_horizontal_extent(line: &line_box::LineBoxData) -> CssPixels {
-    if line.has_block_level_box || line.writing_mode == writing_mode::HORIZONTAL_TB {
-        if let Some(ellipsis) = line.fragments.last().filter(|fragment| fragment.is_block_ellipsis) {
-            return line.inline_length - ellipsis.inline_length;
-        }
-        return line.inline_length;
+    if let Some(ellipsis) = line.fragments.last().filter(|fragment| fragment.is_block_ellipsis) {
+        return line.inline_length - ellipsis.inline_length;
     }
-    let Some(first) = line.fragments.first() else {
-        return CssPixels::default();
-    };
-    let mut left = first.offset().0;
-    let mut right = left + first.physical_horizontal_extent();
-    for fragment in &line.fragments[1..] {
-        let fragment_left = fragment.offset().0;
-        left = left.min(fragment_left);
-        right = right.max(fragment_left + fragment.physical_horizontal_extent());
-    }
-    right - left
+    line.inline_length
 }
 
 // https://drafts.csswg.org/css-overflow-3/#ellipsing-details
@@ -2844,9 +2758,7 @@ pub(crate) fn line_rect(line: &line_box::LineBoxData, content_inline_size: CssPi
             height: line.physical_vertical_extent(),
         };
     };
-    if line.writing_mode == writing_mode::HORIZONTAL_TB {
-        rect.y = line.physical_vertical_end() - line.physical_vertical_extent();
-        rect.height = line.physical_vertical_extent();
-    }
+    rect.y = line.physical_vertical_end() - line.physical_vertical_extent();
+    rect.height = line.physical_vertical_extent();
     rect
 }

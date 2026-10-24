@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 10 tests
 
-3 Pass
-7 Fail
-Fail	.target 1
+8 Pass
+2 Fail
+Pass	.target 1
 Fail	.target 2
-Fail	.target 3
-Fail	.target 4
-Fail	.target 5
+Pass	.target 3
+Pass	.target 4
+Pass	.target 5
 Fail	.target 6
-Fail	.target 7
+Pass	.target 7
 Pass	.target 8
 Pass	.target 9
 Pass	.target 10
