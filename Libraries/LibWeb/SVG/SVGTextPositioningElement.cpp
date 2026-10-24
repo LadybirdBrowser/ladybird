@@ -39,16 +39,17 @@ void SVGTextPositioningElement::attribute_changed(Utf16FlyString const& name, Op
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    if (name == AttributeNames::x)
-        m_x = {};
-    else if (name == AttributeNames::y)
-        m_y = {};
-    else if (name == AttributeNames::dx)
-        m_dx = {};
-    else if (name == AttributeNames::dy)
-        m_dy = {};
-    else if (name == AttributeNames::rotate)
-        m_rotate = {};
+    // https://svgwg.org/svg2-draft/types.html#SynchronizingReflectedValues
+    if (name == AttributeNames::x && m_x)
+        m_x->synchronize();
+    else if (name == AttributeNames::y && m_y)
+        m_y->synchronize();
+    else if (name == AttributeNames::dx && m_dx)
+        m_dx->synchronize();
+    else if (name == AttributeNames::dy && m_dy)
+        m_dy->synchronize();
+    else if (name == AttributeNames::rotate && m_rotate)
+        m_rotate->synchronize();
 }
 
 SVGTextPositioningElement::ParsedTextPositioning SVGTextPositioningElement::parsed_text_positioning() const
@@ -86,70 +87,42 @@ SVGTextPositioningElement::ParsedTextPositioning SVGTextPositioningElement::pars
 }
 
 GC::Ref<SVGAnimatedLengthList> SVGTextPositioningElement::ensure_length_list(GC::Ptr<SVGAnimatedLengthList>& list,
-    Utf16FlyString const& attribute_name) const
+    Utf16FlyString const& attribute_name, SVGLength::Directionality directionality)
 {
-    if (!list) {
-        // FIXME: This only handles single values, not lists.
-        float value = 0.f;
-        auto maybe_number_percentage = parse_number_percentage(get_attribute_value(attribute_name));
-        if (maybe_number_percentage.has_value())
-            value = maybe_number_percentage.release_value().value();
-
-        auto length = SVGLength::create_detached(document().relevant_settings_object().realm(), SVGLengthValue::number(value), SVGLength::ReadOnly::Yes);
-
-        auto items = GC::Heap::the().allocate<SVGLengthList::List>();
-        items->elements().append(length);
-
-        auto length_list = SVGLengthList::create(items, ReadOnlyList::Yes);
-        list = SVGAnimatedLengthList::create(length_list);
-    }
-
+    if (!list)
+        list = SVGAnimatedLengthList::create(*this, attribute_name, directionality);
     return *list;
 }
 
 // https://svgwg.org/svg2-draft/text.html#__svg__SVGTextPositioningElement__x
 GC::Ref<SVGAnimatedLengthList> SVGTextPositioningElement::x()
 {
-    return ensure_length_list(m_x, AttributeNames::x);
+    return ensure_length_list(m_x, AttributeNames::x, SVGLength::Directionality::Horizontal);
 }
 
 // https://svgwg.org/svg2-draft/text.html#__svg__SVGTextPositioningElement__y
 GC::Ref<SVGAnimatedLengthList> SVGTextPositioningElement::y()
 {
-    return ensure_length_list(m_y, AttributeNames::y);
+    return ensure_length_list(m_y, AttributeNames::y, SVGLength::Directionality::Vertical);
 }
 
 // https://svgwg.org/svg2-draft/text.html#__svg__SVGTextPositioningElement__dx
 GC::Ref<SVGAnimatedLengthList> SVGTextPositioningElement::dx()
 {
-    return ensure_length_list(m_dx, AttributeNames::dx);
+    return ensure_length_list(m_dx, AttributeNames::dx, SVGLength::Directionality::Horizontal);
 }
 
 // https://svgwg.org/svg2-draft/text.html#__svg__SVGTextPositioningElement__dy
 GC::Ref<SVGAnimatedLengthList> SVGTextPositioningElement::dy()
 {
-    return ensure_length_list(m_dy, AttributeNames::dy);
+    return ensure_length_list(m_dy, AttributeNames::dy, SVGLength::Directionality::Vertical);
 }
 
 // https://svgwg.org/svg2-draft/text.html#__svg__SVGTextPositioningElement__rotate
 GC::Ref<SVGAnimatedNumberList> SVGTextPositioningElement::rotate()
 {
-    if (!m_rotate) {
-        // FIXME: This only handles single values, not lists.
-        float value = 0.f;
-        auto maybe_number_percentage = parse_number_percentage(get_attribute_value(AttributeNames::rotate));
-        if (maybe_number_percentage.has_value() && !maybe_number_percentage.value().is_percentage())
-            value = maybe_number_percentage.release_value().value();
-
-        auto number = SVGNumber::create(value, SVGNumber::ReadOnly::Yes);
-
-        auto items = GC::Heap::the().allocate<SVGNumberList::List>();
-        items->elements().append(number);
-
-        auto number_list = SVGNumberList::create(items, ReadOnlyList::Yes);
-        m_rotate = SVGAnimatedNumberList::create(number_list);
-    }
-
+    if (!m_rotate)
+        m_rotate = SVGAnimatedNumberList::create(*this, AttributeNames::rotate);
     return *m_rotate;
 }
 

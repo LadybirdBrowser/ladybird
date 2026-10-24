@@ -41,9 +41,8 @@ void SVGFEConvolveMatrixElement::attribute_changed(Utf16FlyString const& name, O
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    // FIXME: Support reflection instead of invalidating the list.
-    if (name == AttributeNames::kernelMatrix)
-        m_kernel_matrix = {};
+    if (name == AttributeNames::kernelMatrix && m_kernel_matrix)
+        m_kernel_matrix->synchronize();
 }
 
 // https://drafts.fxtf.org/filter-effects/#dom-svgfeconvolvematrixelement-in1
@@ -75,17 +74,8 @@ GC::Ref<SVGAnimatedInteger> SVGFEConvolveMatrixElement::order_y()
 // https://drafts.fxtf.org/filter-effects/#dom-svgfeconvolvematrixelement-kernelmatrix
 GC::Ref<SVGAnimatedNumberList> SVGFEConvolveMatrixElement::kernel_matrix()
 {
-    if (!m_kernel_matrix) {
-        auto numbers = parse_table_values(get_attribute_value(AttributeNames::kernelMatrix));
-
-        auto items = GC::Heap::the().allocate<SVGNumberList::List>();
-        items->elements().ensure_capacity(numbers.size());
-        for (auto number : numbers)
-            items->elements().unchecked_append(SVGNumber::create(number, SVGNumber::ReadOnly::Yes));
-
-        auto number_list = SVGNumberList::create(items, ReadOnlyList::Yes);
-        m_kernel_matrix = SVGAnimatedNumberList::create(number_list);
-    }
+    if (!m_kernel_matrix)
+        m_kernel_matrix = SVGAnimatedNumberList::create(*this, AttributeNames::kernelMatrix);
     return *m_kernel_matrix;
 }
 

@@ -2,28 +2,28 @@ Harness status: OK
 
 Found 59 tests
 
-6 Pass
-53 Fail
+22 Pass
+37 Fail
 Pass	SVGNumberList (rotate on text): getItem returns the same object for one index, with no attribute change
-Fail	SVGNumberList (rotate on text): a same-count change updates the values of the held items
+Pass	SVGNumberList (rotate on text): a same-count change updates the values of the held items
 Pass	SVGNumberList (rotate on text): a same-count change keeps the held item in the list
-Fail	SVGNumberList (rotate on text): the held item is still attached after a same-count change
-Fail	SVGNumberList (rotate on text): a grow updates the held item and appends new ones
-Fail	SVGNumberList (rotate on text): a shrink updates the held items that are still in range
-Fail	SVGNumberList (rotate on text): a shrink detaches the truncated item, which keeps its value
-Fail	SVGNumberList (rotate on text): the truncated item stops reaching the element and stops being read only
-Fail	SVGNumberList (rotate on text): the list interface object survives the change
-Fail	SVGNumberList (rotate on text): an empty string empties the list and detaches every item
+Pass	SVGNumberList (rotate on text): the held item is still attached after a same-count change
+Pass	SVGNumberList (rotate on text): a grow updates the held item and appends new ones
+Pass	SVGNumberList (rotate on text): a shrink updates the held items that are still in range
+Pass	SVGNumberList (rotate on text): a shrink detaches the truncated item, which keeps its value
+Pass	SVGNumberList (rotate on text): the truncated item stops reaching the element and stops being read only
+Pass	SVGNumberList (rotate on text): the list interface object survives the change
+Pass	SVGNumberList (rotate on text): an empty string empties the list and detaches every item
 Pass	SVGLengthList (x on text): getItem returns the same object for one index, with no attribute change
-Fail	SVGLengthList (x on text): a same-count change updates the values of the held items
+Pass	SVGLengthList (x on text): a same-count change updates the values of the held items
 Pass	SVGLengthList (x on text): a same-count change keeps the held item in the list
-Fail	SVGLengthList (x on text): the held item is still attached after a same-count change
-Fail	SVGLengthList (x on text): a grow updates the held item and appends new ones
-Fail	SVGLengthList (x on text): a shrink updates the held items that are still in range
-Fail	SVGLengthList (x on text): a shrink detaches the truncated item, which keeps its value
-Fail	SVGLengthList (x on text): the truncated item stops reaching the element and stops being read only
-Fail	SVGLengthList (x on text): the list interface object survives the change
-Fail	SVGLengthList (x on text): an empty string empties the list and detaches every item
+Pass	SVGLengthList (x on text): the held item is still attached after a same-count change
+Pass	SVGLengthList (x on text): a grow updates the held item and appends new ones
+Pass	SVGLengthList (x on text): a shrink updates the held items that are still in range
+Pass	SVGLengthList (x on text): a shrink detaches the truncated item, which keeps its value
+Pass	SVGLengthList (x on text): the truncated item stops reaching the element and stops being read only
+Pass	SVGLengthList (x on text): the list interface object survives the change
+Pass	SVGLengthList (x on text): an empty string empties the list and detaches every item
 Fail	SVGPointList (points on polyline): getItem returns the same object for one index, with no attribute change
 Fail	SVGPointList (points on polyline): a same-count change updates the values of the held items
 Fail	SVGPointList (points on polyline): a same-count change keeps the held item in the list

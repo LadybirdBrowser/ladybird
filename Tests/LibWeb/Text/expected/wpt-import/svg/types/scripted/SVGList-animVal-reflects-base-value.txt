@@ -2,17 +2,17 @@ Harness status: OK
 
 Found 20 tests
 
-3 Pass
-17 Fail
-Fail	SVGNumberList (rotate on text): animVal read before an attribute change reports the new item count
-Fail	SVGNumberList (rotate on text): animVal read before an attribute change reports the new value
-Fail	SVGNumberList (rotate on text): the animVal list object survives an attribute change
-Fail	SVGNumberList (rotate on text): animVal reports the new item count after a baseVal DOM change
+11 Pass
+9 Fail
+Pass	SVGNumberList (rotate on text): animVal read before an attribute change reports the new item count
+Pass	SVGNumberList (rotate on text): animVal read before an attribute change reports the new value
+Pass	SVGNumberList (rotate on text): the animVal list object survives an attribute change
+Pass	SVGNumberList (rotate on text): animVal reports the new item count after a baseVal DOM change
 Pass	SVGNumberList (rotate on text): animVal items are read only
-Fail	SVGLengthList (x on text): animVal read before an attribute change reports the new item count
-Fail	SVGLengthList (x on text): animVal read before an attribute change reports the new value
-Fail	SVGLengthList (x on text): the animVal list object survives an attribute change
-Fail	SVGLengthList (x on text): animVal reports the new item count after a baseVal DOM change
+Pass	SVGLengthList (x on text): animVal read before an attribute change reports the new item count
+Pass	SVGLengthList (x on text): animVal read before an attribute change reports the new value
+Pass	SVGLengthList (x on text): the animVal list object survives an attribute change
+Pass	SVGLengthList (x on text): animVal reports the new item count after a baseVal DOM change
 Pass	SVGLengthList (x on text): animVal items are read only
 Fail	SVGPointList (points on polyline, animatedPoints): animVal read before an attribute change reports the new item count
 Fail	SVGPointList (points on polyline, animatedPoints): animVal read before an attribute change reports the new value

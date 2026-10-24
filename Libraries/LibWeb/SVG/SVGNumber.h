@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::SVG {
@@ -30,10 +31,26 @@ public:
 
     ReadOnly read_only() const { return m_read_only; }
 
+    // https://svgwg.org/svg2-draft/types.html#TermAttach
+    void attach(GC::Ref<SVGNumberList>, ReadOnly);
+
+    // https://svgwg.org/svg2-draft/types.html#TermDetach
+    void detach();
+
+    bool is_detached() const { return !m_list; }
+
+    // Sets the value when the list this number belongs to is synchronized with its reflected attribute.
+    void set_value_from_reflected_attribute(float value) { m_value = value; }
+
 private:
     SVGNumber(float value, ReadOnly);
 
+    virtual void visit_edges(Cell::Visitor&) override;
+
     float m_value { 0 };
+
+    // The list this number is an element of, if it reflects an element of the base value of a reflected attribute.
+    GC::Ptr<SVGNumberList> m_list;
 
     // https://www.w3.org/TR/SVG2/types.html#ReadOnlyNumber
     ReadOnly m_read_only;

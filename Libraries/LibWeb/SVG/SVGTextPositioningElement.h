@@ -42,7 +42,7 @@ protected:
 private:
     virtual bool is_svg_text_positioning_element() const final { return true; }
 
-    GC::Ref<SVGAnimatedLengthList> ensure_length_list(GC::Ptr<SVGAnimatedLengthList>&, Utf16FlyString const& attribute_name) const;
+    GC::Ref<SVGAnimatedLengthList> ensure_length_list(GC::Ptr<SVGAnimatedLengthList>&, Utf16FlyString const& attribute_name, SVGLength::Directionality);
 
     GC::Ptr<SVGAnimatedLengthList> m_x;
     GC::Ptr<SVGAnimatedLengthList> m_y;
