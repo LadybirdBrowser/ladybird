@@ -17,7 +17,7 @@ GC::Ref<CSSNumericArray> CSSNumericArray::create(GC::RootVector<GC::Ref<CSSNumer
     return GC::Heap::the().allocate<CSSNumericArray>(move(values));
 }
 
-CSSNumericArray::CSSNumericArray(Vector<GC::Ref<CSSNumericValue>> values)
+CSSNumericArray::CSSNumericArray(Vector<GC::Ref<CSSNumericValue>>&& values)
     : m_values(move(values))
 {
 }

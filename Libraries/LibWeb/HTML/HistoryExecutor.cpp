@@ -98,7 +98,7 @@ CrossProcessId HistoryExecutor::request_history_operation(HistoryOperationParame
     return request_history_operation(move(parameters), {});
 }
 
-CrossProcessId HistoryExecutor::request_history_operation(HistoryOperationParameters parameters, HistoryOperationState state)
+CrossProcessId HistoryExecutor::request_history_operation(HistoryOperationParameters parameters, HistoryOperationState&& state)
 {
     auto operation_id = m_page->client().allocate_cross_process_id();
     m_history_operations.set(operation_id, move(state));

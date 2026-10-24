@@ -103,7 +103,7 @@ void MutationLog::note_key_generator_changed(u64 old_value)
     m_entries.append(KeyGeneratorChanged { old_value });
 }
 
-void MutationLog::note_records_deleted(Vector<ObjectStoreRecord> records)
+void MutationLog::note_records_deleted(Vector<ObjectStoreRecord>&& records)
 {
     m_entries.append(RecordsDeleted { move(records) });
 }
@@ -113,7 +113,7 @@ void MutationLog::note_record_stored(GC::Ref<Key> key)
     m_entries.append(RecordStored { key });
 }
 
-void MutationLog::note_index_records_deleted(GC::Ref<Index> index, Vector<IndexRecord> records)
+void MutationLog::note_index_records_deleted(GC::Ref<Index> index, Vector<IndexRecord>&& records)
 {
     m_entries.append(IndexRecordsDeleted { index, move(records) });
 }

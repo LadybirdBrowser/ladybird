@@ -56,7 +56,7 @@ public:
     };
 
     CrossProcessId request_history_operation(HistoryOperationParameters);
-    CrossProcessId request_history_operation(HistoryOperationParameters, HistoryOperationState);
+    CrossProcessId request_history_operation(HistoryOperationParameters, HistoryOperationState&&);
     // Takes back a requested operation the UI process has not started.
     void revoke_history_operation(CrossProcessId operation_id);
     void complete_ui_history_operation(CrossProcessId operation_id, Optional<i32> target_entry_step);
