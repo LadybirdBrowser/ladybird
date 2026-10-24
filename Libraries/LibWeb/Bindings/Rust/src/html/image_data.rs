@@ -149,8 +149,9 @@ impl ImageData {
         width: u32,
         height: u32,
         settings: Option<&ImageDataSettings>,
+        default_color_space: Option<PredefinedColorSpace>,
     ) -> WebIdlResult<Ref<Self>> {
-        let image_data = Self::initialize(cx, height, width, settings, None, None)?;
+        let image_data = Self::initialize(cx, height, width, settings, None, default_color_space)?;
         Ok(allocate(cx.vm(), image_data))
     }
 
@@ -233,6 +234,10 @@ impl ImageData {
     /// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-imagedata-colorspace
     pub(crate) fn color_space(&self, _: &mut CallContext) -> WebIdlResult<PredefinedColorSpace> {
         Ok(self.color_space)
+    }
+
+    pub(crate) fn predefined_color_space(&self) -> PredefinedColorSpace {
+        self.color_space
     }
 
     pub(crate) fn size(&self) -> (u32, u32) {
