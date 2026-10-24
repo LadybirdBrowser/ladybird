@@ -1356,7 +1356,7 @@ impl Vm {
     /// Drops the weak cache entries of strings that died in this collection.
     fn remove_dead_strings_from_weak_caches(&self) {
         let is_dead = |string: Gc<PrimitiveString>| !string.header.mark.get();
-        for cache_slot in self.fly_string_cache.iter() {
+        for cache_slot in &self.fly_string_cache {
             if cache_slot.get().is_some_and(is_dead) {
                 cache_slot.set(None);
             }

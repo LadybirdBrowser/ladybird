@@ -731,7 +731,7 @@ pub unsafe fn reference_utf16_string(raw: usize) {
     let header = unsafe { &*std::ptr::with_exposed_provenance::<Utf16StringDataHeader>(raw) };
     let result = header
         .reference_count
-        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |count| {
+        .try_update(Ordering::Relaxed, Ordering::Relaxed, |count| {
             (count != 0).then(|| count.checked_add(1)).flatten()
         });
     assert!(result.is_ok(), "invalid UTF-16 string reference count");
