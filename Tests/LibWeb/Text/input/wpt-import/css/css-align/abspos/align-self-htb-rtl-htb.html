@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#align-abspos">
+<style>
+body {
+  margin: 0;
+}
+
+.container {
+  writing-mode: horizontal-tb;
+  direction: rtl;
+  display: inline-block;
+  position: relative;
+  margin: 20px;
+  border: solid 4px;
+  width: 40px;
+  height: 40px;
+}
+
+.item {
+  writing-mode: horizontal-tb;
+  direction: ltr;
+  position: absolute;
+  background: green;
+  inset: 0;
+}
+
+.item::before {
+  width: 20px;
+  height: 20px;
+  content: '';
+  display: block;
+}
+
+.rtl {
+  direction: rtl;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.item')">
+
+<div class="container">
+  <div class="item" style="align-self: start;" data-expected-height="20" data-offset-y="0"></div>
+</div>
+
+<div class="container">
+  <div class="item" style="align-self: center;" data-expected-height="20" data-offset-y="10"></div>
+</div>
+
+<div class="container">
+  <div class="item" style="align-self: end;" data-expected-height="20" data-offset-y="20"></div>
+</div>
+
+<div class="container">
+  <div class="item" style="align-self: baseline;" data-expected-height="20" data-offset-y="0"></div>
+</div>
+
+<div class="container">
+  <div class="item" style="align-self: last baseline;" data-expected-height="20" data-offset-y="20"></div>
+</div>
+
+<div class="container">
+  <div class="item" style="align-self: self-start;" data-expected-height="20" data-offset-y="0"></div>
+</div>
+
+<div class="container">
+  <div class="item" style="align-self: self-end;" data-expected-height="20" data-offset-y="20"></div>
+</div>
+
+<div class="container">
+  <div class="item" style="align-self: stretch;" data-expected-height="40" data-offset-y="0"></div>
+</div>
+
+<!-- RTL -->
+<br>
+
+<div class="container">
+  <div class="item rtl" style="align-self: start;" data-expected-height="20" data-offset-y="0"></div>
+</div>
+
+<div class="container">
+  <div class="item rtl" style="align-self: center;" data-expected-height="20" data-offset-y="10"></div>
+</div>
+
+<div class="container">
+  <div class="item rtl" style="align-self: end;" data-expected-height="20" data-offset-y="20"></div>
+</div>
+
+<div class="container">
+  <div class="item rtl" style="align-self: baseline;" data-expected-height="20" data-offset-y="0"></div>
+</div>
+
+<div class="container">
+  <div class="item rtl" style="align-self: last baseline;" data-expected-height="20" data-offset-y="20"></div>
+</div>
+
+<div class="container">
+  <div class="item rtl" style="align-self: self-start;" data-expected-height="20" data-offset-y="0"></div>
+</div>
+
+<div class="container">
+  <div class="item rtl" style="align-self: self-end;" data-expected-height="20" data-offset-y="20"></div>
+</div>
+
+<div class="container">
+  <div class="item rtl" style="align-self: stretch;" data-expected-height="40" data-offset-y="0"></div>
+</div>
+
