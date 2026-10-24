@@ -404,7 +404,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("FloatMatrix4x4", "Gfx::FloatMatrix4x4"),
         ("CornerRadius", "Gfx::CornerRadius"),
         ("CornerRadii", "Gfx::CornerRadii"),
-        ("CornerClip", "Gfx::CornerClip"),
         ("GradientInterpolationMethod", "Gfx::GradientInterpolationMethod"),
         ("GradientInterpolationType", "Gfx::GradientInterpolationMethod::Type"),
         ("RectangularColorSpace", "Gfx::RectangularColorSpace"),

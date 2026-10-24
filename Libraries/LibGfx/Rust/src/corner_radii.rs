@@ -138,11 +138,3 @@ impl CornerRadii {
         true
     }
 }
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(i32)]
-pub enum CornerClip {
-    #[default]
-    Outside,
-    Inside,
-}

@@ -116,9 +116,6 @@ static_assert(to_underlying(Compositing::RustFFI::Orientation::Vertical) == to_u
 static_assert(sizeof(Compositing::RustFFI::ShouldAntiAlias) == sizeof(Gfx::ShouldAntiAlias));
 static_assert(to_underlying(Compositing::RustFFI::ShouldAntiAlias::Yes) == to_underlying(Gfx::ShouldAntiAlias::Yes));
 static_assert(to_underlying(Compositing::RustFFI::ShouldAntiAlias::No) == to_underlying(Gfx::ShouldAntiAlias::No));
-static_assert(sizeof(Compositing::RustFFI::CornerClip) == sizeof(Gfx::CornerClip));
-static_assert(to_underlying(Compositing::RustFFI::CornerClip::Outside) == to_underlying(Gfx::CornerClip::Outside));
-static_assert(to_underlying(Compositing::RustFFI::CornerClip::Inside) == to_underlying(Gfx::CornerClip::Inside));
 static_assert(sizeof(Compositing::RustFFI::InterpolationColorSpace) == sizeof(Gfx::InterpolationColorSpace));
 static_assert(to_underlying(Compositing::RustFFI::InterpolationColorSpace::LinearRGB) == to_underlying(Gfx::InterpolationColorSpace::LinearRGB));
 static_assert(to_underlying(Compositing::RustFFI::InterpolationColorSpace::SRGB) == to_underlying(Gfx::InterpolationColorSpace::SRGB));
