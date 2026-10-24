@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1470 Pass
-310 Fail
+1490 Pass
+290 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1567,16 +1567,16 @@ Pass	SVGAElement interface: attribute relList
 Pass	SVGAElement interface: attribute hreflang
 Pass	SVGAElement interface: attribute type
 Pass	SVGAElement interface: attribute referrerPolicy
-Fail	SVGAElement interface: attribute origin
-Fail	SVGAElement interface: attribute protocol
-Fail	SVGAElement interface: attribute username
-Fail	SVGAElement interface: attribute password
-Fail	SVGAElement interface: attribute host
-Fail	SVGAElement interface: attribute hostname
-Fail	SVGAElement interface: attribute port
-Fail	SVGAElement interface: attribute pathname
-Fail	SVGAElement interface: attribute search
-Fail	SVGAElement interface: attribute hash
+Pass	SVGAElement interface: attribute origin
+Pass	SVGAElement interface: attribute protocol
+Pass	SVGAElement interface: attribute username
+Pass	SVGAElement interface: attribute password
+Pass	SVGAElement interface: attribute host
+Pass	SVGAElement interface: attribute hostname
+Pass	SVGAElement interface: attribute port
+Pass	SVGAElement interface: attribute pathname
+Pass	SVGAElement interface: attribute search
+Pass	SVGAElement interface: attribute hash
 Pass	SVGAElement interface: attribute href
 Pass	SVGAElement must be primary interface of objects.a
 Pass	Stringification of objects.a
@@ -1588,16 +1588,16 @@ Pass	SVGAElement interface: objects.a must inherit property "relList" with the p
 Pass	SVGAElement interface: objects.a must inherit property "hreflang" with the proper type
 Pass	SVGAElement interface: objects.a must inherit property "type" with the proper type
 Pass	SVGAElement interface: objects.a must inherit property "referrerPolicy" with the proper type
-Fail	SVGAElement interface: objects.a must inherit property "origin" with the proper type
-Fail	SVGAElement interface: objects.a must inherit property "protocol" with the proper type
-Fail	SVGAElement interface: objects.a must inherit property "username" with the proper type
-Fail	SVGAElement interface: objects.a must inherit property "password" with the proper type
-Fail	SVGAElement interface: objects.a must inherit property "host" with the proper type
-Fail	SVGAElement interface: objects.a must inherit property "hostname" with the proper type
-Fail	SVGAElement interface: objects.a must inherit property "port" with the proper type
-Fail	SVGAElement interface: objects.a must inherit property "pathname" with the proper type
-Fail	SVGAElement interface: objects.a must inherit property "search" with the proper type
-Fail	SVGAElement interface: objects.a must inherit property "hash" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "origin" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "protocol" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "username" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "password" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "host" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "hostname" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "port" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "pathname" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "search" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "hash" with the proper type
 Pass	SVGAElement interface: objects.a must inherit property "href" with the proper type
 Pass	SVGGraphicsElement interface: objects.a must inherit property "transform" with the proper type
 Pass	SVGGraphicsElement interface: objects.a must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type

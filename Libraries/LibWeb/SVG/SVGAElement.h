@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibWeb/HTML/HyperlinkElementUtils.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGURIReference.h>
 
@@ -14,7 +15,8 @@ namespace Web::SVG {
 
 class SVGAElement final
     : public SVGGraphicsElement
-    , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
+    , public SVGURIReferenceMixin<SupportsXLinkHref::Yes>
+    , public HTML::HyperlinkElementUtils {
     WEB_WRAPPABLE(SVGAElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGAElement);
 
@@ -40,6 +42,12 @@ private:
 
     virtual bool has_activation_behavior() const override { return true; }
     virtual void activation_behavior(DOM::Event const&) override;
+
+    // ^HTML::HyperlinkElementUtils
+    virtual DOM::Element& hyperlink_element_utils_element() override { return *this; }
+    virtual DOM::Element const& hyperlink_element_utils_element() const override { return *this; }
+    virtual void update_href() override;
+    virtual void set_the_url() override;
 
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
 
