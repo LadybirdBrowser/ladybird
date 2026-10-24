@@ -26,6 +26,10 @@ font-optical-sizing: auto
 font-size: 16px
 font-size-adjust: none
 font-style: normal
+font-synthesis-position: auto
+font-synthesis-small-caps: auto
+font-synthesis-style: auto
+font-synthesis-weight: auto
 font-variant-alternates: normal
 font-variant-caps: normal
 font-variant-east-asian: normal

@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 102 tests
 
-78 Pass
-24 Fail
-Fail	Can set 'font-synthesis-weight' to CSS-wide keywords: initial
-Fail	Can set 'font-synthesis-weight' to CSS-wide keywords: inherit
-Fail	Can set 'font-synthesis-weight' to CSS-wide keywords: unset
-Fail	Can set 'font-synthesis-weight' to CSS-wide keywords: revert
-Fail	Can set 'font-synthesis-weight' to var() references:  var(--A)
-Fail	Can set 'font-synthesis-weight' to the 'auto' keyword: auto
-Fail	Can set 'font-synthesis-weight' to the 'none' keyword: none
+99 Pass
+3 Fail
+Pass	Can set 'font-synthesis-weight' to CSS-wide keywords: initial
+Pass	Can set 'font-synthesis-weight' to CSS-wide keywords: inherit
+Pass	Can set 'font-synthesis-weight' to CSS-wide keywords: unset
+Pass	Can set 'font-synthesis-weight' to CSS-wide keywords: revert
+Pass	Can set 'font-synthesis-weight' to var() references:  var(--A)
+Pass	Can set 'font-synthesis-weight' to the 'auto' keyword: auto
+Pass	Can set 'font-synthesis-weight' to the 'none' keyword: none
 Pass	Setting 'font-synthesis-weight' to a length: 0px throws TypeError
 Pass	Setting 'font-synthesis-weight' to a length: -3.14em throws TypeError
 Pass	Setting 'font-synthesis-weight' to a length: 3.14cm throws TypeError
@@ -37,13 +37,13 @@ Pass	Setting 'font-synthesis-weight' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'font-synthesis-weight' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'font-synthesis-weight' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'font-synthesis-weight' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'font-synthesis-style' to CSS-wide keywords: initial
-Fail	Can set 'font-synthesis-style' to CSS-wide keywords: inherit
-Fail	Can set 'font-synthesis-style' to CSS-wide keywords: unset
-Fail	Can set 'font-synthesis-style' to CSS-wide keywords: revert
-Fail	Can set 'font-synthesis-style' to var() references:  var(--A)
-Fail	Can set 'font-synthesis-style' to the 'auto' keyword: auto
-Fail	Can set 'font-synthesis-style' to the 'none' keyword: none
+Pass	Can set 'font-synthesis-style' to CSS-wide keywords: initial
+Pass	Can set 'font-synthesis-style' to CSS-wide keywords: inherit
+Pass	Can set 'font-synthesis-style' to CSS-wide keywords: unset
+Pass	Can set 'font-synthesis-style' to CSS-wide keywords: revert
+Pass	Can set 'font-synthesis-style' to var() references:  var(--A)
+Pass	Can set 'font-synthesis-style' to the 'auto' keyword: auto
+Pass	Can set 'font-synthesis-style' to the 'none' keyword: none
 Pass	Setting 'font-synthesis-style' to a length: 0px throws TypeError
 Pass	Setting 'font-synthesis-style' to a length: -3.14em throws TypeError
 Pass	Setting 'font-synthesis-style' to a length: 3.14cm throws TypeError
@@ -70,13 +70,13 @@ Pass	Setting 'font-synthesis-style' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'font-synthesis-style' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'font-synthesis-style' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'font-synthesis-style' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'font-synthesis-small-caps' to CSS-wide keywords: initial
-Fail	Can set 'font-synthesis-small-caps' to CSS-wide keywords: inherit
-Fail	Can set 'font-synthesis-small-caps' to CSS-wide keywords: unset
-Fail	Can set 'font-synthesis-small-caps' to CSS-wide keywords: revert
-Fail	Can set 'font-synthesis-small-caps' to var() references:  var(--A)
-Fail	Can set 'font-synthesis-small-caps' to the 'auto' keyword: auto
-Fail	Can set 'font-synthesis-small-caps' to the 'none' keyword: none
+Pass	Can set 'font-synthesis-small-caps' to CSS-wide keywords: initial
+Pass	Can set 'font-synthesis-small-caps' to CSS-wide keywords: inherit
+Pass	Can set 'font-synthesis-small-caps' to CSS-wide keywords: unset
+Pass	Can set 'font-synthesis-small-caps' to CSS-wide keywords: revert
+Pass	Can set 'font-synthesis-small-caps' to var() references:  var(--A)
+Pass	Can set 'font-synthesis-small-caps' to the 'auto' keyword: auto
+Pass	Can set 'font-synthesis-small-caps' to the 'none' keyword: none
 Pass	Setting 'font-synthesis-small-caps' to a length: 0px throws TypeError
 Pass	Setting 'font-synthesis-small-caps' to a length: -3.14em throws TypeError
 Pass	Setting 'font-synthesis-small-caps' to a length: 3.14cm throws TypeError
