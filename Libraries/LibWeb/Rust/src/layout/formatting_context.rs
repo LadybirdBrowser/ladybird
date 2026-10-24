@@ -1167,6 +1167,7 @@ impl<'pass> FormattingContextRun<'pass> {
         }
     }
 
+    #[inline]
     pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'pass> {
         sizing_context::SizingContext::new(self.purpose, self.records, self.callbacks)
     }

@@ -246,10 +246,12 @@ impl<'pass> AbsposEngine<'pass> {
         formatting_context::placement_containing_block(self.records, &self.callbacks, node)
     }
 
+    #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass> {
         sizing_context::SizingContext::new(self.purpose, self.records, self.callbacks)
     }
 
+    #[inline]
     fn style(&self, node: Node) -> StyleValues<'pass> {
         let style = StyleValues::for_node(&self.callbacks, node);
         if !style.is_absolutely_positioned() {
@@ -263,6 +265,7 @@ impl<'pass> AbsposEngine<'pass> {
         style.with_anchor_resolved_values(anchor_resolved_values)
     }
 
+    #[inline]
     fn facts(&self, node: Node) -> NodeFacts<'_> {
         NodeFacts::new(&self.callbacks, node)
     }

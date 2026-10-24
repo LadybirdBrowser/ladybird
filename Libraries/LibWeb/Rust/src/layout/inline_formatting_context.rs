@@ -1095,10 +1095,12 @@ impl<'context> InlineFormattingContext<'context> {
         }
     }
 
+    #[inline]
     pub(crate) fn style(&self, node: Node) -> StyleValues<'context> {
         StyleValues::for_node(&self.callbacks, node)
     }
 
+    #[inline]
     pub(crate) fn facts(&self, node: Node) -> NodeFacts<'_> {
         NodeFacts::new(&self.callbacks, node)
     }
@@ -1316,6 +1318,7 @@ impl<'context> InlineFormattingContext<'context> {
         content_baselines
     }
 
+    #[inline]
     pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'context> {
         self.parent.sizing()
     }
