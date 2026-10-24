@@ -997,6 +997,21 @@ void EventLoop::update_the_rendering()
     finish_rendering_update(update_start_time);
 }
 
+void EventLoop::update_whether_font_face_sets_are_pending_on_the_environment(Vector<GC::Root<DOM::Document>> const& docs, TakenLayout taken_layout)
+{
+    for (auto& document : docs) {
+        // https://drafts.csswg.org/css-font-loading/#fontfaceset-pending-on-the-environment
+        // A FontFaceSet is pending on the environment if any of the following are true:
+        // - the document is still loading
+        // - the document has pending stylesheet requests
+        // - the document has pending layout operations which might cause the user agent to request a font, or which depend on recently-loaded fonts
+        TemporaryExecutionContext context(document->relevant_settings_object(), TemporaryExecutionContext::CallbacksEnabled::Yes);
+        document->fonts()->set_is_pending_on_the_environment(document->readiness() == DocumentReadyState::Loading
+            || document->has_pending_style_sheet_requests()
+            || (taken_layout == TakenLayout::UpToDate && !document->layout_is_up_to_date()));
+    }
+}
+
 // Step 16 of updating the rendering, for one doc of docs: its style and layout, and the resize observations they
 // answer.
 static void update_style_and_layout_for_rendering(DOM::Document& document)
@@ -1253,17 +1268,11 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         document->process_top_layer_removals();
     }
 
-    for (auto& document : docs) {
-        // https://drafts.csswg.org/css-font-loading/#fontfaceset-pending-on-the-environment
-        // A FontFaceSet is pending on the environment if any of the following are true:
-        // - the document is still loading
-        // - the document has pending stylesheet requests
-        // - the document has pending layout operations which might cause the user agent to request a font, or which depend on recently-loaded fonts
-        TemporaryExecutionContext context(document->relevant_settings_object(), TemporaryExecutionContext::CallbacksEnabled::Yes);
-        document->fonts()->set_is_pending_on_the_environment(document->readiness() == DocumentReadyState::Loading
-            || document->has_pending_style_sheet_requests()
-            || (taken_layout == TakenLayout::UpToDate && !document->layout_is_up_to_date()));
-    }
+    // NB: Where the update's layout flew, this runs once the docs no longer read as that layout left them: a FontFaceSet
+    //     that stops being pending on the environment resolves its ready promise, whose reactions run script that may
+    //     write to the docs and read their layout.
+    if (taken_layout == TakenLayout::UpToDate)
+        update_whether_font_face_sets_are_pending_on_the_environment(docs, taken_layout);
 
     // AD-HOC: The lane of the frame the update presented may tick the document's running animations beside the tasks
     //         after it, until the next of their events, which the main thread sends, and hover what is under the
@@ -1337,13 +1346,17 @@ void EventLoop::finish_ended_rendering_update_in_flight()
 bool EventLoop::finish_ended_rendering_update_as_its_layout_flew()
 {
     auto& document = m_rendering_update_in_flight->document();
-    DOM::Document::LayoutAsItFlew layout_as_it_flew { document };
-    if (!document.take_flown_layout_in())
-        return false;
-    auto update = m_rendering_update_in_flight.release_nonnull();
-    if (auto navigable = document.navigable())
-        navigable->clamp_viewport_scroll_offset();
-    update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, update->serial, TakenLayout::AsItFlew);
+    OwnPtr<RenderingUpdateInFlight> update;
+    {
+        DOM::Document::LayoutAsItFlew layout_as_it_flew { document };
+        if (!document.take_flown_layout_in())
+            return false;
+        update = m_rendering_update_in_flight.release_nonnull();
+        if (auto navigable = document.navigable())
+            navigable->clamp_viewport_scroll_offset();
+        update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, update->serial, TakenLayout::AsItFlew);
+    }
+    update_whether_font_face_sets_are_pending_on_the_environment(update->docs, TakenLayout::AsItFlew);
     return true;
 }
 

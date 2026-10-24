@@ -1,0 +1,2 @@
+tree width: 400
+flex widths: 133,133,133

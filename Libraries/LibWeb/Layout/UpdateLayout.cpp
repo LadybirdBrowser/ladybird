@@ -252,6 +252,13 @@ namespace Web::DOM {
 
 void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSamplingScope animation_sampling_scope)
 {
+    // NB: While the document reads as the layout that flew left it, its layout is up to date as of that frame, and the
+    //     writes made since are set aside behind the ones made meanwhile. A style update now would submit the style
+    //     inputs recorded since ahead of the writes they go with, such as an inline style's declarations, and settle
+    //     the elements over what those writes replace. What was written since is the next layout update's.
+    if (m_reads_layout_as_it_flew)
+        return;
+
     // The update's waits for the render state are one read, which takes a frame in flight in.
     Layout::ForcedReadScope read { style_computer().style_engine().render_document() };
     drain_flown_style_transaction(read);

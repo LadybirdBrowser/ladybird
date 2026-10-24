@@ -214,6 +214,7 @@ private:
         AsItFlew,
     };
     void update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, u64 update_serial, TakenLayout = TakenLayout::UpToDate);
+    void update_whether_font_face_sets_are_pending_on_the_environment(Vector<GC::Root<DOM::Document>> const& docs, TakenLayout);
     void finish_rendering_update(double update_start_time);
     void resume_rendering_update_in_flight();
     void finish_ended_rendering_update_in_flight();

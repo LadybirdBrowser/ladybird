@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="work"></div>
+<div id="box" style="width: 10px"></div>
+<script>
+    // The document's FontFaceSet stops being pending on the environment in the steps of the rendering update whose
+    // layout flew, which the next update finishes as that layout left the document. Its ready promise is resolved then,
+    // and the script it runs reads the layout of what it writes, which is brought up to date.
+    internals.setManualRenderingOpportunities(true);
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        let widthWhenReady = "unread";
+        document.fonts.ready.then(() => {
+            box.style.width = "30px";
+            widthWhenReady = box.offsetWidth;
+        });
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            let html = "";
+            for (let i = 0; i < 5000; ++i)
+                html += `<div><span>${i}</span></div>`;
+            document.getElementById("work").innerHTML = html;
+            requestAnimationFrame(() => {
+                box.style.height = "5px";
+            });
+        });
+        internals.injectRenderingOpportunity(performance.now());
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        internals.injectRenderingOpportunity(performance.now());
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        internals.setManualRenderingOpportunities(false);
+        println(`width when fonts were ready: ${widthWhenReady}`);
+        done();
+    });
+</script>

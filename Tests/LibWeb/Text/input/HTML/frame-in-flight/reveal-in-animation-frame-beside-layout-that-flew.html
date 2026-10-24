@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #tree { width: 400px; }
+    .flex { display: flex; }
+    .flex > div { flex-grow: 1; height: 10px; }
+</style>
+<div id="work"></div>
+<div id="tree" style="display: none">
+    <div id="flex" class="flex"><div id="flex-a"></div><div id="flex-b"></div><div id="flex-c"></div></div>
+</div>
+<script>
+    // An animation frame callback reveals a subtree while the layout of the last rendering update, which had a lot to
+    // lay out, is in flight. The update takes that layout in and finishes the last update's steps as its layout flew,
+    // which reads nothing written since. No rendering update ran before the one whose layout flew, so those steps are
+    // where the document's FontFaceSet stops being pending on the environment, which asks for a layout update. The
+    // reveal is the next layout's, which a read in a later task brings up to date.
+    internals.setManualRenderingOpportunities(true);
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            let html = "";
+            for (let i = 0; i < 5000; ++i)
+                html += `<div><span>${i}</span></div>`;
+            document.getElementById("work").innerHTML = html;
+            requestAnimationFrame(() => {
+                document.getElementById("tree").style.display = "block";
+            });
+        });
+        internals.injectRenderingOpportunity(performance.now());
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        internals.injectRenderingOpportunity(performance.now());
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        internals.setManualRenderingOpportunities(false);
+        println(`tree width: ${document.getElementById("tree").offsetWidth}`);
+        println(`flex widths: ${["flex-a", "flex-b", "flex-c"].map(id => document.getElementById(id).offsetWidth).join(",")}`);
+        done();
+    });
+</script>
