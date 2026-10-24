@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	21: Shrink-to-fit table-cell with a child of orthogonal block in inline-block

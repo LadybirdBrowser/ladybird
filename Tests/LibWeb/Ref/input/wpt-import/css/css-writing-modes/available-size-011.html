@@ -1,0 +1,19 @@
+<!doctype html>
+<title>orthogonal flow parent with max-height</title>
+<meta charset=utf-8>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://www.w3.org/TR/css-writing-modes-3/#orthogonal-auto">
+<meta name="assert" content="If an orthogonal flow's parent doesn't have a definite block size but does have a max block size, use that as the available size">
+<link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/reference/available-size-011-ref.html">
+<style>
+main {
+  max-height: 1em;
+  line-height: 1em;
+}
+div {
+  writing-mode: vertical-rl;
+}
+</style>
+
+<p>This test passes if the word “ＰＡＳＳ” (without the quotation marks) appears below, written horizontally from left to right.
+<main><div>Ｓ Ｓ Ａ Ｐ</div></main>

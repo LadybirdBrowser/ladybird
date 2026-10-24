@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Writing Modes Test: Shrink-to-fit inline-block with a child of orthogonal inline with borders in inline-block</title>
+<link rel="help" href="http://www.w3.org/TR/css-writing-modes-3/#orthogonal-flows" title="7.3. Orthogonal Flows">
+<meta name="assert" content="Shrink-to-fit inline-block with a child of orthogonal inline with borders in inline-block">
+<meta name="flags" content="ahem dom">
+<link rel="author" title="Koji Ishii" href="mailto:kojiishi@gmail.com">
+<link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/"> <!-- 2015-12-23 -->
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style>
+.test {
+    border:thin solid;
+    font:20px/1 Ahem;
+}
+.target {
+    color:blue;
+    height:3em; /* height: 3em is not required. IE11 and Edge12 compute height to ICB height if
+    not set. We want the test to focus exclusively on shrink-to-fit algorithm. */
+    writing-mode:vertical-rl;
+}
+.border {
+    border-right:blue solid .5em;
+}
+.next {
+    color:orange;
+}
+.inline-block {
+    display:inline-block;
+}
+.float {
+    float:left;
+}
+h3 {
+    clear:both;
+}
+h3.fail {
+    color:red;
+}
+table {
+    border-spacing:0px;
+}
+td {
+    padding:0px;
+}
+</style>
+<div id="log"></div>
+<div id="container">
+<p>Test passes if the X-position of the <b>left</b> edge of the orange box and the <b>right</b> edge of the blue box are the same.
+<p>If script is enabled, there should be one or more PASS and no FAIL.
+<h3>8: Shrink-to-fit inline-block with a child of orthogonal inline with borders in inline-block</h3>
+<div class="test">
+    <div class="inline-block"><div class="inline-block"><span class="target border">HHH</span></div></div><span class="next">ZZ</span>
+</div>
+</div>
+<script>
+promise_setup(() => document.fonts.ready);
+
+if (window.location.search == "?wait") {
+    console.log("Sleeping 5 secs for debug");
+    setup({explicit_done:true});
+    window.setTimeout(run, 5000);
+} else {
+    run();
+}
+
+function run() {
+    Array.prototype.forEach.call(document.querySelectorAll(".test"), function (node) {
+        var title = node.previousElementSibling.textContent;
+        promise_test(async function () {
+            try {
+                var targetNode = node.querySelector(".target");
+                var fontSize = parseFloat(getComputedStyle(targetNode).fontSize);
+                var targetBounds = targetNode.getBoundingClientRect();
+                assert_less_than_equal(targetBounds.width, fontSize * 2.01, "writing-mode is vertical")
+                var nextNode = node.querySelector(".next");
+                var nextBounds = nextNode.getBoundingClientRect();
+                assert_equals(nextBounds.left - targetBounds.right, 0, "the left edge of the orange box touches the right edge of the blue box");
+            } catch (e) {
+                node.previousElementSibling.classList.add("fail");
+                throw e;
+            }
+        }, title);
+    });
+    done();
+}
+</script>

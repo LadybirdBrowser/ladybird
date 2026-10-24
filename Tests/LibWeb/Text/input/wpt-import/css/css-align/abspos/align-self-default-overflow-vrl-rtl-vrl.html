@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#align-abspos">
+<style>
+body {
+  margin: 0;
+}
+
+.container {
+  writing-mode: vertical-rl;
+  direction: rtl;
+  display: inline-block;
+  position: relative;
+  margin: 20px;
+  border: solid 4px;
+  width: 100px;
+  height: 100px;
+}
+
+.item {
+  writing-mode: vertical-rl;
+  direction: ltr;
+  position: absolute;
+  background: green;
+  align-self: center;
+}
+
+.inner {
+  width: 20px;
+  height: 20px;
+}
+
+.rtl {
+  direction: rtl;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.item')">
+
+<!-- No overflow, centered in IMCB. -->
+<div class="container">
+  <div class="item" style="left: 10px; right: 20px;" data-offset-x="35">
+    <div class="inner"></div>
+  </div>
+</div>
+
+<!-- Overflows IMCB, but not CB. -->
+<div class="container">
+  <div class="item" style="left: 10px; right: 20px;" data-offset-x="5">
+    <div class="inner" style="width: 80px;"></div>
+  </div>
+</div>
+
+<!-- Overflows weak CB edge, shifted. -->
+<div class="container">
+  <div class="item" style="left: 10px; right: 20px;" data-offset-x="0">
+    <div class="inner" style="width: 95px;"></div>
+  </div>
+</div>
+
+<!-- Overflows strong CB edge, shifted. -->
+<div class="container">
+  <div class="item" style="left: 10px; right: 20px;" data-offset-x="-20">
+    <div class="inner" style="width: 120px;"></div>
+  </div>
+</div>
+
+<!-- No overflow, centered in IMCB. -->
+<div class="container">
+  <div class="item" style="left: -10px; right: -20px;" data-offset-x="45">
+    <div class="inner"></div>
+  </div>
+</div>
+
+<!-- No overflow, centered in IMCB. -->
+<div class="container">
+  <div class="item" style="left: -10px; right: -20px;" data-offset-x="-5">
+    <div class="inner" style="width: 120px;"></div>
+  </div>
+</div>
+
+<!-- Overflows strong CB edge, shifted. -->
+<div class="container">
+  <div class="item" style="left: -10px; right: -20px;" data-offset-x="-40">
+    <div class="inner" style="width: 160px;"></div>
+  </div>
+</div>
+
+<!-- RTL items. -->
+<br>
+
+<!-- No overflow, centered in IMCB. -->
+<div class="container">
+  <div class="item rtl" style="left: 10px; right: 20px;" data-offset-x="35">
+    <div class="inner"></div>
+  </div>
+</div>
+
+<!-- Overflows IMCB, but not CB. -->
+<div class="container">
+  <div class="item rtl" style="left: 10px; right: 20px;" data-offset-x="5">
+    <div class="inner" style="width: 80px;"></div>
+  </div>
+</div>
+
+<!-- Overflows weak CB edge, shifted. -->
+<div class="container">
+  <div class="item rtl" style="left: 10px; right: 20px;" data-offset-x="0">
+    <div class="inner" style="width: 95px;"></div>
+  </div>
+</div>
+
+<!-- Overflows strong CB edge, shifted. -->
+<div class="container">
+  <div class="item rtl" style="left: 10px; right: 20px;" data-offset-x="-20">
+    <div class="inner" style="width: 120px;"></div>
+  </div>
+</div>
+
+<!-- No overflow, centered in IMCB. -->
+<div class="container">
+  <div class="item rtl" style="left: -10px; right: -20px;" data-offset-x="45">
+    <div class="inner"></div>
+  </div>
+</div>
+
+<!-- No overflow, centered in IMCB. -->
+<div class="container">
+  <div class="item rtl" style="left: -10px; right: -20px;" data-offset-x="-5">
+    <div class="inner" style="width: 120px;"></div>
+  </div>
+</div>
+
+<!-- Overflows strong CB edge, shifted. -->
+<div class="container">
+  <div class="item rtl" style="left: -10px; right: -20px;" data-offset-x="-40">
+    <div class="inner" style="width: 160px;"></div>
+  </div>
+</div>

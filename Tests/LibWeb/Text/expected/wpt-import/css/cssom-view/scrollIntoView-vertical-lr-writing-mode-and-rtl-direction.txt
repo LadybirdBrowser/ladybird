@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Fail
+Fail	scrollIntoView({"block":"start","inline":"start"})
+Fail	scrollIntoView({"block":"start","inline":"center"})
+Fail	scrollIntoView({"block":"start","inline":"end"})
+Fail	scrollIntoView({"block":"center","inline":"start"})
+Fail	scrollIntoView({"block":"center","inline":"center"})
+Fail	scrollIntoView({"block":"center","inline":"end"})
+Fail	scrollIntoView({"block":"end","inline":"start"})
+Fail	scrollIntoView({"block":"end","inline":"center"})
+Fail	scrollIntoView({"block":"end","inline":"end"})

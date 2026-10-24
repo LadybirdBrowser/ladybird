@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Fail
+Fail	text-orientation initial value
+Fail	text-orientation: upright
+Fail	text-orientation: sideways
+Fail	text-orientation should inherit
+Fail	text-orientation: mixed
+Fail	text-orientation: initial
+Fail	text-orientation: inherit
+Fail	text-orientation: foo

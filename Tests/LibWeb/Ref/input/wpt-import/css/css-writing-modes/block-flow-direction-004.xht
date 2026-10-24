@@ -1,0 +1,55 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: 'writing-mode' - initial value is 'horizontal-tb'</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css-writing-modes-3/#block-flow" title="3.1 Block Flow Direction: the writing-mode property" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/block-flow-direction-001-ref.xht" />
+
+  <meta content="ahem" name="flags" />
+  <meta content="This test checks that the default, initial value of writing-mode is 'horizontal-tb'." name="assert" />
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body
+  {
+  color: yellow;
+  font: 20px/1 Ahem;
+  width: 21em;
+  }
+
+  div
+  {
+  background-color: blue;
+  border-left: blue solid 1em;
+  border-right: blue solid 1em;
+  }
+
+  div#top-border { border-top: blue solid 1em; }
+
+  div#bottom-border { border-bottom: blue solid 1em; }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <!-- topmost line --><div id="top-border">AAAA BBBB CCCC DDDD</div>
+
+  <!-- 2nd topmost line --><div>E&nbsp; F G&nbsp; H J&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp; </div>
+
+  <!-- 3rd topmost line --><div>M&nbsp; N Q&nbsp; R S&nbsp;&nbsp;&nbsp; T&nbsp;&nbsp; </div>
+
+  <!-- 4th topmost line --><div>UUUU VVVV WWWW XXXX</div>
+
+  <!-- 5th topmost line --><div>Z&nbsp;&nbsp;&nbsp; a&nbsp; b&nbsp;&nbsp;&nbsp; c&nbsp;&nbsp;&nbsp; d</div>
+
+  <!-- 6th topmost line --><div>e&nbsp;&nbsp;&nbsp; f&nbsp; g&nbsp;&nbsp;&nbsp; h&nbsp;&nbsp;&nbsp; j</div>
+
+  <!-- 7th topmost line --><div id="bottom-border">k&nbsp;&nbsp;&nbsp; m&nbsp; n qqqq rrrr</div>
+
+ </body>
+</html>

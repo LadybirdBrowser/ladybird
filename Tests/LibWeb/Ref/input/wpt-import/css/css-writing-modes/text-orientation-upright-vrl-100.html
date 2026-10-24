@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Writing Modes Test: writing-mode: vertical-rl; text-orientation: upright.</title>
+<link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/text-orientation-upright-vrl-100-ref.html">
+<link rel="help" href="http://www.w3.org/TR/css-writing-modes-3/#text-orientation">
+<link rel="author" title="Koji Ishii" href="mailto:kojiishi@gmail.com">
+<style>
+@font-face {
+    font-family: "orientation";
+    src: url("../../fonts/adobe-fonts/CSSHWOrientationTest.otf");
+}
+html {
+    writing-mode: vertical-rl;
+}
+.test {
+    font: 20px/1 "orientation";
+    height: 17em;
+    text-orientation: upright;
+}
+.line {
+    white-space: pre;
+}
+</style>
+<body>
+<div id="container">
+<div>U+0020-007E<div class="test">
+<div class="line"> !&#34;#$%&amp;&#39;()*+,-./0123456789:;=?@A</div>
+<div class="line">BCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`a</div>
+<div class="line">bcdefghijklmnopqrstuvwxyz{|}~</div>
+</div></div>
+<div>U+3000-30FF<div class="test">
+<div class="line">　、。〃〄々〆〇〈〉《》「」『』【】〒〓〔〕〖〗〘〙〚〛〜〝〞〟</div>
+<div class="line">〠〡〢〣〤〥〦〧〨〩〰〱〲〳〴〵〶〷〸〹〺〻〼〽〾〿ぁあぃいぅう</div>
+<div class="line">ぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづて</div>
+<div class="line">でとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆ</div>
+<div class="line">ょよらりるれろゎわゐゑをんゔゕゖ゛゜ゝゞゟ゠ァアィイゥウェエォオ</div>
+<div class="line">カガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナ</div>
+<div class="line">ニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリ</div>
+<div class="line">ルレロヮワヰヱヲンヴヵヶヷヸヹヺ・ーヽヾヿ</div>
+</div></div>
+<div>U+4E00-4E1F<div class="test">
+<div class="line">一丁丂七丄丅丆万丈三上下丌不与丏丐丑丒专且丕世丗丘丙业丛东丝丞丟</div>
+</div></div>
+<div>U+FF01-FF60<div class="test">
+<div class="line">！＂＃＄％＆＇（）＊＋，－．／０１２３４５６７８９：；＜＝＞？＠</div>
+<div class="line">ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ［＼］＾＿｀</div>
+<div class="line">ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ｛｜｝～｟｠</div>
+</div></div>
+</div>
+</body>
