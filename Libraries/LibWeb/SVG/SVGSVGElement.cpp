@@ -36,7 +36,7 @@ SVGSVGElement::SVGSVGElement(DOM::Document& document, DOM::QualifiedName qualifi
 
 void SVGSVGElement::initialize_element()
 {
-    SVGFitToViewBox::initialize_fit_to_view_box();
+    SVGFitToViewBox::initialize_fit_to_view_box(*this);
 }
 
 void SVGSVGElement::visit_edges(Visitor& visitor)

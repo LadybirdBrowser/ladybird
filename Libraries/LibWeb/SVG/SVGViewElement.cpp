@@ -22,7 +22,7 @@ SVGViewElement::SVGViewElement(DOM::Document& document, DOM::QualifiedName quali
 
 void SVGViewElement::initialize_element()
 {
-    SVGFitToViewBox::initialize_fit_to_view_box();
+    SVGFitToViewBox::initialize_fit_to_view_box(*this);
 }
 
 void SVGViewElement::visit_edges(Visitor& visitor)

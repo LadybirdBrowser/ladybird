@@ -411,6 +411,7 @@ SVGAnimatedLength
 SVGAnimatedLengthList
 SVGAnimatedNumber
 SVGAnimatedNumberList
+SVGAnimatedPreserveAspectRatio
 SVGAnimatedRect
 SVGAnimatedString
 SVGAnimatedTransformList
@@ -469,6 +470,7 @@ SVGPatternElement
 SVGPoint
 SVGPolygonElement
 SVGPolylineElement
+SVGPreserveAspectRatio
 SVGRadialGradientElement
 SVGRect
 SVGRectElement

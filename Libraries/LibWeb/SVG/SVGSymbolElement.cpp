@@ -22,7 +22,7 @@ SVGSymbolElement::SVGSymbolElement(DOM::Document& document, DOM::QualifiedName q
 
 void SVGSymbolElement::initialize_element()
 {
-    SVGFitToViewBox::initialize_fit_to_view_box();
+    SVGFitToViewBox::initialize_fit_to_view_box(*this);
 }
 
 void SVGSymbolElement::visit_edges(Cell::Visitor& visitor)

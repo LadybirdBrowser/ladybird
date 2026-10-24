@@ -864,6 +864,7 @@ set(SOURCES
     SVG/SVGAnimatedLengthList.cpp
     SVG/SVGAnimatedNumber.cpp
     SVG/SVGAnimatedNumberList.cpp
+    SVG/SVGAnimatedPreserveAspectRatio.cpp
     SVG/SVGAnimatedRect.cpp
     SVG/SVGAnimatedString.cpp
     SVG/SVGAnimatedTransformList.cpp
@@ -926,6 +927,7 @@ set(SOURCES
     SVG/SVGPatternElement.cpp
     SVG/SVGPolygonElement.cpp
     SVG/SVGPolylineElement.cpp
+    SVG/SVGPreserveAspectRatio.cpp
     SVG/SVGRadialGradientElement.cpp
     SVG/SVGRectElement.cpp
     SVG/SVGScriptElement.cpp

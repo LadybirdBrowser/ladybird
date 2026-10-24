@@ -5,7 +5,7 @@ interface SVGImageElement : SVGGraphicsElement {
     [SameObject] readonly attribute SVGAnimatedLength y;
     [SameObject] readonly attribute SVGAnimatedLength width;
     [SameObject] readonly attribute SVGAnimatedLength height;
-    [FIXME, SameObject] readonly attribute SVGAnimatedPreserveAspectRatio preserveAspectRatio;
+    [SameObject, ImplementedAs=preserve_aspect_ratio_for_bindings] readonly attribute SVGAnimatedPreserveAspectRatio preserveAspectRatio;
     [Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
 };
 

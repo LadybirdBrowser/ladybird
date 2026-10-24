@@ -27,6 +27,15 @@ void SVGFEImageElement::visit_edges(Cell::Visitor& visitor)
     SVGFilterPrimitiveStandardAttributes::visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
     visitor.visit(m_resource_request);
+    visitor.visit(m_preserve_aspect_ratio);
+}
+
+// https://drafts.fxtf.org/filter-effects/#dom-svgfeimageelement-preserveaspectratio
+GC::Ref<SVGAnimatedPreserveAspectRatio> SVGFEImageElement::preserve_aspect_ratio_for_bindings()
+{
+    if (!m_preserve_aspect_ratio)
+        m_preserve_aspect_ratio = SVGAnimatedPreserveAspectRatio::create(*this);
+    return *m_preserve_aspect_ratio;
 }
 
 void SVGFEImageElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
