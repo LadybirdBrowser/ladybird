@@ -168,6 +168,16 @@ pub unsafe fn vm_from_abi<'vm>(vm: *mut JSVM) -> &'vm Vm {
     unsafe { vm.cast::<Vm>().as_ref() }
 }
 
+/// The object of any class at the address of a JSObject the ABI passes.
+///
+/// # Safety
+///
+/// `object` must be the address of a live object.
+pub unsafe fn object_from_abi(object: *mut JSObject) -> Gc<Object> {
+    // SAFETY: The caller guarantees that the pointer is the address of a live object.
+    unsafe { cell_from_abi(object) }
+}
+
 /// The address of an object of any class, as the JSObject the ABI passes.
 pub fn object_into_abi<T: Extends<Object>>(object: Gc<T>) -> *mut JSObject {
     cell_into_abi(object.upcast::<Object>())

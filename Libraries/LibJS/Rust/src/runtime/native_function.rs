@@ -238,6 +238,13 @@ impl NativeFunction {
         )
     }
 
+    /// The captures of the object, if it is a native function that create() or create_with_name() made with captures
+    /// of type C, which tell such a function from all others, as an internal slot of its own would.
+    pub fn captures_if<C: 'static>(object: &Object) -> Option<&C> {
+        let function = crate::gc::class::downcast_ref::<Object, CapturingNativeFunction>(object)?;
+        function.native_function.captures().downcast_ref::<C>()
+    }
+
     pub fn as_native_function_gc(&self) -> Gc<NativeFunction> {
         Gc::from_ref(self)
     }
@@ -450,6 +457,9 @@ impl FunctionObject {
 /// The behaviour of a native function that captures state, which a CapturingNativeFunction calls.
 pub trait NativeFunctionBehaviour: Trace + 'static {
     fn call(&self, vm: &Vm) -> ThrowCompletionOr<Value>;
+
+    /// The state the behaviour captures.
+    fn captures(&self) -> &dyn core::any::Any;
 }
 
 /// A behaviour together with the state it captures. The behaviour is zero-sized, so the captures are all the state
@@ -473,6 +483,10 @@ where
 {
     fn call(&self, vm: &Vm) -> ThrowCompletionOr<Value> {
         (self.behaviour)(vm, &self.captures)
+    }
+
+    fn captures(&self) -> &dyn core::any::Any {
+        &self.captures
     }
 }
 
