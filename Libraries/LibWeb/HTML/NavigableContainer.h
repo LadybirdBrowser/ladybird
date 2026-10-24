@@ -51,6 +51,12 @@ public:
 
     ReplicatedContainerState replicated_container_state();
 
+    // https://w3c.github.io/webappsec-permissions-policy/#algo-process-policy-attributes
+    PermissionsPolicy::PolicyDirective process_permissions_policy_attributes() const;
+
+    // https://w3c.github.io/webappsec-permissions-policy/#algo-create-for-navigable
+    static PermissionsPolicy::PermissionsPolicy create_a_permissions_policy(GC::Ptr<NavigableContainer const>, URL::Origin const&);
+
     // The UI process routes input over a navigable another process hosts by the rect of its container's content box
     // in the viewport of the local root, and tells that navigable the part of it the top-level viewport shows. Both
     // are reported whenever they change.

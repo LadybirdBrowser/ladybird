@@ -158,6 +158,27 @@ TEST_CASE(target_snapshot_params_take_the_popup_or_container_sandboxing_flags)
     EXPECT(frame_params.iframe_element_referrer_policy == Web::ReferrerPolicy::ReferrerPolicy::NoReferrer);
 }
 
+TEST_CASE(initial_documents_take_the_container_policy_that_the_container_holder_reports)
+{
+    auto top_level = WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document({});
+    auto top_level_origin = origin_for("https://top.example/"sv);
+    top_level.document->set_origin_for_testing(top_level_origin);
+
+    Web::HTML::ReplicatedContainerState embedder {
+        .is_in_document_tree = true,
+        .local_name = "iframe"_utf16_fly_string,
+        .container_policy = Web::PermissionsPolicy::parse_policy_directive("microphone 'none'"sv, top_level_origin, top_level_origin),
+    };
+    auto frame_document = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(top_level.document.ptr(), embedder, *top_level.browsing_context->group(), {}, {}).document;
+
+    auto is_enabled = [&](Web::PermissionsPolicy::PolicyControlledFeature feature) {
+        return Web::PermissionsPolicy::check_permissions_policy(frame_document->permissions_policy(), feature, frame_document->origin(), frame_document->origin()) == Web::PermissionsPolicy::FeatureValue::Enabled;
+    };
+    EXPECT(frame_document->origin().is_same_origin(top_level_origin));
+    EXPECT(!is_enabled(Web::PermissionsPolicy::PolicyControlledFeature::Microphone));
+    EXPECT(is_enabled(Web::PermissionsPolicy::PolicyControlledFeature::Camera));
+}
+
 TEST_CASE(response_browsing_context_is_activated_only_at_commit)
 {
     WebView::CanonicalTraversable traversable { {}, initial_history_entry() };

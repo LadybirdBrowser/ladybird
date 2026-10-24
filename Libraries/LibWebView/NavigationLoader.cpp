@@ -91,6 +91,7 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
         .final_sandboxing_flag_set = fetched_navigation_params.final_sandboxing_flag_set,
         .environment_id = {},
         .document_id = {},
+        .permissions_policy = fetched_navigation_params.permissions_policy,
     };
 }
 
@@ -246,6 +247,13 @@ void NavigationLoader::obtain_the_response_policies(CanonicalNavigable const& na
     }
 
     navigation_params->opener_policy = response_coop;
+
+    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
+    // 2. Let permissionsPolicy be the result of creating a permissions policy from a response given navigationParams's
+    //    navigable's container, navigationParams's origin, and navigationParams's response.
+    // NB: The UI process creates it here, from the response's headers, so that the process creating the document
+    //     takes it with navigationParams.
+    navigation_params->permissions_policy = navigable.create_a_permissions_policy_from_a_response(navigation_params->origin, header_list);
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#check-a-navigation-response's-adherence-to-its-embedder-policy

@@ -69,6 +69,13 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
             origin = given_origin.release_value();
     }
 
+    // 8. Let permissionsPolicy be the result of creating a permissions policy given embedder and origin.
+    // NB: embedder's node document is creator, and the process holding embedder reports its container policy.
+    Optional<Web::PermissionsPolicy::NavigableContainerPolicyInputs> container;
+    if (embedder.has_value())
+        container.emplace(creator->permissions_policy(), creator->origin(), embedder->container_policy);
+    auto permissions_policy = Web::PermissionsPolicy::create_a_permissions_policy_for_a_navigable(container, origin);
+
     // 9. Let agent be the result of obtaining a similar-origin window agent given origin, group, and false.
     auto agent = group.obtain_similar_origin_window_agent(origin, false);
 
@@ -92,9 +99,11 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
     // 15. Let document be a new Document, with:
     //     origin: origin
     //     browsing context: browsingContext
+    //     permissions policy: permissionsPolicy
     //     active sandboxing flag set: sandboxFlags
     //     is initial about:blank: true
     auto document = CanonicalDocument::create(document_id, URL::about_blank(), origin, browsing_context, window, sandbox_flags, CanonicalDocument::IsInitialAboutBlank::Yes);
+    document->set_permissions_policy(move(permissions_policy));
 
     // 19. If creator is non-null:
     //     2. Set document's policy container to a clone of creator's policy container.

@@ -606,9 +606,77 @@ ReplicatedContainerState NavigableContainer::replicated_container_state()
         state.iframe_sandboxing_flag_set = iframe->iframe_sandboxing_flag_set();
     state.document_active_sandboxing_flag_set = document().active_sandboxing_flag_set();
     state.document_embedder_policy = document().policy_container()->embedder_policy;
+    state.document_permissions_policy = document().permissions_policy();
     state.local_name = local_name();
     state.iframe_referrer_policy = determine_iframe_element_referrer_policy(*this);
+    state.container_policy = process_permissions_policy_attributes();
     return state;
+}
+
+// https://w3c.github.io/webappsec-permissions-policy/#declared-origin
+static URL::Origin declared_origin(HTMLIFrameElement const& node)
+{
+    // 1. If node's node document's sandboxed origin browsing context flag is set, then return a new opaque origin.
+    if (has_flag(node.document().active_sandboxing_flag_set(), SandboxingFlagSet::SandboxedOrigin))
+        return URL::Origin::create_opaque();
+
+    // 2. If node's sandbox attribute is set, and does not contain the allow-same-origin keyword, then return a new
+    //    opaque origin.
+    if (auto sandbox = node.get_attribute(AttributeNames::sandbox); sandbox.has_value() && has_flag(parse_a_sandboxing_directive(sandbox->utf16_view()), SandboxingFlagSet::SandboxedOrigin))
+        return URL::Origin::create_opaque();
+
+    // 3. If node's srcdoc attribute is set, then return node's node document's origin.
+    if (node.has_attribute(AttributeNames::srcdoc))
+        return node.document().origin();
+
+    // 4. If node's src attribute is set:
+    if (auto src = node.get_attribute(AttributeNames::src); src.has_value()) {
+        // 1. Let url be the result of parsing node's src attribute, relative to node's node document.
+        auto url = node.document().encoding_parse_url(src->utf16_view());
+
+        // 2. If url is not failure, return url's origin.
+        if (url.has_value())
+            return url->origin();
+    }
+
+    // 5. Return node's node document's origin.
+    return node.document().origin();
+}
+
+// https://w3c.github.io/webappsec-permissions-policy/#algo-process-policy-attributes
+PermissionsPolicy::PolicyDirective NavigableContainer::process_permissions_policy_attributes() const
+{
+    // 1. If element is not an iframe element, then return an empty policy directive.
+    auto const* iframe = as_if<HTMLIFrameElement>(*this);
+    if (!iframe)
+        return {};
+
+    // 2. Let container policy be the result of running Parse policy directive given the value of element's allow
+    //    attribute, the origin of element's node document, and element's declared origin.
+    auto allow_attribute = get_attribute_value(AttributeNames::allow);
+    auto allow = allow_attribute.utf16_view().to_utf8_but_should_be_ported_to_utf16();
+    auto container_policy = PermissionsPolicy::parse_policy_directive(allow, document().origin(), declared_origin(*iframe));
+
+    // 3. If element's allowfullscreen attribute is specified, and container policy does not contain an entry for the
+    //    fullscreen feature,
+    if (has_attribute(AttributeNames::allowfullscreen) && !container_policy.contains(PermissionsPolicy::PolicyControlledFeature::Fullscreen)) {
+        // 1. Set container policy[fullscreen] = the special value *.
+        PermissionsPolicy::Allowlist allowlist;
+        allowlist.is_the_special_value_star = true;
+        container_policy.set(PermissionsPolicy::PolicyControlledFeature::Fullscreen, move(allowlist));
+    }
+
+    // 4. Return container policy.
+    return container_policy;
+}
+
+PermissionsPolicy::PermissionsPolicy NavigableContainer::create_a_permissions_policy(GC::Ptr<NavigableContainer const> container, URL::Origin const& origin)
+{
+    if (!container)
+        return PermissionsPolicy::create_a_permissions_policy_for_a_navigable({}, origin);
+    auto container_policy = container->process_permissions_policy_attributes();
+    auto const& node_document = container->document();
+    return PermissionsPolicy::create_a_permissions_policy_for_a_navigable(PermissionsPolicy::NavigableContainerPolicyInputs { node_document.permissions_policy(), node_document.origin(), container_policy }, origin);
 }
 
 bool NavigableContainer::content_navigable_has_session_history_entry_and_ready_for_navigation() const

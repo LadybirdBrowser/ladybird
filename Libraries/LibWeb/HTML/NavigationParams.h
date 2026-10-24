@@ -65,6 +65,9 @@ struct NavigationParams : GC::Cell {
     //         browsing context group switch gave it one.
     Optional<u64> new_browsing_context_group_id;
 
+    // AD-HOC: The permissions policy the UI process created for the new Document.
+    Optional<PermissionsPolicy::PermissionsPolicy> permissions_policy;
+
     // null or an algorithm accepting a Document, once it has been created
     GC::Ptr<GC::Function<void(DOM::Document&)>> commit_early_hints { nullptr };
 
