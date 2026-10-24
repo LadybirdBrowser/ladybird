@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px SerenitySans; }
+    button { width: 180px; min-height: 200px; padding: 0; border: 0; font: inherit; }
+    .marker { display: inline-block; }
+</style>
+<button id="button"><div class="marker" id="marker">some words that wrap here</div></button>
+<div id="spacer"></div>
+<script>
+    const textRects = element => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const origin = element.getBoundingClientRect();
+        return [...range.getClientRects()].map(rect => [rect.left - origin.left, rect.top - origin.top, rect.width]);
+    };
+    let referenceTextRects;
+    layoutTest({
+        setup: async () => {
+            await document.fonts.ready;
+            const reference = button.cloneNode(true);
+            reference.removeAttribute("id");
+            reference.style.minHeight = "0px";
+            document.body.appendChild(reference);
+            internals.updateLayoutForTesting();
+            referenceTextRects = JSON.stringify(textRects(reference.firstElementChild));
+            reference.remove();
+        },
+        steps: [
+            {
+                name: "a pass that leaves the button alone",
+                mutate: () => {
+                    spacer.style.height = "10px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer(anonymous) REUSE IN-FLOW SUBTREE
+                `,
+            },
+            {
+                name: "another pass that leaves the button alone, after which its stored measurements age out",
+                mutate: () => {
+                    spacer.style.height = "20px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer(anonymous) REUSE IN-FLOW SUBTREE
+                `,
+            },
+            {
+                name: "measuring the button reuses the inline-block committed in an earlier pass",
+                mutate: () => {
+                    button.style.minHeight = "210px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<BUTTON>#button/block RUN (cache=miss)
+                            BlockContainer<BUTTON>#button/block (measurement) RUN (cache=bypass)
+                              BlockContainer(anonymous)/flex (measurement) RUN (cache=miss)
+                                BlockContainer(anonymous) MEASURE max-content block (cache=hit)
+                                BlockContainer(anonymous) MEASURE max-content block (cache=hit)
+                                BlockContainer(anonymous)/block (measurement) RUN (cache=miss)
+                                  BlockContainer<DIV>#marker.marker/block (measurement) REUSE SUBTREE
+                            BlockContainer(anonymous)/flex RUN (cache=miss)
+                              BlockContainer(anonymous) MEASURE max-content block (cache=hit)
+                              BlockContainer(anonymous)/block REUSE SUBTREE
+                          BlockContainer<DIV>#spacer REUSE IN-FLOW SUBTREE
+                `,
+            },
+            {
+                name: "a narrower button commits the inline-block anew",
+                mutate: () => {
+                    button.style.width = "150px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<BUTTON>#button/block RUN (cache=miss)
+                            BlockContainer<BUTTON>#button/block (measurement) RUN (cache=bypass)
+                              BlockContainer(anonymous)/flex (measurement) RUN (cache=miss)
+                                BlockContainer(anonymous) MEASURE max-content block (cache=miss)
+                                  BlockContainer(anonymous)/block (measurement, intrinsic) RUN (cache=bypass)
+                                    BlockContainer<DIV>#marker.marker/block (measurement, intrinsic) RUN (cache=miss)
+                                      BlockContainer<DIV>#marker.marker MEASURE max-content inline (cache=hit)
+                                      BlockContainer<DIV>#marker.marker MEASURE min-content inline (cache=hit)
+                                BlockContainer(anonymous) MEASURE max-content block (cache=hit)
+                                BlockContainer(anonymous)/block (measurement) RUN (cache=miss)
+                                  BlockContainer<DIV>#marker.marker/block (measurement) RUN (cache=miss)
+                                    BlockContainer<DIV>#marker.marker MEASURE max-content inline (cache=hit)
+                                    BlockContainer<DIV>#marker.marker MEASURE min-content inline (cache=hit)
+                            BlockContainer(anonymous)/flex RUN (cache=miss)
+                              BlockContainer(anonymous) MEASURE max-content block (cache=hit)
+                              BlockContainer(anonymous)/block RUN (cache=miss)
+                                BlockContainer<DIV>#marker.marker/block REPLAY FRAGMENTS
+                          BlockContainer<DIV>#spacer REUSE IN-FLOW SUBTREE
+                `,
+            },
+            {
+                name: "the stored measurement misses once the inline-block it reused was committed anew",
+                mutate: () => {
+                    button.style.width = "180px";
+                    button.style.minHeight = "0px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<BUTTON>#button/block RUN (cache=miss)
+                            BlockContainer<BUTTON>#button/block (measurement) RUN (cache=bypass)
+                              BlockContainer(anonymous)/flex (measurement) RUN (cache=miss)
+                                BlockContainer(anonymous) MEASURE max-content block (cache=hit)
+                                BlockContainer(anonymous) MEASURE max-content block (cache=hit)
+                                BlockContainer(anonymous)/block (measurement) RUN (cache=miss)
+                                  BlockContainer<DIV>#marker.marker/block (measurement) RUN (cache=miss)
+                                    BlockContainer<DIV>#marker.marker MEASURE max-content inline (cache=hit)
+                                    BlockContainer<DIV>#marker.marker MEASURE min-content inline (cache=hit)
+                            BlockContainer(anonymous)/flex REPLAY FRAGMENTS
+                          BlockContainer<DIV>#spacer REUSE IN-FLOW SUBTREE
+                `,
+                check: equal => {
+                    equal(JSON.stringify(textRects(marker)), referenceTextRects, "inline-block text lines");
+                },
+            },
+        ],
+    });
+</script>

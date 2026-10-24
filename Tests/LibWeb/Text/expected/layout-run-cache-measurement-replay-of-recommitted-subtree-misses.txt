@@ -1,0 +1,5 @@
+PASS: a pass that leaves the button alone (work)
+PASS: another pass that leaves the button alone, after which its stored measurements age out (work)
+PASS: measuring the button reuses the inline-block committed in an earlier pass (work)
+PASS: a narrower button commits the inline-block anew (work)
+PASS: the stored measurement misses once the inline-block it reused was committed anew (work + checks)

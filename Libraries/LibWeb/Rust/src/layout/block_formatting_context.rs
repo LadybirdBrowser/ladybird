@@ -32,6 +32,12 @@ enum ColumnExtent {
     AllRemainingContent,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ColumnLayoutUse {
+    BalancingProbe,
+    ContainerContent,
+}
+
 struct FragmentationState {
     container_content_box_block_start_in_root: CssPixels,
     resume: Option<fragmentation::BlockResume>,
@@ -3348,7 +3354,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     root_line_data,
                     root,
                 } = self.layout_column(
-                    self.run.purpose,
+                    ColumnLayoutUse::ContainerContent,
                     column_input,
                     if is_last_allowed_column {
                         ColumnExtent::AllRemainingContent
@@ -3577,7 +3583,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             let mut minimal_space_shortage: Option<CssPixels> = None;
             let finished = loop {
                 let ColumnLayout { outcome, .. } = self.layout_column(
-                    formatting_context::LayoutPurpose::Measurement,
+                    ColumnLayoutUse::BalancingProbe,
                     column_input,
                     ColumnExtent::BlockSize(block_size),
                     incoming,
@@ -3625,7 +3631,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 consumed_block_size,
                 ..
             } = self.layout_column(
-                formatting_context::LayoutPurpose::Measurement,
+                ColumnLayoutUse::BalancingProbe,
                 column_input,
                 ColumnExtent::UntilForcedBreak,
                 incoming,
@@ -3643,7 +3649,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn layout_column(
         &self,
-        purpose: formatting_context::LayoutPurpose,
+        column_layout_use: ColumnLayoutUse,
         input: LayoutInput,
         extent: ColumnExtent,
         incoming: Option<std::rc::Rc<fragmentation::BlockBreakToken>>,
@@ -3662,6 +3668,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut tried_early_breaks: Vec<Node> = early_break_before.into_iter().collect();
         let mut minimal_space_shortage_of_discarded_attempts = None;
         let inline_items = self.column_inline_items.get_or_init(Default::default);
+        let (purpose, builds_fragments) = match column_layout_use {
+            ColumnLayoutUse::BalancingProbe => (formatting_context::LayoutPurpose::Measurement, false),
+            ColumnLayoutUse::ContainerContent => (self.run.purpose, self.run.fragments.is_some()),
+        };
         loop {
             let fragmentainer = std::rc::Rc::new(fragmentation::FragmentainerContext::new(
                 block_size,
@@ -3671,7 +3681,13 @@ impl<'pass> BlockFormattingContext<'pass> {
                 early_break_before,
                 allows_early_break_requests,
             ));
-            let outputs = formatting_context::run_fragmentainer(&self.run, purpose, input, fragmentainer.clone());
+            let outputs = formatting_context::run_fragmentainer(
+                &self.run,
+                purpose,
+                builds_fragments,
+                input,
+                fragmentainer.clone(),
+            );
             if outputs.result.depends_on_percentage_block_size {
                 self.used(self.run.box_)
                     .has_descendant_that_depends_on_percentage_block_size
@@ -3714,9 +3730,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 consumed_block_size: outputs.result.automatic_content_block_size,
                 baselines: outputs.result.baselines,
                 root_line_data: outputs.root_outcome.line_data,
-                root: (purpose == formatting_context::LayoutPurpose::Commit)
-                    .then_some(outputs.root)
-                    .flatten(),
+                root: outputs.root,
             };
         }
     }

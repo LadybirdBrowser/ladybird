@@ -1,0 +1,4 @@
+PASS: a pass that leaves the button alone (work)
+PASS: another pass that leaves the button alone, after which its stored measurements age out (work)
+PASS: the button measures its content anew but commits the content it laid out at its min-height before (work + checks)
+PASS: the measured content is committed by replay, not by a claim it never made (work + checks)
