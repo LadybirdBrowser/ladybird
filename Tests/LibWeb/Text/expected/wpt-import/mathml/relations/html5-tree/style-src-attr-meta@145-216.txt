@@ -2,77 +2,76 @@ Harness status: OK
 
 Found 72 tests
 
-40 Pass
-32 Fail
-Fail	style-src-attr 'none' blocks inline style on <mrow>
+72 Pass
+Pass	style-src-attr 'none' blocks inline style on <mrow>
 Pass	CSP absent allows inline style on <mrow>
 Pass	style-src-attr 'unsafe-inline' allows inline style on <mrow>
 Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <mrow>
-Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mrow>
-Fail	style-src 'none' fallback blocks inline style on <mrow>
+Pass	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mrow>
+Pass	style-src 'none' fallback blocks inline style on <mrow>
 Pass	style-src 'unsafe-inline' fallback allows inline style on <mrow>
 Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <mrow>
-Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mrow>
-Fail	style-src-attr 'none' blocks inline style on <ms>
+Pass	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mrow>
+Pass	style-src-attr 'none' blocks inline style on <ms>
 Pass	CSP absent allows inline style on <ms>
 Pass	style-src-attr 'unsafe-inline' allows inline style on <ms>
 Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <ms>
-Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <ms>
-Fail	style-src 'none' fallback blocks inline style on <ms>
+Pass	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <ms>
+Pass	style-src 'none' fallback blocks inline style on <ms>
 Pass	style-src 'unsafe-inline' fallback allows inline style on <ms>
 Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <ms>
-Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <ms>
-Fail	style-src-attr 'none' blocks inline style on <mspace>
+Pass	style-src-attr 'none' overrides style-src 'unsafe-inline' on <ms>
+Pass	style-src-attr 'none' blocks inline style on <mspace>
 Pass	CSP absent allows inline style on <mspace>
 Pass	style-src-attr 'unsafe-inline' allows inline style on <mspace>
 Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <mspace>
-Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mspace>
-Fail	style-src 'none' fallback blocks inline style on <mspace>
+Pass	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mspace>
+Pass	style-src 'none' fallback blocks inline style on <mspace>
 Pass	style-src 'unsafe-inline' fallback allows inline style on <mspace>
 Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <mspace>
-Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mspace>
-Fail	style-src-attr 'none' blocks inline style on <msqrt>
+Pass	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mspace>
+Pass	style-src-attr 'none' blocks inline style on <msqrt>
 Pass	CSP absent allows inline style on <msqrt>
 Pass	style-src-attr 'unsafe-inline' allows inline style on <msqrt>
 Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <msqrt>
-Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <msqrt>
-Fail	style-src 'none' fallback blocks inline style on <msqrt>
+Pass	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <msqrt>
+Pass	style-src 'none' fallback blocks inline style on <msqrt>
 Pass	style-src 'unsafe-inline' fallback allows inline style on <msqrt>
 Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <msqrt>
-Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <msqrt>
-Fail	style-src-attr 'none' blocks inline style on <mstyle>
+Pass	style-src-attr 'none' overrides style-src 'unsafe-inline' on <msqrt>
+Pass	style-src-attr 'none' blocks inline style on <mstyle>
 Pass	CSP absent allows inline style on <mstyle>
 Pass	style-src-attr 'unsafe-inline' allows inline style on <mstyle>
 Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <mstyle>
-Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mstyle>
-Fail	style-src 'none' fallback blocks inline style on <mstyle>
+Pass	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mstyle>
+Pass	style-src 'none' fallback blocks inline style on <mstyle>
 Pass	style-src 'unsafe-inline' fallback allows inline style on <mstyle>
 Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <mstyle>
-Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mstyle>
-Fail	style-src-attr 'none' blocks inline style on <msub>
+Pass	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mstyle>
+Pass	style-src-attr 'none' blocks inline style on <msub>
 Pass	CSP absent allows inline style on <msub>
 Pass	style-src-attr 'unsafe-inline' allows inline style on <msub>
 Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <msub>
-Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <msub>
-Fail	style-src 'none' fallback blocks inline style on <msub>
+Pass	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <msub>
+Pass	style-src 'none' fallback blocks inline style on <msub>
 Pass	style-src 'unsafe-inline' fallback allows inline style on <msub>
 Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <msub>
-Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <msub>
-Fail	style-src-attr 'none' blocks inline style on <msubsup>
+Pass	style-src-attr 'none' overrides style-src 'unsafe-inline' on <msub>
+Pass	style-src-attr 'none' blocks inline style on <msubsup>
 Pass	CSP absent allows inline style on <msubsup>
 Pass	style-src-attr 'unsafe-inline' allows inline style on <msubsup>
 Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <msubsup>
-Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <msubsup>
-Fail	style-src 'none' fallback blocks inline style on <msubsup>
+Pass	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <msubsup>
+Pass	style-src 'none' fallback blocks inline style on <msubsup>
 Pass	style-src 'unsafe-inline' fallback allows inline style on <msubsup>
 Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <msubsup>
-Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <msubsup>
-Fail	style-src-attr 'none' blocks inline style on <msup>
+Pass	style-src-attr 'none' overrides style-src 'unsafe-inline' on <msubsup>
+Pass	style-src-attr 'none' blocks inline style on <msup>
 Pass	CSP absent allows inline style on <msup>
 Pass	style-src-attr 'unsafe-inline' allows inline style on <msup>
 Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <msup>
-Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <msup>
-Fail	style-src 'none' fallback blocks inline style on <msup>
+Pass	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <msup>
+Pass	style-src 'none' fallback blocks inline style on <msup>
 Pass	style-src 'unsafe-inline' fallback allows inline style on <msup>
 Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <msup>
-Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <msup>
+Pass	style-src-attr 'none' overrides style-src 'unsafe-inline' on <msup>
