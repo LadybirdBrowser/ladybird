@@ -25,7 +25,7 @@ class StorageShelf : public GC::Cell {
     GC_DECLARE_ALLOCATOR(StorageShelf);
 
 public:
-    static GC::Ref<StorageShelf> create(GC::Ref<Page> page, HTML::EnvironmentId environment_id, StorageType type) { return GC::Heap::the().allocate<StorageShelf>(page, move(environment_id), type); }
+    static GC::Ref<StorageShelf> create(GC::Ref<Page> page, HTML::EnvironmentId environment_id, StorageKey const& key, StorageType type) { return GC::Heap::the().allocate<StorageShelf>(page, move(environment_id), key, type); }
 
     BucketMap& bucket_map() { return m_bucket_map; }
     BucketMap const& bucket_map() const { return m_bucket_map; }
@@ -36,7 +36,7 @@ public:
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
-    explicit StorageShelf(GC::Ref<Page>, HTML::EnvironmentId, StorageType);
+    explicit StorageShelf(GC::Ref<Page>, HTML::EnvironmentId, StorageKey const&, StorageType);
 
     GC::Ref<Page> m_page;
     HTML::EnvironmentId m_environment_id;

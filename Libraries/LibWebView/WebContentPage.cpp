@@ -1241,49 +1241,6 @@ void WebContentPage::did_request_document_cookie_version_index(Web::HTML::Enviro
     }
 }
 
-Messages::WebContentClient::DidRequestStorageItemResponse WebContentPage::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key)
-{
-    auto canonical_key = canonical_storage_key(environment_id);
-    auto* storage_jar = this->storage_jar(storage_endpoint);
-    if (!canonical_key.has_value() || !storage_jar)
-        return Optional<Utf16String> {};
-    return storage_jar->get_item(storage_endpoint, *canonical_key, bottle_key);
-}
-
-Messages::WebContentClient::DidSetStorageItemResponse WebContentPage::did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key, Utf16String value)
-{
-    auto canonical_key = canonical_storage_key(environment_id);
-    auto* storage_jar = this->storage_jar(storage_endpoint);
-    if (!canonical_key.has_value() || !storage_jar)
-        return WebView::StorageOperationError::QuotaExceededError;
-    return storage_jar->set_item(storage_endpoint, *canonical_key, bottle_key, value);
-}
-
-void WebContentPage::did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key)
-{
-    auto canonical_key = canonical_storage_key(environment_id);
-    auto* storage_jar = this->storage_jar(storage_endpoint);
-    if (canonical_key.has_value() && storage_jar)
-        storage_jar->remove_item(storage_endpoint, *canonical_key, bottle_key);
-}
-
-Messages::WebContentClient::DidRequestStorageKeysResponse WebContentPage::did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id)
-{
-    auto canonical_key = canonical_storage_key(environment_id);
-    auto* storage_jar = this->storage_jar(storage_endpoint);
-    if (!canonical_key.has_value() || !storage_jar)
-        return Vector<Utf16String> {};
-    return storage_jar->get_all_keys(storage_endpoint, *canonical_key);
-}
-
-void WebContentPage::did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id)
-{
-    auto canonical_key = canonical_storage_key(environment_id);
-    auto* storage_jar = this->storage_jar(storage_endpoint);
-    if (canonical_key.has_value() && storage_jar)
-        storage_jar->clear_storage_key(storage_endpoint, *canonical_key);
-}
-
 Messages::WebContentClient::ConnectToStorageAreaResponse WebContentPage::connect_to_storage_area(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id)
 {
     auto canonical_key = canonical_storage_key(environment_id);

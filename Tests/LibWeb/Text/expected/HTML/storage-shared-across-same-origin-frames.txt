@@ -1,0 +1,10 @@
+child read session from-parent: s1
+child read local from-parent: l1
+parent read session from-child: s2
+parent read local from-child: l2
+parent session keys: from-child,from-parent
+parent local keys: from-child,from-parent
+child session keys: from-child,from-parent
+child local keys: from-child,from-parent
+child sees removal: null null
+child session length after removal: 1

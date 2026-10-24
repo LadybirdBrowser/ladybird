@@ -189,9 +189,6 @@ private:
     virtual Messages::WebContentClient::DidRequestNamedCookieResponse did_request_named_cookie(URL::URL, String) override;
     virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(Web::PageId page_id, Optional<Web::HTML::EnvironmentId>, URL::URL, HTTP::Cookie::Source) override;
     virtual void did_close_browsing_context(Web::PageId page_id) override;
-    virtual Messages::WebContentClient::DidSetStorageItemResponse did_set_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key, Utf16String value) override;
-    virtual Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key) override;
-    virtual Messages::WebContentClient::DidRequestStorageKeysResponse did_request_storage_keys(Web::PageId page_id, Web::StorageAPI::StorageEndpointType, Web::HTML::EnvironmentId environment_id) override;
     virtual Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(Web::PageId page_id, Web::HTML::EnvironmentId environment_id) override;
     virtual Messages::WebContentClient::ConnectToStorageAreaResponse connect_to_storage_area(Web::PageId page_id, Web::StorageAPI::StorageEndpointType, Web::HTML::EnvironmentId environment_id) override;
     virtual void disconnect_from_storage_area(Web::StorageAPI::StorageAreaId) override;

@@ -116,9 +116,13 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     , m_page_host(PageHost::create(*this))
     , m_enable_test_mode(enable_test_mode)
 {
+    Web::StorageAPI::set_storage_area_mirror_client(this);
 }
 
-ConnectionFromClient::~ConnectionFromClient() = default;
+ConnectionFromClient::~ConnectionFromClient()
+{
+    Web::StorageAPI::set_storage_area_mirror_client(nullptr);
+}
 
 Web::Compositor::CompositorConnection* ConnectionFromClient::compositor_process_connection() const
 {
@@ -1246,20 +1250,54 @@ void ConnectionFromClient::inspect_storage(Web::PageId page_id, Web::StorageAPI:
     async_did_inspect_storage(page_id, request_id, storage_items.serialized());
 }
 
-void ConnectionFromClient::storage_area_changed(Web::StorageAPI::StorageAreaId, Optional<Utf16String>, Optional<Utf16String>, Optional<Utf16String>, String)
+Web::StorageAPI::StorageAreaConnection ConnectionFromClient::connect_to_storage_area(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id)
 {
+    auto response = send_sync_but_allow_failure<Messages::WebContentClient::ConnectToStorageArea>(page_id, storage_endpoint, environment_id);
+    if (!response) {
+        dbgln("WebContent client disconnected during ConnectToStorageArea. Exiting peacefully.");
+        Core::Process::terminate_immediately(0);
+    }
+    return { response->area_id(), response->take_keys(), response->take_values(), response->usage() };
 }
 
-void ConnectionFromClient::storage_area_write_acknowledged(Web::StorageAPI::StorageAreaId)
+void ConnectionFromClient::disconnect_from_storage_area(Web::StorageAPI::StorageAreaId area_id)
 {
+    async_disconnect_from_storage_area(area_id);
 }
 
-void ConnectionFromClient::storage_area_write_refused(Web::StorageAPI::StorageAreaId, Vector<Utf16String>, Vector<Utf16String>)
+void ConnectionFromClient::set_storage_item(Web::StorageAPI::StorageAreaId area_id, Utf16String const& key, Utf16String const& value, String const& document_url)
 {
+    async_set_storage_item(area_id, key, value, document_url);
 }
 
-void ConnectionFromClient::storage_area_reset(Web::StorageAPI::StorageAreaId, Vector<Utf16String>, Vector<Utf16String>)
+void ConnectionFromClient::remove_storage_item(Web::StorageAPI::StorageAreaId area_id, Utf16String const& key, String const& document_url)
 {
+    async_remove_storage_item(area_id, key, document_url);
+}
+
+void ConnectionFromClient::clear_storage_area(Web::StorageAPI::StorageAreaId area_id, String const& document_url)
+{
+    async_clear_storage_area(area_id, document_url);
+}
+
+void ConnectionFromClient::storage_area_changed(Web::StorageAPI::StorageAreaId area_id, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value, String url)
+{
+    Web::StorageAPI::StorageAreaMirror::did_change(area_id, key, old_value, new_value, url);
+}
+
+void ConnectionFromClient::storage_area_write_acknowledged(Web::StorageAPI::StorageAreaId area_id)
+{
+    Web::StorageAPI::StorageAreaMirror::did_acknowledge_write(area_id);
+}
+
+void ConnectionFromClient::storage_area_write_refused(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values)
+{
+    Web::StorageAPI::StorageAreaMirror::did_refuse_write(area_id, move(keys), move(values));
+}
+
+void ConnectionFromClient::storage_area_reset(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values)
+{
+    Web::StorageAPI::StorageAreaMirror::did_reset(area_id, move(keys), move(values));
 }
 
 void ConnectionFromClient::inspect_dom_node(Web::PageId page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options_value)

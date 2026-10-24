@@ -27,6 +27,7 @@
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/Timer.h>
+#include <LibWeb/StorageAPI/StorageAreaMirror.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/CSS/PreferredContrast.h>
 #include <LibWebCommon/CSS/PreferredMotion.h>
@@ -52,7 +53,8 @@
 namespace WebContent {
 
 class ConnectionFromClient final
-    : public IPC::ConnectionFromClient<WebContentClientEndpoint, WebContentServerEndpoint> {
+    : public IPC::ConnectionFromClient<WebContentClientEndpoint, WebContentServerEndpoint>
+    , public Web::StorageAPI::StorageAreaMirrorClient {
     C_OBJECT(ConnectionFromClient);
 
     friend class TestConnection;
@@ -169,6 +171,13 @@ private:
     virtual void get_source(Web::PageId page_id) override;
     virtual void inspect_dom_tree(Web::PageId page_id) override;
     virtual void inspect_storage(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id) override;
+    // Web::StorageAPI::StorageAreaMirrorClient: the mirrors' link to the browser process, which owns the storage.
+    virtual Web::StorageAPI::StorageAreaConnection connect_to_storage_area(Web::PageId, Web::StorageAPI::StorageEndpointType, Web::HTML::EnvironmentId const&) override;
+    virtual void disconnect_from_storage_area(Web::StorageAPI::StorageAreaId) override;
+    virtual void set_storage_item(Web::StorageAPI::StorageAreaId, Utf16String const& key, Utf16String const& value, String const& document_url) override;
+    virtual void remove_storage_item(Web::StorageAPI::StorageAreaId, Utf16String const& key, String const& document_url) override;
+    virtual void clear_storage_area(Web::StorageAPI::StorageAreaId, String const& document_url) override;
+
     virtual void storage_area_changed(Web::StorageAPI::StorageAreaId area_id, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value, String url) override;
     virtual void storage_area_write_acknowledged(Web::StorageAPI::StorageAreaId area_id) override;
     virtual void storage_area_write_refused(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values) override;
