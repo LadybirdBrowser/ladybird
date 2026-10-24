@@ -4414,6 +4414,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
 
     CSSPixelRect scrolling_box_rect;
     CSSPixelPoint current_scroll_position;
+    Layout::NodeWithStyle const* scrolling_box_layout_node = nullptr;
     if (scrolling_box.is_document()) {
         auto& document = scrolling_box.document();
         auto& visual_viewport = *document.visual_viewport();
@@ -4424,17 +4425,37 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
             CSSPixels::nearest_value_for(visual_viewport.height()),
         };
         scrolling_box_rect = { visual_viewport.offset(), visible_size };
-        if (auto* layout_node = document.layout_node(read))
+        if (auto* layout_node = document.layout_node(read)) {
             scrolling_box_rect = Painting::scroll_snapport_rect(*layout_node, scrolling_box_rect);
+            scrolling_box_layout_node = as_if<Layout::NodeWithStyle>(layout_node);
+        }
         current_scroll_position = document.navigable()->viewport_scroll_offset() + visual_viewport.offset();
     } else if (auto* layout_node = scrolling_box.layout_node(read); layout_node && Painting::has_committed_box(*layout_node)) {
         current_scroll_position = Painting::scroll_offset(*layout_node);
+        scrolling_box_layout_node = as_if<Layout::NodeWithStyle>(layout_node);
         scrolling_box_rect = Painting::transform_rect_to_viewport(*layout_node, Painting::scroll_snapport_rect(*layout_node), Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
     } else {
         return {};
     }
 
-    // FIXME: All of this needs to support different block/inline directions.
+    // NB: The block flow and inline base directions of the scrolling box decide which physical axis each runs along and
+    //     which way. The edges below are positions along those directions, which increase from their beginning edge
+    //     towards their ending edge.
+    auto writing_mode = scrolling_box_layout_node ? scrolling_box_layout_node->writing_mode() : CSS::WritingMode::HorizontalTb;
+    auto direction = scrolling_box_layout_node ? scrolling_box_layout_node->direction() : CSS::Direction::Ltr;
+    bool block_axis_is_horizontal = writing_mode != CSS::WritingMode::HorizontalTb;
+    bool block_axis_is_reversed = writing_mode == CSS::WritingMode::VerticalRl || writing_mode == CSS::WritingMode::SidewaysRl;
+    bool inline_axis_is_reversed = (direction == CSS::Direction::Rtl) != (writing_mode == CSS::WritingMode::SidewaysLr);
+    auto start_edge = [](CSSPixelRect const& rect, bool horizontal, bool reversed) {
+        if (horizontal)
+            return reversed ? -rect.right() : rect.left();
+        return reversed ? -rect.bottom() : rect.top();
+    };
+    auto end_edge = [](CSSPixelRect const& rect, bool horizontal, bool reversed) {
+        if (horizontal)
+            return reversed ? -rect.left() : rect.right();
+        return reversed ? -rect.top() : rect.bottom();
+    };
 
     // 1. Let target bounding border box be the box represented by the return value of invoking Element’s
     //    getBoundingClientRect(), if target is an Element, or Range’s getBoundingClientRect(),
@@ -4460,25 +4481,25 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
     // 2. Let scrolling box edge A be the beginning edge in the block flow direction of scrolling box, and
     //    let element edge A be target bounding border box’s edge on the same physical side as that of
     //    scrolling box edge A.
-    CSSPixels element_edge_a = target_bounding_border_box.top();
-    CSSPixels scrolling_box_edge_a = scrolling_box_rect.top();
+    CSSPixels element_edge_a = start_edge(target_bounding_border_box, block_axis_is_horizontal, block_axis_is_reversed);
+    CSSPixels scrolling_box_edge_a = start_edge(scrolling_box_rect, block_axis_is_horizontal, block_axis_is_reversed);
 
     // 3. Let scrolling box edge B be the ending edge in the block flow direction of scrolling box, and let
     //    element edge B be target bounding border box’s edge on the same physical side as that of scrolling
     //    box edge B.
-    CSSPixels element_edge_b = target_bounding_border_box.bottom();
-    CSSPixels scrolling_box_edge_b = scrolling_box_rect.bottom();
+    CSSPixels element_edge_b = end_edge(target_bounding_border_box, block_axis_is_horizontal, block_axis_is_reversed);
+    CSSPixels scrolling_box_edge_b = end_edge(scrolling_box_rect, block_axis_is_horizontal, block_axis_is_reversed);
 
     // 4. Let scrolling box edge C be the beginning edge in the inline base direction of scrolling box, and
     //    let element edge C be target bounding border box’s edge on the same physical side as that of scrolling
     //    box edge C.
-    CSSPixels element_edge_c = target_bounding_border_box.left();
-    CSSPixels scrolling_box_edge_c = scrolling_box_rect.left();
+    CSSPixels element_edge_c = start_edge(target_bounding_border_box, !block_axis_is_horizontal, inline_axis_is_reversed);
+    CSSPixels scrolling_box_edge_c = start_edge(scrolling_box_rect, !block_axis_is_horizontal, inline_axis_is_reversed);
 
     // 5. Let scrolling box edge D be the ending edge in the inline base direction of scrolling box, and let element
     //    edge D be target bounding border box’s edge on the same physical side as that of scrolling box edge D.
-    CSSPixels element_edge_d = target_bounding_border_box.right();
-    CSSPixels scrolling_box_edge_d = scrolling_box_rect.right();
+    CSSPixels element_edge_d = end_edge(target_bounding_border_box, !block_axis_is_horizontal, inline_axis_is_reversed);
+    CSSPixels scrolling_box_edge_d = end_edge(scrolling_box_rect, !block_axis_is_horizontal, inline_axis_is_reversed);
 
     // 6. Let element height be the distance between element edge A and element edge B.
     CSSPixels element_height = element_edge_b - element_edge_a;
@@ -4494,21 +4515,22 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
 
     // 10. Let position be the scroll position scrolling box would have by following these steps:
     auto position = [&]() -> CSSPixelPoint {
-        auto x = current_scroll_position.x();
-        auto y = current_scroll_position.y();
+        // NB: These are distances to scroll along the block flow and inline base directions.
+        CSSPixels block_delta = 0;
+        CSSPixels inline_delta = 0;
 
         // 1. If block is "start", then align element edge A with scrolling box edge A.
         if (block == Element::ScrollLogicalPosition::Start) {
-            y += element_edge_a - scrolling_box_edge_a;
+            block_delta += element_edge_a - scrolling_box_edge_a;
         }
         // 2. Otherwise, if block is "end", then align element edge B with scrolling box edge B.
         else if (block == Element::ScrollLogicalPosition::End) {
-            y += element_edge_b - scrolling_box_edge_b;
+            block_delta += element_edge_b - scrolling_box_edge_b;
         }
         // 3. Otherwise, if block is "center", then align the center of target bounding border box with the center of
         //    scrolling box in scrolling box’s block flow direction.
         else if (block == Element::ScrollLogicalPosition::Center) {
-            y += (element_edge_a + element_height / 2) - (scrolling_box_edge_a + scrolling_box_height / 2);
+            block_delta += (element_edge_a + element_height / 2) - (scrolling_box_edge_a + scrolling_box_height / 2);
         }
         // 4. Otherwise, block is "nearest":
         else {
@@ -4520,28 +4542,28 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
             // If element edge B is outside scrolling box edge B and element height is greater than scrolling box height
             else if ((element_edge_a <= scrolling_box_edge_a && element_height < scrolling_box_height) || (element_edge_b >= scrolling_box_edge_b && element_height > scrolling_box_height)) {
                 // Align element edge A with scrolling box edge A.
-                y += element_edge_a - scrolling_box_edge_a;
+                block_delta += element_edge_a - scrolling_box_edge_a;
             }
             // If element edge A is outside scrolling box edge A and element height is greater than scrolling box height
             // If element edge B is outside scrolling box edge B and element height is less than scrolling box height
             else if ((element_edge_b >= scrolling_box_edge_b && element_height < scrolling_box_height) || (element_edge_a <= scrolling_box_edge_a && element_height > scrolling_box_height)) {
                 // Align element edge B with scrolling box edge B.
-                y += element_edge_b - scrolling_box_edge_b;
+                block_delta += element_edge_b - scrolling_box_edge_b;
             }
         }
 
         // 5. If inline is "start", then align element edge C with scrolling box edge C.
         if (inline_ == Element::ScrollLogicalPosition::Start) {
-            x += element_edge_c - scrolling_box_edge_c;
+            inline_delta += element_edge_c - scrolling_box_edge_c;
         }
         // 6. Otherwise, if inline is "end", then align element edge D with scrolling box edge D.
         else if (inline_ == Element::ScrollLogicalPosition::End) {
-            x += element_edge_d - scrolling_box_edge_d;
+            inline_delta += element_edge_d - scrolling_box_edge_d;
         }
         // 7. Otherwise, if inline is "center", then align the center of target bounding border box with the center of
         //    scrolling box in scrolling box’s inline base direction.
         else if (inline_ == Element::ScrollLogicalPosition::Center) {
-            x += (element_edge_c + element_width / 2) - (scrolling_box_edge_c + scrolling_box_width / 2);
+            inline_delta += (element_edge_c + element_width / 2) - (scrolling_box_edge_c + scrolling_box_width / 2);
         }
         // 8. Otherwise, inline is "nearest":
         else {
@@ -4553,13 +4575,13 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
             // If element edge D is outside scrolling box edge D and element width is greater than scrolling box width
             else if ((element_edge_c <= scrolling_box_edge_c && element_width < scrolling_box_width) || (element_edge_d >= scrolling_box_edge_d && element_width > scrolling_box_width)) {
                 // Align element edge C with scrolling box edge C.
-                x += element_edge_c - scrolling_box_edge_c;
+                inline_delta += element_edge_c - scrolling_box_edge_c;
             }
             // If element edge C is outside scrolling box edge C and element width is greater than scrolling box width
             // If element edge D is outside scrolling box edge D and element width is less than scrolling box width
             else if ((element_edge_d >= scrolling_box_edge_d && element_width < scrolling_box_width) || (element_edge_c <= scrolling_box_edge_c && element_width > scrolling_box_width)) {
                 // Align element edge D with scrolling box edge D.
-                x += element_edge_d - scrolling_box_edge_d;
+                inline_delta += element_edge_d - scrolling_box_edge_d;
             }
         }
 
@@ -4568,6 +4590,12 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
         //           nearest scroll container is a scroll snap container. The user agent may also do this even when the
         //           scroll container has scroll-snap-type: none.
 
+        if (block_axis_is_reversed)
+            block_delta = -block_delta;
+        if (inline_axis_is_reversed)
+            inline_delta = -inline_delta;
+        auto x = current_scroll_position.x() + (block_axis_is_horizontal ? block_delta : inline_delta);
+        auto y = current_scroll_position.y() + (block_axis_is_horizontal ? inline_delta : block_delta);
         return CSSPixelPoint { x, y };
     }();
 
