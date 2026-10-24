@@ -192,6 +192,22 @@ ErrorOr<NonnullRefPtr<Bitmap>> biplanar_yuv_to_bitmap(IntSize size, u8 bit_depth
 {
     if (cicp.matrix_coefficients() == Media::MatrixCoefficients::Identity)
         return Error::from_string_literal("Subsampled RGB is unsupported");
+    if (size.is_empty())
+        return Error::from_string_literal("Bi-planar YUV size is empty");
+
+    size_t bytes_per_sample = bit_depth > 8 ? 2 : 1;
+    auto plane_covers_rows = [](BiplanarYUVPlane const& plane, size_t row_byte_count, size_t row_count) {
+        if (plane.stride < row_byte_count)
+            return false;
+        Checked<size_t> required_size = plane.stride;
+        required_size *= row_count - 1;
+        required_size += row_byte_count;
+        return !required_size.has_overflow() && plane.data.size() >= required_size.value();
+    };
+    auto chroma_width = (static_cast<size_t>(size.width()) + 1) / 2;
+    auto chroma_height = (static_cast<size_t>(size.height()) + 1) / 2;
+    if (!plane_covers_rows(luma, size.width() * bytes_per_sample, size.height()) || !plane_covers_rows(chroma, chroma_width * 2 * bytes_per_sample, chroma_height))
+        return Error::from_string_literal("Bi-planar YUV planes are smaller than their size requires");
 
     auto bitmap = TRY(Bitmap::create(BitmapFormat::RGBA8888, AlphaType::Premultiplied, size));
     auto* destination = reinterpret_cast<u8*>(bitmap->scanline(0));

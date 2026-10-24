@@ -472,8 +472,13 @@ ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot(Core::AnonymousBuffer
         return Error::from_string_literal("Video frame handle describes a frame that could not have been decoded");
 
     // A surface holds the pixels itself, so only an inline framebuffer has a plane layout to validate.
-    if (surface == nullptr)
+    if (surface == nullptr) {
         TRY(yuv_data_in_slot_buffer(slot_buffer, handle.size, handle.bit_depth, handle.subsampling, handle.cicp));
+    } else {
+        auto surface_size = surface->size();
+        if (handle.subsampling.value() != Subsampling::yuv420() || handle.size.width() > surface_size.width() || handle.size.height() > surface_size.height())
+            return Error::from_string_literal("Video frame handle does not match its surface");
+    }
 
     if (slot_header(slot_buffer).slot_acquisition_id.load(AK::MemoryOrder::memory_order_acquire) != handle.slot_acquisition_id)
         return Error::from_string_literal("VideoFrameHandle refers to a recycled slot");

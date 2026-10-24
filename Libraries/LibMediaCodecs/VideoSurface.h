@@ -11,6 +11,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Platform.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/Size.h>
 #include <LibIPC/Forward.h>
 #include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 #include <LibMediaCodecs/Export.h>
@@ -39,6 +40,7 @@ public:
     ~VideoSurface();
 
     u32 id() const { return m_id; }
+    Gfx::IntSize size() const;
 
     // Reads the pixels back into memory, which works only where the platform lets this process map the surface.
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> read_back_bitmap(CodingIndependentCodePoints const&) const;
