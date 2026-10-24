@@ -75,8 +75,9 @@ unsafe impl<T: Trace> Trace for EmbedderCell<T> {
 /// }
 /// ```
 ///
-/// LibGC traces the cells of the class, and destroys those whose value has a destructor. It does not finalize them,
-/// and counts memory they own outside the heap only for a class that new_with_external_memory_size() creates.
+/// LibGC traces the cells of the class, and destroys those whose value has a destructor. It finalizes them only for a
+/// class that with_finalize() gives a finalize entry, and counts memory they own outside the heap only for a class that
+/// new_with_external_memory_size() creates.
 pub struct EmbedderClass<T: 'static> {
     class: Class,
     _value: PhantomData<fn() -> T>,
@@ -98,6 +99,13 @@ impl<T: Trace + 'static> EmbedderClass<T> {
 
     pub const fn class(&'static self) -> &'static Class {
         &self.class
+    }
+
+    /// The class with a finalize entry, which LibGC calls with each dead cell of the class while every cell that dies
+    /// in the collection is still intact, before it destroys any. The entry must not allocate.
+    pub const fn with_finalize(mut self, finalize: unsafe extern "C" fn(cell: *mut c_void)) -> Self {
+        self.class.type_info.finalize = Some(finalize);
+        self
     }
 }
 
