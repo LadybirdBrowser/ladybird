@@ -1,0 +1,5 @@
+isTypeSupported: true
+SourceBuffer updatestart
+SourceBuffer update
+SourceBuffer updateend
+settled: updating false, readyState open, text tracks 1

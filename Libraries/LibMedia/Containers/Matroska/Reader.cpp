@@ -522,7 +522,7 @@ DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::parse_track_entry(Streamer& st
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read TrackUID attribute: {}", track_entry->track_uid());
             break;
         case TRACK_TYPE_ID:
-            track_entry->set_track_type(static_cast<TrackEntry::TrackType>(TRY(streamer.read_u64())));
+            track_entry->set_track_type(TrackEntry::track_type_from_element_value(TRY(streamer.read_u64())));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read TrackType attribute: {}", to_underlying(track_entry->track_type()));
             break;
         case TRACK_FLAG_DEFAULT_ID:
