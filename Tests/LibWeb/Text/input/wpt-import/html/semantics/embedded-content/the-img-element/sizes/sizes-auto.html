@@ -1,0 +1,156 @@
+<!doctype html>
+<title>img parse a sizes attribute: sizes=auto</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/images.html#parse-a-sizes-attribute">
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<style>
+img { height: 10px; } /* Keep all images in the viewport, so lazy images load */
+#narrow-div { width: 10px; }
+#wide-div { width: 500px; }
+</style>
+<div id=log></div>
+<img srcset='/images/green-1x1.png?ref1 50w, /images/green-16x16.png?ref1 51w' sizes='1px' id=ref1>
+<img srcset='/images/green-1x1.png?ref2 50w, /images/green-16x16.png?ref2 51w' sizes='100vw' id=ref2>
+<div id='narrow-div'></div>
+<div id='wide-div'></div>
+<script>
+"use strict";
+
+// https://github.com/web-platform-tests/rfcs/pull/75
+let async_promise_test = (promise, description) => {
+  async_test(test => {
+    promise(test)
+      .then(() => {test.done();})
+      .catch(test.step_func(error => { throw error; }));
+  }, description);
+};
+
+function check(imgOrPicture) {
+  let img = imgOrPicture;
+  let source;
+  if (imgOrPicture.localName === 'picture') {
+    source = imgOrPicture.firstChild;
+    img = imgOrPicture.lastChild;
+  }
+  const ref = document.getElementById(img.dataset.ref);
+  async_promise_test(async (t) => {
+    let expect = ref.currentSrc;
+    if (expect) {
+      expect = expect.split('?')[0];
+    }
+    if (expect === '' || expect === null || expect === undefined) {
+      assert_unreached('ref currentSrc was ' + format_value(expect));
+    }
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+    });
+    t.step(() => {
+      let got = img.currentSrc;
+      assert_greater_than(got.indexOf('?'), -1, 'expected a "?" in currentSrc');
+      got = got.split('?')[0];
+      assert_equals(got, expect);
+    })
+  }, imgOrPicture.outerHTML);
+}
+
+const tests = [
+  // Smoke tests
+  {sizes: '1px', 'data-ref': 'ref1'},
+  {sizes: '', 'data-ref': 'ref2'},
+  // Actual tests
+  {loading: 'lazy', sizes: 'auto', width: '10', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'AUTO', width: '10', 'data-ref': 'ref1'},
+  {loading: 'lazy', width: '10', 'data-ref': 'ref2'}, // no `sizes: 'auto'` -> 100vw
+  {loading: 'lazy', style: 'width: 10px', 'data-ref': 'ref2'}, // no `sizes: 'auto'` -> 100vw
+  {loading: 'lazy', style: 'max-width: 10px', 'data-ref': 'ref2'}, // no `sizes: 'auto'` -> 100vw
+  {loading: 'lazy', style: 'width: 100%; max-width: 10px', 'data-ref': 'ref2'}, // no `sizes: 'auto'` -> 100vw
+  {loading: 'lazy', sizes: 'auto', width: '500', 'data-ref': 'ref2'},
+  {loading: 'lazy', sizes: 'auto', width: '10', style: 'visibility: hidden', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', width: '10', style: 'display: inline', hidden: '', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', width: '0', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', style: 'width: 0px', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', 'data-ref': 'ref2'}, // no width -> UA default of 300px
+  {loading: 'lazy', sizes: 'auto, 100vw', width: '10', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: '100vw, auto', width: '10', 'data-ref': 'ref2'},
+  {loading: 'eager', sizes: 'auto', width: '10', 'data-ref': 'ref2'},
+  {loading: 'lazy', sizes: 'auto', width: '100%', parent: 'narrow-div', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', width: '100%', parent: 'wide-div', 'data-ref': 'ref2'},
+  {loading: 'lazy', sizes: 'auto', style: 'height: 10px; aspect-ratio: 10 / 10', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', style: 'height: 10px; aspect-ratio: 500 / 10', 'data-ref': 'ref2'},
+  {loading: 'lazy', sizes: 'auto', style: 'min-height: 10px; aspect-ratio: 10 / 10', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', style: 'min-height: 10px; aspect-ratio: 500 / 10', 'data-ref': 'ref2'},
+  {loading: 'lazy', sizes: 'auto', style: 'inline-size: 10px', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', style: 'min-inline-size: 10px', 'data-ref': 'ref2'}, // no width -> UA default of 300px
+  {loading: 'lazy', sizes: 'auto', style: 'block-size: 10px; aspect-ratio: 10 / 10', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', style: 'min-block-size: 10px; aspect-ratio: 10 / 10', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', style: 'block-size: 10px; writing-mode: vertical-rl', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', style: 'min-block-size: 10px; writing-mode: vertical-rl', 'data-ref': 'ref2'}, // no width -> UA default of 300px
+  {loading: 'lazy', sizes: 'auto', style: 'inline-size: 10px; aspect-ratio: 10/10; writing-mode: vertical-rl', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', style: 'min-inline-size: 10px; aspect-ratio: 10/10; writing-mode: vertical-rl', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', style: '--my-width: 10px; width: var(--my-width)', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', style: 'width: calc(5px + 5px)', 'data-ref': 'ref1'},
+  {loading: 'lazy', sizes: 'auto', style: 'position: absolute; left: 50%; right: 49%', 'data-ref': 'ref2'}, // replaced elements don't get the width resolved from 'left'/'right' per https://drafts.csswg.org/css2/#abs-replaced-width
+  // img allows auto-sizes only if sizes starts with auto
+  {loading: 'lazy', sizes: '(max-width: 0px) 10px, auto', style: 'width: 10px', 'data-ref': 'ref2'},
+  {loading: 'lazy', sizes: '(min-width: 0px) auto', style: 'width: 10px', 'data-ref': 'ref2'},
+  {loading: 'lazy', sizes: '(min-width: 0px) 100vw, auto', style: 'width: 10px', 'data-ref': 'ref2'},
+];
+
+function test_img(obj, i) {
+  const img = document.createElement('img');
+  let parent = document.body;
+  for (const attr in obj) {
+    if (attr === 'parent') {
+      parent = document.getElementById(obj.parent);
+    } else {
+      img.setAttribute(attr, obj[attr]);
+    }
+  }
+  img.srcset = `/images/green-1x1.png?img${i} 50w, /images/green-16x16.png?img${i} 51w`
+  parent.appendChild(img);
+  check(img);
+}
+
+function test_picture(obj, i) {
+  const picture = document.createElement('picture');
+  const source = document.createElement('source');
+  const img = document.createElement('img');
+  let parent = document.body;
+  for (const attr in obj) {
+    switch (attr) {
+      case 'parent':
+        parent = document.getElementById(obj.parent);
+        break;
+      case 'sizes':
+        // Authors have to specify sizes="auto" on the img to use auto-sizes.
+        if(obj[attr].toLowerCase().startsWith("auto")) {
+          img.setAttribute(attr, obj[attr]);
+          break;
+        }
+      case 'type':
+      case 'media':
+        source.setAttribute(attr, obj[attr]);
+        break;
+      default:
+        img.setAttribute(attr, obj[attr]);
+        break;
+    }
+  }
+  source.srcset = `/images/green-1x1.png?picture${i} 50w, /images/green-16x16.png?picture${i} 51w`;
+  picture.appendChild(source);
+  picture.appendChild(img);
+  parent.appendChild(picture);
+  check(picture);
+}
+
+onload = () => {
+  let i = 0;
+  for (const obj of tests) {
+    i++;
+    test_img(obj, i);
+    test_picture(obj, i);
+  }
+  done();
+}
+</script>

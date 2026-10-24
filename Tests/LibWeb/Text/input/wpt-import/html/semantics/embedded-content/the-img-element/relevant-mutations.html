@@ -1,0 +1,628 @@
+<!doctype html>
+<title>img relevant mutations</title>
+<meta name="timeout" content="long">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="support/relevant-mutations.js"></script>
+<div id=log></div>
+
+<!-- should invoke update the image data -->
+
+<img data-desc="src set">
+<img src="../../../../images/green-2x2.png" data-desc="src changed">
+<img src="../../../../images/green-2x2.png" data-desc="src removed">
+
+<img data-desc="srcset set">
+<img srcset="../../../../images/green-2x2.png" data-desc="srcset changed">
+<img srcset="../../../../images/green-2x2.png" data-desc="srcset removed">
+
+<img data-desc="sizes set">
+<img sizes="" data-desc="sizes changed">
+<img sizes="" data-desc="sizes removed">
+
+<img src="../../../../images/green-2x2.png" data-desc="src set to same value">
+
+<img data-desc="crossorigin absent to empty, src absent">
+<img data-desc="crossorigin absent to anonymous, src absent">
+<img data-desc="crossorigin absent to use-credentials, src absent">
+<img crossorigin data-desc="crossorigin empty to absent, src absent">
+<img crossorigin data-desc="crossorigin empty to use-credentials, src absent">
+<img crossorigin=anonymous data-desc="crossorigin anonymous to absent, src absent">
+<img crossorigin=anonymous data-desc="crossorigin anonymous to use-credentials, src absent">
+<img crossorigin=use-credentials data-desc="crossorigin use-credentials to absent, src absent">
+<img crossorigin=use-credentials data-desc="crossorigin use-credentials to empty, src absent">
+<img crossorigin=use-credentials data-desc="crossorigin use-credentials to anonymous, src absent">
+<img crossorigin=use-credentials data-desc="crossorigin use-credentials to invalid, src absent">
+
+<img src="../../../../images/green-2x2.png" data-desc="crossorigin absent to empty, src already set">
+<img src="../../../../images/green-2x2.png" data-desc="crossorigin absent to anonymous, src already set">
+<img src="../../../../images/green-2x2.png" data-desc="crossorigin absent to use-credentials, src already set">
+<img src="../../../../images/green-2x2.png" crossorigin data-desc="crossorigin empty to absent, src already set">
+<img src="../../../../images/green-2x2.png" crossorigin data-desc="crossorigin empty to use-credentials, src already set">
+<img src="../../../../images/green-2x2.png" crossorigin=anonymous data-desc="crossorigin anonymous to absent, src already set">
+<img src="../../../../images/green-2x2.png" crossorigin=anonymous data-desc="crossorigin anonymous to use-credentials, src already set">
+<img src="../../../../images/green-2x2.png" crossorigin=use-credentials data-desc="crossorigin use-credentials to absent, src already set">
+<img src="../../../../images/green-2x2.png" crossorigin=use-credentials data-desc="crossorigin use-credentials to empty, src already set">
+<img src="../../../../images/green-2x2.png" crossorigin=use-credentials data-desc="crossorigin use-credentials to anonymous, src already set">
+<img src="../../../../images/green-2x2.png" crossorigin=use-credentials data-desc="crossorigin use-credentials to invalid, src already set">
+
+<img data-desc="referrerpolicy absent to no-referrer-when-downgrade, src absent">
+<img data-desc="referrerpolicy absent to no-referrer, src absent">
+<img referrerpolicy data-desc="referrerpolicy empty to no-referrer-when-downgrade, src absent">
+<img referrerpolicy data-desc="referrerpolicy empty to no-referrer, src absent">
+<img referrerpolicy=no-referrer-when-downgrade data-desc="referrerpolicy no-referrer-when-downgrade to absent, src absent">
+<img referrerpolicy=no-referrer-when-downgrade data-desc="referrerpolicy no-referrer-when-downgrade to empty, src absent">
+<img referrerpolicy=no-referrer-when-downgrade data-desc="referrerpolicy no-referrer-when-downgrade to no-referrer, src absent">
+<img referrerpolicy=no-referrer-when-downgrade data-desc="referrerpolicy no-referrer-when-downgrade to invalid, src absent">
+<img referrerpolicy=no-referrer data-desc="referrerpolicy no-referrer to absent, src absent">
+<img referrerpolicy=no-referrer data-desc="referrerpolicy no-referrer to empty, src absent">
+<img referrerpolicy=no-referrer data-desc="referrerpolicy no-referrer to no-referrer-when-downgrade, src absent">
+<img referrerpolicy=no-referrer data-desc="referrerpolicy no-referrer to invalid, src absent">
+
+<img src="../../../../images/green-2x2.png" data-desc="referrerpolicy absent to no-referrer-when-downgrade, src already set">
+<img src="../../../../images/green-2x2.png" data-desc="referrerpolicy absent to no-referrer, src already set">
+<img src="../../../../images/green-2x2.png" referrerpolicy data-desc="referrerpolicy empty to no-referrer-when-downgrade, src already set">
+<img src="../../../../images/green-2x2.png" referrerpolicy data-desc="referrerpolicy empty to no-referrer, src already set">
+<img src="../../../../images/green-2x2.png" referrerpolicy=no-referrer-when-downgrade data-desc="referrerpolicy no-referrer-when-downgrade to absent, src already set">
+<img src="../../../../images/green-2x2.png" referrerpolicy=no-referrer-when-downgrade data-desc="referrerpolicy no-referrer-when-downgrade to empty, src already set">
+<img src="../../../../images/green-2x2.png" referrerpolicy=no-referrer-when-downgrade data-desc="referrerpolicy no-referrer-when-downgrade to no-referrer, src already set">
+<img src="../../../../images/green-2x2.png" referrerpolicy=no-referrer-when-downgrade data-desc="referrerpolicy no-referrer-when-downgrade to invalid, src already set">
+<img src="../../../../images/green-2x2.png" referrerpolicy=no-referrer data-desc="referrerpolicy no-referrer to absent, src already set">
+<img src="../../../../images/green-2x2.png" referrerpolicy=no-referrer data-desc="referrerpolicy no-referrer to empty, src already set">
+<img src="../../../../images/green-2x2.png" referrerpolicy=no-referrer data-desc="referrerpolicy no-referrer to no-referrer-when-downgrade, src already set">
+<img src="../../../../images/green-2x2.png" referrerpolicy=no-referrer data-desc="referrerpolicy no-referrer to invalid, src already set">
+
+<img src="../../../../images/green-2x2.png" data-desc="inserted into picture"><picture></picture>
+
+<picture><img src="../../../../images/green-2x2.png" data-desc="removed from picture"></picture>
+
+<picture><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source inserted"></picture>
+
+<picture><source><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source removed"></picture>
+
+<picture><source><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source has srcset set"></picture>
+<picture><source srcset=""><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source has srcset changed"></picture>
+<picture><source srcset=""><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source has srcset removed"></picture>
+
+<picture><source><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source has sizes set"></picture>
+<picture><source sizes=""><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source has sizes changed"></picture>
+<picture><source sizes=""><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source has sizes removed"></picture>
+
+<picture><source><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source has media set"></picture>
+<picture><source media=""><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source has media changed"></picture>
+<picture><source media=""><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source has media removed"></picture>
+
+<picture><source><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source has type set"></picture>
+<picture><source type=""><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source has type changed"></picture>
+<picture><source type=""><img src="../../../../images/green-2x2.png" data-desc="parent is picture, previous source has type removed"></picture>
+
+<img srcset="../../../../images/green-2x2.png" data-desc="srcset is set to same value">
+<img srcset="../../../../images/green-2x2.png" sizes data-desc="sizes is set to same value">
+
+<img src="../../../../images/green-2x2.png" data-desc="crossorigin state not changed: absent, removeAttribute">
+<img src="../../../../images/green-2x2.png" crossorigin data-desc="crossorigin state not changed: empty to anonymous">
+<img src="../../../../images/green-2x2.png" crossorigin=anonymous data-desc="crossorigin state not changed: anonymous to foobar">
+<img src="../../../../images/green-2x2.png" crossorigin=use-credentials data-desc="crossorigin state not changed: use-credentials to USE-CREDENTIALS">
+
+<img src="../../../../images/green-2x2.png" data-desc="referrerpolicy state not changed: absent, removeAttribute">
+<img src="../../../../images/green-2x2.png" referrerpolicy data-desc="referrerpolicy state not changed: empty to empty">
+<img src="../../../../images/green-2x2.png" referrerpolicy data-desc="referrerpolicy state not changed: empty to invalid">
+<img src="../../../../images/green-2x2.png" data-desc="referrerpolicy state not changed: absent to invalid">
+<img src="../../../../images/green-2x2.png" referrerpolicy=no-referrer data-desc="referrerpolicy state not changed: no-referrer to NO-REFERRER">
+<img src="../../../../images/green-2x2.png" referrerpolicy=foobar data-desc="referrerpolicy state not changed: invalid to other-invalid">
+
+<img src="../../../../images/green-2x2.png" data-desc="inserted into picture ancestor"><picture><span></span></picture>
+<picture><span><img src="../../../../images/green-2x2.png" data-desc="removed from picture ancestor"></span></picture>
+
+<picture><span><img src="../../../../images/green-2x2.png" data-desc="ancestor picture has a source inserted"></span></picture>
+<picture><source><span><img src="../../../../images/green-2x2.png" data-desc="ancestor picture has a source removed"></span></picture>
+
+<picture><span><img src="../../../../images/green-2x2.png" data-desc="ancestor picture; previous sibling source inserted"></span></picture>
+<picture><span><source><img src="../../../../images/green-2x2.png" data-desc="ancestor picture; previous sibling source removed"></span></picture>
+
+<picture><img src="../../../../images/green-2x2.png" data-desc="parent is picture, following sibling source inserted"></picture>
+<picture><img src="../../../../images/green-2x2.png" data-desc="parent is picture, following sibling source removed"><source></picture>
+
+<picture><img src="../../../../images/green-2x2.png" data-desc="parent is picture, following sibling source has srcset set"><source></picture>
+
+<img src="../../../../images/green-2x2.png" data-desc="media on img set">
+<img src="../../../../images/green-2x2.png" data-desc="type on img set">
+<img src="../../../../images/green-2x2.png" data-desc="class on img set">
+<img src="../../../../images/green-2x2.png" data-desc="alt on img set">
+
+<picture><source><img src="../../../../images/green-2x2.png" data-desc="src on previous sibling source set"></picture>
+<picture><source><img src="../../../../images/green-2x2.png" data-desc="class on previous sibling source set"></picture>
+
+<img src="../../../../images/green-2x2.png" data-desc="inserted/removed children of img">
+
+<picture><img src="../../../../images/green-2x2.png" data-desc="picture is inserted; img has src"></picture><span></span>
+<picture><img srcset="../../../../images/green-2x2.png" data-desc="picture is inserted; img has srcset"></picture><span></span>
+<picture><source srcset="../../../../images/green-2x2.png"><img src="../../../../images/green-2x2.png" data-desc="picture is inserted; img has previous sibling source"></picture><span></span>
+<picture><img src="../../../../images/green-2x2.png" data-desc="picture is inserted; img has following sibling source"><source srcset="../../../../images/green-2x2.png"></picture><span></span>
+
+<picture><img src="../../../../images/green-2x2.png" data-desc="picture is removed; img has src"></picture>
+<picture><img srcset="../../../../images/green-2x2.png" data-desc="picture is removed; img has srcset"></picture>
+<picture><source srcset="../../../../images/green-2x2.png"><img src="../../../../images/green-2x2.png" data-desc="picture is removed; img has previous sibling source"></picture>
+<picture><img src="../../../../images/green-2x2.png" data-desc="picture is removed; img has following sibling source"><source srcset="../../../../images/green-2x2.png"></picture>
+
+<picture><img src="../../../../images/green-2x2.png" data-desc="parent is picture, following img inserted"></picture>
+<picture><img src="../../../../images/green-2x2.png" data-desc="parent is picture, following img removed"><img></picture>
+<picture><img src="../../../../images/green-2x2.png" data-desc="parent is picture, following img has src set"><img></picture>
+<picture><img src="../../../../images/green-2x2.png" data-desc="parent is picture, following img has srcset set"><img></picture>
+<picture><img src="../../../../images/green-2x2.png" data-desc="parent is picture, following img has sizes set"><img></picture>
+
+
+<script>
+onload = function() {
+
+  t('src set', function(img) {
+    img.src = '../../../../images/green-2x2.png';
+  }, 'load');
+
+  t('src changed', function(img) {
+    img.src = '../../../../images/green-2x2.png ';
+  }, 'load');
+
+  t('src removed', function(img) {
+    img.removeAttribute('src');
+  }, 'timeout');
+
+  t('srcset set', function(img) {
+    img.srcset = '../../../../images/green-2x2.png';
+  }, 'load');
+
+  t('srcset changed', function(img) {
+    img.srcset = '../../../../images/green-2x2.png ';
+  }, 'load');
+
+  t('srcset removed', function(img) {
+    img.removeAttribute('srcset');
+  }, 'timeout');
+
+  t('sizes set', function(img) {
+    img.sizes = '';
+  }, 'timeout');
+
+  t('sizes changed', function(img) {
+    img.sizes = ' ';
+  }, 'timeout');
+
+  t('sizes removed', function(img) {
+    img.removeAttribute('sizes');
+  }, 'timeout');
+
+  t('src set to same value', function(img) {
+    img.src = '../../../../images/green-2x2.png';
+  }, 'load');
+
+  // When src is absent, changing the crossorigin attribute state MUST NOT
+  // generate events.
+
+  t('crossorigin absent to empty, src absent', function(img) {
+    img.crossOrigin = '';
+  }, 'timeout');
+
+  t('crossorigin absent to anonymous, src absent', function(img) {
+    img.crossOrigin = 'anonymous';
+  }, 'timeout');
+
+  t('crossorigin absent to use-credentials, src absent', function(img) {
+    img.crossOrigin = 'use-credentials';
+  }, 'timeout');
+
+  t('crossorigin empty to absent, src absent', function(img) {
+    img.removeAttribute('crossorigin');
+  }, 'timeout');
+
+  t('crossorigin empty to use-credentials, src absent', function(img) {
+    img.crossOrigin = 'use-credentials';
+  }, 'timeout');
+
+  t('crossorigin anonymous to absent, src absent', function(img) {
+    img.removeAttribute('crossorigin');
+  }, 'timeout');
+
+  t('crossorigin anonymous to use-credentials, src absent', function(img) {
+    img.crossOrigin = 'use-credentials';
+  }, 'timeout');
+
+  t('crossorigin use-credentials to absent, src absent', function(img) {
+    img.removeAttribute('crossorigin');
+  }, 'timeout');
+
+  t('crossorigin use-credentials to empty, src absent', function(img) {
+    img.crossOrigin = '';
+  }, 'timeout');
+
+  t('crossorigin use-credentials to anonymous, src absent', function(img) {
+    img.crossOrigin = 'anonymous';
+  }, 'timeout');
+
+  t('crossorigin use-credentials to invalid, src absent', function(img) {
+    img.crossOrigin = 'foobar';
+  }, 'timeout');
+
+  // When src is set, changing the crossorigin attribute state MUST generate
+  // events.
+
+  t('crossorigin absent to empty, src already set', function(img) {
+    img.crossOrigin = '';
+  }, 'load');
+
+  t('crossorigin absent to anonymous, src already set', function(img) {
+    img.crossOrigin = 'anonymous';
+  }, 'load');
+
+  t('crossorigin absent to use-credentials, src already set', function(img) {
+    img.crossOrigin = 'use-credentials';
+  }, 'load');
+
+  t('crossorigin empty to absent, src already set', function(img) {
+    img.removeAttribute('crossorigin');
+  }, 'load');
+
+  t('crossorigin empty to use-credentials, src already set', function(img) {
+    img.crossOrigin = 'use-credentials';
+  }, 'load');
+
+  t('crossorigin anonymous to absent, src already set', function(img) {
+    img.removeAttribute('crossorigin');
+  }, 'load');
+
+  t('crossorigin anonymous to use-credentials, src already set', function(img) {
+    img.crossOrigin = 'use-credentials';
+  }, 'load');
+
+  t('crossorigin use-credentials to absent, src already set', function(img) {
+    img.removeAttribute('crossorigin');
+  }, 'load');
+
+  t('crossorigin use-credentials to empty, src already set', function(img) {
+    img.crossOrigin = '';
+  }, 'load');
+
+  t('crossorigin use-credentials to anonymous, src already set', function(img) {
+    img.crossOrigin = 'anonymous';
+  }, 'load');
+
+  t('crossorigin use-credentials to invalid, src already set', function(img) {
+    img.crossOrigin = 'foobar';
+  }, 'load');
+
+  // When src is absent, changing the referrerpolicy attribute state MUST NOT
+  // generate events.
+
+  t('referrerpolicy absent to no-referrer-when-downgrade, src absent', function(img) {
+    img.referrerPolicy = 'no-referrer-when-downgrade';
+  }, 'timeout');
+
+  t('referrerpolicy absent to no-referrer, src absent', function(img) {
+    img.referrerPolicy = 'no-referrer';
+  }, 'timeout');
+
+  t('referrerpolicy empty to no-referrer-when-downgrade, src absent', function(img) {
+    img.referrerPolicy = 'no-referrer-when-downgrade';
+  }, 'timeout');
+
+  t('referrerpolicy empty to no-referrer, src absent', function(img) {
+    img.referrerPolicy = 'no-referrer';
+  }, 'timeout');
+
+  t('referrerpolicy no-referrer-when-downgrade to absent, src absent', function(img) {
+    img.removeAttribute('referrerpolicy');
+  }, 'timeout');
+
+  t('referrerpolicy no-referrer-when-downgrade to empty, src absent', function(img) {
+    img.referrerPolicy = '';
+  }, 'timeout');
+
+  t('referrerpolicy no-referrer-when-downgrade to no-referrer, src absent', function(img) {
+    img.referrerPolicy = 'no-referrer';
+  }, 'timeout');
+
+  t('referrerpolicy no-referrer-when-downgrade to invalid, src absent', function(img) {
+    img.referrerPolicy = 'foobar';
+  }, 'timeout');
+
+  t('referrerpolicy no-referrer to absent, src absent', function(img) {
+    img.removeAttribute('referrerpolicy');
+  }, 'timeout');
+
+  t('referrerpolicy no-referrer to empty, src absent', function(img) {
+    img.referrerPolicy = '';
+  }, 'timeout');
+
+  t('referrerpolicy no-referrer to no-referrer-when-downgrade, src absent', function(img) {
+    img.referrerPolicy = 'no-referrer-when-downgrade';
+  }, 'timeout');
+
+  t('referrerpolicy no-referrer to invalid, src absent', function(img) {
+    img.removeAttribute('referrerpolicy');
+  }, 'timeout');
+
+  // When src is set, changing the referrerpolicy attribute state MUST generate
+  // events.
+
+  t('referrerpolicy absent to no-referrer-when-downgrade, src already set', function(img) {
+    img.referrerPolicy = 'no-referrer-when-downgrade';
+  }, 'load');
+
+  t('referrerpolicy absent to no-referrer, src already set', function(img) {
+    img.referrerPolicy = 'no-referrer';
+  }, 'load');
+
+  t('referrerpolicy empty to no-referrer-when-downgrade, src already set', function(img) {
+    img.referrerPolicy = 'no-referrer-when-downgrade';
+  }, 'load');
+
+  t('referrerpolicy empty to no-referrer, src already set', function(img) {
+    img.referrerPolicy = 'no-referrer';
+  }, 'load');
+
+  t('referrerpolicy no-referrer-when-downgrade to absent, src already set', function(img) {
+    img.removeAttribute('referrerpolicy');
+  }, 'load');
+
+  t('referrerpolicy no-referrer-when-downgrade to empty, src already set', function(img) {
+    img.referrerPolicy = '';
+  }, 'load');
+
+  t('referrerpolicy no-referrer-when-downgrade to no-referrer, src already set', function(img) {
+    img.referrerPolicy = 'no-referrer';
+  }, 'load');
+
+  t('referrerpolicy no-referrer-when-downgrade to invalid, src already set', function(img) {
+    img.referrerPolicy = 'foobar';
+  }, 'load');
+
+  t('referrerpolicy no-referrer to absent, src already set', function(img) {
+    img.removeAttribute('referrerpolicy');
+  }, 'load');
+
+  t('referrerpolicy no-referrer to empty, src already set', function(img) {
+    img.referrerPolicy = '';
+  }, 'load');
+
+  t('referrerpolicy no-referrer to no-referrer-when-downgrade, src already set', function(img) {
+    img.referrerPolicy = 'no-referrer-when-downgrade';
+  }, 'load');
+
+  t('referrerpolicy no-referrer to invalid, src already set', function(img) {
+    img.removeAttribute('referrerpolicy');
+  }, 'load');
+
+
+  t('inserted into picture', function(img) {
+    img.nextSibling.appendChild(img);
+  }, 'load');
+
+  t('removed from picture', function(img) {
+    img.parentNode.removeChild(img);
+  }, 'load');
+
+  t('parent is picture, previous source inserted', function(img) {
+    img.parentNode.insertBefore(document.createElement('source'), img);
+  }, 'load');
+
+  t('parent is picture, previous source removed', function(img) {
+    img.parentNode.removeChild(img.previousSibling);
+  }, 'load');
+
+  t('parent is picture, previous source has srcset set', function(img) {
+    img.previousSibling.srcset = '';
+  }, 'load');
+
+  t('parent is picture, previous source has srcset changed', function(img) {
+    img.previousSibling.srcset = ' ';
+  }, 'load');
+
+  t('parent is picture, previous source has srcset removed', function(img) {
+    img.previousSibling.removeAttribute('srcset');
+  }, 'load');
+
+  t('parent is picture, previous source has sizes set', function(img) {
+    img.previousSibling.sizes = '';
+  }, 'load');
+
+  t('parent is picture, previous source has sizes changed', function(img) {
+    img.previousSibling.sizes = ' ';
+  }, 'load');
+
+  t('parent is picture, previous source has sizes removed', function(img) {
+    img.previousSibling.removeAttribute('sizes');
+  }, 'load');
+
+  t('parent is picture, previous source has media set', function(img) {
+    img.previousSibling.media = '';
+  }, 'load');
+
+  t('parent is picture, previous source has media changed', function(img) {
+    img.previousSibling.media = ' ';
+  }, 'load');
+
+  t('parent is picture, previous source has media removed', function(img) {
+    img.previousSibling.removeAttribute('media');
+  }, 'load');
+
+  t('parent is picture, previous source has type set', function(img) {
+    img.previousSibling.type = '';
+  }, 'load');
+
+  t('parent is picture, previous source has type changed', function(img) {
+    img.previousSibling.type = ' ';
+  }, 'load');
+
+  t('parent is picture, previous source has type removed', function(img) {
+    img.previousSibling.removeAttribute('type');
+  }, 'load');
+
+  t('srcset is set to same value', function(img) {
+    img.srcset = "../../../../images/green-2x2.png";
+  }, 'load');
+
+  t('sizes is set to same value', function(img) {
+    img.sizes = '';
+  }, 'load');
+
+  t('crossorigin state not changed: absent, removeAttribute', function(img) {
+    img.removeAttribute('crossorigin');
+  }, 'timeout');
+
+  t('crossorigin state not changed: empty to anonymous', function(img) {
+    img.crossOrigin = 'anonymous';
+  }, 'timeout');
+
+  t('crossorigin state not changed: anonymous to foobar', function(img) {
+    img.crossOrigin = 'foobar';
+  }, 'timeout');
+
+  t('crossorigin state not changed: use-credentials to USE-CREDENTIALS', function(img) {
+    img.crossOrigin = 'USE-CREDENTIALS';
+  }, 'timeout');
+
+  t('referrerpolicy state not changed: absent, removeAttribute', function(img) {
+    img.removeAttribute('referrerpolicy');
+  }, 'timeout');
+
+  t('referrerpolicy state not changed: empty to empty', function(img) {
+    img.referrerPolicy = '';
+  }, 'timeout');
+
+  t('referrerpolicy state not changed: empty to invalid', function(img) {
+    img.referrerPolicy = 'foobar';
+  }, 'timeout');
+
+  t('referrerpolicy state not changed: absent to invalid', function(img) {
+    img.referrerPolicy = 'foobar';
+  }, 'timeout');
+
+  t('referrerpolicy state not changed: no-referrer to NO-REFERRER', function(img) {
+    img.referrerPolicy = 'NO-REFERRER';
+  }, 'timeout');
+
+  t('referrerpolicy state not changed: invalid to other-invalid', function(img) {
+    img.referrerPolicy = 'foobar2';
+  }, 'timeout');
+
+  t('inserted into picture ancestor', function(img) {
+    img.nextSibling.firstChild.appendChild(img);
+  }, 'timeout');
+
+  t('removed from picture ancestor', function(img) {
+    img.parentNode.removeChild(img);
+  }, 'timeout');
+
+  t('ancestor picture has a source inserted', function(img) {
+    img.parentNode.parentNode.insertBefore(document.createElement('source'), img.parentNode);
+  }, 'timeout');
+
+  t('ancestor picture has a source removed', function(img) {
+    img.parentNode.parentNode.removeChild(img.parentNode.previousSibling);
+  }, 'timeout');
+
+  t('ancestor picture; previous sibling source inserted', function(img) {
+    img.parentNode.insertBefore(document.createElement('source'), img);
+  }, 'timeout');
+
+  t('ancestor picture; previous sibling source removed', function(img) {
+    img.parentNode.removeChild(img.previousSibling);
+  }, 'timeout');
+
+  t('parent is picture, following sibling source inserted', function(img) {
+    img.parentNode.appendChild(document.createElement('source'));
+  }, 'timeout');
+
+  t('parent is picture, following sibling source removed', function(img) {
+    img.parentNode.removeChild(img.nextSibling);
+  }, 'timeout');
+
+  t('parent is picture, following sibling source has srcset set', function(img) {
+    img.nextSibling.srcset = '';
+  }, 'timeout');
+
+  t('media on img set', function(img) {
+    img.setAttribute('media', '');
+  }, 'timeout');
+
+  t('type on img set', function(img) {
+    img.setAttribute('type', '');
+  }, 'timeout');
+
+  t('class on img set', function(img) {
+    img.className = '';
+  }, 'timeout');
+
+  t('alt on img set', function(img) {
+    img.alt = '';
+  }, 'timeout');
+
+  t('src on previous sibling source set', function(img) {
+    img.previousSibling.setAttribute('src', '');
+  }, 'timeout');
+
+  t('class on previous sibling source set', function(img) {
+    img.previousSibling.className = '';
+  }, 'timeout');
+
+  t('inserted/removed children of img', function(img) {
+    img.appendChild(document.createElement('source'));
+    setTimeout(this.step_func(function() {
+      img.removeChild(img.firstChild);
+    }), 0);
+  }, 'timeout');
+
+  t('picture is inserted; img has src', function(img) {
+    img.parentNode.nextSibling.appendChild(img.parentNode);
+  }, 'timeout');
+
+  t('picture is inserted; img has srcset', function(img) {
+    img.parentNode.nextSibling.appendChild(img.parentNode);
+  }, 'timeout');
+
+  t('picture is inserted; img has previous sibling source', function(img) {
+    img.parentNode.nextSibling.appendChild(img.parentNode);
+  }, 'timeout');
+
+  t('picture is inserted; img has following sibling source', function(img) {
+    img.parentNode.nextSibling.appendChild(img.parentNode);
+  }, 'timeout');
+
+  t('picture is removed; img has src', function(img) {
+    img.parentNode.parentNode.removeChild(img.parentNode);
+  }, 'timeout');
+
+  t('picture is removed; img has srcset', function(img) {
+    img.parentNode.parentNode.removeChild(img.parentNode);
+  }, 'timeout');
+
+  t('picture is removed; img has previous sibling source', function(img) {
+    img.parentNode.parentNode.removeChild(img.parentNode);
+  }, 'timeout');
+
+  t('picture is removed; img has following sibling source', function(img) {
+    img.parentNode.parentNode.removeChild(img.parentNode);
+  }, 'timeout');
+
+  t('parent is picture, following img inserted', function(img) {
+    img.parentNode.appendChild(document.createElement('img'));
+  }, 'timeout');
+
+  t('parent is picture, following img removed', function(img) {
+    img.parentNode.removeChild(img.nextSibling);
+  }, 'timeout');
+
+  t('parent is picture, following img has src set', function(img) {
+    img.nextSibling.src = '';
+  }, 'timeout');
+
+  t('parent is picture, following img has srcset set', function(img) {
+    img.nextSibling.srcset = '';
+  }, 'timeout');
+
+  t('parent is picture, following img has sizes set', function(img) {
+    img.nextSibling.sizes = '';
+  }, 'timeout');
+
+  done();
+};
+</script>
