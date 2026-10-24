@@ -41,7 +41,7 @@ public:
         Lighter = 7,
     };
     SVGFECompositeElement::CompositingOperator operator_() const;
-    GC::Ref<SVGAnimatedEnumeration> operator_for_bindings() const;
+    GC::Ref<SVGAnimatedEnumeration> operator_for_bindings();
 
 private:
     SVGFECompositeElement(DOM::Document&, DOM::QualifiedName);

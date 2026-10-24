@@ -21,13 +21,31 @@ class SVGFEBlendElement final
     GC_DECLARE_ALLOCATOR(SVGFEBlendElement);
 
 public:
+    static constexpr u16 SVG_FEBLEND_MODE_UNKNOWN = 0;
+    static constexpr u16 SVG_FEBLEND_MODE_NORMAL = 1;
+    static constexpr u16 SVG_FEBLEND_MODE_MULTIPLY = 2;
+    static constexpr u16 SVG_FEBLEND_MODE_SCREEN = 3;
+    static constexpr u16 SVG_FEBLEND_MODE_DARKEN = 4;
+    static constexpr u16 SVG_FEBLEND_MODE_LIGHTEN = 5;
+    static constexpr u16 SVG_FEBLEND_MODE_OVERLAY = 6;
+    static constexpr u16 SVG_FEBLEND_MODE_COLOR_DODGE = 7;
+    static constexpr u16 SVG_FEBLEND_MODE_COLOR_BURN = 8;
+    static constexpr u16 SVG_FEBLEND_MODE_HARD_LIGHT = 9;
+    static constexpr u16 SVG_FEBLEND_MODE_SOFT_LIGHT = 10;
+    static constexpr u16 SVG_FEBLEND_MODE_DIFFERENCE = 11;
+    static constexpr u16 SVG_FEBLEND_MODE_EXCLUSION = 12;
+    static constexpr u16 SVG_FEBLEND_MODE_HUE = 13;
+    static constexpr u16 SVG_FEBLEND_MODE_SATURATION = 14;
+    static constexpr u16 SVG_FEBLEND_MODE_COLOR = 15;
+    static constexpr u16 SVG_FEBLEND_MODE_LUMINOSITY = 16;
+
     virtual ~SVGFEBlendElement() override = default;
 
     GC::Ref<SVGAnimatedString> in1();
     GC::Ref<SVGAnimatedString> in2();
 
     Gfx::CompositingAndBlendingOperator mode() const;
-    GC::Ref<SVGAnimatedEnumeration> mode_for_bindings() const;
+    GC::Ref<SVGAnimatedEnumeration> mode_for_bindings();
 
 private:
     SVGFEBlendElement(DOM::Document&, DOM::QualifiedName);

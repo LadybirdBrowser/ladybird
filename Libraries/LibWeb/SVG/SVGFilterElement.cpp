@@ -34,6 +34,7 @@
 #include <LibWeb/SVG/SVGFEOffsetElement.h>
 #include <LibWeb/SVG/SVGFETurbulenceElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
+#include <LibWeb/SVG/SVGUnitTypes.h>
 
 namespace Web::SVG {
 
@@ -48,16 +49,6 @@ void SVGFilterElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
-}
-
-void SVGFilterElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
-{
-    Base::attribute_changed(name, old_value, value, namespace_);
-
-    if (name == AttributeNames::filterUnits)
-        m_filter_units = parse_units(value.value_or({}));
-    else if (name == AttributeNames::primitiveUnits)
-        m_primitive_units = parse_units(value.value_or({}));
 }
 
 namespace {
@@ -260,15 +251,15 @@ void SVGFilterElement::push_primitives(void* sink, Gfx::IntSize dest_size)
 }
 
 // https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-filterunits
-GC::Ref<SVGAnimatedEnumeration> SVGFilterElement::filter_units() const
+GC::Ref<SVGAnimatedEnumeration> SVGFilterElement::filter_units()
 {
-    return SVGAnimatedEnumeration::create(to_underlying(m_filter_units.value_or(SVGUnits::ObjectBoundingBox)));
+    return svg_animated_enumeration_for_attribute(AttributeNames::filterUnits, svg_unit_type_keywords, to_underlying(SVGUnitType::ObjectBoundingBox));
 }
 
 // https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-primitiveunits
-GC::Ref<SVGAnimatedEnumeration> SVGFilterElement::primitive_units() const
+GC::Ref<SVGAnimatedEnumeration> SVGFilterElement::primitive_units()
 {
-    return SVGAnimatedEnumeration::create(to_underlying(m_primitive_units.value_or(SVGUnits::UserSpaceOnUse)));
+    return svg_animated_enumeration_for_attribute(AttributeNames::primitiveUnits, svg_unit_type_keywords, to_underlying(SVGUnitType::UserSpaceOnUse));
 }
 
 }

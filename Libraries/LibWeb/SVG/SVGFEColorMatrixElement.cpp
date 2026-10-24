@@ -44,24 +44,16 @@ GC::Ref<SVGAnimatedString> SVGFEColorMatrixElement::in1()
     return *m_in1;
 }
 
-GC::Ref<SVGAnimatedEnumeration> SVGFEColorMatrixElement::type() const
+// https://drafts.fxtf.org/filter-effects/#dom-svgfecolormatrixelement-type
+GC::Ref<SVGAnimatedEnumeration> SVGFEColorMatrixElement::type()
 {
-    // https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEColorMatrixElement
-    // Map the 'type' attribute to the IDL enumeration values.
-    // Defaults to MATRIX when omitted.
-    auto type_attribute = attribute(AttributeNames::type).value_or({});
-
-    u16 enum_value = SVGFEColorMatrixElement::SVG_FECOLORMATRIX_TYPE_UNKNOWN;
-    if (type_attribute.is_empty() || type_attribute.equals_ignoring_ascii_case("matrix"sv))
-        enum_value = SVGFEColorMatrixElement::SVG_FECOLORMATRIX_TYPE_MATRIX;
-    else if (type_attribute.equals_ignoring_ascii_case("saturate"sv))
-        enum_value = SVGFEColorMatrixElement::SVG_FECOLORMATRIX_TYPE_SATURATE;
-    else if (type_attribute.equals_ignoring_ascii_case("hueRotate"sv))
-        enum_value = SVGFEColorMatrixElement::SVG_FECOLORMATRIX_TYPE_HUEROTATE;
-    else if (type_attribute.equals_ignoring_ascii_case("luminanceToAlpha"sv))
-        enum_value = SVGFEColorMatrixElement::SVG_FECOLORMATRIX_TYPE_LUMINANCETOALPHA;
-
-    return SVGAnimatedEnumeration::create(enum_value);
+    static constexpr Array keywords {
+        SVGAnimatedEnumeration::Keyword { "matrix"sv, SVG_FECOLORMATRIX_TYPE_MATRIX },
+        SVGAnimatedEnumeration::Keyword { "saturate"sv, SVG_FECOLORMATRIX_TYPE_SATURATE },
+        SVGAnimatedEnumeration::Keyword { "hueRotate"sv, SVG_FECOLORMATRIX_TYPE_HUEROTATE },
+        SVGAnimatedEnumeration::Keyword { "luminanceToAlpha"sv, SVG_FECOLORMATRIX_TYPE_LUMINANCETOALPHA },
+    };
+    return svg_animated_enumeration_for_attribute(AttributeNames::type, keywords, SVG_FECOLORMATRIX_TYPE_MATRIX);
 }
 
 GC::Ref<SVGAnimatedNumberList> SVGFEColorMatrixElement::values()

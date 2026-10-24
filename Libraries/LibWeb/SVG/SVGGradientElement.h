@@ -36,6 +36,14 @@ public:
 
     Optional<Gfx::AffineTransform> gradient_transform() const;
 
+    static constexpr u16 SVG_SPREADMETHOD_UNKNOWN = 0;
+    static constexpr u16 SVG_SPREADMETHOD_PAD = 1;
+    static constexpr u16 SVG_SPREADMETHOD_REFLECT = 2;
+    static constexpr u16 SVG_SPREADMETHOD_REPEAT = 3;
+
+    GC::Ref<SVGAnimatedEnumeration> gradient_units_for_bindings();
+    GC::Ref<SVGAnimatedEnumeration> spread_method_for_bindings();
+
 protected:
     SVGGradientElement(DOM::Document&, DOM::QualifiedName);
 

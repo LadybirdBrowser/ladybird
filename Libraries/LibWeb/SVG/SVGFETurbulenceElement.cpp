@@ -24,8 +24,6 @@ void SVGFETurbulenceElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_base_frequency_y);
     visitor.visit(m_num_octaves);
     visitor.visit(m_seed);
-    visitor.visit(m_stitch_tiles);
-    visitor.visit(m_type);
 }
 
 // https://drafts.csswg.org/filter-effects/#dom-svgfeturbulenceelement-basefrequencyx
@@ -67,43 +65,23 @@ GC::Ref<SVGAnimatedNumber> SVGFETurbulenceElement::seed()
 }
 
 // https://drafts.csswg.org/filter-effects/#element-attrdef-feturbulence-stitchtiles
-static SVGFETurbulenceElement::StitchType parse_stitch_tiles(Utf16View value)
-{
-    if (value == "stitch"sv)
-        return SVGFETurbulenceElement::StitchType::Stitch;
-
-    if (value == "noStitch"sv)
-        return SVGFETurbulenceElement::StitchType::NoStitch;
-
-    return SVGFETurbulenceElement::StitchType::NoStitch;
-}
-
-// https://drafts.csswg.org/filter-effects/#element-attrdef-feturbulence-stitchtiles
 GC::Ref<SVGAnimatedEnumeration> SVGFETurbulenceElement::stitch_tiles()
 {
-    // FIXME: Support reflection, don't return a new object every time.
-    auto stitch_tiles = parse_stitch_tiles(get_attribute_value(AttributeNames::stitchTiles));
-    return SVGAnimatedEnumeration::create(to_underlying(stitch_tiles));
-}
-
-// https://drafts.csswg.org/filter-effects/#element-attrdef-feturbulence-type
-static SVGFETurbulenceElement::TurbulenceType parse_turbulence_type(Utf16View value)
-{
-    if (value == "turbulence"sv)
-        return SVGFETurbulenceElement::TurbulenceType::Turbulence;
-
-    if (value == "fractalNoise"sv)
-        return SVGFETurbulenceElement::TurbulenceType::FractalNoise;
-
-    return SVGFETurbulenceElement::TurbulenceType::Turbulence;
+    static constexpr Array keywords {
+        SVGAnimatedEnumeration::Keyword { "stitch"sv, to_underlying(StitchType::Stitch) },
+        SVGAnimatedEnumeration::Keyword { "noStitch"sv, to_underlying(StitchType::NoStitch) },
+    };
+    return svg_animated_enumeration_for_attribute(AttributeNames::stitchTiles, keywords, to_underlying(StitchType::NoStitch));
 }
 
 // https://drafts.csswg.org/filter-effects/#dom-svgfeturbulenceelement-type
 GC::Ref<SVGAnimatedEnumeration> SVGFETurbulenceElement::type()
 {
-    // FIXME: Support reflection, don't return a new object every time.
-    auto turbulence_type = parse_turbulence_type(get_attribute_value(AttributeNames::type));
-    return SVGAnimatedEnumeration::create(to_underlying(turbulence_type));
+    static constexpr Array keywords {
+        SVGAnimatedEnumeration::Keyword { "fractalNoise"sv, to_underlying(TurbulenceType::FractalNoise) },
+        SVGAnimatedEnumeration::Keyword { "turbulence"sv, to_underlying(TurbulenceType::Turbulence) },
+    };
+    return svg_animated_enumeration_for_attribute(AttributeNames::type, keywords, to_underlying(TurbulenceType::Turbulence));
 }
 
 }

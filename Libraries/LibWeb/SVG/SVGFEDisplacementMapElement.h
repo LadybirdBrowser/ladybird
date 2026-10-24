@@ -32,8 +32,8 @@ public:
     GC::Ref<SVGAnimatedString> in1();
     GC::Ref<SVGAnimatedString> in2();
     GC::Ref<SVGAnimatedNumber> scale();
-    GC::Ref<SVGAnimatedEnumeration> x_channel_selector() const;
-    GC::Ref<SVGAnimatedEnumeration> y_channel_selector() const;
+    GC::Ref<SVGAnimatedEnumeration> x_channel_selector();
+    GC::Ref<SVGAnimatedEnumeration> y_channel_selector();
 
 private:
     SVGFEDisplacementMapElement(DOM::Document&, DOM::QualifiedName);
@@ -42,8 +42,6 @@ private:
     GC::Ptr<SVGAnimatedString> m_in1;
     GC::Ptr<SVGAnimatedString> m_in2;
     GC::Ptr<SVGAnimatedNumber> m_scale;
-    GC::Ptr<SVGAnimatedEnumeration> m_x_channel_selector;
-    GC::Ptr<SVGAnimatedEnumeration> m_y_channel_selector;
 };
 
 }

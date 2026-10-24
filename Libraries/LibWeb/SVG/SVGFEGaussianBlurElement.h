@@ -19,12 +19,17 @@ class SVGFEGaussianBlurElement final
     GC_DECLARE_ALLOCATOR(SVGFEGaussianBlurElement);
 
 public:
+    static constexpr u16 SVG_EDGEMODE_UNKNOWN = 0;
+    static constexpr u16 SVG_EDGEMODE_DUPLICATE = 1;
+    static constexpr u16 SVG_EDGEMODE_WRAP = 2;
+    static constexpr u16 SVG_EDGEMODE_NONE = 3;
+
     virtual ~SVGFEGaussianBlurElement() override = default;
 
     GC::Ref<SVGAnimatedString> in1();
     GC::Ref<SVGAnimatedNumber> std_deviation_x();
     GC::Ref<SVGAnimatedNumber> std_deviation_y();
-    GC::Ref<SVGAnimatedEnumeration> edge_mode() const;
+    GC::Ref<SVGAnimatedEnumeration> edge_mode();
 
 private:
     SVGFEGaussianBlurElement(DOM::Document&, DOM::QualifiedName);

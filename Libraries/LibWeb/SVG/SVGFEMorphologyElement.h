@@ -23,6 +23,10 @@ class SVGFEMorphologyElement final
     GC_DECLARE_ALLOCATOR(SVGFEMorphologyElement);
 
 public:
+    static constexpr u16 SVG_MORPHOLOGY_OPERATOR_UNKNOWN = 0;
+    static constexpr u16 SVG_MORPHOLOGY_OPERATOR_ERODE = 1;
+    static constexpr u16 SVG_MORPHOLOGY_OPERATOR_DILATE = 2;
+
     virtual ~SVGFEMorphologyElement() override = default;
 
     GC::Ref<SVGAnimatedString> in1();

@@ -8,7 +8,7 @@ interface SVGTextContentElement : SVGGraphicsElement {
     const unsigned short LENGTHADJUST_SPACINGANDGLYPHS = 2;
 
     [FIXME, SameObject] readonly attribute SVGAnimatedLength textLength;
-    [FIXME, SameObject] readonly attribute SVGAnimatedEnumeration lengthAdjust;
+    [SameObject] readonly attribute SVGAnimatedEnumeration lengthAdjust;
 
     long getNumberOfChars();
     float getComputedTextLength();
