@@ -1,0 +1,4 @@
+When a whole session comes back at launch, Ladybird opens the URLs
+on its command line as new tabs in the frontmost restored window.
+Chromium’s session_restore.cc does the same, appending them to the last
+restored normal window through AppendURLsToBrowser().
