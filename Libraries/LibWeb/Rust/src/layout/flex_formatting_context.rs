@@ -2871,22 +2871,6 @@ impl<'pass> FlexFormattingContext<'pass> {
             && self.inline_axis_is_horizontal(self.run.box_)
     }
 
-    fn item_is_block_container_whose_committing_run_can_adopt_its_measurement(&self, index: usize) -> bool {
-        let node = self.flex_items[index].box_;
-        let facts = self.facts(node);
-        let sizing = self.sizing();
-        !facts.document_in_quirks_mode()
-            && !facts.is_table_wrapper()
-            && !facts.is_replaced_box()
-            && !facts.has_preferred_aspect_ratio()
-            && self.style(node).writing_mode() == writing_mode::HORIZONTAL_TB
-            && self.inline_axis_is_horizontal(node)
-            && formatting_context::formatting_context_type_created_by_box(facts)
-                == Some(formatting_context::FormattingContextType::Block)
-            && !sizing.own_style_depends_on_percentage_block_size(node)
-            && !block_formatting_context::root_lays_out_content_against_its_own_block_size(&sizing, node)
-    }
-
     fn offer_item_runs_to_block_size_measurements(&mut self, measured_at: ItemBlockSizeMeasuredAt) {
         if self.offers_item_runs_to_block_size_measurements() {
             self.item_runs_offered_to_block_size_measurements = Some(ItemRunsOfferedToBlockSizeMeasurements {
@@ -2925,7 +2909,10 @@ impl<'pass> FlexFormattingContext<'pass> {
         space_for_items: AvailableSpace,
     ) -> Option<formatting_context::ChildRunShape> {
         let node = self.flex_items[index].box_;
-        if !self.item_is_block_container_whose_committing_run_can_adopt_its_measurement(index) {
+        if !formatting_context::item_is_block_container_whose_committing_run_can_adopt_its_measurement(
+            &self.sizing(),
+            node,
+        ) {
             return None;
         }
         let (main_size, cross_size) = if self.main_axis_is_horizontal() {

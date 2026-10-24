@@ -1107,6 +1107,44 @@ pub(crate) struct GridFormattingContext<'pass> {
     columns_are_reversed: bool,
     rows_are_reversed: bool,
     maximum_inline_size_resolved_by_caller: Option<CssPixels>,
+    item_runs_offered_to_row_measurements: Option<RowMeasurementsAhead>,
+    next_item_lookup_start: Cell<usize>,
+}
+
+impl formatting_context::ChildRunShapes for GridFormattingContext<'_> {
+    fn child_run_shape_at(
+        &self,
+        node: Node,
+        inline_size: CssPixels,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<formatting_context::ChildRunShape> {
+        let measurements_ahead = self.item_runs_offered_to_row_measurements?;
+        let item = self.items[self.index_of_item(node)?];
+        if !self.item_block_size_is_measured_ahead(item, measurements_ahead)
+            || formatting_context::formatting_context_type_created_by_box(self.facts(node))
+                != Some(formatting_context::FormattingContextType::Block)
+            || !formatting_context::item_is_block_container_whose_committing_run_can_adopt_its_measurement(
+                &self.sizing(),
+                node,
+            )
+        {
+            return None;
+        }
+        self.item_run_shape(item)
+            .filter(|shape| shape.lays_out_at(inline_size, constraints))
+    }
+}
+
+#[derive(Clone, Copy)]
+enum ItemRowArea {
+    NotYetSized,
+    SizedAt(CssPixels),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RowMeasurementsAhead {
+    RowTrackSizingAndItemBlockSizes,
+    ItemBlockSizesOnly,
 }
 
 #[derive(Clone, Copy)]
@@ -1223,6 +1261,8 @@ impl<'pass> GridFormattingContext<'pass> {
                 false,
             ),
             maximum_inline_size_resolved_by_caller: None,
+            item_runs_offered_to_row_measurements: None,
+            next_item_lookup_start: Cell::new(0),
         }
     }
 
@@ -1244,6 +1284,7 @@ impl<'pass> GridFormattingContext<'pass> {
         self.available_space = Some(available_space);
         self.layout_input = Some(input);
         self.maximum_inline_size_resolved_by_caller = input.sizing.maximum_inline_size_resolved_by_caller;
+        self.item_runs_offered_to_row_measurements = None;
         self.column_lines.clear();
         self.row_lines.clear();
         self.columns.clear();
@@ -1316,8 +1357,8 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     #[inline]
-    fn sizing(&self) -> sizing_context::SizingContext<'pass, 'static> {
-        sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
+    fn sizing(&self) -> sizing_context::SizingContext<'pass, '_> {
+        sizing_context::SizingContext::new(self.run.records, self.run.callbacks).with_child_run_shapes(self)
     }
 
     fn parent_grid(&self) -> Option<&ParentGridData<'pass>> {
@@ -2337,6 +2378,7 @@ impl<'pass> GridFormattingContext<'pass> {
         self.resolve_item_metrics(Axis::Column);
         self.resolve_item_sizes(Axis::Column);
         self.resolve_item_metrics(Axis::Row);
+        self.offer_runs_of_items_measured_in_their_rows(RowMeasurementsAhead::ItemBlockSizesOnly);
         self.resolve_item_sizes(Axis::Row);
         // NB: Sizing the columns again marks the inline sizes definite, but leaves the block sizes as they were made.
         for (&item, &(_, block)) in self.items.iter().zip(&item_sizes_were_definite) {
@@ -2345,16 +2387,16 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn intrinsic_contribution_constraints(&self, item: GridItem, axis: Axis) -> ContainingBlockConstraints {
-        let mut constraints = self.container_constraints();
-        if axis.is_column() {
-            constraints = self.column_sizing_constraints(item, constraints);
+        if !axis.is_column() {
+            return self.grid_area_constraints(item);
         }
+        let constraints = self.column_sizing_constraints(item, self.container_constraints());
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
         // A table's width, min-width and max-width apply to the table box inside the wrapper, so the wrapper's own
         // preferred size looks auto. Those percentages still resolve against the grid area, which the column
         // contribution is sizing, so they are cyclic and behave as their initial values here. This matches other
         // browsers, where a width: 100% table does not grow a 1fr or auto column to the grid container's width.
-        if axis.is_column() && self.facts(item.box_).is_table_wrapper() {
+        if self.facts(item.box_).is_table_wrapper() {
             return ContainingBlockConstraints {
                 percentage_basis_inline_size: None,
                 ..constraints
@@ -2430,7 +2472,7 @@ impl<'pass> GridFormattingContext<'pass> {
             self.sizing().calculate_min_content_block_size(
                 item.box_,
                 self.item_available_space(item).inline_size.to_px_or_zero(),
-                self.container_constraints(),
+                self.intrinsic_contribution_constraints(item, axis),
             )
         }
     }
@@ -3715,8 +3757,17 @@ impl<'pass> GridFormattingContext<'pass> {
             } else if preferred.is_auto() || preferred.is_fit_content() || facts.is_table_wrapper() {
                 // NB: A table wrapper's own size is automatic. The table box's preferred size is resolved by the table
                 //     layout that the wrapper's content size measures.
-                self.sizing()
-                    .calculate_fit_content_size(item.box_, axis.sizing_axis(), available, constraints)
+                let content_measurement_constraints = if axis.is_column() || facts.is_table_wrapper() {
+                    constraints
+                } else {
+                    self.intrinsic_contribution_constraints(item, axis)
+                };
+                self.sizing().calculate_fit_content_size(
+                    item.box_,
+                    axis.sizing_axis(),
+                    available,
+                    content_measurement_constraints,
+                )
             } else {
                 self.sizing().calculate_inner_size_for_property(
                     item.box_,
@@ -4039,6 +4090,102 @@ impl<'pass> GridFormattingContext<'pass> {
         (start_offset, end_offset - start_offset)
     }
 
+    // https://drafts.csswg.org/css-grid-2/#grid-item-sizing
+    // NB: The grid area is definite, but an item that is neither stretched nor sized by its preferred
+    //     block size or aspect ratio takes its block size from its content, which is indefinite for the
+    //     content's percentages, as in other engines. Replaced boxes and buttons size their content
+    //     against their used block size.
+    fn item_block_size_follows_from_content(&self, item: GridItem) -> bool {
+        let facts = self.facts(item.box_);
+        let preferred = self.item_preferred_size(item, Axis::Row);
+        (preferred.is_auto() || preferred.is_intrinsic_sizing_constraint())
+            && !self.item_is_stretched(item, Axis::Row)
+            && !facts.has_preferred_aspect_ratio()
+            && !facts.is_replaced_box()
+            && !facts.uses_button_layout()
+            && !(self.style(item.box_).display().is_grid_inside() && self.grid_item_is_subgridded(item, Axis::Row))
+    }
+
+    fn prepare_item_record(&self, item: GridItem, used: &UsedValues, row_area: ItemRowArea) {
+        used.has_definite_inline_size.set(true);
+        used.has_definite_block_size.set(match row_area {
+            ItemRowArea::NotYetSized => false,
+            ItemRowArea::SizedAt(_) => !self.item_block_size_follows_from_content(item),
+        });
+    }
+
+    fn item_layout_input(&self, item: GridItem, used: &UsedValues, row_area: ItemRowArea) -> LayoutInput {
+        let (available_block_size, percentage_basis_block_size) = match row_area {
+            ItemRowArea::NotYetSized => (AvailableSize::Indefinite, None),
+            ItemRowArea::SizedAt(area_block_size) => (
+                AvailableSize::definite(used.content_block_size.get()),
+                Some(area_block_size),
+            ),
+        };
+        LayoutInput {
+            available_space: AvailableSpace {
+                inline_size: AvailableSize::definite(used.content_inline_size.get()),
+                block_size: available_block_size,
+            },
+            containing_block_constraints: ContainingBlockConstraints {
+                percentage_basis_block_size,
+                ..self.grid_area_constraints(item)
+            },
+            content_box_position_in_bfc_root: None,
+            sizing: RootSizingDirectives::default(),
+            participation: ParticipationInParentFormattingContext::Item,
+        }
+    }
+
+    fn offers_item_runs_to_row_measurements(&self) -> bool {
+        let available = self.layout_input.unwrap().available_space;
+        self.run.layout_mode == LayoutMode::Normal
+            && !self.run.should_collect_devtools_layout_data
+            && !available.inline_size.is_intrinsic_sizing_constraint()
+            && !available.block_size.is_intrinsic_sizing_constraint()
+            && self.style(self.run.box_).writing_mode() == writing_mode::HORIZONTAL_TB
+    }
+
+    fn item_block_size_is_measured_ahead(&self, item: GridItem, measurements_ahead: RowMeasurementsAhead) -> bool {
+        let preferred = self.item_preferred_size(item, Axis::Row);
+        if !preferred.is_auto() && !preferred.is_intrinsic_sizing_constraint() {
+            return false;
+        }
+        !self.item_is_stretched(item, Axis::Row)
+            || (measurements_ahead == RowMeasurementsAhead::RowTrackSizingAndItemBlockSizes
+                && self.item_contributes_to_track_sizing(item, Axis::Row))
+    }
+
+    fn offer_runs_of_items_measured_in_their_rows(&mut self, measurements_ahead: RowMeasurementsAhead) {
+        if self.offers_item_runs_to_row_measurements() {
+            self.item_runs_offered_to_row_measurements = Some(measurements_ahead);
+        }
+    }
+
+    fn index_of_item(&self, node: Node) -> Option<usize> {
+        let item_count = self.items.len();
+        let start = self.next_item_lookup_start.get().min(item_count);
+        let index = (start..item_count)
+            .chain(0..start)
+            .find(|&index| self.items[index].box_ == node)?;
+        self.next_item_lookup_start.set(index + 1);
+        Some(index)
+    }
+
+    fn item_run_shape(&self, item: GridItem) -> Option<formatting_context::ChildRunShape> {
+        let record = used_values::RootInputCells::capture(self.used(item)).materialize_record();
+        self.prepare_item_record(item, &record, ItemRowArea::NotYetSized);
+        let input = self.item_layout_input(item, &record, ItemRowArea::NotYetSized);
+        let plan = formatting_context::child_run_plan(&self.run, item.box_, input, false)?;
+        Some(formatting_context::ChildRunShape {
+            node: item.box_,
+            fc_type: plan.fc_type,
+            input: plan.input,
+            root_cells: used_values::RootInputCells::capture(&record),
+            root_containing_block: plan.root_containing_block,
+        })
+    }
+
     fn layout_items(&mut self, run: &FormattingContextRun<'pass>) {
         let mut baseline_aligned_items = Vec::new();
         for item_index in 0..self.items.len() {
@@ -4055,27 +4202,8 @@ impl<'pass> GridFormattingContext<'pass> {
                 used.margin_right.set(resolved.margin_end);
                 used.set_content_inline_size(resolved.size);
             }
-            {
-                // https://drafts.csswg.org/css-grid-2/#grid-item-sizing
-                // NB: The grid area is definite, but an item that is neither stretched nor sized by its preferred
-                //     block size or aspect ratio takes its block size from its content, which is indefinite for the
-                //     content's percentages, as in other engines. Replaced boxes and buttons size their content
-                //     against their used block size.
-                let facts = self.facts(item.box_);
-                let block_size_follows_from_content = {
-                    let preferred = self.item_preferred_size(item, Axis::Row);
-                    (preferred.is_auto() || preferred.is_intrinsic_sizing_constraint())
-                        && !self.item_is_stretched(item, Axis::Row)
-                        && !facts.has_preferred_aspect_ratio()
-                        && !facts.is_replaced_box()
-                        && !facts.uses_button_layout()
-                        && !(self.style(item.box_).display().is_grid_inside()
-                            && self.grid_item_is_subgridded(item, Axis::Row))
-                };
-                let used = self.used(item);
-                used.has_definite_inline_size.set(true);
-                used.has_definite_block_size.set(!block_size_follows_from_content);
-            }
+            let row_area = ItemRowArea::SizedAt(area.size.block_size);
+            self.prepare_item_record(item, self.used(item), row_area);
             let mut sizing = RootSizingDirectives::default();
             if let Some(transferred) = item.block_size_transferred_through_aspect_ratio {
                 // NB: The content is laid out against the block size transferred through the aspect ratio, and the item
@@ -4099,25 +4227,13 @@ impl<'pass> GridFormattingContext<'pass> {
                 sizing.forced_min_border_box_block_size =
                     Some(stretched_table_box_block_size.max(sizes.table_box_border_box_block_size));
             }
-            let input = LayoutInput {
-                available_space: AvailableSpace {
-                    inline_size: AvailableSize::definite(self.used(item).content_inline_size.get()),
-                    block_size: AvailableSize::definite(self.used(item).content_block_size.get()),
-                },
-                containing_block_constraints: {
-                    let mut constraints = self.grid_area_constraints(item);
-                    constraints.percentage_basis_block_size = Some(area.size.block_size);
-                    if let Some(inline_basis) = table_wrapper_inline_basis {
-                        // Table wrappers pass their constraints through to the table box, so hand them the
-                        // grid area in both axes for the table's percentage resolution.
-                        constraints.percentage_basis_inline_size = Some(inline_basis);
-                    }
-                    constraints
-                },
-                content_box_position_in_bfc_root: None,
-                sizing,
-                participation: ParticipationInParentFormattingContext::Item,
-            };
+            let mut input = self.item_layout_input(item, self.used(item), row_area);
+            input.sizing = sizing;
+            if let Some(inline_basis) = table_wrapper_inline_basis {
+                // Table wrappers pass their constraints through to the table box, so hand them the
+                // grid area in both axes for the table's percentage resolution.
+                input.containing_block_constraints.percentage_basis_inline_size = Some(inline_basis);
+            }
             match formatting_context::layout_inside_child(
                 run,
                 None,
@@ -4552,6 +4668,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
         // Do the first pass of resolving grid items box metrics to compute values that are independent of a track height
         self.resolve_item_metrics(Axis::Row);
+        self.offer_runs_of_items_measured_in_their_rows(RowMeasurementsAhead::RowTrackSizingAndItemBlockSizes);
         self.run_track_sizing(Axis::Row);
         // Do the second pass of resolving box metrics to compute values that depend on a track height
         self.resolve_item_metrics(Axis::Row);

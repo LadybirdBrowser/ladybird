@@ -2026,16 +2026,16 @@ pub(super) fn run_formatting_context(
         run_repeatability::verify_repeated_run(&callbacks, box_, discarded_outputs, &outputs);
     }
     if cache_attempt.stores_outputs() {
-        run_repeatability::verify_run_ignores_its_unobserved_own_block_size(
+        run_repeatability::verify_run_ignores_its_unobserved_own_block_size_and_block_margins(
             &callbacks,
             box_,
             root_cells,
             input,
             &outputs,
-            |root_cells_at_other_own_block_size, input_at_other_own_block_size| {
+            |other_root_cells, other_input| {
                 execute_formatting_context_run(
                     builds_fragments,
-                    root_cells_at_other_own_block_size,
+                    other_root_cells,
                     box_,
                     root_containing_block,
                     parent_grid,
@@ -2043,7 +2043,7 @@ pub(super) fn run_formatting_context(
                     layout_mode,
                     should_collect_devtools_layout_data,
                     callbacks,
-                    input_at_other_own_block_size,
+                    other_input,
                     parent_block,
                     None,
                     None,
@@ -2871,6 +2871,22 @@ pub(crate) trait ChildRunShapes {
     ) -> Option<ChildRunShape>;
 }
 
+pub(crate) fn item_is_block_container_whose_committing_run_can_adopt_its_measurement(
+    sizing: &sizing_context::SizingContext<'_, '_>,
+    item: Node,
+) -> bool {
+    let facts = sizing.facts(item);
+    !facts.document_in_quirks_mode()
+        && !facts.is_table_wrapper()
+        && !facts.is_replaced_box()
+        && !facts.has_preferred_aspect_ratio()
+        && sizing.style(item).writing_mode() == writing_mode::HORIZONTAL_TB
+        && !sizing.establishes_orthogonal_flow(item)
+        && formatting_context_type_created_by_box(facts) == Some(FormattingContextType::Block)
+        && !sizing.own_style_depends_on_percentage_block_size(item)
+        && !block_formatting_context::root_lays_out_content_against_its_own_block_size(sizing, item)
+}
+
 pub(crate) struct ChildRunPlan {
     pub(crate) fc_type: FormattingContextType,
     pub(crate) root_containing_block: Node,
@@ -2984,15 +3000,13 @@ pub(crate) fn lay_out_shape_for_its_result(
         run_repeatability::verify_repeated_run(&callbacks, node, discarded_outputs, &outputs);
     }
     if cache_attempt.stores_outputs() {
-        run_repeatability::verify_run_ignores_its_unobserved_own_block_size(
+        run_repeatability::verify_run_ignores_its_unobserved_own_block_size_and_block_margins(
             &callbacks,
             node,
             root_cells,
             input,
             &outputs,
-            |root_cells_at_other_own_block_size, input_at_other_own_block_size| {
-                lay_out(root_cells_at_other_own_block_size, input_at_other_own_block_size, None)
-            },
+            |other_root_cells, other_input| lay_out(other_root_cells, other_input, None),
         );
     }
     cache_attempt.conclude(&callbacks, node, cache_key, &input, &outputs);
