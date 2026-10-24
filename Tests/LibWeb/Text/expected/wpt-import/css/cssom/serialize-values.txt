@@ -2,17 +2,17 @@ Harness status: OK
 
 Found 697 tests
 
-667 Pass
-30 Fail
-Fail	alignment-baseline: baseline
-Fail	alignment-baseline: text-bottom
-Fail	alignment-baseline: alphabetic
-Fail	alignment-baseline: ideographic
-Fail	alignment-baseline: middle
-Fail	alignment-baseline: central
-Fail	alignment-baseline: mathematical
-Fail	alignment-baseline: text-top
-Fail	alignment-baseline: inherit
+691 Pass
+6 Fail
+Pass	alignment-baseline: baseline
+Pass	alignment-baseline: text-bottom
+Pass	alignment-baseline: alphabetic
+Pass	alignment-baseline: ideographic
+Pass	alignment-baseline: middle
+Pass	alignment-baseline: central
+Pass	alignment-baseline: mathematical
+Pass	alignment-baseline: text-top
+Pass	alignment-baseline: inherit
 Pass	background-attachment: scroll
 Pass	background-attachment: fixed
 Pass	background-attachment: inherit
@@ -201,21 +201,21 @@ Pass	background-repeat: repeat-x
 Pass	background-repeat: repeat-y
 Pass	background-repeat: no-repeat
 Pass	background-repeat: inherit
-Fail	baseline-shift: sub
-Fail	baseline-shift: super
-Fail	baseline-shift: top
-Fail	baseline-shift: center
-Fail	baseline-shift: bottom
-Fail	baseline-shift: 5%
-Fail	baseline-shift: .5%
-Fail	baseline-shift: 0px
-Fail	baseline-shift: 1px
-Fail	baseline-shift: .1em
-Fail	baseline-shift: inherit
-Fail	baseline-source: auto
-Fail	baseline-source: first
-Fail	baseline-source: last
-Fail	baseline-source: inherit
+Pass	baseline-shift: sub
+Pass	baseline-shift: super
+Pass	baseline-shift: top
+Pass	baseline-shift: center
+Pass	baseline-shift: bottom
+Pass	baseline-shift: 5%
+Pass	baseline-shift: .5%
+Pass	baseline-shift: 0px
+Pass	baseline-shift: 1px
+Pass	baseline-shift: .1em
+Pass	baseline-shift: inherit
+Pass	baseline-source: auto
+Pass	baseline-source: first
+Pass	baseline-source: last
+Pass	baseline-source: inherit
 Pass	border-collapse: collapse
 Pass	border-collapse: separate
 Pass	border-collapse: inherit

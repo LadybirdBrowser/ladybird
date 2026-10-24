@@ -1,10 +1,14 @@
 Harness status: OK
 
-Found 442 tests
+Found 446 tests
 
-432 Pass
+436 Pass
 10 Fail
 Pass	Setup
+Pass	alignment-baseline (type: discrete) has testInterpolation function
+Pass	alignment-baseline uses discrete animation when animating between "baseline" and "middle" with linear easing
+Pass	alignment-baseline uses discrete animation when animating between "baseline" and "middle" with effect easing
+Pass	alignment-baseline uses discrete animation when animating between "baseline" and "middle" with keyframe easing
 Pass	align-content (type: discrete) has testInterpolation function
 Fail	align-content uses discrete animation when animating between "flex-start" and "flex-end" with linear easing
 Fail	align-content uses discrete animation when animating between "flex-start" and "flex-end" with effect easing

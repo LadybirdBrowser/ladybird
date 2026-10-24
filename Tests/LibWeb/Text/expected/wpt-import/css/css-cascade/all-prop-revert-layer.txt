@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 339 tests
+Found 342 tests
 
-335 Pass
+338 Pass
 4 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -86,6 +86,7 @@ Pass	writing-mode
 Pass	align-content
 Pass	align-items
 Pass	align-self
+Pass	alignment-baseline
 Pass	animation-composition
 Pass	animation-delay
 Pass	animation-direction
@@ -111,6 +112,8 @@ Pass	background-position-x
 Pass	background-position-y
 Pass	background-repeat
 Pass	background-size
+Pass	baseline-shift
+Pass	baseline-source
 Fail	block-size
 Pass	border-block-end-color
 Pass	border-block-end-style

@@ -257,6 +257,18 @@
       "align-self"
     ]
   },
+  "alignment-baseline": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "baseline",
+    "requires-computation": "never",
+    "valid-types": [
+      "baseline-metric"
+    ],
+    "valid-identifiers": [
+      "baseline"
+    ]
+  },
   "all": {
     "affects-layout": true,
     "affects-stacking-context": true,
@@ -720,6 +732,35 @@
       "contain"
     ],
     "percentages-resolve-to": "length"
+  },
+  "baseline-shift": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "percentages-resolve-to": "length",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "sub",
+      "super",
+      "top",
+      "center",
+      "bottom"
+    ]
+  },
+  "baseline-source": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "auto",
+      "first",
+      "last"
+    ]
   },
   "block-ellipsis": {
     "style-group": "InheritedTextValues",

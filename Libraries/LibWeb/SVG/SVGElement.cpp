@@ -114,6 +114,8 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
     static auto const& properties = *new Array {
         // FIXME: The `fill` attribute and CSS `fill` property are not the same! But our support is limited enough that they are equivalent for now.
         NamedPropertyID(CSS::PropertyID::Fill),
+        NamedPropertyID(CSS::PropertyID::AlignmentBaseline),
+        NamedPropertyID(CSS::PropertyID::BaselineShift),
         // FIXME: The `stroke` attribute and CSS `stroke` property are not the same! But our support is limited enough that they are equivalent for now.
         NamedPropertyID(CSS::PropertyID::ClipPath),
         NamedPropertyID(CSS::PropertyID::ClipRule),
