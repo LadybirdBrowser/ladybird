@@ -21,10 +21,10 @@ namespace Core {
 // A SingleProducerCircularQueue whose storage lives in shared memory, so it can be transferred over
 // IPC and mmap()ed into multiple processes.
 template<typename T, size_t Size = 32>
-class SharedSingleProducerCircularQueue final : public AK::SingleProducerCircularQueueBase<T, Size> {
+class SharedSingleProducerCircularQueue final : public AK::SingleProducerCircularQueueBase<T, Size, AK::SPCQCounterWriters::AnotherProcess> {
     static_assert(IsTriviallyCopyable<T>, "Shared-memory queue items must be trivially copyable");
 
-    using Base = AK::SingleProducerCircularQueueBase<T, Size>;
+    using Base = AK::SingleProducerCircularQueueBase<T, Size, AK::SPCQCounterWriters::AnotherProcess>;
     using Data = AK::SPCQData<T, Size>;
 
 public:
@@ -75,7 +75,10 @@ public:
         auto buffer = TRY(AnonymousBuffer::create_from_anon_fd(fd, sizeof(Data)));
         TRY(buffer.validate_backing_size());
         auto* data = reinterpret_cast<Data*>(buffer.data<void>());
-        return create_internal(move(buffer), data);
+        auto queue = TRY(create_internal(move(buffer), data));
+        if (!queue.has_consistent_counters())
+            return Error::from_string_literal("Shared queue counters claim more items than the queue holds");
+        return queue;
     }
 
     ALWAYS_INLINE int fd() const { return m_storage->fd(); }
