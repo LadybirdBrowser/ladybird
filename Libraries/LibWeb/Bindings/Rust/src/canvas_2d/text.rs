@@ -14,7 +14,7 @@ use libgfx_rust::{AffineTransform, FloatPoint};
 
 use super::context::multiply_transforms;
 use super::drawing_state::DrawingState;
-use crate::html::canvas_rendering_context2d::{CanvasDirection, CanvasTextAlign, CanvasTextBaseline};
+use crate::html::canvas_rendering_context2d::{CanvasTextAlign, CanvasTextBaseline};
 
 /// A run of the text that one font of the cascade shapes.
 pub(crate) struct ShapedRun {
@@ -124,6 +124,25 @@ fn translation(x: f32, y: f32) -> AffineTransform {
     AffineTransform::new(1.0, 0.0, 0.0, 1.0, x, y)
 }
 
+/// How far the left edge of an inline box of the width is to the right of the anchor point, which textAlign and
+/// the direction of the text determine, https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-textalign
+pub(crate) fn horizontal_alignment_offset(text_align: CanvasTextAlign, is_rtl: bool, text_width: f32) -> f32 {
+    // The direction affects how "start" and "end" are interpreted:
+    // - "ltr": start=left, end=right
+    // - "rtl": start=right, end=left
+    match text_align {
+        // Center alignment is the same regardless of direction.
+        CanvasTextAlign::Center => -text_width / 2.0,
+        // In RTL, "start" means right-aligned. In LTR, it means left-aligned, which needs no translation.
+        CanvasTextAlign::Start if is_rtl => -text_width,
+        // In LTR, "end" means right-aligned. In RTL, it means left-aligned, which needs no translation.
+        CanvasTextAlign::End if !is_rtl => -text_width,
+        // Explicit "left" and "right" alignments ignore direction.
+        CanvasTextAlign::Right => -text_width,
+        CanvasTextAlign::Start | CanvasTextAlign::End | CanvasTextAlign::Left => 0.0,
+    }
+}
+
 /// Where text of the width goes relative to the point that it is drawn at, and how much it is condensed to fit in the
 /// maximum width. The text starts at x, around which it is condensed.
 #[allow(
@@ -132,6 +151,7 @@ fn translation(x: f32, y: f32) -> AffineTransform {
 )]
 pub(crate) fn text_transform(
     state: &DrawingState,
+    is_rtl: bool,
     first_font: &FontHandle,
     x: f32,
     mut text_width: f32,
@@ -153,24 +173,9 @@ pub(crate) fn text_transform(
     }
 
     // Apply text align
-    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-textalign
-    // The direction property affects how "start" and "end" are interpreted:
-    // - "ltr" or "inherit" (default): start=left, end=right
-    // - "rtl": start=right, end=left
-    let is_rtl = state.direction == CanvasDirection::Rtl;
-    let alignment_offset = match state.text_align {
-        // Center alignment is the same regardless of direction.
-        CanvasTextAlign::Center => Some(-text_width / 2.0),
-        // In RTL, "start" means right-aligned. In LTR, it means left-aligned, which needs no translation.
-        CanvasTextAlign::Start => is_rtl.then_some(-text_width),
-        // In LTR, "end" means right-aligned. In RTL, it means left-aligned, which needs no translation.
-        CanvasTextAlign::End => (!is_rtl).then_some(-text_width),
-        // Explicit "left" and "right" alignments ignore direction.
-        CanvasTextAlign::Right => Some(-text_width),
-        CanvasTextAlign::Left => None,
-    };
-    if let Some(offset) = alignment_offset {
-        transform = multiply_transforms(translation(offset, 0.0), transform);
+    let alignment_offset = horizontal_alignment_offset(state.text_align, is_rtl, text_width);
+    if alignment_offset != 0.0 {
+        transform = multiply_transforms(translation(alignment_offset, 0.0), transform);
     }
 
     // Apply text baseline

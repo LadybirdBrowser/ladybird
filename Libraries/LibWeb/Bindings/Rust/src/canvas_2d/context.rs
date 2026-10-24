@@ -24,6 +24,7 @@ use super::canvas::{Canvas, FontMetricsSource, FontSelection, ResolvedFont, Styl
 use super::drawing_state::{CanvasColor, DrawingState, FillOrStrokeStyle};
 use super::host::{Bitmap, CppTransport, LentImageFrame};
 use crate::bindings::interface::Wrappable;
+use crate::html::canvas_rendering_context2d::CanvasDirection;
 use crate::html::canvas_rendering_context2d_settings::CanvasRenderingContext2DSettings;
 use crate::html::predefined_color_space::PredefinedColorSpace;
 
@@ -629,6 +630,24 @@ impl ContextState {
         let font_selection = FontSelection::of(&self.drawing_state());
         if let Some(font) = self.canvas.resolve_font(font, font_selection) {
             self.drawing_state_mut().font = Some(font);
+        }
+    }
+
+    /// Whether the direction of text is 'rtl', as step 7 of the text preparation algorithm determines it,
+    /// https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm
+    pub(crate) fn direction_is_rtl(&self) -> bool {
+        match self.drawing_state().direction {
+            // If the target object's direction attribute has the value "ltr": Let direction be 'ltr'.
+            CanvasDirection::Ltr => false,
+            // If the target object's direction attribute has the value "rtl": Let direction be 'rtl'.
+            CanvasDirection::Rtl => true,
+            // If the target object's direction attribute has the value "inherit":
+            // 1. Let sourceObject be object's font style source object.
+            // 2. If sourceObject is a canvas element, then let direction be sourceObject's directionality.
+            // 3. Otherwise:
+            //    1. Assert: sourceObject is an OffscreenCanvas object.
+            //    2. Let direction be sourceObject's inherited direction.
+            CanvasDirection::Inherit => self.canvas.directionality_is_rtl(),
         }
     }
 
