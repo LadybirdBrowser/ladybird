@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        internals.setEnvironmentsTopLevelURL("https://ladybird.org/");
+        println(`https: ${isSecureContext}`);
+
+        internals.setEnvironmentsTopLevelURL("data:text/html,");
+        println(`data: ${isSecureContext}`);
+    });
+</script>
