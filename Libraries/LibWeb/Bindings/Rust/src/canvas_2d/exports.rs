@@ -67,15 +67,12 @@ fn with_context<R>(context: &ContextCell, function: impl FnOnce(&ContextState) -
 
 /// # Safety
 ///
-/// `vm` is the live VM, and the pointers of the arguments are what [`ContextCreationArguments`] describes.
+/// The pointers of the arguments are what [`ContextCreationArguments`] describes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_canvas_2d_context_create(
-    vm: *mut c_void,
+    vm: &libjs_rust::api::Vm,
     arguments: &ContextCreationArguments,
 ) -> *mut c_void {
-    assert!(!vm.is_null(), "C++ passes the VM");
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { &*vm.cast::<libjs_rust::api::Vm>() };
     let canvas = Canvas {
         cell: NonNull::new(arguments.canvas).expect("C++ passes the canvas"),
         host: NonNull::new(arguments.canvas_host).expect("C++ passes the canvas"),

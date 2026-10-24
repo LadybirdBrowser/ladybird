@@ -19,15 +19,6 @@ use super::image_data::ImageData;
 use crate::bindings::CallContext;
 use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi, realm_arguments};
 
-/// # Safety
-///
-/// `vm` must be the live VM.
-unsafe fn vm_from_abi<'vm>(vm: *mut c_void) -> &'vm Vm {
-    assert!(!vm.is_null(), "C++ passes the VM");
-    // SAFETY: The caller passes the live VM.
-    unsafe { &*vm.cast::<Vm>() }
-}
-
 /// The implementation of the object whose cell C++ lends, for as long as C++ keeps the cell alive.
 ///
 /// # Safety
@@ -119,11 +110,9 @@ pub unsafe extern "C" fn web_image_data_pixels(image_data: *mut c_void) -> *mut 
 ///
 /// # Safety
 ///
-/// `vm` must be the live VM, and `frame` a live frame or null.
+/// `frame` must be a live frame or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_bitmap_create(vm: *mut c_void, frame: *const c_void) -> *mut c_void {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { vm_from_abi(vm) };
+pub unsafe extern "C" fn web_image_bitmap_create(vm: &Vm, frame: *const c_void) -> *mut c_void {
     // SAFETY: The caller passes a live frame.
     let frame = (!frame.is_null()).then(|| unsafe { ImageFrameHandle::retain(frame) });
     cell_into_abi(ImageBitmap::create(vm, frame))
