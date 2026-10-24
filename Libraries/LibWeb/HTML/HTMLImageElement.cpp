@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -336,29 +337,75 @@ void HTMLImageElement::update_alt_text_shadow_tree()
     m_alt_text_node->set_data(alt_text);
 }
 
+// https://html.spec.whatwg.org/multipage/embedded-content.html#img-dimensions
+HTMLImageElement::Dimensions HTMLImageElement::dimensions(DOM::UpdateLayoutReason update_layout_reason) const
+{
+    // 1. Let naturalDimensions be null.
+    Optional<CSSPixelSize> natural_dimensions;
+
+    // 2. If image is available, then set naturalDimensions to image's density-corrected natural width and height.
+    if (m_current_request && m_current_request->is_available())
+        natural_dimensions = density_corrected_natural_width_and_height();
+
+    // 3. Return the result of determining the dimensions of image given naturalDimensions.
+    return determine_the_dimensions(natural_dimensions, update_layout_reason);
+}
+
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#determine-dimensions
+HTMLImageElement::Dimensions HTMLImageElement::determine_the_dimensions(Optional<CSSPixelSize> natural_dimensions, DOM::UpdateLayoutReason update_layout_reason) const
+{
+    Layout::ForcedReadScope read { document() };
+    const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, update_layout_reason);
+
+    // 1. If element is being rendered, then return the width and height of element's content box, in CSS pixels. [CSS]
+    if (auto const* layout_node = this->layout_node(read); layout_node && Painting::has_committed_box(*layout_node)) {
+        auto content_size = Painting::content_size(*layout_node);
+        return { content_size.width().to_double(), content_size.height().to_double() };
+    }
+
+    // 2. Let width and height be 0.
+    // NB: These are doubles, as attribute values can exceed the range of CSSPixels.
+    double width = 0;
+    double height = 0;
+
+    // 3. If naturalDimensions is not null, then set width to naturalDimensions's width and height to naturalDimensions's
+    //    height.
+    if (natural_dimensions.has_value()) {
+        width = natural_dimensions->width().to_double();
+        height = natural_dimensions->height().to_double();
+    }
+
+    // 4. If element has a width attribute:
+    if (auto width_attribute = get_attribute(HTML::AttributeNames::width); width_attribute.has_value()) {
+        // 1. Let attributeWidth be the result of parsing that attribute's value.
+        auto attribute_width = parse_non_negative_integer(*width_attribute);
+
+        // 2. If attributeWidth is not an error, then set width to attributeWidth.
+        // AD-HOC: Like the reflection of an unsigned long, a value above 2147483647 counts as an error.
+        if (attribute_width.has_value() && *attribute_width <= 2147483647)
+            width = *attribute_width;
+    }
+
+    // 5. If element has a height attribute:
+    if (auto height_attribute = get_attribute(HTML::AttributeNames::height); height_attribute.has_value()) {
+        // 1. Let attributeHeight be the result of parsing that attribute's value.
+        auto attribute_height = parse_non_negative_integer(*height_attribute);
+
+        // 2. If attributeHeight is not an error, then set height to attributeHeight.
+        // AD-HOC: Like the reflection of an unsigned long, a value above 2147483647 counts as an error.
+        if (attribute_height.has_value() && *attribute_height <= 2147483647)
+            height = *attribute_height;
+    }
+
+    // 6. Return a width of width and a height of height, in CSS pixels.
+    return { width, height };
+}
+
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-width
 WebIDL::UnsignedLong HTMLImageElement::width() const
 {
-    Layout::ForcedReadScope read { document() };
-    const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementWidth);
-
-    // Return the rendered width of the image, in CSS pixels, if the image is being rendered.
-    if (auto const* layout_node = this->layout_node(read); layout_node && Painting::has_committed_box(*layout_node))
-        return Painting::content_width(*layout_node).to_int();
-
-    // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
-    if (auto width_attr = get_attribute(HTML::AttributeNames::width); width_attr.has_value()) {
-        if (auto converted = parse_non_negative_integer(*width_attr); converted.has_value() && *converted <= 2147483647)
-            return *converted;
-    }
-
-    // ...or else the density-corrected intrinsic width and height of the image, in CSS pixels,
-    // if the image has intrinsic dimensions and is available but not being rendered.
-    if (auto width = intrinsic_width(); width.has_value() && *width > 0)
-        return width->to_int();
-
-    // ...or else 0, if the image is not available or does not have intrinsic dimensions.
-    return 0;
+    // The width getter steps are to return the width of this's dimensions.
+    return static_cast<WebIDL::UnsignedLong>(dimensions(DOM::UpdateLayoutReason::HTMLImageElementWidth).width);
 }
 
 void HTMLImageElement::set_width(WebIDL::UnsignedLong width)
@@ -371,26 +418,8 @@ void HTMLImageElement::set_width(WebIDL::UnsignedLong width)
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-height
 WebIDL::UnsignedLong HTMLImageElement::height() const
 {
-    Layout::ForcedReadScope read { document() };
-    const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementHeight);
-
-    // Return the rendered height of the image, in CSS pixels, if the image is being rendered.
-    if (auto const* layout_node = this->layout_node(read); layout_node && Painting::has_committed_box(*layout_node))
-        return Painting::content_height(*layout_node).to_int();
-
-    // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
-    if (auto height_attr = get_attribute(HTML::AttributeNames::height); height_attr.has_value()) {
-        if (auto converted = parse_non_negative_integer(*height_attr); converted.has_value() && *converted <= 2147483647)
-            return *converted;
-    }
-
-    // ...or else the density-corrected intrinsic height and height of the image, in CSS pixels,
-    // if the image has intrinsic dimensions and is available but not being rendered.
-    if (auto height = intrinsic_height(); height.has_value() && *height > 0)
-        return height->to_int();
-
-    // ...or else 0, if the image is not available or does not have intrinsic dimensions.
-    return 0;
+    // The height getter steps are to return the height of this's dimensions.
+    return static_cast<WebIDL::UnsignedLong>(dimensions(DOM::UpdateLayoutReason::HTMLImageElementHeight).height);
 }
 
 void HTMLImageElement::set_height(WebIDL::UnsignedLong height)
@@ -416,30 +445,63 @@ static Optional<CSSPixels> density_correct_dimension(Optional<CSSPixels> dimensi
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#density-corrected-intrinsic-width-and-height
-// To determine the density-corrected natural width and height of an img element img:
-// - Let density be img's current request's current pixel density.
-// - If the current request's preferred density-corrected dimensions are not null, divide those dimensions by density.
-// - Otherwise, divide the image's intrinsic width and intrinsic height by density.
-// The intrinsic ratio is not density-corrected, since dividing both dimensions by the same density leaves it unchanged.
+CSSPixelSize HTMLImageElement::density_corrected_natural_width_and_height() const
+{
+    VERIFY(m_current_request);
+
+    // 1. Let density be img's current request's current pixel density.
+    auto density = current_pixel_density_or_default(*m_current_request);
+
+    // 2. Let dimensions be img's current request's preferred density-corrected dimensions.
+    auto const& dimensions = m_current_request->preferred_density_corrected_dimensions();
+
+    // 3. If dimensions is not null, then set dimensions's width to dimensions's width divided by density, set
+    //    dimensions's height to dimensions's height divided by density, and return dimensions.
+    if (dimensions.has_value())
+        return { CSSPixels::nearest_value_for(dimensions->width() / density), CSSPixels::nearest_value_for(dimensions->height() / density) };
+
+    // 4. Let intrinsicWidth, intrinsicHeight, and intrinsicRatio be img's intrinsic width, intrinsic height, and
+    //    intrinsic aspect ratio, if any, respectively.
+    Optional<CSSPixels> intrinsic_width;
+    Optional<CSSPixels> intrinsic_height;
+    Optional<CSSPixelFraction> intrinsic_ratio;
+    if (auto const& data = decoded_image_data()) {
+        intrinsic_width = data->intrinsic_width();
+        intrinsic_height = data->intrinsic_height();
+        intrinsic_ratio = data->intrinsic_aspect_ratio();
+    }
+
+    // 5. If intrinsicWidth is not absent, then set intrinsicWidth to intrinsicWidth divided by density.
+    intrinsic_width = density_correct_dimension(intrinsic_width, density);
+
+    // 6. If intrinsicHeight is not absent, then set intrinsicHeight to intrinsicHeight divided by density.
+    intrinsic_height = density_correct_dimension(intrinsic_height, density);
+
+    // 7. Return the result of applying the default sizing algorithm with intrinsicWidth, intrinsicHeight, and
+    //    intrinsicRatio, using a default object size of 300 by 150.
+    return CSS::run_default_sizing_algorithm({}, {}, { intrinsic_width, intrinsic_height, intrinsic_ratio }, { 300, 150 });
+}
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-naturalwidth
 unsigned HTMLImageElement::natural_width() const
 {
     // 1. If the image is not available, then return 0.
+    if (!m_current_request || !m_current_request->is_available())
+        return 0;
+
     // 2. Return the respective component of the image's density-corrected natural width and height, in CSS pixels. [CSS]
-    if (auto width = intrinsic_width(); width.has_value() && *width > 0)
-        return width->to_int();
-    return 0;
+    return density_corrected_natural_width_and_height().width().to_int();
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-naturalheight
 unsigned HTMLImageElement::natural_height() const
 {
     // 1. If the image is not available, then return 0.
+    if (!m_current_request || !m_current_request->is_available())
+        return 0;
+
     // 2. Return the respective component of the image's density-corrected natural width and height, in CSS pixels. [CSS]
-    if (auto height = intrinsic_height(); height.has_value() && *height > 0)
-        return height->to_int();
-    return 0;
+    return density_corrected_natural_width_and_height().height().to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-htmlimageelement-x
