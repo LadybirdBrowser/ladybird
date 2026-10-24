@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        for (const value of [
+            "color-mix(red 80%, green 80%, blue)",
+            "color-mix(red 60%, green 40%, blue)",
+            "color-mix(red 30%, green, blue)",
+        ]) {
+            target.style.color = value;
+            const serialized = target.style.color;
+            target.style.color = "";
+            target.style.color = serialized;
+            println(`${value}: ${serialized}, reparses: ${target.style.color === serialized}`);
+        }
+    });
+</script>

@@ -1,0 +1,3 @@
+color-mix(red 80%, green 80%, blue): color-mix(red 80%, green 80%, blue 0%), reparses: true
+color-mix(red 60%, green 40%, blue): color-mix(red 60%, green 40%, blue 0%), reparses: true
+color-mix(red 30%, green, blue): color-mix(red 30%, green 35%, blue 35%), reparses: true

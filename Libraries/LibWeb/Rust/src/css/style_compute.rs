@@ -1382,20 +1382,15 @@ pub(crate) fn value_is_computationally_independent(value: &StyleValueData) -> Op
         }
         StyleValueData::ColorMix {
             color_interpolation_method,
-            first_color,
-            first_percentage,
-            second_color,
-            second_percentage,
+            colors,
+            percentages,
             ..
         } => {
             let mut independent = true;
-            for value in [
-                color_interpolation_method,
-                first_color,
-                first_percentage,
-                second_color,
-                second_percentage,
-            ] {
+            for value in std::iter::once(color_interpolation_method)
+                .chain(colors.as_slice())
+                .chain(percentages.as_slice())
+            {
                 if let Some(value) = value.optional_data() {
                     independent = independent && value_is_computationally_independent(value)?;
                 }
@@ -1679,21 +1674,14 @@ pub(crate) fn collect_external_value_dependencies(value: &StyleValueData) -> Ext
             }
             StyleValueData::ColorMix {
                 color_interpolation_method,
-                first_color,
-                first_percentage,
-                second_color,
-                second_percentage,
+                colors,
+                percentages,
                 ..
-            } => collect_values(
-                &[
-                    color_interpolation_method,
-                    first_color,
-                    first_percentage,
-                    second_color,
-                    second_percentage,
-                ],
-                dependencies,
-            ),
+            } => {
+                collect_values(&[color_interpolation_method], dependencies);
+                collect_values(&colors.as_slice().iter().collect::<Vec<_>>(), dependencies);
+                collect_values(&percentages.as_slice().iter().collect::<Vec<_>>(), dependencies);
+            }
             StyleValueData::ContrastColor { color, .. } => collect(color.data(), dependencies),
             StyleValueData::LightDark { light, dark, .. } => collect_values(&[light, dark], dependencies),
             StyleValueData::Superellipse { parameter } => collect_optional(parameter, dependencies),
@@ -1927,21 +1915,14 @@ pub(crate) fn collect_unfixed_random_sharings_in_value(
         }
         StyleValueData::ColorMix {
             color_interpolation_method,
-            first_color,
-            first_percentage,
-            second_color,
-            second_percentage,
+            colors,
+            percentages,
             ..
-        } => collect_values(
-            &[
-                color_interpolation_method,
-                first_color,
-                first_percentage,
-                second_color,
-                second_percentage,
-            ],
-            sharings,
-        ),
+        } => {
+            collect_values(&[color_interpolation_method], sharings);
+            collect_values(&colors.as_slice().iter().collect::<Vec<_>>(), sharings);
+            collect_values(&percentages.as_slice().iter().collect::<Vec<_>>(), sharings);
+        }
         StyleValueData::ContrastColor { color, .. } => collect_values(&[color], sharings),
         StyleValueData::LightDark { light, dark, .. } => collect_values(&[light, dark], sharings),
         StyleValueData::Superellipse { parameter } => collect_values(&[parameter], sharings),

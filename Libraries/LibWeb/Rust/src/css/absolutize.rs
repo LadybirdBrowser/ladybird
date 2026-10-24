@@ -211,8 +211,8 @@ mod grid_tests {
 
 use crate::css::color_resolution::{
     ColorResolutionInput, EMPTY_INPUT, PREFERRED_COLOR_SCHEME_DARK, RECTANGULAR_COLOR_SPACE_OKLAB,
-    descriptor_for_color_type, normalize_percentage_pair, percentage_from_style_value, resolve_alpha,
-    resolve_color_for_interpolation, resolve_hue, resolve_relative_form, resolve_with_reference_value, to_color,
+    calculate_a_color_mix, descriptor_for_color_type, percentage_from_style_value, resolve_alpha, resolve_hue,
+    resolve_relative_form, resolve_with_reference_value, to_color,
 };
 use crate::css::css_enums::keyword;
 use crate::css::style_compute::{FfiLengthResolutionContext, absolutize_length, keyword_is_color};
@@ -629,42 +629,34 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
     Some(Absolutized::Changed(retain_new(rebuilt)))
 }
 
-/// Normalize the mix percentages, resolve relative color forms, and interpolate to a concrete
-/// color. When interpolation cannot complete, rebuild the color mix around its absolutized parts.
-// FIXME: Follow the spec algorithm. https://drafts.csswg.org/css-color-5/#calculate-a-color-mix
+/// Normalize the mix percentages, resolve relative color forms, and mix to a concrete color.
+/// When mixing cannot complete, rebuild the color mix around its absolutized parts.
+// https://drafts.csswg.org/css-color-5/#color-mix-result
 fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext) -> Option<Absolutized> {
     let StyleValueData::ColorMix {
         color_interpolation_method,
-        first_color,
-        first_percentage,
-        second_color,
-        second_percentage,
+        colors,
+        percentages,
         ..
     } = value
     else {
         return None;
     };
 
-    // Port of normalize_percentages(): each present percentage absolutizes, then the pair
-    // normalizes per https://drafts.csswg.org/css-color-5/#color-mix-percent-norm.
-    let absolutized_percentage = |slot: &RetainedStyleValueData| -> Option<Option<f64>> {
-        if slot.optional_data().is_none() {
-            return Some(None);
-        }
-        let mut changed = false;
-        let absolutized = absolutize_child(slot, context, &mut changed)?;
-        Some(Some(percentage_from_style_value(absolutized.data())?))
-    };
-    let p1 = absolutized_percentage(first_percentage)?;
-    let p2 = absolutized_percentage(second_percentage)?;
-    let normalized = normalize_percentage_pair(p1, p2);
+    let mut percentages_changed = false;
+    let absolutized_percentages = absolutize_list(percentages, context, &mut percentages_changed)?;
+    let specified_percentages = absolutized_percentages
+        .iter()
+        .map(|percentage| match percentage.optional_data() {
+            None => Some(None),
+            Some(value) => Some(Some(percentage_from_style_value(value)?)),
+        })
+        .collect::<Option<Vec<_>>>()?;
 
     let input = color_resolution_input(context);
 
     let mut method_changed = false;
     let absolutized_method = absolutize_child(color_interpolation_method, context, &mut method_changed)?;
-
-    let delta = normalized.second_percentage / 100.0;
 
     // An absent method interpolates in the rectangular Oklab space.
     let default_method = StyleValueData::ColorInterpolationMethod {
@@ -676,62 +668,54 @@ fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext)
 
     // Resolve relative-color components before interpolation so channel-keyword references
     // and `none` missing-channel markers are made visible during interpolation.
-    let resolve_if_relative = |color: &StyleValueData| -> Option<StyleValueData> {
-        if let StyleValueData::ColorFunction { origin_color, .. } = color
-            && origin_color.optional_data().is_some()
-        {
-            return resolve_relative_form(color, &input);
-        }
-        None
-    };
-    let resolved_first_storage = resolve_if_relative(first_color.data());
-    let resolved_second_storage = resolve_if_relative(second_color.data());
-    let resolved_first = resolved_first_storage.as_ref().unwrap_or(first_color.data());
-    let resolved_second = resolved_second_storage.as_ref().unwrap_or(second_color.data());
+    let resolved_colors: Vec<Option<StyleValueData>> = colors
+        .as_slice()
+        .iter()
+        .map(|color| {
+            if let StyleValueData::ColorFunction { origin_color, .. } = color.data()
+                && origin_color.optional_data().is_some()
+            {
+                return resolve_relative_form(color.data(), &input);
+            }
+            None
+        })
+        .collect();
+    let colors_for_mix = colors
+        .as_slice()
+        .iter()
+        .zip(&resolved_colors)
+        .map(|(color, resolved)| resolved.as_ref().unwrap_or(color.data()));
 
     // NB: Without a currentcolor to resolve against, a mix reading it keeps the mix, which the color it is used as
     //     resolves against the element's own color.
     let reads_unknown_current_color = context.current_color.is_none()
-        && [first_color, second_color]
+        && colors
+            .as_slice()
             .iter()
             .any(|color| color.optional_data().is_some_and(value_depends_on_current_color));
-    let interpolated = (|| -> Option<RetainedStyleValueData> {
-        if reads_unknown_current_color {
-            return None;
-        }
-        let resolved_from = resolve_color_for_interpolation(resolved_first, &input)?;
-        let resolved_to = resolve_color_for_interpolation(resolved_second, &input)?;
-        let result = crate::css::color_interpolation::interpolate_color(
-            &resolved_from,
-            &resolved_to,
-            method,
-            delta as f32,
-            normalized.alpha_multiplier as f32,
-        )?;
-        Some(retain_new(result))
-    })();
-    if let Some(result) = interpolated {
-        return Some(Absolutized::Changed(result));
+    if !reads_unknown_current_color
+        && let Some(result) = calculate_a_color_mix(colors_for_mix, &specified_percentages, method, &input)
+    {
+        return Some(Absolutized::Changed(retain_new(result)));
     }
 
-    // Fall back to a color-mix() over absolutized values when interpolation cannot complete;
-    // currently that means a component relies on currentcolor.
+    // Fall back to a color-mix() over absolutized values when mixing cannot complete; currently
+    // that means a color relies on currentcolor.
     let mut colors_changed = false;
-    let absolutized_first = absolutize_child(first_color, context, &mut colors_changed)?;
-    let absolutized_second = absolutize_child(second_color, context, &mut colors_changed)?;
+    let absolutized_colors = absolutize_list(colors, context, &mut colors_changed)?;
     // NB: The percentages are kept as given, since normalizing them here would lose the alpha multiplier of a sum
     //     under 100%. The mix normalizes them when it resolves.
-    let percentage_matches =
-        |slot: &RetainedStyleValueData, absolutized: Option<f64>| match (slot.optional_data(), absolutized) {
-            (None, None) => true,
-            (Some(StyleValueData::Percentage { value }), Some(absolutized)) => *value == absolutized,
-            _ => false,
-        };
-    let retained_percentage = |absolutized: Option<f64>| match absolutized {
-        Some(value) => retain_new(StyleValueData::Percentage { value }),
-        None => retained_null(),
-    };
-    if !colors_changed && percentage_matches(first_percentage, p1) && percentage_matches(second_percentage, p2) {
+    let percentages_match =
+        percentages
+            .as_slice()
+            .iter()
+            .zip(&specified_percentages)
+            .all(|(slot, absolutized)| match (slot.optional_data(), absolutized) {
+                (None, None) => true,
+                (Some(StyleValueData::Percentage { value }), Some(absolutized)) => value == absolutized,
+                _ => false,
+            });
+    if !colors_changed && percentages_match {
         return Some(Absolutized::Unchanged);
     }
     Some(Absolutized::Changed(retain_new(StyleValueData::ColorMix {
@@ -741,10 +725,16 @@ fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext)
             color_syntax: COLOR_SYNTAX_MODERN,
         },
         color_interpolation_method: absolutized_method,
-        first_color: absolutized_first,
-        first_percentage: retained_percentage(p1),
-        second_color: absolutized_second,
-        second_percentage: retained_percentage(p2),
+        colors: RetainedStyleValueDataList::from_retained_values(absolutized_colors),
+        percentages: RetainedStyleValueDataList::from_retained_values(
+            specified_percentages
+                .into_iter()
+                .map(|percentage| match percentage {
+                    Some(value) => retain_new(StyleValueData::Percentage { value }),
+                    None => retained_null(),
+                })
+                .collect(),
+        ),
     })))
 }
 
