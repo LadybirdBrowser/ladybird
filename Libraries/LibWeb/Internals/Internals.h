@@ -218,6 +218,7 @@ public:
     Utf16String dump_session_store_tab_state();
     Utf16String dump_site_isolation_process_tree();
     bool has_populated_document(HTML::HTMLIFrameElement&);
+    bool canvas_has_unpresented_content(HTML::HTMLCanvasElement&);
     void crash_remote_frame_processes();
     void stop_loading_through_ui_process();
     void reload_through_ui_process();

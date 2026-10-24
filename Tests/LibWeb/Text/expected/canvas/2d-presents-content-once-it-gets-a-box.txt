@@ -1,0 +1,4 @@
+Detached: true
+Inserted: false
+Drawn while display: none: true
+Displayed again: false

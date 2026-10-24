@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function nextRenderingUpdate() {
+        return new Promise(resolve => requestAnimationFrame(() => resolve()));
+    }
+
+    asyncTest(async done => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 10;
+        canvas.height = 10;
+        const context = canvas.getContext("2d");
+        context.fillRect(0, 0, 10, 10);
+
+        await nextRenderingUpdate();
+        await nextRenderingUpdate();
+        println(`Detached: ${internals.canvasHasUnpresentedContent(canvas)}`);
+
+        document.body.appendChild(canvas);
+        await nextRenderingUpdate();
+        println(`Inserted: ${internals.canvasHasUnpresentedContent(canvas)}`);
+
+        canvas.style.display = "none";
+        await nextRenderingUpdate();
+        context.fillRect(0, 0, 5, 5);
+        await nextRenderingUpdate();
+        println(`Drawn while display: none: ${internals.canvasHasUnpresentedContent(canvas)}`);
+
+        canvas.style.display = "";
+        await nextRenderingUpdate();
+        println(`Displayed again: ${internals.canvasHasUnpresentedContent(canvas)}`);
+
+        done();
+    });
+</script>

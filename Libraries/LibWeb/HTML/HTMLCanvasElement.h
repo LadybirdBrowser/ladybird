@@ -72,6 +72,7 @@ public:
     WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType> callback, Utf16View type, Optional<JS::Value> quality);
 
     void prepare_for_compositing();
+    bool has_unpresented_content() const { return m_canvas_content_dirty; }
     void notify_compositor_backing_storage_lost();
     void set_canvas_content_dirty();
     GC::Ptr<HTML::CanvasRenderingContext2D> canvas_rendering_context_2d() const
