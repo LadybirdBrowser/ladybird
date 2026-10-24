@@ -234,7 +234,7 @@ void LocalTraversableNavigable::close_top_level_traversable_from_script()
     //    - thisTraversable is script-closable;
     //    - the incumbent global object's browsing context is familiar with browsingContext; and
     //    - the incumbent global object's navigable is allowed by sandboxing to navigate thisTraversable, given sourceSnapshotParams,
-    // NB: The requesting process found these true, and the UI process checked again the ones it holds the state for.
+    // NB: The requesting process found these true, and the UI process checked them again.
     // then:
     // 1. Set thisTraversable's is closing to true.
     this_traversable.set_closing(true);

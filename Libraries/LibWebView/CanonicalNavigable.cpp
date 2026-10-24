@@ -518,6 +518,41 @@ bool CanonicalNavigable::is_ancestor_of(CanonicalNavigable const& potential_desc
     return false;
 }
 
+// https://html.spec.whatwg.org/multipage/document-sequences.html#familiar-with
+// NB: Stated on the navigables whose active browsing contexts are compared, as in the renderer.
+bool CanonicalNavigable::is_familiar_with(CanonicalNavigable const& other) const
+{
+    // A browsing context A is familiar with a second browsing context B if the following algorithm returns true:
+    auto const& A = *this;
+    auto const& B = other;
+
+    // 1. If A's active document's origin is same origin with B's active document's origin, then return true.
+    if (A.active_document().origin().is_same_origin(B.active_document().origin()))
+        return true;
+
+    // 2. If A's top-level browsing context is B, then return true.
+    if (&A.top_level_traversable() == &B)
+        return true;
+
+    // 3. If B is an auxiliary browsing context and A is familiar with B's opener browsing context, then return true.
+    if (B.active_browsing_context().is_auxiliary()) {
+        if (auto opener = B.active_browsing_context().opener_browsing_context()) {
+            if (auto const* opener_navigable = CanonicalTraversable::navigable_with_active_browsing_context(*opener); opener_navigable && A.is_familiar_with(*opener_navigable))
+                return true;
+        }
+    }
+
+    // 4. If there exists an ancestor browsing context of B whose active document has the same origin as the active document of A, then return true.
+    // NOTE: This includes the case where A is an ancestor browsing context of B.
+    for (auto const* ancestor = B.parent(); ancestor; ancestor = ancestor->parent()) {
+        if (ancestor->active_document().origin().is_same_origin(A.active_document().origin()))
+            return true;
+    }
+
+    // 5. Return false.
+    return false;
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#allowed-to-navigate
 bool CanonicalNavigable::allowed_by_sandboxing_to_navigate(CanonicalNavigable const& target, Web::InitiatorSourceSnapshot const& source_snapshot_params) const
 {

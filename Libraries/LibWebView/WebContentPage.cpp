@@ -1794,21 +1794,31 @@ void WebContentPage::did_request_close_of_traversable(Web::HTML::CrossProcessId 
 
     // The process closing it must host the navigable it closes from. The request comes through the page holding the
     // traversable's tab, which is not the source's when the two are different tabs.
-    auto source = client().hosted_navigable(source_navigable_id);
+    Optional<CanonicalNavigable&> source;
+    RefPtr<WebContentPage> source_page;
+    client().for_each_page([&](WebContentPage& page) {
+        source = page.hosted_navigable(source_navigable_id);
+        if (!source.has_value())
+            return IterationDecision::Continue;
+        source_page = page;
+        return IterationDecision::Break;
+    });
     if (!source.has_value())
         return;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-close
     // 6. If all the following are true:
     //    - thisTraversable is script-closable;
+    //    - the incumbent global object's browsing context is familiar with browsingContext; and
     //    - the incumbent global object's navigable is allowed by sandboxing to navigate thisTraversable, given sourceSnapshotParams,
     // NB: The requesting process found these true. The UI process checks them again with the state it holds, including
-    //     the sandboxing flags of the incumbent global object's associated Document.
+    //     the sandboxing flags of the incumbent global object's associated Document and the activation of the input it
+    //     delivered to the page hosting it.
     Web::InitiatorSourceSnapshot source_snapshot_params {
         .sandboxing_flags = source_snapshot.sandboxing_flags | source->active_document().active_sandboxing_flag_set(),
-        .has_transient_activation = source_snapshot.has_transient_activation,
+        .has_transient_activation = source_snapshot.has_transient_activation && source_page->has_transient_user_activation(),
     };
-    if (!traversable().is_script_closable() || !source->allowed_by_sandboxing_to_navigate(traversable(), source_snapshot_params))
+    if (!traversable().is_script_closable() || !source->is_familiar_with(traversable()) || !source->allowed_by_sandboxing_to_navigate(traversable(), source_snapshot_params))
         return;
 
     auto endpoint = endpoint_hosting_navigable_represented_by(navigable_id);
