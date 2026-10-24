@@ -20,7 +20,7 @@ use crate::painting::visual_context::VisualContextTree;
 use crate::painting::visual_context::VisualContextTreeDump;
 use crate::painting::visual_context::dump::SlotKind;
 use crate::stage::MainThread;
-use libgfx_rust::path::OwnedPath;
+use libgfx_rust::path::Path;
 use libgfx_rust::{
     Color, CompositingAndBlendingOperator, CornerRadii, FloatPoint, FloatRect, FloatSize, IntPoint, IntRect, IntSize,
     LineStyle, ScalingMode,
@@ -709,7 +709,7 @@ fn dump_inline_clips(output: &mut String, header: &DisplayListCommandHeader, pay
             let start = clip.path_data.offset as usize;
             let size = clip.path_data.size as usize;
             assert!(start <= payload.len() && size <= payload.len() - start);
-            let path = OwnedPath::from_serialized_bytes(&payload[start..start + size]);
+            let path = Path::from_serialized_bytes(&payload[start..start + size]);
             let svg_path = path.to_svg_string();
             let has_host_dependent_curves = svg_path.contains('Q') || svg_path.contains('C');
             output.push_str("clip_path=[bounds: ");

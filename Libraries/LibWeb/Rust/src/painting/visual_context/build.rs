@@ -65,7 +65,7 @@ pub(crate) struct BoxFacts {
     pub overflow_clip_contour: Option<ClipPathData>,
     pub css_clip: Option<ClipData>,
     pub line_clamp_float_clip: Option<ClipData>,
-    pub clip_path: Option<(std::sync::Arc<libgfx_rust::path::OwnedPath>, IntRect, WindingRule)>,
+    pub clip_path: Option<(std::sync::Arc<libgfx_rust::path::Path>, IntRect, WindingRule)>,
     pub mask_layers: Vec<MaskData>,
     pub establishes_absolute_containing_block: bool,
     pub establishes_fixed_containing_block: bool,

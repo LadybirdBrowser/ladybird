@@ -21,7 +21,7 @@ use crate::visual_animation::{
     MAXIMUM_TRANSFORM_OPERATION_VALUE_COUNT, VisualAnimation, VisualAnimationKeyframe,
     VisualAnimationTransformOperation, VisualAnimationValue,
 };
-use libgfx_rust::path::OwnedPath;
+use libgfx_rust::path::Path;
 use libgfx_rust::{
     Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, CornerRadius, FloatMatrix4x4, FloatPoint,
     FloatRect, FloatSize, IntRect, MaskKind, WindingRule,
@@ -441,7 +441,7 @@ fn read_clip_data(reader: &mut TreeByteReader<'_>) -> Option<ClipNodeData> {
         CLIP_KIND_PATH => {
             let bounding_rect = reader.int_rect()?;
             let fill_rule = reader.winding_rule()?;
-            let path = OwnedPath::from_serialized_bytes(reader.length_prefixed_bytes()?);
+            let path = Path::from_serialized_bytes(reader.length_prefixed_bytes()?);
             ClipNodeData::Path(ClipPathData {
                 path: std::sync::Arc::new(path),
                 bounding_rect,
@@ -1082,7 +1082,7 @@ mod tests {
         );
         let clip_path = tree.append_clip(
             ClipNodeData::Path(ClipPathData {
-                path: std::sync::Arc::new(OwnedPath::from_serialized_bytes(&[])),
+                path: std::sync::Arc::new(Path::from_serialized_bytes(&[])),
                 bounding_rect: IntRect::new(5, 6, 7, 8),
                 fill_rule: WindingRule::EvenOdd,
             }),

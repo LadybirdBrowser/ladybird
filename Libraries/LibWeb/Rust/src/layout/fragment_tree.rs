@@ -38,7 +38,7 @@ pub(crate) struct Fragment {
     pub(crate) used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
     /// Boxed, as only SVG boxes have any and the facts are larger than the rest of the fragment's box.
     pub(crate) svg: Option<Box<CommittedSvgFacts>>,
-    pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::OwnedPath>>,
+    pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
     pub(crate) svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
     pub(crate) has_line_clamp_point: bool,
     pub(crate) is_invisible_for_line_clamp: bool,
@@ -412,7 +412,7 @@ struct CommittedRarePayloads {
     multicol_layout_data: Option<std::sync::Arc<fragmentation::MulticolLayoutData>>,
     used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
     svg: CommittedSvgFacts,
-    computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::OwnedPath>>,
+    computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
     svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
 }
 

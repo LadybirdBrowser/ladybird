@@ -210,7 +210,7 @@ pub enum PaintStyleOrColor {
 
 pub struct FillPathParams<'a> {
     pub force_dark_role: ForceDarkRole,
-    pub path: &'a libgfx_rust::path::OwnedPath,
+    pub path: &'a libgfx_rust::path::Path,
     pub opacity: f32,
     pub paint_style_or_color: PaintStyleOrColor,
     pub winding_rule: WindingRule,
@@ -224,7 +224,7 @@ pub struct StrokePathParams<'a> {
     pub miter_limit: f32,
     pub dash_array: Vec<f32>,
     pub dash_offset: f32,
-    pub path: &'a libgfx_rust::path::OwnedPath,
+    pub path: &'a libgfx_rust::path::Path,
     pub opacity: f32,
     pub paint_style_or_color: PaintStyleOrColor,
     pub thickness: f32,
@@ -1087,7 +1087,7 @@ impl DisplayListRecorder {
         blur_radius: i32,
         spread_distance: f32,
         offset: FloatPoint,
-        shape_path: &libgfx_rust::path::OwnedPath,
+        shape_path: &libgfx_rust::path::Path,
         inner: bool,
         force_dark_role: ForceDarkRole,
     ) {

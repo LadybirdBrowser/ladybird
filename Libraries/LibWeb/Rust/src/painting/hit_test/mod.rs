@@ -53,8 +53,8 @@ pub struct HitTestItem {
     pub block_container: NodeSlotId,
     pub context: ContextRef,
     pub border_radii: BorderRadii,
-    pub path: Option<Arc<libgfx_rust::path::OwnedPath>>,
-    pub winding_rule: i32,
+    pub path: Option<Arc<libgfx_rust::path::Path>>,
+    pub winding_rule: libgfx_rust::WindingRule,
     /// For an SVG path, the `svg_hit_area` flags naming which of its areas pointer events can target.
     pub svg_hit_areas: u8,
     /// For an SVG path whose stroke pointer events can target, the shape of that stroke.
@@ -85,7 +85,7 @@ pub mod svg_hit_area {
 #[derive(Debug)]
 pub struct SvgStrokeHitRegion {
     style: libgfx_rust::path::StrokeStyle,
-    outline: std::sync::OnceLock<libgfx_rust::path::OwnedPath>,
+    outline: std::sync::OnceLock<libgfx_rust::path::Path>,
 }
 
 impl SvgStrokeHitRegion {
@@ -108,12 +108,10 @@ impl SvgStrokeHitRegion {
         self.style.thickness / 2.0 * factor
     }
 
-    pub fn contains(&self, path: &libgfx_rust::path::OwnedPath, x: f32, y: f32) -> bool {
-        self.outline.get_or_init(|| path.stroke_to_fill(&self.style)).contains(
-            x,
-            y,
-            libgfx_rust::WindingRule::Nonzero as i32,
-        )
+    pub fn contains(&self, path: &libgfx_rust::path::Path, x: f32, y: f32) -> bool {
+        self.outline
+            .get_or_init(|| path.stroke_to_fill(&self.style))
+            .contains(x, y, libgfx_rust::WindingRule::Nonzero)
     }
 }
 

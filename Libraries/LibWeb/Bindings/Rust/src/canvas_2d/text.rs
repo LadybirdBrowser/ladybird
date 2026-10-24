@@ -8,7 +8,7 @@
 //! as the text preparation algorithm does, and its outlines.
 
 use libgfx_rust::font::{EmojiPresentation, FontCascadeListHandle, FontHandle};
-use libgfx_rust::path::{GlyphRun, OwnedPath};
+use libgfx_rust::path::{GlyphRun, Path};
 use libgfx_rust::text_layout::{DrawGlyph, TextType, shape_text as shape_text_in_font};
 use libgfx_rust::{AffineTransform, FloatPoint};
 
@@ -94,7 +94,7 @@ pub(crate) fn shape_text(
 }
 
 /// The outlines of the glyphs of the runs, as one path.
-pub(crate) fn path_of_runs(runs: &[ShapedRun]) -> OwnedPath {
+pub(crate) fn path_of_runs(runs: &[ShapedRun]) -> Path {
     let glyph_runs: Vec<GlyphRun> = runs
         .iter()
         .map(|run| GlyphRun {
@@ -102,7 +102,7 @@ pub(crate) fn path_of_runs(runs: &[ShapedRun]) -> OwnedPath {
             glyphs: run.glyphs.clone(),
         })
         .collect();
-    OwnedPath::from_glyph_runs(&glyph_runs)
+    Path::from_glyph_runs(&glyph_runs)
 }
 
 /// The distance from the alphabetic baseline down to the baseline that textBaseline names, in the metrics of the

@@ -6,22 +6,25 @@
 
 //! https://html.spec.whatwg.org/multipage/canvas.html#canvasrect
 
-use libgfx_rust::path::{OwnedPath, PathBuilder};
-use libgfx_rust::{FloatRect, WindingRule};
+use libgfx_rust::path::Path;
+use libgfx_rust::{FloatPoint, FloatRect, WindingRule};
 
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::canvas_2d::context::{CanvasKind, RenderingContext2D};
 use crate::canvas_2d::float;
 
 /// The outline of a rectangle, as a closed subpath that goes around it clockwise from its top left corner.
-fn rect_path(x: f32, y: f32, width: f32, height: f32) -> OwnedPath {
-    let mut path = PathBuilder::new();
-    path.move_to(x, y);
-    path.line_to(x + width, y);
-    path.line_to(x + width, y + height);
-    path.line_to(x, y + height);
-    path.line_to(x, y);
-    path.build()
+fn rect_path(x: f32, y: f32, width: f32, height: f32) -> Path {
+    let mut path = Path::new();
+    path.move_to(FloatPoint { x, y });
+    path.line_to(FloatPoint { x: x + width, y });
+    path.line_to(FloatPoint {
+        x: x + width,
+        y: y + height,
+    });
+    path.line_to(FloatPoint { x, y: y + height });
+    path.line_to(FloatPoint { x, y });
+    path
 }
 
 impl<K: CanvasKind> RenderingContext2D<K> {

@@ -19,7 +19,7 @@ use crate::painting::visual_context::build::{
 };
 use crate::painting::visual_context::node_values::{MaskLayerPresenceEntry, mask_layer_presence};
 use crate::painting::visual_context::{ClipData, EffectNodeData, EffectNodeIndex, MaskData, MaskLayerOrigin};
-use libgfx_rust::path::PathBuilder;
+use libgfx_rust::path::Path;
 use libgfx_rust::{AffineTransform, CompositingAndBlendingOperator, FloatPoint, FloatRect, MaskKind, multiply_affine};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -70,7 +70,7 @@ fn transformed_rect_clip(transform: AffineTransform, rect: FloatRect, clip: &Cli
     )
 }
 
-fn transformed_rect_path(transform: AffineTransform, rect: FloatRect) -> libgfx_rust::path::OwnedPath {
+fn transformed_rect_path(transform: AffineTransform, rect: FloatRect) -> Path {
     let corners = [
         FloatPoint { x: rect.x, y: rect.y },
         FloatPoint {
@@ -87,13 +87,13 @@ fn transformed_rect_path(transform: AffineTransform, rect: FloatRect) -> libgfx_
         },
     ]
     .map(|corner| transform.map_point(corner));
-    let mut path = PathBuilder::new();
-    path.move_to(corners[0].x, corners[0].y);
+    let mut path = Path::new();
+    path.move_to(corners[0]);
     for corner in &corners[1..] {
-        path.line_to(corner.x, corner.y);
+        path.line_to(*corner);
     }
     path.close();
-    path.build()
+    path
 }
 
 fn transformed_int_rect_clip(transform: AffineTransform, rect: libgfx_rust::IntRect) -> PendingInlineClip {

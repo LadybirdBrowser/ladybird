@@ -22,7 +22,7 @@ use crate::painting::paintable_data::{
     FfiPixelBox, PIECE_EDGE_BOTTOM, PIECE_EDGE_LEFT, PIECE_EDGE_RIGHT, PIECE_EDGE_TOP,
 };
 use crate::painting::record::{BasePaintFacts, PaintRecorder};
-use libgfx_rust::path::{OwnedPath, PathBuilder};
+use libgfx_rust::path::Path;
 use libgfx_rust::{
     CapStyle, Color, CornerRadii, CornerRadius, FloatPoint, FloatSize, IntPoint, IntRect, JoinStyle, LineStyle,
     ShouldAntiAlias, WindingRule,
@@ -249,7 +249,7 @@ fn is_long_enough_for_pattern(length: f32, width: f32, dotted: bool) -> bool {
 // path, and the seam of a closed one, in a gap.
 fn stroke_patterned_path(
     painter: &mut DisplayListRecorder,
-    path: &libgfx_rust::path::OwnedPath,
+    path: &Path,
     style: LineStyle,
     width: f32,
     color: Color,
@@ -299,7 +299,7 @@ struct Corner {
 // Dashes and dots run along the middle of the border, so instead of filling the exact region covered by the edge -
 // which is what the solid border painting below does - they are stroked along a centerline path: the half of the
 // corner arc leading into the edge, the straight run, and the half of the corner arc leading out of it.
-fn patterned_border_centerline(geometry: EdgeGeometry, borders_data: &BordersDataDevicePixels) -> PathBuilder {
+fn patterned_border_centerline(geometry: EdgeGeometry, borders_data: &BordersDataDevicePixels) -> Path {
     let EdgeGeometry {
         edge,
         rect,
@@ -420,26 +420,18 @@ fn patterned_border_centerline(geometry: EdgeGeometry, borders_data: &BordersDat
     // A corner whose centerline radii have collapsed leaves the dashes meeting at a sharp angle instead of curving.
     let has_arc = |corner: &Corner| corner.radii.width > 0.0 && corner.radii.height > 0.0;
 
-    let mut centerline = PathBuilder::new();
+    let mut centerline = Path::new();
     if has_arc(&start) {
         let split = split_point(&start, joined_border_width);
-        centerline.move_to(split.x, split.y);
-        centerline.elliptical_arc_to(
-            straight_start.x,
-            straight_start.y,
-            start.radii.width,
-            start.radii.height,
-            0.0,
-            false,
-            true,
-        );
+        centerline.move_to(split);
+        centerline.elliptical_arc_to(straight_start, start.radii, 0.0, false, true);
     } else {
-        centerline.move_to(straight_start.x, straight_start.y);
+        centerline.move_to(straight_start);
     }
-    centerline.line_to(straight_end.x, straight_end.y);
+    centerline.line_to(straight_end);
     if has_arc(&end) {
         let split = split_point(&end, opposite_joined_border_width);
-        centerline.elliptical_arc_to(split.x, split.y, end.radii.width, end.radii.height, 0.0, false, true);
+        centerline.elliptical_arc_to(split, end.radii, 0.0, false, true);
     }
     centerline
 }
@@ -704,68 +696,72 @@ impl SolidEdgeRegion {
         }
     }
 
-    pub(crate) fn append_to(&self, target: &mut PathBuilder) {
+    pub(crate) fn append_to(&self, target: &mut Path) {
         let points = &self.points;
         let radius = self.radius;
         let opposite_radius = self.opposite_radius;
         let mut current = 0;
-        target.move_to(points[current].x, points[current].y);
+        target.move_to(points[current]);
         current += 1;
         target.elliptical_arc_to(
-            points[current].x,
-            points[current].y,
-            radius.horizontal_radius as f32,
-            radius.vertical_radius as f32,
+            points[current],
+            FloatSize {
+                width: radius.horizontal_radius as f32,
+                height: radius.vertical_radius as f32,
+            },
             0.0,
             false,
             false,
         );
         current += 1;
-        target.line_to(points[current].x, points[current].y);
+        target.line_to(points[current]);
         current += 1;
         if self.joined_corner_has_inner_corner {
             target.elliptical_arc_to(
-                points[current].x,
-                points[current].y,
-                radius.horizontal_radius as f32 - self.joined_inner_corner_offset.width,
-                radius.vertical_radius as f32 - self.joined_inner_corner_offset.height,
+                points[current],
+                FloatSize {
+                    width: radius.horizontal_radius as f32 - self.joined_inner_corner_offset.width,
+                    height: radius.vertical_radius as f32 - self.joined_inner_corner_offset.height,
+                },
                 0.0,
                 false,
                 true,
             );
             current += 1;
         }
-        target.line_to(points[current].x, points[current].y);
+        target.line_to(points[current]);
         current += 1;
         if self.opposite_joined_corner_has_inner_corner {
             target.elliptical_arc_to(
-                points[current].x,
-                points[current].y,
-                opposite_radius.horizontal_radius as f32 - self.opposite_joined_inner_corner_offset.width,
-                opposite_radius.vertical_radius as f32 - self.opposite_joined_inner_corner_offset.height,
+                points[current],
+                FloatSize {
+                    width: opposite_radius.horizontal_radius as f32 - self.opposite_joined_inner_corner_offset.width,
+                    height: opposite_radius.vertical_radius as f32 - self.opposite_joined_inner_corner_offset.height,
+                },
                 0.0,
                 false,
                 true,
             );
             current += 1;
         }
-        target.line_to(points[current].x, points[current].y);
+        target.line_to(points[current]);
         current += 1;
         target.elliptical_arc_to(
-            points[current].x,
-            points[current].y,
-            opposite_radius.horizontal_radius as f32,
-            opposite_radius.vertical_radius as f32,
+            points[current],
+            FloatSize {
+                width: opposite_radius.horizontal_radius as f32,
+                height: opposite_radius.vertical_radius as f32,
+            },
             0.0,
             false,
             false,
         );
     }
 
-    pub(crate) fn path(&self) -> OwnedPath {
-        let mut builder = PathBuilder::new();
+    pub(crate) fn path(&self) -> Path {
+        let mut builder = Path::new();
         self.append_to(&mut builder);
-        builder.build()
+        builder
     }
 }
 
@@ -773,7 +769,7 @@ pub(crate) fn paint_border(
     painter: &mut DisplayListRecorder,
     geometry: EdgeGeometry,
     borders_data: &BordersDataDevicePixels,
-    path: &mut PathBuilder,
+    path: &mut Path,
     last: bool,
 ) {
     let EdgeGeometry {
@@ -791,27 +787,26 @@ pub(crate) fn paint_border(
 
     // Edges sharing a color are collected into one path and only filled once the color changes or
     // the last edge is reached.
-    let flush_queued_edges = |painter: &mut DisplayListRecorder, path: &mut PathBuilder| {
+    let flush_queued_edges = |painter: &mut DisplayListRecorder, path: &mut Path| {
         if path.is_empty() {
             return;
         }
-        let built = path.build();
+        let queued_edges = std::mem::take(path);
         painter.fill_path(FillPathParams {
             force_dark_role: borders_data.force_dark_role,
-            path: &built,
+            path: &queued_edges,
             opacity: 1.0,
             paint_style_or_color: PaintStyleOrColor::Color(color),
             winding_rule: WindingRule::EvenOdd,
             should_anti_alias: ShouldAntiAlias::Yes,
         });
-        *path = PathBuilder::new();
     };
 
     let is_horizontal_edge = matches!(edge, BorderEdge::Top | BorderEdge::Bottom);
     let frame = edge_frame(edge, rect);
 
     let paint_double_border = |painter: &mut DisplayListRecorder,
-                               path: &mut PathBuilder,
+                               path: &mut Path,
                                proportional_line_thickness: f32,
                                outer_style: u8,
                                inner_style: u8| {
@@ -976,7 +971,7 @@ pub(crate) fn paint_border(
 
     // Fails for an edge too short to hold the pattern, which is painted solid instead.
     if gfx_line_style != LineStyle::Solid {
-        let centerline = patterned_border_centerline(geometry, borders_data).build();
+        let centerline = patterned_border_centerline(geometry, borders_data);
         if is_long_enough_for_pattern(centerline.length(), width_into, gfx_line_style == LineStyle::Dotted) {
             flush_queued_edges(painter, path);
             // The stroke is as wide as the border, so at a shared corner it would spill across the
@@ -1189,57 +1184,73 @@ fn paint_uniform_patterned_border(
     // Starting halfway along the top edge puts the seam on an axis of symmetry.
     let start_x = ((left + right) / 2.0).clamp(left + top_left.width, right - top_right.width);
 
-    let mut centerline = PathBuilder::new();
-    centerline.move_to(start_x, top);
-    centerline.line_to(right - top_right.width, top);
+    let mut centerline = Path::new();
+    centerline.move_to(FloatPoint { x: start_x, y: top });
+    centerline.line_to(FloatPoint {
+        x: right - top_right.width,
+        y: top,
+    });
     if !is_empty(top_right) {
         centerline.elliptical_arc_to(
-            right,
-            top + top_right.height,
-            top_right.width,
-            top_right.height,
+            FloatPoint {
+                x: right,
+                y: top + top_right.height,
+            },
+            top_right,
             0.0,
             false,
             true,
         );
     }
-    centerline.line_to(right, bottom - bottom_right.height);
+    centerline.line_to(FloatPoint {
+        x: right,
+        y: bottom - bottom_right.height,
+    });
     if !is_empty(bottom_right) {
         centerline.elliptical_arc_to(
-            right - bottom_right.width,
-            bottom,
-            bottom_right.width,
-            bottom_right.height,
+            FloatPoint {
+                x: right - bottom_right.width,
+                y: bottom,
+            },
+            bottom_right,
             0.0,
             false,
             true,
         );
     }
-    centerline.line_to(left + bottom_left.width, bottom);
+    centerline.line_to(FloatPoint {
+        x: left + bottom_left.width,
+        y: bottom,
+    });
     if !is_empty(bottom_left) {
         centerline.elliptical_arc_to(
-            left,
-            bottom - bottom_left.height,
-            bottom_left.width,
-            bottom_left.height,
+            FloatPoint {
+                x: left,
+                y: bottom - bottom_left.height,
+            },
+            bottom_left,
             0.0,
             false,
             true,
         );
     }
-    centerline.line_to(left, top + top_left.height);
+    centerline.line_to(FloatPoint {
+        x: left,
+        y: top + top_left.height,
+    });
     if !is_empty(top_left) {
         centerline.elliptical_arc_to(
-            left + top_left.width,
-            top,
-            top_left.width,
-            top_left.height,
+            FloatPoint {
+                x: left + top_left.width,
+                y: top,
+            },
+            top_left,
             0.0,
             false,
             true,
         );
     }
-    centerline.line_to(start_x, top);
+    centerline.line_to(FloatPoint { x: start_x, y: top });
     centerline.close();
 
     let style = if borders_data.top.line_style == line_style::DOTTED {
@@ -1249,7 +1260,7 @@ fn paint_uniform_patterned_border(
     };
     stroke_patterned_path(
         painter,
-        &centerline.build(),
+        &centerline,
         style,
         width,
         borders_data.top.color,
@@ -1320,7 +1331,7 @@ pub fn paint_all_borders(
         }
     }
 
-    let mut path = PathBuilder::new();
+    let mut path = Path::new();
     for i in 0..edges.len() {
         let last = i == edges.len() - 1;
         let geometry = geometries[(start_index + i) % edges.len()];
@@ -1573,10 +1584,9 @@ fn paint_shaped_borders(
         bottom: f64::from(borders_data.bottom.width.max(0)),
         left: f64::from(borders_data.left.width.max(0)),
     };
-    let mut ring = PathBuilder::new();
+    let mut ring = Path::new();
     append_border_contour_path(&mut ring, border_rect, corner_radii, shapes, Insets::default());
     append_border_contour_path(&mut ring, border_rect, corner_radii, shapes, widths);
-    let ring = ring.build();
     let fill_ring = |painter: &mut DisplayListRecorder, color: Color| {
         painter.fill_path(FillPathParams {
             force_dark_role: borders_data.force_dark_role,
@@ -1632,13 +1642,18 @@ fn paint_shaped_borders(
         let Some(color) = color else {
             continue;
         };
-        let mut wedge_path = PathBuilder::new();
-        wedge_path.move_to(wedge[0].0 as f32, wedge[0].1 as f32);
+        let mut wedge_path = Path::new();
+        wedge_path.move_to(FloatPoint {
+            x: wedge[0].0 as f32,
+            y: wedge[0].1 as f32,
+        });
         for &(x, y) in &wedge[1..] {
-            wedge_path.line_to(x as f32, y as f32);
+            wedge_path.line_to(FloatPoint {
+                x: x as f32,
+                y: y as f32,
+            });
         }
         wedge_path.close();
-        let wedge_path = wedge_path.build();
         painter.record_with_inline_clips(
             &[PendingInlineClip::intersecting_path(&wedge_path, WindingRule::Nonzero)],
             |painter| fill_ring(painter, color),

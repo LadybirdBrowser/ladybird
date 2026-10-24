@@ -18,26 +18,26 @@ use crate::painting::paintable_data::BorderEdge;
 use crate::painting::record::paint::border::{BordersDataDevicePixels, border_color};
 use crate::painting::visual_context::basic_shapes::basic_shape_device_path;
 use crate::painting::{paintable_geometry, style_queries};
-use libgfx_rust::path::OwnedPath;
+use libgfx_rust::path::Path;
 use libgfx_rust::{Color, WindingRule};
 
 /// A border drawn along a shape, in device space.
 pub(crate) enum BorderShape {
     /// A single shape: the border is a stroke along its path.
     Stroke {
-        path: OwnedPath,
+        path: Path,
         fill_rule: WindingRule,
         /// The shape against its reference box shrunk by half the stroke width, along the inner edge of the stroke.
-        inner_edge: OwnedPath,
+        inner_edge: Path,
         /// The shape against its reference box grown by half the stroke width, along the outer edge of the stroke.
-        outer_edge: OwnedPath,
+        outer_edge: Path,
         width: f32,
         color: Option<Color>,
     },
     /// Two shapes: the border is the area between them.
     Fill {
-        outer: OwnedPath,
-        inner: OwnedPath,
+        outer: Path,
+        inner: Path,
         inner_fill_rule: WindingRule,
         color: Option<Color>,
     },
@@ -50,7 +50,7 @@ pub(crate) fn has_border_shape(style: ComputedValuesView<'_>) -> bool {
 }
 
 /// One path holding the subpaths of both `paths`.
-fn combined_path(paths: [&OwnedPath; 2]) -> Option<OwnedPath> {
+fn combined_path(paths: [&Path; 2]) -> Option<Path> {
     let svg = paths.map(|path| path.to_svg_string()).join(" ");
     let parsed = crate::svg::parse_utf16_path(&svg.encode_utf16().collect::<Vec<_>>(), false)?;
     Some(crate::css::css_path::CssPath::new(parsed).to_gfx_path())
@@ -58,7 +58,7 @@ fn combined_path(paths: [&OwnedPath; 2]) -> Option<OwnedPath> {
 
 impl BorderShape {
     /// The area the border covers, filled with the even-odd rule, when it is not a stroke.
-    pub(crate) fn fill_area(&self) -> Option<OwnedPath> {
+    pub(crate) fn fill_area(&self) -> Option<Path> {
         match self {
             Self::Stroke { .. } => None,
             Self::Fill { outer, inner, .. } => combined_path([outer, inner]),
@@ -69,7 +69,7 @@ impl BorderShape {
     /// An outer box-shadow is cast as if the shape defined by the outer path were opaque. An inner box-shadow is cast
     /// as if everything outside the shape defined by the inner path were opaque. A single shape's outer and inner
     /// paths are the edges of its stroke.
-    pub(crate) fn into_shadow_paths(self) -> (OwnedPath, OwnedPath) {
+    pub(crate) fn into_shadow_paths(self) -> (Path, Path) {
         match self {
             Self::Stroke {
                 outer_edge, inner_edge, ..
@@ -79,7 +79,7 @@ impl BorderShape {
     }
 
     /// The inner border-shape clips the background. A single shape clips it along its path, under the stroke.
-    pub(crate) fn background_clip_path(&self) -> (&OwnedPath, WindingRule) {
+    pub(crate) fn background_clip_path(&self) -> (&Path, WindingRule) {
         match self {
             Self::Stroke { path, fill_rule, .. } => (path, *fill_rule),
             Self::Fill {
@@ -91,7 +91,7 @@ impl BorderShape {
     /// https://drafts.csswg.org/css-borders-4/#border-shape-overflow-interaction
     /// The inner border-shape clips the overflow content of the element. A single shape clips it along the inner edge
     /// of its stroke.
-    pub(crate) fn into_overflow_clip_path(self) -> (OwnedPath, WindingRule) {
+    pub(crate) fn into_overflow_clip_path(self) -> (Path, WindingRule) {
         match self {
             Self::Stroke {
                 inner_edge, fill_rule, ..

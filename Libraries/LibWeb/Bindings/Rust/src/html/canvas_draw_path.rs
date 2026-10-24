@@ -6,7 +6,7 @@
 
 //! https://html.spec.whatwg.org/multipage/canvas.html#canvasdrawpath
 
-use libgfx_rust::path::OwnedPath;
+use libgfx_rust::path::Path;
 use libgfx_rust::{AffineTransform, FloatPoint, WindingRule};
 
 use super::path2d::Path2D;
@@ -32,14 +32,14 @@ impl From<CanvasFillRule> for WindingRule {
 }
 
 /// The path of a Path2D, which nothing changes while a context draws with it, as no script runs meanwhile.
-fn path_of(path: &Ref<Path2D>) -> &OwnedPath {
+fn path_of(path: &Ref<Path2D>) -> &Path {
     // SAFETY: No script runs while the context uses the path.
     unsafe { path.path_unguarded() }
 }
 
 /// Whether the point, in the coordinates that the transform maps from, is inside the path.
 fn is_point_in_path_internal(
-    path: &OwnedPath,
+    path: &Path,
     transform: AffineTransform,
     x: f64,
     y: f64,
@@ -53,7 +53,7 @@ fn is_point_in_path_internal(
         x: float(x),
         y: float(y),
     });
-    path.contains(point.x, point.y, WindingRule::from(fill_rule) as i32)
+    path.contains(point.x, point.y, WindingRule::from(fill_rule))
 }
 
 impl<K: CanvasKind> RenderingContext2D<K> {
