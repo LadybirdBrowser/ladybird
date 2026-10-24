@@ -3044,6 +3044,18 @@ impl<'pass> SizingContext<'pass> {
             }
             return self.cache_content_sizes_measured_without_layout(node, kind, key, sizes);
         }
+        if let Some(sizes) = intrinsic_sizing::content_sizes_of_grid_container(
+            self.callbacks,
+            node,
+            constraints,
+            block_size,
+            depends_on_block_size,
+        ) {
+            if let Some(trace) = &trace {
+                trace.append(" FROM GRID TRACKS");
+            }
+            return self.cache_content_sizes_measured_without_layout(node, kind, key, sizes);
+        }
         let input = LayoutInput::new(
             AvailableSpace {
                 inline_size: available_inline_size,

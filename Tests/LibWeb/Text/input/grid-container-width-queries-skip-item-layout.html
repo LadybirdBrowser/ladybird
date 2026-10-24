@@ -1,0 +1,106 @@
+<!doctype html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    .wrapper {
+        width: max-content;
+        font: 10px/20px Ahem;
+    }
+
+    #auto {
+        display: grid;
+        grid-template-columns: auto auto;
+        column-gap: 3px;
+    }
+
+    #flexible {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+    }
+
+    #intrinsic-bounds {
+        display: grid;
+        grid-template-columns: minmax(min-content, max-content) fit-content(30px);
+    }
+
+    #spanning {
+        display: grid;
+        grid-template-columns: auto auto;
+    }
+
+    #spanning > :first-child {
+        grid-column: span 2;
+    }
+
+    #subgrid {
+        display: grid;
+        grid-template-columns: auto auto;
+    }
+
+    #subgrid > :first-child {
+        display: grid;
+        grid-column: span 2;
+        grid-template-columns: subgrid;
+    }
+
+    #row-dependent {
+        display: grid;
+        height: 40px;
+    }
+
+    #row-dependent > :first-child {
+        aspect-ratio: 2;
+        height: 50%;
+    }
+</style>
+<template id="fixture">
+    <div class="wrapper"><div id="auto"><div>alpha beta</div><div>gamma</div></div></div>
+    <div class="wrapper"><div id="flexible"><div>alpha beta</div><div>gamma</div></div></div>
+    <div class="wrapper"><div id="intrinsic-bounds"><div>alpha beta</div><div>gamma delta</div></div></div>
+    <div class="wrapper"><div id="spanning"><div>alpha beta gamma</div><div>x</div><div>y</div></div></div>
+    <div class="wrapper"><div id="subgrid"><div><div>alpha beta</div><div>gamma</div></div><div>delta</div></div></div>
+    <div class="wrapper"><div id="row-dependent"><div></div><div>alpha</div></div></div>
+</template>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        const work = layoutWork(() => {
+            document.body.appendChild(document.getElementById("fixture").content.cloneNode(true));
+        });
+        for (const id of ["auto", "flexible", "intrinsic-bounds", "spanning", "subgrid", "row-dependent"]) {
+            const box = `Box<DIV>#${id}`;
+            const answers = new Set();
+            let misses = 0;
+            let blockMeasurements = 0;
+            let runsOutsideBlockMeasurements = 0;
+            work.events.forEach((measure, start) => {
+                if (measure.event !== "measure" || measure.box !== box || !measure.size.endsWith("inline")) return;
+                if (measure.cache !== "miss") return;
+                ++misses;
+                answers.add(measure.from);
+                let blockMeasurementDepth = null;
+                for (const event of work.events.slice(start + 1)) {
+                    if (event.depth <= measure.depth) break;
+                    if (blockMeasurementDepth !== null && event.depth <= blockMeasurementDepth) blockMeasurementDepth = null;
+                    if (blockMeasurementDepth !== null) continue;
+                    if (event.event === "measure" && event.size.endsWith("block") && event.cache === "miss") {
+                        ++blockMeasurements;
+                        blockMeasurementDepth = event.depth;
+                    } else if (event.event === "run") {
+                        ++runsOutsideBlockMeasurements;
+                    }
+                }
+            });
+            const width = document.getElementById(id).getBoundingClientRect().width;
+            println(
+                `${id}: ${misses} inline misses answered from ${[...answers].join(", ")}, ${blockMeasurements} block measurements, ${runsOutsideBlockMeasurements} runs outside them, width ${width}`
+            );
+        }
+        done();
+    });
+</script>
