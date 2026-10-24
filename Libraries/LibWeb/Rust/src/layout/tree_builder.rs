@@ -3581,6 +3581,14 @@ fn node_is_out_of_flow_child_of(host: &TreeBuilderHost<'_>, parent: LayoutNode, 
     !parent_lays_out_math || host.style(node).is_some_and(|style| style.is_absolutely_positioned())
 }
 
+fn lays_out_each_child_as_its_own_box(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
+    // NB: Flex, grid and MathML layout lay out each of their children as its own box.
+    host.style(node).is_some_and(|style| {
+        let display = style.display();
+        display.is_flex_inside() || display.is_grid_inside() || display.is_math_inside()
+    })
+}
+
 fn node_has_replaced_element_table_display_adjustment(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
     node_facts::has_flag(host.data(node), NodeFlag::IsReplacedElement)
         && host.style(node).is_some_and(|style| {
@@ -4229,11 +4237,8 @@ fn insertion_parent_for_block_node(
                     }
                     true
                 }));
-        let new_parent_display = host.style(new_parent).map(|style| style.display());
-        // NB: Flex, grid and MathML layout lay out each of their children as its own box.
         if appends_after_existing_children
-            && !new_parent_display
-                .is_some_and(|display| display.is_flex_inside() || display.is_grid_inside() || display.is_math_inside())
+            && !lays_out_each_child_as_its_own_box(host, new_parent)
             && !node_is_generated_for_pseudo_element(last_child_data)
             && node_facts::has_flag(last_child_data, NodeFlag::Anonymous)
             && node_facts::has_flag(last_child_data, NodeFlag::ChildrenAreInline)
@@ -4252,25 +4257,53 @@ fn insertion_parent_for_block_node(
 
     // Parent block has inline-level children (our siblings); wrap these siblings into an anonymous wrapper block.
     note_layout_tree_restructuring_at(host, state, new_parent);
-    let mut children_to_wrap = Vec::new();
-    let mut child = host.first_child(new_parent);
-    while !child.is_invalid() {
-        if !is_out_of_flow_table_internal_child_of_table_root(host, new_parent, child) {
-            children_to_wrap.push(child);
+    if lays_out_each_child_as_its_own_box(host, new_parent) {
+        // NB: An out-of-flow child of a parent that lays out each of its children as its own box stays a child of
+        //     that parent, so that it is positioned as the parent's own abspos child instead of becoming part of an
+        //     anonymous wrapper. Each run of in-flow siblings between them gets its own wrapper, in DOM order.
+        let mut runs: Vec<Vec<LayoutNode>> = vec![Vec::new()];
+        let mut child = host.first_child(new_parent);
+        while !child.is_invalid() {
+            if node_is_out_of_flow_child_of(host, new_parent, child) {
+                runs.push(Vec::new());
+            } else if let Some(run) = runs.last_mut() {
+                run.push(child);
+            }
+            child = host.next_sibling(child);
         }
-        child = host.next_sibling(child);
-    }
-    let wrapper = host.create_anonymous_wrapper_box(new_parent);
-    let wrapper_slot = wrapper.slot();
-    host.set_children_are_inline(wrapper_slot, true);
-    for child in children_to_wrap {
-        host.move_child(child, wrapper_slot, NodeSlotId::INVALID);
+        for run in runs.into_iter().filter(|run| !run.is_empty()) {
+            wrap_children_in_anonymous_wrapper(host, new_parent, &run, run[0]);
+        }
+    } else {
+        let mut children_to_wrap = Vec::new();
+        let mut child = host.first_child(new_parent);
+        while !child.is_invalid() {
+            if !is_out_of_flow_table_internal_child_of_table_root(host, new_parent, child) {
+                children_to_wrap.push(child);
+            }
+            child = host.next_sibling(child);
+        }
+        wrap_children_in_anonymous_wrapper(host, new_parent, &children_to_wrap, NodeSlotId::INVALID);
     }
     host.set_children_are_inline(new_parent, false);
-    host.attach_child(new_parent, wrapper, NodeSlotId::INVALID);
 
     // Then it's safe to insert this block into parent.
     new_parent
+}
+
+fn wrap_children_in_anonymous_wrapper(
+    host: &mut TreeBuilderHost<'_>,
+    parent: LayoutNode,
+    children: &[LayoutNode],
+    before: LayoutNode,
+) {
+    let wrapper = host.create_anonymous_wrapper_box(parent);
+    let wrapper_slot = wrapper.slot();
+    host.set_children_are_inline(wrapper_slot, true);
+    host.attach_child(parent, wrapper, before);
+    for &child in children {
+        host.move_child(child, wrapper_slot, NodeSlotId::INVALID);
+    }
 }
 
 fn insert_child_in_dom_order(
