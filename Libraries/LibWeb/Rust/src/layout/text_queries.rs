@@ -135,18 +135,13 @@ fn ensure_text_fragments(arena: &mut LayoutNodeArena, primary: NodeSlotId) {
     }
 }
 
-/// The text the rows of the text node whose primary row is `primary` render, with whitespace
-/// collapsed where their style collapses it if `collapse_whitespace`.
-pub(crate) fn rendered_text(arena: &mut LayoutNodeArena, primary: NodeSlotId, collapse_whitespace: bool) -> Vec<u16> {
+/// The text the rows of the text node whose primary row is `primary` render.
+pub(crate) fn rendered_text(arena: &mut LayoutNodeArena, primary: NodeSlotId) -> Vec<u16> {
     ensure_text_fragments(arena, primary);
     let mut text = Vec::new();
     for &node in arena.text_fragments(primary).as_slice() {
         let content = arena.text_content(node).expect("fragment was refreshed");
-        append_rendered_text(
-            &mut text,
-            &content.text,
-            collapse_whitespace && collapses_whitespace(&*arena, node),
-        );
+        text.extend_from_slice(&content.text);
     }
     text
 }
@@ -190,7 +185,6 @@ pub(crate) fn rendered_text_of_rows(
     rows: &impl PaintRead,
     awaiting_render: &[NodeSlotId],
     primary: NodeSlotId,
-    collapse_whitespace: bool,
 ) -> Option<Vec<u16>> {
     let mut text = Vec::new();
     for &node in rows.text_fragments(primary).as_slice() {
@@ -200,30 +194,9 @@ pub(crate) fn rendered_text_of_rows(
         {
             return None;
         }
-        let rendered = &rows.rendered_text(node)?.text;
-        append_rendered_text(
-            &mut text,
-            rendered,
-            collapse_whitespace && collapses_whitespace(rows, node),
-        );
+        text.extend_from_slice(&rows.rendered_text(node)?.text);
     }
     Some(text)
-}
-
-/// Appends `rendered` to `text`, with runs of whitespace collapsed to their first character where `collapse`.
-fn append_rendered_text(text: &mut Vec<u16>, rendered: &[u16], collapse: bool) {
-    if !collapse {
-        text.extend_from_slice(rendered);
-        return;
-    }
-    let mut previous_is_space = false;
-    for &unit in rendered {
-        let is_space = matches!(unit, 0x09..=0x0d | 0x20);
-        if !is_space || !previous_is_space {
-            text.push(unit);
-        }
-        previous_is_space = is_space;
-    }
 }
 
 fn word_range(

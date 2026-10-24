@@ -4778,7 +4778,7 @@ ErrorOr<Utf16String> Node::name_or_description(Layout::BegunRead const& read, Na
     // aria-labelledby or aria-describedby and/or un-hidden. See the comment for substep A above.
     if (is_text() && (!parent_element() || (parent_element()->is_referenced() || !parent_element()->is_hidden(read) || !parent_element()->has_hidden_ancestor(read) || parent_element()->has_referenced_and_hidden_ancestor(read)))) {
         if (auto const* text_node = as_if<Layout::TextNode>(layout_node(read))) {
-            auto text = text_node->rendered_text_for_dom(false);
+            auto text = text_node->rendered_text_for_dom();
             if (!text.is_empty())
                 return text;
         }
