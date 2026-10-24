@@ -1,0 +1,19 @@
+When it measures the min-content block size of a replaced box whose
+percentage height has no containing-block height to resolve against,
+Ladybird treats that height as auto, and applies the cyclic-percentage
+“resolve against zero” rule only in the inline axis.
+
+Blink does the same. ResolveBlockLengthInternal() in length_utils.cc
+falls back to the content block size for a percentage with an indefinite
+basis, and only ComputeMinAndMaxContentContributionForReplaced() applies
+the zero rule — to widths alone.
+
+WebKit’s RenderReplaced::hasReplacedLogicalHeight() treats such a
+percentage as auto. Its min-content zeroing is only in RenderReplaced::
+computeIntrinsicLogicalWidthContributions(), and only for widths.
+
+Gecko’s nsLayoutUtils::IsAutoBSize() treats it as auto too, and
+nsLayoutUtils::IntrinsicForAxis() applies the zero rule only in the
+inline axis. Its single block-axis use, in nsFlexContainerFrame::
+PartiallyResolveAutoMinSize(), is for a replaced flex or grid item
+itself, so it doesn’t apply to an image inside a flex item.
