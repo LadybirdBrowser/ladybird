@@ -366,6 +366,7 @@ pub(crate) struct RunRecords<'arena> {
     table_inline_layouts: RefCell<HashMap<Node, table_formatting_context::TableInlineLayout>>,
     // A paragraph measured from its items leaves block sizes and baselines unresolved.
     omitted_line_layout: Cell<bool>,
+    is_content_sizing: bool,
 }
 
 enum RunRecordClaim {
@@ -383,7 +384,17 @@ impl<'arena> RunRecords<'arena> {
         root_used: &'arena UsedValues,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
-        Self::enter(callbacks, root, root_containing_block, Some(root_used), run)
+        Self::enter(callbacks, root, root_containing_block, Some(root_used), false, run)
+    }
+
+    pub(crate) fn with_content_sizing_root<R>(
+        callbacks: LayoutPass<'arena>,
+        root: Node,
+        root_containing_block: Node,
+        root_used: &'arena UsedValues,
+        run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
+    ) -> R {
+        Self::enter(callbacks, root, root_containing_block, Some(root_used), true, run)
     }
 
     pub(crate) fn with_unrooted<R>(
@@ -392,7 +403,7 @@ impl<'arena> RunRecords<'arena> {
         root_containing_block: Node,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
-        Self::enter(callbacks, root, root_containing_block, None, run)
+        Self::enter(callbacks, root, root_containing_block, None, false, run)
     }
 
     fn enter<R>(
@@ -400,6 +411,7 @@ impl<'arena> RunRecords<'arena> {
         root: Node,
         root_containing_block: Node,
         root_used: Option<&'arena UsedValues>,
+        is_content_sizing: bool,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
         debug_assert!(
@@ -416,6 +428,7 @@ impl<'arena> RunRecords<'arena> {
             records_outside_table: RefCell::new(HashMap::default()),
             table_inline_layouts: RefCell::new(HashMap::default()),
             omitted_line_layout: Cell::new(false),
+            is_content_sizing,
         };
         run(&records, callbacks.for_run(root, root_containing_block))
     }
@@ -435,6 +448,10 @@ impl<'arena> RunRecords<'arena> {
                 .expect("a run in progress has a findings entry"),
         );
         (!findings.is_empty()).then(|| Box::new(findings))
+    }
+
+    pub(crate) fn is_content_sizing(&self) -> bool {
+        self.is_content_sizing
     }
 
     pub(crate) fn note_omitted_line_layout(&self) {
