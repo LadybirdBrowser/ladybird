@@ -1,0 +1,39 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: writing mode (sideways-rl) of document - horizontal position of first block</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css-writing-modes-4/#writing-mode" title="3.1 Block Flow Direction: the writing-mode property" />
+  <link rel="help" href="http://www.w3.org/TR/2011/REC-CSS2-20110607/visuren.html#block-formatting" title="9.4.1 Block formatting contexts" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/block-flow-direction-025-ref.xht" />
+
+  <meta content="image" name="flags" />
+  <meta content="This test checks that, when 'writing-mode' value of the root element is set to 'sideways-rl', then its block boxes are laid out leftwardedly (from right to left) one after the other beginning at its righthand side. Also, the inline flow direction is 'bottomwardedly', that is inline boxes in the line box flow from the top toward the bottom; inline boxes are laid out vertically, one after the other, starting at the physical top side of its containing block." name="assert" />
+
+  <style type="text/css"><![CDATA[
+  html
+    {
+      writing-mode: sideways-rl;
+    }
+
+  div
+    {
+      background-color: blue;
+      height: 100px;
+      width: 100px;
+    }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div></div>
+
+  <p><img src="support/block-flow-direction-025-exp-res.png" width="359" height="36" alt="Image download support must be enabled" /></p>
+
+ </body>
+</html>

@@ -61,6 +61,8 @@ pub(crate) struct IntrinsicSizeCacheKey {
     pub(crate) percentage_basis_inline_size: Option<CssPixels>,
     pub(crate) percentage_basis_block_size: Option<CssPixels>,
     pub(crate) quirks_mode_percentage_basis_block_size: Option<CssPixels>,
+    /// Whether the box was measured in a transposed frame, where its sizes are those of the other axes.
+    pub(crate) measured_in_transposed_frame: bool,
 }
 
 impl IntrinsicSizeCacheKey {

@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Reftest Reference</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+
+  <meta content="image" name="flags" />
+
+  <style type="text/css"><![CDATA[
+  div
+    {
+      margin-left: 0.5em;
+    }
+
+  img
+    {
+      vertical-align: top;
+    }
+
+  img#green-square
+    {
+      position: relative;
+      left: 96px; /* 80px + p's margin-left (1em) */
+      top: 80px;
+    }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div><img src="support/pass-cdts-abs-pos-non-replaced.png" width="246" height="36" alt="Image download support must be enabled" /><img id="green-square" src="support/swatch-green.png" width="80" height="80" alt="Image download support must be enabled" /></div>
+
+ </body>
+</html>

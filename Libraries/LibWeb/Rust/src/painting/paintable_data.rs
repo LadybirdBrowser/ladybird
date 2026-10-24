@@ -22,6 +22,10 @@ pub enum PaintableFlag {
     HasLaterBoxFragments = 1 << 6,
 }
 
+/// The flag bits that hold the writing mode of the frame a box was laid out in.
+const FRAME_WRITING_MODE_SHIFT: u32 = 7;
+const FRAME_WRITING_MODE_MASK: u32 = 0b111;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiPixelBox {
@@ -86,6 +90,16 @@ impl Default for PaintableData {
 impl PaintableData {
     pub fn has_flag(&self, flag: PaintableFlag) -> bool {
         self.flags & flag as u32 != 0
+    }
+
+    /// The writing mode of the frame the box was laid out in: that of its containing block.
+    pub(crate) fn frame(&self) -> crate::layout::geometry::Frame {
+        crate::layout::geometry::Frame::of(((self.flags >> FRAME_WRITING_MODE_SHIFT) & FRAME_WRITING_MODE_MASK) as u8)
+    }
+
+    pub(crate) fn set_frame(&mut self, frame: crate::layout::geometry::Frame) {
+        self.flags = (self.flags & !(FRAME_WRITING_MODE_MASK << FRAME_WRITING_MODE_SHIFT))
+            | ((u32::from(frame.writing_mode()) & FRAME_WRITING_MODE_MASK) << FRAME_WRITING_MODE_SHIFT);
     }
 
     pub fn set_flag(&mut self, flag: PaintableFlag, value: bool) {

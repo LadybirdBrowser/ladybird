@@ -9,8 +9,8 @@ Fail	.item 2
 Fail	.item 3
 Pass	.item 4
 Fail	.item 5
-Fail	.item 6
-Pass	.item 7
+Pass	.item 6
+Fail	.item 7
 Fail	.item 8
 Pass	.item 9
 Fail	.item 10

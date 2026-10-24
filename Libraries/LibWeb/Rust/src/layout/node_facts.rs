@@ -443,6 +443,7 @@ pub(crate) fn node_creates_block_formatting_context(
     data: &NodeData,
     style: Option<ComputedValuesView<'_>>,
     parent_is_flex_or_grid_container: bool,
+    parent_writing_mode: impl FnOnce() -> Option<u8>,
 ) -> bool {
     if kind_is_replaced_box(data.kind.get()) {
         return false;
@@ -457,6 +458,16 @@ pub(crate) fn node_creates_block_formatting_context(
         }
         if (style.is_floating() && !has_flag(data, NodeFlag::IsFlexItem))
             || style.own_style_establishes_block_formatting_context()
+        {
+            return true;
+        }
+        // https://drafts.csswg.org/css-writing-modes-4/#block-flow
+        // If a box has a different 'writing-mode' value than its parent box (i.e. nearest ancestor without
+        // 'display: contents'):
+        // - If the box is a block container, then it establishes an independent block formatting context.
+        if display.is_flow_inside()
+            && !display.is_inline_outside()
+            && parent_writing_mode().is_some_and(|writing_mode| writing_mode != style.writing_mode())
         {
             return true;
         }
@@ -785,6 +796,13 @@ impl<'pass> NodeFacts<'pass> {
         self.style_payloads
     }
 
+    /// The writing mode of the box's parent box, which it lays out its contents in if it has another one.
+    pub(crate) fn parent_writing_mode(&self) -> Option<u8> {
+        self.parent_data()
+            .and_then(node_style_view)
+            .map(|style| style.writing_mode())
+    }
+
     fn parent_data(&self) -> Option<&'pass NodeData> {
         let parent = self.data().parent.get();
         (!parent.is_invalid()).then(|| self.callbacks.node_data(parent))
@@ -796,6 +814,7 @@ impl<'pass> NodeFacts<'pass> {
                 .expect("styled node must publish its style container before layout"),
         )
         .for_kind(self.data().kind.get())
+        .in_frame(self.callbacks.frame)
     }
 
     pub(super) fn computed_values_view_if_styled(&self) -> Option<ComputedValuesView<'pass>> {
@@ -812,7 +831,28 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     #[inline]
+    /// The natural and default sizes of the box's replaced content, as width and height in the frame of the pass.
     fn replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
+        let facts = self.physical_replaced_content();
+        if !self.callbacks.frame.is_transposed() {
+            return facts;
+        }
+        crate::layout::FfiReplacedContentFacts {
+            has_auto_content_width: facts.has_auto_content_height,
+            auto_content_width: facts.auto_content_height,
+            has_auto_content_height: facts.has_auto_content_width,
+            auto_content_height: facts.auto_content_width,
+            auto_content_aspect_ratio_numerator: facts.auto_content_aspect_ratio_denominator,
+            auto_content_aspect_ratio_denominator: facts.auto_content_aspect_ratio_numerator,
+            has_default_preferred_width: facts.has_default_preferred_height,
+            default_preferred_width: facts.default_preferred_height,
+            has_default_preferred_height: facts.has_default_preferred_width,
+            default_preferred_height: facts.default_preferred_width,
+            text_entry_content_is_ordinary_box: facts.text_entry_content_is_ordinary_box,
+        }
+    }
+
+    fn physical_replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
         if self.data().kind.get() == NodeKind::SVGSVGBox {
             return self.svg_root_replaced_content();
         }
@@ -1078,6 +1118,7 @@ impl<'pass> NodeFacts<'pass> {
             self.data(),
             self.computed_values_view_if_styled(),
             self.parent_is_flex_or_grid_container(),
+            || self.parent_writing_mode(),
         )
     }
 

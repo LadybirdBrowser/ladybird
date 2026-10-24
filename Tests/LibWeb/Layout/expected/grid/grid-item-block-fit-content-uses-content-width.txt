@@ -13,7 +13,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <div.grid> at [8,48] [0+0+0 784 0+0+0] [0+0+0 40 0+0+0] [GFC] children: not-inline
         BlockContainer <div> at [8,48] [0+0+0 100 0+0+0] [0+0+0 0 0+0+40] [BFC] children: not-inline
         BlockContainer <div.item.orthogonal> at [118,58] [0+0+10 80 10+0+0] [0+0+10 20 10+0+0] [BFC] children: not-inline
-          BlockContainer <div.horizontal> at [118,58] [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] children: inline
+          BlockContainer <div.horizontal> at [118,58] [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
             frag 0 from BlockContainer start: 0, length: 0, rect: [118,58 45x10] baseline: 10
             frag 1 from BlockContainer start: 0, length: 0, rect: [118,68 45x10] baseline: 10
             BlockContainer <span> at [118,58] inline-block [0+0+0 45 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline

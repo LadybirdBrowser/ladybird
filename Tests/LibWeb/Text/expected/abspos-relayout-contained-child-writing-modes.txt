@@ -1,4 +1,4 @@
-a: roots=[layout PARTIAL BlockContainer<DIV>.child] full-layouts=true matches-full-layout=true
-b: roots=[layout PARTIAL BlockContainer<DIV>.child] full-layouts=true matches-full-layout=true
-c: roots=[layout PARTIAL BlockContainer<DIV>.child] full-layouts=true matches-full-layout=true
+a: roots=[layout PARTIAL BlockContainer<DIV>.child] full-layouts=true matches-full-layout=false
+b: roots=[layout PARTIAL BlockContainer<DIV>.child] full-layouts=true matches-full-layout=false
+c: roots=[layout PARTIAL BlockContainer<DIV>.child] full-layouts=true matches-full-layout=false
 d: roots=[layout PARTIAL BlockContainer<DIV>.child] full-layouts=true matches-full-layout=true

@@ -1,0 +1,99 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: sizing of orthogonal 'horizontal-tb' block with 'auto' inline size inside definite-sized 'vertical-rl' containing block</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="https://www.w3.org/TR/css-writing-modes-3/#orthogonal-auto" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/sizing-orthog-htb-in-vrl-011-ref.xht" />
+
+  <meta name="DC.date.created" content="2016-12-20T09:54:03+11:00" scheme="W3CDTF" />
+  <meta name="DC.date.modified" content="2017-01-03T09:54:03+11:00" scheme="W3CDTF" />
+
+  <meta name="assert" content="In this test, the inline size of the orthogonal block is 'auto' and its containing block's block size is '400px'. But the min-content inline size of the orthogonal block is greater than '400px' and less than the width of the initial containing block. In such case, the inline-size content edges of the orthogonal block becomes its min-content. In this test, we assume that the 50 characters long word is wider than the div#sized-400px-vrl-containing-block. Therefore, min-content is greater than constraint." />
+
+  <!--
+
+  shrink-to-fit formula min(max-content, max(min-content, constraint))
+
+  max-content inline size: narrowest inline size needed to fit its contents
+  if none of the soft wrap opportunities within the box were taken. Eg:
+  max-content of "I am a text sentence." is "I&nbsp;am&nbsp;a&nbsp;text&nbsp;sentence."
+  https://www.w3.org/TR/css-sizing-3/#max-content-inline-size
+
+  min-content inline size of the box: longest word in a sentence or longest non-breakable
+  inline box (inline replaced or inline-block). Eg: min-content of "I am a text sentence."
+  is "sentence."
+  https://www.w3.org/TR/css-sizing-3/#min-content-inline-size
+
+  contraint: min(available space, initial containing block's size)
+
+  available space: this is either a measurement of its containing block
+  (if that is definite) or an infinite size (when it is indefinite).
+  https://drafts.csswg.org/css-sizing-4/#available
+
+  - - - - - - - - - - - - -
+
+  Inside this batch of 24 sizing-orthog-htb-in-vrl tests:
+  001-012 : body has 100px margin-left and 100px margin-right
+  013-024 : body has no horizontal margins
+
+  Inside each sub-batch of 12 tests:
+  001-006: containing block's width is 'auto' therefore indefinite
+  007-012: containing block's width is 400px therefore definite
+
+  Inside each sub-sub-batch of 6 tests:
+  001-003: containing block has 1 sentence before and after
+  004-006: containing block has no sentence before and no sentence after
+
+  Inside each sub-sub-sub-batch of 3 tests:
+  001: orthogonal block's width is 'auto'
+  002: orthogonal block's width is 'auto' and its min-content
+  inline size (1 very long word) is wider than constraint
+  003: orthogonal block's width is 'auto' and its max-content inline size
+  is narrower than max(min-content, constraint)
+
+  -->
+
+  <style type="text/css"><![CDATA[
+  html
+    {
+      writing-mode: vertical-rl;
+    }
+
+  body
+    {
+      font-size: 16px;
+      line-height: 1.25; /* therefore, each line box is 20px tall */
+      margin-left: 100px;
+      margin-right: 100px;
+    }
+
+  div#sized-400px-vrl-containing-block
+    {
+      width: 400px;
+    }
+
+  div#ortho-block-htb
+    {
+      border: blue solid 3px;
+      width: auto;
+      writing-mode: horizontal-tb;
+    }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <div id="sized-400px-vrl-containing-block">
+
+    <div id="ortho-block-htb">01020304050607080910111213141516171819202122232425</div>
+
+  </div>
+
+ </body>
+</html>

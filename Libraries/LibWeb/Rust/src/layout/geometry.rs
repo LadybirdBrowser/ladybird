@@ -6,19 +6,192 @@
 
 use super::*;
 
+// NB: Layout computes every box in the "frame" of the writing mode of the formatting context that lays it out: the
+//     frame is that writing mode's flow-relative view of the plane, turned so that its line-left side is the frame's
+//     left side and its block-start side is the frame's top side. Within a frame, the inline axis is the horizontal
+//     one and blocks stack downwards, so every layout algorithm can work as if in horizontal-tb. The left and right
+//     sides of a frame are line-relative rather than inline-start and inline-end, which keeps 'direction' working the
+//     same in every writing mode. Painting maps the frame back onto the physical plane.
+//     https://drafts.csswg.org/css-writing-modes-4/#logical-to-physical
+
+/// A side of a box, in a frame or in the physical plane.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub(crate) enum Side {
+    Top = 0,
+    Right = 1,
+    Bottom = 2,
+    Left = 3,
+}
+
+impl Side {
+    const ALL: [Side; 4] = [Side::Top, Side::Right, Side::Bottom, Side::Left];
+
+    fn from_index(index: u8) -> Side {
+        Self::ALL[index as usize & 3]
+    }
+}
+
+/// The physical side each side of the frame of a writing mode lies on, indexed by the frame side.
+const FRAME_SIDES_IN_PHYSICAL_PLANE: [[u8; 4]; 5] = [
+    // horizontal-tb
+    [0, 1, 2, 3],
+    // vertical-rl: block-start is right, line-left is top.
+    [1, 2, 3, 0],
+    // vertical-lr: block-start is left, line-left is top.
+    [3, 2, 1, 0],
+    // sideways-rl: block-start is right, line-left is top.
+    [1, 2, 3, 0],
+    // sideways-lr: block-start is left, line-left is bottom.
+    [3, 0, 1, 2],
+];
+
+/// The frame side that each physical side lies on, indexed by the physical side.
+const PHYSICAL_SIDES_IN_FRAME: [[u8; 4]; 5] = [[0, 1, 2, 3], [3, 0, 1, 2], [3, 2, 1, 0], [3, 0, 1, 2], [1, 2, 3, 0]];
+
+/// The frame of a writing mode.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Frame(u8);
+
+impl Default for Frame {
+    fn default() -> Self {
+        Self::PHYSICAL
+    }
+}
+
+impl Frame {
+    pub(crate) const PHYSICAL: Frame = Frame(writing_mode::HORIZONTAL_TB);
+
+    #[inline]
+    pub(crate) fn of(writing_mode: u8) -> Frame {
+        Frame(if writing_mode <= writing_mode::SIDEWAYS_LR {
+            writing_mode
+        } else {
+            writing_mode::HORIZONTAL_TB
+        })
+    }
+
+    #[inline]
+    pub(crate) fn writing_mode(self) -> u8 {
+        self.0
+    }
+
+    #[inline]
+    pub(crate) fn is_physical(self) -> bool {
+        self.0 == writing_mode::HORIZONTAL_TB
+    }
+
+    /// Whether the frame's horizontal axis runs along the physical vertical axis.
+    #[inline]
+    pub(crate) fn is_transposed(self) -> bool {
+        self.0 != writing_mode::HORIZONTAL_TB
+    }
+
+    /// Whether the frames run their inline axes along perpendicular physical axes.
+    #[inline]
+    pub(crate) fn is_orthogonal_to(self, other: Frame) -> bool {
+        self.is_transposed() != other.is_transposed()
+    }
+
+    #[inline]
+    pub(crate) fn physical_side(self, side: Side) -> Side {
+        Side::from_index(FRAME_SIDES_IN_PHYSICAL_PLANE[self.0 as usize][side as usize])
+    }
+
+    #[inline]
+    pub(crate) fn frame_side(self, physical_side: Side) -> Side {
+        Side::from_index(PHYSICAL_SIDES_IN_FRAME[self.0 as usize][physical_side as usize])
+    }
+
+    /// The side of `other` that lies on the same physical side as the given side of this frame.
+    #[inline]
+    pub(crate) fn side_in(self, side: Side, other: Frame) -> Side {
+        other.frame_side(self.physical_side(side))
+    }
+
+    /// Maps per-side values, indexed top, right, bottom, left, from this frame to `other`.
+    #[inline]
+    pub(crate) fn sides_in<T: Copy>(self, values: [T; 4], other: Frame) -> [T; 4] {
+        if self == other {
+            return values;
+        }
+        Side::ALL.map(|side| values[other.side_in(side, self) as usize])
+    }
+
+    /// Whether the frame's horizontal axis runs opposite to the physical axis it lies on.
+    pub(crate) fn horizontal_axis_is_reversed(self) -> bool {
+        matches!(self.physical_side(Side::Left), Side::Right | Side::Bottom)
+    }
+
+    /// Whether the frame's vertical axis runs opposite to the physical axis it lies on.
+    pub(crate) fn vertical_axis_is_reversed(self) -> bool {
+        matches!(self.physical_side(Side::Top), Side::Right | Side::Bottom)
+    }
+
+    /// Maps a rect in this frame to the physical plane, within a box whose physical size is `container_size`, both
+    /// relative to that box's top-left corner and its frame origin respectively.
+    pub(crate) fn rect_to_physical(self, rect: CssPixelRect, container_size: FfiCssPixelSize) -> CssPixelRect {
+        if self.is_physical() {
+            return rect;
+        }
+        // NB: In a transposed frame, the horizontal frame axis runs along the physical vertical axis.
+        let (mut x, mut y, width, height) = (rect.y, rect.x, rect.height, rect.width);
+        if self.vertical_axis_is_reversed() {
+            x = container_size.width - x - width;
+        }
+        if self.horizontal_axis_is_reversed() {
+            y = container_size.height - y - height;
+        }
+        CssPixelRect { x, y, width, height }
+    }
+
+    /// Maps a physical rect within a box of physical size `container_size` to this frame.
+    pub(crate) fn rect_from_physical(self, rect: CssPixelRect, container_size: FfiCssPixelSize) -> CssPixelRect {
+        if self.is_physical() {
+            return rect;
+        }
+        let (mut x, mut y) = (rect.x, rect.y);
+        if self.vertical_axis_is_reversed() {
+            x = container_size.width - x - rect.width;
+        }
+        if self.horizontal_axis_is_reversed() {
+            y = container_size.height - y - rect.height;
+        }
+        CssPixelRect {
+            x: y,
+            y: x,
+            width: rect.height,
+            height: rect.width,
+        }
+    }
+
+    /// Maps a rect within a box from this frame to `other`, where the box has the physical size `container_size`.
+    pub(crate) fn rect_in(self, rect: CssPixelRect, other: Frame, container_size: FfiCssPixelSize) -> CssPixelRect {
+        if self == other {
+            return rect;
+        }
+        other.rect_from_physical(self.rect_to_physical(rect, container_size), container_size)
+    }
+
+    /// Maps a size in this frame to the physical plane.
+    #[inline]
+    pub(crate) fn size_to_physical(self, width: CssPixels, height: CssPixels) -> FfiCssPixelSize {
+        if self.is_transposed() {
+            FfiCssPixelSize {
+                width: height,
+                height: width,
+            }
+        } else {
+            FfiCssPixelSize { width, height }
+        }
+    }
+}
+
 pub(crate) fn to_physical<T>(writing_mode: u8, inline: T, block: T) -> (T, T) {
     if writing_mode == writing_mode::HORIZONTAL_TB {
         (inline, block)
     } else {
         (block, inline)
-    }
-}
-
-pub(crate) fn to_logical<T>(writing_mode: u8, horizontal: T, vertical: T) -> (T, T) {
-    if writing_mode == writing_mode::HORIZONTAL_TB {
-        (horizontal, vertical)
-    } else {
-        (vertical, horizontal)
     }
 }
 
@@ -35,6 +208,20 @@ pub(crate) fn start_is_left_or_top(writing_mode: u8, direction: u8, horizontal: 
         (_, false) => is_ltr,
         _ => true,
     }
+}
+
+/// Whether the start side, in the given writing mode and direction, of the axis that runs along the given axis of
+/// `frame` is that axis's left (horizontal) or top (vertical) side in the frame.
+pub(crate) fn start_is_low_side_in_frame(
+    frame: Frame,
+    writing_mode: u8,
+    direction: u8,
+    frame_horizontal: bool,
+) -> bool {
+    let physical_horizontal = frame_horizontal != frame.is_transposed();
+    let start_is_physical_low_side = start_is_left_or_top(writing_mode, direction, physical_horizontal);
+    let physical_low_side = if physical_horizontal { Side::Left } else { Side::Top };
+    matches!(frame.frame_side(physical_low_side), Side::Left | Side::Top) == start_is_physical_low_side
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

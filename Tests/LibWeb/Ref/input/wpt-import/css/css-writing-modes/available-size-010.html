@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Testing Available Space in Orthogonal Flows / ICB / tall max-height scroller</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://www.w3.org/TR/css-writing-modes-3/#orthogonal-auto">
+<link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/reference/available-size-002-ref.html">
+<meta name="assert" content="When an orthogonal flow's parent doesn't have a definite block size, and the nearest scroller goes not have a fixed height or max-height, use the ICB, even if there is another scroller ancestor up the chain that does have fixed dimensions.">
+<style>
+body { margin-top: 0; margin-bottom: 0; } /* Shouldn't matter, but in some browsers does. -007 tests this aspect specifically. */
+:root { overflow: hidden; }
+div {
+  writing-mode: vertical-rl;
+  font-family: monospace;
+  font-size: 20px;
+  position: relative; /* to be a container for #red*/
+}
+.spacer { /* using 5 spacers of 20vh each instead of a single large one, so
+             that the line would wrap between spacers if it ends up being
+             shorter thatn 100vh*/
+  display: inline-block;
+  height: calc(20vh - 0.1px); /*Using this instead of 20vh, to account for accumulation of rounding errors, that might make 5*20vh taller than 100vh in some browsers*/
+}
+
+span {
+  background: green;
+  display: inline-block; /* This should not change it's size or position, but makes the size of the background predictable*/
+  color: transparent;
+}
+
+#red { /* Not necessary when when comparing to the reference, but makes human judgement easier */
+  position: absolute;
+  background: red;
+  writing-mode: vertical-rl;
+  z-index: -1;
+  font-family: monospace;
+  font-size: 20px;
+  left: 0; top: 0;
+}
+
+section { overflow: hidden; }
+body > section { height: 20ch; }
+</style>
+
+<p>Test passes if there is a <strong>green rectangle</strong> below and <strong>no red</strong>.
+
+<section>
+<section>
+<section>
+<div><aside id="red">0</aside><aside class="spacer"></aside><aside class="spacer"></aside><aside class="spacer"></aside><aside class="spacer"></aside><aside class="spacer"></aside> <span>0</span></div>
+</section>
+</section>
+</section>

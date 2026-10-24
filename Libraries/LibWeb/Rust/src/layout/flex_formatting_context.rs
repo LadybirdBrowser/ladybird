@@ -250,8 +250,9 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     // https://www.w3.org/TR/css-flexbox-1/#flex-direction-property
+    /// Whether the inline axis of `node` runs along the horizontal axis of the frame the container lays out in.
     fn inline_axis_is_horizontal(&self, node: Node) -> bool {
-        self.style(node).writing_mode() == writing_mode::HORIZONTAL_TB
+        !geometry::Frame::of(self.style(node).writing_mode()).is_orthogonal_to(self.run.callbacks.frame)
     }
 
     fn is_row_layout(&self) -> bool {
@@ -2754,26 +2755,16 @@ impl<'pass> FlexFormattingContext<'pass> {
         };
         let main_size = self.inner_main_size_used(self.container_used());
         let cross_size = self.inner_cross_size_used(self.container_used());
-        let (logical_inline_size, logical_block_size) = if self.is_row_layout() {
+        let (inline_size, block_size) = if self.is_row_layout() {
             (main_size, cross_size)
         } else {
             (cross_size, main_size)
         };
-        let (inline_size, block_size) = geometry::to_physical(
-            self.style(self.run.box_).writing_mode(),
-            logical_inline_size,
-            logical_block_size,
-        );
-        let (logical_inline_alignment, logical_block_alignment) = if self.is_row_layout() {
+        let (inline_alignment, block_alignment) = if self.is_row_layout() {
             (main_alignment, cross_alignment)
         } else {
             (cross_alignment, main_alignment)
         };
-        let (inline_alignment, block_alignment) = geometry::to_physical(
-            self.style(self.run.box_).writing_mode(),
-            logical_inline_alignment,
-            logical_block_alignment,
-        );
         abspos_inputs::StaticPositionRect {
             rect: geometry::LogicalRect {
                 offset: Default::default(),
@@ -2807,15 +2798,11 @@ impl<'pass> FlexFormattingContext<'pass> {
                 let item = &self.flex_items[index];
                 let main_size = item.main_size.unwrap_or(item.target_main_size);
                 let cross_size = item.cross_size.unwrap_or(item.hypothetical_cross_size);
-                let (logical_inline_offset, logical_block_offset, logical_inline_size, logical_block_size) =
-                    if self.is_row_layout() {
-                        (item.main_offset, item.cross_offset, main_size, cross_size)
-                    } else {
-                        (item.cross_offset, item.main_offset, cross_size, main_size)
-                    };
-                let writing_mode = self.style(self.run.box_).writing_mode();
-                let (x, y) = geometry::to_physical(writing_mode, logical_inline_offset, logical_block_offset);
-                let (width, height) = geometry::to_physical(writing_mode, logical_inline_size, logical_block_size);
+                let (x, y, width, height) = if self.is_row_layout() {
+                    (item.main_offset, item.cross_offset, main_size, cross_size)
+                } else {
+                    (item.cross_offset, item.main_offset, cross_size, main_size)
+                };
                 let rect = CssPixelRect { x, y, width, height };
                 let node = item.box_;
                 let style = self.style(node);

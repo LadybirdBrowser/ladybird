@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<title>CSS Writing Modes Test: vertical-rl - block flow direction of block-level boxes</title>
+		<link rel="author" title="Taka Oshiyama" href="mailto:takaoshiyama@gmail.com" />
+		<link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+		<link rel="help" title="3.1. Block Flow Direction: the 'writing-mode' property" href="http://www.w3.org/TR/css-writing-modes-3/#block-flow" />
+		<link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/block-flow-direction-vrl-026-ref.xht" />
+		<meta name="flags" content="ahem" />
+		<meta name="assert" content="This test checks 1.block flow direction, 2.inline direction when 'writing-mode' is set to 'vertical-rl'." />
+		<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+		<style type="text/css">
+				.view_ahem
+				{
+					background: pink;
+					border: 1px solid black;
+					color: blue;
+					font: 20px/1 "Ahem";
+					height: 3em;
+					margin: 10px;
+					width: 3em;
+					white-space: pre;
+				}
+				#test_ahem
+				{
+					writing-mode: vertical-rl;
+				}
+				#control_ahem
+				{
+					writing-mode: horizontal-tb;
+				}
+		</style>
+	</head>
+	<body>
+		<p>Test passes if the 2 pink-and-blue rectangles are <strong>identical</strong>.</p>
+		<div class="view_ahem"><span id="test_ahem">123
+ 56
+7  </span></div>
+		<div class="view_ahem"><span id="control_ahem">7 1
+ 52
+ 63</span></div>
+	</body>
+</html>

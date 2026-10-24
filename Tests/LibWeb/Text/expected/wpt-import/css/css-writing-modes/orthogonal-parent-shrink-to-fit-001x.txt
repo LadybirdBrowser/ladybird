@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	24: Shrink-to-fit table-cell with a child of orthogonal inline with borders in inline-block
+1 Pass
+Pass	24: Shrink-to-fit table-cell with a child of orthogonal inline with borders in inline-block

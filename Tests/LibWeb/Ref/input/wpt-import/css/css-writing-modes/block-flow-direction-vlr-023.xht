@@ -1,0 +1,65 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: vertical-lr - block flow direction of block-level boxes</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css-writing-modes-3/#block-flow" title="3.1 Block Flow Direction: the writing-mode property" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/block-flow-direction-001-ref.xht" />
+
+  <meta content="ahem" name="flags" />
+  <meta content="This test checks that block-level boxes in a block formating context with 'writing-mode' set to 'vertical-lr' are laid out one after the other with the first beginning at the left-hand side of its containing block; they are ordered from left to right meaning that the 1st block box is the leftmost one and, then the 2nd block is juxtaposed at the right-hand side of 1st block, then the 3rd block is juxtaposed at the 2nd block on its right-hand side, etc... " name="assert" />
+
+  <!--
+  This test is a variation of block-flow-direction-003 test.
+  -->
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  html
+    {
+      writing-mode: vertical-lr;
+    }
+  /*
+  "
+  The principal writing mode of the document is determined by the writing-mode
+  and direction values specified on the root element.
+  "
+  */
+
+  body
+    {
+      color: yellow;
+      font: 20px/1 Ahem;
+      height: 9em;
+    }
+
+  div
+    {
+      background-color: blue;
+      border: blue solid 1em;
+      border-right: blue none 0em;
+    }
+
+  div#right-most
+    {
+      border-right: blue solid 1em;
+    }
+  ]]></style>
+ </head>
+
+ <body>
+
+<!-- The "P" --> <div>AAAAAAA B&nbsp; C&nbsp;&nbsp; D&nbsp; E&nbsp;&nbsp; FFFF&nbsp;&nbsp; </div>
+
+<!-- The "A" --> <div>GGGGGGG H&nbsp; J&nbsp;&nbsp; K&nbsp; L&nbsp;&nbsp; MMMMMMM</div>
+
+<!-- The left-most "S" --> <div>NNNN&nbsp; Q R&nbsp; S&nbsp; T U&nbsp; V&nbsp; W X&nbsp; YYYY</div>
+
+<!-- The right-most "S" --> <div id="right-most">aaaa&nbsp; b c&nbsp; d&nbsp; e f&nbsp; g&nbsp; h j&nbsp; kkkk</div>
+
+ </body>
+</html>

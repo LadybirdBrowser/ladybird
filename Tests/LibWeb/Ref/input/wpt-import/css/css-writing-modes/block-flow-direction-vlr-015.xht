@@ -1,0 +1,65 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: inline-block and 'vertical-lr' - block flow direction of block-level boxes</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css-writing-modes-3/#block-flow" title="3.1 Block Flow Direction: the writing-mode property" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/block-flow-direction-001-ref.xht" />
+
+  <meta content="ahem" name="flags" />
+  <meta content="This test checks that an inline-block with its 'writing-mode' set to 'vertical-lr' establishes a block formating context with a left-to-right block flow direction." name="assert" />
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  body
+    {
+      color: yellow;
+      font: 20px/1 Ahem;
+    }
+
+  div#inline-block
+    {
+      background-color: blue;
+      border-top: blue solid 1em;
+      display: inline-block;
+      height: 8em;
+      writing-mode: vertical-lr;
+    }
+
+  span
+    {
+      border-left: blue solid 1em;
+      display: block;
+    }
+
+  span#right-border
+    {
+      border-right: blue solid 1em;
+    }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <div>
+
+    <div id="inline-block">
+
+<!-- The "P" --> <span>AAAAAAA B&nbsp; C&nbsp;&nbsp; D&nbsp; E&nbsp;&nbsp; FFFF&nbsp;&nbsp;</span>
+
+<!-- The "A" --> <span>GGGGGGG H&nbsp; J&nbsp;&nbsp; K&nbsp; L&nbsp;&nbsp; MMMMMMM</span>
+
+<!-- The left-most "S" --> <span>NNNN&nbsp; Q R&nbsp; S&nbsp; T U&nbsp; V&nbsp; W X&nbsp; YYYY</span>
+
+<!-- The right-most "S" --> <span id="right-border">aaaa&nbsp; b c&nbsp; d&nbsp; e f&nbsp; g&nbsp; h j&nbsp; kkkk</span>
+
+    </div>
+
+  </div>
+
+ </body>
+</html>

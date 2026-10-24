@@ -599,6 +599,7 @@ impl RetainedState {
         use crate::css::style_compute::effective_display;
 
         let mut parent_display = None;
+        let mut parent_writing_mode = crate::css::css_enums::writing_mode::HORIZONTAL_TB;
         let mut ancestor = parent;
         while let Some(current) = ancestor
             && let Some(record) = self.computed_group_sets.assigned_style_record(current)
@@ -608,6 +609,7 @@ impl RetainedState {
             let display = effective_display(table, view.animated_overlay);
             if !display.is_contents() {
                 parent_display = Some(display);
+                parent_writing_mode = crate::css::style_compute::effective_writing_mode(table, view.animated_overlay);
                 break;
             }
             ancestor = self.tree.inheritance_parent(current);
@@ -617,6 +619,7 @@ impl RetainedState {
             target,
             parent_display.is_some(),
             parent_display.unwrap_or_else(crate::css::display::FfiDisplay::block),
+            parent_writing_mode,
         )
     }
 

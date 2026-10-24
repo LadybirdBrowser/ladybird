@@ -226,6 +226,7 @@ pub(super) fn cache_key(
         percentage_basis_inline_size: constraints.percentage_basis_inline_size,
         percentage_basis_block_size: constraints.percentage_basis_block_size,
         quirks_mode_percentage_basis_block_size: constraints.quirks_mode_percentage_basis_block_size,
+        measured_in_transposed_frame: false,
     }
 }
 
@@ -355,6 +356,48 @@ pub(crate) enum BaselineSet {
     Last,
 }
 
+/// Lays out absolutely positioned boxes whose containing blocks are placed, each in the frame of its containing
+/// block's writing mode.
+pub(crate) fn lay_out_pending_abspos_children(
+    run: &FormattingContextRun,
+    batch: Vec<abspos_inputs::PendingAbsposChild>,
+) {
+    let engine = abspos_engine::AbsposEngine::for_run(run);
+    for entry in batch {
+        let containing_block = entry.containing_block();
+        if frame_established_by(&run.callbacks, containing_block) == run.callbacks.frame {
+            engine.layout_pending_child(run, entry);
+            continue;
+        }
+        in_frame_established_by(run, containing_block, |run| {
+            abspos_engine::AbsposEngine::for_run(run).layout_pending_child(run, entry);
+        });
+    }
+}
+
+/// Runs `body` with a run in the frame `node` establishes, with the record of `node` moved into that frame.
+pub(crate) fn in_frame_established_by<R>(
+    run: &FormattingContextRun,
+    node: Node,
+    body: impl FnOnce(&FormattingContextRun) -> R,
+) -> R {
+    let parent_frame = run.callbacks.frame;
+    let own_frame = frame_established_by(&run.callbacks, node);
+    if own_frame == parent_frame {
+        return body(run);
+    }
+    let used = run.records.used_values_if_owned(node);
+    if let Some(used) = used {
+        used.move_box_metrics_to_frame(parent_frame, own_frame);
+    }
+    let framed_run = run.in_frame_of(own_frame);
+    let result = body(&framed_run);
+    if let Some(used) = used {
+        used.move_box_metrics_to_frame(own_frame, parent_frame);
+    }
+    result
+}
+
 pub(crate) fn place_child(
     run: &FormattingContextRun,
     node: Node,
@@ -390,6 +433,7 @@ pub(crate) fn place_child_in_containing_block(
                 offset,
                 committed_offset_delta_at_placement(run.purpose, records, callbacks, node, containing_block, used),
             ),
+            callbacks.frame,
         );
         return Some(fragment_tree::PlacedFragment {
             fragment,
@@ -402,10 +446,7 @@ pub(crate) fn place_child_in_containing_block(
         if batch.is_empty() {
             break;
         }
-        let engine = abspos_engine::AbsposEngine::for_run(run);
-        for entry in batch {
-            engine.layout_pending_child(run, entry);
-        }
+        lay_out_pending_abspos_children(run, batch);
     }
     let node_facts = NodeFacts::new(callbacks, node);
     let own_anchor_candidate_border_box_rect = (node_facts.is_box() && node_facts.has_anchor_names()).then(|| {
@@ -461,6 +502,7 @@ pub(crate) fn place_reused_child(
             offset,
             committed_offset_delta_at_placement(run.purpose, records, callbacks, node, containing_block, used),
         ),
+        callbacks.frame,
     );
 }
 
@@ -1108,6 +1150,23 @@ pub(crate) struct FormattingContextRun<'pass> {
 }
 
 impl<'pass> FormattingContextRun<'pass> {
+    /// This run, laying out in `frame`.
+    pub(crate) fn in_frame_of(&self, frame: geometry::Frame) -> Self {
+        Self {
+            purpose: self.purpose,
+            records: self.records,
+            box_: self.box_,
+            layout_mode: self.layout_mode,
+            callbacks: self.callbacks.in_frame_of(frame.writing_mode()),
+            should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: self
+                .treat_block_axis_percentage_insets_as_auto_beyond_root,
+            fragments: self.fragments.clone(),
+            previous_line_data: self.previous_line_data.clone(),
+            fragmentainer: self.fragmentainer.clone(),
+        }
+    }
+
     pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'pass> {
         sizing_context::SizingContext::new(self.purpose, self.records, self.callbacks)
     }
@@ -1150,6 +1209,7 @@ pub(crate) fn formatting_context_type_created_by_node_data(
     data: &NodeData,
     style: Option<ComputedValuesView<'_>>,
     parent_is_flex_or_grid_container: bool,
+    parent_writing_mode: impl FnOnce() -> Option<u8>,
 ) -> Option<FormattingContextType> {
     if data.kind.get() == crate::layout::node_data::NodeKind::SVGSVGBox {
         return Some(FormattingContextType::Svg);
@@ -1205,7 +1265,12 @@ pub(crate) fn formatting_context_type_created_by_node_data(
         }
         return Some(FormattingContextType::Math);
     }
-    if node_facts::node_creates_block_formatting_context(data, style, parent_is_flex_or_grid_container) {
+    if node_facts::node_creates_block_formatting_context(
+        data,
+        style,
+        parent_is_flex_or_grid_container,
+        parent_writing_mode,
+    ) {
         return Some(FormattingContextType::Block);
     }
     if node_facts::has_flag(data, NodeFlag::ChildrenAreInline)
@@ -1231,6 +1296,7 @@ pub(crate) fn formatting_context_type_created_by_box(facts: NodeFacts<'_>) -> Op
         facts.data(),
         facts.computed_values_view_if_styled(),
         facts.parent_is_flex_or_grid_container(),
+        || facts.parent_writing_mode(),
     );
     if fc_type == Some(FormattingContextType::Math) && !facts.uses_math_layout() {
         return Some(FormattingContextType::Block);
@@ -1710,8 +1776,11 @@ pub(super) fn run_formatting_context(
 ) -> ChildLayoutResult {
     // Independent children supply block sizes and baselines to their parent, so only paragraphs
     // in the width query's own block flow may skip their line geometry.
+    // NB: A box that establishes an orthogonal flow contributes its block size to the inline size its parent
+    //     measures, which takes its line geometry.
     let purpose = if purpose == LayoutPurpose::IntrinsicInlineMeasurement
-        && input.participation != ParticipationInParentFormattingContext::Root
+        && (input.participation != ParticipationInParentFormattingContext::Root
+            || frame_established_by(&callbacks, box_).is_orthogonal_to(callbacks.frame))
     {
         LayoutPurpose::Measurement
     } else {
@@ -1897,6 +1966,18 @@ fn execute_formatting_context_run(
                 fragmentainer,
             };
             let run = &run;
+            // NB: The root's own box is sized and placed in the frame of its parent's formatting context, while
+            //     its contents are laid out in the frame of the writing mode the root establishes.
+            let parent_frame = callbacks.frame;
+            let own_frame = frame_established_by(&callbacks, box_);
+            let changes_frame = own_frame != parent_frame;
+            let body_run_in_own_frame;
+            let body_run = if changes_frame {
+                body_run_in_own_frame = run.in_frame_of(own_frame);
+                &body_run_in_own_frame
+            } else {
+                run
+            };
             if let Some(table_inline_layout) = table_inline_layout {
                 run.records
                     .store_table_inline_layout(table_inline_layout.table_box(), table_inline_layout);
@@ -1906,10 +1987,17 @@ fn execute_formatting_context_run(
                 atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
             } = apply_root_sizing_directives(run, &input, fc_type);
 
-            let cached_atomic_block_size = if matches!(
-                input.participation,
-                ParticipationInParentFormattingContext::AtomicInline
-            ) {
+            let body_input = if changes_frame {
+                enter_own_frame(run, body_run, &input, body_input, parent_frame, own_frame)
+            } else {
+                body_input
+            };
+
+            let cached_atomic_block_size = if !changes_frame
+                && matches!(
+                    input.participation,
+                    ParticipationInParentFormattingContext::AtomicInline
+                ) {
                 run.sizing().apply_cached_intrinsic_inline_measurement(
                     run.box_,
                     input.available_space.inline_size,
@@ -1926,7 +2014,8 @@ fn execute_formatting_context_run(
                     baselines: cached_baselines,
                     ..ChildLayoutResult::default()
                 }
-            } else if layout_mode == LayoutMode::Normal
+            } else if !changes_frame
+                && layout_mode == LayoutMode::Normal
                 && !purpose.is_measurement()
                 && matches!(
                     input.participation,
@@ -1939,10 +2028,11 @@ fn execute_formatting_context_run(
                 // run through the shared paths around this branch.
                 ChildLayoutResult::default()
             } else {
-                let mut context_implementation = create_formatting_context_implementation(run, parent_grid, fc_type);
+                let mut context_implementation =
+                    create_formatting_context_implementation(body_run, parent_grid, fc_type);
                 let result = match &mut context_implementation {
                     FormattingContextImplementation::Block(context) => {
-                        context.run(run, body_input);
+                        context.run(body_run, body_input);
                         let baselines = context.derived_baselines_of_root_box();
                         store_derived_baselines(run.records.used_values(run.box_), baselines);
                         ChildLayoutResult {
@@ -1958,7 +2048,7 @@ fn execute_formatting_context_run(
                         }
                     }
                     FormattingContextImplementation::Flex(context) => {
-                        context.run(run, body_input);
+                        context.run(body_run, body_input);
                         let baselines = context.derived_baselines_of_root_box();
                         store_derived_baselines(run.records.used_values(run.box_), baselines);
                         ChildLayoutResult {
@@ -1969,7 +2059,7 @@ fn execute_formatting_context_run(
                         }
                     }
                     FormattingContextImplementation::Grid(context) => {
-                        context.run(run, body_input);
+                        context.run(body_run, body_input);
                         let baselines = context.derived_baselines_of_root_box();
                         store_derived_baselines(run.records.used_values(run.box_), baselines);
                         ChildLayoutResult {
@@ -1980,7 +2070,7 @@ fn execute_formatting_context_run(
                         }
                     }
                     FormattingContextImplementation::Table(context) => {
-                        context.run(run, body_input, run.records.take_table_inline_layout(run.box_));
+                        context.run(body_run, body_input, run.records.take_table_inline_layout(run.box_));
                         let baselines = context.derived_baselines_of_root_box();
                         store_derived_baselines(run.records.used_values(run.box_), baselines);
                         ChildLayoutResult {
@@ -1991,11 +2081,11 @@ fn execute_formatting_context_run(
                         }
                     }
                     FormattingContextImplementation::Svg(context) => {
-                        context.run(run, body_input);
+                        context.run(body_run, body_input);
                         ChildLayoutResult::default()
                     }
                     FormattingContextImplementation::Math(context) => {
-                        context.run(run, body_input);
+                        context.run(body_run, body_input);
                         let baselines = context.derived_baselines_of_root_box();
                         store_derived_baselines(run.records.used_values(run.box_), baselines);
                         ChildLayoutResult {
@@ -2006,7 +2096,7 @@ fn execute_formatting_context_run(
                         }
                     }
                     FormattingContextImplementation::ReplacedWithChildren => {
-                        replaced_with_children_formatting_context::layout_replaced_with_children(run, body_input)
+                        replaced_with_children_formatting_context::layout_replaced_with_children(body_run, body_input)
                     }
                     FormattingContextImplementation::InternalReplaced
                     | FormattingContextImplementation::InternalDummy => ChildLayoutResult::default(),
@@ -2014,6 +2104,9 @@ fn execute_formatting_context_run(
                 implementation = Some(context_implementation);
                 result
             };
+            if changes_frame {
+                result = leave_own_frame(run, body_run, result, parent_frame, own_frame);
+            }
 
             // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
             // If an element has an explicit intrinsic inner size in an axis, then after laying out the element as normal for
@@ -2120,10 +2213,11 @@ fn execute_formatting_context_run(
             result.omitted_line_layout = run.records.omitted_line_layout();
             result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
 
+            // NB: The root's descendants are laid out in the frame the root establishes.
             let take_run_fragments = || {
                 run.fragments
                     .as_ref()
-                    .map(|fragments| fragments.take_unplaced_root(run.records, &run.callbacks))
+                    .map(|fragments| fragments.take_unplaced_root(run.records, &body_run.callbacks))
             };
 
             let registered_abspos_children_could_never_be_laid_out = run.fragments.is_none();
@@ -2139,16 +2233,18 @@ fn execute_formatting_context_run(
                     FormattingContextImplementation::Block(_) => {}
                     FormattingContextImplementation::Table(_) => {
                         let box_ = run.box_;
-                        register_table_abspos_descendants(run, box_);
+                        in_own_frame(run, parent_frame, own_frame, || {
+                            register_table_abspos_descendants(body_run, box_);
+                        });
                     }
                     FormattingContextImplementation::Flex(context) => {
-                        context.parent_did_dimension();
+                        in_own_frame(run, parent_frame, own_frame, || context.parent_did_dimension());
                     }
                     FormattingContextImplementation::Grid(context) => {
-                        context.parent_did_dimension();
+                        in_own_frame(run, parent_frame, own_frame, || context.parent_did_dimension());
                     }
                     FormattingContextImplementation::Math(context) => {
-                        context.parent_did_dimension();
+                        in_own_frame(run, parent_frame, own_frame, || context.parent_did_dimension());
                     }
                     FormattingContextImplementation::Svg(_) | FormattingContextImplementation::ReplacedWithChildren => {
                     }
@@ -2170,6 +2266,141 @@ fn execute_formatting_context_run(
             )
         },
     )
+}
+
+/// The frame in which `node` lays out its contents: that of its writing mode.
+pub(crate) fn frame_established_by(callbacks: &LayoutPass<'_>, node: Node) -> geometry::Frame {
+    callbacks
+        .computed_values_view_if_styled(node)
+        .map_or(callbacks.frame, |style| geometry::Frame::of(style.writing_mode()))
+}
+
+/// Runs `body` with the run root's metrics read in the frame it lays out its contents in.
+fn in_own_frame<R>(
+    run: &FormattingContextRun,
+    parent_frame: geometry::Frame,
+    own_frame: geometry::Frame,
+    body: impl FnOnce() -> R,
+) -> R {
+    if parent_frame == own_frame {
+        return body();
+    }
+    let used = run.records.used_values(run.box_);
+    used.move_box_metrics_to_frame(parent_frame, own_frame);
+    let result = body();
+    used.move_box_metrics_to_frame(own_frame, parent_frame);
+    result
+}
+
+/// Moves the root of a run whose writing mode establishes a frame other than its parent's into its own frame, where
+/// its contents are laid out, and returns the input for laying them out there.
+fn enter_own_frame(
+    run: &FormattingContextRun,
+    body_run: &FormattingContextRun,
+    input: &LayoutInput,
+    body_input: LayoutInput,
+    parent_frame: geometry::Frame,
+    own_frame: geometry::Frame,
+) -> LayoutInput {
+    let node = run.box_;
+    let used = run.records.used_values(node);
+    used.move_box_metrics_to_frame(parent_frame, own_frame);
+    if !parent_frame.is_orthogonal_to(own_frame) {
+        // NB: Sizes keep their axes between frames that are not orthogonal, so the contents are laid out with the
+        //     input the root's sizing gave them, apart from the parent's block formatting context they leave.
+        return LayoutInput {
+            content_box_position_in_bfc_root: None,
+            ..body_input
+        };
+    }
+    let mut constraints = input.containing_block_constraints;
+    let mut available_space = input.available_space;
+    let mut sizing = RootSizingDirectives {
+        treat_block_axis_percentage_insets_as_auto_beyond_root: input
+            .sizing
+            .treat_block_axis_percentage_insets_as_auto_beyond_root,
+        forced_content_inline_size: body_input.sizing.forced_content_inline_size,
+        forced_content_block_size: body_input.sizing.forced_content_block_size,
+        ..RootSizingDirectives::default()
+    };
+    std::mem::swap(
+        &mut constraints.percentage_basis_inline_size,
+        &mut constraints.percentage_basis_block_size,
+    );
+    constraints.quirks_mode_percentage_basis_block_size = None;
+    std::mem::swap(&mut available_space.inline_size, &mut available_space.block_size);
+    std::mem::swap(
+        &mut sizing.forced_content_inline_size,
+        &mut sizing.forced_content_block_size,
+    );
+    // https://drafts.csswg.org/css-writing-modes-4/#orthogonal-flows
+    // In the sizing phase [...] the dimensions of the box and the containing block are mapped to the inline
+    // size and block size and calculations are performed accordingly using the writing mode of the box
+    // establishing the orthogonal flow.
+    if used.inline_size_constraint.get() == SizeConstraint::None && !used.has_definite_inline_size.get() {
+        // NB: A flex or grid container sizes its items in both axes before laying out their contents, even where it
+        //     leaves a size indefinite for the percentages of their contents.
+        let inline_size = if input.participation == ParticipationInParentFormattingContext::Item
+            && NodeFacts::new(&run.callbacks, node).parent_is_flex_or_grid_container()
+        {
+            used.content_inline_size.get()
+        } else {
+            body_run
+                .sizing()
+                .orthogonal_flow_inline_size(node, available_space, constraints)
+        };
+        used.set_content_inline_size(inline_size);
+    }
+    let mut body_input = LayoutInput::new(
+        used.available_inner_space_or_constraints_from(available_space),
+        constraints,
+        ParticipationInParentFormattingContext::Root,
+    );
+    body_input.sizing = sizing;
+    body_input
+}
+
+/// Moves the root of a run back into its parent's frame once its contents are laid out in its own frame, and maps
+/// what the layout found into the parent's frame.
+fn leave_own_frame(
+    run: &FormattingContextRun,
+    body_run: &FormattingContextRun,
+    mut result: ChildLayoutResult,
+    parent_frame: geometry::Frame,
+    own_frame: geometry::Frame,
+) -> ChildLayoutResult {
+    let used = run.records.used_values(run.box_);
+    // NB: The root's lines are laid out along its own inline axis, so finish them while that is what the root
+    //     record holds.
+    used.finish_line_data(&body_run.callbacks);
+    if parent_frame.is_orthogonal_to(own_frame) {
+        // https://drafts.csswg.org/css-writing-modes-4/#orthogonal-shrink-to-fit
+        // Note that this section requires that when a child box auto-sized in its block axis establishes an
+        // orthogonal flow, the used block size of the child is calculated to fit its content; and this resulting
+        // content-based size is used as input to the inline-axis min-content size and max-content size of the
+        // parent.
+        // NB: A root measured under an intrinsic inline size constraint has its inline size only in the result.
+        let content_inline_size = if used.inline_size_constraint.get() == SizeConstraint::None {
+            used.content_inline_size.get()
+        } else {
+            result.automatic_content_inline_size
+        };
+        result.automatic_content_inline_size = result.automatic_content_block_size;
+        result.min_content_inline_size_from_max_content_layout = None;
+        result.automatic_content_block_size = content_inline_size;
+        result.baselines = DerivedBaselines::default();
+        result.content_block_size_for_aspect_ratio_minimum = None;
+        // NB: The block size of a table box in its parent's frame is its inline size in the frame of its wrapper.
+        if result.table_box_in_wrapper_border_box_block_size.is_some() {
+            let table_used = run
+                .records
+                .used_values(body_run.sizing().table_box_inside_wrapper(run.box_));
+            result.table_box_in_wrapper_border_box_block_size =
+                Some(table_used.border_box_inline_size(table_used.uses_collapsing_borders_model.get()));
+        }
+    }
+    used.move_box_metrics_to_frame(own_frame, parent_frame);
+    result
 }
 
 fn finalize_atomic_root_block_size(
@@ -2842,6 +3073,13 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
     // re-enter intrinsic sizing for descendants outside those roots, including anonymous boxes
     // the incremental tree build created; derive the facts of the whole subtree.
     arena.derive_facts_in_subtree(root);
+
+    // NB: Either way, the boundary root's own geometry lies in the frame of its containing block.
+    let callbacks = if containing_block.is_invalid() {
+        callbacks
+    } else {
+        callbacks.in_frame_of(frame_established_by(&callbacks, containing_block).writing_mode())
+    };
 
     // Abspos boundaries recompute their size and position in their containing block's space.
     // In-flow SVG boundaries keep their committed geometry and lay out only their contents.

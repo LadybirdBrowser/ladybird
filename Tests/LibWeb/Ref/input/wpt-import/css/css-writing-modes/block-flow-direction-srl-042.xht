@@ -1,0 +1,96 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: sideways-rl - block flow direction of block-level boxes</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css-writing-modes-4/#writing-mode" title="3.1 Block Flow Direction: the writing-mode property" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/block-flow-direction-002-ref.xht" />
+
+  <meta content="ahem" name="flags" />
+  <meta content="This test checks that block-level boxes in a block formating context with 'writing-mode' set to 'sideways-rl' are laid out one after the other with the first beginning at the right-hand side of its containing block; they are ordered from right to left meaning that the 1st block box is the rightmost one, then the 2nd block is juxtaposed at its left-hand side, then the 3rd block is juxtaposed at the 2nd block on its left-hand side, etc... " name="assert" />
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  html
+    {
+      writing-mode: sideways-rl;
+    }
+  /*
+  "
+  The principal writing mode of the document is determined by the writing-mode
+  and direction values specified on the root element.
+  "
+  */
+
+  body
+    {
+      color: yellow;
+      font: 20px/1 Ahem;
+      height: 9em;
+    }
+
+  div
+    {
+      background-color: blue;
+      border-bottom: blue solid 1em;
+      border-top: blue solid 1em;
+    }
+
+  div.right-border
+    {
+      border-right: blue solid 1em;
+    }
+
+  div#left-border
+    {
+      border-left: blue solid 1em;
+    }
+  ]]></style>
+ </head>
+
+ <body>
+
+<!-- The right-most line of right-most "S" --> <div class="right-border">A&nbsp; BBBB</div>
+
+<!-- The 2nd right-most line of right-most "S" --> <div>C&nbsp; D&nbsp; E</div>
+
+<!-- The 3rd right-most line of right-most "S" --> <div>F&nbsp; G&nbsp; H</div>
+
+<!-- The 4th right-most line of right-most "S" --> <div>JJJJ&nbsp; K</div>
+
+
+
+<!-- The right-most line of left-most "S" --> <div class="right-border">L&nbsp; MMMM</div>
+
+<!-- The 2nd right-most line of left-most "S" --> <div>Q&nbsp; R&nbsp; S</div>
+
+<!-- The 3rd right-most line of left-most "S" --> <div>T&nbsp; U&nbsp; V</div>
+
+<!-- The 4th right-most line of left-most "S" --> <div>WWWW&nbsp; X</div>
+
+
+
+<!-- The right-most line of "A" --> <div class="right-border">YYYYYYY</div>
+
+<!-- The 2nd right-most line of "A" --> <div>Z&nbsp; a&nbsp;&nbsp; </div>
+
+<!-- The 3rd right-most line of "A" --> <div>b&nbsp; c&nbsp;&nbsp; </div>
+
+<!-- The 4th right-most line of "A" --> <div>ddddddd</div>
+
+
+
+<!-- The right-most line of "P" --> <div class="right-border">eeee&nbsp;&nbsp; </div>
+
+<!-- The 2nd right-most line of "P" --> <div>f&nbsp; g&nbsp;&nbsp; </div>
+
+<!-- The 3rd right-most line of "P" --> <div>h&nbsp; j&nbsp;&nbsp; </div>
+
+<!-- The 4th right-most line of "P" --> <div id="left-border">kkkkkkk</div>
+
+ </body>
+</html>

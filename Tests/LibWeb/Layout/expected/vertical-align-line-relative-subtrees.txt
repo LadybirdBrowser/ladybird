@@ -34,13 +34,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <span.tall> at [20,108] inline-block [0+0+0 20 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
       BlockContainer <(anonymous)> at [0,172] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div.vertical> at [0,172] [0+0+0 800 0+0+0] [0+0+0 200 0+0+0] children: inline
-        InlineNode <span.middle> at [758,172] [0+0+0 40 0+0+0] [0+0+0 30 0+0+0]
-          frag 0 from TextNode start: 0, length: 1, rect: [758,172 20x20] baseline: 16
+      BlockContainer <div.vertical> at [0,172] [0+0+0 22 0+0+0] [0+0+0 200 0+0+0] [BFC] children: inline
+        InlineNode <span.middle> at [2,172] [0+0+0 20 0+0+0] [0+0+0 60 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [2,172 20x20] baseline: 16
               "x"
-          frag 1 from BlockContainer start: 0, length: 0, rect: [760,192 40x10] baseline: 0
+          frag 1 from BlockContainer start: 0, length: 0, rect: [12,192 10x40] baseline: 0
           TextNode <#text> (not painted)
-          BlockContainer <span.vertical-top> at [760,192] inline-block [0+0+0 10 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+          BlockContainer <span.vertical-top> at [12,192] inline-block [0+0+0 10 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
       BlockContainer <(anonymous)> at [0,372] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
