@@ -116,9 +116,12 @@ static void apply_paint_style(SkPaint& paint, PaintStyle const& style, SkColorSp
         auto center = conic_gradient->center();
         auto start_angle_degrees = AK::to_degrees(conic_gradient->start_angle());
 
+        // NB: The angles of a Skia sweep gradient pick where its colors start and end, and every angle outside of them
+        //     takes the color of the nearest end. So the gradient is rotated to its start angle instead.
         SkMatrix matrix;
+        matrix.setRotate(start_angle_degrees, center.x(), center.y());
         SkGradient gradient { SkGradient::Colors { { colors.data(), colors.size() }, { positions.data(), positions.size() }, SkTileMode::kClamp, sk_ref_sp(color_space) }, {} };
-        auto shader = SkShaders::SweepGradient(to_skia_point(center), start_angle_degrees, start_angle_degrees + 360, gradient, &matrix);
+        auto shader = SkShaders::SweepGradient(to_skia_point(center), 0, 360, gradient, &matrix);
         paint.setShader(shader);
     } else if (auto const* canvas_pattern = as_if<CanvasPatternPaintStyle>(style)) {
         auto frame = canvas_pattern->image();
