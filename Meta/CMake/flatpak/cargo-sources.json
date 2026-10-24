@@ -29,6 +29,20 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/alloc-no-stdlib/alloc-no-stdlib-3.0.0.crate",
+        "sha256": "c2fb6cfd47bf496ff64095c20eaba0c201404ee38714d4142fcfa1dc334fcc7a",
+        "dest": "cargo/vendor/alloc-no-stdlib-3.0.0"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/alloc-stdlib/alloc-stdlib-0.3.0.crate",
+        "sha256": "0b5c1865780388bfa186411ab5f247819487fc4864c6e9c3106611fa347586e1",
+        "dest": "cargo/vendor/alloc-stdlib-0.3.0"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/allocator-api2/allocator-api2-0.2.21.crate",
         "sha256": "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923",
         "dest": "cargo/vendor/allocator-api2-0.2.21"
@@ -109,6 +123,20 @@
         "url": "https://static.crates.io/crates/bitflags/bitflags-2.11.0.crate",
         "sha256": "843867be96c8daad0d758b57df9392b6d8d271134fce549de6ce169ff98a92af",
         "dest": "cargo/vendor/bitflags-2.11.0"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/brotli/brotli-9.0.0.crate",
+        "sha256": "f8b851b75c23ca7873623d612fe49bd1989aeb03d08fb9432187eb253d3d4c6b",
+        "dest": "cargo/vendor/brotli-9.0.0"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/brotli-decompressor/brotli-decompressor-6.0.1.crate",
+        "sha256": "941cd9bd4ddab83cb46fa5a2d428f1c857b24ac78cb876cf7beb710840934bd7",
+        "dest": "cargo/vendor/brotli-decompressor-6.0.1"
     },
     {
         "type": "archive",
@@ -256,6 +284,13 @@
         "url": "https://static.crates.io/crates/flatbuffers/flatbuffers-25.12.19.crate",
         "sha256": "35f6839d7b3b98adde531effaf34f0c2badc6f4735d26fe74709d8e513a96ef3",
         "dest": "cargo/vendor/flatbuffers-25.12.19"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/flate2/flate2-1.1.10.crate",
+        "sha256": "6e634e2e0ebac1ee034020da1ca582e17ffe4e0f5e985823721e168928136dcb",
+        "dest": "cargo/vendor/flate2-1.1.10"
     },
     {
         "type": "archive",
@@ -1093,6 +1128,13 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/zlib-rs/zlib-rs-0.6.8.crate",
+        "sha256": "b268e58e7c693d7c271f93ffc4ba3b380412554231c85bf61ca7af91042a4112",
+        "dest": "cargo/vendor/zlib-rs-0.6.8"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/zmij/zmij-1.0.21.crate",
         "sha256": "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa",
         "dest": "cargo/vendor/zmij-1.0.21"
@@ -1103,6 +1145,8 @@
             "echo '{\"files\": {}, \"package\": \"f44b96a666a23c12acad7c688bfe8638a7094e7eabe765b09a6864ab991c676d\"}' > cargo/vendor/adblock-0.13.3/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"a93b8a41dbe230ad5087cc721f8d41611de654542180586b315d9f4cf6b72bef\"}' > cargo/vendor/addr-0.15.6/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"ddd31a130427c27518df266943a5308ed92d4b226cc639f5a8f1002816174301\"}' > cargo/vendor/aho-corasick-1.1.4/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"c2fb6cfd47bf496ff64095c20eaba0c201404ee38714d4142fcfa1dc334fcc7a\"}' > cargo/vendor/alloc-no-stdlib-3.0.0/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"0b5c1865780388bfa186411ab5f247819487fc4864c6e9c3106611fa347586e1\"}' > cargo/vendor/alloc-stdlib-0.3.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923\"}' > cargo/vendor/allocator-api2-0.2.21/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"824a212faf96e9acacdbd09febd34438f8f711fb84e09a8916013cd7815ca28d\"}' > cargo/vendor/anstream-1.0.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"940b3a0ca603d1eade50a4846a2afffd5ef57a9feac2c0e2ec2e14f9ead76000\"}' > cargo/vendor/anstyle-1.0.14/.cargo-checksum.json",
@@ -1115,6 +1159,8 @@
             "echo '{\"files\": {}, \"package\": \"c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8\"}' > cargo/vendor/autocfg-1.5.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6\"}' > cargo/vendor/base64-0.22.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"843867be96c8daad0d758b57df9392b6d8d271134fce549de6ce169ff98a92af\"}' > cargo/vendor/bitflags-2.11.0/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"f8b851b75c23ca7873623d612fe49bd1989aeb03d08fb9432187eb253d3d4c6b\"}' > cargo/vendor/brotli-9.0.0/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"941cd9bd4ddab83cb46fa5a2d428f1c857b24ac78cb876cf7beb710840934bd7\"}' > cargo/vendor/brotli-decompressor-6.0.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b\"}' > cargo/vendor/byteorder-1.5.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"5abbd6eeda6885048d357edc66748eea6e0268e3dd11f326fff5bd248d779c26\"}' > cargo/vendor/calendrical_calculations-0.2.4/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"befbfd072a8e81c02f8c507aefce431fe5e7d051f83d48a23ffc9b9fe5a11799\"}' > cargo/vendor/cbindgen-0.29.2/.cargo-checksum.json",
@@ -1136,6 +1182,7 @@
             "echo '{\"files\": {}, \"package\": \"a043dc74da1e37d6afe657061213aa6f425f855399a11d3463c6ecccc4dfda1f\"}' > cargo/vendor/fastrand-2.4.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"aedcfb3409746eddb02b9e19ebda1c3394f759a152e48ee875a0844d1b955484\"}' > cargo/vendor/find-msvc-tools-0.1.14/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"35f6839d7b3b98adde531effaf34f0c2badc6f4735d26fe74709d8e513a96ef3\"}' > cargo/vendor/flatbuffers-25.12.19/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"6e634e2e0ebac1ee034020da1ca582e17ffe4e0f5e985823721e168928136dcb\"}' > cargo/vendor/flate2-1.1.10/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2\"}' > cargo/vendor/foldhash-0.1.5/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb\"}' > cargo/vendor/foldhash-0.2.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf\"}' > cargo/vendor/form_urlencoded-1.2.2/.cargo-checksum.json",
@@ -1255,6 +1302,7 @@
             "echo '{\"files\": {}, \"package\": \"4ea269c3bd32f0a32c321907a2ae912ba6f4649bb0fc764a15627e99a7095a3f\"}' > cargo/vendor/zerotrie-0.2.5/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"bb0464e17806c1d976d5cba29399c7f08e516e279e2ba493f63123b5fca67dd8\"}' > cargo/vendor/zerovec-0.11.8/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"34df6fc39dbd26ddc9c10e6a2984476e13acce22e64e4487636ef494369225da\"}' > cargo/vendor/zerovec-derive-0.11.6/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"b268e58e7c693d7c271f93ffc4ba3b380412554231c85bf61ca7af91042a4112\"}' > cargo/vendor/zlib-rs-0.6.8/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa\"}' > cargo/vendor/zmij-1.0.21/.cargo-checksum.json",
             "mkdir -p .cargo",
             "printf '[source.crates-io]\\nreplace-with = \"vendored-sources\"\\n\\n[source.vendored-sources]\\ndirectory = \"cargo/vendor\"\\n' > .cargo/config.toml"
