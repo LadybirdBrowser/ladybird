@@ -78,6 +78,15 @@ void execute_context_menu(QMenu& menu, QPoint const& global_position)
 
     hide_native_context_menu_shortcuts(menu);
 
+    // AppKit appends Services and Writing Tools items that act on the window's focused text input, which is not what
+    // the menu was opened for.
+    NSMenu* native_menu = menu.toNSMenu();
+    native_menu.allowsContextMenuPlugIns = NO;
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 150200
+    if (@available(macOS 15.2, *))
+        native_menu.automaticallyInsertsWritingToolsItems = NO;
+#endif
+
     // AppKit consumes the mouse release while tracking the menu. Use Qt's Cocoa popup implementation so its native
     // mouse-button state is reset afterwards.
     QPointer window_handle = window->windowHandle();
