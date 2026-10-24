@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+#cb { position: relative; width: 300px; height: 100px; }
+#scope { anchor-scope: --a; }
+#scope::before { content: ""; position: absolute; width: 10px; height: 10px; left: anchor(--a left); top: 0; }
+.anchor { anchor-name: --a; width: 20px; height: 20px; }
+#inner { margin-left: 50px; }
+#outer { margin-left: 150px; }
+</style>
+<div id="cb">
+    <div id="scope"><div id="inner" class="anchor"></div></div>
+    <div id="outer" class="anchor"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`::before left: ${getComputedStyle(scope, "::before").left}`);
+    });
+</script>
