@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 43 tests
 
-35 Pass
-8 Fail
+43 Pass
 Pass	Can set 'font-variant-ligatures' to CSS-wide keywords: initial
 Pass	Can set 'font-variant-ligatures' to CSS-wide keywords: inherit
 Pass	Can set 'font-variant-ligatures' to CSS-wide keywords: unset
@@ -11,14 +10,14 @@ Pass	Can set 'font-variant-ligatures' to CSS-wide keywords: revert
 Pass	Can set 'font-variant-ligatures' to var() references:  var(--A)
 Pass	Can set 'font-variant-ligatures' to the 'normal' keyword: normal
 Pass	Can set 'font-variant-ligatures' to the 'none' keyword: none
-Fail	Can set 'font-variant-ligatures' to the 'common-ligatures' keyword: common-ligatures
-Fail	Can set 'font-variant-ligatures' to the 'no-common-ligatures' keyword: no-common-ligatures
-Fail	Can set 'font-variant-ligatures' to the 'discretionary-ligatures' keyword: discretionary-ligatures
-Fail	Can set 'font-variant-ligatures' to the 'no-discretionary-ligatures' keyword: no-discretionary-ligatures
-Fail	Can set 'font-variant-ligatures' to the 'historical-ligatures' keyword: historical-ligatures
-Fail	Can set 'font-variant-ligatures' to the 'no-historical-ligatures' keyword: no-historical-ligatures
-Fail	Can set 'font-variant-ligatures' to the 'contextual' keyword: contextual
-Fail	Can set 'font-variant-ligatures' to the 'no-contextual' keyword: no-contextual
+Pass	Can set 'font-variant-ligatures' to the 'common-ligatures' keyword: common-ligatures
+Pass	Can set 'font-variant-ligatures' to the 'no-common-ligatures' keyword: no-common-ligatures
+Pass	Can set 'font-variant-ligatures' to the 'discretionary-ligatures' keyword: discretionary-ligatures
+Pass	Can set 'font-variant-ligatures' to the 'no-discretionary-ligatures' keyword: no-discretionary-ligatures
+Pass	Can set 'font-variant-ligatures' to the 'historical-ligatures' keyword: historical-ligatures
+Pass	Can set 'font-variant-ligatures' to the 'no-historical-ligatures' keyword: no-historical-ligatures
+Pass	Can set 'font-variant-ligatures' to the 'contextual' keyword: contextual
+Pass	Can set 'font-variant-ligatures' to the 'no-contextual' keyword: no-contextual
 Pass	Setting 'font-variant-ligatures' to a length: 0px throws TypeError
 Pass	Setting 'font-variant-ligatures' to a length: -3.14em throws TypeError
 Pass	Setting 'font-variant-ligatures' to a length: 3.14cm throws TypeError

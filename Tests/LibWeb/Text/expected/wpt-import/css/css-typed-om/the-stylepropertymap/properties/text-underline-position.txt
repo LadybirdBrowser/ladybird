@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 37 tests
 
-33 Pass
-4 Fail
+37 Pass
 Pass	Can set 'text-underline-position' to CSS-wide keywords: initial
 Pass	Can set 'text-underline-position' to CSS-wide keywords: inherit
 Pass	Can set 'text-underline-position' to CSS-wide keywords: unset
 Pass	Can set 'text-underline-position' to CSS-wide keywords: revert
 Pass	Can set 'text-underline-position' to var() references:  var(--A)
-Fail	Can set 'text-underline-position' to the 'auto' keyword: auto
-Fail	Can set 'text-underline-position' to the 'under' keyword: under
-Fail	Can set 'text-underline-position' to the 'left' keyword: left
-Fail	Can set 'text-underline-position' to the 'right' keyword: right
+Pass	Can set 'text-underline-position' to the 'auto' keyword: auto
+Pass	Can set 'text-underline-position' to the 'under' keyword: under
+Pass	Can set 'text-underline-position' to the 'left' keyword: left
+Pass	Can set 'text-underline-position' to the 'right' keyword: right
 Pass	Setting 'text-underline-position' to a length: 0px throws TypeError
 Pass	Setting 'text-underline-position' to a length: -3.14em throws TypeError
 Pass	Setting 'text-underline-position' to a length: 3.14cm throws TypeError

@@ -2,16 +2,16 @@ Harness status: OK
 
 Found 72 tests
 
-60 Pass
-12 Fail
+66 Pass
+6 Fail
 Pass	Can set 'grid-auto-columns' to CSS-wide keywords: initial
 Pass	Can set 'grid-auto-columns' to CSS-wide keywords: inherit
 Pass	Can set 'grid-auto-columns' to CSS-wide keywords: unset
 Pass	Can set 'grid-auto-columns' to CSS-wide keywords: revert
 Pass	Can set 'grid-auto-columns' to var() references:  var(--A)
-Fail	Can set 'grid-auto-columns' to the 'min-content' keyword: min-content
-Fail	Can set 'grid-auto-columns' to the 'max-content' keyword: max-content
-Fail	Can set 'grid-auto-columns' to the 'auto' keyword: auto
+Pass	Can set 'grid-auto-columns' to the 'min-content' keyword: min-content
+Pass	Can set 'grid-auto-columns' to the 'max-content' keyword: max-content
+Pass	Can set 'grid-auto-columns' to the 'auto' keyword: auto
 Pass	Can set 'grid-auto-columns' to a length: 0px
 Pass	Can set 'grid-auto-columns' to a length: -3.14em
 Pass	Can set 'grid-auto-columns' to a length: 3.14cm
@@ -45,9 +45,9 @@ Pass	Can set 'grid-auto-rows' to CSS-wide keywords: inherit
 Pass	Can set 'grid-auto-rows' to CSS-wide keywords: unset
 Pass	Can set 'grid-auto-rows' to CSS-wide keywords: revert
 Pass	Can set 'grid-auto-rows' to var() references:  var(--A)
-Fail	Can set 'grid-auto-rows' to the 'min-content' keyword: min-content
-Fail	Can set 'grid-auto-rows' to the 'max-content' keyword: max-content
-Fail	Can set 'grid-auto-rows' to the 'auto' keyword: auto
+Pass	Can set 'grid-auto-rows' to the 'min-content' keyword: min-content
+Pass	Can set 'grid-auto-rows' to the 'max-content' keyword: max-content
+Pass	Can set 'grid-auto-rows' to the 'auto' keyword: auto
 Pass	Can set 'grid-auto-rows' to a length: 0px
 Pass	Can set 'grid-auto-rows' to a length: -3.14em
 Pass	Can set 'grid-auto-rows' to a length: 3.14cm

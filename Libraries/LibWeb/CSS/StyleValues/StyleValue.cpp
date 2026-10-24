@@ -11,6 +11,7 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
+#include <LibWeb/CSS/CSSKeywordValue.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -522,6 +523,16 @@ GC::Ref<CSSStyleValue> StyleValue::reify(Utf16FlyString const& associated_proper
     default:
         break;
     }
+
+    // AD-HOC: Some values that are just a single keyword are represented by a more specific type, for example
+    //         `font-style: italic`, `grid-auto-flow: row` or `font-variant-numeric: ordinal`. Reify those as the
+    //         keyword. Colors and shorthands are left alone, as they are not keywords on their own.
+    if (type() != Type::Color && type() != Type::Shorthand) {
+        auto serialized_value = to_utf16_string(SerializationMode::Normal);
+        if (keyword_from_string(serialized_value).has_value())
+            return CSSKeywordValue::create(Utf16FlyString { serialized_value });
+    }
+
     return default_reify(associated_property);
 }
 

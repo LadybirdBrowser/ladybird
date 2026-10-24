@@ -2,16 +2,15 @@ Harness status: OK
 
 Found 34 tests
 
-31 Pass
-3 Fail
+34 Pass
 Pass	Can set 'font-style' to CSS-wide keywords: initial
 Pass	Can set 'font-style' to CSS-wide keywords: inherit
 Pass	Can set 'font-style' to CSS-wide keywords: unset
 Pass	Can set 'font-style' to CSS-wide keywords: revert
 Pass	Can set 'font-style' to var() references:  var(--A)
-Fail	Can set 'font-style' to the 'normal' keyword: normal
-Fail	Can set 'font-style' to the 'italic' keyword: italic
-Fail	Can set 'font-style' to the 'oblique' keyword: oblique
+Pass	Can set 'font-style' to the 'normal' keyword: normal
+Pass	Can set 'font-style' to the 'italic' keyword: italic
+Pass	Can set 'font-style' to the 'oblique' keyword: oblique
 Pass	Setting 'font-style' to a length: 0px throws TypeError
 Pass	Setting 'font-style' to a length: -3.14em throws TypeError
 Pass	Setting 'font-style' to a length: 3.14cm throws TypeError
