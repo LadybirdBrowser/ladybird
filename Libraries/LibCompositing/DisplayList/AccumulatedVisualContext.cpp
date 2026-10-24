@@ -7,6 +7,7 @@
 
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/RustFFI.h>
+#include <LibCompositing/RustIPC.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
@@ -22,14 +23,6 @@ AccumulatedVisualContextTree::AccumulatedVisualContextTree(void const* retained_
 AccumulatedVisualContextTree AccumulatedVisualContextTree::adopt_rust_handle(void const* retained_tree)
 {
     return AccumulatedVisualContextTree { retained_tree };
-}
-
-ErrorOr<AccumulatedVisualContextTree> AccumulatedVisualContextTree::from_serialized_bytes(ReadonlyBytes bytes)
-{
-    auto const* retained_tree = Compositing::RustFFI::visual_context_tree_deserialize(bytes.data(), bytes.size());
-    if (!retained_tree)
-        return Error::from_string_literal("Malformed visual context tree bytes");
-    return adopt_rust_handle(retained_tree);
 }
 
 AccumulatedVisualContextTree::AccumulatedVisualContextTree(AccumulatedVisualContextTree const& other)
@@ -77,15 +70,6 @@ void AccumulatedVisualContextTree::release_rust_handle()
 u64 AccumulatedVisualContextTree::structural_epoch() const
 {
     return Compositing::RustFFI::visual_context_tree_structural_epoch(m_rust_tree);
-}
-
-ByteBuffer AccumulatedVisualContextTree::serialize_to_bytes() const
-{
-    ByteBuffer bytes;
-    Compositing::RustFFI::visual_context_tree_serialize(m_rust_tree, &bytes, [](void* sink, u8 const* data, size_t size) {
-        MUST(static_cast<ByteBuffer*>(sink)->try_append(data, size));
-    });
-    return bytes;
 }
 
 size_t AccumulatedVisualContextTree::spatial_node_count() const
@@ -250,19 +234,23 @@ void resolve_sticky_offsets(AccumulatedVisualContextTree const& tree, ScrollStat
 
 namespace IPC {
 
+// A tree goes in the wire format Rust gives it (see Rust/src/visual_context/serialize.rs).
 template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::AccumulatedVisualContextTree const& tree)
 {
-    TRY(encoder.encode(tree.serialize_to_bytes()));
-    return {};
+    return Compositing::encode_with_rust(encoder, [&](void* cpp_encoder, auto append) {
+        return Compositing::RustFFI::visual_context_tree_ipc_encode(tree.rust_handle(), cpp_encoder, append);
+    });
 }
 
 // The bytes carry the tree's animations, which the decoder validates against the nodes they name.
 template<>
 ErrorOr<Compositing::AccumulatedVisualContextTree> decode(Decoder& decoder)
 {
-    auto bytes = TRY(decoder.decode<ByteBuffer>());
-    return Compositing::AccumulatedVisualContextTree::from_serialized_bytes(bytes);
+    auto const* retained_tree = TRY(Compositing::decode_with_rust(decoder, [](u8 const* bytes, size_t length, size_t& consumed) {
+        return Compositing::RustFFI::visual_context_tree_ipc_decode(bytes, length, &consumed);
+    }));
+    return Compositing::AccumulatedVisualContextTree::adopt_rust_handle(retained_tree);
 }
 
 }

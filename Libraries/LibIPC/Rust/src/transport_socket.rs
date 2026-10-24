@@ -9,6 +9,10 @@
 //! The socket carries frames: a 12-byte header of a type, a payload size and a descriptor count, then the payload. A
 //! message's descriptors go with the bytes of its frame. When a message has more of them than one `sendmsg()` carries,
 //! attachments frames carry the rest ahead of it, and the message's frame claims them all.
+//!
+//! A reader thread and a writer thread each hold a descriptor of the socket, and nothing else does, so the peer sees
+//! this end go once both are done. They wait on the socket and on a stop pipe together, which ends them without
+//! `shutdown()`, since the sandboxes of helper processes do not allow that.
 
 use std::collections::VecDeque;
 use std::io;
@@ -21,7 +25,7 @@ use std::thread::JoinHandle;
 use crate::attachment::Attachment;
 use crate::receive_queue::IncomingQueue;
 pub use crate::receive_queue::ReceivedMessage;
-use crate::socket::{self, MAX_TRANSFER_FDS};
+use crate::socket::{self, MAX_TRANSFER_FDS, Stop};
 use crate::{MAX_MESSAGE_ATTACHMENT_COUNT, MAX_MESSAGE_PAYLOAD_SIZE};
 
 const HEADER_SIZE: usize = 12;
@@ -76,7 +80,7 @@ impl Shared {
 
 pub struct TransportSocket {
     shared: Arc<Shared>,
-    socket: UnixStream,
+    stop: Arc<Stop>,
     reader: Option<JoinHandle<()>>,
     writer: Option<JoinHandle<()>>,
     socket_is_open: AtomicBool,
@@ -104,27 +108,31 @@ impl TransportSocket {
             outgoing: Mutex::default(),
             outgoing_changed: Condvar::new(),
         });
+        let stop = Arc::new(Stop::new()?);
 
-        // NB: This owner shuts down the socket and joins any started threads if construction fails.
+        // NB: This owner stops and joins any started threads if construction fails.
         let mut transport = Self {
             shared: Arc::clone(&shared),
-            socket,
+            stop: Arc::clone(&stop),
             reader: None,
             writer: None,
             socket_is_open: AtomicBool::new(true),
         };
-        let reader_socket = clone_socket(&transport.socket)?;
-        let writer_socket = clone_socket(&transport.socket)?;
+        let reader_socket = clone_socket(&socket)?;
+        let writer_socket = clone_socket(&socket)?;
+        // NB: The threads hold the only descriptors of the socket from now on.
+        drop(socket);
         let reader_shared = Arc::clone(&shared);
+        let reader_stop = Arc::clone(&stop);
         transport.reader = Some(spawn_thread(
             std::thread::Builder::new().name("IPC reader (socket)".to_string()),
-            Box::new(move || read_frames(&reader_socket, &reader_shared)),
+            Box::new(move || read_frames(&reader_socket, &reader_shared, &reader_stop)),
         )?);
 
         let writer_shared = Arc::clone(&shared);
         transport.writer = Some(spawn_thread(
             std::thread::Builder::new().name("IPC writer (socket)".to_string()),
-            Box::new(move || write_frames(&writer_socket, &writer_shared)),
+            Box::new(move || write_frames(&writer_socket, &writer_shared, &stop)),
         )?);
 
         Ok(transport)
@@ -169,10 +177,17 @@ impl TransportSocket {
         self.close();
     }
 
-    pub fn close(&mut self) {
+    /// Stops sending and receiving, from any thread that shares the transport, and the peer sees this end go once the
+    /// threads are done. Messages not sent yet are dropped, and a `receive()` returns `None` once it has taken what had
+    /// arrived.
+    pub fn shutdown(&self) {
         self.socket_is_open.store(false, Ordering::Relaxed);
         self.shared.stop_outgoing();
-        let _ = self.socket.shutdown(std::net::Shutdown::Both);
+        self.stop.signal();
+    }
+
+    pub fn close(&mut self) {
+        self.shutdown();
         if let Some(writer) = self.writer.take() {
             let _ = writer.join();
         }
@@ -188,13 +203,16 @@ impl Drop for TransportSocket {
     }
 }
 
-fn write_frames(socket: &UnixStream, shared: &Shared) {
-    write_frames_with(socket, shared, write_message);
+fn write_frames(socket: &UnixStream, shared: &Shared, stop: &Stop) {
+    write_frames_with(socket, shared, stop, |socket, message| {
+        write_message(socket, message, Some(stop))
+    });
 }
 
 fn write_frames_with(
     socket: &UnixStream,
     shared: &Shared,
+    stop: &Stop,
     mut write_message: impl FnMut(&UnixStream, Outgoing) -> io::Result<()>,
 ) {
     loop {
@@ -225,13 +243,14 @@ fn write_frames_with(
         }
         shared.outgoing_changed.notify_all();
         if result.is_err() {
-            let _ = socket.shutdown(std::net::Shutdown::Both);
+            // NB: The reader stops too, and the peer sees this end go once both are done.
+            stop.signal();
             return;
         }
     }
 }
 
-fn write_message(socket: &UnixStream, message: Outgoing) -> io::Result<()> {
+fn write_message(socket: &UnixStream, message: Outgoing, stop: Option<&Stop>) -> io::Result<()> {
     let shared_memory = if message.bytes.len() > MAX_INLINE_PAYLOAD_SIZE {
         Some(socket::copy_payload_to_file(&message.bytes)?)
     } else {
@@ -255,6 +274,7 @@ fn write_message(socket: &UnixStream, message: Outgoing) -> io::Result<()> {
             &frame_header(ATTACHMENTS_FRAME, 0, MAX_TRANSFER_FDS),
             &[],
             chunk,
+            stop,
         )?;
     }
 
@@ -273,10 +293,17 @@ fn write_message(socket: &UnixStream, message: Outgoing) -> io::Result<()> {
     } else {
         &message.bytes
     };
-    write_all(socket, &header, payload, &remaining)
+    write_all(socket, &header, payload, &remaining, stop)
 }
 
-fn write_all(socket: &UnixStream, header: &[u8], payload: &[u8], fds: &[BorrowedFd<'_>]) -> io::Result<()> {
+/// Sends the bytes and the descriptors, waiting for room as the socket needs, unless `stop` is signaled first.
+fn write_all(
+    socket: &UnixStream,
+    header: &[u8],
+    payload: &[u8],
+    fds: &[BorrowedFd<'_>],
+    stop: Option<&Stop>,
+) -> io::Result<()> {
     let mut slices = [io::IoSlice::new(header), io::IoSlice::new(payload)];
     let mut remaining = &mut slices[..];
     let mut fds = fds;
@@ -289,26 +316,39 @@ fn write_all(socket: &UnixStream, header: &[u8], payload: &[u8], fds: &[Borrowed
                 fds = &[];
             }
             Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                if !socket::wait_for(socket, libc::POLLOUT, stop)? {
+                    return Err(io::ErrorKind::NotConnected.into());
+                }
+            }
             Err(error) => return Err(error),
         }
     }
     Ok(())
 }
 
-fn read_frames(socket: &UnixStream, shared: &Shared) {
+fn read_frames(socket: &UnixStream, shared: &Shared, stop: &Stop) {
     let mut receiver = socket::Receiver::new();
     read_frames_with_limits(
         socket,
         shared,
+        stop,
         MAX_UNPROCESSED_BUFFER_SIZE,
         MAX_UNPROCESSED_FDS,
-        |socket, buffer, fds| receiver.receive_with_fds(socket, buffer, fds),
+        |socket, buffer, fds| {
+            // NB: Stopping ends the reads as the peer closing would.
+            if !socket::wait_for(socket, libc::POLLIN, Some(stop))? {
+                return Ok(0);
+            }
+            receiver.receive_with_fds(socket, buffer, fds)
+        },
     );
 }
 
 fn read_frames_with_limits(
     socket: &UnixStream,
     shared: &Shared,
+    stop: &Stop,
     byte_limit: usize,
     fd_limit: usize,
     mut receive: impl FnMut(&UnixStream, &mut [u8], &mut Vec<OwnedFd>) -> io::Result<usize>,
@@ -356,7 +396,7 @@ fn read_frames_with_limits(
     drop(fds);
     drop(unprocessed_fds);
     if transport_error {
-        let _ = socket.shutdown(std::net::Shutdown::Both);
+        stop.signal();
         shared.stop_outgoing();
     }
     shared.incoming.mark_peer_eof();
@@ -571,7 +611,8 @@ mod tests {
                 OwnedFd::from(unclaimed_writer),
             ]);
             let shared = empty_shared();
-            read_frames_with_limits(&socket, &shared, 1024, 4, |_, buffer, received_fds| {
+            let stop = Stop::new().unwrap();
+            read_frames_with_limits(&socket, &shared, &stop, 1024, 4, |_, buffer, received_fds| {
                 assert!(!fds.is_empty(), "reader must stop at the malformed frame");
                 buffer[..frames.len()].copy_from_slice(&frames);
                 received_fds.append(&mut fds);
@@ -593,25 +634,29 @@ mod tests {
             assert_eq!(bytes, b"ok");
             assert_pipe_closed(unclaimed_reader);
             assert!(shared.lock_outgoing().stopped);
-            assert_eq!((&peer).read(&mut [0]).unwrap(), 0);
+            assert!(stop.is_signaled());
+            drop(peer);
         }
     }
 
     #[test]
     fn writer_resource_errors_stop_both_directions() {
-        let (socket, mut peer) = UnixStream::pair().unwrap();
-        peer.set_nonblocking(true).unwrap();
+        let (socket, _peer) = UnixStream::pair().unwrap();
         let shared = empty_shared();
+        let stop = Stop::new().unwrap();
         shared.lock_outgoing().messages.push_back(Outgoing {
             bytes: vec![1],
             attachments: Vec::new(),
         });
-        write_frames_with(&socket, &shared, |_, _| Err(io::Error::from_raw_os_error(libc::EMFILE)));
+        write_frames_with(&socket, &shared, &stop, |_, _| {
+            Err(io::Error::from_raw_os_error(libc::EMFILE))
+        });
         assert!(!shared.incoming.lock().peer_eof);
         assert!(shared.lock_outgoing().stopped);
         assert!(!shared.lock_outgoing().sending);
-        assert_eq!(peer.read(&mut [0]).unwrap(), 0);
-        assert_eq!(peer.write(&[1]).unwrap_err().kind(), io::ErrorKind::BrokenPipe);
+        // NB: The reader waits on the stop pipe, which ends it too.
+        assert!(stop.is_signaled());
+        assert!(!socket::wait_for(&socket, libc::POLLIN, Some(&stop)).unwrap());
     }
 
     #[test]
@@ -619,9 +664,13 @@ mod tests {
         let mut receiver = socket::Receiver::new();
         let (socket, mut peer) = UnixStream::pair().unwrap();
         let shared = empty_shared();
+        let stop = Stop::new().unwrap();
         let mut first_read = true;
-        read_frames_with_limits(&socket, &shared, 1024, 0, |socket, buffer, fds| {
+        read_frames_with_limits(&socket, &shared, &stop, 1024, 0, |socket, buffer, fds| {
             if !first_read {
+                if !socket::wait_for(socket, libc::POLLIN, Some(&stop))? {
+                    return Ok(0);
+                }
                 return receiver.receive_with_fds(socket, buffer, fds);
             }
             first_read = false;
@@ -632,7 +681,7 @@ mod tests {
                 bytes: vec![1],
                 attachments: Vec::new(),
             });
-            write_frames_with(socket, &shared, |_, _| Err(io::ErrorKind::InvalidInput.into()));
+            write_frames_with(socket, &shared, &stop, |_, _| Err(io::ErrorKind::InvalidInput.into()));
             assert!(!shared.incoming.lock().peer_eof);
             Ok(read)
         });
@@ -650,6 +699,8 @@ mod tests {
         transport.flush();
         assert!(transport.receive().is_none());
         assert!(!transport.is_open());
+        // NB: The peer sees this end go once the threads are done, which dropping the transport waits for.
+        drop(transport);
         assert_eq!(peer.write(&[1]).unwrap_err().kind(), io::ErrorKind::BrokenPipe);
     }
 
@@ -660,10 +711,11 @@ mod tests {
         let (socket, mut peer) = UnixStream::pair().unwrap();
         let (reader, writer) = std::io::pipe().unwrap();
         let shared = empty_shared();
+        let stop = Stop::new().unwrap();
         let mut step = 0;
-        read_frames_with_limits(&socket, &shared, 24, 4, move |socket, buffer, fds| {
+        read_frames_with_limits(&socket, &shared, &stop, 24, 4, move |socket, buffer, fds| {
             match step {
-                0 => write_all(&peer, &frame_header(PAYLOAD_FRAME, 0, 2), &[], &[writer.as_fd()]).unwrap(),
+                0 => write_all(&peer, &frame_header(PAYLOAD_FRAME, 0, 2), &[], &[writer.as_fd()], None).unwrap(),
                 1 => peer.write_all(&[0; 12]).unwrap(),
                 2 => peer.write_all(&[0]).unwrap(),
                 _ => panic!("reader must stop at the byte limit"),
@@ -681,19 +733,27 @@ mod tests {
     fn attachments_frames_have_a_cumulative_descriptor_limit() {
         let mut receiver = socket::Receiver::new();
         assert_eq!(MAX_UNPROCESSED_FDS, 16129);
-        let (socket, mut peer) = UnixStream::pair().unwrap();
+        let (socket, peer) = UnixStream::pair().unwrap();
         let (reader, writer) = std::io::pipe().unwrap();
         let shared = empty_shared();
+        let stop = Stop::new().unwrap();
         let mut step = 0;
-        read_frames_with_limits(&socket, &shared, 24, 2, |socket, buffer, fds| {
+        read_frames_with_limits(&socket, &shared, &stop, 24, 2, |socket, buffer, fds| {
             assert!(step < 3, "reader must stop at the descriptor limit");
             step += 1;
-            write_all(&peer, &frame_header(ATTACHMENTS_FRAME, 0, 1), &[], &[writer.as_fd()]).unwrap();
+            write_all(
+                &peer,
+                &frame_header(ATTACHMENTS_FRAME, 0, 1),
+                &[],
+                &[writer.as_fd()],
+                None,
+            )
+            .unwrap();
             receiver.receive_with_fds(socket, buffer, fds)
         });
         assert_eq!(step, 3);
         assert!(shared.incoming.lock().peer_eof);
-        assert_eq!(peer.read(&mut [0]).unwrap(), 0);
+        assert!(stop.is_signaled());
         drop(writer);
         assert_pipe_closed(reader);
     }
@@ -703,12 +763,13 @@ mod tests {
         let mut receiver = socket::Receiver::new();
         let (socket, peer) = UnixStream::pair().unwrap();
         let shared = empty_shared();
+        let stop = Stop::new().unwrap();
         let mut step = 0;
-        read_frames_with_limits(&socket, &shared, HEADER_SIZE, 0, |socket, buffer, fds| {
+        read_frames_with_limits(&socket, &shared, &stop, HEADER_SIZE, 0, |socket, buffer, fds| {
             if step == 100 {
                 peer.shutdown(std::net::Shutdown::Write).unwrap();
             } else {
-                write_all(&peer, &frame_header(PAYLOAD_FRAME, 0, 0), &[], &[]).unwrap();
+                write_all(&peer, &frame_header(PAYLOAD_FRAME, 0, 0), &[], &[], None).unwrap();
                 step += 1;
             }
             receiver.receive_with_fds(socket, buffer, fds)
@@ -719,17 +780,25 @@ mod tests {
     #[test]
     fn truncated_descriptors_close_the_connection_and_release_every_descriptor() {
         let mut receiver = socket::Receiver::new();
-        let (socket, mut peer) = UnixStream::pair().unwrap();
+        let (socket, peer) = UnixStream::pair().unwrap();
         let (reader, writer) = std::io::pipe().unwrap();
-        write_all(&peer, &frame_header(PAYLOAD_FRAME, 0, 3), &[], &[writer.as_fd(); 3]).unwrap();
+        write_all(
+            &peer,
+            &frame_header(PAYLOAD_FRAME, 0, 3),
+            &[],
+            &[writer.as_fd(); 3],
+            None,
+        )
+        .unwrap();
         drop(writer);
         let shared = empty_shared();
-        read_frames_with_limits(&socket, &shared, 1024, 10, |socket, buffer, fds| {
+        let stop = Stop::new().unwrap();
+        read_frames_with_limits(&socket, &shared, &stop, 1024, 10, |socket, buffer, fds| {
             receiver.receive_with_fd_capacity(socket, buffer, fds, 1)
         });
         assert!(shared.incoming.lock().peer_eof);
         assert!(shared.incoming.lock().messages.is_empty());
-        assert_eq!(peer.read(&mut [0]).unwrap(), 0);
+        assert!(stop.is_signaled());
         assert_pipe_closed(reader);
     }
 

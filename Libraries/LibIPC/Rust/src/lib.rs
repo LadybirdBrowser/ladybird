@@ -11,15 +11,22 @@
 #![deny(unsafe_code)]
 
 pub mod attachment;
+#[cfg(windows)]
+mod pipe;
+#[cfg(any(windows, test))]
+mod pipe_frames;
+#[cfg(any(unix, windows))]
 mod receive_queue;
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 mod shared_memory;
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 mod socket;
 #[cfg(target_vendor = "apple")]
 pub mod transport;
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 pub mod transport_socket;
+#[cfg(windows)]
+pub mod transport_windows;
 pub mod wire;
 
 /// The most attachments a message may carry, as `IPC::MAX_MESSAGE_FD_COUNT`.
@@ -28,6 +35,7 @@ pub const MAX_MESSAGE_ATTACHMENT_COUNT: usize = 16000;
 /// The largest payload a socket frame or Mach descriptor can represent.
 pub const MAX_MESSAGE_PAYLOAD_SIZE: usize = u32::MAX as usize;
 
+#[cfg(any(unix, windows))]
 fn validate_message_size(payload_size: usize, attachment_count: usize) -> std::io::Result<()> {
     if payload_size > MAX_MESSAGE_PAYLOAD_SIZE || attachment_count > MAX_MESSAGE_ATTACHMENT_COUNT {
         return Err(std::io::ErrorKind::InvalidInput.into());
@@ -41,7 +49,7 @@ pub mod mach;
 pub use attachment::Attachment;
 pub use wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder, EndpointMessage};
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     #[cfg(target_vendor = "apple")]
@@ -92,5 +100,24 @@ mod tests {
         b.flush();
         assert_eq!(a.receive().unwrap().bytes(), [3]);
         assert_eq!(b.receive().unwrap().bytes(), [2]);
+    }
+
+    #[test]
+    fn shutting_down_from_another_thread_ends_a_waiting_receive() {
+        let (a, handle) = Transport::create_paired().unwrap();
+        #[cfg(target_vendor = "apple")]
+        let b = Transport::from_handle(handle).unwrap();
+        #[cfg(not(target_vendor = "apple"))]
+        let b = Transport::new(handle).unwrap();
+        let a = std::sync::Arc::new(a);
+        let receiver = {
+            let a = std::sync::Arc::clone(&a);
+            std::thread::spawn(move || a.receive().is_none())
+        };
+        a.shutdown();
+        assert!(receiver.join().unwrap());
+        assert!(!a.is_open());
+        assert!(a.post_message(vec![1], vec![]).is_err());
+        assert!(b.receive().is_none());
     }
 }

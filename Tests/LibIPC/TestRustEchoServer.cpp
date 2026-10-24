@@ -14,10 +14,12 @@
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Transport.h>
 #include <LibTest/TestCase.h>
-#include <fcntl.h>
 #include <limits.h>
 #include <math.h>
-#include <sys/resource.h>
+#if !defined(AK_OS_WINDOWS)
+#    include <fcntl.h>
+#    include <sys/resource.h>
+#endif
 
 // NB: Starts the Rust endpoint, which the IPC compiler generated Rust code for from the same definition as the C++ code
 //     this test uses, and returns this end of a transport to it.
@@ -33,6 +35,15 @@ static NonnullOwnPtr<IPC::Transport> start_server()
     IPC::TransportMachPort::raise_receive_queue_limit(server_receive_right);
     rust_echo_server_serve(server_receive_right.release(), server_send_right.release());
     return make<IPC::TransportMachPort>(move(our_receive_right), move(our_send_right));
+}
+#elif defined(AK_OS_WINDOWS)
+extern "C" void rust_echo_server_serve(void* pipe);
+
+static NonnullOwnPtr<IPC::Transport> start_server()
+{
+    auto handles = MUST(Core::System::duplex_pipe());
+    rust_echo_server_serve(to_handle(handles[1]));
+    return MUST(IPC::TransportWindows::adopt_fd(handles[0]));
 }
 #else
 extern "C" void rust_echo_server_serve(int socket_fd);
@@ -109,6 +120,8 @@ TEST_CASE(large_payloads_make_a_round_trip_through_rust)
     EXPECT_EQ(response->bytes(), bytes);
 }
 
+// NB: The Rust transport on Windows does not carry attachments yet, which go through the handle broker there.
+#if !defined(AK_OS_WINDOWS)
 TEST_CASE(files_go_to_rust_as_attachments)
 {
     auto transport = start_server();
@@ -129,10 +142,10 @@ static void raise_descriptor_limit()
     rlimit limit {};
     VERIFY(getrlimit(RLIMIT_NOFILE, &limit) == 0);
     limit.rlim_cur = min<rlim_t>(limit.rlim_max, 65536);
-#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
+#    if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     // NB: macOS rejects a descriptor limit above OPEN_MAX, but still needs one above its default of 256.
     limit.rlim_cur = min<rlim_t>(limit.rlim_cur, OPEN_MAX);
-#endif
+#    endif
     VERIFY(setrlimit(RLIMIT_NOFILE, &limit) == 0);
 }
 
@@ -164,6 +177,8 @@ TEST_CASE(many_files_make_a_round_trip_through_rust)
     for (auto reader : readers)
         MUST(Core::System::close(reader));
 }
+
+#endif
 
 TEST_CASE(the_rust_end_closing_ends_the_connection)
 {
@@ -198,6 +213,7 @@ TEST_CASE(utf8_attributes_match_cpp_validation)
     }
 }
 
+#if !defined(AK_OS_WINDOWS)
 TEST_CASE(cpp_decoder_accepts_unused_attachments)
 {
     auto buffer = MUST(Messages::RustEchoServer::Stop::static_encode());
@@ -208,6 +224,7 @@ TEST_CASE(cpp_decoder_accepts_unused_attachments)
     EXPECT_EQ(attachments.size(), 1u);
     MUST(Core::System::close(pipe[0]));
 }
+#endif
 
 TEST_CASE(cpp_and_rust_decoders_accept_trailing_bytes)
 {

@@ -679,6 +679,7 @@ dependencies = [
  "foldhash 0.2.0",
  "ladybird_allocator",
  "libgfx_rust",
+ "libipc_rust",
  "rustc-demangle",
 ]
 
@@ -905,6 +906,7 @@ dependencies = [
  "ladybird_allocator",
  "libcompositing_rust",
  "libgfx_rust",
+ "libipc_rust",
  "liburl_rust",
  "libweb_html_tokenizer",
  "rustc-demangle",

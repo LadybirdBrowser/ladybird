@@ -37,6 +37,18 @@ public:
 
     ErrorOr<NonnullOwnPtr<Transport>> create_transport() const;
 
+    // Gives up this end of the channel, for a transport made outside LibIPC, such as by Rust.
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
+    struct MachRights {
+        Core::MachPort receive_right;
+        Core::MachPort send_right;
+    };
+    MachRights release_mach_rights();
+#else
+    // On Windows, the descriptor is the handle of a pipe, as IPC::File holds it.
+    int release_fd();
+#endif
+
     // Both ends of a new channel, for a process that connects two others without touching the channel itself.
     static ErrorOr<TransportHandlePair> create_pair();
 

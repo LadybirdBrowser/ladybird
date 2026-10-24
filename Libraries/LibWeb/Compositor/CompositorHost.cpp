@@ -13,8 +13,8 @@
 #include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Compositor/NavigablePresenter.h>
-#include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
 
 namespace Web::Compositor {
@@ -409,7 +409,7 @@ void CompositorHost::destroy_context(Web::CompositorContextId context_id)
     if (auto* connection = compositor_connection()) {
         connection->destroy_context(context_id);
         // A connection attached the render clock, whose lanes of the context hear of it no more.
-        RenderClock::the().forget_context(context_id);
+        Layout::RustFFI::render_clock_forget_context(context_id.value());
     }
     context_was_destroyed(context_id);
 }

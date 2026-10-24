@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/Forward.h>
 #include <AK/Function.h>
@@ -53,7 +52,6 @@ public:
     };
 
     static AccumulatedVisualContextTree adopt_rust_handle(void const* retained_tree);
-    static ErrorOr<AccumulatedVisualContextTree> from_serialized_bytes(ReadonlyBytes);
 
     AccumulatedVisualContextTree(AccumulatedVisualContextTree const&);
     AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree const&);
@@ -62,7 +60,6 @@ public:
     ~AccumulatedVisualContextTree();
 
     u64 structural_epoch() const;
-    ByteBuffer serialize_to_bytes() const;
     void const* rust_handle() const { return m_rust_tree; }
 
     bool has_visual_animations() const;

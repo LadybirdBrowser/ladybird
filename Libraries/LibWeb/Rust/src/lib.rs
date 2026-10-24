@@ -19,6 +19,7 @@ mod encoding_detection;
 pub(crate) mod fork;
 #[cfg(test)]
 mod gfx_test_stubs;
+pub(crate) mod ipc_types;
 pub(crate) use libcompositing_rust::fast_hash;
 
 pub(crate) mod css;

@@ -15,6 +15,7 @@ use crate::shared_memory::create_anonymous_file;
 use std::io;
 use std::os::fd::{AsRawFd, BorrowedFd, FromRawFd, OwnedFd, RawFd};
 use std::os::unix::net::UnixStream;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// The most descriptors one `sendmsg()` carries, as `Core::LocalSocket::MAX_TRANSFER_FDS`.
 pub const MAX_TRANSFER_FDS: usize = 128;
@@ -24,7 +25,73 @@ fn control_buffer_size(fd_count: usize) -> usize {
     unsafe { libc::CMSG_SPACE((fd_count * size_of::<RawFd>()) as u32) as usize }
 }
 
-/// Sends some of the bytes, with all of the descriptors, which go with the first byte. Returns how many bytes went.
+/// What the threads of a transport wait for besides their socket: a pipe that `signal()` makes readable for good. It
+/// ends their waits as `shutdown()` on the socket would, which the sandboxes of helper processes do not allow.
+pub(crate) struct Stop {
+    reader: io::PipeReader,
+    writer: io::PipeWriter,
+    signaled: AtomicBool,
+}
+
+impl Stop {
+    pub(crate) fn new() -> io::Result<Self> {
+        let (reader, writer) = io::pipe()?;
+        Ok(Self {
+            reader,
+            writer,
+            signaled: AtomicBool::new(false),
+        })
+    }
+
+    pub(crate) fn signal(&self) {
+        if !self.signaled.swap(true, Ordering::AcqRel) {
+            // NB: One byte makes the pipe readable for good, since nothing reads it. The pipe is empty, so this
+            //     cannot block.
+            let _ = io::Write::write_all(&mut &self.writer, &[0]);
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_signaled(&self) -> bool {
+        self.signaled.load(Ordering::Acquire)
+    }
+}
+
+/// Waits until the socket is ready for `events` (`POLLIN` or `POLLOUT`), or has hung up or failed, which the read or
+/// write that follows reports, and answers true; or until `stop` is signaled, and answers false.
+pub(crate) fn wait_for(socket: &UnixStream, events: libc::c_short, stop: Option<&Stop>) -> io::Result<bool> {
+    let mut fds = [
+        libc::pollfd {
+            fd: socket.as_raw_fd(),
+            events,
+            revents: 0,
+        },
+        libc::pollfd {
+            fd: stop.map_or(-1, |stop| stop.reader.as_raw_fd()),
+            events: libc::POLLIN,
+            revents: 0,
+        },
+    ];
+    loop {
+        // NB: poll() writes the events of the two descriptors in the array, and ignores a negative one.
+        if unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, -1) } < 0 {
+            let error = io::Error::last_os_error();
+            if error.kind() == io::ErrorKind::Interrupted {
+                continue;
+            }
+            return Err(error);
+        }
+        if fds[1].revents != 0 {
+            return Ok(false);
+        }
+        if fds[0].revents != 0 {
+            return Ok(true);
+        }
+    }
+}
+
+/// Sends some of the bytes, with all of the descriptors, which go with the first byte, without waiting for room.
+/// Returns how many bytes went, or `WouldBlock` where none could go yet.
 pub fn send_with_fds(socket: &UnixStream, bytes: &[io::IoSlice<'_>], fds: &[BorrowedFd<'_>]) -> io::Result<usize> {
     assert!(fds.len() <= MAX_TRANSFER_FDS);
     // NB: IoSlice has the same layout as iovec on Unix.
@@ -50,7 +117,13 @@ pub fn send_with_fds(socket: &UnixStream, bytes: &[io::IoSlice<'_>], fds: &[Borr
         }
     }
     // NB: The message points at the bytes and the control buffer, which outlive the call.
-    let sent = unsafe { libc::sendmsg(socket.as_raw_fd(), &raw const message, libc::MSG_NOSIGNAL) };
+    let sent = unsafe {
+        libc::sendmsg(
+            socket.as_raw_fd(),
+            &raw const message,
+            libc::MSG_NOSIGNAL | libc::MSG_DONTWAIT,
+        )
+    };
     if sent < 0 {
         return Err(io::Error::last_os_error());
     }

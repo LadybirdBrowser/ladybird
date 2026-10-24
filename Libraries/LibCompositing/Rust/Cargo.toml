@@ -15,6 +15,7 @@ ak = { path = "../../../AK/Rust" }
 foldhash = "0.2"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libgfx_rust = { path = "../../LibGfx/Rust", default-features = false }
+libipc_rust = { path = "../../LibIPC/Rust" }
 rustc-demangle = "0.1"
 
 [build-dependencies]
