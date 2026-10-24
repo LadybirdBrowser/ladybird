@@ -179,6 +179,6 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         image: CanvasImageSource,
         repetition: Utf16String,
     ) -> WebIdlResult<Option<Ref<CanvasPattern>>> {
-        CanvasPattern::create_for_image(cx.vm(), &image, &repetition)
+        CanvasPattern::create_for_image(cx.vm(), &image, &repetition, self.context_attributes.color_space.into())
     }
 }

@@ -258,6 +258,11 @@ WebIDL::ExceptionOr<JS::Value> WindowOrWorkerGlobalScopeMixin::structured_clone(
     return deserialized.deserialized;
 }
 
+extern "C" {
+// Defined in Bindings/Rust/src/canvas_2d/exports.rs.
+bool web_canvas_2d_read_back_video_frame(void* video_wrapper, Optional<Gfx::DecodedImageFrame>* out_frame);
+}
+
 static Compositor::CompositorHost* compositor_host_for(JS::Object& global_object)
 {
     Page* page = nullptr;
@@ -649,11 +654,43 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                     }));
                 },
                 // -> video
-                [&](GC::Ref<HTMLVideoElement>) {
-                    dbgln("(STUBBED) createImageBitmap() for HTMLVideoElement");
-                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for HTMLVideoElement"sv);
-                    TemporaryExecutionContext const context { WebIDL::promise_realm(*p), TemporaryExecutionContext::CallbacksEnabled::Yes };
-                    WebIDL::reject_promise(*p, error);
+                [&](GC::Ref<HTMLVideoElement> video) {
+                    // 1. If image's networkState attribute is NETWORK_EMPTY, then return a promise rejected with an
+                    //    "InvalidStateError" DOMException.
+                    if (video->network_state() == HTMLMediaElement::NetworkState::Empty) {
+                        WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Video has no media resource"_utf16));
+                        return;
+                    }
+
+                    // 2. Set imageBitmap's bitmap data to a copy of the frame at the current playback position, at the
+                    //    media resource's natural width and natural height (i.e., after any aspect-ratio correction has
+                    //    been applied), cropped to the source rectangle with formatting.
+                    Optional<Gfx::DecodedImageFrame> video_frame;
+                    auto wrapper = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, video);
+                    // AD-HOC: Reject promise with an "InvalidStateError" DOMException if the video has no frame to copy.
+                    if (!web_canvas_2d_read_back_video_frame(wrapper.ptr(), &video_frame)) {
+                        WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Video has no frame"_utf16));
+                        return;
+                    }
+                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), *video_frame, sx, sy, sw, sh, options);
+                    // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
+                    // Spec issue: https://github.com/whatwg/html/issues/3323
+                    if (cropped_bitmap_or_error.is_error()) {
+                        WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Image size is invalid"_utf16));
+                        return;
+                    }
+                    auto image_bitmap = ImageBitmap::create(cropped_bitmap_or_error.release_value());
+
+                    // 3. If image is not origin-clean, then set the origin-clean flag of imageBitmap's bitmap to false.
+                    if (image_is_not_origin_clean(video))
+                        image_bitmap->set_origin_clean(false);
+
+                    // 4. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p, image_bitmap] {
+                        auto& realm = WebIDL::promise_realm(*p);
+                        TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                        Bindings::resolve_image_bitmap_promise(realm, *p, image_bitmap);
+                    }));
                 },
                 // -> img
                 // -> SVG image

@@ -168,6 +168,7 @@ Gfx::DecodedImageFrame* web_canvas_2d_image_source_frame(void* source_wrapper, C
 bool web_canvas_2d_capture_video_frame(void* source_wrapper, CapturedVideoFrame* out_frame);
 void* web_canvas_2d_video_transport(void* source_wrapper);
 void web_canvas_2d_video_frame_hold_unref(Compositing::VideoFrameHold*);
+void web_canvas_2d_set_video_frame_copy(Optional<Gfx::DecodedImageFrame>* out_frame, Gfx::DecodedImageFrame const* frame);
 
 // What Bindings/Rust/src/html/canvas_gradient.rs asks of LibWeb.
 bool web_canvas_gradient_parse_color(FlatPtr color, Gfx::Color* out_colors);
@@ -815,6 +816,11 @@ void* web_canvas_2d_video_transport(void* source_wrapper)
 void web_canvas_2d_video_frame_hold_unref(Compositing::VideoFrameHold* hold)
 {
     hold->unref();
+}
+
+void web_canvas_2d_set_video_frame_copy(Optional<Gfx::DecodedImageFrame>* out_frame, Gfx::DecodedImageFrame const* frame)
+{
+    *out_frame = *frame;
 }
 
 // https://drafts.csswg.org/css-color/#parse-a-css-color-value

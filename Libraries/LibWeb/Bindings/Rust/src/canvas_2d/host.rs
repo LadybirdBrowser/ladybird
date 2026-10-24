@@ -46,7 +46,7 @@ unsafe extern "C" {
     fn web_canvas_2d_bitmap_ref(bitmap: *mut c_void);
     fn web_canvas_2d_bitmap_unref(bitmap: *mut c_void);
     fn web_canvas_2d_bitmap_size_in_bytes(bitmap: *mut c_void) -> usize;
-    fn web_canvas_2d_image_frame_from_bitmap(bitmap: *mut c_void) -> *mut c_void;
+    fn web_canvas_2d_image_frame_from_bitmap(bitmap: *mut c_void, color_space: ColorSpace) -> *mut c_void;
     fn web_canvas_2d_bitmap_unpremultiplied_rgba_pixels(
         bitmap: *mut c_void,
         out_pixels: *mut *const u8,
@@ -85,9 +85,9 @@ impl Bitmap {
         bitmap
     }
 
-    /// A frame of the bitmap, which the frame keeps alive.
-    pub(crate) fn into_image_frame(self) -> ImageFrameHandle {
-        let frame = unsafe { web_canvas_2d_image_frame_from_bitmap(self.into_raw()) };
+    /// A frame of the bitmap, whose pixels are in the color space, which the frame keeps alive.
+    pub(crate) fn into_image_frame(self, color_space: ColorSpace) -> ImageFrameHandle {
+        let frame = unsafe { web_canvas_2d_image_frame_from_bitmap(self.into_raw(), color_space) };
         // SAFETY: LibWeb hands over a frame that it allocated with new, which took over the reference to the bitmap.
         unsafe { ImageFrameHandle::adopt(frame) }
     }

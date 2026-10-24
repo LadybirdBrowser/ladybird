@@ -50,7 +50,7 @@ void web_canvas_2d_bitmap_ref(void* bitmap);
 void web_canvas_2d_bitmap_unref(void* bitmap);
 size_t web_canvas_2d_bitmap_size_in_bytes(void* bitmap);
 bool web_canvas_2d_bitmap_unpremultiplied_rgba_pixels(void* bitmap, u8 const** out_pixels, size_t* out_pitch, i32* out_width, i32* out_height);
-void* web_canvas_2d_image_frame_from_bitmap(void* bitmap);
+void* web_canvas_2d_image_frame_from_bitmap(void* bitmap, u8 color_space);
 }
 
 static RemoteCanvas2DTransport& transport_from(void* transport)
@@ -154,11 +154,12 @@ bool web_canvas_2d_bitmap_unpremultiplied_rgba_pixels(void* bitmap, u8 const** o
     return true;
 }
 
-// A Gfx::DecodedImageFrame of the bitmap, allocated with new, which takes over the reference to the bitmap.
-void* web_canvas_2d_image_frame_from_bitmap(void* bitmap)
+// A Gfx::DecodedImageFrame of the bitmap, whose pixels are in the color space, allocated with new, which takes over the
+// reference to the bitmap.
+void* web_canvas_2d_image_frame_from_bitmap(void* bitmap, u8 color_space)
 {
     NonnullRefPtr<Gfx::Bitmap const> adopted_bitmap = adopt_ref(*static_cast<Gfx::Bitmap*>(bitmap));
-    return new Gfx::DecodedImageFrame { move(adopted_bitmap) };
+    return new Gfx::DecodedImageFrame { move(adopted_bitmap), gfx_color_space_for(predefined_color_space_from_underlying(color_space)) };
 }
 
 }
