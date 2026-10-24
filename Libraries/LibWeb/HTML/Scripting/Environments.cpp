@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
+#include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
@@ -707,6 +708,8 @@ bool is_non_secure_context(Environment const& environment)
 SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 {
     auto serialized_global = [this]() -> SerializedGlobal {
+        if (auto const* snapshot = as_if<EnvironmentSettingsSnapshot>(*this))
+            return snapshot->serialized_global();
         bool relevant_settings_object_is_secure_context = is_secure_context(*this);
         auto relevant_settings_object_policy_container = policy_container()->serialize();
         auto& global = global_object();
