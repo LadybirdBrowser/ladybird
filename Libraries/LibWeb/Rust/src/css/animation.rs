@@ -7357,6 +7357,91 @@ fn interpolate_filter_list(
     })
 }
 
+fn is_four_sided_property(property_id: u16) -> bool {
+    matches!(
+        property_id,
+        crate::css::property_metadata::property_id::BORDER_IMAGE_OUTSET
+            | crate::css::property_metadata::property_id::BORDER_IMAGE_WIDTH
+    )
+}
+
+/// The top, right, bottom and left components of a value given as one to four sides.
+fn expand_four_sides(value: &StyleValueData) -> Option<[RetainedStyleValueData; 4]> {
+    // https://drafts.csswg.org/css-backgrounds/#border-image-outset
+    // Computed value: four values, each a number or absolute length
+    // https://drafts.csswg.org/css-backgrounds/#border-image-width
+    // Computed value: four values, each either a number, the keyword auto, or a computed <length-percentage> value
+    let sides = match value {
+        StyleValueData::ValueList {
+            values, separator: 0, ..
+        } => values.as_slice(),
+        StyleValueData::ValueList { .. } => return None,
+        _ => {
+            let side = RetainedStyleValueData::from_arc(Arc::new(value.clone()));
+            return Some([side.clone(), side.clone(), side.clone(), side]);
+        }
+    };
+    // https://drafts.csswg.org/css-backgrounds/#border-image-outset
+    // If there is only one component value, it applies to all sides. If there are two values, the top and bottom are
+    // set to the first value and the right and left are set to the second. If there are three values, the top is set
+    // to the first value, the left and right are set to the second, and the bottom is set to the third. If there are
+    // four values they apply to the top, right, bottom, and left, respectively.
+    let (top, right, bottom, left) = match sides {
+        [all] => (all, all, all, all),
+        [vertical, horizontal] => (vertical, horizontal, vertical, horizontal),
+        [top, horizontal, bottom] => (top, horizontal, bottom, horizontal),
+        [top, right, bottom, left] => (top, right, bottom, left),
+        _ => return None,
+    };
+    Some([top.clone(), right.clone(), bottom.clone(), left.clone()])
+}
+
+/// Builds the shortest one to four value list that expands to the given sides.
+fn shortest_four_sides(sides: [RetainedStyleValueData; 4]) -> StyleValueData {
+    let [top, right, bottom, left] = sides;
+    let mut values = vec![top, right, bottom, left];
+    if values[3].data() == values[1].data() {
+        values.pop();
+        if values[2].data() == values[0].data() {
+            values.pop();
+            if values[1].data() == values[0].data() {
+                values.pop();
+            }
+        }
+    }
+    if values.len() == 1 {
+        return values.pop().unwrap().data().clone();
+    }
+    StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(values),
+        separator: 0,
+        collapsible: true,
+    }
+}
+
+fn combine_four_sides(
+    from: &StyleValueData,
+    to: &StyleValueData,
+    combine: impl Fn(&StyleValueData, &StyleValueData) -> AnimationValueResult,
+) -> Option<AnimationValueResult> {
+    let (Some(from_sides), Some(to_sides)) = (expand_four_sides(from), expand_four_sides(to)) else {
+        return None;
+    };
+    let mut sides = Vec::with_capacity(4);
+    for (from_side, to_side) in from_sides.iter().zip(&to_sides) {
+        let result = combine(from_side.data(), to_side.data());
+        if !result.handled {
+            return None;
+        }
+        let Some(value) = result.value else {
+            return Some(handled_without_value());
+        };
+        sides.push(value);
+    }
+    let sides: [RetainedStyleValueData; 4] = sides.try_into().ok()?;
+    Some(owned(shortest_four_sides(sides)))
+}
+
 pub(crate) fn interpolate_value(
     context: Option<&FfiAnimationContext>,
     property_id: u16,
@@ -7679,7 +7764,14 @@ pub(crate) fn interpolate_value(
         return discrete_value(context, from, to, delta);
     }
     assert_eq!(animation_type, ANIMATION_TYPE_BY_COMPUTED_VALUE);
-    let result = interpolate_scalar_value(property_id, from, to, delta, &[]);
+    let result = if is_four_sided_property(property_id) {
+        combine_four_sides(from, to, |from, to| {
+            interpolate_scalar_value(property_id, from, to, delta, &[])
+        })
+        .unwrap_or_else(not_handled)
+    } else {
+        interpolate_scalar_value(property_id, from, to, delta, &[])
+    };
     // https://drafts.csswg.org/web-animations-1/#by-computed-value
     // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
     if !result.handled || result.value.is_none() && context.is_some_and(|context| context.allow_discrete) {
@@ -7723,6 +7815,11 @@ fn composite_batch_value<'a>(
             | crate::css::property_metadata::property_id::TEXT_SHADOW
     ) {
         composite_shadow_list(context, underlying, animated, operation)
+    } else if is_four_sided_property(property_id) {
+        combine_four_sides(underlying, animated, |underlying, animated| {
+            composite_scalar_value(underlying, animated, operation)
+        })
+        .unwrap_or_else(handled_without_value)
     } else if property_id == crate::css::property_metadata::property_id::OFFSET_PATH {
         composite_offset_path(underlying, animated, operation).map_or_else(handled_without_value, owned)
     } else if property_id == crate::css::property_metadata::property_id::OFFSET_ROTATE {
