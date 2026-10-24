@@ -6,13 +6,13 @@
 
 //! The functions through which `Gfx::Path` in C++ owns, builds and queries a path.
 //!
-//! Only LibGfx's copy of this crate makes and frees the paths of `Gfx::Path`. Rust code in other
-//! libraries reaches them through the `ladybird_gfx_path_*` functions of LibGfx.
+//! Only LibGfx's copy of this crate makes and frees the paths of `Gfx::Path`. Rust code builds and
+//! queries its own paths with `Path`.
 
 use super::encoding;
 use super::geometry::{PathGeometry, PathVerb};
 use super::hit_test;
-use super::measure::{self, ContourMeasure, PathVertex};
+use super::measure::{self, PathVertex};
 use super::stroke::{self, StrokeStyle};
 use super::svg_text;
 use crate::geometry::FloatPoint;
@@ -271,36 +271,6 @@ pub unsafe extern "C" fn path_geometry_append_path(path: *mut PathGeometry, othe
     unsafe { with_other_path(path, other, |path, other| path.append_path(other)) };
 }
 
-/// Adds the contours of the other path, mapped by the affine transform, without changing what the
-/// operations of Gfx::Path remember.
-///
-/// # Safety
-/// `path` and `other` must be live paths from this module; nothing else may use `path` for the call.
-/// `transform` must point to the six values a, b, c, d, e and f of an affine transform.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_append_transformed_contours(
-    path: *mut PathGeometry,
-    other: *const PathGeometry,
-    transform: *const f32,
-) {
-    // SAFETY: Forwarded from the caller.
-    let transform = unsafe { read_transform(transform) };
-    // SAFETY: Forwarded from the caller.
-    unsafe {
-        with_other_path(path, other, |path, other| {
-            path.append_mapped(other, |point| transform.map_point(point))
-        })
-    };
-}
-
-/// # Safety
-/// `path` must be a live path from this module, which nothing else uses for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_update_state_from_contours(path: *mut PathGeometry) {
-    // SAFETY: Forwarded from the caller.
-    unsafe { &mut *path }.update_state_from_contours();
-}
-
 /// # Safety
 /// `path` must be a live path from this module, which nothing else uses for the call.
 #[unsafe(no_mangle)]
@@ -547,52 +517,4 @@ pub unsafe extern "C" fn path_geometry_data(path: *const PathGeometry, out_data:
     let data = PathGeometryData::of(unsafe { &*path });
     // SAFETY: The caller passes room for the data.
     unsafe { std::ptr::write(out_data, data) };
-}
-
-/// The measure of the first contour of the path that has length, or null if none has.
-///
-/// # Safety
-/// `path` must be a live path from this module.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_measure_first_contour(path: *const PathGeometry) -> *mut ContourMeasure {
-    // SAFETY: Forwarded from the caller.
-    ContourMeasure::contours_of(unsafe { &*path })
-        .next()
-        .map_or(std::ptr::null_mut(), |contour| Box::into_raw(Box::new(contour)))
-}
-
-/// # Safety
-/// `measure` must be a live measure from path_geometry_measure_first_contour().
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn contour_measure_length(measure: *const ContourMeasure) -> f32 {
-    // SAFETY: Forwarded from the caller.
-    unsafe { &*measure }.length()
-}
-
-/// Writes the point at the distance along the contour, clamped to its ends, and the unit tangent there.
-///
-/// # Safety
-/// `measure` must be a live measure from path_geometry_measure_first_contour(), and
-/// `out_point_and_tangent` must point to four floats.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn contour_measure_position_and_tangent(
-    measure: *const ContourMeasure,
-    distance: f32,
-    out_point_and_tangent: *mut f32,
-) {
-    // SAFETY: Forwarded from the caller.
-    let point_and_tangent = unsafe { &*measure }.position_and_tangent(distance);
-    // SAFETY: Forwarded from the caller.
-    unsafe { write_point_and_tangent(out_point_and_tangent, point_and_tangent) };
-}
-
-/// # Safety
-/// `measure` must be a measure from path_geometry_measure_first_contour() that nothing uses afterwards,
-/// or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn contour_measure_destroy(measure: *mut ContourMeasure) {
-    if !measure.is_null() {
-        // SAFETY: The caller hands over the measure, which was made from a Box.
-        drop(unsafe { Box::from_raw(measure) });
-    }
 }

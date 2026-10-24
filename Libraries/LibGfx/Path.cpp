@@ -9,7 +9,6 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/RustFFI.h>
-#include <LibGfx/TextLayout.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 
@@ -397,15 +396,6 @@ public:
 #endif
     }
 
-    // Appends the outline of the glyph to the path, mapped by the affine transform with the values a, b, c, d, e and f.
-    void append_outline(u32 glyph_id, FFI::PathGeometry* path, Array<float, 6> const& transform) const
-    {
-        auto* outline = FFI::path_geometry_create();
-        ScopeGuard destroy_outline = [&] { FFI::path_geometry_destroy(outline); };
-        draw_outline(glyph_id, outline);
-        FFI::path_geometry_append_transformed_contours(path, outline, transform.data());
-    }
-
     void draw_outline(u32 glyph_id, FFI::PathGeometry* outline) const
     {
 #ifdef AK_OS_MACOS
@@ -439,51 +429,6 @@ public:
 
 }
 
-void Path::glyph_run(GlyphRun const& glyph_run)
-{
-    if (glyph_run.font().is_invisible())
-        return;
-    FFI::path_geometry_set_fill_rule(m_geometry, to_underlying(WindingRule::Nonzero));
-    auto font_ascent = glyph_run.font().pixel_metrics().ascent;
-    GlyphOutliner outliner { glyph_run.font() };
-    for (auto const& glyph : glyph_run.glyphs())
-        outliner.append_outline(glyph.glyph_id, m_geometry, { 1, 0, 0, 1, glyph.position.x(), glyph.position.y() + font_ascent });
-    FFI::path_geometry_update_state_from_contours(m_geometry);
-}
-
-// Lays each glyph along the first subpath that has length, with its origin at the distance of its x position plus the
-// offset and its baseline along the direction of the path there, until a glyph's middle would go past the end.
-Path Path::place_glyph_runs_along(ReadonlySpan<NonnullRefPtr<GlyphRun>> glyph_runs, float offset) const
-{
-    Path output;
-    auto* measure = FFI::path_geometry_measure_first_contour(m_geometry);
-    if (!measure)
-        return output;
-    ScopeGuard destroy_measure = [&] { FFI::contour_measure_destroy(measure); };
-    auto path_length = FFI::contour_measure_length(measure);
-
-    auto append_glyph_outlines = [&] {
-        for (auto const& glyph_run : glyph_runs) {
-            if (glyph_run->font().is_invisible())
-                continue;
-            GlyphOutliner outliner { glyph_run->font() };
-            for (auto const& glyph : glyph_run->glyphs()) {
-                auto glyph_distance = offset + glyph.position.x();
-                if (glyph_distance + (glyph.glyph_width / 2.0f) > path_length)
-                    return;
-
-                float point_and_tangent[4];
-                FFI::contour_measure_position_and_tangent(measure, glyph_distance, point_and_tangent);
-                auto [x, y, tangent_x, tangent_y] = point_and_tangent;
-                outliner.append_outline(glyph.glyph_id, output.m_geometry, { tangent_x, tangent_y, -tangent_y, tangent_x, x, y });
-            }
-        }
-    };
-    append_glyph_outlines();
-    FFI::path_geometry_update_state_from_contours(output.m_geometry);
-    return output;
-}
-
 }
 
 namespace IPC {
@@ -503,177 +448,10 @@ ErrorOr<Gfx::Path> decode(Decoder& decoder)
 
 }
 
-// The functions through which Rust code outside LibGfx builds and queries paths. See Rust/src/path.rs.
+// The function through which Rust code builds glyph outlines into paths. See Rust/src/path.rs.
 
 extern "C" {
-void ladybird_gfx_path_destroy(void*);
-bool ladybird_gfx_path_equals(void const*, void const*);
-void ladybird_gfx_path_append_svg_string(void const*, void (*)(void*, u8 const*, size_t), void*);
-void ladybird_gfx_path_bounding_box(void const*, float*);
-void ladybird_gfx_path_serialize(void const*, void (*)(void*, u8 const*, size_t), void*);
-float ladybird_gfx_path_length(void const*);
-bool ladybird_gfx_path_point_at_length(void const*, float, float*);
-void* ladybird_gfx_path_create_from_ops(u8 const* kinds, float const* values, size_t count);
-void ladybird_gfx_path_append_ops(void*, u8 const* kinds, float const* values, size_t count);
-void ladybird_gfx_path_append_path(void*, void const* other);
-bool ladybird_gfx_path_is_empty(void const*);
-void ladybird_gfx_path_last_point(void const*, float* out_x_y);
-void* ladybird_gfx_path_clone(void const*);
-void* ladybird_gfx_path_create_from_serialized_bytes(u8 const* bytes, size_t count);
-void* ladybird_gfx_path_copy_transformed(void const*, float const* affine_values);
-bool ladybird_gfx_path_contains(void const*, float, float, i32);
-void* ladybird_gfx_path_stroke_to_fill(void const*, float thickness, i32 cap_style, i32 join_style, float miter_limit, float const* dash_array, size_t dash_count, float dash_offset);
-void ladybird_gfx_path_set_fill_type(void*, i32);
-void* ladybird_gfx_path_create_from_glyph_runs(Gfx::FFI::FfiGlyphRun const* runs, size_t run_count);
-void* ladybird_gfx_path_place_glyph_runs_along(void const* path, Gfx::FFI::FfiGlyphRun const* runs, size_t run_count, float offset);
-void ladybird_gfx_path_data(void const*, Gfx::FFI::PathGeometryData*);
 void ladybird_gfx_font_glyph_outlines(void const* font, Gfx::FFI::DrawGlyph const* glyphs, size_t glyph_count, void (*visit)(void*, size_t, Gfx::FFI::PathGeometryData const*), void* context);
-}
-
-extern "C" void ladybird_gfx_path_destroy(void* path)
-{
-    delete static_cast<Gfx::Path*>(path);
-}
-
-extern "C" void ladybird_gfx_path_append_svg_string(void const* path, void (*append)(void*, u8 const*, size_t), void* context)
-{
-    auto string = static_cast<Gfx::Path const*>(path)->to_svg_string();
-    append(context, string.bytes().data(), string.bytes().size());
-}
-
-extern "C" void ladybird_gfx_path_set_fill_type(void* path, i32 winding_rule)
-{
-    static_cast<Gfx::Path*>(path)->set_fill_type(static_cast<Gfx::WindingRule>(winding_rule));
-}
-
-extern "C" void ladybird_gfx_path_bounding_box(void const* path, float* out_x_y_width_height)
-{
-    auto rect = static_cast<Gfx::Path const*>(path)->bounding_box();
-    out_x_y_width_height[0] = rect.x();
-    out_x_y_width_height[1] = rect.y();
-    out_x_y_width_height[2] = rect.width();
-    out_x_y_width_height[3] = rect.height();
-}
-
-extern "C" void ladybird_gfx_path_serialize(void const* path, void (*append)(void*, u8 const*, size_t), void* context)
-{
-    static_cast<Gfx::Path const*>(path)->serialize_into(append, context);
-}
-
-extern "C" float ladybird_gfx_path_length(void const* path)
-{
-    return static_cast<Gfx::Path const*>(path)->length();
-}
-
-extern "C" bool ladybird_gfx_path_point_at_length(void const* path, float distance, float* out)
-{
-    auto point = static_cast<Gfx::Path const*>(path)->point_at_length(distance);
-    if (!point.has_value())
-        return false;
-    out[0] = point->point.x();
-    out[1] = point->point.y();
-    out[2] = point->tangent.x();
-    out[3] = point->tangent.y();
-    return true;
-}
-
-enum class PathBuilderOpKind : u8 {
-    MoveTo,
-    LineTo,
-    QuadraticBezierCurveTo,
-    CubicBezierCurveTo,
-    EllipticalArcTo,
-    ArcTo,
-    Close,
-};
-
-extern "C" void* ladybird_gfx_path_create_from_ops(u8 const* kinds, float const* values, size_t count)
-{
-    auto* path = new Gfx::Path;
-    ladybird_gfx_path_append_ops(path, kinds, values, count);
-    return path;
-}
-
-extern "C" void ladybird_gfx_path_append_ops(void* raw_path, u8 const* kinds, float const* values, size_t count)
-{
-    auto* path = static_cast<Gfx::Path*>(raw_path);
-    for (size_t i = 0; i < count; ++i) {
-        auto const* v = values + i * 7;
-        switch (static_cast<PathBuilderOpKind>(kinds[i])) {
-        case PathBuilderOpKind::MoveTo:
-            path->move_to({ v[0], v[1] });
-            break;
-        case PathBuilderOpKind::LineTo:
-            path->line_to({ v[0], v[1] });
-            break;
-        case PathBuilderOpKind::QuadraticBezierCurveTo:
-            path->quadratic_bezier_curve_to({ v[0], v[1] }, { v[2], v[3] });
-            break;
-        case PathBuilderOpKind::CubicBezierCurveTo:
-            path->cubic_bezier_curve_to({ v[0], v[1] }, { v[2], v[3] }, { v[4], v[5] });
-            break;
-        case PathBuilderOpKind::EllipticalArcTo:
-            path->elliptical_arc_to({ v[0], v[1] }, { v[2], v[3] }, v[4], v[5] != 0, v[6] != 0);
-            break;
-        case PathBuilderOpKind::ArcTo:
-            path->arc_to({ v[0], v[1] }, v[2], v[3] != 0, v[4] != 0);
-            break;
-        case PathBuilderOpKind::Close:
-            path->close();
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
-}
-
-extern "C" void ladybird_gfx_path_append_path(void* path, void const* other)
-{
-    static_cast<Gfx::Path*>(path)->append_path(*static_cast<Gfx::Path const*>(other));
-}
-
-extern "C" bool ladybird_gfx_path_is_empty(void const* path)
-{
-    return static_cast<Gfx::Path const*>(path)->is_empty();
-}
-
-extern "C" void ladybird_gfx_path_last_point(void const* path, float* out_x_y)
-{
-    auto point = static_cast<Gfx::Path const*>(path)->last_point();
-    out_x_y[0] = point.x();
-    out_x_y[1] = point.y();
-}
-
-extern "C" void* ladybird_gfx_path_clone(void const* path)
-{
-    return new Gfx::Path(static_cast<Gfx::Path const*>(path)->clone());
-}
-
-static Vector<NonnullRefPtr<Gfx::GlyphRun>> adopt_glyph_runs(Gfx::FFI::FfiGlyphRun const* runs, size_t run_count)
-{
-    Vector<NonnullRefPtr<Gfx::GlyphRun>> glyph_runs;
-    glyph_runs.ensure_capacity(run_count);
-    for (size_t i = 0; i < run_count; ++i) {
-        Vector<Gfx::DrawGlyph> glyphs;
-        glyphs.append(reinterpret_cast<Gfx::DrawGlyph const*>(runs[i].glyphs), runs[i].glyph_count);
-        // The text type and width only matter to a caller that slices or measures the run, which neither of the two
-        // path operations below does.
-        glyph_runs.unchecked_append(adopt_ref(*new Gfx::GlyphRun(move(glyphs), *static_cast<Gfx::Font const*>(runs[i].font), Gfx::GlyphRun::TextType::Common, 0)));
-    }
-    return glyph_runs;
-}
-
-extern "C" void* ladybird_gfx_path_create_from_glyph_runs(Gfx::FFI::FfiGlyphRun const* runs, size_t run_count)
-{
-    auto* path = new Gfx::Path;
-    for (auto const& glyph_run : adopt_glyph_runs(runs, run_count))
-        path->glyph_run(glyph_run);
-    return path;
-}
-
-extern "C" void* ladybird_gfx_path_place_glyph_runs_along(void const* path, Gfx::FFI::FfiGlyphRun const* runs, size_t run_count, float offset)
-{
-    return new Gfx::Path(static_cast<Gfx::Path const*>(path)->place_glyph_runs_along(adopt_glyph_runs(runs, run_count), offset));
 }
 
 // Calls the callback with the outline of each glyph, in pixels with its origin on the baseline.
@@ -689,52 +467,4 @@ extern "C" void ladybird_gfx_font_glyph_outlines(void const* font, Gfx::FFI::Dra
         Gfx::FFI::path_geometry_data(outline, &data);
         visit(context, index, &data);
     }
-}
-
-extern "C" void* ladybird_gfx_path_create_from_serialized_bytes(u8 const* bytes, size_t count)
-{
-    return new Gfx::Path(Gfx::Path::from_serialized_bytes({ bytes, count }));
-}
-
-extern "C" void* ladybird_gfx_path_copy_transformed(void const* path, float const* affine_values)
-{
-    Gfx::AffineTransform transform { affine_values[0], affine_values[1], affine_values[2], affine_values[3], affine_values[4], affine_values[5] };
-    return new Gfx::Path(static_cast<Gfx::Path const*>(path)->copy_transformed(transform));
-}
-
-extern "C" bool ladybird_gfx_path_contains(void const* path, float x, float y, i32 winding_rule)
-{
-    return static_cast<Gfx::Path const*>(path)->contains({ x, y }, static_cast<Gfx::WindingRule>(winding_rule));
-}
-
-extern "C" void* ladybird_gfx_path_stroke_to_fill(void const* path, float thickness, i32 cap_style, i32 join_style, float miter_limit, float const* dash_array, size_t dash_count, float dash_offset)
-{
-    Gfx::Path::StrokeStyle style {
-        .thickness = thickness,
-        .cap_style = static_cast<Gfx::Path::CapStyle>(cap_style),
-        .join_style = static_cast<Gfx::Path::JoinStyle>(join_style),
-        .miter_limit = miter_limit,
-        .dash_array = { dash_array, dash_count },
-        .dash_offset = dash_offset,
-    };
-    return new Gfx::Path(static_cast<Gfx::Path const*>(path)->stroke_to_fill(style));
-}
-
-extern "C" void ladybird_gfx_path_data(void const* path, Gfx::FFI::PathGeometryData* out_data)
-{
-    auto data = static_cast<Gfx::Path const*>(path)->data();
-    *out_data = {
-        .verbs = reinterpret_cast<u8 const*>(data.verbs.data()),
-        .verb_count = data.verbs.size(),
-        .points = reinterpret_cast<Gfx::FFI::FloatPoint const*>(data.points.data()),
-        .point_count = data.points.size(),
-        .conic_weights = data.conic_weights.data(),
-        .conic_weight_count = data.conic_weights.size(),
-        .fill_rule = static_cast<u8>(data.winding_rule),
-    };
-}
-
-extern "C" bool ladybird_gfx_path_equals(void const* a, void const* b)
-{
-    return *static_cast<Gfx::Path const*>(a) == *static_cast<Gfx::Path const*>(b);
 }

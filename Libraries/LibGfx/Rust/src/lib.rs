@@ -57,7 +57,6 @@ unsafe extern "C" {
 const _: () = {
     const fn assert_send_and_sync<T: Send + Sync>() {}
     assert_send_and_sync::<font::FontHandle>();
-    assert_send_and_sync::<path::OwnedPath>();
     assert_send_and_sync::<path::Path>();
     assert_send_and_sync::<image_frame::ImageFrameHandle>();
     assert_send_and_sync::<text_layout::GlyphBuffer>();
