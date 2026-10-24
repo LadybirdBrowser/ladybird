@@ -174,6 +174,32 @@ void HTMLImageElement::adopted_from(DOM::Document& old_document)
     // FIXME: The current and pending requests may still be pointing at the old document's SharedResourceRequests.
 }
 
+// https://html.spec.whatwg.org/multipage/embedded-content.html#the-img-element:html-element-moving-steps
+void HTMLImageElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<DOM::Node> old_ancestor)
+{
+    // The img HTML element moving steps, given movedNode, isSubtreeRoot, and oldAncestor are:
+    Base::moved_from(is_subtree_root, old_ancestor);
+
+    // 1. If isSubtreeRoot is true and oldAncestor is a picture element, then count this as a relevant mutation for
+    //    movedNode.
+    if (is_subtree_root == IsSubtreeRoot::Yes && is<HTMLPictureElement>(old_ancestor.ptr()))
+        update_the_image_data();
+}
+
+// https://html.spec.whatwg.org/multipage/embedded-content.html#the-img-element:html-element-removing-steps
+void HTMLImageElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* old_ancestor, DOM::Node& old_root)
+{
+    // The img HTML element removing steps, given removedNode, isSubtreeRoot, and oldAncestor are:
+    Base::removed_from(is_subtree_root, old_ancestor, old_root);
+
+    // 1. If isSubtreeRoot is true and oldAncestor is a picture element, then count this as a relevant mutation for
+    //    removedNode.
+    if (is_subtree_root == IsSubtreeRoot::Yes && is<HTMLPictureElement>(old_ancestor))
+        update_the_image_data();
+
+    // FIXME: 2. Set removedNode's last auto-sizes width to null.
+}
+
 void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -254,11 +280,31 @@ void HTMLImageElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
     });
 }
 
-void HTMLImageElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
+static ReferrerPolicy::ReferrerPolicy referrer_policy_attribute_state(Optional<Utf16String> const& value)
 {
+    return ReferrerPolicy::from_string(value.value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+}
+
+void HTMLImageElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
+{
+    // https://html.spec.whatwg.org/multipage/images.html#relevant-mutations
+    // The element's crossorigin attribute's state is changed.
     if (!namespace_.has_value() && name == HTML::AttributeNames::crossorigin) {
+        auto old_cors_setting = m_cors_setting;
         m_cors_setting = cors_setting_attribute_from_keyword(value.map([](auto const& value) { return value.utf16_view(); }));
+        if (m_cors_setting != old_cors_setting)
+            update_the_image_data();
     }
+
+    // The element's referrerpolicy attribute's state is changed.
+    if (!namespace_.has_value() && name == HTML::AttributeNames::referrerpolicy) {
+        if (referrer_policy_attribute_state(old_value) != referrer_policy_attribute_state(value))
+            update_the_image_data();
+    }
+
+    // The element's src, srcset, or sizes attributes are set, changed, or removed.
+    if (name == HTML::AttributeNames::sizes)
+        update_the_image_data();
 
     if (name.is_one_of(HTML::AttributeNames::src, HTML::AttributeNames::srcset)) {
         update_the_image_data(true);
