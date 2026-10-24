@@ -26,7 +26,7 @@ class WEB_API RemoteCanvas2DTransport : public RefCounted<RemoteCanvas2DTranspor
 public:
     virtual ~RemoteCanvas2DTransport() = default;
 
-    virtual bool create_context(Gfx::IntSize, bool alpha) = 0;
+    virtual bool create_context(Gfx::IntSize, bool alpha, bool will_read_frequently) = 0;
     virtual Optional<Compositing::CanvasId> canvas_id() const = 0;
     virtual void destroy_context() = 0;
 

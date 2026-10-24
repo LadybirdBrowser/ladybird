@@ -60,7 +60,7 @@ public:
     CanvasHost(RefPtr<Gfx::SkiaBackendContext>, CanvasSurfaceRegistry&, VideoFrameHolds const&);
     ~CanvasHost();
 
-    bool create_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha);
+    bool create_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha, bool will_read_frequently);
     CreateWebGLContextResult create_webgl_context(Compositing::WebGL::WebGLVersion, Gfx::IntSize, bool depth, bool stencil, bool antialias);
     void destroy_context(Compositing::CanvasId);
 
@@ -93,10 +93,10 @@ private:
     using Context = Variant<Canvas2DContext, WebGLContext>;
 
     Context* context(Compositing::CanvasId);
-    OwnPtr<Canvas2DCommandPlayer> create_2d_command_player(Gfx::IntSize, bool alpha);
+    OwnPtr<Canvas2DCommandPlayer> create_2d_command_player(Gfx::IntSize, bool alpha, bool will_read_frequently);
     static HostWebGLContext& as_webgl(Context&);
     void present_canvas_2d_context(Compositing::CanvasId, Canvas2DContext&);
-    sk_sp<SkImage> held_video_frame_image(Media::VideoSinkHandle, u64 generation);
+    sk_sp<SkImage> held_video_frame_image(Media::VideoSinkHandle, u64 generation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context_of_canvas);
     Vector<HostWebGLContext::UploadSource> resolve_webgl_upload_sources(Vector<Compositing::WebGL::ImageSourceFrame> const&) const;
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;

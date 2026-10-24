@@ -40,6 +40,10 @@ void video_surface_image_will_show_new_frame(SkImage&);
 // Makes an image of the frame's pixels, on the GPU when there is a backend context, and in memory otherwise.
 sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&);
 
+// Makes an image of the frame's pixels in memory, for a canvas that draws there. The CPU converts the frame where it can
+// read it, and the GPU, when there is one, reads back a surface that only it can read.
+sk_sp<SkImage> sk_image_in_memory_from_video_frame(Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&);
+
 // Reads the frame's pixels into memory. A surface is drawn on the GPU and read back from there, since only the GPU
 // can read some surfaces.
 ErrorOr<Gfx::DecodedImageFrame> decoded_image_frame_from_video_frame(Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&);

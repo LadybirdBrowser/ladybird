@@ -17,7 +17,13 @@ use libgfx_rust::{IntRect, IntSize};
 
 unsafe extern "C" {
     fn web_canvas_2d_transport_unref(transport: *mut c_void);
-    fn web_canvas_2d_transport_create_context(transport: *mut c_void, width: i32, height: i32, alpha: bool) -> bool;
+    fn web_canvas_2d_transport_create_context(
+        transport: *mut c_void,
+        width: i32,
+        height: i32,
+        alpha: bool,
+        will_read_frequently: bool,
+    ) -> bool;
     fn web_canvas_2d_transport_canvas_id(transport: *const c_void, out_canvas_id: *mut u64) -> bool;
     fn web_canvas_2d_transport_destroy_context(transport: *mut c_void);
     fn web_canvas_2d_transport_append_command(transport: *mut c_void, record: ak::Span<'_, u8>);
@@ -157,8 +163,10 @@ impl Transport for CppTransport {
     type VideoFrameHold = LentVideoFrameHold;
     type Bitmap = Bitmap;
 
-    fn create_context(&self, size: IntSize, alpha: bool) -> bool {
-        unsafe { web_canvas_2d_transport_create_context(self.as_ptr(), size.width, size.height, alpha) }
+    fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool) -> bool {
+        unsafe {
+            web_canvas_2d_transport_create_context(self.as_ptr(), size.width, size.height, alpha, will_read_frequently)
+        }
     }
 
     fn canvas_id(&self) -> Option<CanvasId> {

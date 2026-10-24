@@ -344,9 +344,12 @@ impl ContextState {
         // FIXME: implement context attribute .color_space
         // FIXME: implement context attribute .color_type
         // FIXME: implement context attribute .desynchronized
-        // FIXME: implement context attribute .will_read_frequently
         let recorder = Recorder::new(transport);
-        if !recorder.create_context(self.size.get(), self.context_attributes.alpha) {
+        if !recorder.create_context(
+            self.size.get(),
+            self.context_attributes.alpha,
+            self.context_attributes.will_read_frequently,
+        ) {
             return false;
         }
         self.backing_storage.replace(Some(BackingStorage { recorder }));

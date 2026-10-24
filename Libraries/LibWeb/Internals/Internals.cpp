@@ -69,6 +69,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
+#include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
@@ -1836,6 +1837,11 @@ bool Internals::has_populated_document(HTML::HTMLIFrameElement& iframe)
     if (!navigable)
         return false;
     return window().associated_document().page().client().page_did_request_has_populated_document_for_testing(navigable->id());
+}
+
+bool Internals::canvas_has_unpresented_content(HTML::HTMLCanvasElement& canvas)
+{
+    return canvas.has_unpresented_content();
 }
 
 Utf16String Internals::dump_site_isolation_process_tree()

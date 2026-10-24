@@ -270,10 +270,10 @@ public:
     }
 
 private:
-    virtual bool create_context(Gfx::IntSize size, bool alpha) override
+    virtual bool create_context(Gfx::IntSize size, bool alpha, bool will_read_frequently) override
     {
         VERIFY(!m_canvas_id.has_value());
-        auto canvas_id = m_connection->create_canvas_2d_context(size, alpha);
+        auto canvas_id = m_connection->create_canvas_2d_context(size, alpha, will_read_frequently);
         if (!canvas_id.has_value())
             return false;
         m_canvas_id = *canvas_id;

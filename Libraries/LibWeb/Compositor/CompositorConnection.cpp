@@ -309,7 +309,7 @@ void CompositorConnection::set_video_sink_ticking(Media::VideoSinkHandle video_s
     async_set_video_sink_ticking(video_sink_handle, should_tick);
 }
 
-Optional<Compositing::CanvasId> CompositorConnection::create_canvas_2d_context(Gfx::IntSize size, bool alpha)
+Optional<Compositing::CanvasId> CompositorConnection::create_canvas_2d_context(Gfx::IntSize size, bool alpha, bool will_read_frequently)
 {
     if (!can_send_message_to_compositor())
         return {};
@@ -334,7 +334,7 @@ Optional<Compositing::CanvasId> CompositorConnection::create_canvas_2d_context(G
     auto canvas_id = Compositing::CanvasId { m_next_reserved_canvas_id++ };
     --m_reserved_canvas_ids_remaining;
 
-    async_create_canvas_2d_context(canvas_id, size, alpha);
+    async_create_canvas_2d_context(canvas_id, size, alpha, will_read_frequently);
     return canvas_id;
 }
 
