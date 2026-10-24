@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Fail
+Fail	e.style['alignment-baseline'] = "baseline" should set the property value
+Fail	e.style['alignment-baseline'] = "text-bottom" should set the property value
+Fail	e.style['alignment-baseline'] = "alphabetic" should set the property value
+Fail	e.style['alignment-baseline'] = "ideographic" should set the property value
+Fail	e.style['alignment-baseline'] = "middle" should set the property value
+Fail	e.style['alignment-baseline'] = "central" should set the property value
+Fail	e.style['alignment-baseline'] = "mathematical" should set the property value
+Fail	e.style['alignment-baseline'] = "hanging" should set the property value
+Fail	e.style['alignment-baseline'] = "text-top" should set the property value

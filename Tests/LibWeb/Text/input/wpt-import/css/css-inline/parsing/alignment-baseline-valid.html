@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Inline Layout: parsing alignment-baseline with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-inline-3/#alignment-baseline-property">
+<meta name="assert" content="alignment-baseline supports the full grammar 'baseline | text-bottom | alphabetic | ideographic | middle | central | mathematical | hanging | text-top'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("alignment-baseline", "baseline");
+test_valid_value("alignment-baseline", "text-bottom");
+test_valid_value("alignment-baseline", "alphabetic");
+test_valid_value("alignment-baseline", "ideographic");
+test_valid_value("alignment-baseline", "middle");
+test_valid_value("alignment-baseline", "central");
+test_valid_value("alignment-baseline", "mathematical");
+test_valid_value("alignment-baseline", "hanging");
+test_valid_value("alignment-baseline", "text-top");
+</script>
+</body>
+</html>

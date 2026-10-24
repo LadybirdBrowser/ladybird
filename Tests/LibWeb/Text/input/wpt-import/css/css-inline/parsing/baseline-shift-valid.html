@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Inline Layout: parsing baseline-shift with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-inline-3/#baseline-shift-property">
+<meta name="assert" content="baseline-shift supports the full grammar 'length-percentage | sub | super'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("baseline-shift", "-10px");
+test_valid_value("baseline-shift", "20%");
+test_valid_value("baseline-shift", "calc(2em + 3ex)");
+test_valid_value("baseline-shift", "0", "0px");
+test_valid_value("baseline-shift", "sub");
+test_valid_value("baseline-shift", "super");
+test_valid_value("baseline-shift", "bottom");
+test_valid_value("baseline-shift", "center");
+test_valid_value("baseline-shift", "top");
+</script>
+</body>
+</html>

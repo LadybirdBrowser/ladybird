@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Fail
+Fail	Property baseline-shift value '-10px'
+Fail	Property baseline-shift value '20%'
+Fail	Property baseline-shift value 'calc(10px - 0.5em)'
+Fail	Property baseline-shift value 'sub'
+Fail	Property baseline-shift value 'super'
+Fail	Property baseline-shift value 'bottom'
+Fail	Property baseline-shift value 'center'
+Fail	Property baseline-shift value 'top'
