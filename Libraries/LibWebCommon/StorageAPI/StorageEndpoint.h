@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/StorageAPI/StorageType.h>
 
@@ -48,5 +49,13 @@ struct WEBCOMMON_API StorageEndpoint {
 
     static ReadonlySpan<StorageEndpoint> registered_endpoints();
 };
+
+// The quota of the registered storage endpoint with this identifier, or null when it has none.
+WEBCOMMON_API Optional<u64> quota_for(StorageEndpointType);
+
+// Bytes a string contributes toward a storage bottle's quota: its UTF-8 length. The process that keeps a bottle and
+// the processes that mirror it measure the same way, so a write one accepts is a write the other accepts.
+WEBCOMMON_API u64 storage_quota_size(Utf16View const&);
+inline u64 storage_quota_size(Utf16String const& string) { return storage_quota_size(string.utf16_view()); }
 
 }
