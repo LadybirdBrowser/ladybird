@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/Canvas/Canvas2DContextBase.h>
 #include <LibWeb/HTML/Canvas/CanvasHost.h>
 #include <LibWeb/HTML/Canvas/PredefinedColorSpace.h>
+#include <LibWeb/HTML/Canvas/SerializeBitmap.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
 namespace Web::HTML {
@@ -76,6 +77,16 @@ Optional<Gfx::DecodedImageFrame> CanvasHost::get_frame_from_surface()
         return {};
     }
 
+    auto bitmap = get_bitmap_from_surface();
+    if (!bitmap)
+        return {};
+    return Gfx::DecodedImageFrame { *bitmap };
+}
+
+Optional<Gfx::DecodedImageFrame> CanvasHost::get_frame_for_serialization(Utf16View type)
+{
+    if (serialization_of_the_bitmap_supports_color_profiles(type))
+        return get_frame_from_surface();
     auto bitmap = get_bitmap_from_surface();
     if (!bitmap)
         return {};

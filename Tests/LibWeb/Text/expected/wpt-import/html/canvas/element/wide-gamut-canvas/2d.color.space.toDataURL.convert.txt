@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-2 Pass
-2 Fail
+4 Pass
 Pass	Test toDataURL color space preservation and conversion from a srgb canvas
 Pass	Test toDataURL color space preservation and conversion from a srgb-linear canvas
-Fail	Test toDataURL color space preservation and conversion from a display-p3 canvas
-Fail	Test toDataURL color space preservation and conversion from a display-p3-linear canvas
+Pass	Test toDataURL color space preservation and conversion from a display-p3 canvas
+Pass	Test toDataURL color space preservation and conversion from a display-p3-linear canvas
