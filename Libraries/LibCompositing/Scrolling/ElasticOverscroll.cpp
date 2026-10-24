@@ -34,54 +34,52 @@ ElasticOverscroll::ElasticOverscroll(Gfx::FloatSize scrollport_size, float scree
 
 Gfx::FloatPoint ElasticOverscroll::stretch() const
 {
-    auto unrounded_stretch = m_rebound.has_value()
-        ? m_rebound->current_stretch
-        : m_accumulated_overscroll.scaled(static_cast<float>(1 / rubber_band_stiffness));
+    auto unrounded_stretch = m_rebound.has_value() ? m_rebound->current_stretch : m_held_stretch;
     return {
         AK::trunc(unrounded_stretch.x() * m_screen_pixels_per_pixel) / m_screen_pixels_per_pixel,
         AK::trunc(unrounded_stretch.y() * m_screen_pixels_per_pixel) / m_screen_pixels_per_pixel,
     };
 }
 
-static float relax_axis_by(float& accumulated_overscroll, float delta)
+static float relax_axis_by(float& stretch, float delta)
 {
-    bool delta_points_back_to_scroll_range = (accumulated_overscroll > 0 && delta < 0) || (accumulated_overscroll < 0 && delta > 0);
+    bool delta_points_back_to_scroll_range = (stretch > 0 && delta < 0) || (stretch < 0 && delta > 0);
     if (!delta_points_back_to_scroll_range)
         return delta;
-    if (AK::abs(delta) <= AK::abs(accumulated_overscroll)) {
-        accumulated_overscroll += delta;
+    auto stretch_delta = static_cast<float>(delta / rubber_band_stiffness);
+    if (AK::abs(stretch_delta) <= AK::abs(stretch)) {
+        stretch += stretch_delta;
         return 0;
     }
-    auto delta_left_to_scroll_with = delta + accumulated_overscroll;
-    accumulated_overscroll = 0;
+    auto delta_left_to_scroll_with = static_cast<float>(delta + stretch * rubber_band_stiffness);
+    stretch = 0;
     return delta_left_to_scroll_with;
 }
 
 Gfx::FloatPoint ElasticOverscroll::relax_by(Gfx::FloatPoint delta)
 {
     if (m_rebound.has_value()) {
-        m_accumulated_overscroll = m_rebound->current_stretch.scaled(static_cast<float>(rubber_band_stiffness));
+        m_held_stretch = m_rebound->current_stretch;
         m_rebound.clear();
     }
 
-    auto accumulated_overscroll_x = m_accumulated_overscroll.x();
-    auto accumulated_overscroll_y = m_accumulated_overscroll.y();
+    auto held_stretch_x = m_held_stretch.x();
+    auto held_stretch_y = m_held_stretch.y();
     Gfx::FloatPoint delta_left_to_scroll_with {
-        relax_axis_by(accumulated_overscroll_x, delta.x()),
-        relax_axis_by(accumulated_overscroll_y, delta.y()),
+        relax_axis_by(held_stretch_x, delta.x()),
+        relax_axis_by(held_stretch_y, delta.y()),
     };
-    m_accumulated_overscroll = { accumulated_overscroll_x, accumulated_overscroll_y };
+    m_held_stretch = { held_stretch_x, held_stretch_y };
     return delta_left_to_scroll_with;
 }
 
 void ElasticOverscroll::pull_by(Gfx::FloatPoint overscroll_delta)
 {
     VERIFY(!m_rebound.has_value());
-    auto largest_overscroll_x = m_scrollport_size.width() * static_cast<float>(rubber_band_stiffness);
-    auto largest_overscroll_y = m_scrollport_size.height() * static_cast<float>(rubber_band_stiffness);
-    m_accumulated_overscroll = {
-        clamp(m_accumulated_overscroll.x() + overscroll_delta.x(), -largest_overscroll_x, largest_overscroll_x),
-        clamp(m_accumulated_overscroll.y() + overscroll_delta.y(), -largest_overscroll_y, largest_overscroll_y),
+    auto stretch_delta = overscroll_delta.scaled(static_cast<float>(1 / rubber_band_stiffness));
+    m_held_stretch = {
+        clamp(m_held_stretch.x() + stretch_delta.x(), -m_scrollport_size.width(), m_scrollport_size.width()),
+        clamp(m_held_stretch.y() + stretch_delta.y(), -m_scrollport_size.height(), m_scrollport_size.height()),
     };
 }
 
@@ -90,8 +88,8 @@ void ElasticOverscroll::release(Gfx::FloatPoint velocity, MonotonicTime now)
     if (m_rebound.has_value())
         return;
 
-    auto initial_stretch = m_accumulated_overscroll.scaled(static_cast<float>(1 / rubber_band_stiffness));
-    m_accumulated_overscroll = {};
+    auto initial_stretch = m_held_stretch;
+    m_held_stretch = {};
 
     // Only an axis that is stretched is at its edge. The other one must not bounce off an edge it is not at.
     auto release_velocity_for_axis = [](float stretch, float velocity, float scrollport_length) -> float {

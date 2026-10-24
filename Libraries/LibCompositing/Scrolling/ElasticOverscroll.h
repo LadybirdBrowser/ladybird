@@ -24,7 +24,7 @@ public:
 
     // Whole pixels of the screen, like the scroll offsets the stretch is presented with.
     Gfx::FloatPoint stretch() const;
-    bool is_at_rest() const { return !m_rebound.has_value() && m_accumulated_overscroll.is_zero(); }
+    bool is_at_rest() const { return !m_rebound.has_value() && m_held_stretch.is_zero(); }
     bool is_rebounding() const { return m_rebound.has_value(); }
 
     // The fingers moved by `delta`. The part of it that points back to the scroll range relaxes the stretch, and the
@@ -50,7 +50,7 @@ private:
 
     Gfx::FloatSize m_scrollport_size;
     float m_screen_pixels_per_pixel { 1 };
-    Gfx::FloatPoint m_accumulated_overscroll;
+    Gfx::FloatPoint m_held_stretch;
     Optional<Rebound> m_rebound;
 };
 
