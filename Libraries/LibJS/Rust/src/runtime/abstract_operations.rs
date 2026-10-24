@@ -2103,7 +2103,7 @@ pub struct DisposeCapability {
 // 2.1.2 DisposableResource Records, https://tc39.es/proposal-explicit-resource-management/#sec-disposableresource-records
 #[derive(Clone, Copy, Trace)]
 pub struct DisposableResource {
-    pub resource_value: Option<Gc<Object>>, // [[ResourceValue]]
+    pub resource_value: Value, // [[ResourceValue]]
     #[gc(untraced)]
     pub hint: InitializeBindingHint, // [[Hint]]
     pub dispose_method: Option<Gc<FunctionObject>>, // [[DisposeMethod]]
@@ -2168,25 +2168,32 @@ pub fn create_disposable_resource(
     hint: InitializeBindingHint,
     method: Option<Gc<FunctionObject>>,
 ) -> ThrowCompletionOr<DisposableResource> {
+    let mut value = value;
     let mut method = method;
 
     // 1. If method is not present, then
-    // a. If V is either null or undefined, then
-    //    i. Set V to undefined.
-    //    ii. Set method to undefined.
-    // b. Else,
-    if method.is_none() && !value.is_nullish() {
-        // i. If V is not an Object, throw a TypeError exception.
-        if !value.is_object() {
-            return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
+    if method.is_none() {
+        // a. If V is either null or undefined, then
+        if value.is_nullish() {
+            // i. Set V to undefined.
+            value = Value::UNDEFINED;
+
+            // ii. Set method to undefined.
         }
+        // b. Else,
+        else {
+            // i. If V is not an Object, throw a TypeError exception.
+            if !value.is_object() {
+                return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
+            }
 
-        // ii. Set method to ? GetDisposeMethod(V, hint).
-        method = get_dispose_method(vm, value, hint)?;
+            // ii. Set method to ? GetDisposeMethod(V, hint).
+            method = get_dispose_method(vm, value, hint)?;
 
-        // iii. If method is undefined, throw a TypeError exception.
-        if method.is_none() {
-            return vm.throw_completion(ErrorKind::TypeError, ErrorType::NoDisposeMethod, &[&value]);
+            // iii. If method is undefined, throw a TypeError exception.
+            if method.is_none() {
+                return vm.throw_completion(ErrorKind::TypeError, ErrorType::NoDisposeMethod, &[&value]);
+            }
         }
     }
     // 2. Else,
@@ -2195,7 +2202,7 @@ pub fn create_disposable_resource(
 
     // 3. Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]: hint, [[DisposeMethod]]: method }.
     Ok(DisposableResource {
-        resource_value: value.is_object().then(|| value.as_object()),
+        resource_value: value,
         hint,
         dispose_method: method,
     })
@@ -2320,9 +2327,7 @@ pub fn dispose_resources(
             .expect("the disposable resource stack does not change while it is disposed of");
 
         // a. Let value be resource.[[ResourceValue]].
-        // NB: The resource keeps an undefined value as no object, which becomes null, so the method is called with null
-        //     as its this value when the value is undefined.
-        let value = resource.resource_value.map_or(Value::NULL, Value::from_object);
+        let value = resource.resource_value;
 
         // b. Let hint be resource.[[Hint]].
         let hint = resource.hint;
@@ -2344,20 +2349,21 @@ pub fn dispose_resources(
             // i. Let result be Completion(Call(method, value)).
             let result = call_function_object(vm, method, value, &[]);
 
+            let mut result = result;
+
             // ii. If result is a normal completion and hint is async-dispose, then
             if let Ok(result_value) = result
                 && hint == InitializeBindingHint::AsyncDispose
             {
                 // 1. Set result to Completion(Await(result.[[Value]])).
-                // NB: This drops a throw completion of the Await rather than handling it in step iii, so the rejection
-                //     of a promise an async-dispose method returns is lost.
-                let _ = r#await(vm, result_value);
+                result = r#await(vm, result_value);
 
                 // 2. Set hasAwaited to true.
                 has_awaited = true;
             }
+
             // iii. If result is a throw completion, then
-            else if let Err(throw) = result {
+            if let Err(throw) = result {
                 // 1. If completion is a throw completion, then
                 if completion.is_error() {
                     // a. Set result to result.[[Value]].

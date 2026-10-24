@@ -27,6 +27,17 @@ describe("basic functionality", () => {
         });
         stack.dispose();
     });
+
+    test("deferred function is called with undefined as this value", () => {
+        const stack = new DisposableStack();
+        let thisValue = null;
+        stack.defer(function () {
+            "use strict";
+            thisValue = this;
+        });
+        stack.dispose();
+        expect(thisValue).toBeUndefined();
+    });
 });
 
 describe("throws errors", () => {
