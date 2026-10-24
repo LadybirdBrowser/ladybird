@@ -2880,14 +2880,15 @@ impl RetainedState {
         let mut summary = cascade::StateSummary::default();
         // NB: A winner whose written value `node` does not find, such as an element declaration hidden for a demand,
         //     says nothing of other nodes, so the summary is only kept when every value was found.
-        let mut every_value_found = true;
         for winner in self.winner_groups.winners_in_state(state) {
             let inherited = crate::css::property_metadata::property_is_inherited(winner.property);
             let Some(winner) = self.winner_groups.resolved_winner(winner) else {
+                summary.has_unknown_values = true;
                 continue;
             };
             let longhand = winner.property >= crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
             if inherited && !longhand {
+                summary.has_unknown_values = true;
                 continue;
             }
             let group_mask = || match crate::css::computed_values::StyleGroupMasks::get().dependencies(winner.property)
@@ -2904,6 +2905,7 @@ impl RetainedState {
                     declarations.winner_value(winner.property, winner.important, winner.key.value)
                 }),
                 WinnerSource::ExactCascade => {
+                    summary.has_unknown_values = true;
                     if !inherited {
                         summary.explicitly_inherited_groups = u32::MAX;
                     }
@@ -2911,7 +2913,7 @@ impl RetainedState {
                 }
             };
             let Some(value) = value else {
-                every_value_found = false;
+                summary.has_unknown_values = true;
                 if !inherited {
                     summary.explicitly_inherited_groups |= group_mask();
                 }
@@ -2932,7 +2934,7 @@ impl RetainedState {
                 summary.has_substitutions = true;
             }
         }
-        if every_value_found {
+        if !summary.has_unknown_values {
             self.winner_groups.note_state_summary(state, summary);
         }
         summary
@@ -5511,6 +5513,13 @@ mod tests {
             source: WinnerSource::Element(kind),
         };
         let state = engine.winner_groups.intern_sorted(&[winner], None);
+        // Missing declaration inputs must not cache an answer that hides a later complete summary.
+        assert!(engine.state_summary(second, state).has_unknown_values);
+        assert!(engine.winner_groups.state_summary(state).is_none());
+        let summary = engine.state_summary(first, state);
+        assert!(!summary.has_unknown_values);
+        assert!(!summary.has_substitutions);
+        assert_eq!(engine.winner_groups.state_summary(state), Some(summary));
         let cascade_state = (0, state);
         for order in [[first, second], [second, first]] {
             let mut scratch = EngineComputabilityScratch::default();
