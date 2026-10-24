@@ -45,6 +45,12 @@ void TestWebView::reset_line_box_borders()
     debug_request("set-line-box-borders"sv, "off"sv);
 }
 
+// The user style lives on the page too, so one that a test sets would otherwise style every test after it in this view.
+void TestWebView::reset_user_style()
+{
+    debug_request("clear-user-style"sv);
+}
+
 // The emulated position lives on the page, so a test that moves it would otherwise hand its position to the next test.
 void TestWebView::reset_geolocation_emulated_position()
 {

@@ -1122,6 +1122,11 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
         return;
     }
 
+    if (request == "clear-user-style") {
+        page->page().set_user_style({});
+        return;
+    }
+
     if (request == "spoof-user-agent") {
         Web::ResourceLoader::the().set_user_agent(MUST(String::from_byte_string(argument)));
         return;
