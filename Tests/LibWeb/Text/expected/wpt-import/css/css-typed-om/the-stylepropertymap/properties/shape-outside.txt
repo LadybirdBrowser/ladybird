@@ -2,18 +2,18 @@ Harness status: OK
 
 Found 41 tests
 
-35 Pass
-6 Fail
+40 Pass
+1 Fail
 Pass	Can set 'shape-outside' to CSS-wide keywords: initial
 Pass	Can set 'shape-outside' to CSS-wide keywords: inherit
 Pass	Can set 'shape-outside' to CSS-wide keywords: unset
 Pass	Can set 'shape-outside' to CSS-wide keywords: revert
 Pass	Can set 'shape-outside' to var() references:  var(--A)
-Fail	Can set 'shape-outside' to the 'none' keyword: none
-Fail	Can set 'shape-outside' to the 'margin-box' keyword: margin-box
-Fail	Can set 'shape-outside' to the 'border-box' keyword: border-box
-Fail	Can set 'shape-outside' to the 'padding-box' keyword: padding-box
-Fail	Can set 'shape-outside' to the 'content-box' keyword: content-box
+Pass	Can set 'shape-outside' to the 'none' keyword: none
+Pass	Can set 'shape-outside' to the 'margin-box' keyword: margin-box
+Pass	Can set 'shape-outside' to the 'border-box' keyword: border-box
+Pass	Can set 'shape-outside' to the 'padding-box' keyword: padding-box
+Pass	Can set 'shape-outside' to the 'content-box' keyword: content-box
 Fail	Can set 'shape-outside' to an image
 Pass	Setting 'shape-outside' to a length: 0px throws TypeError
 Pass	Setting 'shape-outside' to a length: -3.14em throws TypeError

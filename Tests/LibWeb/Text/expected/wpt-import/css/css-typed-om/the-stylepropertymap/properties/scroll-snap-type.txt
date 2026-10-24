@@ -2,19 +2,19 @@ Harness status: OK
 
 Found 39 tests
 
-32 Pass
-7 Fail
+38 Pass
+1 Fail
 Pass	Can set 'scroll-snap-type' to CSS-wide keywords: initial
 Pass	Can set 'scroll-snap-type' to CSS-wide keywords: inherit
 Pass	Can set 'scroll-snap-type' to CSS-wide keywords: unset
 Pass	Can set 'scroll-snap-type' to CSS-wide keywords: revert
 Pass	Can set 'scroll-snap-type' to var() references:  var(--A)
-Fail	Can set 'scroll-snap-type' to the 'none' keyword: none
-Fail	Can set 'scroll-snap-type' to the 'x' keyword: x
-Fail	Can set 'scroll-snap-type' to the 'y' keyword: y
-Fail	Can set 'scroll-snap-type' to the 'block' keyword: block
-Fail	Can set 'scroll-snap-type' to the 'inline' keyword: inline
-Fail	Can set 'scroll-snap-type' to the 'both' keyword: both
+Pass	Can set 'scroll-snap-type' to the 'none' keyword: none
+Pass	Can set 'scroll-snap-type' to the 'x' keyword: x
+Pass	Can set 'scroll-snap-type' to the 'y' keyword: y
+Pass	Can set 'scroll-snap-type' to the 'block' keyword: block
+Pass	Can set 'scroll-snap-type' to the 'inline' keyword: inline
+Pass	Can set 'scroll-snap-type' to the 'both' keyword: both
 Pass	Setting 'scroll-snap-type' to a length: 0px throws TypeError
 Pass	Setting 'scroll-snap-type' to a length: -3.14em throws TypeError
 Pass	Setting 'scroll-snap-type' to a length: 3.14cm throws TypeError

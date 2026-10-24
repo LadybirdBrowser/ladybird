@@ -1479,8 +1479,8 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         .collect();
     let expanded_longhand_counts: Vec<usize> = expanded_shorthand_longhands.iter().map(Vec::len).collect();
 
-    // Accepted property keywords mirror property_accepts_keyword() in
-    // generate_libweb_css_property_id.py.
+    // Accepted property keywords are a property's valid identifiers and the
+    // keywords of the enums in its valid types.
     let mut accepted_keyword_rows = Vec::new();
     let mut accepted_value_type_rows = Vec::new();
     let mut custom_ident_blacklist_rows = Vec::new();

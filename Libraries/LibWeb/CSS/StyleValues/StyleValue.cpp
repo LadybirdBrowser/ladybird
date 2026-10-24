@@ -490,6 +490,12 @@ GC::Ref<CSSStyleValue> StyleValue::reify(Utf16FlyString const& associated_proper
     case Type::Resolution:
     case Type::Time:
         return as_dimension().reify(associated_property);
+    case Type::BackgroundSize:
+        // NB: A background size whose height is `auto` serializes as just its width, so reify it as that width. For
+        //     example, the `auto` keyword is parsed as a size of `auto auto`.
+        if (as_background_size().size_y()->has_auto())
+            return as_background_size().size_x()->reify(associated_property);
+        break;
     case Type::Calculated:
         return as_calculated().reify(associated_property);
     case Type::CustomIdent:

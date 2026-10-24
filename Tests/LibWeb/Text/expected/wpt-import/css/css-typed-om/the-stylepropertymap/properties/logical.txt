@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1468 tests
 
-1296 Pass
-172 Fail
+1300 Pass
+168 Fail
 Pass	Can set 'margin-block-start' to CSS-wide keywords: initial
 Pass	Can set 'margin-block-start' to CSS-wide keywords: inherit
 Pass	Can set 'margin-block-start' to CSS-wide keywords: unset
@@ -633,7 +633,7 @@ Pass	Can set 'border-block-start-color' to CSS-wide keywords: inherit
 Pass	Can set 'border-block-start-color' to CSS-wide keywords: unset
 Pass	Can set 'border-block-start-color' to CSS-wide keywords: revert
 Pass	Can set 'border-block-start-color' to var() references:  var(--A)
-Fail	Can set 'border-block-start-color' to the 'currentcolor' keyword: currentcolor
+Pass	Can set 'border-block-start-color' to the 'currentcolor' keyword: currentcolor
 Pass	Setting 'border-block-start-color' to a length: 0px throws TypeError
 Pass	Setting 'border-block-start-color' to a length: -3.14em throws TypeError
 Pass	Setting 'border-block-start-color' to a length: 3.14cm throws TypeError
@@ -764,7 +764,7 @@ Pass	Can set 'border-block-end-color' to CSS-wide keywords: inherit
 Pass	Can set 'border-block-end-color' to CSS-wide keywords: unset
 Pass	Can set 'border-block-end-color' to CSS-wide keywords: revert
 Pass	Can set 'border-block-end-color' to var() references:  var(--A)
-Fail	Can set 'border-block-end-color' to the 'currentcolor' keyword: currentcolor
+Pass	Can set 'border-block-end-color' to the 'currentcolor' keyword: currentcolor
 Pass	Setting 'border-block-end-color' to a length: 0px throws TypeError
 Pass	Setting 'border-block-end-color' to a length: -3.14em throws TypeError
 Pass	Setting 'border-block-end-color' to a length: 3.14cm throws TypeError
@@ -895,7 +895,7 @@ Pass	Can set 'border-inline-start-color' to CSS-wide keywords: inherit
 Pass	Can set 'border-inline-start-color' to CSS-wide keywords: unset
 Pass	Can set 'border-inline-start-color' to CSS-wide keywords: revert
 Pass	Can set 'border-inline-start-color' to var() references:  var(--A)
-Fail	Can set 'border-inline-start-color' to the 'currentcolor' keyword: currentcolor
+Pass	Can set 'border-inline-start-color' to the 'currentcolor' keyword: currentcolor
 Pass	Setting 'border-inline-start-color' to a length: 0px throws TypeError
 Pass	Setting 'border-inline-start-color' to a length: -3.14em throws TypeError
 Pass	Setting 'border-inline-start-color' to a length: 3.14cm throws TypeError
@@ -1026,7 +1026,7 @@ Pass	Can set 'border-inline-end-color' to CSS-wide keywords: inherit
 Pass	Can set 'border-inline-end-color' to CSS-wide keywords: unset
 Pass	Can set 'border-inline-end-color' to CSS-wide keywords: revert
 Pass	Can set 'border-inline-end-color' to var() references:  var(--A)
-Fail	Can set 'border-inline-end-color' to the 'currentcolor' keyword: currentcolor
+Pass	Can set 'border-inline-end-color' to the 'currentcolor' keyword: currentcolor
 Pass	Setting 'border-inline-end-color' to a length: 0px throws TypeError
 Pass	Setting 'border-inline-end-color' to a length: -3.14em throws TypeError
 Pass	Setting 'border-inline-end-color' to a length: 3.14cm throws TypeError

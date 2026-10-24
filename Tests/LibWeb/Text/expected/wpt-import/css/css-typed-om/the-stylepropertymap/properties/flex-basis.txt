@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 36 tests
 
-34 Pass
-2 Fail
+35 Pass
+1 Fail
 Pass	Can set 'flex-basis' to CSS-wide keywords: initial
 Pass	Can set 'flex-basis' to CSS-wide keywords: inherit
 Pass	Can set 'flex-basis' to CSS-wide keywords: unset
@@ -11,7 +11,7 @@ Pass	Can set 'flex-basis' to CSS-wide keywords: revert
 Pass	Can set 'flex-basis' to var() references:  var(--A)
 Pass	Can set 'flex-basis' to the 'auto' keyword: auto
 Pass	Can set 'flex-basis' to the 'content' keyword: content
-Fail	Can set 'flex-basis' to the 'fit-content' keyword: fit-content
+Pass	Can set 'flex-basis' to the 'fit-content' keyword: fit-content
 Pass	Can set 'flex-basis' to the 'min-content' keyword: min-content
 Pass	Can set 'flex-basis' to the 'max-content' keyword: max-content
 Pass	Can set 'flex-basis' to a length: 0px
