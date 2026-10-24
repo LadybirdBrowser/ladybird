@@ -1360,11 +1360,17 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
     // document, the page that hosted the displaced one holds the navigable remotely from now on.
     if (document != previous_document) {
         auto& traversable = top_level_traversable();
+        auto previous_host = previous_document->host();
         traversable.remove_child_navigables_of(*this, *previous_document);
-        if (auto previous_host = previous_document->host(); previous_host && previous_host != document->host() && previous_host->is_open())
-            traversable.stop_hosting_in_page(*this, previous_host.release_nonnull());
+        if (previous_host && previous_host != document->host() && previous_host->is_open())
+            traversable.stop_hosting_in_page(*this, *previous_host);
         // The Picture-in-Picture window of the displaced document, or of a document it embedded, closes with it.
         PictureInPictureManager::the().active_documents_did_change();
+        // Whether a process may capture audio depends on the documents it hosts.
+        for (auto const& page : { previous_host, document->host() }) {
+            if (page && page->is_open())
+                page->client().update_audio_capture_permission();
+        }
     }
 
     // A navigation can commit while a newer navigation is already in flight. In that case update the replicated
