@@ -18,12 +18,14 @@ use std::sync::Arc;
 use ak::ScopeGuard;
 
 use crate::css::calc::CanonicalNumericType;
+use crate::css::cascaded_properties::parse_substituted_value;
+use crate::css::css_enums::keyword_from_ascii_case_insensitive;
 use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, TokenizerInput, tokenize_for_parser};
 use crate::css::ffi_support::{FfiUtf16View, OwnedArc};
 use crate::css::function_signature::FunctionSignature;
 use crate::css::parser::arbitrary_substitution::{
     arbitrary_substitution_function, arguments_are_valid, collect_arbitrary_substitution_function_presence,
-    contains_arbitrary_substitution_function,
+    contains_arbitrary_substitution_function, declaration_value_is_valid,
 };
 use crate::css::parser::component_value::{
     ComponentKind, ComponentSerializationMode, ComponentValue, ComponentValueList, ComponentValueSlice,
@@ -37,8 +39,9 @@ use crate::css::parser::syntax::{
     SyntaxNode, SyntaxType, clone_syntax_handle, parse_syntax_values, parse_with_syntax_component_values,
 };
 use crate::css::parser::value_parser::{
-    FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, RandomFunctionIndex,
+    FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, RandomFunctionIndex, is_css_wide_keyword,
 };
+use crate::css::property_metadata::property_id;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::serialize::{
     normalized_component_values_equal, serialize_component_values_to_utf16, serialize_resolved_style_value_to_utf16,
@@ -138,6 +141,46 @@ pub struct CustomPropertyRegistry {
 
 /// A value the registry has parsed, kept alive, and what it parsed to.
 type RegisteredValueParse = (RetainedStyleValueData, Option<RetainedStyleValueData>);
+
+pub(crate) enum CustomPropertyValueToFinalize<'a> {
+    StyleValue(RetainedStyleValueData),
+    SubstitutedComponents {
+        components: ComponentValueList,
+        parse_context: &'a ParseContext<'a>,
+        contains_attr_tainted_values: bool,
+    },
+}
+
+impl CustomPropertyValueToFinalize<'_> {
+    fn to_css_wide_keyword(&self) -> Option<u16> {
+        let keyword = match self {
+            Self::StyleValue(value) => match value.data() {
+                StyleValueData::Keyword { keyword } => *keyword,
+                _ => return None,
+            },
+            Self::SubstitutedComponents { components, .. } => {
+                keyword_from_ascii_case_insensitive(single_css_wide_keyword(components)?)?
+            }
+        };
+        is_css_wide_keyword(keyword).then_some(keyword)
+    }
+
+    fn contains_attr_tainted_values(&self) -> bool {
+        match self {
+            Self::StyleValue(value) => matches!(
+                value.data(),
+                StyleValueData::Unresolved {
+                    contains_attr_tainted_values: true,
+                    ..
+                }
+            ),
+            Self::SubstitutedComponents {
+                contains_attr_tainted_values,
+                ..
+            } => *contains_attr_tainted_values,
+        }
+    }
+}
 
 /// How many parses the registry keeps before it starts over.
 const MAX_REGISTERED_VALUE_PARSES: usize = 4096;
@@ -435,6 +478,44 @@ impl CustomPropertyRegistry {
         parsed
     }
 
+    fn parse_custom_property_value_for_finalization(
+        &self,
+        registration: Option<&RegisteredCustomProperty>,
+        value: CustomPropertyValueToFinalize<'_>,
+    ) -> Option<RetainedStyleValueData> {
+        use CustomPropertyValueToFinalize::{StyleValue, SubstitutedComponents};
+
+        match (registration, value) {
+            (_, StyleValue(value)) if matches!(value.data(), StyleValueData::GuaranteedInvalid) => None,
+            (Some(registration), StyleValue(value)) => self.parse_registered_value_memoized(registration, &value),
+            (None, StyleValue(value)) => Some(value),
+            (Some(registration), SubstitutedComponents { components, .. }) => {
+                // Substitution results have no reusable value identity, so parse their components
+                // directly rather than constructing an unresolved value and retaining it in the memo.
+                collect_arbitrary_substitution_function_presence(&components, &mut Default::default()).ok()?;
+                if !declaration_value_is_valid(&components) {
+                    return None;
+                }
+                self.parse_registered_value(registration, &components)
+                    .map(RetainedStyleValueData::from_owned)
+            }
+            (
+                None,
+                SubstitutedComponents {
+                    components,
+                    parse_context,
+                    contains_attr_tainted_values,
+                },
+            ) => Some(parse_substituted_value(
+                parse_context,
+                property_id::CUSTOM,
+                &serialize_tokens(&components),
+                &components,
+                contains_attr_tainted_values,
+            )),
+        }
+    }
+
     /// Finalize a custom property's substituted value as its element's style computes it, as
     /// `StyleComputer::finalize_custom_property_value` does: a CSS-wide keyword resolves against
     /// the registration and the environment inherited, the guaranteed-invalid value against the
@@ -447,7 +528,7 @@ impl CustomPropertyRegistry {
         inherited: Option<&CustomPropertyStore>,
         name_raw: usize,
         name: &[u16],
-        value: RetainedStyleValueData,
+        value: CustomPropertyValueToFinalize<'_>,
         finalization: &CustomPropertyFinalization<'_>,
     ) -> Result<(RetainedStyleValueData, RegisteredValueReads), RetainedStyleValueData> {
         use crate::css::style_compute::keyword;
@@ -464,11 +545,11 @@ impl CustomPropertyRegistry {
                 .map_or_else(initial, |entry| entry.value.clone())
         };
 
-        let value = match value.data() {
+        let value = match value.to_css_wide_keyword() {
             // https://drafts.csswg.org/css-mixins/#resolve-function-styles
             // On result, all CSS-wide keywords are left unresolved.
-            StyleValueData::Keyword { keyword } if !name.iter().copied().eq("result".encode_utf16()) => {
-                match *keyword {
+            Some(keyword) if !name.iter().copied().eq("result".encode_utf16()) => {
+                let resolved = match keyword {
                     keyword::INITIAL => initial(),
                     keyword::INHERIT => inherited_value(),
                     // Unset is the same as inherit for an inherited property, and every unregistered
@@ -483,8 +564,9 @@ impl CustomPropertyRegistry {
                             inherited_value()
                         }
                     }
-                    _ => value,
-                }
+                    _ => unreachable!("all CSS-wide keywords are handled above"),
+                };
+                CustomPropertyValueToFinalize::StyleValue(resolved)
             }
             _ => value,
         };
@@ -500,23 +582,17 @@ impl CustomPropertyRegistry {
             Some(_) => initial(),
             None => RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
         };
-        if matches!(value.data(), StyleValueData::GuaranteedInvalid) {
+
+        let contains_attr_tainted_values = value.contains_attr_tainted_values();
+
+        let Some(parsed) = self.parse_custom_property_value_for_finalization(syntax_registration, value) else {
             return Ok((invalid_fallback(), RegisteredValueReads::default()));
-        }
-        let Some(registration) = syntax_registration else {
-            return Ok((value, RegisteredValueReads::default()));
         };
 
-        let contains_attr_tainted_values = matches!(
-            value.data(),
-            StyleValueData::Unresolved {
-                contains_attr_tainted_values: true,
-                ..
-            }
-        );
-        let Some(parsed) = self.parse_registered_value_memoized(registration, &value) else {
-            return Ok((invalid_fallback(), RegisteredValueReads::default()));
-        };
+        if syntax_registration.is_none() {
+            return Ok((parsed, RegisteredValueReads::default()));
+        }
+
         // Without the element's lengths the value stays as parsed, as the host leaves one it has
         // no computed style to compute against.
         let Some(length) = finalization.length else {
@@ -1221,7 +1297,7 @@ pub(crate) fn finalize_element_custom_property(
     reads: &mut RegisteredValueReads,
     name_raw: usize,
     name: &[u16],
-    value: RetainedStyleValueData,
+    value: CustomPropertyValueToFinalize<'_>,
 ) -> RetainedStyleValueData {
     let (value, value_reads) = registry
         .finalize_custom_property_value(inherited, name_raw, name, value, finalization)
@@ -1298,20 +1374,18 @@ fn compute_element_custom_property(
         context.substitution_limit_hits = property_context.substitution_limit_hits;
 
         match result {
-            TokenResolution::Resolved(tokens) => crate::css::cascaded_properties::parse_substituted_value(
-                property_context.parse_context.ok_or(())?,
-                crate::css::property_metadata::property_id::CUSTOM,
-                &serialize_tokens(&tokens),
-                &tokens,
-                property_context.contains_attr_tainted_values,
+            TokenResolution::Resolved(components) => CustomPropertyValueToFinalize::SubstitutedComponents {
+                components,
+                parse_context: context.parse_context.ok_or(())?,
+                contains_attr_tainted_values: property_context.contains_attr_tainted_values,
+            },
+            TokenResolution::Invalid | TokenResolution::Cyclic => CustomPropertyValueToFinalize::StyleValue(
+                RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
             ),
-            TokenResolution::Invalid | TokenResolution::Cyclic => {
-                RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid)
-            }
             TokenResolution::NotHandled => return Err(()),
         }
     } else {
-        entry.value.clone()
+        CustomPropertyValueToFinalize::StyleValue(entry.value.clone())
     };
 
     let finalized_value = finalize_element_custom_property(
@@ -1383,7 +1457,9 @@ pub(crate) fn resolve_element_custom_properties(
                     context.registered_value_reads.as_deref_mut().unwrap(),
                     name_raw,
                     name,
-                    RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
+                    CustomPropertyValueToFinalize::StyleValue(RetainedStyleValueData::from_owned(
+                        StyleValueData::GuaranteedInvalid,
+                    )),
                 ),
             }
         })

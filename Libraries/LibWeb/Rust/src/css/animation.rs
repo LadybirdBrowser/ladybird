@@ -12,6 +12,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use crate::css::custom_properties::CustomPropertyValueToFinalize;
 use crate::css::easing::{Easing, FfiEasingDescriptor, FfiLinearEasingPoint, evaluate_easing_descriptor};
 use crate::css::property_metadata::{property_animation_type, property_numeric_ranges};
 use crate::css::style::effect_descriptions::{PublishedEffect, PublishedValue};
@@ -8218,7 +8219,7 @@ impl AnimatedCustomProperties {
                 unsafe { KeyframeStores::store(self.stores.inheritance) },
                 self.name(name_id).raw(),
                 self.units(name_id),
-                value,
+                CustomPropertyValueToFinalize::StyleValue(value),
                 finalization,
             )
             .map_or_else(|fallback| fallback, |(value, _)| value)
