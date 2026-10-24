@@ -1190,6 +1190,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 normal_subtree_shift,
             );
             let mut line = self.line_mut(line_index);
+            // NB: A marker records where its box would have been in the logical order of the line's content, which a
+            //     right-to-left line lays out from its right end.
+            // FIXME: Resolve the marker's position within the visual order of the line's bidi runs.
+            if line.direction == direction::RTL {
+                let content_inline_length = line.inline_length;
+                let marker = &mut line.static_position_markers[marker_index];
+                marker.inline_offset = content_inline_length - marker.inline_offset;
+            }
             let marker = &mut line.static_position_markers[marker_index];
             marker.inline_offset += marker_inline_offset;
             marker.block_offset += block_offset + current_block_offset + shift;
