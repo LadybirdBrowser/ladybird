@@ -64,6 +64,7 @@ use super::constant::WellKnownSymbolKind;
 use super::generator::BindingLocation;
 use super::generator::BlockBoundaryType;
 use super::generator::ConstantValue;
+use super::generator::DisposableResourceKind;
 use super::generator::FinallyContext;
 use super::generator::Generator;
 use super::generator::PendingClassBlueprint;
@@ -1139,7 +1140,7 @@ pub fn generate_statement(
         // === FunctionBody ===
         StatementKind::FunctionBody { scope, .. } => {
             let arena = generator.arena.clone();
-            generate_scope_children(generator, &arena.scopes[*scope], preferred_dst)
+            generate_scope_children_with_disposal(generator, &arena.scopes[*scope], preferred_dst)
         }
 
         // === Program ===
@@ -1156,7 +1157,7 @@ pub fn generate_statement(
             for name in &scope.annexb_function_names {
                 generator.annexb_function_names.insert(name.clone());
             }
-            generate_scope_children(generator, scope, preferred_dst)
+            generate_scope_children_with_disposal(generator, scope, preferred_dst)
         }
 
         // === If ===
@@ -1291,20 +1292,9 @@ pub fn generate_statement(
             generate_for_in_of_statement(generator, data.kind, &data.lhs, &data.rhs, &data.body, preferred_dst)
         }
 
-        // === UsingDeclaration ===
-        StatementKind::UsingDeclaration(_) => {
-            // Disposal semantics are not yet implemented.
-            let error = generator.allocate_register();
-            let msg = generator.intern_string(utf16!("TODO: UsingDeclaration"));
-            generator.emit(Instruction::NewTypeError {
-                dst: error.operand(),
-                error_string: msg,
-            });
-            generator.perform_needed_unwinds();
-            generator.emit(Instruction::Throw { src: error.operand() });
-            // Switch to a dead block so subsequent codegen doesn't crash.
-            let dead = generator.make_block();
-            generator.switch_to_basic_block(dead);
+        // === UsingDeclaration / AwaitUsingDeclaration ===
+        StatementKind::UsingDeclaration(data) => {
+            generate_using_declaration(generator, data);
             None
         }
 
@@ -2677,23 +2667,56 @@ fn generate_for_statement(
     body: &Statement,
     preferred_dst: Option<&ScopedOperand>,
 ) -> Option<ScopedOperand> {
-    // Check if init is a lexical declaration (let/const) with non-local variables.
+    // ForStatement : `for` `(` LexicalDeclaration Expression? `;` Expression? `)` Statement
+    // NB: The resources of a `using` declaration in the head are disposed of when the loop ends,
+    //     including when its declaration is abrupt.
+    if let Some(ForInit::Declaration(declaration)) = init
+        && contains_using_declaration(core::iter::once(declaration.as_ref()))
+    {
+        return generate_with_disposable_resource_stack(generator, |generator| {
+            generate_for_statement_without_disposal(generator, init, test, update, body, preferred_dst)
+        });
+    }
+    generate_for_statement_without_disposal(generator, init, test, update, body, preferred_dst)
+}
+
+/// The declarators of a lexical declaration (`let`, `const`, `using` or `await using`), and whether it is a constant
+/// declaration.
+fn lexical_declarators(statement: &Statement) -> Option<(&[VariableDeclarator], bool)> {
+    match &statement.inner {
+        StatementKind::VariableDeclaration(vd)
+            if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const =>
+        {
+            Some((&vd.declarations, vd.kind == DeclarationKind::Const))
+        }
+        StatementKind::UsingDeclaration(data) => Some((&data.declarations, true)),
+        _ => None,
+    }
+}
+
+fn generate_for_statement_without_disposal(
+    generator: &mut Generator,
+    init: Option<&ForInit>,
+    test: Option<&Expression>,
+    update: Option<&Expression>,
+    body: &Statement,
+    preferred_dst: Option<&ScopedOperand>,
+) -> Option<ScopedOperand> {
+    // Check if init is a lexical declaration (let/const/using) with non-local variables.
     // If so, we need to create a lexical environment for the loop variables and
     // implement per-iteration copy semantics (CreatePerIterationEnvironment).
     let mut has_lexical_environment = false;
     let mut per_iteration_binding_names: Vec<Utf16String> = Vec::new();
 
     if let Some(ForInit::Declaration(init)) = init
-        && let StatementKind::VariableDeclaration(vd) = &init.inner
-        && (vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const)
+        && let Some((declarations, is_const)) = lexical_declarators(init)
     {
         let mut non_local_names: Vec<(Utf16String, bool)> = Vec::new();
-        for declaration in &vd.declarations {
+        for declaration in declarations {
             collect_target_names(&declaration.target, &mut non_local_names, &generator.arena);
         }
         if !non_local_names.is_empty() {
             has_lexical_environment = true;
-            let is_const = vd.kind == DeclarationKind::Const;
 
             // begin_variable_scope: CreateLexicalEnvironment + boundary
             generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
@@ -2916,13 +2939,209 @@ fn generate_block_statement(
     let result = if !did_create_env && scope.children.len() == 1 && is_for_loop(&scope.children[0]) {
         generate_statement(&scope.children[0], generator, preferred_dst)
     } else {
-        generate_scope_children(generator, scope, preferred_dst)
+        generate_scope_children_with_disposal(generator, scope, preferred_dst)
     };
 
     if did_create_env {
         generator.end_variable_scope();
     }
     result
+}
+
+/// Whether a statement list has `using` declarations directly in it.
+fn contains_using_declaration<'a>(mut statements: impl Iterator<Item = &'a Statement>) -> bool {
+    // FIXME: Dispose of the resources of `await using` declarations.
+    statements.any(|statement| matches!(&statement.inner, StatementKind::UsingDeclaration(data) if !data.is_await))
+}
+
+/// Generate the children of a scope, disposing of the resources of the `using` declarations in it when control
+/// leaves it. Scopes without such declarations are generated exactly like generate_scope_children.
+fn generate_scope_children_with_disposal(
+    generator: &mut Generator,
+    scope: &ScopeData,
+    preferred_dst: Option<&ScopedOperand>,
+) -> Option<ScopedOperand> {
+    if !contains_using_declaration(scope.children.iter()) {
+        return generate_scope_children(generator, scope, preferred_dst);
+    }
+    generate_with_disposable_resource_stack(generator, |generator| {
+        generate_scope_children(generator, scope, preferred_dst)
+    })
+}
+
+/// Generate code that has a new [[DisposableResourceStack]], whose resources are disposed of however control leaves
+/// the code, like a try statement whose finally block performs DisposeResources.
+// https://tc39.es/ecma262/#sec-disposeresources
+fn generate_with_disposable_resource_stack(
+    generator: &mut Generator,
+    body: impl FnOnce(&mut Generator) -> Option<ScopedOperand>,
+) -> Option<ScopedOperand> {
+    let stack = generator.allocate_register();
+    generator.emit(Instruction::NewDisposableResourceStack { dst: stack.operand() });
+    let saved_stack = generator.current_disposable_resource_stack.replace(stack.clone());
+
+    let old_handler = generator.current_unwind_handler;
+    let saved_block = generator.current_block_index();
+    let saved_env = generator.current_lexical_environment();
+
+    let completion_type = generator.allocate_register();
+    let completion_value = generator.allocate_register();
+    let exception_preamble_block = generator.make_block();
+    let dispose_block = generator.make_block();
+
+    let parent_index = generator.current_finally_context;
+    let ctx_index = generator.push_finally_context(FinallyContext {
+        completion_type: completion_type.clone(),
+        completion_value: completion_value.clone(),
+        finally_body: dispose_block,
+        exception_preamble: exception_preamble_block,
+        parent_index,
+        registered_jumps: Vec::new(),
+        next_jump_index: FinallyContext::FIRST_JUMP_INDEX,
+        lexical_environment_at_entry: Some(saved_env.clone()),
+        saved_unwind_handler: None,
+    });
+
+    // Exception preamble: record the throw completion and dispose of the resources.
+    generator.switch_to_basic_block(exception_preamble_block);
+    let value_feedback = generator.next_value_feedback();
+    generator.emit(Instruction::Catch {
+        value_feedback,
+        dst: completion_value.operand(),
+    });
+    generator.emit(Instruction::SetLexicalEnvironment {
+        environment: saved_env.operand(),
+    });
+    let throw_const = generator.add_constant_i32(FinallyContext::THROW);
+    generator.emit_mov(&completion_type, &throw_const);
+    generator.emit(Instruction::Jump { target: dispose_block });
+
+    // Body.
+    generator.current_unwind_handler = Some(exception_preamble_block);
+    let body_block = generator.make_block();
+    generator.switch_to_basic_block(saved_block);
+    generator.emit(Instruction::Jump { target: body_block });
+    generator.start_boundary(BlockBoundaryType::ReturnToFinally);
+    generator.switch_to_basic_block(body_block);
+
+    let result = body(generator);
+
+    if !generator.is_current_block_terminated() {
+        let normal_const = generator.add_constant_i32(FinallyContext::NORMAL);
+        generator.emit_mov(&completion_type, &normal_const);
+        generator.emit(Instruction::Jump { target: dispose_block });
+    }
+    generator.end_boundary(BlockBoundaryType::ReturnToFinally);
+
+    generator.current_unwind_handler = old_handler;
+    generator.current_finally_context = parent_index;
+    generator.current_disposable_resource_stack = saved_stack;
+
+    // Dispose of the resources, which replaces the completion with a throw completion if a dispose method throws.
+    generator.switch_to_basic_block(dispose_block);
+    generator.emit(Instruction::DisposeResources {
+        stack: stack.operand(),
+        completion_type: completion_type.operand(),
+        completion_value: completion_value.operand(),
+    });
+
+    let next_block = generator.make_block();
+    emit_finally_dispatch(generator, ctx_index, &completion_type, &completion_value, next_block);
+
+    let dummy = generator.add_constant_undefined();
+    generator.finally_contexts[ctx_index].lexical_environment_at_entry = None;
+    generator.finally_contexts[ctx_index].completion_value = dummy.clone();
+    generator.finally_contexts[ctx_index].completion_type = dummy;
+
+    generator.switch_to_basic_block(next_block);
+    result
+}
+
+// https://tc39.es/ecma262/#sec-let-and-const-declarations-runtime-semantics-evaluation
+// UsingDeclaration : `using` BindingList `;`
+// AwaitUsingDeclaration : CoverAwaitExpressionAndAwaitUsingDeclarationHead BindingList `;`
+fn generate_using_declaration(generator: &mut Generator, data: &UsingDeclarationData) {
+    if data.is_await {
+        emit_await_using_declaration_todo(generator);
+        return;
+    }
+
+    // 1. Perform ? BindingEvaluation of BindingList with argument sync-dispose.
+    let kind = DisposableResourceKind::SyncDispose;
+    for declaration in &data.declarations {
+        let VariableDeclaratorTarget::Identifier(id) = &declaration.target else {
+            unreachable!("using declarations only bind identifiers");
+        };
+        let value = generate_expression_or_undefined_with_lhs_name(generator, *id, declaration.init.as_ref());
+        emit_add_disposable_resource_and_initialize_binding(generator, *id, &value, kind);
+    }
+    // 2. Return empty.
+}
+
+// FIXME: Dispose of the resources of `await using` declarations.
+fn emit_await_using_declaration_todo(generator: &mut Generator) {
+    let error = generator.allocate_register();
+    let msg = generator.intern_string(utf16!("TODO: AwaitUsingDeclaration"));
+    generator.emit(Instruction::NewTypeError {
+        dst: error.operand(),
+        error_string: msg,
+    });
+    generator.perform_needed_unwinds();
+    generator.emit(Instruction::Throw { src: error.operand() });
+    // Switch to a dead block so subsequent codegen doesn't crash.
+    let dead = generator.make_block();
+    generator.switch_to_basic_block(dead);
+}
+
+/// Evaluates the Initializer of a LexicalBinding, as NamedEvaluation with the name of the binding if it is an
+/// anonymous function definition.
+fn generate_expression_or_undefined_with_lhs_name(
+    generator: &mut Generator,
+    id: IdentifierId,
+    init: Option<&Expression>,
+) -> ScopedOperand {
+    let arena = generator.arena.clone();
+    generator.pending_lhs_name = Some(generator.intern_identifier_id(arena.identifiers[id].name));
+    let value = init.and_then(|init| generate_expression(init, generator, None));
+    generator.pending_lhs_name = None;
+    value.unwrap_or_else(|| generator.add_constant_undefined())
+}
+
+// https://tc39.es/ecma262/#sec-bindingevaluation
+// LexicalBinding : BindingIdentifier Initializer
+fn emit_add_disposable_resource_and_initialize_binding(
+    generator: &mut Generator,
+    id: IdentifierId,
+    value: &ScopedOperand,
+    kind: DisposableResourceKind,
+) {
+    // 5. If kind is not normal, then
+    //     a. Assert: IsUnresolvableReference(lhs) is false.
+    //     b. Let base be lhs.[[Base]].
+    //     c. Assert: base is a Declarative Environment Record.
+    //     d. Perform ? AddDisposableResource(base.[[DisposableResourceStack]], value, kind).
+    let stack = generator
+        .current_disposable_resource_stack
+        .clone()
+        .expect("a using declaration is in a scope with a disposable resource stack");
+    generator.emit(Instruction::AddDisposableResource {
+        stack: stack.operand(),
+        value: value.operand(),
+        hint: kind as u32,
+    });
+
+    // 6. Perform ? InitializeReferencedBinding(lhs, value).
+    let arena = generator.arena.clone();
+    let ident = &arena.identifiers[id];
+    if ident.is_local() {
+        let local_index = ident.local_index;
+        let local = generator.resolve_local(local_index, ident.local_type.unwrap());
+        generator.emit_mov(&local, value);
+        generator.mark_local_initialized(local_index);
+    } else {
+        let identifier = generator.intern_identifier_id(ident.name);
+        emit_initialize_lexical_binding(generator, identifier, value.operand());
+    }
 }
 
 /// Create lexical bindings and instantiate function declarations for a block.
@@ -7048,11 +7267,10 @@ fn get_private_identifier_name(key: &Expression) -> Option<Utf16String> {
 /// meaning we need a per-iteration lexical environment.
 fn for_in_of_needs_lexical_env(lhs: &ForInOfLhs, arena: &crate::ast::AstArena) -> bool {
     if let ForInOfLhs::Declaration(statement) = lhs
-        && let StatementKind::VariableDeclaration(vd) = &statement.inner
-        && (vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const)
+        && let Some((declarations, _)) = lexical_declarators(statement)
     {
         let mut names = Vec::new();
-        for declaration in &vd.declarations {
+        for declaration in declarations {
             collect_target_names(&declaration.target, &mut names, arena);
         }
         return !names.is_empty();
@@ -7118,10 +7336,10 @@ fn create_for_in_of_lexical_env(generator: &mut Generator, lhs: &ForInOfLhs) -> 
     let mut binding_names: Vec<(Utf16String, bool)> = Vec::new();
     let mut is_constant = false;
     if let ForInOfLhs::Declaration(statement) = lhs
-        && let StatementKind::VariableDeclaration(vd) = &statement.inner
+        && let Some((declarations, is_constant_declaration)) = lexical_declarators(statement)
     {
-        is_constant = vd.kind == DeclarationKind::Const;
-        for declaration in &vd.declarations {
+        is_constant = is_constant_declaration;
+        for declaration in declarations {
             collect_target_names(&declaration.target, &mut binding_names, &generator.arena);
         }
     }
@@ -7151,11 +7369,10 @@ fn create_for_in_of_lexical_env(generator: &mut Generator, lhs: &ForInOfLhs) -> 
 /// Returns true if a TDZ scope was entered (must call leave_for_in_of_head_tdz after RHS eval).
 fn enter_for_in_of_head_tdz(generator: &mut Generator, lhs: &ForInOfLhs) -> bool {
     if let ForInOfLhs::Declaration(statement) = lhs
-        && let StatementKind::VariableDeclaration(vd) = &statement.inner
-        && (vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const)
+        && let Some((declarations, _)) = lexical_declarators(statement)
     {
         let mut names = Vec::new();
-        for declaration in &vd.declarations {
+        for declaration in declarations {
             collect_target_names(&declaration.target, &mut names, &generator.arena);
         }
         if !names.is_empty() {
@@ -7554,17 +7771,38 @@ fn generate_for_of_statement_inner(
         None
     };
 
-    // Assign to LHS
-    assign_to_for_in_of_lhs(generator, lhs, &next_value);
+    let has_using_declaration = match lhs {
+        ForInOfLhs::Declaration(statement) => contains_using_declaration(core::iter::once(statement.as_ref())),
+        _ => false,
+    };
 
-    // Body
-    generator.begin_continuable_scope(update_block, labels, completion.clone());
-    if needs_lexical_env {
-        generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
-    }
+    if has_using_declaration {
+        // NB: The resource of a `using` declaration is disposed of at the end of each iteration,
+        //     including when the declaration is abrupt, and before the iterator is closed.
+        generator.begin_continuable_scope(update_block, labels, completion.clone());
+        if needs_lexical_env {
+            generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
+        }
+        generate_with_disposable_resource_stack(generator, |generator| {
+            assign_to_for_in_of_lhs(generator, lhs, &next_value);
+            if !generator.is_current_block_terminated() {
+                generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
+            }
+            None
+        });
+    } else {
+        // Assign to LHS
+        assign_to_for_in_of_lhs(generator, lhs, &next_value);
 
-    if !generator.is_current_block_terminated() {
-        generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
+        // Body
+        generator.begin_continuable_scope(update_block, labels, completion.clone());
+        if needs_lexical_env {
+            generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
+        }
+
+        if !generator.is_current_block_terminated() {
+            generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
+        }
     }
 
     // Restore lexical env before continuing
@@ -7849,23 +8087,29 @@ fn generate_for_of_statement_inner(
 fn assign_to_for_in_of_lhs(generator: &mut Generator, lhs: &ForInOfLhs, value: &ScopedOperand) {
     match lhs {
         ForInOfLhs::Declaration(statement) => {
-            // UsingDeclaration: disposal semantics not yet implemented.
-            // UsingDeclaration is not recognized as a VariableDeclaration
-            // in for_in_of_head_evaluation, so it is treated as Assignment
-            // lhs_kind. This produces NewTypeError + Throw for the using
-            // declaration, followed by NewReferenceError + Throw (dead code).
-            if matches!(statement.inner, StatementKind::UsingDeclaration(_)) {
-                generate_statement(statement, generator, None);
-                let exception = generator.allocate_register();
-                let error_string = generator.intern_string(utf16!("Invalid left-hand side in assignment"));
-                generator.emit(Instruction::NewReferenceError {
-                    dst: exception.operand(),
-                    error_string,
-                });
-                generator.perform_needed_unwinds();
-                generator.emit(Instruction::Throw {
-                    src: exception.operand(),
-                });
+            // NB: For a `using` declaration, these are steps 8.h.vii.4 and 8.h.vii.6 of
+            //     ForIn/OfBodyEvaluation.
+            if let StatementKind::UsingDeclaration(data) = &statement.inner {
+                // 4. If declKind is not normal, then
+                //     a. Assert: IsUnresolvableReference(lhsRef) is false.
+                //     b. Let base be lhsRef.[[Base]].
+                //     c. Assert: base is a Declarative Environment Record.
+                //     d. Let status be Completion(AddDisposableResource(base.[[DisposableResourceStack]], nextValue, declKind)).
+                // 6. If status is a normal completion, then
+                //     a. Set status to Completion(InitializeReferencedBinding(lhsRef, nextValue)).
+                let VariableDeclaratorTarget::Identifier(id) = &data.declarations[0].target else {
+                    unreachable!("using declarations only bind identifiers");
+                };
+                if data.is_await {
+                    emit_await_using_declaration_todo(generator);
+                    return;
+                }
+                emit_add_disposable_resource_and_initialize_binding(
+                    generator,
+                    *id,
+                    value,
+                    DisposableResourceKind::SyncDispose,
+                );
                 return;
             }
             // The declaration is a VariableDeclaration with a single declarator
@@ -8830,68 +9074,7 @@ fn generate_try_statement(
             }
             let nb = next_block.expect("next_block must be set");
 
-            // After-finally dispatch chain:
-            // 1. NORMAL → next block
-            let after_normal_check = generator.make_block();
-            let normal_const = generator.add_constant_i32(FinallyContext::NORMAL);
-            let arith_feedback = generator.next_arith_feedback();
-            generator.emit(Instruction::JumpStrictlyEquals {
-                arith_feedback,
-                lhs: ctx_ct.operand(),
-                rhs: normal_const.operand(),
-                true_target: nb,
-                false_target: after_normal_check,
-            });
-            generator.switch_to_basic_block(after_normal_check);
-
-            // 2. Registered break/continue jumps
-            let registered_jumps = std::mem::take(&mut generator.finally_contexts[ctx_index].registered_jumps);
-            for jump in &registered_jumps {
-                let after_jump_check = generator.make_block();
-                let jump_const = generator.add_constant_i32(jump.index);
-                let arith_feedback = generator.next_arith_feedback();
-                generator.emit(Instruction::JumpStrictlyEquals {
-                    arith_feedback,
-                    lhs: ctx_ct.operand(),
-                    rhs: jump_const.operand(),
-                    true_target: jump.target,
-                    false_target: after_jump_check,
-                });
-                generator.switch_to_basic_block(after_jump_check);
-            }
-
-            // 3. RETURN → actually return the completion_value
-            let return_block = generator.make_block();
-            let rethrow_block = generator.make_block();
-            let return_const = generator.add_constant_i32(FinallyContext::RETURN);
-            let arith_feedback = generator.next_arith_feedback();
-            generator.emit(Instruction::JumpStrictlyEquals {
-                arith_feedback,
-                lhs: ctx_ct.operand(),
-                rhs: return_const.operand(),
-                true_target: return_block,
-                false_target: rethrow_block,
-            });
-
-            // Generate return block.
-            generator.switch_to_basic_block(return_block);
-            if let Some(outer_index) = generator.current_finally_context {
-                // Nested finally: copy completion record to outer and jump to outer finally.
-                generator.forward_completion_to_outer_finally(outer_index, &ctx_ct, &ctx_cv);
-            } else if generator.is_in_generator_function() {
-                generator.emit(Instruction::Yield {
-                    continuation_label: None,
-                    value: ctx_cv.operand(),
-                });
-            } else {
-                generator.emit(Instruction::Return {
-                    value: ctx_cv.operand(),
-                });
-            }
-
-            // 4. Default → rethrow the exception.
-            generator.switch_to_basic_block(rethrow_block);
-            generator.emit(Instruction::Throw { src: ctx_cv.operand() });
+            emit_finally_dispatch(generator, ctx_index, &ctx_ct, &ctx_cv, nb);
         }
 
         generator.finally_contexts[ctx_index].lexical_environment_at_entry = None;
@@ -8909,6 +9092,79 @@ fn generate_try_statement(
         return Some(generator.add_constant_undefined());
     }
     completion
+}
+
+/// Emit the jumps that continue after the body of a finally context, according to the type of the completion it
+/// recorded: to the next block, to a registered break or continue target, to a return, or to a rethrow.
+fn emit_finally_dispatch(
+    generator: &mut Generator,
+    ctx_index: usize,
+    ctx_ct: &ScopedOperand,
+    ctx_cv: &ScopedOperand,
+    nb: Label,
+) {
+    // After-finally dispatch chain:
+    // 1. NORMAL → next block
+    let after_normal_check = generator.make_block();
+    let normal_const = generator.add_constant_i32(FinallyContext::NORMAL);
+    let arith_feedback = generator.next_arith_feedback();
+    generator.emit(Instruction::JumpStrictlyEquals {
+        arith_feedback,
+        lhs: ctx_ct.operand(),
+        rhs: normal_const.operand(),
+        true_target: nb,
+        false_target: after_normal_check,
+    });
+    generator.switch_to_basic_block(after_normal_check);
+
+    // 2. Registered break/continue jumps
+    let registered_jumps = std::mem::take(&mut generator.finally_contexts[ctx_index].registered_jumps);
+    for jump in &registered_jumps {
+        let after_jump_check = generator.make_block();
+        let jump_const = generator.add_constant_i32(jump.index);
+        let arith_feedback = generator.next_arith_feedback();
+        generator.emit(Instruction::JumpStrictlyEquals {
+            arith_feedback,
+            lhs: ctx_ct.operand(),
+            rhs: jump_const.operand(),
+            true_target: jump.target,
+            false_target: after_jump_check,
+        });
+        generator.switch_to_basic_block(after_jump_check);
+    }
+
+    // 3. RETURN → actually return the completion_value
+    let return_block = generator.make_block();
+    let rethrow_block = generator.make_block();
+    let return_const = generator.add_constant_i32(FinallyContext::RETURN);
+    let arith_feedback = generator.next_arith_feedback();
+    generator.emit(Instruction::JumpStrictlyEquals {
+        arith_feedback,
+        lhs: ctx_ct.operand(),
+        rhs: return_const.operand(),
+        true_target: return_block,
+        false_target: rethrow_block,
+    });
+
+    // Generate return block.
+    generator.switch_to_basic_block(return_block);
+    if let Some(outer_index) = generator.current_finally_context {
+        // Nested finally: copy completion record to outer and jump to outer finally.
+        generator.forward_completion_to_outer_finally(outer_index, ctx_ct, ctx_cv);
+    } else if generator.is_in_generator_function() {
+        generator.emit(Instruction::Yield {
+            continuation_label: None,
+            value: ctx_cv.operand(),
+        });
+    } else {
+        generator.emit(Instruction::Return {
+            value: ctx_cv.operand(),
+        });
+    }
+
+    // 4. Default → rethrow the exception.
+    generator.switch_to_basic_block(rethrow_block);
+    generator.emit(Instruction::Throw { src: ctx_cv.operand() });
 }
 
 /// Create a SharedFunctionInstanceData for a function expression/declaration
@@ -9330,44 +9586,39 @@ pub fn emit_function_declaration_instantiation(
     // --- Step 8: Create lexical bindings ---
 
     for child in &body_scope.children {
-        match &child.inner {
-            StatementKind::VariableDeclaration(vd)
-                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const =>
-            {
-                let is_constant = vd.kind == DeclarationKind::Const;
-                for declaration in &vd.declarations {
-                    let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names, &generator.arena);
-                    for (name, _) in names {
-                        let id = generator.intern_identifier(&name);
-                        generator.emit(Instruction::CreateVariable {
-                            identifier: id,
-                            mode: EnvironmentMode::Lexical as u32,
-                            is_immutable: is_constant,
-                            is_global: false,
-                            is_strict: is_constant,
-                        });
-                    }
+        if let Some((declarations, is_constant)) = lexical_declarators(child) {
+            for declaration in declarations {
+                let mut names = Vec::new();
+                collect_target_names(&declaration.target, &mut names, &generator.arena);
+                for (name, _) in names {
+                    let id = generator.intern_identifier(&name);
+                    generator.emit(Instruction::CreateVariable {
+                        identifier: id,
+                        mode: EnvironmentMode::Lexical as u32,
+                        is_immutable: is_constant,
+                        is_global: false,
+                        is_strict: is_constant,
+                    });
                 }
             }
-            StatementKind::ClassDeclaration(class_data) => {
-                // Class declarations are lexically scoped (like const).
-                if let Some(name_ident_id) = class_data.name {
-                    let arena = generator.arena.clone();
-                    let name_ident = &arena.identifiers[name_ident_id];
-                    if !name_ident.is_local() {
-                        let id = generator.intern_identifier_id(name_ident.name);
-                        generator.emit(Instruction::CreateVariable {
-                            identifier: id,
-                            mode: EnvironmentMode::Lexical as u32,
-                            is_immutable: false,
-                            is_global: false,
-                            is_strict: false,
-                        });
-                    }
+            continue;
+        }
+        if let StatementKind::ClassDeclaration(class_data) = &child.inner {
+            // Class declarations are lexically scoped (like const).
+            if let Some(name_ident_id) = class_data.name {
+                let arena = generator.arena.clone();
+                let name_ident = &arena.identifiers[name_ident_id];
+                if !name_ident.is_local() {
+                    let id = generator.intern_identifier_id(name_ident.name);
+                    generator.emit(Instruction::CreateVariable {
+                        identifier: id,
+                        mode: EnvironmentMode::Lexical as u32,
+                        is_immutable: false,
+                        is_global: false,
+                        is_strict: false,
+                    });
                 }
             }
-            _ => {}
         }
     }
 
@@ -9507,16 +9758,15 @@ fn count_lexical_declarations_for_block<'a>(
 fn count_non_local_lexical_bindings(scope: &ScopeData, arena: &crate::ast::AstArena) -> u32 {
     let mut count = 0u32;
     for child in &scope.children {
-        match &child.inner {
-            StatementKind::VariableDeclaration(vd)
-                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const =>
-            {
-                for declaration in &vd.declarations {
-                    let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names, arena);
-                    count += u32_from_usize(names.len());
-                }
+        if let Some((declarations, _)) = lexical_declarators(child) {
+            for declaration in declarations {
+                let mut names = Vec::new();
+                collect_target_names(&declaration.target, &mut names, arena);
+                count += u32_from_usize(names.len());
             }
+            continue;
+        }
+        match &child.inner {
             StatementKind::ClassDeclaration(class_data)
                 if class_data.name.is_some_and(|n| !arena.identifiers[n].is_local()) =>
             {

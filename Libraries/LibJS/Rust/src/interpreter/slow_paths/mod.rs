@@ -1363,6 +1363,33 @@ impl RuntimeFunctions for Runtime {
         control::create_async_from_sync_iterator_slow_path(vm, pc, values)
     }
 
+    fn new_disposable_resource_stack(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::NewDisposableResourceStack,
+        values: &mut op::NewDisposableResourceStackValues,
+    ) -> SlowPathControl {
+        control::new_disposable_resource_stack(vm, pc, values)
+    }
+
+    fn add_disposable_resource(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::AddDisposableResource,
+        values: &mut op::AddDisposableResourceValues,
+    ) -> SlowPathControl {
+        control::add_disposable_resource(vm, pc, instruction, values)
+    }
+
+    fn dispose_resources(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::DisposeResources,
+        values: &mut op::DisposeResourcesValues,
+    ) -> SlowPathControl {
+        control::dispose_resources(vm, pc, values)
+    }
+
     fn get_completion_fields(
         vm: &Vm,
         pc: u32,

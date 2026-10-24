@@ -1237,7 +1237,7 @@ pub fn collect_module_declarations(
                     for_each_bound_name(&declarator.target, arena, &mut |name| {
                         declarations.lexical_bindings.push(ModuleLexicalBinding {
                             name: name.to_vec().into(),
-                            is_constant: false,
+                            is_constant: true,
                             function_index: None,
                         });
                     });
@@ -1852,7 +1852,7 @@ fn collect_var_scoped_declarations(
                     for_each_bound_name(&declaration.target, arena, &mut |name| {
                         lexical_bindings.push(LexicalBinding {
                             name: name.into(),
-                            is_constant: false,
+                            is_constant: true,
                         });
                     });
                 }

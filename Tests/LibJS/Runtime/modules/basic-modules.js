@@ -224,7 +224,7 @@ describe("in- and exports", () => {
         expectModulePassed("./anon-func-decl-default-export.mjs");
     });
 
-    test.xfail("can have top level using declarations which trigger at the end of running a module", () => {
+    test("can have top level using declarations which trigger at the end of running a module", () => {
         expectModulePassed("./top-level-dispose.mjs");
     });
 

@@ -4448,6 +4448,22 @@ handler DeleteVariable(
     identifier: IdentifierTableIndex
 ) @cold = call_slow_path(delete_variable);
 
+handler NewDisposableResourceStack(
+    dst: out Operand
+) @cold = call_slow_path(new_disposable_resource_stack);
+
+handler AddDisposableResource(
+    stack: Operand,
+    value: Operand,
+    hint: u32
+) @cold = call_slow_path(add_disposable_resource);
+
+handler DisposeResources(
+    stack: Operand,
+    completion_type: Operand,
+    completion_value: Operand
+) @cold = call_slow_path(dispose_resources);
+
 handler GetCompletionFields(
     type_dst: out Operand,
     value_dst: out Operand,

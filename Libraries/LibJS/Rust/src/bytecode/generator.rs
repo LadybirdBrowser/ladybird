@@ -292,6 +292,13 @@ impl FinallyContext {
     pub const FIRST_JUMP_INDEX: i32 = 3;
 }
 
+/// The kind of a disposable resource, as the hint operand of AddDisposableResource encodes it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum DisposableResourceKind {
+    SyncDispose = 0,
+}
+
 /// A break/continue target registered with a FinallyContext.
 pub struct FinallyJump {
     pub index: i32,
@@ -367,6 +374,8 @@ pub struct Generator {
     // This avoids the deep-clone issues of an owned Box parent chain.
     pub finally_contexts: Vec<FinallyContext>,
     pub current_finally_context: Option<usize>,
+    /// The [[DisposableResourceStack]] of the innermost scope that has `using` or `await using` declarations.
+    pub current_disposable_resource_stack: Option<ScopedOperand>,
 
     // --- Various counters ---
     pub next_property_lookup_cache: u32,
@@ -554,6 +563,7 @@ impl Generator {
             home_objects: Vec::new(),
             finally_contexts: Vec::new(),
             current_finally_context: None,
+            current_disposable_resource_stack: None,
             next_property_lookup_cache: 0,
             next_global_variable_cache: 0,
             next_environment_coordinate_cache: 0,

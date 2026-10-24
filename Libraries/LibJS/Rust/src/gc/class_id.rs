@@ -250,6 +250,7 @@ define_class_ids! {
     AtomicsObject,
     IteratorHelper,
     FlatMapIterator,
+    DisposableResourceStack,
     ConcatIterator,
     ZipIterator,
     DisposableStack,

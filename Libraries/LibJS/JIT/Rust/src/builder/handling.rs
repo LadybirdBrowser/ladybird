@@ -150,7 +150,8 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::CreatePrivateEnvironment
         | O::Typeof
         | O::IsConstructor
-        | O::GetNewTarget => GENERIC_NO_THROW,
+        | O::GetNewTarget
+        | O::NewDisposableResourceStack => GENERIC_NO_THROW,
 
         // Comparisons and conditional jumps, built as IR (see `speculation`).
         // The slow paths of the jumps return the next pc.
@@ -341,6 +342,8 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::GetTemplateObject
         | O::GetPrivateById
         | O::PutPrivateById
+        | O::AddDisposableResource
+        | O::DisposeResources
         | O::ExpRhsInt32 => GENERIC,
     }
 }

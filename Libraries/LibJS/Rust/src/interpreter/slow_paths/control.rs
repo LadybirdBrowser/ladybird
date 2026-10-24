@@ -9,6 +9,7 @@
 use ak::{Utf16FlyString, Utf16String};
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
+use crate::bytecode::generator::{DisposableResourceKind, FinallyContext};
 use crate::bytecode::op;
 use crate::debugger::PauseReason;
 use crate::interpreter::runtime_functions::{SlowPathControl, asm_try, handle_asm_exception};
@@ -24,7 +25,9 @@ use crate::runtime::array_iterator::{
 };
 use crate::runtime::async_from_sync_iterator_prototype::create_async_from_sync_iterator;
 use crate::runtime::async_generator::AsyncGenerator;
-use crate::runtime::completion::{Completion, Must, ThrowCompletionOr, completion_type_from_bytecode};
+use crate::runtime::completion::{Completion, CompletionType, Must, ThrowCompletionOr, completion_type_from_bytecode};
+use crate::runtime::disposable_resource_stack::DisposableResourceStack;
+use crate::runtime::environment::InitializeBindingHint;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::generator_object::GeneratorObject;
@@ -630,6 +633,49 @@ pub fn create_async_from_sync_iterator_slow_path(
 
     values.dst = Value::from_object(iterator_object);
     SlowPathControl::continue_at(pc + op::CreateAsyncFromSyncIterator::LENGTH)
+}
+
+pub fn new_disposable_resource_stack(
+    vm: &Vm,
+    pc: u32,
+    values: &mut op::NewDisposableResourceStackValues,
+) -> SlowPathControl {
+    values.dst = DisposableResourceStack::to_value(DisposableResourceStack::create(vm));
+    SlowPathControl::continue_at(pc + op::NewDisposableResourceStack::LENGTH)
+}
+
+pub fn add_disposable_resource(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::AddDisposableResource,
+    values: &mut op::AddDisposableResourceValues,
+) -> SlowPathControl {
+    debug_assert_eq!(instruction.hint, DisposableResourceKind::SyncDispose as u32);
+    let hint = InitializeBindingHint::SyncDispose;
+    let stack = DisposableResourceStack::from_value(values.stack);
+    asm_try!(vm, pc, stack.add_disposable_resource(vm, values.value, hint));
+    SlowPathControl::continue_at(pc + op::AddDisposableResource::LENGTH)
+}
+
+/// The completion of a scope as the bytecode keeps it while it disposes of the resources of the scope: a throw
+/// completion if its type is the throw type of a finally context, and a normal one otherwise. The resources are
+/// disposed of the same way for every other type.
+fn completion_of_scope(completion_type: Value, completion_value: Value) -> Completion {
+    if completion_type.is_int32() && completion_type.as_i32() == FinallyContext::THROW {
+        Completion::new(CompletionType::Throw, completion_value)
+    } else {
+        Completion::normal(Value::UNDEFINED)
+    }
+}
+
+pub fn dispose_resources(vm: &Vm, pc: u32, values: &mut op::DisposeResourcesValues) -> SlowPathControl {
+    let stack = DisposableResourceStack::from_value(values.stack);
+    let completion = completion_of_scope(values.completion_type, values.completion_value);
+    let result = stack.dispose_resources(vm, completion);
+    if result.is_error() {
+        return handle_asm_exception(vm, pc, result.value());
+    }
+    SlowPathControl::continue_at(pc + op::DisposeResources::LENGTH)
 }
 
 pub fn get_completion_fields(_vm: &Vm, pc: u32, values: &mut op::GetCompletionFieldsValues) -> SlowPathControl {

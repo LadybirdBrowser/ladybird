@@ -1,5 +1,5 @@
 describe("basic usage", () => {
-    test.xfail("using in normal for loop", () => {
+    test("using in normal for loop", () => {
         let isDisposed = false;
         let lastI = -1;
         for (
@@ -27,7 +27,7 @@ describe("basic usage", () => {
         expect(lastI).toBe(2);
     });
 
-    test.xfail("using in normal for loop with expression body", () => {
+    test("using in normal for loop with expression body", () => {
         let isDisposed = false;
         let outerI = 0;
         for (
@@ -53,7 +53,7 @@ describe("basic usage", () => {
         expect(outerI).toBe(3);
     });
 
-    test.xfail("using in for of loop", () => {
+    test("using in for of loop", () => {
         const disposable = [];
         const values = [];
 
@@ -75,7 +75,7 @@ describe("basic usage", () => {
         expect(disposable).toEqual(["a", "b", "c"]);
     });
 
-    test.xfail("using in for of loop with expression body", () => {
+    test("using in for of loop with expression body", () => {
         let disposableCalls = 0;
         let i = 0;
 
@@ -92,7 +92,7 @@ describe("basic usage", () => {
         expect(disposableCalls).toBe(3);
     });
 
-    test.xfail("can have multiple declaration in normal for loop", () => {
+    test("can have multiple declaration in normal for loop", () => {
         let disposed = 0;
         const a = {
             [Symbol.dispose]() {
@@ -108,7 +108,7 @@ describe("basic usage", () => {
         expect(disposed).toBe(2);
     });
 
-    test.xfail("can have using in block in for loop", () => {
+    test("can have using in block in for loop", () => {
         const disposed = [];
         const values = [];
         for (let i = 0; i < 3; i++) {
@@ -125,7 +125,7 @@ describe("basic usage", () => {
         expect(disposed).toEqual([0, 1, 2]);
     });
 
-    test.xfail("can have using in block in for-in loop", () => {
+    test("can have using in block in for-in loop", () => {
         const disposed = [];
         const values = [];
         for (const i in ["a", "b", "c"]) {
@@ -142,7 +142,7 @@ describe("basic usage", () => {
         expect(disposed).toEqual(["0", "1", "2"]);
     });
 
-    test.xfail("dispose is called even if throw in for of loop", () => {
+    test("dispose is called even if throw in for of loop", () => {
         let disposableCalls = 0;
 
         const obj = {
@@ -212,7 +212,7 @@ describe("using is still a valid variable in loops", () => {
         expect(enteredLoop).toBeTrue();
     });
 
-    test.xfail("using using of", () => {
+    test("using using of", () => {
         let enteredLoop = false;
         for (using using of [null]) {
             enteredLoop = true;

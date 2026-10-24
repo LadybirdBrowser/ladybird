@@ -25,23 +25,53 @@ Exception handlers:
   [  40 ..   a0] => handler block1
 
 
-$dd396d91 using-declaration-non-local-env.js:1:21
-  Registers: 8
-  Blocks:    2
+$9b8ec936 using-declaration-non-local-env.js:1:21
+  Registers: 11
+  Blocks:    8
   Constants:
-    [0] = Undefined
+    [0] = Int32(1)
+    [1] = Undefined
+    [2] = Int32(0)
+    [3] = Int32(2)
 
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
   [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateImmutableBinding environment:reg5, `x`, strict_binding:true
-  [  38] NewTypeError dst:reg6, TODO: UsingDeclaration
-  [  48] SetLexicalEnvironment environment:reg4
-  [  50] Throw src:reg6
+  [  38] NewDisposableResourceStack dst:reg6
+  [  40] Jump target:block3
 
 block1:
-  [  58] NewFunction dst:reg7, shared_function_data_index:0
-  [  70] Call value_feedback:0, call_feedback:0, dst:reg6, callee:reg7, this_value:Undefined
-  [  90] SetLexicalEnvironment environment:reg4
-  [  98] End value:Undefined
+  [  48] Catch value_feedback:0, dst:reg8
+  [  50] SetLexicalEnvironment environment:reg5
+  [  58] Mov dst:reg7, src:Int32(1)
+
+block2:
+  [  68] DisposeResources stack:reg6, completion_type:reg7, completion_value:reg8
+  [  78] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg7, rhs:0, true_target:block4, false_target:block5
+
+block3:
+  [  90] NewObject dst:reg9
+  [  a0] AddDisposableResource stack:reg6, value:reg9, hint:0
+  [  b0] InitializeLexicalBinding `x`, src:reg9
+  [  c8] NewFunction dst:reg10, shared_function_data_index:0
+  [  e0] Call value_feedback:1, call_feedback:0, dst:reg9, callee:reg10, this_value:Undefined
+  [ 100] Mov dst:reg7, src:Int32(0)
+  [ 110] JumpLoop target:block2
+
+block4:
+  [ 118] SetLexicalEnvironment environment:reg4
+  [ 120] End value:Undefined
+
+block5:
+  [ 128] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg7, rhs:2, true_target:block6, false_target:block7
+
+block6:
+  [ 140] Return value:reg8
+
+block7:
+  [ 148] Throw src:reg8
+
+Exception handlers:
+  [  90 ..  118] => handler block1

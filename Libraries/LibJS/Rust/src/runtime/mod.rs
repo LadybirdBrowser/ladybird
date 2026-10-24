@@ -64,6 +64,7 @@ pub mod date_parser;
 pub mod date_prototype;
 pub mod declarative_environment;
 pub mod descriptor_array;
+pub mod disposable_resource_stack;
 pub mod disposable_stack;
 pub mod disposable_stack_constructor;
 pub mod disposable_stack_prototype;
