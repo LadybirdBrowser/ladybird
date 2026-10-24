@@ -45,16 +45,14 @@
                       @viewport/block RUN (cache=bypass)
                         BlockContainer<HTML>/block RUN (cache=miss)
                           Box<DIV>#grid/grid RUN (cache=miss)
-                            BlockContainer<MAIN>#article MEASURE max-content block (cache=miss)
-                              BlockContainer<MAIN>#article/block (intrinsic) RUN (cache=bypass)
-                                SVGSVGBox<svg>#svg/svg (intrinsic) READ RESULT
-                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
-                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
-                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
-                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
-                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
                             BlockContainer<MAIN>#article/block RUN (cache=miss)
                               SVGSVGBox<svg>#svg/svg REUSE SUBTREE
+                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
+                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
+                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
+                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
+                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
+                            BlockContainer<MAIN>#article/block REPLAY FRAGMENTS
                 `,
                 check: equal => {
                     equal(geometry(), "0,0,200,100; 20,10,50,50; 50,40,100,40; 50,40,50,20", "SVG and foreignObject geometry");
@@ -70,17 +68,15 @@
                       @viewport/block RUN (cache=bypass)
                         BlockContainer<HTML>/block RUN (cache=miss)
                           Box<DIV>#grid/grid RUN (cache=miss)
-                            BlockContainer<MAIN>#article MEASURE max-content block (cache=miss)
-                              BlockContainer<MAIN>#article/block (intrinsic) RUN (cache=bypass)
-                                SVGSVGBox<svg>#svg/svg (intrinsic) RUN (cache=miss)
-                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
-                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
-                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
-                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
-                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
                             BlockContainer<MAIN>#article/block RUN (cache=miss)
                               SVGSVGBox<svg>#svg/svg RUN (cache=miss)
                                 SVGForeignObjectBox<foreignObject>#foreign/block REUSE SUBTREE
+                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
+                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
+                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
+                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
+                            BlockContainer<MAIN>#article MEASURE max-content block (cache=hit)
+                            BlockContainer<MAIN>#article/block REPLAY FRAGMENTS
                 `,
                 check: equal => {
                     equal(geometry(), "0,0,400,200; 40,20,100,100; 100,80,200,80; 100,80,100,40", "resized SVG and foreignObject geometry");

@@ -1,0 +1,5 @@
+quirks mode: true
+header, main and footer offset: 20 360 380
+stretched grid item and its min-height: 50% child: 20 20
+stretched grid item and its height: stretch child: 20 20
+start-aligned grid item and its min-height: 50% child: 20 20

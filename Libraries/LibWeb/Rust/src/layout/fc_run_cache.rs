@@ -73,7 +73,7 @@ impl RunInputsTheStoredRunNeverObserved {
     }
 }
 
-fn root_input_cells_match_ignoring_unobserved_own_block_size(
+fn root_input_cells_match_ignoring_unobserved_own_block_size_and_block_margins(
     stored: used_values::RootInputCells,
     probe: used_values::RootInputCells,
     own_block_size: formatting_context::OwnBlockSizeObservation,
@@ -81,12 +81,14 @@ fn root_input_cells_match_ignoring_unobserved_own_block_size(
     match own_block_size {
         formatting_context::OwnBlockSizeObservation::Observed => stored == probe,
         formatting_context::OwnBlockSizeObservation::Unobserved => {
-            let without_own_block_size = |cells| used_values::RootInputCells {
+            let without_own_block_size_and_block_margins = |cells| used_values::RootInputCells {
                 content_block_size: CssPixels::default(),
                 has_definite_block_size: false,
+                margin_top: CssPixels::default(),
+                margin_bottom: CssPixels::default(),
                 ..cells
             };
-            without_own_block_size(stored) == without_own_block_size(probe)
+            without_own_block_size_and_block_margins(stored) == without_own_block_size_and_block_margins(probe)
         }
     }
 }
@@ -138,7 +140,7 @@ impl FcRunCacheKey {
         }
         self.fc_type == probe.fc_type
             && self.layout_mode == probe.layout_mode
-            && root_input_cells_match_ignoring_unobserved_own_block_size(
+            && root_input_cells_match_ignoring_unobserved_own_block_size_and_block_margins(
                 self.root_cells,
                 probe.root_cells,
                 unobserved.own_block_size,
@@ -1561,6 +1563,26 @@ mod tests {
                 &outputs
             )
         ));
+    }
+
+    #[test]
+    fn an_item_run_that_never_observed_its_own_block_size_matches_at_other_block_margins() {
+        let at_margins = |margin_top: i64, margin_bottom: i64, margin_left: i64| {
+            let mut key = item_key(40, true);
+            key.root_cells.margin_top = px(margin_top);
+            key.root_cells.margin_bottom = px(margin_bottom);
+            key.root_cells.margin_left = px(margin_left);
+            key
+        };
+        let stored = at_margins(0, 0, 0);
+        let unobserved = own_block_size(formatting_context::OwnBlockSizeObservation::Unobserved);
+        let observed = own_block_size(formatting_context::OwnBlockSizeObservation::Observed);
+        assert!(stored.matches(&at_margins(30, -10, 0), unobserved));
+        assert!(!stored.matches(&at_margins(30, -10, 0), observed));
+        assert!(
+            !stored.matches(&at_margins(0, 0, 10), unobserved),
+            "only the root's block margins are unobserved"
+        );
     }
 
     #[test]

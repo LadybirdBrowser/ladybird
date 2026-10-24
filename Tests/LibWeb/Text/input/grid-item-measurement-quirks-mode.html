@@ -1,0 +1,22 @@
+<!DOCTYPE quirks>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px SerenitySans; }
+    .grid { display: grid; width: 400px; }
+    .start { align-content: start; height: 300px; }
+    .line { height: 20px; }
+</style>
+<div class="grid" style="height: 400px; grid-template-rows: auto 1fr auto"><header id="header"><div style="min-height: 100%"><div class="line"></div></div></header><main id="main"><div class="line"></div></main><footer id="footer"><div class="line"></div></footer></div>
+<div class="grid start"><div id="stretched"><div id="stretchedChild" style="min-height: 50%"><div class="line"></div></div></div></div>
+<div class="grid start"><div id="stretchChildItem"><div id="stretchChild" style="height: stretch"><div class="line"></div></div></div></div>
+<div class="grid start"><div id="startItem" style="align-self: start"><div id="startChild" style="min-height: 50%"><div class="line"></div></div></div></div>
+<script>
+    test(() => {
+        const rect = id => document.getElementById(id).getBoundingClientRect();
+        println(`quirks mode: ${document.compatMode === "BackCompat"}`);
+        println(`header, main and footer offset: ${rect("header").height} ${rect("main").height} ${rect("footer").top - rect("header").top}`);
+        println(`stretched grid item and its min-height: 50% child: ${rect("stretched").height} ${rect("stretchedChild").height}`);
+        println(`stretched grid item and its height: stretch child: ${rect("stretchChildItem").height} ${rect("stretchChild").height}`);
+        println(`start-aligned grid item and its min-height: 50% child: ${rect("startItem").height} ${rect("startChild").height}`);
+    });
+</script>

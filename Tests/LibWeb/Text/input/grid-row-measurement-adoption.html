@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px SerenitySans; }
+    #host { width: 400px; }
+    .grid { display: grid; grid-template-columns: 120px 120px; }
+    .fluid { grid-template-columns: 120px 1fr; }
+    .start { align-self: start; }
+    .center { align-self: center; }
+    .fixed { grid-template-rows: 100px; }
+    .span { grid-row: span 2; }
+    .padded { padding: 10%; }
+    .half { height: 50%; }
+</style>
+<div id="host"></div>
+<script>
+    const rect = id => document.getElementById(id).getBoundingClientRect();
+    const height = id => rect(id).height;
+    layoutTest({
+        steps: [
+            {
+                name: "stretched items of an auto row commit the runs their row measurements laid out",
+                mutate: () => {
+                    host.innerHTML = `<div class="grid" id="stretched"><div id="stretchedShort">one line</div><div id="stretchedTall">some words that wrap into lines</div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#stretched.grid/grid RUN (cache=miss)
+                            BlockContainer<DIV>#stretchedShort/block RUN (cache=miss)
+                            BlockContainer<DIV>#stretchedShort MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#stretchedShort MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#stretchedTall/block RUN (cache=miss)
+                            BlockContainer<DIV>#stretchedTall MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#stretchedTall MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#stretchedShort MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#stretchedShort MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#stretchedShort MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#stretchedTall MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#stretchedTall MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#stretchedTall MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#stretchedShort/block REPLAY FRAGMENTS
+                            BlockContainer<DIV>#stretchedTall/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(height("stretchedShort"), 80, "stretched short item height");
+                    equal(height("stretchedTall"), 80, "stretched tall item height");
+                },
+            },
+            {
+                name: "a start-aligned item that sizes its row commits the run its row measurement laid out",
+                mutate: () => {
+                    host.innerHTML = `<div class="grid" id="startSizing"><div class="start" id="startTall">some words that wrap into lines</div><div id="startSibling">one line</div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#startSizing.grid/grid RUN (cache=miss)
+                            BlockContainer<DIV>#startTall.start/block RUN (cache=miss)
+                            BlockContainer<DIV>#startTall.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startTall.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startSibling/block RUN (cache=miss)
+                            BlockContainer<DIV>#startSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startTall.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startTall.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startTall.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startTall.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startTall.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startTall.start/block REPLAY FRAGMENTS
+                            BlockContainer<DIV>#startSibling/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(height("startTall"), 80, "start-aligned item height");
+                    equal(height("startSibling"), 80, "stretched sibling height");
+                },
+            },
+            {
+                name: "a start-aligned item shorter than its row commits the run its row measurement laid out, since its run never reads the block margins its alignment moves",
+                mutate: () => {
+                    host.innerHTML = `<div class="grid" id="startShorter"><div class="start" id="startShort">one line</div><div id="startTaller">some words that wrap into lines</div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#startShorter.grid/grid RUN (cache=miss)
+                            BlockContainer<DIV>#startShort.start/block RUN (cache=miss)
+                            BlockContainer<DIV>#startShort.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startShort.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startTaller/block RUN (cache=miss)
+                            BlockContainer<DIV>#startTaller MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startTaller MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startShort.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startShort.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startShort.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startShort.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startTaller MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startTaller MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startTaller MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startShort.start MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#startShort.start/block REPLAY FRAGMENTS
+                            BlockContainer<DIV>#startTaller/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(height("startShort"), 20, "start-aligned item height");
+                    equal(height("startTaller"), 80, "taller sibling height");
+                },
+            },
+            {
+                name: "a center-aligned item in a fixed row commits the run its block size measurement laid out",
+                mutate: () => {
+                    host.innerHTML = `<div class="grid fixed" id="fixedRow"><div class="center" id="centered">one line</div><div id="fixedRowSibling">one line</div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#fixedRow.grid.fixed/grid RUN (cache=miss)
+                            BlockContainer<DIV>#centered.center/block RUN (cache=miss)
+                            BlockContainer<DIV>#centered.center MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#centered.center/block REPLAY FRAGMENTS
+                            BlockContainer<DIV>#fixedRowSibling/block RUN (cache=miss)
+                `,
+                check: equal => {
+                    equal(height("centered"), 20, "center-aligned item height");
+                    equal(rect("centered").top - rect("fixedRow").top, 40, "center-aligned item offset");
+                    equal(height("fixedRowSibling"), 100, "stretched sibling height");
+                },
+            },
+            {
+                name: "an item spanning two auto rows commits the run its row measurement laid out",
+                mutate: () => {
+                    host.innerHTML = `<div class="grid" id="spanning"><div class="span" id="spanner">some words that wrap into lines</div><div id="spannedFirst">one line</div><div id="spannedSecond">one line</div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#spanning.grid/grid RUN (cache=miss)
+                            BlockContainer<DIV>#spanner.span/block RUN (cache=miss)
+                            BlockContainer<DIV>#spanner.span MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spanner.span MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spannedFirst/block RUN (cache=miss)
+                            BlockContainer<DIV>#spannedFirst MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spannedFirst MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spannedSecond/block RUN (cache=miss)
+                            BlockContainer<DIV>#spannedSecond MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spannedSecond MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spanner.span MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spanner.span MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spanner.span MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spannedFirst MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spannedFirst MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spannedFirst MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spannedSecond MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spannedSecond MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spannedSecond MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#spanner.span/block REPLAY FRAGMENTS
+                            BlockContainer<DIV>#spannedFirst/block REPLAY FRAGMENTS
+                            BlockContainer<DIV>#spannedSecond/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(height("spanner"), 80, "spanning item height");
+                    equal(height("spannedFirst"), 40, "first spanned row height");
+                    equal(height("spannedSecond"), 40, "second spanned row height");
+                },
+            },
+            {
+                name: "an item with percentage padding resolves it against its grid area and commits the run its row measurement laid out",
+                mutate: () => {
+                    host.innerHTML = `<div class="grid" id="padding"><div class="padded" id="paddedItem">one line</div><div id="paddedSibling">one line</div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#padding.grid/grid RUN (cache=miss)
+                            BlockContainer<DIV>#paddedItem.padded/block RUN (cache=miss)
+                            BlockContainer<DIV>#paddedItem.padded MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#paddedItem.padded MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#paddedSibling/block RUN (cache=miss)
+                            BlockContainer<DIV>#paddedSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#paddedSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#paddedItem.padded MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#paddedItem.padded MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#paddedItem.padded MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#paddedSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#paddedSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#paddedSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#paddedItem.padded/block REPLAY FRAGMENTS
+                            BlockContainer<DIV>#paddedSibling/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(height("paddedItem"), 44, "padded item height");
+                    equal(rect("paddedItem").width, 120, "padded item width");
+                },
+            },
+            {
+                name: "a stretched item with a percentage-height child lays it out again at its stretched size",
+                mutate: () => {
+                    host.innerHTML = `<div class="grid" id="percentage"><div id="percentageItem"><div class="half" id="halfChild">one line</div></div><div id="percentageSibling">some words that wrap into lines</div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#percentage.grid/grid RUN (cache=miss)
+                            BlockContainer<DIV>#percentageItem/block RUN (cache=miss)
+                            BlockContainer<DIV>#percentageItem MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#percentageItem MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#percentageSibling/block RUN (cache=miss)
+                            BlockContainer<DIV>#percentageSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#percentageSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#percentageItem MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#percentageItem MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#percentageItem MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#percentageSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#percentageSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#percentageSibling MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#percentageItem/block RUN (cache=miss)
+                            BlockContainer<DIV>#percentageSibling/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(height("percentageItem"), 80, "percentage item height");
+                    equal(height("halfChild"), 40, "percentage child height");
+                },
+            },
+            {
+                name: "a grid laid out before its width changes",
+                mutate: () => {
+                    host.innerHTML = `<div class="grid fluid" id="resized"><div id="resizedFixed">one line</div><div id="resizedFlexible">some words that wrap into lines</div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#resized.grid.fluid/grid RUN (cache=miss)
+                            BlockContainer<DIV>#resizedFlexible MEASURE min-content inline (cache=miss) FROM ITEMS
+                            BlockContainer<DIV>#resizedFlexible MEASURE min-content inline (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible MEASURE max-content inline (cache=hit)
+                            BlockContainer<DIV>#resizedFixed/block RUN (cache=miss)
+                            BlockContainer<DIV>#resizedFixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible/block RUN (cache=miss)
+                            BlockContainer<DIV>#resizedFlexible MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFixed/block REPLAY FRAGMENTS
+                            BlockContainer<DIV>#resizedFlexible/block REPLAY FRAGMENTS
+                `,
+            },
+            {
+                name: "the next pass at another width reuses the item whose column did not change and adopts the one whose column did",
+                mutate: () => {
+                    host.style.width = "300px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#resized.grid.fluid/grid RUN (cache=miss)
+                            BlockContainer<DIV>#resizedFlexible MEASURE min-content inline (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible MEASURE min-content inline (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible MEASURE max-content inline (cache=hit)
+                            BlockContainer<DIV>#resizedFixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible/block RUN (cache=miss)
+                            BlockContainer<DIV>#resizedFlexible MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFixed/block REUSE SUBTREE
+                            BlockContainer<DIV>#resizedFlexible/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(height("resizedFixed"), 40, "fixed column item height");
+                    equal(height("resizedFlexible"), 40, "flexible column item height");
+                },
+            },
+        ],
+    });
+</script>
