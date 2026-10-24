@@ -15,7 +15,6 @@
 #include <Compositor/PainterSkia.h>
 #include <Compositor/SkiaUtils.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
 
 #include <core/SkCanvas.h>
@@ -131,19 +130,12 @@ static void apply_paint_style(SkPaint& paint, PaintStyle const& style)
     }
 }
 
-static void apply_filter(SkPaint& paint, Gfx::Filter const& filter)
-{
-    paint.setImageFilter(to_skia_image_filter(filter));
-}
-
-static SkPaint to_skia_paint(Gfx::PaintStyle const& style, Optional<Gfx::Filter const&> filter)
+static SkPaint to_skia_paint(Gfx::PaintStyle const& style, sk_sp<SkImageFilter> image_filter)
 {
     SkPaint paint;
 
     apply_paint_style(paint, style);
-
-    if (filter.has_value())
-        apply_filter(paint, move(filter.value()));
+    paint.setImageFilter(move(image_filter));
 
     return paint;
 }
@@ -173,13 +165,10 @@ void PainterSkia::fill_rect(Gfx::FloatRect const& rect, Color color)
     canvas.drawRect(to_skia_rect(rect), paint);
 }
 
-void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame const& source, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, Optional<Gfx::Filter> filter, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
+void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame const& source, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, sk_sp<SkImageFilter> image_filter, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
 {
     SkPaint paint;
-
-    if (filter.has_value())
-        apply_filter(paint, filter.value());
-
+    paint.setImageFilter(move(image_filter));
     paint.setAlpha(static_cast<u8>(global_alpha * 255));
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
 
@@ -230,14 +219,14 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thi
     canvas.drawPath(sk_path, paint);
 }
 
-void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, Optional<Gfx::Filter> filter, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const& cap_style, Gfx::Path::JoinStyle const& join_style, float miter_limit, Vector<float> const& dash_array, float dash_offset)
+void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, sk_sp<SkImageFilter> image_filter, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const& cap_style, Gfx::Path::JoinStyle const& join_style, float miter_limit, Vector<float> const& dash_array, float dash_offset)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
     if (thickness <= 0)
         return;
 
     auto sk_path = to_skia_path(path);
-    auto paint = to_skia_paint(paint_style, filter);
+    auto paint = to_skia_paint(paint_style, move(image_filter));
     paint.setAntiAlias(true);
     float alpha = paint.getAlphaf();
     paint.setAlphaf(alpha * global_alpha);
@@ -265,11 +254,11 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::Color color, Gfx::Windin
     canvas.drawPath(sk_path, paint);
 }
 
-void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, Optional<Gfx::Filter> filter, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule winding_rule)
+void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, sk_sp<SkImageFilter> image_filter, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule winding_rule)
 {
     auto sk_path = to_skia_path(path);
     sk_path.setFillType(to_skia_path_fill_type(winding_rule));
-    auto paint = to_skia_paint(paint_style, filter);
+    auto paint = to_skia_paint(paint_style, move(image_filter));
     paint.setAntiAlias(true);
     float alpha = paint.getAlphaf();
     paint.setAlphaf(alpha * global_alpha);
@@ -278,7 +267,7 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_
     canvas.drawPath(sk_path, paint);
 }
 
-void PainterSkia::draw_glyph_run(Font const& font, SkFont sk_font, ReadonlySpan<CanvasGlyph> glyphs, FloatPoint translation, PaintStyle const& style, Optional<Filter> filter, float global_alpha, CompositingAndBlendingOperator compositing_and_blending_operator)
+void PainterSkia::draw_glyph_run(Font const& font, SkFont sk_font, ReadonlySpan<CanvasGlyph> glyphs, FloatPoint translation, PaintStyle const& style, sk_sp<SkImageFilter> image_filter, float global_alpha, CompositingAndBlendingOperator compositing_and_blending_operator)
 {
     if (glyphs.is_empty() || font.is_invisible())
         return;
@@ -298,7 +287,7 @@ void PainterSkia::draw_glyph_run(Font const& font, SkFont sk_font, ReadonlySpan<
         glyph_positions.unchecked_append({ glyph.position.x(), glyph.position.y() + font_ascent });
     }
 
-    auto paint = to_skia_paint(style, filter);
+    auto paint = to_skia_paint(style, move(image_filter));
     paint.setAlphaf(paint.getAlphaf() * global_alpha);
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
 

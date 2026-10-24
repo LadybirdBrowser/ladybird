@@ -16,8 +16,6 @@
 //! type, colors are their ARGB32 value, and a color table is a `u32` length of 256 followed by the
 //! table.
 
-use std::ffi::c_void;
-
 use crate::{
     Color, ColorFilterType, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, InterpolationColorSpace,
     ScalingMode,
@@ -1074,37 +1072,12 @@ impl Reader<'_> {
     }
 }
 
-/// Visits the id of every image frame a serialized filter draws, for a C++ caller that holds only
-/// the bytes. Bytes that do not hold a filter visit nothing.
-///
-/// # Safety
-///
-/// `bytes` must point to `count` readable bytes, and `visit` must accept `context`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn ladybird_gfx_filter_for_each_image_frame_id(
-    bytes: *const u8,
-    count: usize,
-    visit: unsafe extern "C" fn(*const c_void, u64),
-    context: *const c_void,
-) {
-    let bytes = if count == 0 {
-        &[]
-    } else {
-        // SAFETY: The caller guarantees `count` readable bytes.
-        unsafe { ak::slice_from_raw_parts(bytes, count) }
-    };
-    if let Some(filter) = Filter::deserialize(bytes) {
-        // SAFETY: The caller guarantees `visit` accepts `context`.
-        filter.for_each_image_frame_id(&mut |id| unsafe { visit(context, id) });
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // The serialized form of every_operation_filter(). Tests/LibGfx/TestFilter.cpp checks the same
-    // bytes against the C++ codec, so the two sides cannot drift apart without a test noticing.
+    // The serialized form of every_operation_filter(). The Skia filter reader of the compositor
+    // decodes the same layout, so a change that breaks this test needs the same change there.
     const EVERY_OPERATION_FILTER_BYTES: &str = concat!(
         "01020103332211ff0000003f010000010e0000c03f000020c0010c2a0000000000000001000000020000000300000004",
         "00000005000000060000000700000008000000010000000000803e0000003f0000403f0000803f130000000d04000000",

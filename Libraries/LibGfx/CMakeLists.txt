@@ -8,7 +8,6 @@ set(SOURCES
     ColorSpace.cpp
     CornerRadii.cpp
     Cursor.cpp
-    Filter.cpp
     Font/FaceDescription.cpp
     Font/Font.cpp
     Font/FontCatalog.cpp

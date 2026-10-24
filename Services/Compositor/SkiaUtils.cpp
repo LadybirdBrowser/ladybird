@@ -12,7 +12,6 @@
 #include <LibGfx/ColorFilterType.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/Filter.h>
 #include <LibGfx/InterpolationColorSpace.h>
 #include <LibGfx/RustFFI.h>
 #include <core/SkBitmap.h>
@@ -424,14 +423,6 @@ sk_sp<SkImageFilter> SkiaFilterReader::filter()
 sk_sp<SkImageFilter> to_skia_image_filter(ReadonlyBytes serialized_filter, Function<DecodedImageFrame const&(u64)> const& image_frame)
 {
     return SkiaFilterReader { serialized_filter, image_frame }.read_graph();
-}
-
-sk_sp<SkImageFilter> to_skia_image_filter(Gfx::Filter const& filter)
-{
-    return to_skia_image_filter(filter.serialized_bytes(), [](u64) -> DecodedImageFrame const& {
-        // A graph carried as a Gfx::Filter comes from CSS filter functions, which draw no images.
-        VERIFY_NOT_REACHED();
-    });
 }
 
 sk_sp<SkImage> sk_image_from_bitmap(Bitmap const& bitmap, ColorSpace const& color_space)

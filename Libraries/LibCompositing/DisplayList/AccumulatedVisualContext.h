@@ -94,7 +94,7 @@ public:
 
     bool effect_is_isolated_by_layer(EffectNodeIndex) const;
     bool has_unisolated_destination_reading_effect() const;
-    void for_each_effects_filter_bytes(Function<void(ReadonlyBytes)> const&) const;
+    void for_each_effects_filter_image_frame_id(Function<void(u64)> const&) const;
 
 private:
     explicit AccumulatedVisualContextTree(void const* retained_tree);
