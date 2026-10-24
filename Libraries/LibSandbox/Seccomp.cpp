@@ -193,6 +193,7 @@ static constexpr unsigned read_only_open_flags = [] {
 #define IF_DEFINED_socket(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_socketpair(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_stat(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_statfs(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_statx(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_symlink(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_sysinfo(if_defined, if_not_defined) if_defined
@@ -454,6 +455,10 @@ static constexpr unsigned read_only_open_flags = [] {
 #    undef IF_DEFINED_stat
 #    define IF_DEFINED_stat(if_defined, if_not_defined) if_not_defined
 #endif
+#ifndef __NR_statfs
+#    undef IF_DEFINED_statfs
+#    define IF_DEFINED_statfs(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_statx
 #    undef IF_DEFINED_statx
 #    define IF_DEFINED_statx(if_defined, if_not_defined) if_not_defined
@@ -682,6 +687,9 @@ static char const* syscall_name(long syscall_number)
 #endif
 #ifdef __NR_stat
         CASE_SYSCALL_NAME(stat);
+#endif
+#ifdef __NR_statfs
+        CASE_SYSCALL_NAME(statfs);
 #endif
 #ifdef __NR_statx
         CASE_SYSCALL_NAME(statx);
@@ -1200,6 +1208,7 @@ void SeccompPolicy::allow_filesystem_metadata_queries()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, readlink);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, readlinkat);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, stat);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, statfs);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, statx);
 }
 

@@ -34,6 +34,7 @@
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/syscall.h>
 #include <sys/un.h>
 #include <sys/wait.h>
@@ -205,6 +206,21 @@ TEST_CASE(process_creation_policy_allows_parent_death_signal)
             VERIFY(prctl(PR_SET_PDEATHSIG, SIGKILL, 0ul, 0ul, 0ul) == 0);
             VERIFY(prctl(PR_SET_PDEATHSIG, SIGUSR1, 0ul, 0ul, 0ul) == -1);
             VERIFY(errno == EPERM);
+        });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(filesystem_metadata_policy_answers_the_statvfs_that_mesa_uses)
+{
+    // Mesa calls statvfs() on its shader cache directory while a GPU driver starts up, and glibc implements it
+    // with the statfs syscall.
+    auto status = run_with_policy(
+        [](auto& policy) { policy.allow_filesystem_metadata_queries(); },
+        [] {
+            struct statvfs metadata {};
+            VERIFY(statvfs("/tmp", &metadata) == 0);
         });
     EXPECT(WIFEXITED(status));
     if (WIFEXITED(status))
