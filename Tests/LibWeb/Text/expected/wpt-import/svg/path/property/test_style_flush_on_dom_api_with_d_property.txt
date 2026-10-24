@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-3 Pass
-1 Fail
+4 Pass
 Pass	getTotalLength() with d property
 Pass	getPointAtLength() with d property
 Pass	isPointInFill() with d property
-Fail	isPointInStroke() with d property
+Pass	isPointInStroke() with d property

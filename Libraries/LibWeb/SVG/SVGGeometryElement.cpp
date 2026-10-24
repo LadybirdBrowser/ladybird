@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <AK/ScopeGuard.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/DOMPointReadOnly.h>
@@ -13,9 +14,12 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
+#include <LibWeb/SVG/AttributeNames.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -162,6 +166,62 @@ WebIDL::ExceptionOr<bool> SVGGeometryElement::is_point_in_fill(Bindings::DOMPoin
     if (!has_geometry)
         return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "The element's geometry cannot be computed"_utf16);
     return is_point_in_fill;
+}
+
+// https://svgwg.org/svg2-draft/types.html#__svg__SVGGeometryElement__isPointInStroke
+WebIDL::ExceptionOr<bool> SVGGeometryElement::is_point_in_stroke(Bindings::DOMPointInit const& point)
+{
+    // The isPointInStroke method, when invoked, must return true if the point given by point passed to the method, in
+    // the coordinate space of an element, is in or on the outline path of an applied stroke on an element; and must
+    // return false otherwise.
+    // The outline path must take the stroke properties stroke-width, stroke-linecap, stroke-linejoin,
+    // stroke-miterlimit, stroke-dasharray, stroke-dashoffset and vector-effect of an element into account.
+    // The returned value is independent of any visual CSS property but the listed stroke properties.
+    // If either of the x or y properties on point are infinite or NaN, then the method must return false.
+    if (!isfinite(point.x) || !isfinite(point.y))
+        return false;
+
+    // NB: The host coordinate space of a non-scaling stroke is the coordinate space of the element's viewport.
+    // FIXME: A single scale factor is only right for a uniform scale. Stroke a non-scaling stroke in the host
+    //        coordinate space instead, so that a non-uniform scale or a skew is accounted for.
+    float host_scale = 1;
+    if (auto ctm = get_ctm()) {
+        auto elements = ctm->elements();
+        host_scale = AK::sqrt(AK::fabs(static_cast<float>((elements[0] * elements[5]) - (elements[1] * elements[4]))));
+    }
+
+    // If current element is a non-rendered element, and the UA is not able to compute the geometry of the element,
+    // then throw an InvalidStateError.
+    bool is_point_in_stroke = false;
+    auto has_geometry = with_computed_values([&](CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values) {
+        Array<void const*, to_underlying(CSS::StyleGroupIndex::Count)> payloads;
+        for (size_t index = 0; index < payloads.size(); ++index)
+            payloads[index] = computed_values.style_group_payload(static_cast<CSS::StyleGroupIndex>(index));
+
+        // https://svgwg.org/svg2-draft/paths.html#PathLengthAttribute
+        // The user agent will scale all distance-along-a-path computations by the ratio of ‘pathLength’ to the user
+        // agent's own computed value for total path length.
+        // FIXME: A value of zero must be treated as a scaling factor of infinity.
+        float dash_scale = 1;
+        if (auto path_length = parse_number(get_attribute_value(AttributeNames::pathLength)); path_length.has_value() && *path_length > 0)
+            dash_scale = geometry_path(*this, viewport_size, computed_values).length() / *path_length;
+
+        auto points = Layout::svg_shape_points(*this);
+        is_point_in_stroke = Layout::RustFFI::svg_geometry_element_stroke_contains(
+            Layout::svg_geometry_facts(*this),
+            payloads.data(),
+            payloads.size(),
+            reinterpret_cast<Layout::RustFFI::FfiFloatPoint const*>(points.data()),
+            points.size(),
+            viewport_size,
+            dash_scale,
+            host_scale,
+            static_cast<float>(point.x),
+            static_cast<float>(point.y));
+    });
+    if (!has_geometry)
+        return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "The element's geometry cannot be computed"_utf16);
+    return is_point_in_stroke;
 }
 
 // https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getTotalLength

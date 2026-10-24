@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-6 Pass
-1 Fail
+7 Pass
 Pass	SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getTotalLength resolves auto rx/ry.
 Pass	SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getTotalLength returns 0 when both rx and ry are auto.
 Pass	SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getPointAtLength(0) at the 3 o'clock starting point.
 Pass	SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, isPointInFill resolves auto rx/ry.
-Fail	SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, isPointInStroke with dasharray resolves auto rx/ry.
+Pass	SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, isPointInStroke with dasharray resolves auto rx/ry.
 Pass	SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getTotalLength resolves auto rx/ry against percentage values on the correct axis.
 Pass	SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getPointAtLength(0) with percentage ry uses height-axis resolution.

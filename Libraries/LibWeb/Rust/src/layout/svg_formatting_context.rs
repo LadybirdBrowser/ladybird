@@ -1111,6 +1111,73 @@ pub unsafe extern "C" fn svg_geometry_element_encode_path(
     unsafe { append(context, bytes.as_ptr(), bytes.len()) };
 }
 
+/// Whether the point is inside the area that stroking the geometry of a shape element covers, with the stroke drawn
+/// from the element's computed style, in the user units of the viewport of the given size. Distances along the path are
+/// scaled by the dash scale. The host scale is the scale from the element's user space to its host coordinate space,
+/// in which a non-scaling stroke is drawn.
+///
+/// # Safety
+/// `payloads` must point to `payload_count` style group payloads, and `points` to `point_count` points.
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn svg_geometry_element_stroke_contains(
+    geometry: FfiSvgAttributeFacts,
+    payloads: *const *const c_void,
+    payload_count: usize,
+    points: *const FfiFloatPoint,
+    point_count: usize,
+    viewport_size: FfiCssPixelSize,
+    dash_scale: f32,
+    host_scale: f32,
+    x: f32,
+    y: f32,
+) -> bool {
+    assert!(!payloads.is_null(), "style group payload array is null");
+    let mut style_payloads = FfiStylePayloads::default();
+    // SAFETY: Guaranteed by the caller.
+    style_payloads
+        .groups
+        .copy_from_slice(unsafe { ak::slice_from_raw_parts(payloads, payload_count) });
+    // SAFETY: Guaranteed by the caller.
+    let points = unsafe { ak::slice_from_raw_parts(points, point_count) };
+    let shape_geometry = SvgShapeGeometry {
+        viewport_width: viewport_size.width,
+        viewport_height: viewport_size.height,
+    };
+    let style = StyleValues::new(&style_payloads);
+    let path = shape_geometry.path(geometry, style, Some(points));
+
+    // The same basis that layout resolves the stroke's percentages against.
+    // FIXME: The spec formula is the normalized diagonal sqrt((width² + height²) / 2), as for layout.
+    let basis = (viewport_size.width + viewport_size.height) * CssPixels::nearest_value_for(0.5);
+    let stroke = crate::painting::record::paint::svg::svg_stroke_style_for_percentage_basis(&style, basis);
+    // https://svgwg.org/svg2-draft/painting.html#PaintingVectorEffects
+    // With the non-scaling-stroke vector effect, stroke outline shall be calculated in the "host" coordinate space
+    // instead of user coordinate system.
+    let stroke_scale = if stroke.non_scaling_stroke && host_scale > 0.0 {
+        1.0 / host_scale
+    } else {
+        1.0
+    };
+    let stroke_style = libgfx_rust::path::StrokeStyle {
+        thickness: stroke.width * stroke_scale,
+        cap_style: stroke.cap_style,
+        join_style: stroke.join_style,
+        miter_limit: stroke.miter_limit,
+        dash_array: stroke
+            .dash_array
+            .iter()
+            .map(|dash| dash * dash_scale * stroke_scale)
+            .collect(),
+        dash_offset: stroke.dash_offset * dash_scale * stroke_scale,
+    };
+    if stroke_style.thickness <= 0.0 {
+        return false;
+    }
+    path.stroke_to_fill(&stroke_style)
+        .contains(x, y, libgfx_rust::WindingRule::Nonzero)
+}
+
 impl<'pass> SvgFormattingContext<'pass> {
     fn shape_geometry(&self) -> SvgShapeGeometry {
         SvgShapeGeometry {
