@@ -659,6 +659,23 @@ unsafe fn borrowed_or_copied_bytes_of_buffer(buffer: &ArrayBuffer, bytes: Range<
     Some(Cow::Borrowed(unsafe { ak::slice_from_raw_parts(data, bytes.len()) }))
 }
 
+/// A promise converted from a JS value, https://webidl.spec.whatwg.org/#js-promise
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "the bindings convert every argument with a conversion that can throw"
+)]
+pub(crate) fn to_promise(vm: &Vm, value: Value) -> ThrowCompletionOr<WebIdlPromise> {
+    // 1. Let promiseCapability be ? NewPromiseCapability(%Promise%).
+    let realm = vm.current_realm().expect("a conversion runs in a realm");
+    let promise = crate::bindings::promise::create_promise(vm, realm);
+
+    // 2. Perform ? Call(promiseCapability.[[Resolve]], undefined, « V »).
+    crate::bindings::promise::resolve_promise(vm, promise, value);
+
+    // 3. Return promiseCapability.
+    Ok(promise)
+}
+
 /// The value as a BufferSource, if it is an ArrayBuffer, a DataView or a typed array, without the checks of a
 /// conversion to the type.
 pub(crate) fn buffer_source_type_of(value: Value) -> Option<BufferSource> {
@@ -1057,6 +1074,12 @@ impl ToJs for UsvString {
 }
 
 impl ToJs for Gc<TypedArrayBase> {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(Value::from_object(self))
+    }
+}
+
+impl ToJs for Gc<ArrayBuffer> {
     fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
         Ok(Value::from_object(self))
     }
