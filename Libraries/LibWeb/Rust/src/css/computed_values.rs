@@ -430,6 +430,8 @@ impl_computed_payload_clone_and_eq!(AlignmentValues {
     justify_content,
     justify_items,
     justify_self,
+    align_self_overflow,
+    justify_self_overflow,
     column_gap,
     row_gap,
 });
@@ -2859,6 +2861,8 @@ impl AlignmentValues {
             justify_content: justify_content::FLEX_START,
             justify_items: justify_items::LEGACY,
             justify_self: justify_self::AUTO,
+            align_self_overflow: crate::css::computed_value_types::OVERFLOW_ALIGNMENT_DEFAULT,
+            justify_self_overflow: crate::css::computed_value_types::OVERFLOW_ALIGNMENT_DEFAULT,
             column_gap: ComputedGap {
                 is_normal: true,
                 value: ComputedStyleValueHandle::empty(),
@@ -3715,6 +3719,23 @@ fn alignment_position_keyword(data: &RetainedStyleValueData, is_content: bool, u
     }
 }
 
+/// The explicit overflow alignment of a computed self-alignment value.
+fn alignment_overflow(data: &RetainedStyleValueData) -> u8 {
+    use crate::css::css_enums::keyword as k;
+    use crate::css::style_value::StyleValueData;
+
+    let Some(StyleValueData::ValueList { values, .. }) = data.optional_data() else {
+        return crate::css::computed_value_types::OVERFLOW_ALIGNMENT_DEFAULT;
+    };
+    match values.as_slice().first().and_then(|value| value.optional_data()) {
+        Some(StyleValueData::Keyword { keyword: k::SAFE }) => crate::css::computed_value_types::OVERFLOW_ALIGNMENT_SAFE,
+        Some(StyleValueData::Keyword { keyword: k::UNSAFE }) => {
+            crate::css::computed_value_types::OVERFLOW_ALIGNMENT_UNSAFE
+        }
+        _ => crate::css::computed_value_types::OVERFLOW_ALIGNMENT_DEFAULT,
+    }
+}
+
 /// Builds the complete alignment group from its computed property values.
 ///
 /// The returned payload carries one reference for the caller; fresh payloads
@@ -3768,6 +3789,8 @@ pub(crate) fn rust_build_alignment_group(
             justify_content: alignment_code(justify_content, css_enums::keyword_to_justify_content, true, k::NORMAL)?,
             justify_items: alignment_code(justify_items, css_enums::keyword_to_justify_items, false, k::LEGACY)?,
             justify_self: alignment_code(justify_self, css_enums::keyword_to_justify_self, false, k::AUTO)?,
+            align_self_overflow: alignment_overflow(align_self),
+            justify_self_overflow: alignment_overflow(justify_self),
             column_gap: ComputedGap::from_data(column_gap),
             row_gap: ComputedGap::from_data(row_gap),
         };

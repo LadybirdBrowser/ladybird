@@ -290,6 +290,8 @@ impl LayoutStyle {
         self.edit::<AlignmentValues>(|target| {
             target.align_self = alignment.align_self;
             target.justify_self = alignment.justify_self;
+            target.align_self_overflow = alignment.align_self_overflow;
+            target.justify_self_overflow = alignment.justify_self_overflow;
             target.order = alignment.order;
         });
         self.edit::<GridValues>(|target| {
