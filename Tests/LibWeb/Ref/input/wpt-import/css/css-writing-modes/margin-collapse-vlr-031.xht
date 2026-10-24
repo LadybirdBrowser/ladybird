@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: 'vertical-lr' and margin collapsing - collapse through sibling</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css-writing-modes-3/#logical-direction-layout" title="7.4 Flow-Relative Mappings" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/../reference/ref-filled-green-100px-square.xht" />
+
+  <meta content="ahem image" name="flags" />
+  <meta name="assert" content="This test checks that horizontal margins of boxes can collapse through a sibling box whose left and right margins collapse in 'vertical-lr' writing-mode." />
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+    {
+      font: 25px/1em Ahem;
+      height: 4em;
+    }
+
+  div#wrapper
+    {
+      background-image: url("support/margin-collapse-2em-space-wm-vert.png");
+      writing-mode: vertical-lr;
+    }
+
+  div#left-most-sibling
+    {
+      background-color: green;
+      margin-right: 2em;
+      width: 1em;
+    }
+
+  div#middle-sibling
+    {
+      margin-left: 2em;
+      margin-right: 2em;
+    }
+
+  div#right-most-sibling
+    {
+      background-color: green;
+      margin-left: 2em;
+      width: 1em;
+    }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <div id="wrapper">
+    <div id="left-most-sibling"></div>
+    <div id="middle-sibling"></div>
+    <div id="right-most-sibling"></div>
+  </div>
+
+ </body>
+</html>
