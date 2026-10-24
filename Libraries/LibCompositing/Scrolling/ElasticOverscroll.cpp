@@ -9,7 +9,7 @@
 
 namespace Compositing {
 
-// The stretch is the overscroll divided by the stiffness, and a released stretch S0 with velocity V0 is
+// A pull stretches by the overscroll divided by the stiffness, and a released stretch S0 with velocity V0 is
 // (S0 + amplitude * V0 * t) * exp(-t * stiffness / period) after t seconds.
 static constexpr double rubber_band_stiffness = 20;
 static constexpr double rubber_band_amplitude = 0.31;
@@ -46,12 +46,11 @@ static float relax_axis_by(float& stretch, float delta)
     bool delta_points_back_to_scroll_range = (stretch > 0 && delta < 0) || (stretch < 0 && delta > 0);
     if (!delta_points_back_to_scroll_range)
         return delta;
-    auto stretch_delta = static_cast<float>(delta / rubber_band_stiffness);
-    if (AK::abs(stretch_delta) <= AK::abs(stretch)) {
-        stretch += stretch_delta;
+    if (AK::abs(delta) <= AK::abs(stretch)) {
+        stretch += delta;
         return 0;
     }
-    auto delta_left_to_scroll_with = static_cast<float>(delta + stretch * rubber_band_stiffness);
+    auto delta_left_to_scroll_with = delta + stretch;
     stretch = 0;
     return delta_left_to_scroll_with;
 }
