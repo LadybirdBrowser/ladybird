@@ -5,7 +5,7 @@
  */
 
 use crate::css::css_tokenizer::TokenizerInput;
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{FfiUtf16View, OwnedBox};
 use crate::css::parser::query_parser::{
     FfiMediaEnvironment, FfiQueryHandle, MediaEnvironment, VisitQuerySerialization, invalid_media_query,
     media_query_handle, parse_media_query_list, resolve_query_feature,
@@ -114,10 +114,8 @@ pub extern "C" fn rust_media_list_share(list: &MediaList) -> *mut MediaList {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_media_list_free(list: *mut MediaList) {
-    if !list.is_null() {
-        drop(unsafe { Box::from_raw(list) });
-    }
+pub extern "C" fn rust_media_list_free(list: OwnedBox<MediaList>) {
+    drop(list);
 }
 
 #[unsafe(no_mangle)]

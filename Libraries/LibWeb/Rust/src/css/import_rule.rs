@@ -5,7 +5,7 @@
  */
 
 use crate::css::css_string::CssString;
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{FfiUtf16View, OwnedArc};
 use crate::css::parser::query_parser::FfiQueryHandle;
 use crate::css::scope_selectors::ScopeSelectors;
 use crate::css::style_value::StyleValueData;
@@ -41,10 +41,8 @@ pub unsafe extern "C" fn rust_import_rule_retain(rule: *const ImportRuleData) ->
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_import_rule_release(rule: *const ImportRuleData) {
-    if !rule.is_null() {
-        unsafe { Arc::decrement_strong_count(rule) };
-    }
+pub extern "C" fn rust_import_rule_release(rule: OwnedArc<ImportRuleData>) {
+    drop(rule);
 }
 
 #[unsafe(no_mangle)]

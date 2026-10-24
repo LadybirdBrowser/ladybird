@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css::ffi_support::OwnedArc;
 use crate::css::selector_parser::RustParsedSelectorList;
 use std::ffi::c_void;
 use std::sync::Arc;
@@ -26,10 +27,8 @@ pub extern "C" fn rust_scope_selectors_retain(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_scope_selectors_release(selectors: *const ScopeSelectors) {
-    if !selectors.is_null() {
-        drop(unsafe { Arc::from_raw(selectors) });
-    }
+pub extern "C" fn rust_scope_selectors_release(selectors: OwnedArc<ScopeSelectors>) {
+    drop(selectors);
 }
 
 #[unsafe(no_mangle)]

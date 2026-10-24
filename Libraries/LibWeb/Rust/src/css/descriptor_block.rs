@@ -6,7 +6,7 @@
 
 use crate::css::css_string::CssString;
 use crate::css::descriptor_metadata::CUSTOM_DESCRIPTOR_ID;
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{FfiUtf16View, OwnedBox};
 use crate::css::serialize::{
     SerializationMode, StringUnits, TextSink, serialize_an_identifier, serialize_style_value, sink_into_raw,
 };
@@ -152,10 +152,8 @@ pub extern "C" fn rust_descriptor_block_replace(block: &mut FfiDescriptorBlock, 
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_descriptor_block_destroy(block: *mut FfiDescriptorBlock) {
-    if !block.is_null() {
-        drop(unsafe { Box::from_raw(block) });
-    }
+pub extern "C" fn rust_descriptor_block_destroy(block: OwnedBox<FfiDescriptorBlock>) {
+    drop(block);
 }
 
 #[unsafe(no_mangle)]

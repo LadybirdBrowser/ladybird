@@ -10,7 +10,7 @@ use crate::css::css_string::CssString;
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::declaration_block::{DeclarationBlock, visit_declaration_images};
 use crate::css::descriptor_block::FfiDescriptorBlock;
-use crate::css::ffi_support::{ArcRef, FfiUtf16View, RcRef};
+use crate::css::ffi_support::{ArcRef, FfiUtf16View, OwnedArc, OwnedRc, RcRef};
 use crate::css::font_feature_values::FontFeatureValuesRule;
 use crate::css::function_signature::FunctionSignature;
 use crate::css::import_rule::ImportRuleData;
@@ -728,13 +728,9 @@ pub unsafe extern "C" fn rust_namespace_context_retain(
     context
 }
 
-/// # Safety
-/// Context must be null or an owned reference returned by this module.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_namespace_context_release(context: *const NativeNamespaceContext) {
-    if !context.is_null() {
-        drop(unsafe { Arc::from_raw(context) });
-    }
+pub extern "C" fn rust_namespace_context_release(context: OwnedArc<NativeNamespaceContext>) {
+    drop(context);
 }
 
 #[unsafe(no_mangle)]
@@ -799,10 +795,8 @@ pub extern "C" fn rust_rule_retain(rule: RcRef<'_, NativeRule>) -> *const Native
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_release(rule: *const NativeRule) {
-    if !rule.is_null() {
-        drop(unsafe { Rc::from_raw(rule) });
-    }
+pub extern "C" fn rust_rule_release(rule: OwnedRc<NativeRule>) {
+    drop(rule);
 }
 
 #[unsafe(no_mangle)]
@@ -1067,10 +1061,8 @@ pub extern "C" fn rust_rule_list_retain(list: RcRef<'_, NativeRuleList>) -> *con
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_list_release(list: *const NativeRuleList) {
-    if !list.is_null() {
-        drop(unsafe { Rc::from_raw(list) });
-    }
+pub extern "C" fn rust_rule_list_release(list: OwnedRc<NativeRuleList>) {
+    drop(list);
 }
 
 #[unsafe(no_mangle)]

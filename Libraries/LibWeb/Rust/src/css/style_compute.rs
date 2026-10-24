@@ -15,6 +15,7 @@
 //! Element-bound inputs, such as container sizes and tree positions, are
 //! snapshotted by C++ before entering the Rust computation drive.
 
+use crate::css::ffi_support::OwnedBox;
 use std::borrow::Cow;
 use std::ffi::c_void;
 use std::sync::{Arc, OnceLock};
@@ -6122,20 +6123,15 @@ impl FfiHostAnimationSampleResult {
 }
 
 /// The custom properties a sample composed, with the names and values the rows point into.
-struct AnimatedCustomPropertyResults {
+pub struct AnimatedCustomPropertyResults {
     rows: Vec<FfiAnimatedCustomPropertyResult>,
     _retained: Vec<(RetainedUtf16FlyString, RetainedStyleValueData)>,
 }
 
 /// Release what `rust_sample_animation_effects` handed back for the animated custom properties.
-///
-/// # Safety
-/// `storage` must be null or a sample result's `animated_custom_properties_storage`, released once.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_release_animated_custom_property_results(storage: *mut c_void) {
-    if !storage.is_null() {
-        drop(unsafe { Box::from_raw(storage.cast::<AnimatedCustomPropertyResults>()) });
-    }
+pub extern "C" fn rust_release_animated_custom_property_results(storage: OwnedBox<AnimatedCustomPropertyResults>) {
+    drop(storage);
 }
 
 pub(crate) fn animation_length_resolution_context(
@@ -7094,7 +7090,7 @@ pub(crate) fn expand_shorthands_with<Sink>(
     sink(property_id, data, has_style_sheet_context);
 }
 
-struct ShorthandExpansion {
+pub struct ShorthandExpansion {
     properties: Vec<FfiExpandedProperty>,
     _values: Vec<RetainedStyleValueData>,
 }
@@ -7140,11 +7136,9 @@ pub unsafe extern "C" fn rust_expand_property_shorthands(
     }
 }
 
-/// # Safety
-/// `storage` must be a live pointer returned by `rust_expand_property_shorthands`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_shorthand_expansion_destroy(storage: *mut c_void) {
-    drop(unsafe { Box::from_raw(storage.cast::<ShorthandExpansion>()) });
+pub extern "C" fn rust_shorthand_expansion_destroy(storage: OwnedBox<ShorthandExpansion>) {
+    drop(storage);
 }
 
 pub(crate) fn display_is_none(raw: u32) -> bool {

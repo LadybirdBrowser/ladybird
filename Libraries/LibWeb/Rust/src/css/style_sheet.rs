@@ -5,7 +5,7 @@
  */
 
 use crate::css::container_conditions::ContainerConditionsData;
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{FfiUtf16View, OwnedBox, OwnedRc};
 use crate::css::media_list::MediaList;
 use crate::css::parser::query_parser::{FfiMediaEnvironment, MediaEnvironment};
 use crate::css::rule::read::{NativeRuleView, RuleRef};
@@ -60,11 +60,9 @@ pub extern "C" fn rust_media_evaluation_state_create() -> *mut NativeMediaEvalua
     Box::into_raw(Box::default())
 }
 
-/// # Safety
-/// The state must be an owned pointer returned by rust_media_evaluation_state_create.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_media_evaluation_state_free(state: *mut NativeMediaEvaluationState) {
-    drop(unsafe { Box::from_raw(state) });
+pub extern "C" fn rust_media_evaluation_state_free(state: OwnedBox<NativeMediaEvaluationState>) {
+    drop(state);
 }
 
 // Document-local state. The rule and media owners retain their immutable parsed data separately,
@@ -466,10 +464,8 @@ pub extern "C" fn rust_style_sheet_create(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_sheet_release(sheet: *const NativeStyleSheet) {
-    if !sheet.is_null() {
-        drop(unsafe { Rc::from_raw(sheet) });
-    }
+pub extern "C" fn rust_style_sheet_release(sheet: OwnedRc<NativeStyleSheet>) {
+    drop(sheet);
 }
 
 #[unsafe(no_mangle)]

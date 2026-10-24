@@ -5,7 +5,7 @@
  */
 
 use crate::css::css_string::CssString;
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{FfiUtf16View, OwnedArc, OwnedBox};
 use crate::css::property_metadata::{property_is_logical_alias_including_shorthands, property_logical_group};
 use crate::css::style_compute::expand_shorthands_with;
 use crate::css::style_value::StyleValueData;
@@ -505,14 +505,9 @@ pub extern "C" fn rust_declaration_data_retain(
 }
 
 /// Release an immutable declaration snapshot returned by the style engine or retained from a view.
-///
-/// # Safety
-/// `data` must be null or own an Arc reference to declaration data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_declaration_data_release(data: *const DeclarationBlockData) {
-    if !data.is_null() {
-        drop(unsafe { Arc::from_raw(data) });
-    }
+pub extern "C" fn rust_declaration_data_release(data: OwnedArc<DeclarationBlockData>) {
+    drop(data);
 }
 
 #[unsafe(no_mangle)]
@@ -549,10 +544,8 @@ pub extern "C" fn rust_declaration_data_visit(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_declaration_block_destroy(block: *mut DeclarationBlock) {
-    if !block.is_null() {
-        drop(unsafe { Box::from_raw(block) });
-    }
+pub extern "C" fn rust_declaration_block_destroy(block: OwnedBox<DeclarationBlock>) {
+    drop(block);
 }
 
 #[unsafe(no_mangle)]

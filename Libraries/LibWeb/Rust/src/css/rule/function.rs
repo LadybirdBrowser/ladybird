@@ -10,6 +10,7 @@ use crate::css::container_conditions::ContainerConditionsData;
 use crate::css::custom_properties::{
     SubstitutionFunctionDeclaration, prepare_function_declarations, prepare_function_parameter_defaults,
 };
+use crate::css::ffi_support::OwnedArc;
 use crate::css::function_signature::FunctionSignature;
 use crate::css::media_list::MediaListData;
 use crate::css::parser::component_value::ComponentValueList;
@@ -116,13 +117,9 @@ pub extern "C" fn rust_rule_view_compile_function(view: &NativeRuleView<'_>) -> 
     Arc::into_raw(Arc::new(CompiledFunction::compile(view)))
 }
 
-/// # Safety
-/// The function must be an owned reference returned by compilation or retention.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compiled_function_release(function: *const CompiledFunction) {
-    if !function.is_null() {
-        drop(unsafe { Arc::from_raw(function) });
-    }
+pub extern "C" fn rust_compiled_function_release(function: OwnedArc<CompiledFunction>) {
+    drop(function);
 }
 
 #[unsafe(no_mangle)]

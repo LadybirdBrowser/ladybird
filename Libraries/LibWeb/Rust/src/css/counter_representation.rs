@@ -13,6 +13,7 @@
 
 use crate::css::css_enums::symbols_type;
 use crate::css::css_string::CssString;
+use crate::css::ffi_support::OwnedArc;
 use crate::css::style_value::StyleValueData;
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -978,16 +979,9 @@ pub extern "C" fn rust_counter_styles_retain(
     Arc::into_raw(styles.to_arc())
 }
 
-/// # Safety
-///
-/// `styles` must be null or a reference from `rust_counter_styles_resolve` or
-/// `rust_counter_styles_retain` that has not been released.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_counter_styles_release(styles: *const RegisteredCounterStyles) {
-    if !styles.is_null() {
-        // SAFETY: The caller gives up the reference it holds.
-        drop(unsafe { Arc::from_raw(styles) });
-    }
+pub extern "C" fn rust_counter_styles_release(styles: OwnedArc<RegisteredCounterStyles>) {
+    drop(styles);
 }
 
 /// Whether the marker text of a list item whose `list-style-type` is `list_style_type` depends on

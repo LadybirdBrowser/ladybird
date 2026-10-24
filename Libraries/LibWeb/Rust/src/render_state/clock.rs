@@ -29,6 +29,7 @@
 use super::owner::DocumentId;
 use super::{DocumentHost, RenderState};
 use crate::css::css_pixels::CssPixelRect;
+use crate::css::ffi_support::OwnedArc;
 use crate::css::style::animations::{AnimationTimelineSamples, ScrollProgress};
 use crate::css::style::engine_sample::{DependentRestyle, NeedsHost, TickShownRecords};
 use crate::css::style::tree::StyleNodeID;
@@ -1596,14 +1597,9 @@ pub unsafe extern "C" fn clock_ticks_tick(
 }
 
 /// Gives up the reference `ticks` holds.
-///
-/// # Safety
-///
-/// `ticks` must come from `document_host_clock_ticks`, and be released once.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn clock_ticks_release(ticks: *const ClockTicks) {
-    // SAFETY: Guaranteed by the caller.
-    drop(unsafe { Arc::from_raw(ticks) });
+pub extern "C" fn clock_ticks_release(ticks: OwnedArc<ClockTicks>) {
+    drop(ticks);
 }
 
 /// A reference to the ticks the render clock hands the lanes of `host`'s document, which the caller releases with

@@ -6,6 +6,7 @@
 
 //! CSS selector parsing.
 
+use crate::css::ffi_support::OwnedBox;
 use std::sync::Arc;
 
 use super::css_tokenizer::{CssNumberType, ParserTokenKind, TokenizerInput, tokenize_for_parser};
@@ -1416,15 +1417,9 @@ pub extern "C" fn rust_selector_parse_pseudo_element(input: FfiUtf16View) -> Ffi
     }
 }
 
-/// # Safety
-/// `list` must be null or an owned selector list that has not been destroyed.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parsed_selector_list_destroy(list: *mut RustParsedSelectorList) {
-    unsafe {
-        if !list.is_null() {
-            drop(Box::from_raw(list));
-        }
-    }
+pub extern "C" fn rust_parsed_selector_list_destroy(list: OwnedBox<RustParsedSelectorList>) {
+    drop(list);
 }
 
 #[unsafe(no_mangle)]

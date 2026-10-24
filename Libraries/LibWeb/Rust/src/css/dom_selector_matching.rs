@@ -12,6 +12,7 @@
 //! it and the style engine is not consulted. Every fact a selector tests is asked of the DOM through the callbacks the
 //! host passes in.
 
+use crate::css::ffi_support::OwnedBox;
 use std::convert::Infallible;
 use std::ffi::c_void;
 use std::mem::MaybeUninit;
@@ -318,13 +319,9 @@ pub unsafe extern "C" fn rust_dom_selector_program_create(
     }))
 }
 
-/// # Safety
-/// `program` must be null or a program `rust_dom_selector_program_create` returned, which is not used again.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_selector_program_destroy(program: *mut DomSelectorProgram) {
-    if !program.is_null() {
-        drop(unsafe { Box::from_raw(program) });
-    }
+pub extern "C" fn rust_dom_selector_program_destroy(program: OwnedBox<DomSelectorProgram>) {
+    drop(program);
 }
 
 /// The DOM, as the callbacks show it.

@@ -6,7 +6,7 @@
 
 use crate::css::css_enums::keyword_from_ascii_case_insensitive;
 use crate::css::css_tokenizer::tokenize_for_parser;
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{FfiUtf16View, OwnedArc};
 use crate::css::parser::arbitrary_substitution::{
     SubstitutionFunctionsPresence, collect_arbitrary_substitution_function_presence, declaration_value_is_valid,
 };
@@ -437,11 +437,9 @@ pub extern "C" fn rust_syntax_retain(syntax: crate::css::ffi_support::ArcRef<'_,
     Arc::into_raw(syntax.to_arc())
 }
 
-/// # Safety
-/// `syntax` must be a live parsed-syntax handle whose strong count is released exactly once.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_syntax_release(syntax: *const c_void) {
-    unsafe { Arc::decrement_strong_count(syntax.cast::<SyntaxNode>()) };
+pub extern "C" fn rust_syntax_release(syntax: OwnedArc<SyntaxNode>) {
+    drop(syntax);
 }
 
 /// # Safety

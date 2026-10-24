@@ -5,7 +5,7 @@
  */
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{FfiUtf16View, OwnedBox};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::svg_formatting_context;
@@ -1256,16 +1256,9 @@ pub extern "C" fn compositor_animation_effect_state_create() -> *mut CompositorA
     Box::into_raw(Box::new(CompositorAnimationEffectState::default()))
 }
 
-/// # Safety
-///
-/// `state` must be a handle from `compositor_animation_effect_state_create` that is given up here.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_state_destroy(state: *mut CompositorAnimationEffectState) {
-    if state.is_null() {
-        return;
-    }
-    // SAFETY: The caller gives up the handle it created.
-    drop(unsafe { Box::from_raw(state) });
+pub extern "C" fn compositor_animation_effect_state_destroy(state: OwnedBox<CompositorAnimationEffectState>) {
+    drop(state);
 }
 
 /// Builds the animation of the request's target kind for the effect and keeps it pending with the

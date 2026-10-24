@@ -16,6 +16,7 @@
 //! effective-value queries on both the overlay itself and the computed
 //! longhand table.
 
+use crate::css::ffi_support::OwnedBox;
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -217,11 +218,9 @@ pub extern "C" fn rust_animated_overlay_contains(overlay: &AnimatedOverlay, prop
     overlay.get(property).is_some()
 }
 
-/// # Safety
-/// `overlay` must be a valid overlay that is not used after this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_overlay_free(overlay: *mut AnimatedOverlay) {
-    drop(unsafe { Box::from_raw(overlay) });
+pub extern "C" fn rust_animated_overlay_free(overlay: OwnedBox<AnimatedOverlay>) {
+    drop(overlay);
 }
 
 /// Stores or replaces the overlay entry for a longhand, retaining `value`.

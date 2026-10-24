@@ -56,11 +56,21 @@ impl<T> RcRef<'_, T> {
     }
 }
 
-/// [`RcRef`] for an object C++ holds through a pointer `Arc::into_raw()` gave it, which only C++ makes.
+/// [`RcRef`] for an object C++ holds through a pointer `Arc::into_raw()` gave it.
 #[repr(transparent)]
 pub struct ArcRef<'a, T> {
     pointer: *const T,
     lent: PhantomData<&'a std::sync::Arc<T>>,
+}
+
+#[cfg(test)]
+impl<'a, T> ArcRef<'a, T> {
+    pub(crate) fn new(arc: &'a std::sync::Arc<T>) -> Self {
+        Self {
+            pointer: std::sync::Arc::as_ptr(arc),
+            lent: PhantomData,
+        }
+    }
 }
 
 impl<T> ArcRef<'_, T> {
@@ -72,6 +82,78 @@ impl<T> ArcRef<'_, T> {
             std::sync::Arc::increment_strong_count(self.pointer);
             std::sync::Arc::from_raw(self.pointer)
         }
+    }
+}
+
+/// A strong reference C++ hands back, through a pointer `Rc::into_raw()` gave it, or null for none.
+///
+/// Only C++ makes one, so the reference is Rust's own once it is handed over, and dropping one releases it.
+#[repr(transparent)]
+pub struct OwnedRc<T> {
+    pointer: *const T,
+    owned: PhantomData<std::rc::Rc<T>>,
+}
+
+impl<T> OwnedRc<T> {
+    fn take(&mut self) -> Option<std::rc::Rc<T>> {
+        let pointer = std::mem::replace(&mut self.pointer, std::ptr::null());
+        // SAFETY: A non-null pointer comes from `Rc::into_raw()`, and its reference is this handle's own.
+        (!pointer.is_null()).then(|| unsafe { std::rc::Rc::from_raw(pointer) })
+    }
+}
+
+impl<T> Drop for OwnedRc<T> {
+    fn drop(&mut self) {
+        drop(self.take());
+    }
+}
+
+/// [`OwnedRc`] for a reference C++ hands back through a pointer `Arc::into_raw()` gave it.
+#[repr(transparent)]
+pub struct OwnedArc<T> {
+    pointer: *const T,
+    owned: PhantomData<std::sync::Arc<T>>,
+}
+
+impl<T> OwnedArc<T> {
+    fn take(&mut self) -> Option<std::sync::Arc<T>> {
+        let pointer = std::mem::replace(&mut self.pointer, std::ptr::null());
+        // SAFETY: A non-null pointer comes from `Arc::into_raw()`, and its reference is this handle's own.
+        (!pointer.is_null()).then(|| unsafe { std::sync::Arc::from_raw(pointer) })
+    }
+
+    /// The reference, which must not be null.
+    pub(crate) fn into_arc(mut self) -> std::sync::Arc<T> {
+        self.take().expect("C++ hands over a live object")
+    }
+}
+
+impl<T> Drop for OwnedArc<T> {
+    fn drop(&mut self) {
+        drop(self.take());
+    }
+}
+
+/// An object C++ hands back, through a pointer `Box::into_raw()` gave it, or null for none.
+///
+/// Only C++ makes one, so the object is Rust's own once it is handed over, and dropping one drops it.
+#[repr(transparent)]
+pub struct OwnedBox<T> {
+    pointer: *mut T,
+    owned: PhantomData<Box<T>>,
+}
+
+impl<T> OwnedBox<T> {
+    fn take(&mut self) -> Option<Box<T>> {
+        let pointer = std::mem::replace(&mut self.pointer, std::ptr::null_mut());
+        // SAFETY: A non-null pointer comes from `Box::into_raw()`, and its object is this handle's own.
+        (!pointer.is_null()).then(|| unsafe { Box::from_raw(pointer) })
+    }
+}
+
+impl<T> Drop for OwnedBox<T> {
+    fn drop(&mut self) {
+        drop(self.take());
     }
 }
 
