@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Inline Layout: getComputedStyle().baselineShift</title>
+<link rel="help" href="https://drafts.csswg.org/css-inline-3/#baseline-shift-property">
+<meta name="assert" content="baseline-shift computed value is the specified keyword or a computed length-percentage value.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("baseline-shift", "-10px");
+test_computed_value("baseline-shift", "20%");
+test_computed_value("baseline-shift", "calc(10px - 0.5em)", "-10px");
+
+test_computed_value("baseline-shift", "sub");
+test_computed_value("baseline-shift", "super");
+test_computed_value("baseline-shift", "bottom");
+test_computed_value("baseline-shift", "center");
+test_computed_value("baseline-shift", "top");
+</script>
+</body>
+</html>

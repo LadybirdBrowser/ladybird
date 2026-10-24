@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['baseline-shift'] = "5" should not set the property value
+Pass	e.style['baseline-shift'] = "-10px 20%" should not set the property value
+Pass	e.style['baseline-shift'] = "calc(2em + 3ex), 0" should not set the property value
+Pass	e.style['baseline-shift'] = "sub super" should not set the property value
+Pass	e.style['baseline-shift'] = "20px sub" should not set the property value

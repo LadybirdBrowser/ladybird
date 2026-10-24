@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Inline Layout: getComputedStyle().alignmentBaseline</title>
+<link rel="help" href="https://drafts.csswg.org/css-inline-3/#alignment-baseline-property">
+<link rel="help" href="https://www.w3.org/TR/SVG11/text.html#AlignmentBaselineProperty">
+<meta name="assert" content="alignment-baseline computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("alignment-baseline", "baseline");
+test_computed_value("alignment-baseline", "text-bottom");
+test_computed_value("alignment-baseline", "alphabetic");
+test_computed_value("alignment-baseline", "ideographic");
+test_computed_value("alignment-baseline", "middle");
+test_computed_value("alignment-baseline", "central");
+test_computed_value("alignment-baseline", "mathematical");
+test_computed_value("alignment-baseline", "hanging");
+test_computed_value("alignment-baseline", "text-top");
+</script>
+</body>
+</html>

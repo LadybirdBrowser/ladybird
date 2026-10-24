@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Fail
+Fail	Property alignment-baseline value 'baseline'
+Fail	Property alignment-baseline value 'text-bottom'
+Fail	Property alignment-baseline value 'alphabetic'
+Fail	Property alignment-baseline value 'ideographic'
+Fail	Property alignment-baseline value 'middle'
+Fail	Property alignment-baseline value 'central'
+Fail	Property alignment-baseline value 'mathematical'
+Fail	Property alignment-baseline value 'hanging'
+Fail	Property alignment-baseline value 'text-top'

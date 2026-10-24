@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Fail
+Fail	e.style['baseline-shift'] = "-10px" should set the property value
+Fail	e.style['baseline-shift'] = "20%" should set the property value
+Fail	e.style['baseline-shift'] = "calc(2em + 3ex)" should set the property value
+Fail	e.style['baseline-shift'] = "0" should set the property value
+Fail	e.style['baseline-shift'] = "sub" should set the property value
+Fail	e.style['baseline-shift'] = "super" should set the property value
+Fail	e.style['baseline-shift'] = "bottom" should set the property value
+Fail	e.style['baseline-shift'] = "center" should set the property value
+Fail	e.style['baseline-shift'] = "top" should set the property value
