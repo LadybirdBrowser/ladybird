@@ -32,7 +32,7 @@ public:
     CanonicalSimilarOriginWindowAgent& agent() const { return m_agent; }
 
     CanonicalEnvironmentSettingsObject const& relevant_settings_object() const;
-    void set_up_a_window_environment_settings_object(Optional<Web::HTML::EnvironmentId> id);
+    void set_up_a_window_environment_settings_object(Optional<Web::HTML::EnvironmentId> id, URL::URL top_level_creation_url);
 
     bool has_associated_document() const { return m_associated_document; }
     CanonicalDocument const& associated_document() const;

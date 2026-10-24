@@ -30,7 +30,7 @@ CanonicalEnvironmentSettingsObject const& CanonicalWindow::relevant_settings_obj
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#set-up-a-window-environment-settings-object
-void CanonicalWindow::set_up_a_window_environment_settings_object(Optional<Web::HTML::EnvironmentId> id)
+void CanonicalWindow::set_up_a_window_environment_settings_object(Optional<Web::HTML::EnvironmentId> id, URL::URL top_level_creation_url)
 {
     VERIFY(!m_relevant_settings_object);
 
@@ -46,8 +46,11 @@ void CanonicalWindow::set_up_a_window_environment_settings_object(Optional<Web::
     if (!id.has_value())
         id = Web::HTML::EnvironmentId::generate();
 
+    // 6. Set settings object's creation URL to creationURL, settings object's top-level creation URL to
+    //    topLevelCreationURL, and settings object's top-level origin to topLevelOrigin.
+    // NB: The UI process derives the creation URL and top-level origin from the window's associated document.
     // 7. Set realm's [[HostDefined]] field to settings object.
-    m_relevant_settings_object = make<CanonicalWindowEnvironmentSettingsObject>(*this, id.release_value());
+    m_relevant_settings_object = make<CanonicalWindowEnvironmentSettingsObject>(*this, id.release_value(), move(top_level_creation_url));
 }
 
 CanonicalDocument const& CanonicalWindow::associated_document() const
