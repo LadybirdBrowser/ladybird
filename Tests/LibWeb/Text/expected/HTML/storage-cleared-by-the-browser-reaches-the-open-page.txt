@@ -1,0 +1,6 @@
+before: local length 2, session length 1
+after the browser clears local storage: length 0, a=null, session length 1
+storage event: key=null oldValue=null newValue=null storageArea-is-localStorage=true
+after the browser clears session storage: length 0, s=null
+storage event: key=null storageArea-is-sessionStorage=true
+clearing empty storage fires nothing: true

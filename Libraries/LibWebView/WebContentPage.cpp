@@ -1241,6 +1241,14 @@ void WebContentPage::did_request_document_cookie_version_index(Web::HTML::Enviro
     }
 }
 
+void WebContentPage::clear_storage_for_testing(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id)
+{
+    auto canonical_key = canonical_storage_key(environment_id);
+    auto* storage_jar = this->storage_jar(storage_endpoint);
+    if (canonical_key.has_value() && storage_jar)
+        storage_jar->clear_storage_key(storage_endpoint, *canonical_key);
+}
+
 Messages::WebContentClient::ConnectToStorageAreaResponse WebContentPage::connect_to_storage_area(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id)
 {
     auto canonical_key = canonical_storage_key(environment_id);

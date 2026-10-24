@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A change the browser makes to web storage — clearing site data, a DevTools edit — has to reach a page that
+    // already holds that storage, with no reload in between, and fire the storage event the change calls for: the
+    // browser relays every change to every process mirroring the storage, whoever made it. The test hook clears this
+    // page's bottle the way the browser's own clearing does, through the jar.
+    asyncTest(async (done) => {
+        localStorage.clear();
+        sessionStorage.clear();
+        localStorage.setItem("a", "1");
+        localStorage.setItem("b", "2");
+        sessionStorage.setItem("s", "3");
+        println("before: local length " + localStorage.length + ", session length " + sessionStorage.length);
+
+        const nextStorageEvent = () => new Promise((resolve) => addEventListener("storage", resolve, { once: true }));
+
+        let event = nextStorageEvent();
+        internals.clearStorageForTesting("local");
+        let e = await event;
+        println("after the browser clears local storage: length " + localStorage.length + ", a=" + localStorage.getItem("a") + ", session length " + sessionStorage.length);
+        println("storage event: key=" + e.key + " oldValue=" + e.oldValue + " newValue=" + e.newValue + " storageArea-is-localStorage=" + (e.storageArea === localStorage));
+
+        event = nextStorageEvent();
+        internals.clearStorageForTesting("session");
+        e = await event;
+        println("after the browser clears session storage: length " + sessionStorage.length + ", s=" + sessionStorage.getItem("s"));
+        println("storage event: key=" + e.key + " storageArea-is-sessionStorage=" + (e.storageArea === sessionStorage));
+
+        // Clearing what is already empty changes nothing, so nothing is relayed and nothing fires.
+        let fired = false;
+        addEventListener("storage", () => { fired = true; }, { once: true });
+        internals.clearStorageForTesting("local");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        println("clearing empty storage fires nothing: " + !fired);
+        done();
+    });
+</script>

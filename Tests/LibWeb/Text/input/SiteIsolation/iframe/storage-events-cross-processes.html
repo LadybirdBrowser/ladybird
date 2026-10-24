@@ -37,7 +37,9 @@
                     addEventListener("storage", (e) => channel.postMessage(describe(e)));
                     channel.onmessage = (e) => {
                         const command = e.data;
-                        if (command.op === "setBig") {
+                        if (command.op === "keys") {
+                            channel.postMessage({ type: "keys", keys: Object.keys(localStorage).sort() });
+                        } else if (command.op === "setBig") {
                             let threw = false;
                             try {
                                 localStorage.setItem(command.key, "p".repeat(command.size));
@@ -125,11 +127,14 @@
                         peerEvents.length = 0;
 
                         // Two writes that fit alone but not together, each made from a mirror that can't know about the
-                        // other: the actor writes in the task that posts the peer's command, and that command reaches
-                        // the peer ahead of the actor's change. So both are accepted locally, and the owner refuses
-                        // whichever reaches it second. The loser's process then hears the refusal, falls back in line
-                        // with the owner, and fires a storage event for the value that vanished — on the window that
-                        // wrote it, which is the one that most needs to know.
+                        // other. The actor posts the peer's command and writes in the same task, so the command reaches
+                        // the peer ahead of the actor's change — but the peer handles the command in a queued task,
+                        // while a change is applied the moment it arrives, so the peer may or may not already see the
+                        // actor's write by then. Three outcomes are possible, and every line below holds in each: the
+                        // browser keeps exactly one of the two writes, both sides agree on which, and a write the
+                        // browser refused after its own window accepted it is reverted there with a storage event — on
+                        // the window that wrote it, which is the one that most needs to know. A "keys" round trip
+                        // settles both sides: it's handled after every change either side had in flight.
                         const size = 3 * 1024 * 1024;
                         const peerWritten = nextReply();
                         channel.postMessage({ op: "setBig", key: "peerBig", size });
@@ -140,17 +145,28 @@
                             actorThrew = true;
                         }
                         const peerThrew = (await peerWritten).threw;
-                        report("racing writes: neither threw: " + !(actorThrew || peerThrew));
-                        await waitFor(() => peerEvents.length + ownEvents.length >= 2);
-                        const events = [...peerEvents, ...ownEvents];
+                        channel.postMessage({ op: "keys" });
+                        const peerKeys = (await nextReply()).keys;
+                        const actorKeys = Object.keys(localStorage).sort();
                         const bigKey = (key) => key === "actorBig" || key === "peerBig";
-                        const accepted = events.filter((event) => bigKey(event.key) && event.newValue !== null);
-                        const reverted = events.filter((event) => bigKey(event.key) && event.newValue === null);
-                        report("racing writes: events in total: " + events.length + "; on one side only: " + (peerEvents.length === 0 || ownEvents.length === 0));
-                        report("racing writes: accepted write seen once: " + (accepted.length === 1) + "; its value: " + accepted[0]?.newValue);
-                        report("racing writes: refused write reverted once: " + (reverted.length === 1) + "; its old value: " + reverted[0]?.oldValue + "; storageArea is localStorage: " + reverted[0]?.isLocalStorage);
-                        report("racing writes: the loser's own window saw the revert: " + (reverted.length === 1 && (reverted[0].key === "actorBig") === (ownEvents.includes(reverted[0]))));
-                        report("racing writes: one key kept: " + localStorage.length);
+                        const actorBigKeys = actorKeys.filter(bigKey);
+                        const peerBigKeys = peerKeys.filter(bigKey);
+                        report("racing writes: at most one write was refused outright: " + !(actorThrew && peerThrew));
+                        report("racing writes: exactly one 3 MiB key kept, and both sides agree on which: " + (actorBigKeys.length === 1 && peerBigKeys.length === 1 && actorBigKeys[0] === peerBigKeys[0]));
+                        const kept = actorBigKeys[0];
+                        const accepted = [...peerEvents, ...ownEvents].filter((event) => bigKey(event.key) && event.newValue !== null);
+                        const reverted = [...peerEvents, ...ownEvents].filter((event) => bigKey(event.key) && event.newValue === null);
+                        const keptOnActor = kept === "actorBig";
+                        report("racing writes: the kept write reached the other side as one storage event: " + (accepted.length === 1 && accepted[0].key === kept && accepted[0].newValue === "<" + size + " chars>" && (keptOnActor ? peerEvents : ownEvents).includes(accepted[0])));
+                        // The other write was either refused outright by its own mirror (then nothing was ever applied,
+                        // and nothing reverts) or accepted there and refused by the browser (then its window reverts).
+                        const refusedOutright = actorThrew || peerThrew;
+                        const loserEvents = keptOnActor ? peerEvents : ownEvents;
+                        const revertedRight = refusedOutright
+                            ? reverted.length === 0
+                            : reverted.length === 1 && reverted[0].key !== kept && reverted[0].oldValue === "<" + size + " chars>" && reverted[0].isLocalStorage && loserEvents.includes(reverted[0]);
+                        report("racing writes: a write the browser refused after its window accepted it was reverted there with a storage event, and nothing else was: " + revertedRight);
+                        report("racing writes: no other events: " + (peerEvents.length + ownEvents.length === accepted.length + reverted.length));
 
                         localStorage.clear();
                         channel.postMessage({ op: "close" });
