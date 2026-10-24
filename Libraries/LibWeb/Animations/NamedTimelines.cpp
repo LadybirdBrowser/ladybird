@@ -110,7 +110,7 @@ void NamedTimelines::refresh_declarations()
                 .view_inset = view_timeline_inset_from_ffi(declaration->view_inset),
             });
         });
-        auto scope = CSS::ComputedValuesFFI::rust_animation_values_timeline_scope(&values, &declaring_element, [](void* context, void const* name) {
+        auto scope = CSS::ComputedValuesFFI::rust_animation_values_timeline_scope(&values, &declaring_element, [](void* context, CSS::StyleValueFFI::CssString const* name) {
             static_cast<DeclaringElement*>(context)->scoped_names.append(CSS::css_string_from_rust(name));
         });
         declaring_element.scopes_all_names = scope == CSS::ComputedValuesFFI::FfiTimelineScope::All;
