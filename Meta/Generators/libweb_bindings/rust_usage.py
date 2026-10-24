@@ -102,6 +102,11 @@ class DefinitionUsage:
         return [dictionary for dictionary in module.dictionaries if dictionary.name in self.cpp_dictionary_names]
 
     def _collect_rust_dictionaries(self) -> None:
+        # NB: An implementation in Rust converts JS values to a dictionary marked [ImplementedIn=Rust] itself, as the
+        #     constructor of ReadableStream converts its underlyingSource object to an UnderlyingSource.
+        for dictionary in self.context.dictionaries.values():
+            if dictionary.extended_attributes.get("ImplementedIn") == "Rust":
+                self._name_for_rust(IDLType(dictionary.name), from_js=True, to_js=False)
         for module in self.context.modules:
             interface = module.interface
             if interface is None or not is_implemented_in_rust(interface):
@@ -123,6 +128,9 @@ class DefinitionUsage:
                     self._name_for_rust(parameter.type, from_js=True, to_js=False)
             for constructor in members.constructors:
                 for parameter in constructor.constructor.parameters:
+                    self._name_for_rust(parameter.type, from_js=True, to_js=False)
+            if members.async_iterator is not None:
+                for parameter in members.async_iterator.parameters:
                     self._name_for_rust(parameter.type, from_js=True, to_js=False)
 
     def _name_for_rust(self, idl_type: IDLType, from_js: bool, to_js: bool) -> None:

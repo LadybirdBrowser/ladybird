@@ -26,6 +26,7 @@ from Generators.libweb_bindings.rust_types import cpp_interface_name_constant
 from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import inheriting_interfaces
 from Generators.libweb_bindings.rust_types import is_named_union
+from Generators.libweb_bindings.rust_types import is_promise_type
 from Generators.libweb_bindings.rust_types import is_sequence_of_cells
 from Generators.libweb_bindings.rust_types import is_unnamed_union_of_cpp_interfaces
 from Generators.libweb_bindings.rust_types import member_other_than_undefined
@@ -117,6 +118,8 @@ def rust_to_idl_value(
         return f"to_boolean({value})"
     if name == "any":
         return f"ThrowCompletionOr::<Value>::Ok({value})"
+    if name == "object":
+        return f"to_object(vm, {value})"
     if name in INTEGER_TYPES:
         if "EnforceRange" in attributes:
             return f"to_{name.replace(' ', '_')}_enforcing_range(vm, {value})"
@@ -141,6 +144,11 @@ def rust_to_idl_value(
     enumeration = context.enumeration(idl_type)
     if enumeration is not None:
         return f"<{rust_enumeration_path(enumeration, context)}>::from_js(vm, {value})"
+    callback_function = context.callback_function(idl_type)
+    if callback_function is not None:
+        if is_promise_type(callback_function.return_type):
+            return f"PromiseCallbackFunction::from_js(vm, {value})"
+        return f"CallbackFunction::from_js(vm, {value})"
     interface = rust_interface(idl_type, context)
     if interface is not None:
         if inheriting_interfaces(interface, context):

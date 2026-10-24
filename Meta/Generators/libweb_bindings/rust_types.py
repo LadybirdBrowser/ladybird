@@ -377,6 +377,8 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
     if isinstance(idl_type, IDLParameterizedType):
         if name == "sequence":
             return f"Vec<{rust_type(idl_type.parameters[0], context, what, is_result)}>"
+        if name == "Promise" and is_result:
+            return "WebIdlPromise"
         if name == "record":
             key_type, value_type = idl_type.parameters
             if key_type.name not in ("DOMString", "USVString"):
@@ -391,8 +393,13 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
         return "Gc<Object>"
     if name in TYPED_ARRAY_NAMES:
         return "Gc<TypedArrayBase>"
-    if context.callback_function(idl_type) is not None:
-        return "Gc<FunctionObject>"
+    callback_function = context.callback_function(idl_type)
+    if callback_function is not None:
+        # NB: A callback function value that the implementation receives keeps its callback context, and one that it
+        #     returns is a function that it created.
+        if is_result:
+            return "Gc<FunctionObject>"
+        return "PromiseCallbackFunction" if is_promise_type(callback_function.return_type) else "CallbackFunction"
     interface = rust_interface(idl_type, context)
     if interface is not None:
         if inheriting_interfaces(interface, context) and not is_result:
@@ -423,14 +430,6 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
 
 def is_promise_type(idl_type: IDLType) -> bool:
     return isinstance(idl_type, IDLParameterizedType) and idl_type.name == "Promise"
-
-
-def rust_result_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
-    """The Rust type that the method of an operation returns. An operation that returns a promise type returns the
-    promise object, which is the only place the Rust bindings handle a promise type in."""
-    if is_promise_type(idl_type) and not idl_type.nullable:
-        return "Gc<Object>"
-    return rust_type(idl_type, context, what, is_result=True)
 
 
 def holds_cells(

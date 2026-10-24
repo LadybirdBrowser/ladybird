@@ -23,6 +23,7 @@ use libjs_rust::api::{
 
 use crate::ak_format::ak_formatted;
 use crate::bindings::interface::{Interface, Ref, create_dictionary_object, wrap};
+use crate::bindings::promise::WebIdlPromise;
 use crate::bindings::services::web_bindings_object_implements_interface;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
@@ -168,6 +169,17 @@ pub(crate) fn enumeration_value_to_js(cx: &CallContext, enumeration_value: &str)
         cx.vm(),
         enumeration_value.as_bytes(),
     ))
+}
+
+/// An object converted from a JS value, https://webidl.spec.whatwg.org/#js-object
+pub(crate) fn to_object(vm: &Vm, value: Value) -> ThrowCompletionOr<Gc<Object>> {
+    // 1. If V is not an Object, then throw a TypeError.
+    if !value.is_object() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
+    }
+
+    // 2. Return the IDL object value that is a reference to the same object as V.
+    Ok(value.as_object())
 }
 
 /// A JS value converted to a boolean, https://webidl.spec.whatwg.org/#js-boolean
@@ -971,6 +983,13 @@ impl ToJs for Value {
 impl ToJs for Gc<Object> {
     fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
         Ok(Value::from_object(self))
+    }
+}
+
+/// https://webidl.spec.whatwg.org/#js-promise
+impl ToJs for WebIdlPromise {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(Value::from_object(self.promise()))
     }
 }
 
