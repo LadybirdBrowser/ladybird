@@ -18,6 +18,7 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
+#include <LibHTTP/Forward.h>
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/Forward.h>
@@ -30,6 +31,7 @@
 #include <LibWebCommon/HTML/SameDocumentNavigationEntry.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/Page/PageId.h>
+#include <LibWebCommon/PermissionsPolicy/PermissionsPolicy.h>
 #include <LibWebCommon/PixelUnits.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
@@ -129,6 +131,11 @@ public:
     bool is_familiar_with(CanonicalNavigable const&) const;
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-target-snapshot-params
     Web::HTML::TargetSnapshotParams snapshot_target_snapshot_params() const;
+
+    // https://w3c.github.io/webappsec-permissions-policy/#algo-create-from-response
+    // NB: Given this navigable's container, which the UI process holds as its container document and the container
+    //     policy that the process holding the container reports.
+    Web::PermissionsPolicy::PermissionsPolicy create_a_permissions_policy_from_a_response(URL::Origin const&, HTTP::HeaderList const& response_header_list) const;
     IterationDecision for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable&)> const&);
     IterationDecision for_each_in_subtree(Function<IterationDecision(CanonicalNavigable&)> const&);
     IterationDecision for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable const&)> const&) const;

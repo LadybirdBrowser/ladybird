@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Window.h>
@@ -105,7 +106,8 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
     // NB: The UI process determined the origin of a document it held first.
     auto origin = determined_origin.has_value() ? determined_origin.release_value() : determine_the_origin(URL::about_blank(), sandbox_flags, creator_origin);
 
-    // FIXME: 8. Let permissionsPolicy be the result of creating a permissions policy given embedder and origin. [PERMISSIONSPOLICY]
+    // 8. Let permissionsPolicy be the result of creating a permissions policy given embedder and origin. [PERMISSIONSPOLICY]
+    auto permissions_policy = NavigableContainer::create_a_permissions_policy(as_if<NavigableContainer>(embedder.ptr()), origin);
 
     // 9. Let agent be the result of obtaining a similar-origin window agent given origin, group, and false.
     // NB: The UI process obtains the agent. For creator's origin, that is creator's agent. Any other origin is a new
@@ -197,7 +199,8 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
     // browsing context: browsingContext
     document->set_browsing_context(browsing_context);
 
-    // FIXME: permissions policy: permissionsPolicy
+    // permissions policy: permissionsPolicy
+    document->set_permissions_policy(move(permissions_policy));
 
     // active sandboxing flag set: sandboxFlags
     document->set_active_sandboxing_flag_set(sandbox_flags);

@@ -53,6 +53,19 @@ GC::Ptr<DOM::Document> Navigable::container_document() const
     return container->document();
 }
 
+PermissionsPolicy::PermissionsPolicy Navigable::create_a_permissions_policy_from_a_response(URL::Origin const& origin, HTTP::HeaderList const& response_header_list) const
+{
+    if (!parent())
+        return PermissionsPolicy::create_a_permissions_policy_for_a_navigable_from_response({}, origin, response_header_list);
+
+    // NB: The container's node document is the parent's active document. An origin not yet replicated is same origin
+    //     with nothing, which withholds features whose default allowlist is 'self'.
+    auto container_document_origin = parent()->active_document_origin().value_or_lazy_evaluated([] { return URL::Origin::create_opaque(); });
+    auto container_state = this->container_state();
+    PermissionsPolicy::NavigableContainerPolicyInputs container { container_state.document_permissions_policy, container_document_origin, container_state.container_policy };
+    return PermissionsPolicy::create_a_permissions_policy_for_a_navigable_from_response(container, origin, response_header_list);
+}
+
 bool Navigable::is_ancestor_of(Navigable const& other) const
 {
     for (auto ancestor = other.parent(); ancestor; ancestor = ancestor->parent()) {
