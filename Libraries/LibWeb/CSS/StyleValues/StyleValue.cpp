@@ -511,6 +511,11 @@ GC::Ref<CSSStyleValue> StyleValue::reify(Utf16FlyString const& associated_proper
         return as_number().reify(associated_property);
     case Type::OpacityValue:
         return as_opacity_value().reify(associated_property);
+    case Type::GridTrackSizeList:
+        // NB: A track list that is just one track size, as for `grid-auto-columns: 10px`, is that track size.
+        if (auto const* track_size = StyleValueFFI::rust_style_value_grid_track_size_list_single_size(rust_style_value_data()))
+            return adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(track_size))->reify(associated_property);
+        break;
     case Type::TextIndent:
         // NB: A text-indent without the `hanging` or `each-line` keywords is just its length-percentage.
         if (!m_value->text_indent.hanging && !m_value->text_indent.each_line)

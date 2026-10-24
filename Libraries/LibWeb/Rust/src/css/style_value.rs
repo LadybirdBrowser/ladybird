@@ -1349,10 +1349,14 @@ impl RetainedGridTrackEntry {
     }
 
     pub(crate) fn size(value: StyleValueData) -> Self {
+        Self::retained_size(RetainedStyleValueData::from_owned(value))
+    }
+
+    fn retained_size(size_value: RetainedStyleValueData) -> Self {
         Self {
             kind: GridTrackEntryKind::Size,
             names: CssStringList::from_strings(Vec::new()),
-            size_value: RetainedStyleValueData::from_owned(value),
+            size_value,
             min_value: RetainedStyleValueData::none(),
             max_value: RetainedStyleValueData::none(),
             repeat_type: 0,
@@ -3122,6 +3126,43 @@ pub unsafe extern "C" fn rust_style_value_create_text_indent(
         hanging,
         each_line,
     }))
+}
+
+/// Takes ownership of one strong reference to each track size.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_grid_track_size_list(
+    track_sizes: *const *const StyleValueData,
+    length: usize,
+) -> *const StyleValueData {
+    let entries = unsafe { ak::slice_from_raw_parts(track_sizes, length) }
+        .iter()
+        .map(|&track_size| {
+            RetainedGridTrackEntry::retained_size(unsafe { RetainedStyleValueData::from_retained_pointer(track_size) })
+        })
+        .collect();
+    Arc::into_raw(Arc::new(StyleValueData::GridTrackSizeList {
+        is_subgrid: false,
+        preserve_line_name_sets: false,
+        entries: RetainedGridTrackEntryList::from_retained_entries(entries),
+    }))
+}
+
+/// The track size of a grid track size list that holds just one track size, without line names, or null. The
+/// returned value is borrowed from `data`.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_grid_track_size_list_single_size(data: &StyleValueData) -> *const StyleValueData {
+    let StyleValueData::GridTrackSizeList {
+        is_subgrid: false,
+        entries,
+        ..
+    } = data
+    else {
+        return std::ptr::null();
+    };
+    match entries.as_slice() {
+        [entry] if entry.kind == GridTrackEntryKind::Size => entry.size_value.pointer(),
+        _ => std::ptr::null(),
+    }
 }
 
 #[unsafe(no_mangle)]

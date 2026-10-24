@@ -224,6 +224,22 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(Utf16FlyString property_name, Re
         return parse_css_value(parsing_params, value->to_string(SerializationMode::Normal), property.id());
     };
 
+    // AD-HOC: Our parser represents the track sizes of grid-auto-columns and grid-auto-rows as a single track size
+    //         list, and style computation expects that.
+    auto const grid_track_size_list = [](PropertyNameAndID const& property, StyleValueVector const& values) -> RefPtr<StyleValue const> {
+        if (!first_is_one_of(property.id(), PropertyID::GridAutoColumns, PropertyID::GridAutoRows))
+            return nullptr;
+        for (auto const& value : values) {
+            if (value->is_grid_track_size_list() || value->is_unresolved() || value->is_pending_substitution() || value->is_guaranteed_invalid() || value->is_css_wide_keyword())
+                return nullptr;
+        }
+        Vector<StyleValueFFI::StyleValueData const*> track_sizes;
+        track_sizes.ensure_capacity(values.size());
+        for (auto const& value : values)
+            track_sizes.unchecked_append(StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()));
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_grid_track_size_list(track_sizes.data(), track_sizes.size()));
+    };
+
     // 10. Set props[property] to values to set.
     // NOTE: The property is deleted then added back so that it gets put at the end of the ordered map, which gives the
     //       expected behavior in the face of shorthand properties.
@@ -232,6 +248,10 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(Utf16FlyString property_name, Re
             TRY(props.set_property_style_value(property.value(), parsed_value.release_nonnull()));
             return {};
         }
+    }
+    if (auto track_size_list = grid_track_size_list(property.value(), values_to_set)) {
+        TRY(props.set_property_style_value(property.value(), track_size_list.release_nonnull()));
+        return {};
     }
     if (values_to_set.size() == 1 && !should_wrap_value_in_list(property.value(), values_to_set.first())) {
         TRY(props.set_property_style_value(property.value(), values_to_set.take_first()));
