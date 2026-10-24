@@ -649,7 +649,7 @@ impl RetainedState {
     /// against that font, and the remaining phase with the element facts the box-type
     /// transformation reads. Root-input preparation finishes only the font and line-height
     /// phases and preserves them for completion, and a drive with an `initial_registered_context`
-    /// stops after the color-scheme phase with the context the registered custom properties it
+    /// may stop after the color-scheme phase with the context the registered custom properties it
     /// declares compute against, which it preserves likewise. Monospace default-size recascade
     /// stays in C++.
     #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
@@ -1122,7 +1122,7 @@ impl RetainedState {
         // A registered custom property computes against the font and color scheme settled now, as
         // the host finalizes one after the line-height phase; the winners the remaining phase reads
         // substitute what it computes to.
-        if initial_registered_context.is_some() {
+        if let Some(initial_context) = initial_registered_context {
             let context = self.registered_value_context(
                 target.node(),
                 FfiLengthResolutionContext {
@@ -1131,19 +1131,24 @@ impl RetainedState {
                 },
                 u8::try_from(effective_color_scheme).unwrap_or(inputs.preferred_color_scheme),
             );
-            font_scratch.pending = Some(PendingFontDrive {
-                target,
-                progress: Some(DriveProgress {
-                    root_font_complete: true,
-                    color_scheme_complete: true,
-                    recascaded_font_size,
-                    table,
-                    results,
-                    effective_color_scheme,
-                    resolved_viewport_relative_length,
-                }),
-            });
-            return Ok(FullDrive::AwaitsRegisteredContext(context));
+
+            // The initial environment already used this context. Resolve again only if
+            // computing the font, line-height, or color scheme changed it.
+            if context != *initial_context {
+                font_scratch.pending = Some(PendingFontDrive {
+                    target,
+                    progress: Some(DriveProgress {
+                        root_font_complete: true,
+                        color_scheme_complete: true,
+                        recascaded_font_size,
+                        table,
+                        results,
+                        effective_color_scheme,
+                        resolved_viewport_relative_length,
+                    }),
+                });
+                return Ok(FullDrive::AwaitsRegisteredContext(context));
+            }
         }
         let input_line_height_metrics = if has(fact::CHECK_INPUT_LINE_HEIGHT) {
             FfiInputLineHeightMetrics {
