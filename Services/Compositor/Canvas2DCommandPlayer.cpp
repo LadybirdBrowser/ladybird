@@ -225,7 +225,7 @@ void Canvas2DCommandPlayer::play_command(Canvas2DDrawVideoFrame const& command)
     draw_image(*image, command.dst_rect, command.src_rect, command.scaling_mode, command.compositing);
 }
 
-void Canvas2DCommandPlayer::draw_image(SkImage const& image, Gfx::FloatRect const& dst_rect, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, Canvas2DCompositing const& compositing)
+void Canvas2DCommandPlayer::draw_image(SkImage const& image, Gfx::FloatRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::ScalingMode scaling_mode, Canvas2DCompositing const& compositing)
 {
     m_painter->draw_image(image, dst_rect, src_rect, scaling_mode, image_filter_from(compositing), compositing.global_alpha, compositing.compositing_and_blending_operator, shadow_from(compositing));
 }

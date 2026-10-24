@@ -70,7 +70,7 @@ pub(crate) fn read_back_current_video_frame(video: CppInterface, color_space: Co
         captured_frame.sink_handle,
         captured_frame.generation,
         destination,
-        frame_rect,
+        destination,
         ScalingMode::NearestNeighbor,
         &Compositing {
             compositing_and_blending_operator: CompositingAndBlendingOperator::Copy,

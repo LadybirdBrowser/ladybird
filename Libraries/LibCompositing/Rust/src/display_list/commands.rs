@@ -1941,7 +1941,7 @@ impl DisplayListCommand for Canvas2DClearRect {
 pub struct Canvas2DDrawImageFrame {
     pub frame_id: ImageFrameResourceId,
     pub dst_rect: FloatRect,
-    pub src_rect: IntRect,
+    pub src_rect: FloatRect,
     pub scaling_mode: ScalingMode,
     pub compositing: Canvas2DCompositing,
 }
@@ -1963,7 +1963,7 @@ impl DisplayListCommand for Canvas2DDrawImageFrame {
 pub struct Canvas2DDrawCanvas {
     pub source_canvas_id: CanvasId,
     pub dst_rect: FloatRect,
-    pub src_rect: IntRect,
+    pub src_rect: FloatRect,
     pub scaling_mode: ScalingMode,
     pub compositing: Canvas2DCompositing,
 }
@@ -1986,7 +1986,7 @@ pub struct Canvas2DDrawVideoFrame {
     pub video_sink_handle: u64,
     pub generation: u64,
     pub dst_rect: FloatRect,
-    pub src_rect: IntRect,
+    pub src_rect: FloatRect,
     pub scaling_mode: ScalingMode,
     pub compositing: Canvas2DCompositing,
 }

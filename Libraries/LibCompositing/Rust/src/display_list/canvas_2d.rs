@@ -12,8 +12,8 @@ use super::commands::*;
 use super::ffi_bytes::FfiBytes;
 use super::validate::validate_canvas_2d_tape;
 use libgfx_rust::{
-    AffineTransform, CapStyle, Color, CompositingAndBlendingOperator, FloatPoint, FloatRect, IntPoint, IntRect,
-    JoinStyle, ScalingMode, WindingRule,
+    AffineTransform, CapStyle, Color, CompositingAndBlendingOperator, FloatPoint, FloatRect, IntPoint, JoinStyle,
+    ScalingMode, WindingRule,
 };
 use std::ffi::c_void;
 
@@ -281,7 +281,7 @@ impl TapeWriter {
         &mut self,
         frame_id: ImageFrameResourceId,
         dst_rect: FloatRect,
-        src_rect: IntRect,
+        src_rect: FloatRect,
         scaling_mode: ScalingMode,
         compositing: &Compositing,
     ) {
@@ -300,7 +300,7 @@ impl TapeWriter {
         &mut self,
         source_canvas_id: CanvasId,
         dst_rect: FloatRect,
-        src_rect: IntRect,
+        src_rect: FloatRect,
         scaling_mode: ScalingMode,
         compositing: &Compositing,
     ) {
@@ -320,7 +320,7 @@ impl TapeWriter {
         video_sink_handle: u64,
         generation: u64,
         dst_rect: FloatRect,
-        src_rect: IntRect,
+        src_rect: FloatRect,
         scaling_mode: ScalingMode,
         compositing: &Compositing,
     ) {
@@ -414,6 +414,7 @@ mod tests {
     use crate::display_list::nested_records::span_bytes;
     use crate::display_list::storage::write_run;
     use crate::display_list::validate::validate_tape;
+    use libgfx_rust::IntRect;
 
     fn records(tape: &[u8]) -> Vec<(DisplayListCommandType, Vec<u8>)> {
         let mut records = Vec::new();
@@ -529,7 +530,7 @@ mod tests {
         writer.draw_image_frame(
             ImageFrameResourceId(3),
             FloatRect::new(0.0, 0.0, 4.0, 4.0),
-            IntRect::new(0, 0, 2, 2),
+            FloatRect::new(0.0, 0.0, 2.0, 2.0),
             ScalingMode::NearestNeighbor,
             &Compositing::default(),
         );

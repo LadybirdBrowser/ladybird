@@ -316,7 +316,7 @@ void PainterSkia::fill_rect(Gfx::FloatRect const& rect, Color color)
     canvas.drawRect(to_skia_rect(rect), paint);
 }
 
-void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame const& source, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, sk_sp<SkImageFilter> image_filter, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const& shadow)
+void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame const& source, Gfx::FloatRect const& src_rect, Gfx::ScalingMode scaling_mode, sk_sp<SkImageFilter> image_filter, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const& shadow)
 {
     auto sk_image = sk_image_for_decoded_image_frame(source);
     if (!sk_image)
@@ -324,7 +324,7 @@ void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageF
     draw_image(*sk_image, dst_rect, src_rect, scaling_mode, move(image_filter), global_alpha, compositing_and_blending_operator, shadow);
 }
 
-void PainterSkia::draw_image(SkImage const& image, Gfx::FloatRect const& dst_rect, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, sk_sp<SkImageFilter> image_filter, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const& shadow)
+void PainterSkia::draw_image(SkImage const& image, Gfx::FloatRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::ScalingMode scaling_mode, sk_sp<SkImageFilter> image_filter, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const& shadow)
 {
     SkPaint paint;
     paint.setImageFilter(move(image_filter));

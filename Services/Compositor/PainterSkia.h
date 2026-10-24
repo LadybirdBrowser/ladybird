@@ -50,8 +50,8 @@ public:
 
     void clear_rect(Gfx::FloatRect const&, Color);
     void fill_rect(Gfx::FloatRect const&, Color);
-    void draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame const& source, Gfx::IntRect const& src_rect, Gfx::ScalingMode, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const&);
-    void draw_image(SkImage const&, Gfx::FloatRect const& dst_rect, Gfx::IntRect const& src_rect, Gfx::ScalingMode, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const&);
+    void draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame const& source, Gfx::FloatRect const& src_rect, Gfx::ScalingMode, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const&);
+    void draw_image(SkImage const&, Gfx::FloatRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::ScalingMode, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const&);
     void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, sk_sp<SkImageFilter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const&, Gfx::Path::JoinStyle const&, float miter_limit, Vector<float> const&, float dash_offset, Optional<CanvasShadow> const&);
     void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule, Optional<CanvasShadow> const&);
     void draw_glyph_run(Font const&, SkFont, ReadonlySpan<CanvasGlyph>, FloatPoint translation, PaintStyle const&, sk_sp<SkImageFilter>, float global_alpha, CompositingAndBlendingOperator, Optional<CanvasShadow> const&);
