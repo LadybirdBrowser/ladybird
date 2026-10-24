@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        // A child reports whether it may use the fullscreen feature, whose default allowlist is 'self'.
+        const childSource = `<!DOCTYPE html><script>parent.postMessage(document.fullscreenEnabled, "*");<\/script>`;
+
+        const frame = async (name, { crossOrigin = false, headers = {}, attributes = {} } = {}) => {
+            const url = new URL(await server.createEcho("GET", `/${name}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html", ...headers },
+                body: childSource,
+            }));
+            if (crossOrigin)
+                url.hostname = uniqueLocalhostHostname(name);
+            const iframe = document.createElement("iframe");
+            for (const [attribute, value] of Object.entries(attributes))
+                iframe.setAttribute(attribute, value);
+            iframe.src = url;
+            const enabled = await new Promise(resolve => {
+                addEventListener("message", event => resolve(event.data), { once: true });
+                document.body.appendChild(iframe);
+            });
+            println(`${name}: ${enabled ? "enabled" : "disabled"}`);
+            iframe.remove();
+        };
+
+        await frame("same-origin");
+        await frame("cross-origin", { crossOrigin: true });
+        await frame("cross-origin-allowfullscreen", { crossOrigin: true, attributes: { allowfullscreen: "" } });
+        await frame("cross-origin-allow-src", { crossOrigin: true, attributes: { allow: "fullscreen" } });
+        await frame("cross-origin-allow-other-origin", { crossOrigin: true, attributes: { allow: "fullscreen https://example.com" } });
+        await frame("same-origin-allow-none", { attributes: { allow: "fullscreen 'none'" } });
+        await frame("same-origin-header-none", { headers: { "Permissions-Policy": "fullscreen=()" } });
+        await frame("cross-origin-allow-overrides-allowfullscreen", { crossOrigin: true, attributes: { allow: "fullscreen 'none'", allowfullscreen: "" } });
+
+        done();
+    });
+</script>

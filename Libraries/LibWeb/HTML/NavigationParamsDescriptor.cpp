@@ -180,6 +180,7 @@ static NavigationParamsDescriptor create_navigation_params_descriptor(Navigation
         .agent_cluster_id = params.agent_cluster_id,
         .agent_cluster_cross_origin_isolation_mode = params.agent_cluster_cross_origin_isolation_mode,
         .new_browsing_context_group_id = params.new_browsing_context_group_id,
+        .permissions_policy = params.permissions_policy,
     };
 }
 
@@ -396,6 +397,7 @@ ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Re
     navigation_params->agent_cluster_id = params.agent_cluster_id;
     navigation_params->agent_cluster_cross_origin_isolation_mode = params.agent_cluster_cross_origin_isolation_mode;
     navigation_params->new_browsing_context_group_id = params.new_browsing_context_group_id;
+    navigation_params->permissions_policy = move(params.permissions_policy);
     return navigation_params;
 }
 

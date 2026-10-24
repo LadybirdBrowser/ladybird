@@ -270,6 +270,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationParamsDescriptor con
     TRY(encoder.encode(params.agent_cluster_id));
     TRY(encoder.encode(params.agent_cluster_cross_origin_isolation_mode));
     TRY(encoder.encode(params.new_browsing_context_group_id));
+    TRY(encoder.encode(params.permissions_policy));
     return {};
 }
 
@@ -295,6 +296,7 @@ ErrorOr<Web::HTML::NavigationParamsDescriptor> decode(Decoder& decoder)
         .agent_cluster_id = TRY(decoder.decode<Optional<u64>>()),
         .agent_cluster_cross_origin_isolation_mode = TRY(decoder.decode<Web::HTML::CrossOriginIsolationMode>()),
         .new_browsing_context_group_id = TRY(decoder.decode<Optional<u64>>()),
+        .permissions_policy = TRY(decoder.decode<Optional<Web::PermissionsPolicy::PermissionsPolicy>>()),
     };
 }
 

@@ -21,6 +21,7 @@
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/Page/PageId.h>
+#include <LibWebCommon/PermissionsPolicy/PermissionsPolicy.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
@@ -102,6 +103,9 @@ public:
     // False once the page can no longer host work: the page is unregistered or the process is gone. A page
     // awaiting a detached close remains open; it still coordinates its own close.
     bool is_open() const { return m_is_open; }
+
+    // Whether a document this page hosts may use the feature. The process hosting the page can act for any of them.
+    bool hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature) const;
     void close();
 
     void owe_reply(OwedReply);

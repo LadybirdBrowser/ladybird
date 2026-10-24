@@ -16,9 +16,10 @@ bool CanonicalEnvironmentSettingsObject::may_use_cookies_of(URL::URL const& url)
     return !origin().is_opaque() && url.origin().is_same_origin(origin());
 }
 
-CanonicalWindowEnvironmentSettingsObject::CanonicalWindowEnvironmentSettingsObject(CanonicalWindow& window, Web::HTML::EnvironmentId id)
+CanonicalWindowEnvironmentSettingsObject::CanonicalWindowEnvironmentSettingsObject(CanonicalWindow& window, Web::HTML::EnvironmentId id, URL::URL top_level_creation_url)
     : CanonicalEnvironmentSettingsObject(move(id))
     , m_window(window)
+    , m_top_level_creation_url(move(top_level_creation_url))
 {
 }
 

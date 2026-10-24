@@ -12,6 +12,7 @@
 #include <LibCore/StatsLog.h>
 #include <LibDevTools/StorageHelpers.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibWebCommon/Geolocation/GeolocationPositionErrorCode.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/WebDriver/Error.h>
@@ -802,6 +803,7 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
 
     hosted_state.container.document_active_sandboxing_flag_set = container_document->active_sandboxing_flag_set();
     hosted_state.container.document_embedder_policy = container_document->embedder_policy();
+    hosted_state.container.document_permissions_policy = container_document->permissions_policy();
     traversable.adopt_nested_history_for_created_child(*parent_navigable, *container_document, frame_id);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
@@ -1492,8 +1494,26 @@ void WebContentPage::did_request_color_picker(Color current_color)
     view().did_request_color_picker({}, *this, current_color);
 }
 
+bool WebContentPage::hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature feature) const
+{
+    auto is_allowed = false;
+    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        auto const& document = navigable.active_document();
+        if (document.host() != this)
+            return IterationDecision::Continue;
+        auto value = Web::PermissionsPolicy::check_permissions_policy(document.permissions_policy(), feature, document.origin(), document.origin());
+        is_allowed = value == Web::PermissionsPolicy::FeatureValue::Enabled;
+        return is_allowed ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return is_allowed;
+}
+
 void WebContentPage::did_request_geolocation_position(u64 request_id)
 {
+    if (!hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature::Geolocation)) {
+        async_geolocation_position_response(request_id, {}, to_underlying(Web::Geolocation::GeolocationPositionErrorCode::PermissionDenied));
+        return;
+    }
     if (view().on_request_geolocation_position)
         view().on_request_geolocation_position(*this, request_id);
 }

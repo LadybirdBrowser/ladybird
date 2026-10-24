@@ -18,8 +18,10 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedContainerState const
     TRY(encoder.encode(state.iframe_sandboxing_flag_set));
     TRY(encoder.encode(state.document_active_sandboxing_flag_set));
     TRY(encoder.encode(state.document_embedder_policy));
+    TRY(encoder.encode(state.document_permissions_policy));
     TRY(encoder.encode(state.local_name));
     TRY(encoder.encode(state.iframe_referrer_policy));
+    TRY(Web::PermissionsPolicy::encode_policy_directive(encoder, state.container_policy));
     return {};
 }
 
@@ -31,8 +33,10 @@ ErrorOr<Web::HTML::ReplicatedContainerState> decode(Decoder& decoder)
         .iframe_sandboxing_flag_set = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
         .document_active_sandboxing_flag_set = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
         .document_embedder_policy = TRY(decoder.decode<Web::HTML::EmbedderPolicy>()),
+        .document_permissions_policy = TRY(decoder.decode<Web::PermissionsPolicy::PermissionsPolicy>()),
         .local_name = TRY(decoder.decode<Optional<Utf16FlyString>>()),
         .iframe_referrer_policy = TRY(decoder.decode<Web::ReferrerPolicy::ReferrerPolicy>()),
+        .container_policy = TRY(Web::PermissionsPolicy::decode_policy_directive(decoder)),
     };
 }
 

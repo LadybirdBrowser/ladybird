@@ -9,6 +9,7 @@
 #include <AK/AnyOf.h>
 #include <AK/Random.h>
 #include <LibCore/StatsLog.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
 #include <LibWebCommon/HTML/SerializationRecords.h>
@@ -19,6 +20,7 @@
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
+#include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/PictureInPictureManager.h>
@@ -385,6 +387,14 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
     auto browsing_context_and_document = obtain_a_browsing_context_to_use_for_a_navigation_response(navigation_params);
     auto& browsing_context = browsing_context_and_document.browsing_context;
 
+    // 2. Let permissionsPolicy be the result of creating a permissions policy from a response given navigationParams's
+    //    navigable's container, navigationParams's origin, and navigationParams's response.
+    // NB: Navigation params the UI process handled carry the one it created from the response's headers. Any other
+    //     response, such as a javascript: URL's or inline content's, has no Permissions-Policy header.
+    auto permissions_policy = navigation_params.permissions_policy;
+    if (!permissions_policy.has_value())
+        permissions_policy = create_a_permissions_policy_from_a_response(navigation_params.origin, HTTP::HeaderList::create());
+
     // 3. Let creationURL be navigationParams's response's URL.
     auto creation_url = navigation_params.response_url;
 
@@ -419,18 +429,36 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
         //    - For the global object, create a new Window object.
         //    - For the global this binding, use browsingContext's WindowProxy object.
         // 6. Set window to the global object of realmExecutionContext's Realm component.
-        // NB: The realm is in the process hosting agent, which runs steps 7 to 10.
+        // NB: The realm is in the process hosting agent.
         window = CanonicalWindow::create(agent);
+
+        // 7. Let topLevelCreationURL be creationURL.
+        auto top_level_creation_url = creation_url;
+
+        // 8. Let topLevelOrigin be navigationParams's origin.
+        // NB: The UI process derives the top-level origin from the window's associated document.
+
+        // 9. If navigable's container is not null, then:
+        if (m_parent) {
+            // 1. Let parentEnvironment be navigable's container's relevant settings object.
+            auto const& parent_environment = m_parent->active_document().relevant_global_object().relevant_settings_object();
+
+            // 2. Set topLevelCreationURL to parentEnvironment's top-level creation URL.
+            top_level_creation_url = parent_environment.top_level_creation_url().value();
+
+            // 3. Set topLevelOrigin to parentEnvironment's top-level origin.
+        }
 
         // 10. Set up a window environment settings object with creationURL, realmExecutionContext, navigationParams's
         //     reserved environment, topLevelCreationURL, and topLevelOrigin.
-        window->set_up_a_window_environment_settings_object(navigation_params.environment_id);
+        window->set_up_a_window_environment_settings_object(navigation_params.environment_id, move(top_level_creation_url));
     }
 
     // 9. Let document be a new Document, with
     //    origin: navigationParams's origin
     //    browsing context: browsingContext
     //    policy container: navigationParams's policy container
+    //    permissions policy: permissionsPolicy
     //    active sandboxing flag set: navigationParams's final sandboxing flag set
     //    opener policy: navigationParams's cross-origin opener policy
     //    URL: creationURL
@@ -439,6 +467,7 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
     auto document = CanonicalDocument::create(navigation_params.document_id, move(creation_url), navigation_params.origin, browsing_context, window.release_nonnull(), navigation_params.final_sandboxing_flag_set, CanonicalDocument::IsInitialAboutBlank::No);
     document->set_opener_policy(navigation_params.opener_policy);
     document->set_embedder_policy(navigation_params.embedder_policy);
+    document->set_permissions_policy(permissions_policy.release_value());
 
     // 22. Return document.
     return document;
@@ -611,6 +640,18 @@ bool CanonicalNavigable::allowed_by_sandboxing_to_navigate(CanonicalNavigable co
 
     // 6. Return true.
     return true;
+}
+
+Web::PermissionsPolicy::PermissionsPolicy CanonicalNavigable::create_a_permissions_policy_from_a_response(URL::Origin const& origin, HTTP::HeaderList const& response_header_list) const
+{
+    if (!m_container_document)
+        return Web::PermissionsPolicy::create_a_permissions_policy_for_a_navigable_from_response({}, origin, response_header_list);
+
+    Web::PermissionsPolicy::PolicyDirective container_policy;
+    if (m_hosted_state.has_value())
+        container_policy = m_hosted_state->container.container_policy;
+    Web::PermissionsPolicy::NavigableContainerPolicyInputs container { m_container_document->permissions_policy(), m_container_document->origin(), container_policy };
+    return Web::PermissionsPolicy::create_a_permissions_policy_for_a_navigable_from_response(container, origin, response_header_list);
 }
 
 Web::HTML::TargetSnapshotParams CanonicalNavigable::snapshot_target_snapshot_params() const
@@ -1078,6 +1119,7 @@ void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerSt
     if (m_container_document) {
         state.document_active_sandboxing_flag_set = m_container_document->active_sandboxing_flag_set();
         state.document_embedder_policy = m_container_document->embedder_policy();
+        state.document_permissions_policy = m_container_document->permissions_policy();
     }
     m_hosted_state->container = state;
     if (has_remote_host())
@@ -1122,7 +1164,7 @@ Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_sta
         .active_document_url = active_document_url(),
         .active_document_origin = active_document().origin(),
         .active_document_is_fully_active = hosted_state.active_document_is_fully_active,
-        .top_level_creation_url = traversable.active_document().creation_url(),
+        .top_level_creation_url = active_document().relevant_global_object().relevant_settings_object().top_level_creation_url().value(),
         .top_level_origin = traversable.active_document().origin(),
         .top_level_is_created_by_web_content = traversable.is_created_by_web_content(),
         .top_level_session_history_entry_count = traversable.session_history().size(),
@@ -1318,11 +1360,17 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
     // document, the page that hosted the displaced one holds the navigable remotely from now on.
     if (document != previous_document) {
         auto& traversable = top_level_traversable();
+        auto previous_host = previous_document->host();
         traversable.remove_child_navigables_of(*this, *previous_document);
-        if (auto previous_host = previous_document->host(); previous_host && previous_host != document->host() && previous_host->is_open())
-            traversable.stop_hosting_in_page(*this, previous_host.release_nonnull());
+        if (previous_host && previous_host != document->host() && previous_host->is_open())
+            traversable.stop_hosting_in_page(*this, *previous_host);
         // The Picture-in-Picture window of the displaced document, or of a document it embedded, closes with it.
         PictureInPictureManager::the().active_documents_did_change();
+        // Whether a process may capture audio depends on the documents it hosts.
+        for (auto const& page : { previous_host, document->host() }) {
+            if (page && page->is_open())
+                page->client().update_audio_capture_permission();
+        }
     }
 
     // A navigation can commit while a newer navigation is already in flight. In that case update the replicated

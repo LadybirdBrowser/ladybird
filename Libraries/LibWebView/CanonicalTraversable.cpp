@@ -528,11 +528,18 @@ void CanonicalTraversable::remove(CanonicalNavigable& navigable)
     if (m_focused_navigable_id.has_value() && !find(*m_focused_navigable_id).has_value())
         m_focused_navigable_id.clear();
 
+    auto reporting_page = navigable.reporting_page();
     auto* parent = navigable.parent();
     VERIFY(parent);
     (void)parent->remove_child(navigable);
     if (host)
-        release_page_if_unused(host.release_nonnull());
+        release_page_if_unused(*host);
+
+    // Whether a process may capture audio depends on the documents it hosts.
+    for (auto const& page : { host, reporting_page }) {
+        if (page && page->is_open())
+            page->client().update_audio_capture_permission();
+    }
 }
 
 void CanonicalTraversable::remove_page(WebContentPage& page)
