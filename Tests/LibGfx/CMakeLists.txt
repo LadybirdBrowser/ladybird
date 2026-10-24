@@ -23,7 +23,7 @@ target_link_libraries(TestFont PRIVATE harfbuzz LibIPC LibThreading)
 target_link_libraries(TestSharedFontProvider PRIVATE LibIPC)
 target_compile_definitions(TestSharedFontProvider PRIVATE LADYBIRD_SOURCE_DIR="${LADYBIRD_SOURCE_DIR}")
 
-ladybird_test(TestBitmapSequence.cpp LibGfx LIBS LibGfx LibIPC)
+ladybird_test(TestBitmapSequence.cpp LibGfx LIBS LibGfx LibImageDecoderClient LibIPC)
 ladybird_test(TestShareableBitmap.cpp LibGfx LIBS LibGfx LibIPC)
 
 # Opens LibWeb by name to reach its copy of the Rust graphics crate.
