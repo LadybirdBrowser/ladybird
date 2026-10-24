@@ -1543,45 +1543,6 @@ bool PageClient::page_did_is_known_hsts_host(String const& domain)
     return response->result();
 }
 
-Optional<Utf16String> PageClient::page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id, Utf16String const& bottle_key)
-{
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageItem>(m_id, storage_endpoint, environment_id, bottle_key);
-    if (!response) {
-        dbgln("WebContent client disconnected during DidRequestStorageItem. Exiting peacefully.");
-        Core::Process::terminate_immediately(0);
-    }
-    return response->take_value();
-}
-
-WebView::StorageSetResult PageClient::page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id, Utf16String const& bottle_key, Utf16String const& value)
-{
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetStorageItem>(m_id, storage_endpoint, environment_id, bottle_key, value);
-    if (!response) {
-        dbgln("WebContent client disconnected during DidSetStorageItem. Exiting peacefully.");
-        Core::Process::terminate_immediately(0);
-    }
-    return response->result();
-}
-
-void PageClient::page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id, Utf16String const& bottle_key)
-{
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRemoveStorageItem>(m_id, storage_endpoint, environment_id, bottle_key);
-    if (!response) {
-        dbgln("WebContent client disconnected during DidRemoveStorageItem. Exiting peacefully.");
-        Core::Process::terminate_immediately(0);
-    }
-}
-
-Vector<Utf16String> PageClient::page_did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id)
-{
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageKeys>(m_id, storage_endpoint, environment_id);
-    if (!response) {
-        dbgln("WebContent client disconnected during DidRequestStorageKeys. Exiting peacefully.");
-        Core::Process::terminate_immediately(0);
-    }
-    return response->take_keys();
-}
-
 u64 PageClient::page_did_request_storage_usage(Web::HTML::EnvironmentId const& environment_id)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageUsage>(m_id, environment_id);
@@ -1590,15 +1551,6 @@ u64 PageClient::page_did_request_storage_usage(Web::HTML::EnvironmentId const& e
         Core::Process::terminate_immediately(0);
     }
     return response->usage();
-}
-
-void PageClient::page_did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id)
-{
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidClearStorage>(m_id, storage_endpoint, environment_id);
-    if (!response) {
-        dbgln("WebContent client disconnected during DidClearStorage. Exiting peacefully.");
-        Core::Process::terminate_immediately(0);
-    }
 }
 
 void PageClient::page_did_update_indexed_database(String const& url, Web::IndexedDB::TransactionChanges const& changes)

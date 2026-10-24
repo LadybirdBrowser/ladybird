@@ -14,8 +14,7 @@
 
 namespace Web::StorageAPI {
 
-GC_DEFINE_ALLOCATOR(LocalStorageBottle);
-GC_DEFINE_ALLOCATOR(SessionStorageBottle);
+GC_DEFINE_ALLOCATOR(StorageBottle);
 GC_DEFINE_ALLOCATOR(StorageBucket);
 
 void StorageBucket::visit_edges(GC::Cell::Visitor& visitor)
@@ -25,7 +24,7 @@ void StorageBucket::visit_edges(GC::Cell::Visitor& visitor)
         visitor.visit(entry);
 }
 
-StorageBucket::StorageBucket(GC::Ref<Page> page, HTML::EnvironmentId environment_id, StorageType type)
+StorageBucket::StorageBucket(GC::Ref<Page> page, HTML::EnvironmentId environment_id, StorageKey const& key, StorageType type)
 {
     // 1. Let bucket be null.
     // 2. If type is "local", then set bucket to a new local storage bucket.
@@ -36,7 +35,7 @@ StorageBucket::StorageBucket(GC::Ref<Page> page, HTML::EnvironmentId environment
     // 4. For each endpoint of registered storage endpoints whose types contain type, set bucket’s bottle map[endpoint’s identifier] to a new storage bottle whose quota is endpoint’s quota.
     for (auto const& endpoint : StorageEndpoint::registered_endpoints()) {
         if (endpoint.type == type)
-            m_bottle_map[to_underlying(endpoint.identifier)] = StorageBottle::create(page, endpoint, environment_id);
+            m_bottle_map[to_underlying(endpoint.identifier)] = StorageBottle::create(page, endpoint, environment_id, key);
     }
 
     // 5. Return bucket.
@@ -50,7 +49,7 @@ GC::Ptr<StorageBottle> obtain_a_storage_bottle_map(StorageType type, HTML::Envir
     // 3. Otherwise:
     //     1. Assert: type is "session".
     //     2. Set shed to environment’s global object’s associated Document’s node navigable’s traversable navigable’s storage shed.
-    // NB: Both sheds are kept by the browser process, in a StorageJar, which the bottle returned here proxies. The
+    // NB: Both sheds are kept by the browser process, in a StorageJar, which the bottle returned here mirrors. The
     //     bottle names environment, from which the browser process obtains the storage key itself.
 
     // 4. Let shelf be the result of running obtain a storage shelf, with shed, environment, and type.
@@ -70,7 +69,7 @@ GC::Ptr<StorageBottle> obtain_a_storage_bottle_map(StorageType type, HTML::Envir
     // 9. Append proxyMap to bottle’s proxy map reference set.
     // 10. Return proxyMap.
     auto& page = HTML::relevant_window(environment.global_object()).page();
-    return StorageBottle::create(page, *endpoint, environment.id);
+    return StorageBottle::create(page, *endpoint, environment.id, *key);
 }
 
 // https://storage.spec.whatwg.org/#obtain-a-local-storage-bottle-map
@@ -89,83 +88,60 @@ GC::Ptr<StorageBottle> obtain_a_session_storage_bottle_map(HTML::EnvironmentSett
     return obtain_a_storage_bottle_map(StorageType::Session, environment, identifier);
 }
 
-GC::Ref<StorageBottle> StorageBottle::create(GC::Ref<Page> page, StorageEndpoint const& endpoint, HTML::EnvironmentId environment_id)
+GC::Ref<StorageBottle> StorageBottle::create(GC::Ref<Page> page, StorageEndpoint const& endpoint, HTML::EnvironmentId environment_id, StorageKey const& key)
 {
-    if (endpoint.type == StorageType::Local)
-        return LocalStorageBottle::create(page, endpoint.identifier, move(environment_id), endpoint.quota);
-    return SessionStorageBottle::create(page, endpoint.identifier, move(environment_id), endpoint.quota);
+    return GC::Heap::the().allocate<StorageBottle>(page, endpoint.identifier, move(environment_id), key, endpoint.quota);
 }
 
-void LocalStorageBottle::visit_edges(GC::Cell::Visitor& visitor)
+StorageBottle::StorageBottle(GC::Ref<Page> page, StorageEndpointType endpoint_type, HTML::EnvironmentId environment_id, StorageKey const& key, Optional<u64> quota)
+    : m_page(page)
+    , m_environment_id(move(environment_id))
+    , m_quota(quota)
+    // Session storage is partitioned by the traversable, and a page's documents all belong to one traversable, so
+    // a session bottle's mirror is found by its page as well as its storage key.
+    , m_mirror(StorageAreaMirror::obtain(endpoint_type, endpoint_type == StorageEndpointType::SessionStorage ? Optional<PageId> { page->client().id() } : Optional<PageId> {}, key, quota))
+{
+}
+
+void StorageBottle::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_page);
 }
 
-size_t LocalStorageBottle::size() const
+StorageAreaMirror::Requester StorageBottle::requester() const
 {
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_environment_id).size();
+    return { m_page->client().id(), m_environment_id };
 }
 
-Vector<Utf16String> LocalStorageBottle::keys() const
+size_t StorageBottle::size() const
 {
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_environment_id);
+    return m_mirror->size(requester());
 }
 
-Optional<Utf16String> LocalStorageBottle::get(Utf16View key) const
+Vector<Utf16String> StorageBottle::keys() const
 {
-    return m_page->client().page_did_request_storage_item(m_endpoint_type, m_environment_id, Utf16String::from_utf16(key));
+    return m_mirror->keys(requester());
 }
 
-StorageSetResult LocalStorageBottle::set(Utf16View key, Utf16View value)
+Optional<Utf16String> StorageBottle::get(Utf16View key) const
 {
-    return m_page->client().page_did_set_storage_item(m_endpoint_type, m_environment_id, Utf16String::from_utf16(key), Utf16String::from_utf16(value));
+    return m_mirror->get(requester(), key);
 }
 
-void LocalStorageBottle::clear()
+StorageSetResult StorageBottle::set(Utf16View key, Utf16View value, String const& document_url)
 {
-    m_page->client().page_did_clear_storage(m_endpoint_type, m_environment_id);
+    return m_mirror->set(requester(), key, value, document_url);
 }
 
-void LocalStorageBottle::remove(Utf16View key)
+void StorageBottle::clear(String const& document_url)
 {
-    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_environment_id, Utf16String::from_utf16(key));
+    m_mirror->clear(requester(), document_url);
 }
 
-void SessionStorageBottle::visit_edges(GC::Cell::Visitor& visitor)
+void StorageBottle::remove(Utf16View key, String const& document_url)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_page);
-}
-
-size_t SessionStorageBottle::size() const
-{
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_environment_id).size();
-}
-
-Vector<Utf16String> SessionStorageBottle::keys() const
-{
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_environment_id);
-}
-
-Optional<Utf16String> SessionStorageBottle::get(Utf16View key) const
-{
-    return m_page->client().page_did_request_storage_item(m_endpoint_type, m_environment_id, Utf16String::from_utf16(key));
-}
-
-StorageSetResult SessionStorageBottle::set(Utf16View key, Utf16View value)
-{
-    return m_page->client().page_did_set_storage_item(m_endpoint_type, m_environment_id, Utf16String::from_utf16(key), Utf16String::from_utf16(value));
-}
-
-void SessionStorageBottle::clear()
-{
-    m_page->client().page_did_clear_storage(m_endpoint_type, m_environment_id);
-}
-
-void SessionStorageBottle::remove(Utf16View key)
-{
-    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_environment_id, Utf16String::from_utf16(key));
+    (void)m_mirror->remove(requester(), key, document_url);
 }
 
 }

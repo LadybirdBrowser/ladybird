@@ -23,13 +23,13 @@ void StorageShelf::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://storage.spec.whatwg.org/#create-a-storage-shelf
-StorageShelf::StorageShelf(GC::Ref<Page> page, HTML::EnvironmentId environment_id, StorageType type)
+StorageShelf::StorageShelf(GC::Ref<Page> page, HTML::EnvironmentId environment_id, StorageKey const& key, StorageType type)
     : m_page(page)
     , m_environment_id(move(environment_id))
 {
     // 1. Let shelf be a new storage shelf.
     // 2. Set shelf’s bucket map["default"] to the result of running create a storage bucket with type.
-    m_bucket_map.set("default"_string, StorageBucket::create(page, m_environment_id, type));
+    m_bucket_map.set("default"_string, StorageBucket::create(page, m_environment_id, key, type));
     // 3. Return shelf.
 }
 
@@ -66,7 +66,7 @@ GC::Ptr<StorageShelf> obtain_a_local_storage_shelf(HTML::EnvironmentSettingsObje
     // AD-HOC: The user agent's storage shed is kept by the browser process, in a StorageJar. This shelf is a transient
     //         helper for computing estimate()'s usage and quota — so a standalone shelf is functionally equivalent to
     //         the spec's requirement to obtain one from a shed.
-    return StorageShelf::create(window.page(), settings.id, StorageType::Local);
+    return StorageShelf::create(window.page(), settings.id, *key, StorageType::Local);
 }
 
 }

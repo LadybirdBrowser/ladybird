@@ -840,6 +840,7 @@ set(SOURCES
     Speech/SpeechSynthesisVoice.cpp
     SRI/SRI.cpp
     StorageAPI/NavigatorStorage.cpp
+    StorageAPI/StorageAreaMirror.cpp
     StorageAPI/StorageBottle.cpp
     StorageAPI/StorageKey.cpp
     StorageAPI/StorageManager.cpp

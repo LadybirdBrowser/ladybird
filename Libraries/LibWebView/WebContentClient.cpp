@@ -670,31 +670,6 @@ Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_reque
     return cookie;
 }
 
-Messages::WebContentClient::DidSetStorageItemResponse WebContentClient::did_set_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key, Utf16String value)
-{
-    if (auto* page = this->page(page_id))
-        return page->did_set_storage_item(storage_endpoint, move(environment_id), move(bottle_key), move(value));
-
-    // A closed page has no storage left to set. Its reply cannot be empty, so it hears the refusal a full jar gives.
-    return WebView::StorageOperationError::QuotaExceededError;
-}
-
-Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key)
-{
-    if (auto* page = this->page(page_id))
-        return page->did_request_storage_item(storage_endpoint, move(environment_id), move(bottle_key));
-
-    return Optional<Utf16String> {};
-}
-
-Messages::WebContentClient::DidRequestStorageKeysResponse WebContentClient::did_request_storage_keys(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id)
-{
-    if (auto* page = this->page(page_id))
-        return page->did_request_storage_keys(storage_endpoint, move(environment_id));
-
-    return Vector<Utf16String> {};
-}
-
 Messages::WebContentClient::DidRequestStorageUsageResponse WebContentClient::did_request_storage_usage(Web::PageId page_id, Web::HTML::EnvironmentId environment_id)
 {
     if (auto* page = this->page(page_id))

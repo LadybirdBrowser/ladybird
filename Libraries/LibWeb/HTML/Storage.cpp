@@ -95,7 +95,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(Utf16View key, Utf16View value)
     // 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException.
     // 5. Set this's map[key] to value.
 
-    auto result = m_storage_bottle->set(key, value);
+    auto result = m_storage_bottle->set(key, value, m_window->associated_document().url().serialize());
 
     if (result.has<WebView::StorageOperationError>())
         return WebIDL::QuotaExceededError::create(Utf16String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota()));
@@ -132,7 +132,7 @@ void Storage::remove_item(Utf16View key)
         return;
 
     // 3. Remove this's map[key].
-    m_storage_bottle->remove(key);
+    m_storage_bottle->remove(key, m_window->associated_document().url().serialize());
 
     // 4. Reorder this.
     reorder();
@@ -149,7 +149,7 @@ void Storage::clear()
         return;
 
     // 2. Clear this's map.
-    m_storage_bottle->clear();
+    m_storage_bottle->clear(m_window->associated_document().url().serialize());
 
     // 3. Broadcast this with null, null, and null.
     broadcast({}, {}, {});
