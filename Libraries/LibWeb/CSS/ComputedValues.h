@@ -488,7 +488,9 @@ public:
 
     Float float_() const { return static_cast<Float>(m_noninherited.box->float_); }
     Clear clear() const { return static_cast<Clear>(m_noninherited.box->clear); }
-    Color caret_color() const { return m_inherited.ui->caret_color_value(); }
+    // https://drafts.csswg.org/css-ui-4/#caret-color
+    // auto: "User agents should use currentColor." It computes to auto, so the element's own color is read here.
+    Color caret_color() const { return m_inherited.ui->caret_color.is_auto ? color() : m_inherited.ui->caret_color_value(); }
     ColorInterpolation color_interpolation() const { return m_inherited.svg->color_interpolation_value(); }
     FillRule fill_rule() const { return m_inherited.svg->fill_rule_value(); }
     PreferredColorScheme color_scheme() const { return m_inherited.ui->color_scheme_value(); }

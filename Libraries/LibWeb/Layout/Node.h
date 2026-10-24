@@ -458,7 +458,13 @@ public:
         VERIFY_NOT_REACHED();
     }
     CSS::Visibility visibility() const { return static_cast<CSS::Visibility>(style_group<CSS::ComputedValues::InheritedBoxValues>().visibility); }
-    Color caret_color() const { return style_group<CSS::ComputedValues::InheritedUIValues>().caret_color_value(); }
+    // https://drafts.csswg.org/css-ui-4/#caret-color
+    // auto: "User agents should use currentColor." It computes to auto, so the box's own color is read here.
+    Color caret_color() const
+    {
+        auto const& ui = style_group<CSS::ComputedValues::InheritedUIValues>();
+        return ui.caret_color.is_auto ? color() : ui.caret_color_value();
+    }
     CSS::PreferredColorScheme color_scheme() const { return style_group<CSS::ComputedValues::InheritedUIValues>().color_scheme_value(); }
     ReadonlySpan<Utf16FlyString> color_schemes() const { return style_group<CSS::ComputedValues::InheritedUIValues>().color_schemes_span(); }
     bool color_scheme_only() const { return style_group<CSS::ComputedValues::InheritedUIValues>().color_scheme_only; }
