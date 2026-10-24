@@ -5,6 +5,8 @@
  */
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Vector.h>
+#include <LibCore/System.h>
 #include <LibDatabase/Database.h>
 #include <LibTest/TestCase.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -120,4 +122,183 @@ TEST_CASE(storage_quota_is_enforced_per_storage_key)
 
     // A different storage key has its own quota.
     EXPECT(jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://other.example"_string, "a"_utf16, large_value).has<Optional<Utf16String>>());
+}
+
+// Access times have microsecond resolution, so a moment "after" the last write needs a pause on both sides.
+static UnixDateTime a_moment_later()
+{
+    MUST(Core::System::sleep_ms(2));
+    auto since = UnixDateTime::now();
+    MUST(Core::System::sleep_ms(2));
+    return since;
+}
+
+TEST_CASE(set_emits_once_per_change)
+{
+    auto jar = WebView::StorageJar::create();
+    Vector<WebView::StorageChange> changes;
+    jar->on_change = [&changes](WebView::StorageChange const& change) { changes.append(change); };
+
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "a"_utf16, "1"_utf16);
+    EXPECT_EQ(changes.size(), 1u);
+    EXPECT_EQ(changes[0].type, WebView::StorageChange::Type::Set);
+    EXPECT_EQ(changes[0].storage_endpoint, WebView::StorageEndpointType::LocalStorage);
+    EXPECT_EQ(changes[0].storage_key, "https://example.com"_string);
+    EXPECT_EQ(changes[0].key, Optional<Utf16String> { "a"_utf16 });
+    EXPECT_EQ(changes[0].old_value, Optional<Utf16String> {});
+    EXPECT_EQ(changes[0].new_value, Optional<Utf16String> { "1"_utf16 });
+
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "a"_utf16, "1"_utf16);
+    EXPECT_EQ(changes.size(), 1u);
+
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "a"_utf16, "2"_utf16);
+    EXPECT_EQ(changes.size(), 2u);
+    EXPECT_EQ(changes[1].old_value, Optional<Utf16String> { "1"_utf16 });
+    EXPECT_EQ(changes[1].new_value, Optional<Utf16String> { "2"_utf16 });
+
+    // A refused write changes nothing, so it reports nothing.
+    auto too_large = Utf16String::repeated('x', Web::StorageAPI::StorageEndpoint::LOCAL_STORAGE_QUOTA);
+    EXPECT(jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "b"_utf16, too_large).has<WebView::StorageOperationError>());
+    EXPECT_EQ(changes.size(), 2u);
+}
+
+TEST_CASE(remove_emits_only_for_existing)
+{
+    auto jar = WebView::StorageJar::create();
+    Vector<WebView::StorageChange> changes;
+    jar->on_change = [&changes](WebView::StorageChange const& change) { changes.append(change); };
+
+    jar->remove_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "a"_utf16);
+    EXPECT_EQ(changes.size(), 0u);
+
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "a"_utf16, "1"_utf16);
+    jar->remove_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "a"_utf16);
+    EXPECT_EQ(changes.size(), 2u);
+    EXPECT_EQ(changes[1].type, WebView::StorageChange::Type::Removed);
+    EXPECT_EQ(changes[1].key, Optional<Utf16String> { "a"_utf16 });
+    EXPECT_EQ(changes[1].old_value, Optional<Utf16String> { "1"_utf16 });
+    EXPECT_EQ(changes[1].new_value, Optional<Utf16String> {});
+}
+
+TEST_CASE(clear_emits_only_when_nonempty)
+{
+    auto jar = WebView::StorageJar::create();
+    Vector<WebView::StorageChange> changes;
+    jar->on_change = [&changes](WebView::StorageChange const& change) { changes.append(change); };
+
+    jar->clear_storage_key(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string);
+    EXPECT_EQ(changes.size(), 0u);
+
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "a"_utf16, "1"_utf16);
+    jar->clear_storage_key(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string);
+    EXPECT_EQ(changes.size(), 2u);
+    EXPECT_EQ(changes[1].type, WebView::StorageChange::Type::Cleared);
+    EXPECT_EQ(changes[1].storage_key, "https://example.com"_string);
+    EXPECT_EQ(changes[1].key, Optional<Utf16String> {});
+}
+
+TEST_CASE(remove_items_accessed_since_emits_reset_per_affected_bottle)
+{
+    auto jar = WebView::StorageJar::create();
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://a.example"_string, "k"_utf16, "1"_utf16);
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://b.example"_string, "k"_utf16, "2"_utf16);
+    jar->set_item(WebView::StorageEndpointType::SessionStorage, "https://b.example"_string, "k"_utf16, "3"_utf16);
+
+    auto since = a_moment_later();
+    jar->mark_accessed(WebView::StorageEndpointType::LocalStorage, "https://b.example"_string);
+
+    Vector<WebView::StorageChange> changes;
+    jar->on_change = [&changes](WebView::StorageChange const& change) { changes.append(change); };
+    jar->remove_items_accessed_since(since);
+
+    EXPECT_EQ(changes.size(), 1u);
+    EXPECT_EQ(changes[0].type, WebView::StorageChange::Type::Reset);
+    EXPECT_EQ(changes[0].storage_endpoint, WebView::StorageEndpointType::LocalStorage);
+    EXPECT_EQ(changes[0].storage_key, "https://b.example"_string);
+    EXPECT_EQ(jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://a.example"_string, "k"_utf16), Optional<Utf16String> { "1"_utf16 });
+    EXPECT_EQ(jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://b.example"_string, "k"_utf16), Optional<Utf16String> {});
+    EXPECT_EQ(jar->get_item(WebView::StorageEndpointType::SessionStorage, "https://b.example"_string, "k"_utf16), Optional<Utf16String> { "3"_utf16 });
+}
+
+static void get_item_does_not_mark_accessed_in(WebView::StorageJar& jar)
+{
+    jar.set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "k"_utf16, "1"_utf16);
+    auto since = a_moment_later();
+
+    EXPECT_EQ(jar.get_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "k"_utf16), Optional<Utf16String> { "1"_utf16 });
+    jar.remove_items_accessed_since(since);
+    EXPECT_EQ(jar.get_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "k"_utf16), Optional<Utf16String> { "1"_utf16 });
+
+    jar.mark_accessed(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string);
+    jar.remove_items_accessed_since(since);
+    EXPECT_EQ(jar.get_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "k"_utf16), Optional<Utf16String> {});
+}
+
+TEST_CASE(get_item_does_not_mark_accessed_transient)
+{
+    auto jar = WebView::StorageJar::create();
+    get_item_does_not_mark_accessed_in(*jar);
+}
+
+TEST_CASE(get_item_does_not_mark_accessed_persisted)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    EXPECT_EQ(TRY_OR_FAIL(WebView::StorageJar::migrate_schema(*database)), Database::MigrationOutcome::Success);
+    auto jar = TRY_OR_FAIL(WebView::StorageJar::create(*database));
+    get_item_does_not_mark_accessed_in(*jar);
+}
+
+static void bottle_usage_is_per_endpoint_in(WebView::StorageJar& jar)
+{
+    jar.set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "key"_utf16, "value"_utf16);
+    jar.set_item(WebView::StorageEndpointType::SessionStorage, "https://example.com"_string, "k"_utf16, "\u00e9"_utf16);
+
+    EXPECT_EQ(jar.bottle_usage(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string), 8u);
+    EXPECT_EQ(jar.bottle_usage(WebView::StorageEndpointType::SessionStorage, "https://example.com"_string), 3u);
+    EXPECT_EQ(jar.bottle_usage(WebView::StorageEndpointType::LocalStorage, "https://other.example"_string), 0u);
+    EXPECT_EQ(jar.usage("https://example.com"_string), 11u);
+}
+
+TEST_CASE(bottle_usage_is_per_endpoint_transient)
+{
+    auto jar = WebView::StorageJar::create();
+    bottle_usage_is_per_endpoint_in(*jar);
+}
+
+TEST_CASE(bottle_usage_is_per_endpoint_persisted)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    EXPECT_EQ(TRY_OR_FAIL(WebView::StorageJar::migrate_schema(*database)), Database::MigrationOutcome::Success);
+    auto jar = TRY_OR_FAIL(WebView::StorageJar::create(*database));
+    bottle_usage_is_per_endpoint_in(*jar);
+}
+
+static void get_all_items_returns_every_pair_in(WebView::StorageJar& jar)
+{
+    jar.set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "a"_utf16, "1"_utf16);
+    jar.set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "b"_utf16, "2"_utf16);
+    jar.set_item(WebView::StorageEndpointType::SessionStorage, "https://example.com"_string, "c"_utf16, "3"_utf16);
+
+    auto items = jar.get_all_items(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string);
+    EXPECT_EQ(items.size(), 2u);
+    HashMap<Utf16String, Utf16String> by_key;
+    for (auto const& item : items)
+        by_key.set(item.key, item.value);
+    EXPECT_EQ(by_key.get("a"_utf16), Optional<Utf16String> { "1"_utf16 });
+    EXPECT_EQ(by_key.get("b"_utf16), Optional<Utf16String> { "2"_utf16 });
+    EXPECT(jar.get_all_items(WebView::StorageEndpointType::LocalStorage, "https://other.example"_string).is_empty());
+}
+
+TEST_CASE(get_all_items_returns_every_pair_transient)
+{
+    auto jar = WebView::StorageJar::create();
+    get_all_items_returns_every_pair_in(*jar);
+}
+
+TEST_CASE(get_all_items_returns_every_pair_persisted)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    EXPECT_EQ(TRY_OR_FAIL(WebView::StorageJar::migrate_schema(*database)), Database::MigrationOutcome::Success);
+    auto jar = TRY_OR_FAIL(WebView::StorageJar::create(*database));
+    get_all_items_returns_every_pair_in(*jar);
 }
