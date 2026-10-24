@@ -1,0 +1,6 @@
+// https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedAngle
+[Exposed=Window]
+interface SVGAnimatedAngle {
+    [SameObject] readonly attribute SVGAngle baseVal;
+    [SameObject] readonly attribute SVGAngle animVal;
+};

@@ -18,7 +18,7 @@ interface SVGSVGElement : SVGGraphicsElement {
 
     [NewObject] SVGNumber createSVGNumber();
     [NewObject] SVGLength createSVGLength();
-    [FIXME, NewObject] SVGAngle createSVGAngle();
+    [NewObject] SVGAngle createSVGAngle();
     [NewObject] DOMPoint createSVGPoint();
     [NewObject] DOMMatrix createSVGMatrix();
     [NewObject] DOMRect createSVGRect();

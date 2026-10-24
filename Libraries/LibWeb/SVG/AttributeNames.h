@@ -73,6 +73,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(opacity, "opacity")                                       \
     __ENUMERATE_SVG_ATTRIBUTE(operator_, "operator")                                    \
     __ENUMERATE_SVG_ATTRIBUTE(order, "order")                                           \
+    __ENUMERATE_SVG_ATTRIBUTE(orient, "orient")                                         \
     __ENUMERATE_SVG_ATTRIBUTE(path, "path")                                             \
     __ENUMERATE_SVG_ATTRIBUTE(pathLength, "pathLength")                                 \
     __ENUMERATE_SVG_ATTRIBUTE(patternContentUnits, "patternContentUnits")               \

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1219 Pass
-561 Fail
+1322 Pass
+458 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -152,43 +152,43 @@ Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "n
 Pass	SVGLength interface: calling newValueSpecifiedUnits(unsigned short, float) on objects.svg.createSVGLength() with too few arguments must throw TypeError
 Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "convertToSpecifiedUnits(unsigned short)" with the proper type
 Pass	SVGLength interface: calling convertToSpecifiedUnits(unsigned short) on objects.svg.createSVGLength() with too few arguments must throw TypeError
-Fail	SVGAngle interface: existence and properties of interface object
-Fail	SVGAngle interface object length
-Fail	SVGAngle interface object name
-Fail	SVGAngle interface: existence and properties of interface prototype object
-Fail	SVGAngle interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGAngle interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGAngle interface: constant SVG_ANGLETYPE_UNKNOWN on interface object
-Fail	SVGAngle interface: constant SVG_ANGLETYPE_UNKNOWN on interface prototype object
-Fail	SVGAngle interface: constant SVG_ANGLETYPE_UNSPECIFIED on interface object
-Fail	SVGAngle interface: constant SVG_ANGLETYPE_UNSPECIFIED on interface prototype object
-Fail	SVGAngle interface: constant SVG_ANGLETYPE_DEG on interface object
-Fail	SVGAngle interface: constant SVG_ANGLETYPE_DEG on interface prototype object
-Fail	SVGAngle interface: constant SVG_ANGLETYPE_RAD on interface object
-Fail	SVGAngle interface: constant SVG_ANGLETYPE_RAD on interface prototype object
-Fail	SVGAngle interface: constant SVG_ANGLETYPE_GRAD on interface object
-Fail	SVGAngle interface: constant SVG_ANGLETYPE_GRAD on interface prototype object
-Fail	SVGAngle interface: attribute unitType
-Fail	SVGAngle interface: attribute value
-Fail	SVGAngle interface: attribute valueInSpecifiedUnits
-Fail	SVGAngle interface: attribute valueAsString
-Fail	SVGAngle interface: operation newValueSpecifiedUnits(unsigned short, float)
-Fail	SVGAngle interface: operation convertToSpecifiedUnits(unsigned short)
-Fail	SVGAngle must be primary interface of objects.svg.createSVGAngle()
-Fail	Stringification of objects.svg.createSVGAngle()
-Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_UNKNOWN" with the proper type
-Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_UNSPECIFIED" with the proper type
-Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_DEG" with the proper type
-Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_RAD" with the proper type
-Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_GRAD" with the proper type
-Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "unitType" with the proper type
-Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "value" with the proper type
-Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "valueInSpecifiedUnits" with the proper type
-Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "valueAsString" with the proper type
-Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "newValueSpecifiedUnits(unsigned short, float)" with the proper type
-Fail	SVGAngle interface: calling newValueSpecifiedUnits(unsigned short, float) on objects.svg.createSVGAngle() with too few arguments must throw TypeError
-Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "convertToSpecifiedUnits(unsigned short)" with the proper type
-Fail	SVGAngle interface: calling convertToSpecifiedUnits(unsigned short) on objects.svg.createSVGAngle() with too few arguments must throw TypeError
+Pass	SVGAngle interface: existence and properties of interface object
+Pass	SVGAngle interface object length
+Pass	SVGAngle interface object name
+Pass	SVGAngle interface: existence and properties of interface prototype object
+Pass	SVGAngle interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAngle interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAngle interface: constant SVG_ANGLETYPE_UNKNOWN on interface object
+Pass	SVGAngle interface: constant SVG_ANGLETYPE_UNKNOWN on interface prototype object
+Pass	SVGAngle interface: constant SVG_ANGLETYPE_UNSPECIFIED on interface object
+Pass	SVGAngle interface: constant SVG_ANGLETYPE_UNSPECIFIED on interface prototype object
+Pass	SVGAngle interface: constant SVG_ANGLETYPE_DEG on interface object
+Pass	SVGAngle interface: constant SVG_ANGLETYPE_DEG on interface prototype object
+Pass	SVGAngle interface: constant SVG_ANGLETYPE_RAD on interface object
+Pass	SVGAngle interface: constant SVG_ANGLETYPE_RAD on interface prototype object
+Pass	SVGAngle interface: constant SVG_ANGLETYPE_GRAD on interface object
+Pass	SVGAngle interface: constant SVG_ANGLETYPE_GRAD on interface prototype object
+Pass	SVGAngle interface: attribute unitType
+Pass	SVGAngle interface: attribute value
+Pass	SVGAngle interface: attribute valueInSpecifiedUnits
+Pass	SVGAngle interface: attribute valueAsString
+Pass	SVGAngle interface: operation newValueSpecifiedUnits(unsigned short, float)
+Pass	SVGAngle interface: operation convertToSpecifiedUnits(unsigned short)
+Pass	SVGAngle must be primary interface of objects.svg.createSVGAngle()
+Pass	Stringification of objects.svg.createSVGAngle()
+Pass	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_UNKNOWN" with the proper type
+Pass	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_UNSPECIFIED" with the proper type
+Pass	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_DEG" with the proper type
+Pass	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_RAD" with the proper type
+Pass	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_GRAD" with the proper type
+Pass	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "unitType" with the proper type
+Pass	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "value" with the proper type
+Pass	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "valueInSpecifiedUnits" with the proper type
+Pass	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "valueAsString" with the proper type
+Pass	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "newValueSpecifiedUnits(unsigned short, float)" with the proper type
+Pass	SVGAngle interface: calling newValueSpecifiedUnits(unsigned short, float) on objects.svg.createSVGAngle() with too few arguments must throw TypeError
+Pass	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "convertToSpecifiedUnits(unsigned short)" with the proper type
+Pass	SVGAngle interface: calling convertToSpecifiedUnits(unsigned short) on objects.svg.createSVGAngle() with too few arguments must throw TypeError
 Pass	SVGNumberList interface: existence and properties of interface object
 Pass	SVGNumberList interface object length
 Pass	SVGNumberList interface object name
@@ -328,18 +328,18 @@ Pass	SVGAnimatedLength must be primary interface of objects.svg.x
 Pass	Stringification of objects.svg.x
 Pass	SVGAnimatedLength interface: objects.svg.x must inherit property "baseVal" with the proper type
 Pass	SVGAnimatedLength interface: objects.svg.x must inherit property "animVal" with the proper type
-Fail	SVGAnimatedAngle interface: existence and properties of interface object
-Fail	SVGAnimatedAngle interface object length
-Fail	SVGAnimatedAngle interface object name
-Fail	SVGAnimatedAngle interface: existence and properties of interface prototype object
-Fail	SVGAnimatedAngle interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGAnimatedAngle interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGAnimatedAngle interface: attribute baseVal
-Fail	SVGAnimatedAngle interface: attribute animVal
-Fail	SVGAnimatedAngle must be primary interface of objects.marker.orientAngle
-Fail	Stringification of objects.marker.orientAngle
-Fail	SVGAnimatedAngle interface: objects.marker.orientAngle must inherit property "baseVal" with the proper type
-Fail	SVGAnimatedAngle interface: objects.marker.orientAngle must inherit property "animVal" with the proper type
+Pass	SVGAnimatedAngle interface: existence and properties of interface object
+Pass	SVGAnimatedAngle interface object length
+Pass	SVGAnimatedAngle interface object name
+Pass	SVGAnimatedAngle interface: existence and properties of interface prototype object
+Pass	SVGAnimatedAngle interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimatedAngle interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimatedAngle interface: attribute baseVal
+Pass	SVGAnimatedAngle interface: attribute animVal
+Pass	SVGAnimatedAngle must be primary interface of objects.marker.orientAngle
+Pass	Stringification of objects.marker.orientAngle
+Pass	SVGAnimatedAngle interface: objects.marker.orientAngle must inherit property "baseVal" with the proper type
+Pass	SVGAnimatedAngle interface: objects.marker.orientAngle must inherit property "animVal" with the proper type
 Pass	SVGAnimatedString interface: existence and properties of interface object
 Pass	SVGAnimatedString interface object length
 Pass	SVGAnimatedString interface object name
@@ -419,7 +419,7 @@ Pass	SVGSVGElement interface: operation checkEnclosure(SVGElement, DOMRectReadOn
 Pass	SVGSVGElement interface: operation deselectAll()
 Pass	SVGSVGElement interface: operation createSVGNumber()
 Pass	SVGSVGElement interface: operation createSVGLength()
-Fail	SVGSVGElement interface: operation createSVGAngle()
+Pass	SVGSVGElement interface: operation createSVGAngle()
 Pass	SVGSVGElement interface: operation createSVGPoint()
 Pass	SVGSVGElement interface: operation createSVGMatrix()
 Pass	SVGSVGElement interface: operation createSVGRect()
@@ -456,7 +456,7 @@ Pass	SVGSVGElement interface: calling checkEnclosure(SVGElement, DOMRectReadOnly
 Pass	SVGSVGElement interface: objects.svg must inherit property "deselectAll()" with the proper type
 Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGNumber()" with the proper type
 Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGLength()" with the proper type
-Fail	SVGSVGElement interface: objects.svg must inherit property "createSVGAngle()" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGAngle()" with the proper type
 Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGPoint()" with the proper type
 Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGMatrix()" with the proper type
 Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGRect()" with the proper type
@@ -1347,59 +1347,59 @@ Pass	SVGElement interface: objects.foreignObject must inherit property "ownerSVG
 Pass	SVGElement interface: objects.foreignObject must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.foreignObject must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.foreignObject must inherit property "correspondingUseElement" with the proper type
-Fail	SVGMarkerElement interface: existence and properties of interface object
-Fail	SVGMarkerElement interface object length
-Fail	SVGMarkerElement interface object name
-Fail	SVGMarkerElement interface: existence and properties of interface prototype object
-Fail	SVGMarkerElement interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGMarkerElement interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGMarkerElement interface: constant SVG_MARKERUNITS_UNKNOWN on interface object
-Fail	SVGMarkerElement interface: constant SVG_MARKERUNITS_UNKNOWN on interface prototype object
-Fail	SVGMarkerElement interface: constant SVG_MARKERUNITS_USERSPACEONUSE on interface object
-Fail	SVGMarkerElement interface: constant SVG_MARKERUNITS_USERSPACEONUSE on interface prototype object
-Fail	SVGMarkerElement interface: constant SVG_MARKERUNITS_STROKEWIDTH on interface object
-Fail	SVGMarkerElement interface: constant SVG_MARKERUNITS_STROKEWIDTH on interface prototype object
-Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_UNKNOWN on interface object
-Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_UNKNOWN on interface prototype object
-Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO on interface object
-Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO on interface prototype object
-Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_ANGLE on interface object
-Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_ANGLE on interface prototype object
-Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO_START_REVERSE on interface object
-Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO_START_REVERSE on interface prototype object
-Fail	SVGMarkerElement interface: attribute refX
-Fail	SVGMarkerElement interface: attribute refY
-Fail	SVGMarkerElement interface: attribute markerUnits
-Fail	SVGMarkerElement interface: attribute markerWidth
-Fail	SVGMarkerElement interface: attribute markerHeight
-Fail	SVGMarkerElement interface: attribute orientType
-Fail	SVGMarkerElement interface: attribute orientAngle
-Fail	SVGMarkerElement interface: attribute orient
-Fail	SVGMarkerElement interface: operation setOrientToAuto()
-Fail	SVGMarkerElement interface: operation setOrientToAngle(SVGAngle)
-Fail	SVGMarkerElement interface: attribute viewBox
+Pass	SVGMarkerElement interface: existence and properties of interface object
+Pass	SVGMarkerElement interface object length
+Pass	SVGMarkerElement interface object name
+Pass	SVGMarkerElement interface: existence and properties of interface prototype object
+Pass	SVGMarkerElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGMarkerElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGMarkerElement interface: constant SVG_MARKERUNITS_UNKNOWN on interface object
+Pass	SVGMarkerElement interface: constant SVG_MARKERUNITS_UNKNOWN on interface prototype object
+Pass	SVGMarkerElement interface: constant SVG_MARKERUNITS_USERSPACEONUSE on interface object
+Pass	SVGMarkerElement interface: constant SVG_MARKERUNITS_USERSPACEONUSE on interface prototype object
+Pass	SVGMarkerElement interface: constant SVG_MARKERUNITS_STROKEWIDTH on interface object
+Pass	SVGMarkerElement interface: constant SVG_MARKERUNITS_STROKEWIDTH on interface prototype object
+Pass	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_UNKNOWN on interface object
+Pass	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_UNKNOWN on interface prototype object
+Pass	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO on interface object
+Pass	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO on interface prototype object
+Pass	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_ANGLE on interface object
+Pass	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_ANGLE on interface prototype object
+Pass	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO_START_REVERSE on interface object
+Pass	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO_START_REVERSE on interface prototype object
+Pass	SVGMarkerElement interface: attribute refX
+Pass	SVGMarkerElement interface: attribute refY
+Pass	SVGMarkerElement interface: attribute markerUnits
+Pass	SVGMarkerElement interface: attribute markerWidth
+Pass	SVGMarkerElement interface: attribute markerHeight
+Pass	SVGMarkerElement interface: attribute orientType
+Pass	SVGMarkerElement interface: attribute orientAngle
+Pass	SVGMarkerElement interface: attribute orient
+Pass	SVGMarkerElement interface: operation setOrientToAuto()
+Pass	SVGMarkerElement interface: operation setOrientToAngle(SVGAngle)
+Pass	SVGMarkerElement interface: attribute viewBox
 Fail	SVGMarkerElement interface: attribute preserveAspectRatio
-Fail	SVGMarkerElement must be primary interface of objects.marker
-Fail	Stringification of objects.marker
-Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKERUNITS_UNKNOWN" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKERUNITS_USERSPACEONUSE" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKERUNITS_STROKEWIDTH" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_UNKNOWN" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_AUTO" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_ANGLE" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_AUTO_START_REVERSE" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "refX" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "refY" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "markerUnits" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "markerWidth" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "markerHeight" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "orientType" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "orientAngle" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "orient" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "setOrientToAuto()" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "setOrientToAngle(SVGAngle)" with the proper type
-Fail	SVGMarkerElement interface: calling setOrientToAngle(SVGAngle) on objects.marker with too few arguments must throw TypeError
-Fail	SVGMarkerElement interface: objects.marker must inherit property "viewBox" with the proper type
+Pass	SVGMarkerElement must be primary interface of objects.marker
+Pass	Stringification of objects.marker
+Pass	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKERUNITS_UNKNOWN" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKERUNITS_USERSPACEONUSE" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKERUNITS_STROKEWIDTH" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_UNKNOWN" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_AUTO" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_ANGLE" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_AUTO_START_REVERSE" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "refX" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "refY" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "markerUnits" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "markerWidth" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "markerHeight" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "orientType" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "orientAngle" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "orient" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "setOrientToAuto()" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "setOrientToAngle(SVGAngle)" with the proper type
+Pass	SVGMarkerElement interface: calling setOrientToAngle(SVGAngle) on objects.marker with too few arguments must throw TypeError
+Pass	SVGMarkerElement interface: objects.marker must inherit property "viewBox" with the proper type
 Fail	SVGMarkerElement interface: objects.marker must inherit property "preserveAspectRatio" with the proper type
 Pass	SVGElement interface: objects.marker must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.marker must inherit property "ownerSVGElement" with the proper type

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 52 tests
 
-48 Pass
-4 Fail
+52 Pass
 Pass	SVGAnimatedEnumeration, invalid values, SVGClipPathElement.prototype.clipPathUnits (empty string)
 Pass	SVGAnimatedEnumeration, invalid values, SVGClipPathElement.prototype.clipPathUnits (content attribute is not rewritten)
 Pass	SVGAnimatedEnumeration, invalid values, SVGComponentTransferFunctionElement.prototype.type (empty string)
@@ -36,10 +35,10 @@ Pass	SVGAnimatedEnumeration, invalid values, SVGGradientElement.prototype.gradie
 Pass	SVGAnimatedEnumeration, invalid values, SVGGradientElement.prototype.gradientUnits (content attribute is not rewritten)
 Pass	SVGAnimatedEnumeration, invalid values, SVGGradientElement.prototype.spreadMethod (empty string)
 Pass	SVGAnimatedEnumeration, invalid values, SVGGradientElement.prototype.spreadMethod (content attribute is not rewritten)
-Fail	SVGAnimatedEnumeration, invalid values, SVGMarkerElement.prototype.markerUnits (empty string)
-Fail	SVGAnimatedEnumeration, invalid values, SVGMarkerElement.prototype.markerUnits (content attribute is not rewritten)
-Fail	SVGAnimatedEnumeration, invalid values, SVGMarkerElement.prototype.orientType (empty string)
-Fail	SVGAnimatedEnumeration, invalid values, SVGMarkerElement.prototype.orientType (content attribute is not rewritten)
+Pass	SVGAnimatedEnumeration, invalid values, SVGMarkerElement.prototype.markerUnits (empty string)
+Pass	SVGAnimatedEnumeration, invalid values, SVGMarkerElement.prototype.markerUnits (content attribute is not rewritten)
+Pass	SVGAnimatedEnumeration, invalid values, SVGMarkerElement.prototype.orientType (empty string)
+Pass	SVGAnimatedEnumeration, invalid values, SVGMarkerElement.prototype.orientType (content attribute is not rewritten)
 Pass	SVGAnimatedEnumeration, invalid values, SVGMaskElement.prototype.maskUnits (empty string)
 Pass	SVGAnimatedEnumeration, invalid values, SVGMaskElement.prototype.maskUnits (content attribute is not rewritten)
 Pass	SVGAnimatedEnumeration, invalid values, SVGMaskElement.prototype.maskContentUnits (empty string)
