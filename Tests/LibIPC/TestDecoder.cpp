@@ -104,7 +104,7 @@ TEST_CASE(decode_byte_buffer_larger_than_64_mib)
 TEST_CASE(decode_anonymous_buffer_refuses_a_size_larger_than_its_backing)
 {
     auto decode_with_claimed_size = [](u64 claimed_size) {
-        auto fd = MUST(Core::System::anon_create(4096, O_CLOEXEC, Core::System::AllowSealing::No));
+        auto fd = MUST(Core::System::anon_create(4096, O_CLOEXEC, Core::System::AllowSealing::Yes));
 
         Vector<u8> bytes;
         bytes.append(1);
@@ -121,6 +121,25 @@ TEST_CASE(decode_anonymous_buffer_refuses_a_size_larger_than_its_backing)
     EXPECT_EQ(buffer.size(), 4096u);
 
     EXPECT(decode_with_claimed_size(1 * MiB).is_error());
+}
+#endif
+
+#if defined(AK_OS_LINUX)
+TEST_CASE(decode_anonymous_buffer_refuses_a_backing_that_cannot_be_sealed)
+{
+    // Without a seal, the sender could shrink the backing after the size check passed.
+    auto fd = MUST(Core::System::anon_create(4096, O_CLOEXEC, Core::System::AllowSealing::No));
+    u64 claimed_size = 4096;
+
+    Vector<u8> bytes;
+    bytes.append(1);
+    bytes.append(reinterpret_cast<u8 const*>(&claimed_size), sizeof(claimed_size));
+
+    FixedMemoryStream stream { bytes.span() };
+    Queue<IPC::Attachment> attachments;
+    attachments.enqueue(IPC::Attachment::from_fd(fd));
+    IPC::Decoder decoder { stream, attachments };
+    EXPECT(decoder.decode<Core::AnonymousBuffer>().is_error());
 }
 #endif
 

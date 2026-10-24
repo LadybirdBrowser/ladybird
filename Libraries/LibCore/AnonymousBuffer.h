@@ -37,23 +37,19 @@ private:
 
 class CORE_API AnonymousBuffer {
 public:
-    enum class Sealability {
-        Unsealable,
-        Sealable,
-    };
-
-    static ErrorOr<AnonymousBuffer> create_with_size(size_t, Sealability = Sealability::Unsealable);
+    static ErrorOr<AnonymousBuffer> create_with_size(size_t);
     static ErrorOr<AnonymousBuffer> create_from_anon_fd(int fd, size_t);
 
     AnonymousBuffer() = default;
 
     bool is_valid() const { return m_impl; }
 
-    ErrorOr<AnonymousBuffer> snapshot(Sealability = Sealability::Unsealable) const;
-    ErrorOr<AnonymousBuffer> snapshot(size_t offset, size_t size, Sealability = Sealability::Unsealable) const;
+    ErrorOr<AnonymousBuffer> snapshot() const;
+    ErrorOr<AnonymousBuffer> snapshot(size_t offset, size_t size) const;
 
     // The size of a received buffer is whatever the peer claimed in the message. If the backing store is
-    // smaller than that, reading the mapping past its end faults, so check before trusting the size.
+    // smaller than that, reading the mapping past its end faults, so check before trusting the size. This also seals
+    // the backing store against shrinking where the peer could still shrink it.
     ErrorOr<void> validate_backing_size() const;
 
     int fd() const { return m_impl ? m_impl->fd() : -1; }

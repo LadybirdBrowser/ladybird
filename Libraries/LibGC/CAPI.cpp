@@ -504,7 +504,7 @@ uint8_t* gc_primitive_storage_data(GCPrimitiveStorageHandle handle)
 bool gc_shared_memory_create(size_t size, int* out_fd)
 {
     *out_fd = -1;
-    auto buffer = Core::AnonymousBuffer::create_with_size(size, Core::AnonymousBuffer::Sealability::Sealable);
+    auto buffer = Core::AnonymousBuffer::create_with_size(size);
     if (buffer.is_error())
         return false;
     // NB: The buffer closes its descriptor and unmaps its own view of the memory when it goes away; the caller gets a
