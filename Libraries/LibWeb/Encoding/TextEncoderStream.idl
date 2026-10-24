@@ -1,5 +1,5 @@
 // https://encoding.spec.whatwg.org/#textencoderstream
-[Exposed=*]
+[Exposed=*, ImplementedIn=Rust]
 interface TextEncoderStream {
     constructor();
 };

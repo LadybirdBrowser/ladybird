@@ -551,12 +551,6 @@ enum class HistoryAction : u8;
 
 }
 
-namespace Web::Encoding {
-
-class TextEncoderStream;
-
-}
-
 namespace Web::EncryptedMediaExtensions {
 
 class MediaKeySystemAccess;

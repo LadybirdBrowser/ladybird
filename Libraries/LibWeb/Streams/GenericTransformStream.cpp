@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,7 +9,6 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
-#include <LibWeb/Streams/GenericTransformStream.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/WritableStream.h>
@@ -30,32 +29,6 @@ extern "C" {
 TransformStream* web_transform_stream_create(JS::Realm*, GC::ForeignCell* steps, RustTransformStreamSteps);
 void web_transform_stream_enqueue(TransformStream*, JSValue chunk);
 void* web_transform_stream_side(TransformStream*, JS::Realm*, TransformStreamSide);
-}
-
-GenericTransformStreamMixin::GenericTransformStreamMixin(GC::Ref<TransformStream> transform)
-    : m_transform(transform)
-{
-}
-
-GenericTransformStreamMixin::~GenericTransformStreamMixin() = default;
-
-void GenericTransformStreamMixin::visit_edges(GC::Cell::Visitor& visitor)
-{
-    visitor.visit(m_transform);
-}
-
-// https://streams.spec.whatwg.org/#dom-generictransformstream-readable
-GC::Ref<ReadableStream> GenericTransformStreamMixin::readable()
-{
-    // The readable getter steps are to return this's transform.[[readable]].
-    return m_transform->readable();
-}
-
-// https://streams.spec.whatwg.org/#dom-generictransformstream-writable
-GC::Ref<WritableStream> GenericTransformStreamMixin::writable()
-{
-    // The writable getter steps are to return this's transform.[[writable]].
-    return m_transform->writable();
 }
 
 static GC::Ref<WebIDL::Promise> promise_for(JS::Realm& realm, JSCompletion completion)

@@ -647,6 +647,20 @@ unsafe fn borrowed_or_copied_bytes_of_buffer(buffer: &ArrayBuffer, bytes: Range<
     Some(Cow::Borrowed(unsafe { ak::slice_from_raw_parts(data, bytes.len()) }))
 }
 
+/// The value as a BufferSource, if it is an ArrayBuffer, a DataView or a typed array, without the checks of a
+/// conversion to the type.
+pub(crate) fn buffer_source_type_of(value: Value) -> Option<BufferSource> {
+    if !value.is_object() {
+        return None;
+    }
+    let object = value.as_object();
+    object
+        .downcast::<ArrayBuffer>()
+        .map(BufferSource::ArrayBuffer)
+        .or_else(|| object.downcast::<DataView>().map(BufferSource::DataView))
+        .or_else(|| object.downcast::<TypedArrayBase>().map(BufferSource::TypedArray))
+}
+
 /// https://webidl.spec.whatwg.org/#arraybufferview-create, for a Uint8Array in the realm of the call context.
 pub(crate) fn create_uint8_array(cx: &CallContext, bytes: &[u8]) -> WebIdlResult<Gc<Object>> {
     let length = u32::try_from(bytes.len())

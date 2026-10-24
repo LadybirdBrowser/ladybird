@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Pass
+Pass	encoding attribute should have correct value for 'unicode-1-1-utf-8'
+Pass	encoding attribute should have correct value for 'iso-8859-2'
+Pass	encoding attribute should have correct value for 'ascii'
+Pass	encoding attribute should have correct value for 'utf-16'
+Pass	setting fatal to 'false' should set the attribute to false
+Pass	setting ignoreBOM to 'false' should set the attribute to false
+Pass	setting fatal to '0' should set the attribute to false
+Pass	setting ignoreBOM to '0' should set the attribute to false
+Pass	setting fatal to '' should set the attribute to false
+Pass	setting ignoreBOM to '' should set the attribute to false
+Pass	setting fatal to 'undefined' should set the attribute to false
+Pass	setting ignoreBOM to 'undefined' should set the attribute to false
+Pass	setting fatal to 'null' should set the attribute to false
+Pass	setting ignoreBOM to 'null' should set the attribute to false
+Pass	setting fatal to 'true' should set the attribute to true
+Pass	setting ignoreBOM to 'true' should set the attribute to true
+Pass	setting fatal to '1' should set the attribute to true
+Pass	setting ignoreBOM to '1' should set the attribute to true
+Pass	setting fatal to '[object Object]' should set the attribute to true
+Pass	setting ignoreBOM to '[object Object]' should set the attribute to true
+Pass	setting fatal to '' should set the attribute to true
+Pass	setting ignoreBOM to '' should set the attribute to true
+Pass	setting fatal to 'yes' should set the attribute to true
+Pass	setting ignoreBOM to 'yes' should set the attribute to true
+Pass	constructing with an invalid encoding should throw
+Pass	constructing with a non-stringifiable encoding should throw
+Pass	a throwing fatal member should cause the constructor to throw
+Pass	a throwing ignoreBOM member should cause the constructor to throw

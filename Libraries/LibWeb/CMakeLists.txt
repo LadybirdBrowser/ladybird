@@ -357,10 +357,6 @@ set(SOURCES
     Editing/StyledMarkupSerializer.cpp
     Editing/VisiblePosition.cpp
     Editing/ReplaceSelection.cpp
-    Encoding/TextDecoderCommon.cpp
-    Encoding/TextDecoderStream.cpp
-    Encoding/TextEncoderCommon.cpp
-    Encoding/TextEncoderStream.cpp
     EncryptedMediaExtensions/Algorithms.cpp
     EncryptedMediaExtensions/MediaKeySystemAccess.cpp
     EntriesAPI/FileSystemEntry.cpp
