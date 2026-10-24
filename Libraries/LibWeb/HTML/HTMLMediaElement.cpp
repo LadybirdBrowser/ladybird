@@ -2384,14 +2384,20 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
     }));
 
     m_playback_manager->add_media_source(*m_remote_fetch_data->stream)
-        ->when_resolved(GC::weak_callback(*this, [](auto& self, MediaClient::RemotePlaybackManager::AddedTracks& added_tracks) {
+        ->when_resolved(GC::weak_callback(*this, [weak_manager = m_playback_manager->make_weak_ptr()](auto& self, MediaClient::RemotePlaybackManager::AddedTracks& added_tracks) {
             // -> If the media resource is found to have an audio track
-            for (auto const& track : added_tracks.audio_tracks)
+            for (auto const& track : added_tracks.audio_tracks) {
                 self.on_audio_track_added(track);
+                if (!weak_manager)
+                    return;
+            }
 
             // -> If the media resource is found to have a video track
-            for (auto const& track : added_tracks.video_tracks)
+            for (auto const& track : added_tracks.video_tracks) {
                 self.on_video_track_added(track);
+                if (!weak_manager)
+                    return;
+            }
 
             // -> Once enough of the media data has been fetched to determine the duration of the media resource, its dimensions, and other metadata
             self.on_metadata_parsed(SourceType::Remote);

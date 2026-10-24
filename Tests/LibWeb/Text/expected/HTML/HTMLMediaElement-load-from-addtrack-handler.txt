@@ -1,0 +1,3 @@
+addtrack: audio tracks 1
+emptied: readyState 0, audio tracks 0, video tracks 0
+settled: networkState 0, loads 1
