@@ -1837,10 +1837,10 @@ void PageClient::stop_loading_through_ui_process_for_testing()
         test_connection->async_did_request_stop_loading_for_testing(m_id);
 }
 
-void PageClient::reload_through_ui_process_for_testing()
+void PageClient::reload_through_ui_process_for_testing(bool bypass_cache)
 {
     if (auto* test_connection = client().test_connection())
-        test_connection->async_did_request_reload_for_testing(m_id);
+        test_connection->async_did_request_reload_for_testing(m_id, bypass_cache);
 }
 
 void PageClient::traverse_history_by_delta_through_ui_process_for_testing(i32 delta)

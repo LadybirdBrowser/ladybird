@@ -1918,6 +1918,13 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             http_request->set_cache_mode(HTTP::CacheMode::NoStore);
         }
 
+        // AD-HOC: While a document loads bypassing the HTTP cache, so do the requests it makes without a cache mode of
+        //         their own, as do its child navigables' navigations (see create navigation params by fetching).
+        if (http_request->cache_mode() == HTTP::CacheMode::Default && http_request->mode() != Infrastructure::Request::Mode::Navigate && http_request->client()) {
+            if (auto* window = HTML::window_from_global_object(http_request->client()->global_object()); window && window->associated_document().is_loading_bypassing_cache())
+                http_request->set_cache_mode(HTTP::CacheMode::Reload);
+        }
+
         // 17. If httpRequest’s cache mode is "no-cache", httpRequest’s prevent no-cache cache-control header
         //     modification flag is unset, and httpRequest’s header list does not contain `Cache-Control`, then append
         //     (`Cache-Control`, `max-age=0`) to httpRequest’s header list.

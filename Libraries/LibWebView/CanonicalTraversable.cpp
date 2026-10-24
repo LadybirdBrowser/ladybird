@@ -655,7 +655,7 @@ ByteString CanonicalTraversable::queued_same_document_session_history_entries_fo
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
 // NB: This is a reload from the browser's UI. One by script fires the navigate event in the process hosting the active
 //     document, which then asks for the reload history step.
-void CanonicalTraversable::reload()
+void CanonicalTraversable::reload(BypassCache bypass_cache)
 {
     auto user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI;
 
@@ -667,6 +667,7 @@ void CanonicalTraversable::reload()
 
     // 2. Set navigable's active session history entry's document state's reload pending to true.
     active_session_history_entry()->document_state->reload_pending = true;
+    active_session_history_entry()->document_state->reload_bypasses_cache = bypass_cache == BypassCache::Yes;
     session_history_changed();
 
     // 3. Let traversable be navigable's traversable navigable.
@@ -865,6 +866,8 @@ bool CanonicalTraversable::set_session_history_entry_document_state_reload_pendi
     if (!entry)
         return false;
     entry->document_state->reload_pending = reload_pending;
+    // A page's own reload never bypasses the HTTP cache, and population clearing reload pending ends one that does.
+    entry->document_state->reload_bypasses_cache = false;
     session_history_changed();
     return true;
 }
@@ -1187,10 +1190,12 @@ void CanonicalTraversable::recover_from_web_content_process_crash()
         target_step = traversal->browser_traversal().target_step;
     abandon_history_operations();
 
-    // The tab's document is reloaded, the crashed process having destroyed the one its entry holds.
+    // The tab's document is reloaded, the crashed process having destroyed the one its entry holds. That reload never
+    // bypasses the HTTP cache, even when what the crash cut short was a reload that did.
     auto* reloading_entry = m_session_history.get_the_target_history_entry(*this, target_step);
     VERIFY(reloading_entry);
     reloading_entry->document_state->reload_pending = true;
+    reloading_entry->document_state->reload_bypasses_cache = false;
     session_history_changed();
     enqueue_browser_history_traversal(target_step, false);
 }
@@ -2493,8 +2498,10 @@ void CanonicalTraversable::did_not_apply_reload(Web::HTML::CrossProcessId naviga
     // AD-HOC: The spec leaves reload pending set when the reload does not apply, so a later history step would reload
     //         the document anyway.
     if (auto navigable = find(navigable_id); navigable.has_value()) {
-        if (auto const& entry = navigable->active_session_history_entry())
+        if (auto const& entry = navigable->active_session_history_entry()) {
             entry->document_state->reload_pending = false;
+            entry->document_state->reload_bypasses_cache = false;
+        }
     }
 
     if (navigable_id != id())

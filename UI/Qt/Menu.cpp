@@ -111,7 +111,7 @@ private:
                     action->set_checked(checked);
                 action->activate();
 
-                if (first_is_one_of(action->id(), WebView::ActionID::BookmarkItem, WebView::ActionID::Reload)) {
+                if (first_is_one_of(action->id(), WebView::ActionID::BookmarkItem, WebView::ActionID::Reload, WebView::ActionID::ReloadBypassingCache)) {
                     if (auto* active_tab = Application::the().active_tab())
                         active_tab->view().setFocus();
                 }
@@ -175,6 +175,13 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         if (include_action_icon == IncludeActionIcon::Yes)
             qaction.setIcon(create_chrome_icon(ChromeIcon::Reload, palette));
         qaction.setShortcuts({ QKeySequence(Qt::CTRL | Qt::Key_R), QKeySequence(Qt::Key_F5) });
+        break;
+    case WebView::ActionID::ReloadBypassingCache:
+#if defined(AK_OS_MACOS)
+        qaction.setShortcuts({ QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_R), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R) });
+#else
+        qaction.setShortcuts({ QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R), QKeySequence(Qt::CTRL | Qt::Key_F5) });
+#endif
         break;
     case WebView::ActionID::ViewDownloads:
         if (include_action_icon == IncludeActionIcon::Yes)

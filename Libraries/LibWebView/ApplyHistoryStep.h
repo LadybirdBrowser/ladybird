@@ -56,9 +56,10 @@ struct WEBVIEW_API ChangingNavigable {
     // history projection. The run looks it up again before it is activated, and follows a sync navigation that changed
     // it (whatwg/html#12961).
     NonnullRefPtr<CanonicalSessionHistoryEntry> target_entry;
-    // Whether targetEntry's document state's reload pending was true when the job claimed it. Populating the document
-    // sets it to false.
+    // Whether targetEntry's document state's reload pending was true when the job claimed it, and whether that reload
+    // bypasses the HTTP cache. Populating the document sets both to false.
     bool target_entry_reload_pending { false };
+    bool target_entry_reload_bypasses_cache { false };
     // The target entry as the job claimed it, for the processes the job runs in.
     Web::HTML::SessionHistoryEntryDescriptor target_entry_descriptor() const;
 

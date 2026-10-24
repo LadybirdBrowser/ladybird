@@ -93,6 +93,7 @@ SessionHistoryDocumentStateDescriptor create_session_history_document_state_desc
         .about_base_url = document_state.about_base_url(),
         .resource = document_state.resource(),
         .reload_pending = document_state.reload_pending(),
+        .reload_bypasses_cache = document_state.reload_bypasses_cache(),
         .ever_populated = document_state.ever_populated(),
         .user_agent_initiated = document_state.user_agent_initiated(),
         .navigable_target_name = document_state.navigable_target_name(),
@@ -211,6 +212,7 @@ void apply_session_history_document_state_descriptor_from_ui_process(DocumentSta
     document_state.set_about_base_url(document_state_descriptor.about_base_url);
     document_state.set_resource(document_state_descriptor.resource);
     document_state.set_reload_pending(document_state_descriptor.reload_pending);
+    document_state.set_reload_bypasses_cache(document_state_descriptor.reload_bypasses_cache);
     document_state.set_ever_populated(document_state_descriptor.ever_populated);
     document_state.set_user_agent_initiated(document_state_descriptor.user_agent_initiated);
     document_state.set_navigable_target_name(document_state_descriptor.navigable_target_name);

@@ -525,7 +525,9 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
             // AD-HOC: Preserve reload pending for steps 6 and 7 before step 5 clears it.
             // See https://github.com/whatwg/html/issues/12760.
             auto input_reload_pending = target_entry->document_state()->reload_pending();
+            auto input_reload_bypasses_cache = target_entry->document_state()->reload_bypasses_cache();
             target_entry->document_state()->set_reload_pending(false);
+            target_entry->document_state()->set_reload_bypasses_cache(false);
             m_page->client().page_did_set_session_history_entry_document_state_reload_pending(
                 navigable->id(), target_entry->navigation_api_key(), false);
 
@@ -547,6 +549,7 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
                 .navigation_id = {},
             };
             request.history_entry.document_state.reload_pending = input_reload_pending;
+            request.history_entry.document_state.reload_bypasses_cache = input_reload_bypasses_cache;
 
             // 7. In parallel, attempt to populate the history entry's document for targetEntry, given navigable, potentiallyTargetSpecificSourceSnapshotParams,
             //    targetSnapshotParams, userInvolvement, with allowPOST set to allowPOST and completionSteps set to

@@ -486,7 +486,7 @@ void ViewImplementation::load_navigation_error_page(StringView text)
     load_html(builder.string_view());
 }
 
-void ViewImplementation::reload()
+void ViewImplementation::reload(BypassCache bypass_cache)
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Reload;
 
@@ -511,7 +511,7 @@ void ViewImplementation::reload()
         return;
     }
 
-    traversable().reload();
+    traversable().reload(bypass_cache);
     update_navigation_action_state();
     dump_session_history("reload-mark-current-entry-reload-pending"sv);
 }

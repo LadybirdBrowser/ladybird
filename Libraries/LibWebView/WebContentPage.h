@@ -359,7 +359,7 @@ private:
     Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing();
     virtual void did_request_crash_of_remote_frame_processes_for_testing() override;
     virtual void did_request_stop_loading_for_testing() override;
-    virtual void did_request_reload_for_testing() override;
+    virtual void did_request_reload_for_testing(bool bypass_cache) override;
     virtual void did_request_traverse_history_by_delta_for_testing(i32 delta) override;
     virtual void did_reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor) override;
     Messages::WebContentTestClient::DidRequestHasPopulatedDocumentForTestingResponse did_request_has_populated_document_for_testing(Web::HTML::CrossProcessId navigable_id) const;
