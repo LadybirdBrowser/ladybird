@@ -752,7 +752,6 @@ def write_wrapper_factory_implementation(out: TextIO, interface_sets: InterfaceS
 #include <LibWeb/DOM/BindingsGlue.h>
 #include <LibWeb/Fetch/BindingsGlue.h>
 #include <LibWeb/HTML/BindingsGlue.h>
-#include <LibWeb/Streams/BindingsGlue.h>
 #include <LibWeb/WebAssembly/BindingsGlue.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Wrappable.h>

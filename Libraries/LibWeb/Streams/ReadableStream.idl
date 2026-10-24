@@ -24,7 +24,7 @@ dictionary ReadableStreamIteratorOptions {
 };
 
 // https://streams.spec.whatwg.org/#readablestream
-[Exposed=*, Transferable, DefinesAsyncIteratorReturn]
+[Exposed=*, Transferable, DefinesAsyncIteratorReturn, ImplementedIn=Rust]
 interface ReadableStream {
     constructor(optional object underlyingSource, optional QueuingStrategy strategy = {});
 

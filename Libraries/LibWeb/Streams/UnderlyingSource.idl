@@ -1,4 +1,5 @@
 // https://streams.spec.whatwg.org/#dictdef-underlyingsource
+[ImplementedIn=Rust]
 dictionary UnderlyingSource {
     UnderlyingSourceStartCallback start;
     UnderlyingSourcePullCallback pull;

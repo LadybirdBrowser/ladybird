@@ -17,9 +17,7 @@
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
-#include <LibWeb/Streams/ReadableByteStreamController.h>
 #include <LibWeb/Streams/ReadableStream.h>
-#include <LibWeb/Streams/ReadableStreamDefaultController.h>
 
 namespace Web {
 
@@ -192,7 +190,7 @@ void Detail::track_rendering_pending_stream(GC::Cell const* token, Streams::Read
         return;
     // Closing a source with unread queued bytes need not close its identity transform. Observe the source's
     // close request, before fetch installs that transform, so an unread response cannot keep the page pending.
-    if (!stream.is_readable() || (stream.controller().has_value() && stream.controller()->visit([](auto controller) { return controller->close_requested(); }))) {
+    if (!stream.is_readable() || stream.close_requested()) {
         end_rendering_pending_operation(token);
         return;
     }

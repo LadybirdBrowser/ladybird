@@ -846,26 +846,8 @@ set(SOURCES
     StorageAPI/StorageKey.cpp
     StorageAPI/StorageManager.cpp
     StorageAPI/StorageShelf.cpp
-    Streams/AbstractOperations.cpp
-    Streams/GenericTransformStream.cpp
-    Streams/ReadableByteStreamController.cpp
     Streams/ReadableStream.cpp
-    Streams/ReadableStreamAsyncIterator.cpp
-    Streams/ReadableStreamBYOBReader.cpp
-    Streams/ReadableStreamBYOBRequest.cpp
-    Streams/ReadableStreamDefaultController.cpp
-    Streams/ReadableStreamDefaultReader.cpp
-    Streams/ReadableStreamGenericReader.cpp
-    Streams/ReadableStreamOperations.cpp
-    Streams/ReadableStreamPipeTo.cpp
-    Streams/ReadableStreamTee.cpp
     Streams/TransformStream.cpp
-    Streams/TransformStreamDefaultController.cpp
-    Streams/TransformStreamOperations.cpp
-    Streams/WritableStream.cpp
-    Streams/WritableStreamDefaultController.cpp
-    Streams/WritableStreamDefaultWriter.cpp
-    Streams/WritableStreamOperations.cpp
     SVG/AttributeNames.cpp
     SVG/AttributeParsing.cpp
     SVG/Path.cpp

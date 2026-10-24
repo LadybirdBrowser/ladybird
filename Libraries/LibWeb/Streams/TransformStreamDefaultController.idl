@@ -1,5 +1,5 @@
 // https://streams.spec.whatwg.org/#transformstreamdefaultcontroller
-[Exposed=*]
+[Exposed=*, ImplementedIn=Rust]
 interface TransformStreamDefaultController {
     readonly attribute unrestricted double? desiredSize;
 

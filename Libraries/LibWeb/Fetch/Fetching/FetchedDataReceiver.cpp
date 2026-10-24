@@ -14,9 +14,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/Streams/ReadableByteStreamController.h>
 #include <LibWeb/Streams/ReadableStream.h>
-#include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::Fetch::Fetching {
@@ -211,16 +209,13 @@ void FetchedDataReceiver::enqueue_into_stream(JS::Realm& realm, ReadonlyBytes by
     if (!m_stream->is_readable())
         return;
 
-    auto& controller = m_stream->controller()->get<GC::Ref<Streams::ReadableByteStreamController>>();
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // 1. Pull from bytes buffer into stream.
-    auto byte_buffer = MUST(ByteBuffer::copy(bytes));
-
-    if (auto result = Streams::readable_byte_stream_controller_enqueue_native_bytes(realm, *controller, move(byte_buffer)); result.is_error()) {
+    if (auto result = m_stream->enqueue_bytes(bytes); result.is_error()) {
         auto throw_completion = WebIDL::exception_to_throw_completion(realm.vm(), realm, result.release_error());
         // 2. If stream is errored, then terminate fetchParams’s controller.
-        Streams::readable_byte_stream_controller_error(*controller, throw_completion.value());
+        m_stream->error(throw_completion.value());
         if (m_fetch_params)
             m_fetch_params->controller()->terminate();
     }

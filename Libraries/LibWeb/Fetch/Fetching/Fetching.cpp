@@ -69,8 +69,6 @@
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/Streams/TransformStream.h>
-#include <LibWeb/Streams/TransformStreamDefaultController.h>
-#include <LibWeb/Streams/TransformStreamOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWebCommon/Fetch/Infrastructure/DataURL.h>
@@ -985,11 +983,11 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let transformStream be a new TransformStream.
-        auto transform_stream = GC::Heap::the().allocate<Streams::TransformStream>();
+        auto transform_stream = Streams::TransformStream::create(realm);
 
         // 2. Let identityTransformAlgorithm be an algorithm which, given chunk, enqueues chunk in transformStream.
         auto identity_transform_algorithm = GC::create_function(GC::Heap::the(), [&realm, transform_stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
-            if (auto result = Streams::transform_stream_default_controller_enqueue(realm, *transform_stream->controller(), chunk); result.is_error())
+            if (auto result = transform_stream->enqueue(chunk); result.is_error())
                 return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
 
             return WebIDL::create_resolved_promise(realm, JS::js_undefined());
@@ -2369,7 +2367,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // 10. Let stream be a new ReadableStream.
-    auto stream = GC::Heap::the().allocate<Streams::ReadableStream>();
+    auto stream = Streams::ReadableStream::create(realm);
 
     // 9. Let buffer be an empty byte sequence.
     auto fetched_data_receiver = GC::Heap::the().allocate<FetchedDataReceiver>(fetch_params, stream, move(http_cache));

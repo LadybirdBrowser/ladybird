@@ -1,8 +1,8 @@
 // https://streams.spec.whatwg.org/#transformstream
-[Exposed=*, Transferable]
+[Exposed=*, Transferable, ImplementedIn=Rust]
 interface TransformStream {
     constructor(optional object transformer, optional QueuingStrategy writableStrategy = {}, optional QueuingStrategy readableStrategy = {});
 
-    [DirectGetter] readonly attribute ReadableStream readable;
-    [DirectGetter] readonly attribute WritableStream writable;
+    [CachedAccessor] readonly attribute ReadableStream readable;
+    [CachedAccessor] readonly attribute WritableStream writable;
 };

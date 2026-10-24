@@ -1,5 +1,5 @@
 // https://streams.spec.whatwg.org/#readablestreambyobrequest
-[Exposed=*]
+[Exposed=*, ImplementedIn=Rust]
 interface ReadableStreamBYOBRequest {
     readonly attribute Uint8Array? view;
 

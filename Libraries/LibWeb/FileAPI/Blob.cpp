@@ -20,8 +20,8 @@
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
-#include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -61,7 +61,7 @@ bool web_blob_is_file(void* blob);
 
 // Called by Bindings/Rust/src/file_api/blob.rs.
 void web_blob_bytes_destroy(BlobBytes*);
-JSObject* web_blob_get_stream(void* realm, ReadonlyBytes);
+void* web_blob_get_stream(void* realm, ReadonlyBytes);
 WebIDL::Promise* web_blob_text(void* realm, ReadonlyBytes);
 WebIDL::Promise* web_blob_array_buffer(void* realm, ReadonlyBytes);
 WebIDL::Promise* web_blob_bytes(void* realm, ReadonlyBytes);
@@ -122,7 +122,7 @@ bool Blob::is_file() const
 static GC::Ref<Streams::ReadableStream> get_stream(JS::Realm& realm, ReadonlyBytes blob_bytes)
 {
     // 1. Let stream be a new ReadableStream created in blob’s relevant Realm.
-    auto stream = GC::Heap::the().allocate<Streams::ReadableStream>();
+    auto stream = Streams::ReadableStream::create(realm);
 
     // 2. Set up stream with byte reading support.
     stream->set_up_with_byte_reading_support(realm);
@@ -150,7 +150,7 @@ static GC::Ref<Streams::ReadableStream> get_stream(JS::Realm& realm, ReadonlyByt
                 });
 
                 if (maybe_error.is_error()) {
-                    Streams::readable_stream_error(*stream, maybe_error.release_error().value());
+                    stream->error(maybe_error.release_error().value());
                     return;
                 }
 
@@ -181,13 +181,10 @@ static GC::Ref<WebIDL::Promise> read_all_blob_bytes(JS::Realm& realm, ReadonlyBy
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-stream
-JSObject* web_blob_get_stream(void* realm, ReadonlyBytes blob_bytes)
+void* web_blob_get_stream(void* realm, ReadonlyBytes blob_bytes)
 {
-    auto& js_realm = *static_cast<JS::Realm*>(realm);
-
     // The stream() method, when invoked, must return the result of calling get stream on this.
-    auto stream = get_stream(js_realm, blob_bytes);
-    return JS::HostABI::object_to_abi(Bindings::wrap(Bindings::host_defined_wrapper_world(js_realm), js_realm, stream).ptr());
+    return get_stream(*static_cast<JS::Realm*>(realm), blob_bytes).ptr();
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-text

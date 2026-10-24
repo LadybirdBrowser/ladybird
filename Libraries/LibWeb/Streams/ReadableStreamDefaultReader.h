@@ -6,96 +6,59 @@
 
 #pragma once
 
-#include <AK/Function.h>
-#include <AK/SinglyLinkedList.h>
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <AK/ByteBuffer.h>
+#include <LibGC/Function.h>
+#include <LibJS/Heap/Cell.h>
+#include <LibJS/Runtime/Value.h>
+#include <LibWeb/Bindings/ReadableStreamDefaultReader.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Streams/ReadableStreamGenericReader.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
 
-struct ReadableStreamReadResult {
-    JS::Value value;
-    bool done;
-};
-
-namespace Detail {
-
-class ReadableStreamPipeTo;
-
-}
-
-class ReadRequest : public JS::Cell {
+// https://streams.spec.whatwg.org/#read-request
+class WEB_API ReadRequest : public JS::Cell {
     GC_CELL(ReadRequest, JS::Cell);
 
 public:
-    virtual ~ReadRequest() = default;
+    virtual ~ReadRequest() override = default;
 
     virtual void on_chunk(JS::Value chunk) = 0;
     virtual void on_close() = 0;
     virtual void on_error(JS::Value error) = 0;
 };
 
-class ReadLoopReadRequest final : public ReadRequest {
-    GC_CELL(ReadLoopReadRequest, ReadRequest);
-    GC_DECLARE_ALLOCATOR(ReadLoopReadRequest);
+// https://streams.spec.whatwg.org/#readablestreamdefaultreader
+// The C++ side of a ReadableStreamDefaultReader, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/streams):
+// what the specifications that LibWeb implements in C++ use to read streams.
+class WEB_API ReadableStreamDefaultReader : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(ReadableStreamDefaultReader, readable_stream_default_reader)
 
 public:
-    // successSteps, which is an algorithm accepting a byte sequence
     using SuccessSteps = GC::Function<void(ByteBuffer)>;
-
-    // failureSteps, which is an algorithm accepting a JavaScript value
     using FailureSteps = GC::Function<void(JS::Value error)>;
 
-private:
-    ReadLoopReadRequest(JS::Realm&, ReadableStreamDefaultReader&, GC::Ref<SuccessSteps>, GC::Ref<FailureSteps>);
-
-    virtual void visit_edges(Visitor&) override;
-
-    virtual void on_chunk(JS::Value chunk) override;
-    virtual void on_close() override;
-    virtual void on_error(JS::Value error) override;
-
-    GC::Ref<JS::Realm> m_realm;
-    GC::Ref<ReadableStreamDefaultReader> m_reader;
-    ByteBuffer m_bytes;
-    GC::Ref<SuccessSteps> m_success_steps;
-    GC::Ref<FailureSteps> m_failure_steps;
-};
-
-// https://streams.spec.whatwg.org/#readablestreamdefaultreader
-class ReadableStreamDefaultReader final
-    : public Bindings::GCAllocatedWrappable
-    , public ReadableStreamGenericReaderMixin {
-    WEB_WRAPPABLE(ReadableStreamDefaultReader, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(ReadableStreamDefaultReader);
-
-public:
-    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> create(JS::Realm&, GC::Ref<ReadableStream>);
-
-    virtual ~ReadableStreamDefaultReader() override = default;
-
+    // https://streams.spec.whatwg.org/#default-reader-read
     GC::Ref<WebIDL::Promise> read();
 
-    void read_a_chunk(Fetch::Infrastructure::IncrementalReadLoopReadRequest& read_request);
-    void read_all_bytes(GC::Ref<ReadLoopReadRequest::SuccessSteps>, GC::Ref<ReadLoopReadRequest::FailureSteps>);
+    // https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-a-chunk
+    void read_a_chunk(ReadRequest&);
+
+    // https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
+    void read_all_bytes(GC::Ref<SuccessSteps>, GC::Ref<FailureSteps>);
+
+    // FIXME: This function is a promise-based wrapper around "read all bytes". The spec changed this function to not use promises
+    //        in https://github.com/whatwg/streams/commit/f894acdd417926a2121710803cef593e15127964 - however, it seems that the
+    //        FileAPI blob specification has not been updated to match, see: https://github.com/w3c/FileAPI/issues/187.
     GC::Ref<WebIDL::Promise> read_all_bytes_deprecated();
 
-    void release_lock();
+    // https://streams.spec.whatwg.org/#generic-reader-cancel
+    GC::Ref<WebIDL::Promise> cancel(JS::Value reason);
 
-    SinglyLinkedList<GC::Ref<ReadRequest>>& read_requests() { return m_read_requests; }
-
-    void set_readable_stream_pipe_to_operation(Badge<Detail::ReadableStreamPipeTo>, GC::Ptr<JS::Cell> readable_stream_pipe_to_operation) { m_readable_stream_pipe_to_operation = readable_stream_pipe_to_operation; }
-
-private:
-    ReadableStreamDefaultReader();
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    SinglyLinkedList<GC::Ref<ReadRequest>> m_read_requests;
-
-    GC::Ptr<JS::Cell> m_readable_stream_pipe_to_operation;
+    // The realm of the reader's [[closedPromise]].
+    JS::Realm& closed_promise_realm() const;
 };
 
 }

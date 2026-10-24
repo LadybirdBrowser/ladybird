@@ -41,7 +41,6 @@ ALLOWED_HEADERS = {
     "LibJS/Runtime/Completion.h",
     "LibJS/Runtime/ConsoleObject.h",
     "LibJS/Runtime/DataView.h",
-    "LibJS/Runtime/DataViewConstructor.h",
     "LibJS/Runtime/Date.h",
     "LibJS/Runtime/DeclarativeEnvironment.h",
     "LibJS/Runtime/Environment.h",

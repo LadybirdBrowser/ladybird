@@ -55,6 +55,18 @@ pub(crate) trait Wrappable {
     fn external_memory_size(&self) -> usize {
         0
     }
+
+    /// Whether LibGC finalizes the object before it destroys it, which it does through finalize(), as it does a C++
+    /// implementation object that overrides Cell::finalize().
+    const FINALIZES: bool = false;
+
+    /// What the object does when LibGC finalizes it, while every cell that dies in the collection is still intact.
+    /// It must not allocate.
+    fn finalize(_object: Ref<Self>)
+    where
+        Self: Trace + Sized,
+    {
+    }
 }
 
 /// The value of the cell of an object of an interface: its implementation, and its wrapper in the main world.
@@ -113,11 +125,27 @@ impl<T: Wrappable + Trace> ExternalMemorySize for Wrapped<T> {
 
 /// The class of the cells of the objects of an interface, which the generated bindings of the interface define once.
 pub(crate) const fn cell_class<T: Wrappable + Trace + 'static>(name: &'static str) -> EmbedderClass<Wrapped<T>> {
-    if T::OWNS_EXTERNAL_MEMORY {
+    let class = if T::OWNS_EXTERNAL_MEMORY {
         EmbedderClass::new_with_external_memory_size(name)
     } else {
         EmbedderClass::new(name)
+    };
+    if T::FINALIZES {
+        class.with_finalize(finalize_object::<T>)
+    } else {
+        class
     }
+}
+
+/// The finalize entry of the class of the cells of an interface whose implementation finalizes its objects.
+///
+/// # Safety
+///
+/// Only LibGC calls it, with a dead cell of the class.
+unsafe extern "C" fn finalize_object<T: Wrappable + Trace + 'static>(cell: *mut c_void) {
+    let cell = NonNull::new(cell.cast::<EmbedderCell<Wrapped<T>>>()).expect("LibGC passes a cell");
+    // SAFETY: LibGC passes a dead cell of the class, which stays intact while it finalizes.
+    T::finalize(unsafe { Gc::from_non_null(cell) });
 }
 
 /// Without the generated bindings, which a build of the crate on its own leaves out, nothing creates or wraps an

@@ -1,6 +1,6 @@
 // https://streams.spec.whatwg.org/#writablestreamdefaultcontroller
-[Exposed=*]
+[Exposed=*, ImplementedIn=Rust]
 interface WritableStreamDefaultController {
-    [DirectGetter] readonly attribute AbortSignal signal;
+    [CachedAccessor] readonly attribute AbortSignal signal;
     undefined error(optional any e);
 };

@@ -1,5 +1,5 @@
 // https://streams.spec.whatwg.org/#rbs-controller-class-definition
-    [Exposed=*]
+    [Exposed=*, ImplementedIn=Rust]
 interface ReadableByteStreamController {
     readonly attribute ReadableStreamBYOBRequest? byobRequest;
     readonly attribute unrestricted double? desiredSize;

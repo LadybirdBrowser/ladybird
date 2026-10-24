@@ -1,5 +1,5 @@
 // https://streams.spec.whatwg.org/#readablestreamdefaultreader
-    [Exposed=*]
+    [Exposed=*, ImplementedIn=Rust]
 interface ReadableStreamDefaultReader {
     constructor(ReadableStream stream);
 
