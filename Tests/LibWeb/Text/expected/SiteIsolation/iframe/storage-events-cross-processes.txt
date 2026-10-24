@@ -1,0 +1,12 @@
+peer saw key="a" oldValue=null newValue="1" url-is-actor=true storageArea-is-localStorage=true
+peer saw key="a" oldValue="1" newValue="2" url-is-actor=true storageArea-is-localStorage=true
+peer saw key="a" oldValue="2" newValue=null url-is-actor=true storageArea-is-localStorage=true
+peer saw key="b" oldValue=null newValue="1" url-is-actor=true storageArea-is-localStorage=true
+peer saw key=null oldValue=null newValue=null url-is-actor=true storageArea-is-localStorage=true
+peer saw 5 events for 6 operations (one changed nothing)
+racing writes: neither threw: true
+racing writes: events in total: 2; on one side only: true
+racing writes: accepted write seen once: true; its value: <3145728 chars>
+racing writes: refused write reverted once: true; its old value: <3145728 chars>; storageArea is localStorage: true
+racing writes: the loser's own window saw the revert: true
+racing writes: one key kept: 1

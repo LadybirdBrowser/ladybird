@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A storage event has to reach every same-origin window, in whatever process it lives: the browser relays each
+    // change to every process mirroring the storage, and that process fires the event on its own Storage objects. The
+    // peer below never touches localStorage before listening, so listening alone has to connect it. The actor drives
+    // the peer over a BroadcastChannel and reports to this page; the peer reports every event it gets as it gets it,
+    // and the actor waits for the expected count before moving on.
+    //
+    // The peer runs in a second process because it's opened with noopener on a cross-site trampoline host, and the
+    // trampoline's navigation to the same-origin peer page is a cross-site top-level navigation in a browsing context
+    // group of one — which site isolation hands to a new WebContent process.
+    asyncTest(async (done) => {
+        const httpServer = httpTestServer();
+        const host = uniqueLocalhostHostname("storage-events");
+        const runId = crypto.randomUUID();
+        const channelName = `storage-events-${runId}`;
+        const htmlHeaders = { "Content-Type": "text/html" };
+
+        const describeEvent = `
+            const describe = (e) => ({
+                type: "event",
+                key: e.key,
+                oldValue: e.oldValue === null ? null : (e.oldValue.length > 64 ? "<" + e.oldValue.length + " chars>" : e.oldValue),
+                newValue: e.newValue === null ? null : (e.newValue.length > 64 ? "<" + e.newValue.length + " chars>" : e.newValue),
+                url: e.url,
+                isLocalStorage: e.storageArea === localStorage,
+            });`;
+
+        const peerUrl = new URL(
+            await httpServer.createEcho("GET", `/storage-events-peer-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>
+                    ${describeEvent}
+                    const channel = new BroadcastChannel(${JSON.stringify(channelName)});
+                    addEventListener("storage", (e) => channel.postMessage(describe(e)));
+                    channel.onmessage = (e) => {
+                        const command = e.data;
+                        if (command.op === "setBig") {
+                            let threw = false;
+                            try {
+                                localStorage.setItem(command.key, "p".repeat(command.size));
+                            } catch {
+                                threw = true;
+                            }
+                            channel.postMessage({ type: "written", threw });
+                        } else if (command.op === "close") {
+                            window.close();
+                        }
+                    };
+                    channel.postMessage({ type: "ready" });
+                <\/script>`,
+            })
+        );
+        peerUrl.hostname = host;
+
+        const trampolineUrl = new URL(
+            await httpServer.createEcho("GET", `/storage-events-trampoline-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>location.replace(${JSON.stringify(peerUrl.href)});<\/script>`,
+            })
+        );
+        trampolineUrl.hostname = uniqueLocalhostHostname("storage-events-trampoline");
+
+        const actorUrl = new URL(
+            await httpServer.createEcho("GET", `/storage-events-actor-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>
+                    ${describeEvent}
+                    const report = (line) => opener.postMessage(line, "*");
+                    const channel = new BroadcastChannel(${JSON.stringify(channelName)});
+                    const peerEvents = [];
+                    const ownEvents = [];
+                    const replies = [];
+                    let waiter = null;
+                    const wake = () => {
+                        if (waiter && waiter.ready()) {
+                            const resolve = waiter.resolve;
+                            waiter = null;
+                            resolve();
+                        }
+                    };
+                    const waitFor = (ready) => new Promise((resolve) => {
+                        waiter = { ready, resolve };
+                        wake();
+                    });
+                    channel.onmessage = (e) => {
+                        if (e.data.type === "event")
+                            peerEvents.push(e.data);
+                        else
+                            replies.push(e.data);
+                        wake();
+                    };
+                    addEventListener("storage", (e) => {
+                        ownEvents.push(describe(e));
+                        wake();
+                    });
+                    const nextReply = async () => {
+                        await waitFor(() => replies.length > 0);
+                        return replies.shift();
+                    };
+                    const formatEvent = (event) => "key=" + JSON.stringify(event.key)
+                        + " oldValue=" + JSON.stringify(event.oldValue)
+                        + " newValue=" + JSON.stringify(event.newValue)
+                        + " url-is-actor=" + (event.url === location.href)
+                        + " storageArea-is-localStorage=" + event.isLocalStorage;
+                    (async () => {
+                        localStorage.clear();
+                        window.open(${JSON.stringify(trampolineUrl.href)}, "_blank", "noopener");
+                        await nextReply();
+
+                        localStorage.setItem("a", "1");
+                        localStorage.setItem("a", "2");
+                        localStorage.setItem("a", "2");
+                        localStorage.removeItem("a");
+                        localStorage.setItem("b", "1");
+                        localStorage.clear();
+                        await waitFor(() => peerEvents.length >= 5);
+                        for (const event of peerEvents)
+                            report("peer saw " + formatEvent(event));
+                        report("peer saw " + peerEvents.length + " events for 6 operations (one changed nothing)");
+                        peerEvents.length = 0;
+
+                        // Two writes that fit alone but not together, each made from a mirror that can't know about the
+                        // other: the actor writes in the task that posts the peer's command, and that command reaches
+                        // the peer ahead of the actor's change. So both are accepted locally, and the owner refuses
+                        // whichever reaches it second. The loser's process then hears the refusal, falls back in line
+                        // with the owner, and fires a storage event for the value that vanished — on the window that
+                        // wrote it, which is the one that most needs to know.
+                        const size = 3 * 1024 * 1024;
+                        const peerWritten = nextReply();
+                        channel.postMessage({ op: "setBig", key: "peerBig", size });
+                        let actorThrew = false;
+                        try {
+                            localStorage.setItem("actorBig", "a".repeat(size));
+                        } catch {
+                            actorThrew = true;
+                        }
+                        const peerThrew = (await peerWritten).threw;
+                        report("racing writes: neither threw: " + !(actorThrew || peerThrew));
+                        await waitFor(() => peerEvents.length + ownEvents.length >= 2);
+                        const events = [...peerEvents, ...ownEvents];
+                        const bigKey = (key) => key === "actorBig" || key === "peerBig";
+                        const accepted = events.filter((event) => bigKey(event.key) && event.newValue !== null);
+                        const reverted = events.filter((event) => bigKey(event.key) && event.newValue === null);
+                        report("racing writes: events in total: " + events.length + "; on one side only: " + (peerEvents.length === 0 || ownEvents.length === 0));
+                        report("racing writes: accepted write seen once: " + (accepted.length === 1) + "; its value: " + accepted[0]?.newValue);
+                        report("racing writes: refused write reverted once: " + (reverted.length === 1) + "; its old value: " + reverted[0]?.oldValue + "; storageArea is localStorage: " + reverted[0]?.isLocalStorage);
+                        report("racing writes: the loser's own window saw the revert: " + (reverted.length === 1 && (reverted[0].key === "actorBig") === (ownEvents.includes(reverted[0]))));
+                        report("racing writes: one key kept: " + localStorage.length);
+
+                        localStorage.clear();
+                        channel.postMessage({ op: "close" });
+                        report("done");
+                    })();
+                <\/script>`,
+            })
+        );
+        actorUrl.hostname = host;
+
+        let actor = null;
+        addEventListener("message", (event) => {
+            if (event.data === "done") {
+                actor.close();
+                done();
+                return;
+            }
+            println(event.data);
+        });
+        actor = window.open(actorUrl);
+    });
+</script>

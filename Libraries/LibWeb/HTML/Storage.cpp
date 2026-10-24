@@ -95,7 +95,8 @@ WebIDL::ExceptionOr<void> Storage::set_item(Utf16View key, Utf16View value)
     // 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException.
     // 5. Set this's map[key] to value.
 
-    auto result = m_storage_bottle->set(key, value, m_window->associated_document().url().serialize());
+    auto url = m_window->associated_document().url().serialize();
+    auto result = m_storage_bottle->set(key, value, url);
 
     if (result.has<WebView::StorageOperationError>())
         return WebIDL::QuotaExceededError::create(Utf16String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota()));
@@ -117,7 +118,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(Utf16View key, Utf16View value)
     Optional<Utf16View> old_value_view;
     if (old_value.has_value())
         old_value_view = old_value->utf16_view();
-    broadcast(key, old_value_view, value);
+    broadcast(key, old_value_view, value, url);
 
     return {};
 }
@@ -132,13 +133,14 @@ void Storage::remove_item(Utf16View key)
         return;
 
     // 3. Remove this's map[key].
-    m_storage_bottle->remove(key, m_window->associated_document().url().serialize());
+    auto url = m_window->associated_document().url().serialize();
+    m_storage_bottle->remove(key, url);
 
     // 4. Reorder this.
     reorder();
 
     // 5. Broadcast this with key, oldValue, and null.
-    broadcast(key, old_value->utf16_view(), {});
+    broadcast(key, old_value->utf16_view(), {}, url);
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-clear
@@ -149,10 +151,11 @@ void Storage::clear()
         return;
 
     // 2. Clear this's map.
-    m_storage_bottle->clear(m_window->associated_document().url().serialize());
+    auto url = m_window->associated_document().url().serialize();
+    m_storage_bottle->clear(url);
 
     // 3. Broadcast this with null, null, and null.
-    broadcast({}, {}, {});
+    broadcast({}, {}, {}, url);
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#concept-storage-reorder
@@ -178,13 +181,34 @@ static GC::Ptr<Storage> obtain_storage_for_window(Window& window, Storage::Type 
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#concept-storage-broadcast
-void Storage::broadcast(Optional<Utf16View> key, Optional<Utf16View> old_value, Optional<Utf16View> new_value)
+void Storage::broadcast(Optional<Utf16View> key, Optional<Utf16View> old_value, Optional<Utf16View> new_value, String const& url)
 {
     // 1. Let thisDocument be storage's relevant global object's associated Document.
-    auto const& this_document = m_window->associated_document();
-
     // 2. Let url be the serialization of thisDocument's URL.
-    auto url = utf16_string_from_url_ascii(this_document.url().serialize());
+    // NB: The caller serialized it, for the bottle; it is the same document's URL.
+
+    // NB: The map lives in the browser process and is mirrored here; the mirror told the browser of this change
+    //     before this runs, and the browser relays it to every other process mirroring the map, where steps 3 and 4
+    //     run for the Storage objects there. Here they run for this process's, excluding this one.
+    auto to_utf16_string = [](Optional<Utf16View> value) -> Optional<Utf16String> {
+        if (!value.has_value())
+            return {};
+        return Utf16String::from_utf16(*value);
+    };
+    // NB: The key the bottle is kept under, not the bare origin: Every file: document shares one bottle (see "obtain
+    //     a storage key"), so each hears the others' changes. A window that has no key has no bottle to have written.
+    auto storage_key = StorageAPI::obtain_a_storage_key(relevant_settings_object(*m_window));
+    if (!storage_key.has_value())
+        return;
+    Optional<PageId> session_page;
+    if (type() == Type::Session)
+        session_page = m_window->page().client().id();
+    dispatch_storage_events_for_remote_change(type(), *storage_key, session_page, to_utf16_string(key), to_utf16_string(old_value), to_utf16_string(new_value), url, this);
+}
+
+void Storage::dispatch_storage_events_for_remote_change(Type type, StorageAPI::StorageKey const& storage_key, Optional<PageId> session_page, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, String const& url_string, GC::Ptr<Storage> excluded_storage)
+{
+    auto url = utf16_string_from_url_ascii(url_string);
 
     // 3. Let remoteStorages be all Storage objects excluding storage whose:
     GC::RootVector<GC::Ref<Storage>> remote_storages;
@@ -196,21 +220,25 @@ void Storage::broadcast(Optional<Utf16View> key, Optional<Utf16View> old_value, 
     //         windows, and initialize any storage objects as part of this loop.
     Window::for_each_active([&](auto& window) {
         // * type is storage's type
-        auto storage = obtain_storage_for_window(window, type());
+        auto storage = obtain_storage_for_window(window, type);
         if (!storage)
             return IterationDecision::Continue;
 
         // "excluding storage"
-        if (storage == GC::Ref { *this })
+        if (storage == excluded_storage)
             return IterationDecision::Continue;
 
         // * relevant settings object's origin is same origin with storage's relevant settings object's origin
-        if (!relevant_settings_object(*m_window).origin().is_same_origin(relevant_settings_object(*storage->m_window).origin()))
+        // NB: A storage key is an origin, and two keys are equal when their origins are same origin. Compared as the
+        //     keys the bottles are kept under, so the file: documents that share one bottle hear each other.
+        auto window_storage_key = StorageAPI::obtain_a_storage_key(relevant_settings_object(window));
+        if (!window_storage_key.has_value() || *window_storage_key != storage_key)
             return IterationDecision::Continue;
 
         // * and, if type is "session", whose relevant settings object's associated Document's node navigable's traversable navigable
         //   is thisDocument's node navigable's traversable navigable.
-        if (type() == Type::Session) {
+        // NB: A page's documents all belong to one traversable, so the page stands for the traversable here.
+        if (type == Type::Session) {
             auto& storage_document = storage->m_window->associated_document();
 
             // NB: It is possible the remote storage may have not been fully teared down immediately at the point it's
@@ -218,12 +246,7 @@ void Storage::broadcast(Optional<Utf16View> key, Optional<Utf16View> old_value, 
             if (!storage_document.navigable())
                 return IterationDecision::Continue;
 
-            // NB: It is possible for this storage's document to have lost its navigable if script holds a reference to
-            //     the Storage object after its browsing context has navigated to a new document.
-            if (!this_document.navigable())
-                return IterationDecision::Continue;
-
-            if (storage_document.navigable()->traversable_navigable() != this_document.navigable()->traversable_navigable())
+            if (!session_page.has_value() || window.page().client().id() != *session_page)
                 return IterationDecision::Continue;
         }
 
@@ -234,27 +257,17 @@ void Storage::broadcast(Optional<Utf16View> key, Optional<Utf16View> old_value, 
     if (remote_storages.is_empty())
         return;
 
-    auto to_utf16_string = [](Optional<Utf16View> value) -> Optional<Utf16String> {
-        if (!value.has_value())
-            return {};
-        auto view = value.value();
-        return Utf16String::from_utf16(view);
-    };
-    auto event_key = to_utf16_string(key);
-    auto event_old_value = to_utf16_string(old_value);
-    auto event_new_value = to_utf16_string(new_value);
-
     // 4. For each remoteStorage of remoteStorages: queue a global task on the DOM manipulation task source given remoteStorage's relevant
     //    global object to fire an event named storage at remoteStorage's relevant global object, using StorageEvent, with key initialized
     //    to key, oldValue initialized to oldValue, newValue initialized to newValue, url initialized to url, and storageArea initialized to
     //    remoteStorage.
     for (auto remote_storage : remote_storages) {
         auto& remote_window = remote_storage->m_window;
-        queue_global_task(Task::Source::DOMManipulation, relevant_global_object(*remote_window), GC::create_function(GC::Heap::the(), [event_key, event_old_value, event_new_value, url, remote_storage, remote_window] {
+        queue_global_task(Task::Source::DOMManipulation, relevant_global_object(*remote_window), GC::create_function(GC::Heap::the(), [key, old_value, new_value, url, remote_storage, remote_window] {
             StorageEventInit init;
-            init.key = event_key;
-            init.old_value = event_old_value;
-            init.new_value = event_new_value;
+            init.key = key;
+            init.old_value = old_value;
+            init.new_value = new_value;
             init.url = move(url);
             init.storage_area = remote_storage;
             remote_window->dispatch_event(StorageEvent::create(EventNames::storage, init, HighResolutionTime::current_high_resolution_time(relevant_global_object(*remote_window))));

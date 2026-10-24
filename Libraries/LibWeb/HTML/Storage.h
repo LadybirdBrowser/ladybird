@@ -49,6 +49,15 @@ public:
 
     void dump() const;
 
+    // A window listening for storage events has its storage connected so that changes made in other processes reach
+    // it; a map is otherwise only loaded on first access.
+    void connect() const { m_storage_bottle->connect(); }
+
+    // Fires the storage events a change calls for on every Storage object in this process that shares the changed
+    // map, except excluded_storage: that is the one whose script made the change, when the change was made here.
+    // A change another process made has no such object, and every Storage here gets the event.
+    static void dispatch_storage_events_for_remote_change(Type, StorageAPI::StorageKey const&, Optional<PageId> session_page, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, String const& url, GC::Ptr<Storage> excluded_storage);
+
 private:
     Storage(Window&, Type, GC::Ref<StorageAPI::StorageBottle>);
 
@@ -58,7 +67,7 @@ private:
     // ^Wrappable
     virtual Vector<Utf16FlyString> supported_property_names() const override;
     void reorder();
-    void broadcast(Optional<Utf16View> key, Optional<Utf16View> old_value, Optional<Utf16View> new_value);
+    void broadcast(Optional<Utf16View> key, Optional<Utf16View> old_value, Optional<Utf16View> new_value, String const& url);
 
     GC::Ref<Window> m_window;
     Type m_type {};

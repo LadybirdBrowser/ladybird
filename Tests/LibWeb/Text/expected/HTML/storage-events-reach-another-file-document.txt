@@ -1,0 +1,1 @@
+iframe got storage event: key-is-ours=true oldValue=null newValue=between-file-documents storageArea-is-localStorage=true

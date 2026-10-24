@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script>
+    // The parent names the key it will write, and writes only once this acknowledges it; events for any other key
+    // belong to some other test and are ignored.
+    let key = null;
+    let reported = false;
+    window.addEventListener("message", event => {
+        key = event.data;
+        parent.postMessage("ready", "*");
+    });
+    window.addEventListener("storage", event => {
+        if (event.key !== key || reported)
+            return;
+        reported = true;
+        parent.postMessage(`key-is-ours=${event.key === key} oldValue=${event.oldValue} newValue=${event.newValue} storageArea-is-localStorage=${event.storageArea === localStorage}`, "*");
+    });
+</script>
