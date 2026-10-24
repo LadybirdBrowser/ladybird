@@ -1,0 +1,5 @@
+At launch, Ladybird restores the last run’s pinned tabs window by
+window, with their history, as Firefox’s #prepDataForDeferredRestore()
+does. Chromium’s StartupTabProviderImpl::GetPinnedTabs() instead reopens
+all of them in the first window, as the plain URLs that PinnedTabCodec::
+ReadPinnedTabs() reads back.
