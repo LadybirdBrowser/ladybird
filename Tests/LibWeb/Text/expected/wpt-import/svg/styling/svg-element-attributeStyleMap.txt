@@ -1,0 +1,66 @@
+Harness status: OK
+
+Found 61 tests
+
+61 Pass
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <svg>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <g>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <defs>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <desc>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <title>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <symbol>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <use>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <image>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <switch>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <style>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <path>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <rect>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <circle>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <ellipse>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <line>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <polyline>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <polygon>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <text>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <tspan>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <textPath>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <marker>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <linearGradient>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <radialGradient>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <stop>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <pattern>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <clipPath>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <mask>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <a>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <view>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <script>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <animate>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <set>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <animateMotion>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <mpath>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <animateTransform>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <metadata>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <foreignObject>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <filter>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feBlend>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feColorMatrix>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feComponentTransfer>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feFuncR>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feFuncG>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feFuncB>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feFuncA>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feComposite>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feConvolveMatrix>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feDiffuseLighting>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <fePointLight>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feSpotLight>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feDisplacementMap>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feDropShadow>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feFlood>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feGaussianBlur>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feImage>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feMerge>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feMergeNode>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feMorphology>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feSpecularLighting>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feTile>
+Pass	attributeStyleMap set, get, has, delete, and clear sync correctly on <feTurbulence>

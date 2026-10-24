@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>stroke-dasharray composition</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeDashing">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<style>
+.parent {
+  stroke-dasharray: 30 10;
+}
+.target {
+  font-size: 16px;
+}
+</style>
+<body>
+<template id="target-template">
+  <svg height="400" width="5">
+    <path d="M0,0 l0,400" class="target">
+  </svg>
+</template>
+<script>
+// stroke-dasharray values are not additive per spec:
+// https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeDashing
+// "add" composite falls back to "replace".
+
+// Basic case: both keyframes use add (treated as replace).
+test_composition({
+  property: 'stroke-dasharray',
+  underlying: '5 5',
+  addFrom: '0 5',
+  addTo: '10 15',
+}, [
+  {at: -0.6, expect: ' 0  0'}, // Values must be non-negative.
+  {at: -0.4, expect: ' 0  1'},
+  {at: -0.2, expect: ' 0  3'},
+  {at:  0,   expect: ' 0  5'},
+  {at:  0.2, expect: ' 2  7'},
+  {at:  0.4, expect: ' 4  9'},
+  {at:  0.6, expect: ' 6 11'},
+  {at:  0.8, expect: ' 8 13'},
+  {at:  1,   expect: '10 15'},
+  {at:  1.2, expect: '12 17'},
+]);
+
+test_composition({
+  property: 'stroke-dasharray',
+  underlying: '10 10',
+  replaceFrom: '5 10',
+  addTo: '5 10',
+}, [
+  {at: -0.6, expect: '5 10'},
+  {at: -0.4, expect: '5 10'},
+  {at: -0.2, expect: '5 10'},
+  {at:  0,   expect: '5 10'},
+  {at:  0.2, expect: '5 10'},
+  {at:  0.4, expect: '5 10'},
+  {at:  0.6, expect: '5 10'},
+  {at:  0.8, expect: '5 10'},
+  {at:  1,   expect: '5 10'},
+  {at:  1.2, expect: '5 10'},
+]);
+
+test_composition({
+  property: 'stroke-dasharray',
+  underlying: '10 30',
+  addFrom: 'none',
+  addTo: '10 10',
+}, [
+  {at: -1.5, expect: 'none'},
+  {at: -0.5, expect: 'none'},
+  {at:  0,   expect: 'none'},
+  {at:  0.4, expect: 'none'},
+  {at:  0.5, expect: '10 10'},
+  {at:  0.6, expect: '10 10'},
+  {at:  1,   expect: '10 10'},
+  {at:  1.5, expect: '10 10'},
+]);
+
+// Differing list lengths
+// Lists are repeated until length is equal to lowest common multiple of lengths.
+test_composition({
+  property: 'stroke-dasharray',
+  underlying: '0 5',
+  addFrom: '5',
+  replaceTo: '15 20 25',
+}, [
+  {at: -0.2, expect: '3 2 1'},
+  {at:  0,   expect: '5 5 5'},
+  {at:  0.2, expect: '7 8 9'},
+  {at:  0.4, expect: '9 11 13'},
+  {at:  0.6, expect: '11 14 17'},
+  {at:  0.8, expect: '13 17 21'},
+  {at:  1,   expect: '15 20 25'},
+  {at:  1.2, expect: '17 23 29'},
+]);
+
+// Lowest common multiple of list lengths not equal to multiple of list lengths
+test_composition({
+  property: 'stroke-dasharray',
+  underlying: '10 30',
+  replaceFrom: '5 10 15 20',
+  addTo: '15 0 25 10 35 20',
+}, [
+  {at: -0.2, expect: ' 3 12 13 22  0  8 15 24  1 10 11 20'},  // Values must be non-negative.
+  {at:  0,   expect: ' 5 10 15 20  5 10 15 20  5 10 15 20'},
+  {at:  0.2, expect: ' 7  8 17 18 11 12 15 16  9 10 19 20'},
+  {at:  0.4, expect: ' 9  6 19 16 17 14 15 12 13 10 23 20'},
+  {at:  0.6, expect: '11  4 21 14 23 16 15  8 17 10 27 20'},
+  {at:  0.8, expect: '13  2 23 12 29 18 15  4 21 10 31 20'},
+  {at:  1,   expect: '15  0 25 10 35 20 15  0 25 10 35 20'},
+  {at:  1.2, expect: '17  0 27  8 41 22 15  0 29 10 39 20'},
+]);
+
+// One list has odd length
+test_composition({
+  property: 'stroke-dasharray',
+  underlying: '10 20',
+  replaceFrom: '5 10 15',
+  addTo: '10 5 20 15',
+}, [
+  {at: -0.2, expect: ' 4 11 14  3 10 17  2  9 16  5  8 15'},
+  {at:  0,   expect: ' 5 10 15  5 10 15  5 10 15  5 10 15'},
+  {at:  0.2, expect: ' 6  9 16  7 10 13  8 11 14  5 12 15'},
+  {at:  0.4, expect: ' 7  8 17  9 10 11 11 12 13  5 14 15'},
+  {at:  0.6, expect: ' 8  7 18 11 10  9 14 13 12  5 16 15'},
+  {at:  0.8, expect: ' 9  6 19 13 10  7 17 14 11  5 18 15'},
+  {at:  1,   expect: '10  5 20 15 10  5 20 15 10  5 20 15'},
+  {at:  1.2, expect: '11  4 21 17 10  3 23 16  9  5 22 15'},
+]);
+
+// Both lists have odd length
+test_composition({
+  property: 'stroke-dasharray',
+  underlying: '5',
+  addFrom: '0 5 10',
+  addTo: '15 20 25 30 35',
+}, [
+  {at: -0.2, expect: ' 0  2  7  0  0  9  0  1  6  0  3  8  0  0  5'},  // Values must be non-negative.
+  {at:  0,   expect: ' 0  5 10  0  5 10  0  5 10  0  5 10  0  5 10'},
+  {at:  0.2, expect: ' 3  8 13  6 11 11  4  9 14  7  7 12  5 10 15'},
+  {at:  0.4, expect: ' 6 11 16 12 17 12  8 13 18 14  9 14 10 15 20'},
+  {at:  0.6, expect: ' 9 14 19 18 23 13 12 17 22 21 11 16 15 20 25'},
+  {at:  0.8, expect: '12 17 22 24 29 14 16 21 26 28 13 18 20 25 30'},
+  {at:  1,   expect: '15 20 25 30 35 15 20 25 30 35 15 20 25 30 35'},
+  {at:  1.2, expect: '18 23 28 36 41 16 24 29 34 42 17 22 30 35 40'},
+]);
+
+// Mixed units
+test_composition({
+  property: 'stroke-dasharray',
+  underlying: '1em',
+  addFrom: '9em 14px',
+  addTo: '304px 1.5em',
+}, [
+  {at: -0.2, expect: '7em 12px'},
+  {at:  0,   expect: '9em 14px'},
+  {at:  0.2, expect: '11em 16px'},
+  {at:  0.4, expect: '13em 18px'},
+  {at:  0.6, expect: '15em 20px'},
+  {at:  0.8, expect: '17em 22px'},
+  {at:  1,   expect: '19em 24px'},
+  {at:  1.2, expect: '21em 26px'},
+]);
+</script>
+</body>

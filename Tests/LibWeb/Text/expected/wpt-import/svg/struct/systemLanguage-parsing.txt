@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Fail
+Fail	Comma-separated tokens are split into individual items
+Fail	Whitespace after comma is stripped
+Fail	Whitespace before comma is stripped
+Fail	Whitespace around commas is stripped
+Fail	Leading and trailing whitespace on the value is stripped
+Fail	Tabs and newlines as leading/trailing whitespace are stripped
+Fail	Single token without commas
+Fail	BCP 47 subtags are preserved within tokens
+Fail	Double comma produces an empty token between the two commas
+Fail	Empty string results in a single empty token
+Fail	A single comma separates two empty tokens
+Fail	Numeric tokens are parsed without validation
+Fail	Invalid language tags are stored as tokens without validation

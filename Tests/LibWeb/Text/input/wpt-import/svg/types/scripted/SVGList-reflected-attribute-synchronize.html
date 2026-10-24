@@ -1,0 +1,294 @@
+<!DOCTYPE HTML>
+<title>Synchronizing a list interface object when the reflected attribute changes</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#SynchronizingReflectedValues">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#TermSynchronizeList">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#TermDetach">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/coords.html#TransformMatrixObject">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<svg id="stage" width="200" height="100" viewBox="0 0 200 100"></svg>
+<script>
+// A base value change runs the steps for synchronizing a list interface object.
+// Step 4.1 is the only detach and is guarded by "If length > new length", so a
+// held item object survives a same-count change, a grow, and the part of a
+// shrink that is still in range. Step 4.4 then sets its value. This file has one
+// subtest per branch per list interface, and it keeps identity assertions in
+// separate subtests from value assertions: an engine that returns a fresh
+// wrapper object from every getItem call fails the identity ones for an
+// unrelated reason, and the value ones say what an author actually loses.
+
+const SVGNS = "http://www.w3.org/2000/svg";
+const stage = document.getElementById("stage");
+
+const SUBJECTS = [
+  {
+    name: "SVGNumberList (rotate on text)",
+    attr: "rotate",
+    v3: "10 20 30", v3b: "40 50 60", v4: "40 50 60 70", v2: "40 50",
+    newAt: [40, 50, 60], shrunkAt: [40, 50], oldAt: [10, 20, 30],
+    build() {
+      const e = document.createElementNS(SVGNS, "text");
+      e.setAttribute("rotate", this.v3);
+      e.setAttribute("x", "5");
+      e.setAttribute("y", "20");
+      stage.appendChild(e);
+      return e;
+    },
+    list: e => e.rotate.baseVal,
+    read: it => it.value,
+    write: (it, v) => { it.value = v; },
+  },
+  {
+    name: "SVGLengthList (x on text)",
+    attr: "x",
+    v3: "1 2 3", v3b: "7 8 9", v4: "7 8 9 10", v2: "7 8",
+    newAt: [7, 8, 9], shrunkAt: [7, 8], oldAt: [1, 2, 3],
+    build() {
+      const e = document.createElementNS(SVGNS, "text");
+      e.setAttribute("x", this.v3);
+      e.setAttribute("y", "45");
+      stage.appendChild(e);
+      return e;
+    },
+    list: e => e.x.baseVal,
+    read: it => it.value,
+    write: (it, v) => { it.value = v; },
+  },
+  {
+    name: "SVGPointList (points on polyline)",
+    attr: "points",
+    v3: "1,2 3,4 5,6", v3b: "11,12 13,14 15,16",
+    v4: "11,12 13,14 15,16 17,18", v2: "11,12 13,14",
+    newAt: [11, 13, 15], shrunkAt: [11, 13], oldAt: [1, 3, 5],
+    build() {
+      const e = document.createElementNS(SVGNS, "polyline");
+      e.setAttribute("points", this.v3);
+      e.setAttribute("fill", "none");
+      e.setAttribute("stroke", "black");
+      stage.appendChild(e);
+      return e;
+    },
+    list: e => e.points,
+    read: it => it.x,
+    write: (it, v) => { it.x = v; },
+  },
+  {
+    name: "SVGTransformList (transform on g)",
+    attr: "transform",
+    v3: "translate(1,2) translate(3,4) translate(5,6)",
+    v3b: "translate(11,12) translate(13,14) translate(15,16)",
+    v4: "translate(11,12) translate(13,14) translate(15,16) translate(17,18)",
+    v2: "translate(11,12) translate(13,14)",
+    newAt: [11, 13, 15], shrunkAt: [11, 13], oldAt: [1, 3, 5],
+    build() {
+      const e = document.createElementNS(SVGNS, "g");
+      e.setAttribute("transform", this.v3);
+      stage.appendChild(e);
+      return e;
+    },
+    list: e => e.transform.baseVal,
+    read: it => it.matrix.e,
+    write: (it, v) => { it.setTranslate(v, 0); },
+  },
+  {
+    name: "SVGTransformList (gradientTransform on linearGradient)",
+    attr: "gradientTransform",
+    v3: "translate(1,2) translate(3,4) translate(5,6)",
+    v3b: "translate(11,12) translate(13,14) translate(15,16)",
+    v4: "translate(11,12) translate(13,14) translate(15,16) translate(17,18)",
+    v2: "translate(11,12) translate(13,14)",
+    newAt: [11, 13, 15], shrunkAt: [11, 13], oldAt: [1, 3, 5],
+    build() {
+      const e = document.createElementNS(SVGNS, "linearGradient");
+      e.setAttribute("gradientTransform", this.v3);
+      stage.appendChild(e);
+      return e;
+    },
+    list: e => e.gradientTransform.baseVal,
+    read: it => it.matrix.e,
+    write: (it, v) => { it.setTranslate(v, 0); },
+  },
+];
+
+for (const s of SUBJECTS) {
+  // Precondition. If this fails, the identity subtests below cannot be read as
+  // statements about the synchronize algorithm.
+  test(() => {
+    const list = s.list(s.build());
+    assert_equals(list.getItem(0), list.getItem(0),
+                  "getItem must return the same object for the same index");
+  }, s.name + ": getItem returns the same object for one index, with no attribute change");
+
+  // Same item count. Steps 4.1 and 4.2 are both skipped.
+  test(() => {
+    const el = s.build();
+    const list = s.list(el);
+    const held = [list.getItem(0), list.getItem(1), list.getItem(2)];
+    el.setAttribute(s.attr, s.v3b);
+    for (let i = 0; i < 3; i++)
+      assert_equals(s.read(held[i]), s.newAt[i], "held item " + i);
+  }, s.name + ": a same-count change updates the values of the held items");
+
+  test(() => {
+    const el = s.build();
+    const list = s.list(el);
+    const held = list.getItem(0);
+    el.setAttribute(s.attr, s.v3b);
+    assert_equals(list.getItem(0), held, "the object at index 0 is unchanged");
+  }, s.name + ": a same-count change keeps the held item in the list");
+
+  test(() => {
+    const el = s.build();
+    const list = s.list(el);
+    const held = list.getItem(0);
+    el.setAttribute(s.attr, s.v3b);
+    s.write(held, 42);
+    assert_equals(s.read(s.list(el).getItem(0)), 42,
+                  "the list reports the value written through the held item");
+  }, s.name + ": the held item is still attached after a same-count change");
+
+  // The list grows. Step 4.2 appends, step 4.4 updates everything.
+  test(() => {
+    const el = s.build();
+    const list = s.list(el);
+    const held = list.getItem(0);
+    el.setAttribute(s.attr, s.v4);
+    assert_equals(list.numberOfItems, 4, "numberOfItems");
+    assert_equals(s.read(held), s.newAt[0], "held item 0");
+  }, s.name + ": a grow updates the held item and appends new ones");
+
+  // The list shrinks. Step 4.1 detaches only the items at or above new length.
+  test(() => {
+    const el = s.build();
+    const list = s.list(el);
+    const survivor = list.getItem(0);
+    el.setAttribute(s.attr, s.v2);
+    assert_equals(list.numberOfItems, 2, "numberOfItems");
+    assert_equals(s.read(survivor), s.shrunkAt[0], "the item still in range");
+  }, s.name + ": a shrink updates the held items that are still in range");
+
+  test(() => {
+    const el = s.build();
+    const list = s.list(el);
+    const truncated = list.getItem(2);
+    el.setAttribute(s.attr, s.v2);
+    assert_equals(s.read(truncated), s.oldAt[2],
+                  "a detached object keeps the value it had");
+  }, s.name + ": a shrink detaches the truncated item, which keeps its value");
+
+  // Asserts against the LIST, never against the serialized attribute string. An
+  // implementation may reserialize the attribute in a canonical form that differs
+  // from the author's string (for instance dropping the U+002C between an
+  // SVGPoint's x and y), and comparing strings would read that as a value change.
+  test(() => {
+    const el = s.build();
+    const list = s.list(el);
+    const truncated = list.getItem(2);
+    el.setAttribute(s.attr, s.v2);
+    s.write(truncated, 42);
+    const values = [];
+    for (let i = 0; i < list.numberOfItems; i++)
+      values.push(s.read(list.getItem(i)));
+    assert_equals(values.indexOf(42), -1,
+                  "a detached object is no longer associated with the element, so the "
+                  + "write landed nowhere in the list: got [" + values.join(",") + "]");
+    assert_equals(s.read(truncated), 42,
+                  "a detached object is no longer read only");
+  }, s.name + ": the truncated item stops reaching the element and stops being read only");
+
+  // The list object itself is [SameObject] and is not replaced.
+  test(() => {
+    const el = s.build();
+    const list = s.list(el);
+    el.setAttribute(s.attr, s.v3b);
+    assert_equals(s.list(el), list, "the list object is not replaced");
+  }, s.name + ": the list interface object survives the change");
+
+  // An empty string parses to an empty list, so new length is 0 and step 4.1
+  // detaches every item.
+  test(() => {
+    const el = s.build();
+    const list = s.list(el);
+    const held = list.getItem(0);
+    el.setAttribute(s.attr, "");
+    assert_equals(list.numberOfItems, 0, "numberOfItems");
+    assert_equals(s.read(held), s.oldAt[0], "the detached item keeps its value");
+    s.write(held, 42);
+    assert_equals(list.numberOfItems, 0, "a write through the detached item does not reach the list");
+  }, s.name + ": an empty string empties the list and detaches every item");
+}
+
+// Step 4.4 carries no condition on the transform function, and 4.4.4 requires
+// the item's matrix object to be updated rather than replaced.
+for (const attr of ["transform", "gradientTransform"]) {
+  const build = (value) => {
+    const e = document.createElementNS(SVGNS,
+      attr === "transform" ? "g" : "linearGradient");
+    e.setAttribute(attr, value);
+    stage.appendChild(e);
+    return e;
+  };
+  const listOf = (e) => attr === "transform" ? e.transform.baseVal
+                                             : e.gradientTransform.baseVal;
+
+  test(() => {
+    const el = build("translate(1,2)");
+    const list = listOf(el);
+    const held = list.getItem(0);
+    el.setAttribute(attr, "scale(3)");
+    assert_equals(list.getItem(0), held, "the object at index 0 is unchanged");
+  }, "SVGTransformList (" + attr + "): a changed transform function keeps the held item in the list");
+
+  // Separate from the identity subtest above on purpose: this one is readable in
+  // an engine that returns a fresh wrapper from every getItem call.
+  test(() => {
+    const el = build("translate(1,2)");
+    const list = listOf(el);
+    const held = list.getItem(0);
+    const matrix = held.matrix;
+    el.setAttribute(attr, "scale(3)");
+    assert_equals(held.type, SVGTransform.SVG_TRANSFORM_SCALE, "type");
+    assert_equals(held.matrix, matrix, "the matrix object is not replaced");
+    assert_equals(matrix.a, 3, "the matrix components were updated");
+  }, "SVGTransformList (" + attr + "): a changed transform function updates the held item's type and matrix");
+
+  test(() => {
+    const el = build("translate(1,2) scale(3)");
+    const list = listOf(el);
+    const held0 = list.getItem(0);
+    const held1 = list.getItem(1);
+    el.setAttribute(attr, "scale(4) translate(5,6)");
+    assert_equals(list.getItem(0), held0, "index 0");
+    assert_equals(list.getItem(1), held1, "index 1");
+  }, "SVGTransformList (" + attr + "): swapping two transform functions keeps both held items");
+
+  test(() => {
+    const el = build("translate(1,2)");
+    const list = listOf(el);
+    const held = list.getItem(0);
+    if (attr === "transform")
+      el.setAttribute("transform", "none");
+    else
+      el.removeAttribute(attr);
+    assert_equals(list.numberOfItems, 0, "numberOfItems");
+    assert_equals(held.matrix.e, 1, "the detached item keeps its value");
+  }, "SVGTransformList (" + attr + "): an empty list detaches every item");
+}
+
+// The DOMString branch, step 5, is deliberately the other way round: the list is
+// replaced rather than updated in place. Without this the object branch could be
+// satisfied by an engine that never replaces anything.
+test(() => {
+  const el = document.createElementNS(SVGNS, "g");
+  el.setAttribute("systemLanguage", "en,fr,de");
+  stage.appendChild(el);
+  const list = el.systemLanguage;
+  const before = list.getItem(0);
+  el.setAttribute("systemLanguage", "it,es,pt");
+  assert_equals(list.numberOfItems, 3, "numberOfItems");
+  assert_equals(list.getItem(0), "it", "index 0");
+  assert_equals(list.getItem(1), "es", "index 1");
+  assert_equals(list.getItem(2), "pt", "index 2");
+  assert_not_equals(before, list.getItem(0), "the list was replaced");
+}, "SVGStringList: a change replaces the list rather than updating items");
+</script>

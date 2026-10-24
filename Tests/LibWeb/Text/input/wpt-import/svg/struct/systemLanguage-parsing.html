@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<title>systemLanguage attribute is parsed as comma-separated tokens</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/struct.html#ConditionalProcessingSystemLanguageAttribute">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#set-of-comma-separated-tokens">
+<meta name="assert" content="The systemLanguage attribute value is a set of comma-separated tokens per SVG2. Each token is trimmed of surrounding ASCII whitespace.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+function parsesAs(input, expected, description) {
+    test(() => {
+        const el = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        el.setAttribute("systemLanguage", input);
+        const list = el.systemLanguage;
+        assert_equals(list.length, expected.length, "token count");
+        for (let i = 0; i < expected.length; i++)
+            assert_equals(list.getItem(i), expected[i], `token ${i}`);
+    }, description);
+}
+
+// SVG2: "The value is a set of comma-separated tokens, each of which must be
+// a Language-Tag value, as defined in BCP 47."
+//
+// HTML: "A set of comma-separated tokens is a string containing zero or more
+// tokens each separated from the next by a single U+002C COMMA character (,),
+// where tokens consist of any string of zero or more characters, neither
+// beginning nor ending with ASCII whitespace, nor containing any U+002C COMMA
+// characters (,), and optionally surrounded by ASCII whitespace."
+
+parsesAs("en,fr,de", ["en", "fr", "de"],
+    "Comma-separated tokens are split into individual items");
+
+parsesAs("en, fr, de", ["en", "fr", "de"],
+    "Whitespace after comma is stripped");
+
+parsesAs("en ,fr ,de", ["en", "fr", "de"],
+    "Whitespace before comma is stripped");
+
+parsesAs("en , fr , de", ["en", "fr", "de"],
+    "Whitespace around commas is stripped");
+
+parsesAs("  en, fr  ", ["en", "fr"],
+    "Leading and trailing whitespace on the value is stripped");
+
+parsesAs(" \t\nen, fr\t\n ", ["en", "fr"],
+    "Tabs and newlines as leading/trailing whitespace are stripped");
+
+parsesAs("en", ["en"],
+    "Single token without commas");
+
+// "each of which must be a Language-Tag value, as defined in BCP 47"
+// BCP 47 tags use hyphens for subtags (e.g. "en-US", "zh-Hans").
+// Hyphens are not separators — only commas are.
+parsesAs("en-US, zh-Hans, pt-BR", ["en-US", "zh-Hans", "pt-BR"],
+    "BCP 47 subtags are preserved within tokens");
+
+// Edge cases: the parser does not validate token content.
+// Invalid BCP 47 tags are stored as-is. They simply won't match
+// any user language, so the element won't render.
+
+// Double comma — per the HTML comma-separated token spec, the empty
+// string between consecutive commas is a valid token.
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#set-of-comma-separated-tokens
+// Example from spec: " a ,b,,d d " → ["a", "b", "", "d d"]
+parsesAs("en,,fr", ["en", "", "fr"],
+    "Double comma produces an empty token between the two commas");
+
+// "zero or more tokens" — an empty string yields an empty list.
+// SVG2: "If a null string or empty string value is given to attribute
+// 'systemLanguage', the attribute evaluates to 'false'."
+parsesAs("", [""],
+    "Empty string results in a single empty token");
+
+// A lone comma separates two empty tokens per the HTML spec.
+parsesAs(",", ["", ""],
+    "A single comma separates two empty tokens");
+
+// Numeric strings are not valid BCP 47 tags but are stored as tokens.
+parsesAs("123, 456", ["123", "456"],
+    "Numeric tokens are parsed without validation");
+
+// Arbitrary invalid strings are stored as tokens without validation.
+parsesAs("not-a-lang, ???, @#$", ["not-a-lang", "???", "@#$"],
+    "Invalid language tags are stored as tokens without validation");
+</script>

@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Fail
+Fail	SVGGeometryElement.prototype.isPointInStroke, no arguments.
+Fail	SVGGeometryElement.prototype.isPointInStroke, null/undefined.
+Fail	SVGGeometryElement.prototype.isPointInStroke, non-finite argument.
+Fail	SVGGeometryElement.prototype.isPointInStroke, functional test.
+Fail	SVGGeometryElement.prototype.isPointInStroke, functional test with zoom.
+Fail	SVGGeometryElement.prototype.isPointInStroke, 'stroke-dasharray'.
+Fail	SVGGeometryElement.prototype.isPointInStroke, 'stroke-dashoffset'.
+Fail	SVGGeometryElement.prototype.isPointInStroke, 'stroke-miterlimit'.
+Fail	SVGGeometryElement.prototype.isPointInStroke, 'stroke-linejoin'.
+Fail	SVGGeometryElement.prototype.isPointInStroke, 'stroke-linecap'.
+Fail	SVGGeometryElement.prototype.isPointInStroke, 'pathLength'.
+Fail	SVGGeometryElement.prototype.isPointInStroke, 'vector-effect'.
+Fail	SVGGeometryElement.prototype.isPointInStroke, 'visibility' and 'pointer-events' have no effect.

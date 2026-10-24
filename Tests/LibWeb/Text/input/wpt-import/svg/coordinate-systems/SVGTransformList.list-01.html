@@ -1,0 +1,225 @@
+<!DOCTYPE HTML>
+<title>SVGTransformList interface</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/coords.html#InterfaceSVGTransformList">
+<svg><circle id="circle1"/></svg>
+<script>
+const svg = document.querySelector('svg');
+
+function makeAnimatedTransformList(transformString) {
+  const e = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  if (transformString) {
+    e.setAttribute('transform', transformString);
+  }
+  return e.transform;
+}
+
+function makeTransformList(transformString) {
+  return makeAnimatedTransformList(transformString).baseVal;
+}
+
+function assert_svg_transform(actual, expected) {
+  assert_equals(actual.type, expected.type, `SVGTransform 'type'`);
+  for (let component of ['a', 'b', 'c', 'd', 'e', 'f']) {
+    assert_equals(actual.matrix[component], expected.matrix[component],
+                  `SVGTransform.matrix component '${component}'`);
+  }
+}
+
+function assert_svg_transform_list(actual, expected) {
+  assert_equals(actual.length, expected.length, 'list lengths');
+  for (let i = 0; i < actual.length; ++i) {
+    assert_svg_transform(actual[i], expected[i]);
+  }
+}
+
+function rotate(degrees, x, y) {
+  const r = svg.createSVGTransform();
+  r.setRotate(degrees, x ?? 0, y ?? 0);
+  return r;
+}
+
+function scale(x, y) {
+  const s = svg.createSVGTransform();
+  s.setScale(x, y);
+  return s;
+}
+
+function skewX(degrees) {
+  const s = svg.createSVGTransform();
+  s.setSkewX(degrees);
+  return s;
+}
+
+function translate(x, y) {
+  const t = svg.createSVGTransform();
+  t.setTranslate(x, y);
+  return t;
+}
+
+test(function() {
+  const animatedTransformList = makeAnimatedTransformList('scale(2, 2) translate(10 10)');
+  const animVal = animatedTransformList.animVal;
+  const baseVal = animatedTransformList.baseVal;
+  assert_equals(baseVal.length, 2);
+  assert_equals(animVal.length, 2);
+  assert_svg_transform_list(baseVal, [scale(2, 2), translate(10, 10)]);
+  assert_svg_transform_list(animVal, [scale(2, 2), translate(10, 10)]);
+
+  // Spec: The object referenced by animVal will always be distinct from the
+  // one referenced by baseVal, even when the attribute is not animated.
+  assert_not_equals(baseVal, animVal);
+}, `${document.title}, animVal distinct from baseVal`);
+
+test(function() {
+  const animatedTransformList = makeAnimatedTransformList('scale(2, 2) translate(10 10)');
+  // Testing animVal clear throws.
+  assert_throws_dom('NoModificationAllowedError', function() {
+    animatedTransformList.animVal.clear();
+  });
+}, `${document.title}, animVal is read-only`);
+
+test(function() {
+  const transformList = makeTransformList('scale(2, 2) translate(10 10)');
+  assert_svg_transform_list(transformList, [scale(2, 2), translate(10, 10)]);
+
+  assert_equals(transformList.numberOfItems, transformList.length, 'legacy length getter');
+
+  assert_svg_transform(transformList.getItem(0), transformList[0], 'legacy getItem()');
+  assert_svg_transform(transformList.getItem(1), transformList[1], 'legacy getItem()');
+}, `${document.title}, legacy getters / list length`);
+
+test(function() {
+  const transformList = makeTransformList();
+  for (let err of [30, 'aString', circle1, null]) {
+    assert_throws_js(TypeError, function() { transformList.initialize(err); });
+  }
+}, `${document.title}, initialize() invalid arguments`);
+
+test(function() {
+  const transformList = makeTransformList('scale(2, 2) translate(10 10)');
+  // Test uncommon arguments for getItem().
+  assert_throws_dom('IndexSizeError', function() { transformList.getItem(30); });
+  assert_svg_transform(transformList.getItem('aString'), scale(2, 2));
+  assert_svg_transform(transformList.getItem(circle1), scale(2, 2));
+  assert_svg_transform(transformList.getItem(null), scale(2, 2));
+}, `${document.title}, getItem() arguments`);
+
+test(function() {
+  const transformList = makeTransformList('scale(2, 2) translate(10 10)');
+  // Test uncommon arguments for insertItemBefore().
+  assert_throws_js(TypeError, function() { transformList.insertItemBefore(30); });
+  assert_throws_js(TypeError, function() { transformList.insertItemBefore(30, 0); });
+  for (let err of ['aString', circle1, null]) {
+    assert_throws_js(TypeError, function() { transformList.insertItemBefore(err); });
+    assert_throws_js(TypeError, function() { transformList.insertItemBefore(err, 0); });
+  }
+}, `${document.title}, insertItemBefore() invalid arguments`);
+
+test(function() {
+  const transformList = makeTransformList('scale(2, 2) translate(10 10)');
+  assert_svg_transform(transformList.insertItemBefore(transformList[1], 'aString'), translate(10, 10));
+  assert_svg_transform_list(transformList, [translate(10, 10), scale(2, 2),
+                                            translate(10, 10)]);
+
+  assert_svg_transform(transformList.insertItemBefore(transformList[1], circle1), scale(2, 2));
+  assert_svg_transform_list(transformList, [scale(2, 2), translate(10, 10),
+                                            scale(2, 2), translate(10, 10)]);
+
+  assert_svg_transform(transformList.insertItemBefore(transformList[1], null), translate(10, 10));
+  assert_svg_transform_list(transformList, [translate(10, 10), scale(2, 2),
+                                            translate(10, 10), scale(2, 2),
+                                            translate(10, 10)]);
+
+  assert_svg_transform(transformList.insertItemBefore(transformList[1], 0), scale(2, 2));
+  assert_svg_transform_list(transformList, [scale(2, 2), translate(10, 10),
+                                            scale(2, 2), translate(10, 10),
+                                            scale(2, 2), translate(10, 10)]);
+}, `${document.title}, insertItemBefore()`);
+
+test(function() {
+  const transformList = makeTransformList('scale(2, 2) translate(10 10)');
+  // Test uncommon arguments for replaceItem().
+  for (let err of [30, 'aString', circle1, null]) {
+    assert_throws_js(TypeError, function() { transformList.replaceItem(err); });
+    assert_throws_js(TypeError, function() { transformList.replaceItem(err, 0); });
+  }
+}, `${document.title}, replaceItem() invalid arguments`);
+
+test(function() {
+  const transformList = makeTransformList('scale(2, 2) translate(10 10)');
+  // Test uncommon values for indexed setter.
+  for (let err of [30, 'aString', circle1, null]) {
+    assert_throws_js(TypeError, function() { transformList[0] = err; });
+  }
+}, `${document.title}, indexed setter`);
+
+test(function() {
+  let transformList = makeTransformList('rotate(90) scale(2 2) translate(10 10) skewX(45)');
+  assert_svg_transform_list(transformList, [rotate(90), scale(2, 2),
+                                            translate(10, 10), skewX(45)]);
+
+  assert_svg_transform(transformList.replaceItem(transformList[3], 0), skewX(45));
+  assert_svg_transform_list(transformList, [skewX(45), scale(2, 2),
+                                            translate(10, 10), skewX(45)]);
+
+  transformList = makeTransformList('rotate(90) scale(2 2) translate(10 10) skewX(45)');
+  assert_svg_transform_list(transformList, [rotate(90), scale(2, 2),
+                                            translate(10, 10), skewX(45)]);
+
+  assert_svg_transform(transformList.replaceItem(transformList[0], 'aString'), rotate(90));
+  assert_svg_transform_list(transformList, [rotate(90), scale(2, 2),
+                                            translate(10, 10), skewX(45)]);
+
+  assert_svg_transform(transformList.replaceItem(transformList[0], circle1), rotate(90));
+  assert_svg_transform_list(transformList, [rotate(90), scale(2, 2),
+                                            translate(10, 10), skewX(45)]);
+
+  assert_svg_transform(transformList.replaceItem(transformList[0], null), rotate(90));
+  assert_svg_transform_list(transformList, [rotate(90), scale(2, 2),
+                                            translate(10, 10), skewX(45)]);
+}, `${document.title}, replaceItem()`);
+
+test(function() {
+  const transformList = makeTransformList('rotate(90) scale(2 2) translate(10 10) skewX(45)');
+  assert_svg_transform_list(transformList, [rotate(90), scale(2, 2),
+                                            translate(10, 10), skewX(45)]);
+
+  // Test uncommon arguments for removeItem().
+  assert_throws_dom('IndexSizeError', function() { transformList.removeItem(30); });
+
+  assert_svg_transform(transformList.removeItem(0), rotate(90));
+  assert_svg_transform_list(transformList, [scale(2, 2), translate(10, 10),
+                                            skewX(45)]);
+
+  assert_svg_transform(transformList.removeItem('aString'), scale(2, 2));
+  assert_svg_transform_list(transformList, [translate(10, 10), skewX(45)]);
+
+  assert_svg_transform(transformList.removeItem(circle1), translate(10, 10));
+  assert_svg_transform_list(transformList, [skewX(45)]);
+}, `${document.title}, removeItem()`);
+
+test(function() {
+  const transformList = makeTransformList('scale(2, 2) translate(10 10)');
+  // Test uncommon arguments for appendItem().
+  for (let err of [30, 'aString', circle1, null]) {
+    assert_throws_js(TypeError, function() { transformList.appendItem(err); });
+  }
+}, `${document.title}, appendItem() invalid arguments`);
+
+test(function() {
+  const transformList = makeTransformList();
+  // Creating new SVGTransform, with 45 deg rotation about x=50, y=100 and
+  // append it to the transform list.
+  const transform = rotate(45, 50, 100);
+  assert_svg_transform(transformList.appendItem(transform), rotate(45, 50, 100));
+  assert_svg_transform_list(transformList, [rotate(45, 50, 100)]);
+}, `${document.title}, appendItem()`);
+
+test(function() {
+  const transformList = makeTransformList('scale(2 2) translate(10 10)');
+  transformList.clear();
+  assert_equals(transformList.length, 0);
+}, `${document.title}, clear()`);
+</script>

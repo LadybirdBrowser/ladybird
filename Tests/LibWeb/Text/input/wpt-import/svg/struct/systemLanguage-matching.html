@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<title>systemLanguage attribute matching per BCP 47 basic filtering</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/struct.html#ConditionalProcessingSystemLanguageAttribute">
+<link rel="help" href="https://www.rfc-editor.org/rfc/rfc4647#section-3.3.1">
+<meta name="assert" content="The systemLanguage attribute evaluates to true if any user preferred language matches any listed tag per BCP 47 basic filtering.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<svg id="svg" width="400" height="400" style="position: absolute; top: -9999px;">
+</svg>
+<script>
+const svgNS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("svg");
+const userLang = navigator.language;
+
+function isRendered(el) {
+    const bbox = el.getBoundingClientRect();
+    return bbox.width > 0 && bbox.height > 0;
+}
+
+function createRect(systemLanguage) {
+    const rect = document.createElementNS(svgNS, "rect");
+    rect.setAttribute("width", "10");
+    rect.setAttribute("height", "10");
+    if (systemLanguage !== null)
+        rect.setAttribute("systemLanguage", systemLanguage);
+    svg.appendChild(rect);
+    return rect;
+}
+
+function createSwitchWithRects(langList) {
+    const sw = document.createElementNS(svgNS, "switch");
+    const rects = [];
+    for (const lang of langList) {
+        const rect = document.createElementNS(svgNS, "rect");
+        rect.setAttribute("width", "10");
+        rect.setAttribute("height", "10");
+        if (lang !== null)
+            rect.setAttribute("systemLanguage", lang);
+        sw.appendChild(rect);
+        rects.push(rect);
+    }
+    svg.appendChild(sw);
+    return rects;
+}
+
+test(() => {
+    const el = createRect(userLang);
+    assert_true(isRendered(el), `systemLanguage="${userLang}" should match user language "${userLang}"`);
+}, "Exact match with navigator.language renders the element");
+
+test(() => {
+    const el = createRect(userLang.toUpperCase());
+    assert_true(isRendered(el), `systemLanguage="${userLang.toUpperCase()}" should match "${userLang}" case-insensitively`);
+}, "Case-insensitive exact match renders the element");
+
+test(() => {
+    const el = createRect("x-nonexistent");
+    assert_false(isRendered(el), `systemLanguage="x-nonexistent" should not match`);
+}, "Non-matching language tag does not render");
+
+test(() => {
+    const el = createRect("");
+    assert_false(isRendered(el), `systemLanguage="" should evaluate to false`);
+}, "Empty systemLanguage evaluates to false");
+
+test(() => {
+    const el = createRect(null);
+    assert_true(isRendered(el), "Element without systemLanguage should render");
+}, "Absent systemLanguage evaluates to true");
+
+test(() => {
+    const el = createRect(userLang + ", x-nonexistent");
+    assert_true(isRendered(el), `systemLanguage="${userLang}, x-nonexistent" should match`);
+}, "Comma-separated list with matching tag first renders");
+
+test(() => {
+    const el = createRect("x-nonexistent, " + userLang);
+    assert_true(isRendered(el), `systemLanguage="x-nonexistent, ${userLang}" should match`);
+}, "Comma-separated list with matching tag second renders");
+
+test(() => {
+    const el = createRect("x-aa, x-bb, " + userLang + ", x-cc");
+    assert_true(isRendered(el), "Any matching tag in a list should suffice");
+}, "Comma-separated list with matching tag in the middle renders");
+
+test(() => {
+    const el = createRect("x-aa, x-bb, x-cc");
+    assert_false(isRendered(el), "No matching tag in list");
+}, "Comma-separated list with no matching tag does not render");
+
+test(() => {
+    const el = createRect(userLang + "-subtag");
+    assert_true(isRendered(el),
+        `User language "${userLang}" should prefix-match "${userLang}-subtag"`);
+}, "BCP 47 prefix matching: user language prefix matches listed tag with extra subtag");
+
+test(() => {
+    const rects = createSwitchWithRects([userLang, "x-nonexistent"]);
+    assert_true(isRendered(rects[0]), "First matching child should render");
+    assert_false(isRendered(rects[1]), "Second child should not render");
+}, "switch element: first matching child renders, others do not");
+
+test(() => {
+    const rects = createSwitchWithRects(["x-nonexistent", userLang]);
+    assert_false(isRendered(rects[0]), "Non-matching first child should not render");
+    assert_true(isRendered(rects[1]), "Matching second child should render");
+}, "switch element: skips non-matching, renders first match");
+
+test(() => {
+    const rects = createSwitchWithRects(["x-aa", "x-bb", null]);
+    assert_false(isRendered(rects[0]), "Non-matching first child");
+    assert_false(isRendered(rects[1]), "Non-matching second child");
+    assert_true(isRendered(rects[2]), "Fallback child without systemLanguage renders");
+}, "switch element: fallback child without systemLanguage renders when no match");
+
+test(() => {
+    const rects = createSwitchWithRects(["x-aa", "x-bb"]);
+    assert_false(isRendered(rects[0]), "Non-matching first child");
+    assert_false(isRendered(rects[1]), "Non-matching second child");
+}, "switch element: nothing renders when no child matches and no fallback");
+</script>

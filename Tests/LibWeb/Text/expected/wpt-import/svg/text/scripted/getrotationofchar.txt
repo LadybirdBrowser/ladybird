@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 25 tests
+
+25 Fail
+Fail	'text-orientation: mixed' - horizontal-tb
+Fail	'text-orientation: upright' - horizontal-tb
+Fail	'text-orientation: sideways' - horizontal-tb
+Fail	Rotation attribute - horizontal-tb
+Fail	<textPath> - horizontal-tb
+Fail	'text-orientation: mixed' - vertical-rl
+Fail	'text-orientation: upright' - vertical-rl
+Fail	'text-orientation: sideways' - vertical-rl
+Fail	Rotation attribute - vertical-rl
+Fail	<textPath> - vertical-rl
+Fail	'text-orientation: mixed' - vertical-lr
+Fail	'text-orientation: upright' - vertical-lr
+Fail	'text-orientation: sideways' - vertical-lr
+Fail	Rotation attribute - vertical-lr
+Fail	<textPath> - vertical-lr
+Fail	'text-orientation: mixed' - sideways-rl
+Fail	'text-orientation: upright' - sideways-rl
+Fail	'text-orientation: sideways' - sideways-rl
+Fail	Rotation attribute - sideways-rl
+Fail	<textPath> - sideways-rl
+Fail	'text-orientation: mixed' - sideways-lr
+Fail	'text-orientation: upright' - sideways-lr
+Fail	'text-orientation: sideways' - sideways-lr
+Fail	Rotation attribute - sideways-lr
+Fail	<textPath> - sideways-lr

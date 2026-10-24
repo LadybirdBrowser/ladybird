@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>SVGAnimatedNumber, initial values</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/initial-value-helper.js"></script>
+<script>
+// Map from IDL attribute to content attribute:
+const propertyToAttributeMap = {
+  kernelUnitLengthX: 'kernelUnitLength',
+  kernelUnitLengthY: 'kernelUnitLength',
+  baseFrequencyX: 'baseFrequency',
+  baseFrequencyY: 'baseFrequency',
+  stdDeviationX: 'stdDeviation',
+  stdDeviationY: 'stdDeviation',
+  radiusX: 'radius',
+  radiusY: 'radius',
+};
+
+assert_initial_values([
+  { interface: 'SVGComponentTransferFunctionElement',
+    attributes: [ 'slope', 'intercept', 'amplitude', 'exponent', 'offset' ],
+    slope: { initial: 1 }, amplitude: { initial: 1 }, exponent: { initial: 1 } },
+  { interface: 'SVGFECompositeElement', attributes: [ 'k1', 'k2', 'k3', 'k4' ] },
+  { interface: 'SVGFEConvolveMatrixElement',
+    attributes: [ 'divisor', 'bias', 'kernelUnitLengthX', 'kernelUnitLengthY' ],
+    divisor: { initial: 1 } },
+  { interface: 'SVGFEDiffuseLightingElement',
+    attributes: [ 'surfaceScale', 'diffuseConstant', 'kernelUnitLengthX', 'kernelUnitLengthY' ],
+    diffuseConstant: { initial: 1 }, surfaceScale: { initial: 1 } },
+  { interface: 'SVGFEDisplacementMapElement', attributes: [ 'scale' ] },
+  { interface: 'SVGFEDistantLightElement', attributes: [ 'azimuth', 'elevation' ] },
+  { interface: 'SVGFEDropShadowElement',
+    attributes: [ 'dx', 'dy', 'stdDeviationX', 'stdDeviationY' ],
+    dx: { initial: 2 }, dy: { initial: 2 }, stdDeviationX: { initial: 2 },  stdDeviationY: { initial: 2 } },
+  { interface: 'SVGFEGaussianBlurElement', attributes: [ 'stdDeviationX', 'stdDeviationY' ] },
+  { interface: 'SVGFEMorphologyElement', attributes: [ 'radiusX', 'radiusY' ] },
+  { interface: 'SVGFEOffsetElement', attributes: [ 'dx', 'dy' ] },
+  { interface: 'SVGFEPointLightElement', attributes: [ 'x', 'y', 'z' ] },
+  { interface: 'SVGFESpecularLightingElement',
+    attributes: [ 'surfaceScale', 'specularConstant', 'specularExponent', 'kernelUnitLengthX', 'kernelUnitLengthY' ],
+    specularConstant: { initial: 1 }, specularExponent: { initial: 1 }, surfaceScale: { initial: 1 } },
+  { interface: 'SVGFESpotLightElement',
+    attributes: [ 'x', 'y', 'z', 'pointsAtX', 'pointsAtY', 'pointsAtZ', 'specularExponent', 'limitingConeAngle' ],
+    specularExponent: { initial: 1 } },
+  { interface: 'SVGFETurbulenceElement', attributes: [ 'baseFrequencyX', 'baseFrequencyY', 'seed' ] },
+  { interface: 'SVGGeometryElement', attributes: [ 'pathLength' ] },
+  { interface: 'SVGStopElement', attributes: [ 'offset' ] },
+], { initial: 0, valid: '42', mapProperty: propertyToAttributeMap });
+</script>

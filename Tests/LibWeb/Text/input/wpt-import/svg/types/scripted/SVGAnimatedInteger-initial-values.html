@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>SVGAnimatedInteger, initial values</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/initial-value-helper.js"></script>
+<script>
+const propertyToContentAttribute = {
+  orderX: 'order',
+  orderY: 'order',
+};
+
+assert_initial_values([
+  { interface: 'SVGFEConvolveMatrixElement',
+    attributes: [ 'orderX', 'orderY', 'targetX', 'targetY' ],
+    orderX: { initial: 3 }, orderY: { initial: 3 } },
+  { interface: 'SVGFETurbulenceElement', attributes: [ 'numOctaves' ],
+    numOctaves: { initial: 1 } },
+], { initial: 0, valid: '42',
+     mapProperty: propertyToContentAttribute });
+</script>

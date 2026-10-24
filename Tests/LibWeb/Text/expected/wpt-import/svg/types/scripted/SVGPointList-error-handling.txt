@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 16 tests
+
+2 Pass
+14 Fail
+Fail	polyline with an odd number of coordinates drops the last one and keeps the rest
+Fail	polyline whose points value begins with a non-numeric token renders nothing
+Fail	polyline whose points value begins with a separator renders nothing
+Fail	polyline with a points value of a single separator renders nothing
+Fail	polyline with an empty points value renders nothing
+Fail	polyline with a whitespace-only points value renders nothing
+Fail	polyline with no points attribute renders nothing
+Pass	polyline with a points value in error does not rewrite the content attribute
+Fail	polygon with an odd number of coordinates drops the last one and keeps the rest
+Fail	polygon whose points value begins with a non-numeric token renders nothing
+Fail	polygon whose points value begins with a separator renders nothing
+Fail	polygon with a points value of a single separator renders nothing
+Fail	polygon with an empty points value renders nothing
+Fail	polygon with a whitespace-only points value renders nothing
+Fail	polygon with no points attribute renders nothing
+Pass	polygon with a points value in error does not rewrite the content attribute

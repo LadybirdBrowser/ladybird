@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"
+     xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>SVGGeometryElement.prototype.isPointInStroke</title>
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGGeometryElement"/>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__isPointInStroke"/>
+  </metadata>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+
+  <g id="container">
+    <circle cx="10" id="circle-with-stroke-intersecting-origin" r="10"
+            fill="none" stroke="blue" stroke-width="10"/>
+    <ellipse id="ellipse" cx="150" cy="150" rx="200" ry="100"
+             fill="blue" fill-opacity="0.1"
+             stroke-width="100" stroke="lightblue"
+             stroke-opacity="0.2"/>
+    <g transform="scale(10)">
+      <circle id="circle-with-non-scaling-stroke" cx="20" cy="20" r="10"
+              fill="none" stroke-width="1" stroke="blue"
+              vector-effect="non-scaling-stroke"/>
+    </g>
+    <rect id="rect-with-dash-array" width="100" height="100" x="200" y="50"
+          stroke-dasharray="100" stroke="blue" stroke-width="10" fill="none"/>
+    <rect id="rect-with-dash-offset" width="100" height="100" x="200" y="180"
+          stroke-dasharray="100" stroke-dashoffset="100"
+          stroke="blue" stroke-width="10" fill="none"/>
+    <rect id="rect-with-path-length" width="100" height="100" x="200" y="310"
+          stroke-dasharray="100" pathLength="200"
+          stroke="blue" stroke-width="10" fill="none"/>
+    <polygon id="poly-with-miter" points="10,300 110,320 10,340"
+             fill="none" stroke="yellow" stroke-width="10"/>
+    <polygon id="poly-with-miter-limit-10" points="120,300 220,320 120,340"
+             fill="none" stroke="yellow" stroke-width="10" stroke-miterlimit="10"/>
+    <polygon id="poly-with-linejoin-round" points="230,300 330,320 230,340"
+             fill="none" stroke="yellow" stroke-width="10" stroke-linejoin="round"
+             stroke-miterlimit="100"/>
+    <line id="line-with-round-linecap" x1="10" y1="300" x2="20" y2="300"
+          stroke="orange" stroke-width="20" stroke-linecap="round"/>
+  </g>
+
+  <script><![CDATA[
+    'use strict';
+
+    const pointsToTest = [
+      { x: 275, y: 250 },  // outer stroke
+      { x: 300, y: 200 },  // inner stroke
+      { x: 375, y: 375 },  // outside ellipse
+      { x: 0, y: 0 },      // outside ellipse
+      { x: 150, y: 150 },  // inside ellipse
+    ];
+    function testPoints(element) {
+      const expected = [true, true, false, false, false];
+      pointsToTest.forEach(function(point, index) {
+        assert_equals(element.isPointInStroke(point),
+                      expected[index], "point at " + point.x + ", " + point.y);
+      });
+    }
+    function testResultVector(element) {
+      return pointsToTest.map(function(point) {
+        return element.isPointInStroke(point);
+      });
+    }
+
+    test(function() {
+      let strokeAtOrigin = document.getElementById("circle-with-stroke-intersecting-origin");
+      assert_true(strokeAtOrigin.isPointInStroke());
+      let ellipse = document.getElementById("ellipse");
+      assert_false(ellipse.isPointInStroke());
+    }, document.title + ", no arguments.");
+
+    test(function() {
+      let strokeAtOrigin = document.getElementById("circle-with-stroke-intersecting-origin");
+      assert_true(strokeAtOrigin.isPointInStroke(null));
+      assert_true(strokeAtOrigin.isPointInStroke(undefined));
+      let ellipse = document.getElementById("ellipse");
+      assert_false(ellipse.isPointInStroke(null));
+      assert_false(ellipse.isPointInStroke(undefined));
+    }, document.title + ", null/undefined.");
+
+    test(function() {
+      let strokeAtOrigin = document.getElementById("circle-with-stroke-intersecting-origin");
+      assert_false(strokeAtOrigin.isPointInStroke({ x: NaN, y: 0 })), "x is NaN";
+      assert_false(strokeAtOrigin.isPointInStroke({ x: Infinity, y: 0 }), "x is Infinity");
+      assert_false(strokeAtOrigin.isPointInStroke({ x: -Infinity, y: 0 }), "x is -Infinity");
+      assert_false(strokeAtOrigin.isPointInStroke({ x: 0, y: NaN }), "y is NaN");
+      assert_false(strokeAtOrigin.isPointInStroke({ x: 0, y: Infinity }), "y is Infinity");
+      assert_false(strokeAtOrigin.isPointInStroke({ x: 0, y: -Infinity }), "y is -Infinity");
+    }, document.title + ", non-finite argument.");
+
+    test(function() {
+      testPoints(document.getElementById("ellipse"));
+    }, document.title + ", functional test.");
+
+    test(function() {
+      const container = document.getElementById("container");
+      try {
+        container.style.zoom = 3;
+        testPoints(document.getElementById("ellipse"));
+      } finally {
+        container.style.zoom = 1;
+      }
+    }, document.title + ", functional test with zoom.");
+
+    test(function() {
+      let rectWithDashes = document.getElementById("rect-with-dash-array");
+      assert_true(rectWithDashes.isPointInStroke({ x: 250, y: 48 }));
+      assert_false(rectWithDashes.isPointInStroke({ x: 302, y: 100 }));
+    }, document.title + ", 'stroke-dasharray'.");
+
+    test(function() {
+      let rectWithOffsetDashes = document.getElementById("rect-with-dash-offset");
+      assert_false(rectWithOffsetDashes.isPointInStroke({ x: 250, y: 178 }));
+      assert_true(rectWithOffsetDashes.isPointInStroke({ x: 302, y: 230 }));
+    }, document.title + ", 'stroke-dashoffset'.");
+
+    test(function() {
+      let polyWithMiter = document.getElementById("poly-with-miter");
+      assert_true(polyWithMiter.isPointInStroke({ x: 110, y: 320 }));
+      assert_false(polyWithMiter.isPointInStroke({ x: 113, y: 320 }));
+      let polyWithMiterLimit10 = document.getElementById("poly-with-miter-limit-10");
+      assert_true(polyWithMiterLimit10.isPointInStroke({ x: 223, y: 320 }));
+    }, document.title + ", 'stroke-miterlimit'.");
+
+    test(function() {
+      let polyWithRoundJoin = document.getElementById("poly-with-linejoin-round");
+      assert_true(polyWithRoundJoin.isPointInStroke({ x: 334, y: 320 }));
+      assert_false(polyWithRoundJoin.isPointInStroke({ x: 336, y: 320 }));
+    }, document.title + ", 'stroke-linejoin'.");
+
+    test(function() {
+      let lineWithRoundCap = document.getElementById("line-with-round-linecap");
+      assert_true(lineWithRoundCap.isPointInStroke({ x: 25, y: 300 }));
+    }, document.title + ", 'stroke-linecap'.");
+
+    test(function() {
+      let rectWithPathLength = document.getElementById("rect-with-path-length");
+      assert_true(rectWithPathLength.isPointInStroke({ x: 250, y: 308 }));
+      assert_false(rectWithPathLength.isPointInStroke({ x: 250, y: 412 }));
+    }, document.title + ", 'pathLength'.");
+
+    test(function() {
+      let circleWithNSS = document.getElementById("circle-with-non-scaling-stroke");
+      assert_true(circleWithNSS.isPointInStroke({ x: 9.975, y: 20 }));
+      assert_false(circleWithNSS.isPointInStroke({ x: 9.9, y: 20 }));
+    }, document.title + ", 'vector-effect'.");
+
+    test(function() {
+      let ellipse = document.getElementById("ellipse");
+      // Results for 'pointer-events: visiblePainted' and 'visibility: visible'.
+      let expectedResults = testResultVector(ellipse);
+
+      const pointerEventValues = [ "bounding-box", "visibleFill",
+                                   "visibleStroke", "visiblePainted", "fill",
+                                   "stroke", "painted", "visible", "all",
+                                   "none" ];
+
+      ellipse.setAttribute("visibility", "visible");
+      for (let pointerEventValue of pointerEventValues) {
+        ellipse.setAttribute("pointer-events", pointerEventValue);
+        assert_array_equals(expectedResults, testResultVector(ellipse));
+      }
+
+      ellipse.setAttribute("visibility", "hidden");
+      for (let pointerEventValue of pointerEventValues) {
+        ellipse.setAttribute("pointer-events", pointerEventValue);
+        assert_array_equals(expectedResults, testResultVector(ellipse));
+      }
+    }, document.title + ", 'visibility' and 'pointer-events' have no effect.");
+]]></script>
+</svg>

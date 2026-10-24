@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<title>SVGAnimatedEnumeration, initial values</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/initial-value-helper.js"></script>
+<script>
+assert_initial_values([
+  { interface: 'SVGClipPathElement', attributes: [ 'clipPathUnits' ],
+    clipPathUnits: { initial: SVGUnitTypes.SVG_UNIT_TYPE_USERSPACEONUSE, valid: 'objectBoundingBox' } },
+  { interface: 'SVGComponentTransferFunctionElement', attributes: [ 'type' ],
+    type: { initial: SVGComponentTransferFunctionElement.SVG_FECOMPONENTTRANSFER_TYPE_IDENTITY, valid: 'table' } },
+  { interface: 'SVGFEBlendElement', attributes: [ 'mode' ],
+    mode: { initial: SVGFEBlendElement.SVG_FEBLEND_MODE_NORMAL, valid: 'screen' } },
+  { interface: 'SVGFEColorMatrixElement', attributes: [ 'type' ],
+    type: { initial: SVGFEColorMatrixElement.SVG_FECOLORMATRIX_TYPE_MATRIX, valid: 'saturate' } },
+  { interface: 'SVGFECompositeElement', attributes: [ 'operator' ],
+    operator: { initial: SVGFECompositeElement.SVG_FECOMPOSITE_OPERATOR_OVER, valid: 'in' } },
+  { interface: 'SVGFEConvolveMatrixElement', attributes: [ 'edgeMode' ],
+    edgeMode: { initial: SVGFEConvolveMatrixElement.SVG_EDGEMODE_DUPLICATE, valid: 'wrap' } },
+  { interface: 'SVGFEDisplacementMapElement', attributes: [ 'xChannelSelector', 'yChannelSelector' ],
+    xChannelSelector: { initial: SVGFEDisplacementMapElement.SVG_CHANNEL_A, valid: 'R' },
+    yChannelSelector: { initial: SVGFEDisplacementMapElement.SVG_CHANNEL_A, valid: 'G' } },
+  { interface: 'SVGFEGaussianBlurElement', attributes: [ 'edgeMode' ],
+    edgeMode: { initial: SVGFEGaussianBlurElement.SVG_EDGEMODE_NONE, valid: 'wrap' } },
+  { interface: 'SVGFEMorphologyElement', attributes: [ 'operator' ],
+    operator: { initial: SVGFEMorphologyElement.SVG_MORPHOLOGY_OPERATOR_ERODE, valid: 'dilate' } },
+  { interface: 'SVGFETurbulenceElement', attributes: [ 'stitchTiles', 'type' ],
+    stitchTiles: { initial: SVGFETurbulenceElement.SVG_STITCHTYPE_NOSTITCH, valid: 'stitch' },
+    type: { initial: SVGFETurbulenceElement.SVG_TURBULENCE_TYPE_TURBULENCE, valid: 'fractalNoise' } },
+  { interface: 'SVGFilterElement', attributes: [ 'filterUnits', 'primitiveUnits' ],
+    filterUnits: { initial: SVGUnitTypes.SVG_UNIT_TYPE_OBJECTBOUNDINGBOX, valid: 'userSpaceOnUse' },
+    primitiveUnits: { initial: SVGUnitTypes.SVG_UNIT_TYPE_USERSPACEONUSE, valid: 'objectBoundingBox' } },
+  { interface: 'SVGGradientElement', attributes: [ 'gradientUnits', 'spreadMethod' ],
+    gradientUnits: { initial: SVGUnitTypes.SVG_UNIT_TYPE_OBJECTBOUNDINGBOX, valid: 'userSpaceOnUse' },
+    spreadMethod: { initial: SVGGradientElement.SVG_SPREADMETHOD_PAD, valid: 'repeat' } },
+  { interface: 'SVGMarkerElement', attributes: [ 'markerUnits', 'orientType' ],
+    markerUnits: { initial: SVGMarkerElement.SVG_MARKERUNITS_STROKEWIDTH, valid: 'userSpaceOnUse' },
+    orientType: { initial: SVGMarkerElement.SVG_MARKER_ORIENT_ANGLE, valid: 'auto' } },
+  { interface: 'SVGMaskElement', attributes: [ 'maskUnits', 'maskContentUnits' ],
+    maskUnits: { initial: SVGUnitTypes.SVG_UNIT_TYPE_OBJECTBOUNDINGBOX, valid: 'userSpaceOnUse' },
+    maskContentUnits: { initial: SVGUnitTypes.SVG_UNIT_TYPE_USERSPACEONUSE, valid: 'objectBoundingBox' } },
+  { interface: 'SVGPatternElement', attributes: [ 'patternUnits', 'patternContentUnits' ],
+    patternUnits: { initial: SVGUnitTypes.SVG_UNIT_TYPE_OBJECTBOUNDINGBOX, valid: 'userSpaceOnUse' },
+    patternContentUnits: { initial: SVGUnitTypes.SVG_UNIT_TYPE_USERSPACEONUSE, valid: 'objectBoundingBox' } },
+  { interface: 'SVGTextContentElement', attributes: [ 'lengthAdjust' ],
+    lengthAdjust: { initial: SVGTextContentElement.LENGTHADJUST_SPACING, valid: 'spacingAndGlyphs' } },
+  { interface: 'SVGTextPathElement', attributes: [ 'method', 'spacing' ],
+    method: { initial: SVGTextPathElement.TEXTPATH_METHODTYPE_ALIGN, valid: 'stretch' },
+    spacing: { initial: SVGTextPathElement.TEXTPATH_SPACINGTYPE_EXACT, valid: 'auto' } },
+], { mapProperty: { orientType: 'orient' } });
+</script>
