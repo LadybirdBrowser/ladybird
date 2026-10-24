@@ -1573,6 +1573,11 @@ impl RetainedState {
         self.document_style_computation_inputs.custom_property_registry()
     }
 
+    pub(crate) fn custom_property_registration_generation(&self) -> u64 {
+        self.document_style_computation_inputs
+            .custom_property_registration_generation
+    }
+
     /// The effects one of an element's animation lists holds, as the host described them.
     #[must_use]
     pub(crate) fn element_animation_effects(

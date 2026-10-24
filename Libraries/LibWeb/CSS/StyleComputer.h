@@ -190,7 +190,7 @@ private:
     void finish_animation_sample(AnimationSample&, ComputedValuesFFI::FfiHostAnimationSampleResult const&) const;
     void finish_animation_refresh(Layout::BegunRead const& read, DOM::AbstractElement, ComputedStyleWorkingSet&) const;
     void publish_animated_custom_properties(Layout::BegunRead const&, ComputedStyleWorkingSet&, DOM::AbstractElement) const;
-    void invalidate_animated_custom_property_readers(Layout::BegunRead const&, DOM::AbstractElement, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values, RefPtr<CustomPropertyData const> old_data) const;
+    void invalidate_animated_custom_property_readers(Layout::BegunRead const&, DOM::AbstractElement, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values, RefPtr<CustomPropertyData const> old_data, bool recompute_style) const;
     RefPtr<ComputedStyleWorkingSet> start_needed_transitions(Layout::BegunRead const& read, DOM::AbstractElement, StyleRecordID before_change_style_record) const;
     [[nodiscard]] bool has_provisional_transition_states(DOM::AbstractElement) const;
     void finalize_animated_box_type(Layout::BegunRead const& read, ComputedStyleWorkingSet&, DOM::AbstractElement) const;

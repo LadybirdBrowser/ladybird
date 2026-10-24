@@ -1,0 +1,223 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style id="layers">
+    @layer earlier, later;
+</style>
+<style id="registration">
+    @property --derived {
+        syntax: "<number>";
+        inherits: false;
+        initial-value: 0;
+    }
+</style>
+<style>
+    @property --input {
+        syntax: "<number>";
+        inherits: true;
+        initial-value: 0;
+    }
+    @property --fresh {
+        syntax: "<number>";
+        inherits: false;
+        initial-value: 0;
+    }
+    @keyframes input {
+        from {
+            --input: 0;
+        }
+        to {
+            --input: 100;
+        }
+    }
+    @keyframes easing-source {
+        from {
+            --timing: linear;
+        }
+        to {
+            --timing: steps(1, jump-start);
+        }
+    }
+    @keyframes eased {
+        from {
+            --eased: start;
+            animation-timing-function: var(--timing);
+        }
+        to {
+            --eased: end;
+        }
+    }
+    .animated,
+    #pseudo-own::before {
+        animation: input 1s linear both paused;
+    }
+    #eased {
+        --timing: linear;
+        animation:
+            easing-source 500ms linear both paused,
+            eased 1s linear both paused;
+    }
+    #pseudos::before,
+    #pseudos::after,
+    #pseudos::marker,
+    #inactive::before,
+    #inactive::marker {
+        content: "";
+        font-size: calc(var(--input) * 1px);
+    }
+    #pseudos,
+    #inactive.generated {
+        display: list-item;
+    }
+    #inactive::before {
+        content: none;
+    }
+    #inactive.generated::before,
+    #pseudo-own::before {
+        content: "";
+    }
+    #own,
+    #pseudo-own::before {
+        --copy: var(--input);
+    }
+    #own-child {
+        width: calc(var(--input) * 1px);
+    }
+    #query {
+        --fresh: -1;
+    }
+    #query-child {
+        @container style(--fresh: 0) {
+            color: red;
+        }
+        @container style(--fresh: 1) {
+            color: blue;
+        }
+    }
+    @layer earlier {
+        #rules {
+            --factor: 1;
+        }
+    }
+    @layer later {
+        #rules {
+            --factor: 2;
+        }
+    }
+    #rules {
+        --derived: calc(var(--input) * var(--factor));
+        --late: var(--input);
+    }
+    @function --read-input() returns <number> {
+        result: var(--input);
+        @container (width > 50px) {
+            result: calc(var(--input) * 2);
+        }
+    }
+    #container {
+        container-type: inline-size;
+        width: 100px;
+    }
+    #function {
+        --derived: --read-input();
+    }
+</style>
+<div id="fresh"></div>
+<div id="retained" style="--discrete-input: 0"></div>
+<div id="mixed" style="--width: 10px"></div>
+<div id="eased" class="animated"></div>
+<div id="pseudos" class="animated"></div>
+<div id="inactive" class="animated"></div>
+<div id="own" class="animated"><div id="own-child"></div></div>
+<div id="pseudo-own"></div>
+<div id="query"><div id="query-child"></div></div>
+<div id="rules" class="animated"></div>
+<div id="container"><div id="function" class="animated"></div></div>
+<script>
+    test(() => {
+        const animations = Object.fromEntries(
+            [...document.querySelectorAll(".animated")].map(target => [target.id, target.getAnimations()])
+        );
+        animations["pseudo-own"] = document.getElementById("pseudo-own").getAnimations({ subtree: true });
+        const seek = (id, time) => animations[id].forEach(animation => (animation.currentTime = time));
+        const read = (id, names, pseudo = null) => {
+            const style = getComputedStyle(document.getElementById(id), pseudo);
+            return names.map(name => style.getPropertyValue(name).trim()).join(", ");
+        };
+        const animate = (id, keyframes) => {
+            const animation = document.getElementById(id).animate(keyframes, { duration: 1000, fill: "both" });
+            animation.pause();
+            return animation;
+        };
+        for (const [id, source, values, reader] of [
+            ["fresh", "--input", [0, 100], "--fresh"],
+            ["retained", "--discrete-input", [0, 100], "--retained"],
+            ["mixed", "--width", ["10px", "30px"], "width"],
+        ]) {
+            const animation = animate(id, { [source]: values, [reader]: [`var(${source})`, `var(${source})`] });
+            for (const time of [250, 750, 250]) {
+                animation.currentTime = time;
+                println(`${id} at ${time}ms: ${read(id, [source, reader])}`);
+            }
+        }
+        for (const time of [125, 375, 125]) {
+            seek("eased", time);
+            println(`eased at ${time}ms: ${read("eased", ["--eased"])}`);
+        }
+        const readPseudos = (id, kinds = ["::before", "::after", "::marker"]) =>
+            kinds.map(kind => read(id, ["font-size"], kind)).join(", ");
+        for (const time of [250, 750, 250]) {
+            seek("pseudos", time);
+            println(`pseudos at ${time}ms: ${readPseudos("pseudos")}`);
+        }
+        animations.pseudos[0].cancel();
+        println(`pseudos cancelled: ${readPseudos("pseudos")}`);
+        seek("inactive", 750);
+        read("inactive", ["--input"]);
+        document.getElementById("inactive").classList.add("generated");
+        for (const time of [750, 250]) {
+            seek("inactive", time);
+            println(`new pseudos at ${time}ms: ${readPseudos("inactive", ["::before", "::marker"])}`);
+        }
+        const readOwn = () =>
+            `${read("own", ["--copy"])}, ${read("own-child", ["width"])}, ${read("pseudo-own", ["--copy"], "::before")}`;
+        for (const time of [250, 750]) {
+            for (const id of ["own", "pseudo-own"]) seek(id, time);
+            println(`own readers at ${time}ms: ${readOwn()}`);
+        }
+        for (const id of ["own", "pseudo-own"]) animations[id][0].cancel();
+        println(`own readers cancelled: ${readOwn()}`);
+        const queryAnimation = animate("query", { "--fresh": [0, 1] });
+        for (const time of [0, 1000, 0, 1000]) {
+            queryAnimation.currentTime = time;
+            println(`non-inheriting query at ${time}ms: ${read("query-child", ["color"])}`);
+        }
+        queryAnimation.cancel();
+        println(`non-inheriting query cancelled: ${read("query-child", ["color"])}`);
+        for (const [width, time] of [
+            [100, 250],
+            [0, 750],
+            [100, 250],
+        ]) {
+            document.getElementById("container").style.width = `${width}px`;
+            seek("function", time);
+            println(`function in ${width}px container: ${read("function", ["--derived"])}`);
+        }
+        const sampleRules = (label, time, names = ["--derived"]) => {
+            seek("rules", time);
+            println(`${label}: ${read("rules", names)}`);
+        };
+        const rules = document.getElementById("rules");
+        sampleRules("initial layer order", 250);
+        document.getElementById("layers").textContent = "@layer later, earlier;";
+        sampleRules("pending layer order change", 750);
+        rules.style.width = "calc(var(--input) * 1px)";
+        sampleRules("pending ordinary declaration", 250, ["--derived", "width"]);
+        rules.style.setProperty("--factor", "3");
+        sampleRules("pending custom declaration", 750, ["--derived", "width"]);
+        document.getElementById("registration").textContent =
+            '@property --derived { syntax: "<length>"; inherits: false; initial-value: 7px; }';
+        sampleRules("pending registration change", 250);
+        CSS.registerProperty({ name: "--late", syntax: "<length>", inherits: false, initialValue: "11px" });
+        sampleRules("pending new registration", 750, ["--late"]);
+    });
+</script>
