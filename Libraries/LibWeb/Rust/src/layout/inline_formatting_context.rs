@@ -2660,17 +2660,69 @@ impl TextIndentation {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+struct FloatsBesideLine {
+    side_of_latest_float_is_left: Option<bool>,
+    clear_of_first_float: u8,
+    inline_size_of_floats_since_latest_clearance: CssPixels,
+    largest_inline_size_of_floats_before_a_clearance: CssPixels,
+    inline_size_of_floats_before_first_clearance: Option<CssPixels>,
+}
+
+impl FloatsBesideLine {
+    fn is_empty(&self) -> bool {
+        self.side_of_latest_float_is_left.is_none()
+    }
+
+    fn place(&mut self, floats_to_the_left: bool, clear: u8, margin_box_inline_size: CssPixels) {
+        let clears_latest_float = match self.side_of_latest_float_is_left {
+            Some(true) => intrinsic_sizing::clears_left_floats(clear),
+            Some(false) => intrinsic_sizing::clears_right_floats(clear),
+            None => {
+                self.clear_of_first_float = clear;
+                false
+            }
+        };
+        if clears_latest_float {
+            let inline_size_of_cleared_floats = std::mem::take(&mut self.inline_size_of_floats_since_latest_clearance);
+            self.largest_inline_size_of_floats_before_a_clearance = self
+                .largest_inline_size_of_floats_before_a_clearance
+                .max(inline_size_of_cleared_floats);
+            self.inline_size_of_floats_before_first_clearance
+                .get_or_insert(inline_size_of_cleared_floats);
+        }
+        self.inline_size_of_floats_since_latest_clearance += margin_box_inline_size.max(CssPixels::default());
+        self.side_of_latest_float_is_left = Some(floats_to_the_left);
+    }
+
+    fn largest_inline_size_beside_one_line(&self) -> CssPixels {
+        self.largest_inline_size_of_floats_before_a_clearance
+            .max(self.inline_size_of_floats_since_latest_clearance)
+    }
+
+    fn beside_first_line(&self, inline_size_of_content: CssPixels) -> FirstLineMaxContent {
+        FirstLineMaxContent {
+            inline_size_of_content,
+            inline_size_of_floats_before_first_clearance: self
+                .inline_size_of_floats_before_first_clearance
+                .unwrap_or(self.inline_size_of_floats_since_latest_clearance),
+            clear_of_first_float: self.clear_of_first_float,
+        }
+    }
+}
+
 #[derive(Default)]
 pub(super) struct LinesWithoutLineBoxes {
     breaks_at_every_opportunity: bool,
     text_indentation: TextIndentation,
     greatest_inline_size: CssPixels,
-    first_line_inline_size: Option<CssPixels>,
+    first_line: Option<FirstLineMaxContent>,
     inline_size: CssPixels,
     has_fragments: bool,
     ends_in_whitespace: bool,
     trailing_whitespace_inline_size: CssPixels,
     follows_forced_break: bool,
+    floats_beside_line: FloatsBesideLine,
 }
 
 impl LinesWithoutLineBoxes {
@@ -2701,12 +2753,9 @@ impl LinesWithoutLineBoxes {
         self.greatest_inline_size
     }
 
-    fn finish_measurement_and_first_line(mut self) -> (CssPixels, CssPixels) {
+    fn finish_measurement_and_first_line(mut self) -> (CssPixels, FirstLineMaxContent) {
         self.finish();
-        (
-            self.greatest_inline_size,
-            self.first_line_inline_size.unwrap_or_default(),
-        )
+        (self.greatest_inline_size, self.first_line.unwrap_or_default())
     }
 
     fn is_empty_or_ends_in_whitespace(&self) -> bool {
@@ -2721,7 +2770,7 @@ impl LinesWithoutLineBoxes {
         if !self.has_fragments {
             self.inline_size += self
                 .text_indentation
-                .indent_of_line(self.first_line_inline_size.is_none(), self.follows_forced_break);
+                .indent_of_line(self.first_line.is_none(), self.follows_forced_break);
         }
     }
 
@@ -2739,9 +2788,12 @@ impl LinesWithoutLineBoxes {
     }
 
     fn note_line(&mut self, inline_size: CssPixels) {
-        self.greatest_inline_size = self.greatest_inline_size.max(inline_size);
-        self.first_line_inline_size
-            .get_or_insert(inline_size.max(CssPixels::default()));
+        let floats_beside_line = std::mem::take(&mut self.floats_beside_line);
+        self.greatest_inline_size = self
+            .greatest_inline_size
+            .max(inline_size + floats_beside_line.largest_inline_size_beside_one_line());
+        self.first_line
+            .get_or_insert(floats_beside_line.beside_first_line(inline_size.max(CssPixels::default())));
         self.inline_size = CssPixels::default();
         self.has_fragments = false;
         self.ends_in_whitespace = false;
@@ -2749,10 +2801,19 @@ impl LinesWithoutLineBoxes {
     }
 
     fn finish(&mut self) {
-        if self.has_fragments {
+        if self.has_fragments || !self.floats_beside_line.is_empty() {
             self.note_line(self.inline_size - self.trailing_whitespace_inline_size);
             self.follows_forced_break = false;
         }
+    }
+
+    fn place_float_beside_line(&mut self, floats_to_the_left: bool, clear: u8, margin_box_inline_size: CssPixels) {
+        self.floats_beside_line
+            .place(floats_to_the_left, clear, margin_box_inline_size);
+    }
+
+    fn note_float_on_line_of_its_own(&mut self, margin_box_inline_size: CssPixels) {
+        self.greatest_inline_size = self.greatest_inline_size.max(margin_box_inline_size);
     }
 
     fn force_break(&mut self) {
@@ -2763,6 +2824,7 @@ impl LinesWithoutLineBoxes {
 
     fn append_block_level_box(&mut self, margin_box_inline_size: CssPixels) {
         self.finish();
+        self.first_line.get_or_insert_default();
         self.note_line(margin_box_inline_size);
         self.follows_forced_break = false;
     }
@@ -2795,6 +2857,10 @@ impl ContentSizingLines {
 
     fn append(&mut self, context: &InlineFormattingContext<'_>, items: &[inline_level_iterator::Item], index: usize) {
         let item = &items[index];
+        if item.type_ == inline_level_iterator::ItemType::FloatingElement {
+            self.append_float(context, item);
+            return;
+        }
         let remaining_items = &items[index + 1..];
         let previous_text_item_breaks_between_graphemes =
             std::mem::take(&mut self.previous_text_item_breaks_between_graphemes);
@@ -2854,7 +2920,9 @@ impl ContentSizingLines {
             // An absolutely positioned box only takes a static position, which the pending inline edges attach to.
             inline_level_iterator::ItemType::AbsolutelyPositionedElement => {}
             inline_level_iterator::ItemType::BlockLevelBox | inline_level_iterator::ItemType::FloatingElement => {
-                unreachable!("items for content sizing hold no floats and size block-level boxes as lines of their own")
+                unreachable!(
+                    "content sizing places floats beside lines and sizes block-level boxes as lines of their own"
+                )
             }
             inline_level_iterator::ItemType::Text => {
                 let style = context.style(context.parent_node(item.node));
@@ -2915,6 +2983,30 @@ impl ContentSizingLines {
                 );
             }
         }
+    }
+
+    fn append_float(&mut self, context: &InlineFormattingContext<'_>, item: &inline_level_iterator::Item) {
+        let margin_box_inline_size = |content_inline_size| {
+            line_box::inline_advance(
+                item.margin_start,
+                item.border_start + item.padding_start,
+                content_inline_size,
+                item.padding_end + item.border_end,
+                item.margin_end,
+            )
+        };
+        if self.measures_min_content() {
+            self.lines.note_float_on_line_of_its_own(margin_box_inline_size(
+                item.min_content_inline_size.unwrap_or(item.inline_size),
+            ));
+            return;
+        }
+        let style = context.style(item.node);
+        self.lines.place_float_beside_line(
+            intrinsic_sizing::floats_to_the_left(style),
+            style.clear(),
+            margin_box_inline_size(item.inline_size),
+        );
     }
 
     fn append_text_broken_between_graphemes(

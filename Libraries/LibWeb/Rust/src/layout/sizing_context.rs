@@ -75,14 +75,14 @@ impl ContentSizes {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ContentInlineSizes {
     pub(crate) sizes: ContentSizes,
-    pub(crate) first_line_max_content: CssPixels,
+    pub(crate) first_line_max_content: FirstLineMaxContent,
     pub(crate) dependencies: IntrinsicMeasurementDependencies,
 }
 
 #[derive(Clone, Copy)]
 struct ContentInlineSizeAnswer {
     size: CssPixels,
-    first_line_max_content: Option<CssPixels>,
+    first_line_max_content: Option<FirstLineMaxContent>,
     dependencies: IntrinsicMeasurementDependencies,
 }
 
@@ -90,7 +90,7 @@ impl ContentInlineSizeAnswer {
     fn from_cache(cached: IntrinsicInlineSizeMeasurement) -> Self {
         Self {
             size: cached.automatic_content_inline_size,
-            first_line_max_content: cached.first_line_max_content_inline_size,
+            first_line_max_content: cached.first_line_max_content,
             dependencies: cached.dependencies(),
         }
     }
@@ -2463,7 +2463,7 @@ impl<'pass> SizingContext<'pass> {
         let measurement = IntrinsicInlineSizeMeasurement {
             automatic_content_inline_size: result.automatic_content_inline_size,
             min_content_inline_size_from_max_content_layout: result.min_content_inline_size_from_max_content_layout,
-            first_line_max_content_inline_size: None,
+            first_line_max_content: None,
             depends_on_percentage_block_size: result.depends_on_percentage_block_size,
             depends_on_percentage_inline_basis: self.measurement_root_observes_percentage_inline_basis(node),
             depends_on_block_size,
@@ -2551,7 +2551,9 @@ impl<'pass> SizingContext<'pass> {
                 min: min.size,
                 max: max.size,
             },
-            first_line_max_content: max.first_line_max_content.unwrap_or(max.size),
+            first_line_max_content: max
+                .first_line_max_content
+                .unwrap_or(FirstLineMaxContent::without_floats(max.size)),
             dependencies: min.dependencies.union(max.dependencies),
         };
         self.charge_content_sizing_scope_with(node, sizes.dependencies);
@@ -3082,11 +3084,19 @@ impl<'pass> SizingContext<'pass> {
         );
         let min_content_inline_size = clamp_to_max_dimension_value(sizes.sizes.min);
         let max_content_inline_size = clamp_to_max_dimension_value(sizes.sizes.max);
-        let first_line_max_content = clamp_to_max_dimension_value(sizes.first_line_max_content);
+        let first_line_max_content = FirstLineMaxContent {
+            inline_size_of_content: clamp_to_max_dimension_value(sizes.first_line_max_content.inline_size_of_content),
+            inline_size_of_floats_before_first_clearance: clamp_to_max_dimension_value(
+                sizes
+                    .first_line_max_content
+                    .inline_size_of_floats_before_first_clearance,
+            ),
+            ..sizes.first_line_max_content
+        };
         let measurement_without_layout = |automatic_content_inline_size| IntrinsicInlineSizeMeasurement {
             automatic_content_inline_size,
             min_content_inline_size_from_max_content_layout: None,
-            first_line_max_content_inline_size: None,
+            first_line_max_content: None,
             depends_on_percentage_block_size: sizes.dependencies.percentage_block_size,
             depends_on_percentage_inline_basis: sizes.dependencies.percentage_inline_basis,
             depends_on_block_size: sizes.dependencies.block_size,
@@ -3103,7 +3113,7 @@ impl<'pass> SizingContext<'pass> {
             key,
             IntrinsicInlineSizeMeasurement {
                 min_content_inline_size_from_max_content_layout: Some(min_content_inline_size),
-                first_line_max_content_inline_size: Some(first_line_max_content),
+                first_line_max_content: Some(first_line_max_content),
                 ..measurement_without_layout(max_content_inline_size)
             },
         );

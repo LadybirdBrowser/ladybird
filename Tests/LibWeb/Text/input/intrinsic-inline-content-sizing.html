@@ -10,6 +10,7 @@
     .container { width: 240px; height: 100px; font: 10px/20px Ahem; }
     .target { display: inline-block; }
     .atomic { display: inline-block; }
+    .block-after::after { content: "beta gamma"; display: block; }
     .geometry-container {
         font: 20px/30px Ahem;
         white-space: break-spaces;
@@ -97,6 +98,24 @@
             ["new formatting context blocks", "", '<div style="display: flow-root; margin: 0 -10px 0 25px">alpha beta</div><div style="overflow: hidden; margin-left: -20px">gamma delta</div>'],
             ["floats in sibling blocks", "", '<div><div style="float: left; width: 100px; height: 100px"></div></div><div><div style="float: left; width: 80px; height: 10px"></div></div>'],
             ["float in a block beside later inline content", "", '<div><div style="float: left; width: 50px; height: 20px"></div></div>text <span style="float: left; width: 30px; height: 20px"></span>more'],
+            ["float beside float", "", '<div style="float: left">alpha</div><div style="float: right">beta</div>'],
+            ["float clearing one side", "", '<div style="float: left">alpha</div><div style="float: right">beta</div><div style="float: left; clear: left">gamma</div><div style="float: right">delta</div>'],
+            ["float clearing both sides", "", '<div style="float: left">alpha</div><div style="float: right">beta</div><div style="float: left; clear: both">gamma</div>'],
+            ["floats with negative margins", "", '<div style="float: left; margin-right: -60px">alpha</div><div style="float: left; margin-right: -20px">beta</div>gamma'],
+            ["new formatting context beside a float", "", '<div style="float: left">alpha</div><div style="display: flow-root">beta gamma</div>'],
+            ["new formatting context with a negative margin beside a float", "", '<div style="float: left">alpha</div><div style="overflow: hidden; margin-left: -20px">beta gamma</div>'],
+            ["new formatting context with a positive margin beside a float", "", '<div style="float: right">alpha</div><div style="overflow: hidden; margin: 0 20px 0 70px">beta gamma</div>'],
+            ["new formatting context with clearance", "", '<div style="float: left">alpha</div><div style="display: flow-root; clear: left">beta gamma</div>'],
+            ["block after a float", "", '<div style="float: left">alpha</div><div>beta gamma</div>'],
+            ["floats followed by inline content", "", '<div>alpha</div><div style="float: left">beta</div><div style="float: right">gamma</div>delta<br>epsilon zeta eta'],
+            ["float followed by inline content with a clearing float", "", '<div>x</div><div style="float: left">alpha</div>beta<span style="float: left; clear: left">gamma</span>'],
+            ["floats in inline content across a forced break", "", '<span style="float: left">alpha</span>beta<br><span style="float: left">gamma</span>delta'],
+            ["tall float beside two lines", "", '<div style="float: left; width: 50px; height: 100px"></div>aa<br>bbbbbbbb'],
+            ["new formatting context beside a float, separated by whitespace", "", '\n<div style="float: left">alpha</div>\n<div style="display: flow-root">beta gamma</div>\n'],
+            ["float clearing one side, separated by whitespace", "", '\n<div style="float: left">alpha</div>\n<div style="float: right">beta</div>\n<div style="float: left; clear: left">gamma</div>\n<div style="float: right">delta</div>\n'],
+            ["float clearing one side, separated by whitespace, before a block", "", '\n<div style="float: left">alpha</div>\n<div style="float: right">beta</div>\n<div style="float: left; clear: left">gamma</div>\n<div style="float: right">delta</div>\n<div>x</div>'],
+            ["float beside a block inside an inline", "", '<div>x</div><div style="float: left">alpha</div><span><div>beta</div></span>'],
+            ["float before a block pseudo-element", "", '<div class=block-after><div>x</div><div style="float: left">alpha</div></div>'],
             ["hanging indent wider than first line in a block", "", '<div style="text-indent: 40px hanging">aa bb</div>'],
             ["negative indent wider than first line in a block", "", '<div style="text-indent: -40px">a bbbbb</div>'],
             ["negative margin wider than first line in a block", "", '<div><span style="margin-left: -40px">a</span> bbbbb</div>'],

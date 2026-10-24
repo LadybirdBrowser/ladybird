@@ -465,7 +465,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
     fn generate(
         context: &'iterator mut inline_formatting_context::InlineFormattingContext<'context>,
         atomic_sizing: AtomicInlineSizing,
-    ) -> Option<InlineLevelIterator> {
+    ) -> InlineLevelIterator {
         let containing_block = context.containing_block;
         let next_node = context.first_child(containing_block);
         let mut iterator = Self {
@@ -483,13 +483,13 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             accumulated_inline_size_for_tabs: CssPixels::default(),
             previous_chunk_can_break_after: false,
         };
-        iterator.is_unidirectional_left_to_right = iterator.compute_is_unidirectional_left_to_right()?;
+        iterator.is_unidirectional_left_to_right = iterator.compute_is_unidirectional_left_to_right();
         iterator.skip_to_next();
         iterator.generate_all_items();
-        Some(InlineLevelIterator {
+        InlineLevelIterator {
             entered_box_model_nodes: iterator.entered_box_model_nodes,
             items: ItemQueue::Owned(iterator.items.into_iter()),
-        })
+        }
     }
 
     fn context(&self) -> &inline_formatting_context::InlineFormattingContext<'context> {
@@ -504,34 +504,24 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         self.context().facts(node).is_floating_or_absolutely_positioned()
     }
 
-    fn compute_is_unidirectional_left_to_right(&mut self) -> Option<bool> {
+    fn compute_is_unidirectional_left_to_right(&mut self) -> bool {
         let containing_block = self.context().containing_block;
-        let intrinsic_inline_sizing = self.atomic_sizing == AtomicInlineSizing::Contributions;
-        let mut is_unidirectional_left_to_right = self.context().style(containing_block).direction() != direction::RTL;
-        if !intrinsic_inline_sizing && !is_unidirectional_left_to_right {
-            return Some(false);
+        if self.context().style(containing_block).direction() == direction::RTL {
+            return false;
         }
 
         let mut node = self.context().first_child(containing_block);
         while !node.is_invalid() {
             let facts = self.context().facts(node);
-            // NB: The width query cannot derive float interactions from inline items. Reject them during this
-            //     existing traversal, before shaping text or sizing atomic children.
-            if intrinsic_inline_sizing && facts.is_floating() {
-                return None;
-            }
             if !facts.is_text_node() {
                 let style = self.context().style(node);
                 if style.direction() == direction::RTL || style.unicode_bidi() != unicode_bidi::NORMAL {
-                    is_unidirectional_left_to_right = false;
+                    return false;
                 }
             } else if self.context().text_may_require_bidi_processing(node) {
-                is_unidirectional_left_to_right = false;
+                return false;
             }
 
-            if !intrinsic_inline_sizing && !is_unidirectional_left_to_right {
-                return Some(false);
-            }
             loop {
                 node = self.next_inline_node_in_pre_order(node, containing_block);
                 if !node.is_invalid() && self.context().facts(node).is_svg_mask_box() {
@@ -546,14 +536,14 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                 }
             }
         }
-        Some(is_unidirectional_left_to_right)
+        true
     }
 
     fn generate_all_items(&mut self) {
         while let Some(item) = self.generate_next_item() {
             if matches!(item.type_, ItemType::ForcedBreak | ItemType::BlockLevelBox) {
                 self.accumulated_inline_size_for_tabs = CssPixels::default();
-            } else {
+            } else if item.type_ != ItemType::FloatingElement {
                 self.accumulated_inline_size_for_tabs += item.border_box_inline_size();
             }
             self.items.push(item);
@@ -919,7 +909,11 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             if facts.is_floating() {
                 self.carry_trailing_metrics_past_out_of_flow_box();
                 self.skip_to_next();
-                return Some(Item::new(ItemType::FloatingElement, node));
+                let mut item = Item::new(ItemType::FloatingElement, node);
+                if self.atomic_sizing == AtomicInlineSizing::Contributions {
+                    self.size_item_by_outer_inline_contributions(&mut item);
+                }
+                return Some(item);
             }
             if facts.is_break_node() {
                 self.skip_to_next();
@@ -1081,7 +1075,6 @@ pub(crate) struct InlineLevelIterator {
 impl InlineLevelIterator {
     pub(crate) fn new(context: &mut inline_formatting_context::InlineFormattingContext<'_>) -> Self {
         Self::reuse_or_generate(context, AtomicInlineSizing::Layout)
-            .expect("normal inline item generation always succeeds")
     }
 
     pub(crate) fn new_sharing_items(
@@ -1137,17 +1130,17 @@ impl InlineLevelIterator {
 
     pub(crate) fn for_intrinsic_inline_size(
         context: &mut inline_formatting_context::InlineFormattingContext<'_>,
-    ) -> Option<Self> {
+    ) -> Self {
         Self::reuse_or_generate(context, AtomicInlineSizing::Contributions)
     }
 
     fn reuse_or_generate(
         context: &mut inline_formatting_context::InlineFormattingContext<'_>,
         atomic_sizing: AtomicInlineSizing,
-    ) -> Option<Self> {
+    ) -> Self {
         let callbacks = context.callbacks;
         match callbacks.scratch().inline_item_stash(context.containing_block) {
-            Some(stash) => Some(Self::from_stash(context, stash)),
+            Some(stash) => Self::from_stash(context, stash),
             None => InlineLevelIteratorGenerator::generate(context, atomic_sizing),
         }
     }

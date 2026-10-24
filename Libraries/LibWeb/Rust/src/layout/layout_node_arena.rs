@@ -289,11 +289,27 @@ pub(crate) enum IntrinsicSizeCacheKind {
     MaxContentBlock,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FirstLineMaxContent {
+    pub(crate) inline_size_of_content: CssPixels,
+    pub(crate) inline_size_of_floats_before_first_clearance: CssPixels,
+    pub(crate) clear_of_first_float: u8,
+}
+
+impl FirstLineMaxContent {
+    pub(crate) fn without_floats(inline_size_of_content: CssPixels) -> Self {
+        Self {
+            inline_size_of_content,
+            ..Self::default()
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct IntrinsicInlineSizeMeasurement {
     pub(crate) automatic_content_inline_size: CssPixels,
     pub(crate) min_content_inline_size_from_max_content_layout: Option<CssPixels>,
-    pub(crate) first_line_max_content_inline_size: Option<CssPixels>,
+    pub(crate) first_line_max_content: Option<FirstLineMaxContent>,
     pub(crate) depends_on_percentage_block_size: bool,
     pub(crate) depends_on_percentage_inline_basis: bool,
     pub(crate) depends_on_block_size: bool,
@@ -7557,7 +7573,7 @@ mod tests {
         let inline_measurement = IntrinsicInlineSizeMeasurement {
             automatic_content_inline_size: CssPixels::from_raw(192),
             min_content_inline_size_from_max_content_layout: Some(CssPixels::from_raw(96)),
-            first_line_max_content_inline_size: None,
+            first_line_max_content: None,
             depends_on_percentage_block_size: false,
             depends_on_percentage_inline_basis: false,
             depends_on_block_size: false,
@@ -7834,7 +7850,7 @@ mod tests {
         IntrinsicInlineSizeMeasurement {
             automatic_content_inline_size: CssPixels::from_raw(size),
             min_content_inline_size_from_max_content_layout: None,
-            first_line_max_content_inline_size: None,
+            first_line_max_content: None,
             depends_on_percentage_block_size: dependencies.percentage_block_size,
             depends_on_percentage_inline_basis: dependencies.percentage_inline_basis,
             depends_on_block_size: dependencies.block_size,

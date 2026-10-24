@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	body > div 1
+1 Pass
+Pass	body > div 1

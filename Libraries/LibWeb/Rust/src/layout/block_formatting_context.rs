@@ -614,36 +614,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn box_should_avoid_floats_because_it_establishes_fc(&self, node: Node) -> bool {
-        // https://drafts.csswg.org/css2/#floats
-        // The border box of a table, a block-level replaced element, or an element in the normal flow that establishes
-        // a new block formatting context (such as an element with 'overflow' other than 'visible') must not overlap the
-        // margin box of any floats in the same block formatting context as the element itself. If necessary,
-        // implementations should clear the said element by placing it below any preceding floats, but may place it
-        // adjacent to such floats if there is sufficient space. They may even make the border box of said element
-        // narrower than defined by section 10.3.3. CSS2 does not define when a UA may put said element next to the
-        // float or by how much said element may become narrower.
-
-        // https://drafts.csswg.org/css-flexbox/#flex-containers
-        // A flex container establishes a new flex formatting context for its contents. This is the same as establishing
-        // a block formatting context, except that flex layout is used instead of block layout. For example, floats do
-        // not intrude into the flex container, and the flex container’s margins do not collapse with the margins of its
-        // contents.
-
-        // https://drafts.csswg.org/css-grid/#grid-containers
-        // A grid container that is not a subgrid establishes an independent grid formatting context for its contents.
-        // This is the same as establishing an independent block formatting context, except that grid layout is used
-        // instead of block layout: floats do not intrude into the grid container, and the grid container’s margins do
-        // not collapse with the margins of its contents.
-        self.facts(node).is_replaced_box()
-            || matches!(
-                formatting_context::formatting_context_type_created_by_box(self.facts(node)),
-                Some(
-                    formatting_context::FormattingContextType::Block
-                        | formatting_context::FormattingContextType::Flex
-                        | formatting_context::FormattingContextType::Grid
-                        | formatting_context::FormattingContextType::Math
-                )
-            )
+        box_avoids_floats_because_it_establishes_formatting_context(&self.run.callbacks, node)
     }
 
     // The definite inline space left for this box after the float bands that
@@ -4963,6 +4934,43 @@ pub(crate) fn is_column_spanner(callbacks: &LayoutPass<'_>, node: Node) -> bool 
         && !facts.is_floating()
         && facts.display().is_block_outside()
         && StyleValues::for_node(callbacks, node).column_span() == column_span::ALL
+}
+
+pub(crate) fn box_avoids_floats_because_it_establishes_formatting_context(
+    callbacks: &LayoutPass<'_>,
+    node: Node,
+) -> bool {
+    // https://drafts.csswg.org/css2/#floats
+    // The border box of a table, a block-level replaced element, or an element in the normal flow that establishes
+    // a new block formatting context (such as an element with 'overflow' other than 'visible') must not overlap the
+    // margin box of any floats in the same block formatting context as the element itself. If necessary,
+    // implementations should clear the said element by placing it below any preceding floats, but may place it
+    // adjacent to such floats if there is sufficient space. They may even make the border box of said element
+    // narrower than defined by section 10.3.3. CSS2 does not define when a UA may put said element next to the
+    // float or by how much said element may become narrower.
+
+    // https://drafts.csswg.org/css-flexbox/#flex-containers
+    // A flex container establishes a new flex formatting context for its contents. This is the same as establishing
+    // a block formatting context, except that flex layout is used instead of block layout. For example, floats do
+    // not intrude into the flex container, and the flex container’s margins do not collapse with the margins of its
+    // contents.
+
+    // https://drafts.csswg.org/css-grid/#grid-containers
+    // A grid container that is not a subgrid establishes an independent grid formatting context for its contents.
+    // This is the same as establishing an independent block formatting context, except that grid layout is used
+    // instead of block layout: floats do not intrude into the grid container, and the grid container’s margins do
+    // not collapse with the margins of its contents.
+    let facts = NodeFacts::new(callbacks, node);
+    facts.is_replaced_box()
+        || matches!(
+            formatting_context::formatting_context_type_created_by_box(facts),
+            Some(
+                formatting_context::FormattingContextType::Block
+                    | formatting_context::FormattingContextType::Flex
+                    | formatting_context::FormattingContextType::Grid
+                    | formatting_context::FormattingContextType::Math
+            )
+        )
 }
 
 fn table_box_of_wrapper(callbacks: LayoutPass<'_>, wrapper: Node) -> Node {
