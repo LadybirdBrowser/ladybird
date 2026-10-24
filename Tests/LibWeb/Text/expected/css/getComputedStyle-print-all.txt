@@ -112,7 +112,7 @@ background-position-x: 0%
 background-position-y: 0%
 background-repeat: repeat
 background-size: auto
-block-size: 1482px
+block-size: 100px
 border-block-end-color: rgb(0, 0, 0)
 border-block-end-style: none
 border-block-end-width: 0px
@@ -215,8 +215,8 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2821px
-inline-size: 784px
+height: 100px
+inline-size: 600px
 inset-block-end: auto
 inset-block-start: auto
 inset-inline-end: auto
@@ -291,7 +291,7 @@ padding-left: 0px
 padding-right: 0px
 padding-top: 0px
 perspective: none
-perspective-origin: 392px 1898px
+perspective-origin: 300px 50px
 position: static
 position-anchor: normal
 position-area: none
@@ -346,7 +346,7 @@ top: auto
 touch-action: auto
 transform: none
 transform-box: view-box
-transform-origin: 392px 2262px
+transform-origin: 300px 50px
 transform-style: flat
 transition-behavior: normal
 transition-delay: 0s
@@ -363,7 +363,7 @@ view-timeline-inset: auto
 view-timeline-name: none
 view-transition-name: none
 white-space-trim: none
-width: 784px
+width: 600px
 will-change: auto
 x: 0px
 y: 0px
