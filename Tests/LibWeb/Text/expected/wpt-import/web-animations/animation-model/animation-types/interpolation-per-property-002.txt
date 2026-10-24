@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 411 tests
+Found 415 tests
 
-398 Pass
+402 Pass
 13 Fail
 Pass	Setup
 Pass	isolation (type: discrete) has testInterpolation function
@@ -385,6 +385,10 @@ Pass	vector-effect (type: discrete) has testInterpolation function
 Pass	vector-effect uses discrete animation when animating between "none" and "non-scaling-stroke" with linear easing
 Pass	vector-effect uses discrete animation when animating between "none" and "non-scaling-stroke" with effect easing
 Pass	vector-effect uses discrete animation when animating between "none" and "non-scaling-stroke" with keyframe easing
+Pass	view-transition-class (type: discrete) has testInterpolation function
+Pass	view-transition-class uses discrete animation when animating between "none" and "card scale-animation" with linear easing
+Pass	view-transition-class uses discrete animation when animating between "none" and "card scale-animation" with effect easing
+Pass	view-transition-class uses discrete animation when animating between "none" and "card scale-animation" with keyframe easing
 Pass	view-transition-name (type: discrete) has testInterpolation function
 Pass	view-transition-name uses discrete animation when animating between "none" and "header" with linear easing
 Pass	view-transition-name uses discrete animation when animating between "none" and "header" with effect easing
