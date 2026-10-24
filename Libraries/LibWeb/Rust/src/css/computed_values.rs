@@ -2499,6 +2499,10 @@ impl StyleGroupMasks {
         }
         masks[index(DIRECTION)] |= logical_mapping_mask;
         masks[index(WRITING_MODE)] |= logical_mapping_mask;
+        // NB: The inherited UI group holds the used caret color, which `caret-color: auto` resolves against the
+        //     element's own color.
+        masks[index(crate::css::property_metadata::property_id::COLOR)] |=
+            1 << crate::css::table_group_builder::group_index::INHERITED_UI;
         Self { masks, output_masks }
     }
 
