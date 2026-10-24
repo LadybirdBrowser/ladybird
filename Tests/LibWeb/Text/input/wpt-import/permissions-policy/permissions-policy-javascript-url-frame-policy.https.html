@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+
+<head>
+  <script src=../resources/testharness.js></script>
+  <script src=../resources/testharnessreport.js></script>
+</head>
+
+<body>
+  <script>
+  'use strict';
+
+  const script = 'script';
+  const testPage = `
+  <${script}>
+    parent.postMessage(document.fullscreenEnabled, '*');
+  </${script}>
+  `;
+
+  function runTest(allow, expectation) {
+    return new Promise((resolve, reject) => {
+      window.onmessage = event => resolve(event.data);
+
+      const iframe = document.createElement("iframe");
+      iframe.allow = allow;
+      iframe.src = `javascript: \`${testPage}\``;
+      document.body.appendChild(iframe);
+
+    }).then(enabled => {
+      assert_equals(enabled, expectation);
+    });
+  }
+
+  promise_test(() => runTest('fullscreen *', true),
+      'allow attribute(container policy) can enable feature on javascript generated document');
+
+  promise_test(() => runTest("fullscreen 'none'", false),
+      'allow attribute(container policy) can disable feature on javascript generated document');
+
+  </script>
+</body>

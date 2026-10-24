@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	allow attribute(container policy) can enable feature on javascript generated document
+Pass	allow attribute(container policy) can disable feature on javascript generated document
