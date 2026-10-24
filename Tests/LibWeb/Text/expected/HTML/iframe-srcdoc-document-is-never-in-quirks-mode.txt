@@ -1,0 +1,3 @@
+no doctype: CSS1Compat
+quirks doctype: CSS1Compat
+DOMParser: BackCompat

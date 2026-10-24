@@ -105,6 +105,7 @@ unsafe extern "C" {
     fn ladybird_html_parser_document_node(parser: *mut c_void) -> usize;
     fn ladybird_html_parser_document_html_element(parser: *mut c_void) -> usize;
     fn ladybird_html_parser_set_document_quirks_mode(parser: *mut c_void, mode: RustFfiHtmlQuirksMode);
+    fn ladybird_html_parser_document_is_iframe_srcdoc_document(parser: *mut c_void) -> bool;
     fn ladybird_html_parser_log_parse_error(parser: *mut c_void, message_ptr: *const u8, message_len: usize);
     fn ladybird_html_parser_stop_parsing(parser: *mut c_void);
     fn ladybird_html_parser_parse_errors_enabled() -> bool;
@@ -785,15 +786,25 @@ impl TreeBuilder {
             let document_type = self.create_document_type(name, public_id, system_id);
             let document = self.document_node();
             self.append_child(document, document_type);
-            self.set_document_quirks_mode(self.which_quirks_mode(&token));
+
+            // Then, if the document is not an iframe srcdoc document, and the parser cannot change the mode flag is
+            // false, set the Document to quirks or limited-quirks mode where the DOCTYPE token calls for it.
+            if !self.document_is_iframe_srcdoc_document() {
+                self.set_document_quirks_mode(self.which_quirks_mode(&token));
+            }
             self.insertion_mode = InsertionMode::BeforeHtml;
             return;
         }
 
         // -> Anything else
-        // FIXME: Expose whether the document is an iframe srcdoc document so this parse error can be conditional.
-        self.parse_error("anything else in initial insertion mode");
-        self.set_document_quirks_mode(RustFfiHtmlQuirksMode::Yes);
+        // If the document is not an iframe srcdoc document, then this is a parse error; if the parser cannot change the
+        // mode flag is false, set the Document to quirks mode.
+        if !self.document_is_iframe_srcdoc_document() {
+            self.parse_error("anything else in initial insertion mode");
+            self.set_document_quirks_mode(RustFfiHtmlQuirksMode::Yes);
+        }
+
+        // In any case, switch the insertion mode to "before html", then reprocess the token.
         self.insertion_mode = InsertionMode::BeforeHtml;
         self.process_using_the_rules_for(InsertionMode::BeforeHtml, token);
     }
@@ -3860,6 +3871,10 @@ impl TreeBuilder {
     fn set_document_quirks_mode(&mut self, mode: RustFfiHtmlQuirksMode) {
         self.document_quirks_mode = mode;
         unsafe { ladybird_html_parser_set_document_quirks_mode(self.host, mode) }
+    }
+
+    fn document_is_iframe_srcdoc_document(&self) -> bool {
+        unsafe { ladybird_html_parser_document_is_iframe_srcdoc_document(self.host) }
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-comment

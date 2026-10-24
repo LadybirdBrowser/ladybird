@@ -68,6 +68,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
+#include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
 #include <LibWebCommon/Infra/Strings.h>
 
@@ -176,6 +177,7 @@ extern "C" void ladybird_html_parser_visit_node(void*, size_t);
 extern "C" size_t ladybird_html_parser_document_node(void*);
 extern "C" size_t ladybird_html_parser_document_html_element(void*);
 extern "C" void ladybird_html_parser_set_document_quirks_mode(void*, RustFfiHtmlQuirksMode);
+extern "C" bool ladybird_html_parser_document_is_iframe_srcdoc_document(void*);
 extern "C" size_t ladybird_html_parser_create_document_type(void*, u16 const*, size_t, u16 const*, size_t, u16 const*, size_t);
 extern "C" size_t ladybird_html_parser_create_comment(void*, u16 const*, size_t);
 extern "C" void ladybird_html_parser_insert_text(size_t, size_t, u8 const*, size_t);
@@ -2834,6 +2836,15 @@ extern "C" void ladybird_html_parser_set_document_quirks_mode(void* parser, Rust
     auto& document = parser_from_html_parser_ffi(parser).document();
     if (!document.parser_cannot_change_the_mode())
         document.set_quirks_mode(quirks_mode_from_html_parser_ffi(mode));
+}
+
+extern "C" bool ladybird_html_parser_document_is_iframe_srcdoc_document(void* parser)
+{
+    // NB: Only an iframe's srcdoc resource is loaded from about:srcdoc, so a document with that URL is the iframe
+    //     srcdoc document made from it.
+    // FIXME: The document stays an iframe srcdoc document for good, but document.open() gives it the URL of the
+    //        document that opened it, after which it is no longer recognized here.
+    return url_matches_about_srcdoc(parser_from_html_parser_ffi(parser).document().url());
 }
 
 extern "C" size_t ladybird_html_parser_create_document_type(void* parser, u16 const* name_ptr, size_t name_len, u16 const* public_id_ptr, size_t public_id_len, u16 const* system_id_ptr, size_t system_id_len)
