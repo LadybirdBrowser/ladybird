@@ -1,0 +1,5 @@
+Ladybird loads a restored background tab only when it’s selected, as
+Firefox does with browser.sessionstore.restore_on_demand (true by
+default). Chromium’s BackgroundTabLoadingPolicy instead loads such tabs
+gradually, between kMinSimultaneousTabLoads and kMaxSimultaneousTabLoads
+at a time, with kMaxTabsToLoad and kMaxTimeSinceLastUseToLoad cutoffs.
