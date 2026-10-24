@@ -8,6 +8,7 @@
 
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
+#include <AK/SaturatingMath.h>
 #include <AK/SeqLock.h>
 #include <AK/Time.h>
 #include <LibCore/AnonymousBuffer.h>
@@ -165,34 +166,30 @@ public:
     // The output frame playing now, extrapolated from the audio anchor. Empty until audio has anchored the clock.
     Optional<i64> output_frame_index(MonotonicTime now) const
     {
-        auto maybe_record = m_data->record.read();
+        auto maybe_record = read_record();
         if (!maybe_record.has_value() || maybe_record.value().mode != MediaTimeMode::AudioDriven)
             return {};
         auto const& record = maybe_record.value();
         auto frame_index = record.anchor_output_frame_index;
         if (record.progression == MediaTimeProgression::Advancing)
-            frame_index += AK::Duration::from_nanoseconds(now.nanoseconds() - record.anchor_monotonic_nanoseconds).to_time_units(1, record.sample_rate);
+            frame_index = saturating_add(frame_index, elapsed_since_anchor(record, now).to_time_units(1, record.sample_rate));
         return frame_index;
     }
 
     // The time and whether it is advancing, from a single consistent read of the clock record.
     TimeState time_state(MonotonicTime now) const
     {
-        auto maybe_record = m_data->record.read();
+        auto maybe_record = read_record();
         if (!maybe_record.has_value())
             return { m_floor, false };
         auto const& record = maybe_record.value();
-
-        auto elapsed_since_anchor = [&] {
-            return AK::Duration::from_nanoseconds(now.nanoseconds() - record.anchor_monotonic_nanoseconds);
-        };
 
         auto time = AK::Duration::from_nanoseconds(record.anchor_media_time_nanoseconds);
         switch (record.mode) {
         case MediaTimeMode::AudioDriven: {
             auto frame_index = record.anchor_output_frame_index;
             if (record.progression == MediaTimeProgression::Advancing)
-                frame_index += elapsed_since_anchor().to_time_units(1, record.sample_rate);
+                frame_index = saturating_add(frame_index, elapsed_since_anchor(record, now).to_time_units(1, record.sample_rate));
 
             auto timing = m_data->timing_ring.find_timing_for_frame_index(frame_index);
             if (timing.has_value())
@@ -201,7 +198,7 @@ public:
         }
         case MediaTimeMode::MonotonicDriven: {
             if (record.progression == MediaTimeProgression::Advancing) {
-                auto elapsed = elapsed_since_anchor();
+                auto elapsed = elapsed_since_anchor(record, now);
                 if (record.playback_rate != 1.0f)
                     elapsed = AK::Duration::from_seconds_f64(elapsed.to_seconds_f64() * record.playback_rate);
                 time += elapsed;
@@ -224,6 +221,31 @@ public:
     Core::AnonymousBuffer const& buffer() const { return m_buffer; }
 
 private:
+    // A record that cannot advance reads as stopped.
+    Optional<MediaTimeRecord> read_record() const
+    {
+        auto record = m_data->record.read();
+        if (record.has_value() && !can_advance(record.value()))
+            record->progression = MediaTimeProgression::Stopped;
+        return record;
+    }
+
+    static bool can_advance(MediaTimeRecord const& record)
+    {
+        switch (record.mode) {
+        case MediaTimeMode::AudioDriven:
+            return record.sample_rate > 0;
+        case MediaTimeMode::MonotonicDriven:
+            return isfinite(record.playback_rate) && record.playback_rate >= 0.0f;
+        }
+        return false;
+    }
+
+    static AK::Duration elapsed_since_anchor(MediaTimeRecord const& record, MonotonicTime now)
+    {
+        return AK::Duration::from_nanoseconds(saturating_sub(now.nanoseconds(), record.anchor_monotonic_nanoseconds));
+    }
+
     MediaTimeReader(Core::AnonymousBuffer buffer, MediaTimeData const* data)
         : m_buffer(move(buffer))
         , m_data(data)
