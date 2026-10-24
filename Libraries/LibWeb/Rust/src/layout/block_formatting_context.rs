@@ -452,10 +452,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.table_box_in_wrapper_border_box_block_size.get()
     }
 
+    #[inline]
     fn facts(&self, node: Node) -> NodeFacts<'_> {
         NodeFacts::new(&self.run.callbacks, node)
     }
 
+    #[inline]
     fn style(&self, node: Node) -> StyleValues<'pass> {
         StyleValues::for_node(&self.run.callbacks, node)
     }
@@ -520,6 +522,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         ancestor == node || self.is_ancestor_of(ancestor, node)
     }
 
+    #[inline]
     pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'pass> {
         sizing_context::SizingContext::new(self.run.purpose, self.run.records, self.run.callbacks)
     }

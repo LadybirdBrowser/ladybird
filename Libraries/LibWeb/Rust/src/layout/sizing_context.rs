@@ -112,6 +112,7 @@ pub(crate) fn stretch_fit_block_margins(
 }
 
 impl<'pass> SizingContext<'pass> {
+    #[inline]
     pub(crate) fn new(
         purpose: formatting_context::LayoutPurpose,
         records: &'pass RunRecords<'pass>,
@@ -125,6 +126,7 @@ impl<'pass> SizingContext<'pass> {
         }
     }
 
+    #[inline]
     pub(super) fn facts(&self, node: Node) -> NodeFacts<'_> {
         NodeFacts::new(&self.callbacks, node)
     }

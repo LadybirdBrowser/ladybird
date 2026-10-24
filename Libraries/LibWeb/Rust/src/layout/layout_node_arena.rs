@@ -1788,6 +1788,7 @@ impl LayoutNodeArena {
         paintable_row_reset
     }
 
+    #[inline]
     pub(crate) fn data(&self, id: NodeSlotId) -> &NodeData {
         assert!(!id.is_invalid(), "invalid layout node arena slot ID");
         let index = id.slot_index() as usize;
@@ -5392,10 +5393,12 @@ impl LayoutNodeArena {
         self.may_have_scroll_snap_areas.get()
     }
 
+    #[inline]
     pub(crate) fn style_payloads(&self, id: NodeSlotId) -> Option<&FfiStylePayloads> {
         Self::row_style_payloads(self.data(id))
     }
 
+    #[inline]
     fn row_style_payloads(data: &NodeData) -> Option<&FfiStylePayloads> {
         // SAFETY: The arena pins the style record of each of its rows while the row holds it.
         unsafe { super::node_data::style_payloads(data.style.get()) }

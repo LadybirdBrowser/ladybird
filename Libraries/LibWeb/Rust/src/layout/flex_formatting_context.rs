@@ -214,14 +214,17 @@ impl<'pass> FlexFormattingContext<'pass> {
     fn container_used(&self) -> &'pass UsedValues {
         self.run.records.used_values(self.run.box_)
     }
+    #[inline]
     fn style(&self, node: Node) -> StyleValues<'pass> {
         StyleValues::for_node(&self.run.callbacks, node)
     }
 
+    #[inline]
     fn facts(&self, node: Node) -> NodeFacts<'_> {
         NodeFacts::new(&self.run.callbacks, node)
     }
 
+    #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass> {
         sizing_context::SizingContext::new(self.run.purpose, self.run.records, self.run.callbacks)
     }

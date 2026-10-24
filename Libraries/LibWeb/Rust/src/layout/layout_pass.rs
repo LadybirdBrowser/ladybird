@@ -98,6 +98,7 @@ impl<'arena> LayoutPass<'arena> {
         self
     }
 
+    #[inline]
     pub(crate) fn arena(&self) -> &'arena LayoutNodeArena {
         self.arena
     }
@@ -117,6 +118,7 @@ impl<'arena> LayoutPass<'arena> {
         self.arena.intrinsic_size_cache_stamp(node)
     }
 
+    #[inline]
     pub(crate) fn node_data(&self, node: Node) -> &'arena NodeData {
         self.arena().data(node)
     }
@@ -127,6 +129,7 @@ impl<'arena> LayoutPass<'arena> {
             .expect("text node content must be synced to the arena before layout")
     }
 
+    #[inline]
     pub(crate) fn style_payloads(&self, node: Node) -> &'arena FfiStylePayloads {
         self.arena
             .style_payloads(node)
