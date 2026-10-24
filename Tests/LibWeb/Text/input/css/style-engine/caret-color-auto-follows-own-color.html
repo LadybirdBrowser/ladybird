@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #list > .row:first-child { color: rgb(0, 128, 0); }
+    #list > .row:nth-child(2) { color: rgb(0, 0, 255); }
+    #list > .row:last-child { color: rgb(255, 0, 0); }
+    .green { color: rgb(0, 128, 0); }
+    .red { color: rgb(255, 0, 0); }
+    .own { color: rgb(1, 2, 3); }
+</style>
+<div id="list"><div class="row">a</div><div class="row">b</div><div class="row">c</div></div>
+<div id="changing" class="green">d<span id="inheriting">e</span><span id="owning" class="own">f</span></div>
+<script>
+    function report(label, element) {
+        const style = getComputedStyle(element);
+        println(`${label}: color ${style.color}, caret-color ${style.caretColor}`);
+    }
+
+    test(() => {
+        // Alike siblings whose rules give each another color.
+        for (const [index, row] of [...document.querySelectorAll(".row")].entries())
+            report(`row ${index}`, row);
+
+        // A color that changes after the first style, with a child inheriting it and one declaring its own.
+        const changing = document.getElementById("changing");
+        report("before", changing);
+        report("before inheriting", document.getElementById("inheriting"));
+        report("before owning", document.getElementById("owning"));
+        changing.className = "red";
+        report("after", changing);
+        report("after inheriting", document.getElementById("inheriting"));
+        report("after owning", document.getElementById("owning"));
+    });
+</script>
