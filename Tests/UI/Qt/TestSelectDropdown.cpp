@@ -42,7 +42,6 @@ void send_key(QWidget& widget, int key)
     QApplication::sendEvent(&widget, &press);
     QKeyEvent release { QEvent::KeyRelease, key, Qt::NoModifier };
     QApplication::sendEvent(&widget, &release);
-    QApplication::processEvents();
 }
 
 // open() runs the menu's own event loop until the menu closes, so the interaction is queued before the call and runs
