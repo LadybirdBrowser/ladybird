@@ -79,7 +79,7 @@ public:
 
     // The Skia path for a path that stays the same for as long as it has this identity. Keeping one Skia path lets
     // the caches that are keyed on it work.
-    SkPath clip_path(u64 path_identity, Gfx::Path const&);
+    SkPath clip_path(u64 path_identity, Gfx::PathData const&);
     // Drops the clip paths that were not used since the last call.
     void drop_clip_paths_not_used_since_last_frame();
 

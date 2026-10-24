@@ -138,6 +138,7 @@ constexpr SkSamplingOptions to_skia_sampling_options(ScalingMode scaling_mode)
     VERIFY_NOT_REACHED();
 }
 
+SkPath to_skia_path(PathData const&);
 SkPath to_skia_path(Path const& path);
 // Builds the SkImageFilter tree a serialized filter graph describes; `image_frame` supplies the
 // frames the graph names by id.

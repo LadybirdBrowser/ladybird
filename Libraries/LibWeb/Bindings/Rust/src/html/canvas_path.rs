@@ -5,7 +5,7 @@
  */
 
 //! The operations of the CanvasPath mixin, https://html.spec.whatwg.org/multipage/canvas.html#canvaspath, which
-//! Path2D and the 2D contexts share. They build on a Gfx::Path, with its rules for a path without a current point.
+//! Path2D and the 2D contexts share. They build on a Path, with its rules for a path without a current point.
 //!
 //! The arithmetic is that of the C++ it replaces, in the same precision: the arguments of moveTo(), lineTo(),
 //! quadraticCurveTo(), arc() and ellipse() are floats, and those of the rest are doubles that become floats where
@@ -53,7 +53,7 @@ pub(crate) fn round_rect_radii(
     }
 }
 
-/// What the operations build on, which is a Gfx::Path, or what the crate tests record.
+/// What the operations build on, which is a Path, or what the crate tests record.
 pub(crate) trait PathSink {
     /// Whether the path has no current point.
     fn is_empty(&self) -> bool;
@@ -74,8 +74,7 @@ pub(crate) trait PathSink {
     fn close(&mut self);
 }
 
-#[cfg(not(test))]
-impl PathSink for libgfx_rust::path::PathMut<'_> {
+impl PathSink for libgfx_rust::path::Path {
     fn is_empty(&self) -> bool {
         self.is_empty()
     }

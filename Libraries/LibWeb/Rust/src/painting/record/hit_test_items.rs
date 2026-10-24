@@ -456,7 +456,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         let item = HitTestItem {
             rect: bounding_box,
             path: Some(path),
-            winding_rule: facts.svg_path_winding_rule as i32,
+            winding_rule: facts.svg_path_winding_rule,
             svg_hit_areas: facts.svg_hit_areas,
             svg_stroke: stroke,
             ..self.base_hit_test_item(HitTestItemKind::SvgPath, paintable, context)
@@ -678,7 +678,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             context,
             border_radii: BorderRadii::default(),
             path: None,
-            winding_rule: 0,
+            winding_rule: WindingRule::Nonzero,
             svg_hit_areas: 0,
             svg_stroke: None,
             writing_mode: self.writing_mode_of(target),

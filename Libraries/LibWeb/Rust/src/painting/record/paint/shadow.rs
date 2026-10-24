@@ -15,7 +15,7 @@ use crate::painting::corner_shape::{CornerShapes, Insets, border_contour_path};
 use crate::painting::display_list::commands::{PaintInnerBoxShadow, PaintOuterBoxShadow};
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::PaintRecorder;
-use libgfx_rust::path::OwnedPath;
+use libgfx_rust::path::Path;
 use libgfx_rust::{Color, CornerRadii, FloatPoint, IntRect};
 
 fn add_spread_distance_to_border_radius(border_radius: &mut i32, spread_distance: i32) {
@@ -184,8 +184,8 @@ fn paint_box_shadow_layers<O: Observer>(
 /// The shapes a box's shadows are cast from when they are not its rounded border and padding boxes: the shape outer
 /// shadows are cast from, and the shape whose outside casts inner shadows.
 struct ShadowShapes {
-    outer: OwnedPath,
-    inner: OwnedPath,
+    outer: Path,
+    inner: Path,
 }
 
 impl ShadowShapes {

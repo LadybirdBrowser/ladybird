@@ -19,7 +19,7 @@ use crate::visual_context::{
     ClipNodeData, ContextRef, EffectNodeData, SpatialData, VisualContextTree, device_offset_for_index,
     resolve_leaf_to_context_matrices, should_cull_back_face,
 };
-use libgfx_rust::path::OwnedPath;
+use libgfx_rust::path::Path;
 use libgfx_rust::{
     AffineTransform, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatVector3, IntRect, WindingRule,
     enclosing_int_rect, translation_matrix,
@@ -31,7 +31,7 @@ pub trait ReplayPainter {
     fn set_matrix(&mut self, matrix: &FloatMatrix4x4);
     fn would_be_fully_clipped_by_painter(&mut self, rect: IntRect) -> bool;
     fn push_clip(&mut self, clip: &ReplayClip);
-    fn push_clip_path(&mut self, path: &OwnedPath, winding_rule: WindingRule);
+    fn push_clip_path(&mut self, path: &Path, winding_rule: WindingRule);
     fn push_layer(&mut self, layer: &ReplayLayer);
     // `backdrop`, when given, carries the backdrop filter the mask's layer starts with.
     fn push_mask(&mut self, mask: &ReplayMask, backdrop: Option<&ReplayLayer>);
@@ -954,7 +954,7 @@ mod tests {
         fn push_clip(&mut self, clip: &ReplayClip) {
             self.events.push(PainterEvent::PushClip(clip.rect));
         }
-        fn push_clip_path(&mut self, _path: &OwnedPath, _winding_rule: WindingRule) {
+        fn push_clip_path(&mut self, _path: &Path, _winding_rule: WindingRule) {
             unreachable!("these tests build no clip paths");
         }
         fn push_layer(&mut self, layer: &ReplayLayer) {

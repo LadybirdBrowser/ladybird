@@ -62,7 +62,7 @@ impl CssPath {
         self.data().parsed.write_content_hash(hasher);
     }
 
-    pub(crate) fn to_gfx_path(&self) -> libgfx_rust::path::OwnedPath {
+    pub(crate) fn to_gfx_path(&self) -> libgfx_rust::path::Path {
         self.data().parsed.to_gfx_path()
     }
 }

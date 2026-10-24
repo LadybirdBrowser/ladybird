@@ -72,7 +72,7 @@ pub struct ClipData {
 
 #[derive(Clone)]
 pub struct ClipPathData {
-    pub path: std::sync::Arc<libgfx_rust::path::OwnedPath>,
+    pub path: std::sync::Arc<libgfx_rust::path::Path>,
     pub bounding_rect: IntRect,
     pub fill_rule: WindingRule,
 }

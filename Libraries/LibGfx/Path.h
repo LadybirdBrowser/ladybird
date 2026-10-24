@@ -25,6 +25,7 @@ namespace Gfx {
 namespace FFI {
 
 struct PathGeometry;
+struct PathGeometryData;
 
 }
 
@@ -51,6 +52,8 @@ enum class PathVerb : u8 {
 // The contours of a path, valid until the path changes or is destroyed. A path with a point that is not finite has
 // none.
 struct PathData {
+    static PathData from_ffi(FFI::PathGeometryData const&);
+
     ReadonlySpan<PathVerb> verbs;
     ReadonlySpan<FloatPoint> points;
     ReadonlySpan<float> conic_weights;
@@ -105,7 +108,6 @@ public:
     void arc_to(FloatPoint point, float radius, bool large_arc, bool sweep);
     void quadratic_bezier_curve_to(FloatPoint through, FloatPoint point);
     void cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2);
-    void glyph_run(GlyphRun const&);
 
     void append_path(Gfx::Path const&);
 
@@ -123,7 +125,6 @@ public:
 
     Gfx::Path clone() const { return *this; }
     Gfx::Path copy_transformed(Gfx::AffineTransform const&) const;
-    Gfx::Path place_glyph_runs_along(ReadonlySpan<NonnullRefPtr<GlyphRun>>, float offset = 0) const;
 
     String to_svg_string() const;
 

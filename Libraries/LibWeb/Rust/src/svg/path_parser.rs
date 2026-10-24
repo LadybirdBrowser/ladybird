@@ -7,7 +7,8 @@
 use super::parser::{Input, Parser as Lexer};
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::ffi_support::FfiUtf16View;
-use libgfx_rust::path::{OwnedPath, PathBuilder};
+use libgfx_rust::path::Path;
+use libgfx_rust::{FloatPoint, FloatSize};
 use std::ffi::c_void;
 use std::fmt::Write;
 
@@ -147,6 +148,10 @@ pub struct ParsedPath {
     instructions: Vec<PathInstruction>,
 }
 
+fn float_point([x, y]: [f32; 2]) -> FloatPoint {
+    FloatPoint { x, y }
+}
+
 impl ParsedPath {
     pub(crate) fn normalize_for_serialization(&mut self) {
         let normalize = |values: &mut [f32]| {
@@ -283,8 +288,8 @@ impl ParsedPath {
         }
     }
 
-    pub(crate) fn to_gfx_path(&self) -> OwnedPath {
-        let mut path = PathBuilder::new();
+    pub(crate) fn to_gfx_path(&self) -> Path {
+        let mut path = Path::new();
         let mut current_point = [0.0, 0.0];
         let mut subpath_start = [0.0, 0.0];
         let mut previous_control_point = None;
@@ -295,7 +300,7 @@ impl ParsedPath {
             let point = match *instruction {
                 PathInstruction::MoveTo { absolute, point } => {
                     let point = if absolute { point } else { relative_to_current(point) };
-                    path.move_to(point[0], point[1]);
+                    path.move_to(float_point(point));
                     subpath_start = point;
                     point
                 }
@@ -305,17 +310,17 @@ impl ParsedPath {
                 }
                 PathInstruction::LineTo { absolute, point } => {
                     let point = if absolute { point } else { relative_to_current(point) };
-                    path.line_to(point[0], point[1]);
+                    path.line_to(float_point(point));
                     point
                 }
                 PathInstruction::HorizontalLineTo { absolute, x } => {
                     let point = [if absolute { x } else { current_point[0] + x }, current_point[1]];
-                    path.line_to(point[0], point[1]);
+                    path.line_to(float_point(point));
                     point
                 }
                 PathInstruction::VerticalLineTo { absolute, y } => {
                     let point = [current_point[0], if absolute { y } else { current_point[1] + y }];
-                    path.line_to(point[0], point[1]);
+                    path.line_to(float_point(point));
                     point
                 }
                 PathInstruction::CurveTo {
@@ -336,12 +341,9 @@ impl ParsedPath {
                     };
                     let point = if absolute { point } else { relative_to_current(point) };
                     path.cubic_bezier_curve_to(
-                        control_point_1[0],
-                        control_point_1[1],
-                        control_point_2[0],
-                        control_point_2[1],
-                        point[0],
-                        point[1],
+                        float_point(control_point_1),
+                        float_point(control_point_2),
+                        float_point(point),
                     );
                     previous_control_point = Some(control_point_2);
                     point
@@ -370,12 +372,9 @@ impl ParsedPath {
                     };
                     let point = if absolute { point } else { relative_to_current(point) };
                     path.cubic_bezier_curve_to(
-                        control_point_1[0],
-                        control_point_1[1],
-                        control_point_2[0],
-                        control_point_2[1],
-                        point[0],
-                        point[1],
+                        float_point(control_point_1),
+                        float_point(control_point_2),
+                        float_point(point),
                     );
                     previous_control_point = Some(control_point_2);
                     point
@@ -391,7 +390,7 @@ impl ParsedPath {
                         relative_to_current(control_point)
                     };
                     let point = if absolute { point } else { relative_to_current(point) };
-                    path.quadratic_bezier_curve_to(control_point[0], control_point[1], point[0], point[1]);
+                    path.quadratic_bezier_curve_to(float_point(control_point), float_point(point));
                     previous_control_point = Some(control_point);
                     point
                 }
@@ -412,7 +411,7 @@ impl ParsedPath {
                         2.0 * current_point[1] - reflected_from[1],
                     ];
                     let point = if absolute { point } else { relative_to_current(point) };
-                    path.quadratic_bezier_curve_to(control_point[0], control_point[1], point[0], point[1]);
+                    path.quadratic_bezier_curve_to(float_point(control_point), float_point(point));
                     previous_control_point = Some(control_point);
                     point
                 }
@@ -426,10 +425,11 @@ impl ParsedPath {
                 } => {
                     let point = if absolute { point } else { relative_to_current(point) };
                     path.elliptical_arc_to(
-                        point[0],
-                        point[1],
-                        radius[0],
-                        radius[1],
+                        float_point(point),
+                        FloatSize {
+                            width: radius[0],
+                            height: radius[1],
+                        },
                         (f64::from(x_axis_rotation).to_radians()) as f32,
                         large_arc,
                         sweep,
@@ -451,7 +451,7 @@ impl ParsedPath {
             last_instruction = Some(*instruction);
         }
 
-        path.build()
+        path
     }
 
     /// The same path with each relative command replaced by its absolute equivalent, or `None` when the path has
@@ -1322,7 +1322,7 @@ pub(super) fn svg_input(view: FfiUtf16View<'_>) -> Option<Input<'_>> {
 
 /// The path that the path data describes, as SVG parses it, with its error recovery: what parsing a string of path
 /// data gives Path2D's constructor, which is an empty path where the data describes none.
-pub fn gfx_path_from_path_data(input: ak::Utf16StringUnits<'_>) -> OwnedPath {
+pub fn gfx_path_from_path_data(input: ak::Utf16StringUnits<'_>) -> Path {
     let input = match input {
         ak::Utf16StringUnits::Ascii(units) => Input::Ascii(units),
         ak::Utf16StringUnits::Utf16(units) => Input::Utf16(units),
@@ -1373,9 +1373,18 @@ pub unsafe extern "C" fn rust_svg_path_serialize(
     unsafe { append(context, serialized.as_ptr(), serialized.len()) };
 }
 
+/// Calls `append` once with the byte form of the path that `path` draws, which `Gfx::Path` reads.
+///
+/// # Safety
+/// `context` must be valid for `append` for the duration of this call.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_svg_path_to_gfx_path(path: &ParsedPath) -> *mut c_void {
-    path.to_gfx_path().into_raw()
+pub unsafe extern "C" fn rust_svg_path_encode_gfx_path(
+    path: &ParsedPath,
+    context: *mut c_void,
+    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) {
+    let bytes = path.to_gfx_path().serialize_to_bytes();
+    unsafe { append(context, bytes.as_ptr(), bytes.len()) };
 }
 
 #[cfg(test)]

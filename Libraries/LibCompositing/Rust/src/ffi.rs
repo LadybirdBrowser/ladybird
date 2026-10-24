@@ -806,7 +806,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_clip_path(
     let tree = unsafe { test_builder_tree(builder) };
     // SAFETY: The caller guarantees `path_bytes` addresses `path_bytes_length` readable bytes.
     let path_bytes = unsafe { ak::slice_from_raw_parts(path_bytes, path_bytes_length) };
-    let path = libgfx_rust::path::OwnedPath::from_serialized_bytes(path_bytes);
+    let path = libgfx_rust::path::Path::from_serialized_bytes(path_bytes);
     tree.append_clip(
         crate::visual_context::ClipNodeData::Path(crate::visual_context::ClipPathData {
             path: std::sync::Arc::new(path),

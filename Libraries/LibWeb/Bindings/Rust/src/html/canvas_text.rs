@@ -10,7 +10,7 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libcompositing_rust::display_list::commands::DisplayListGlyph;
-use libgfx_rust::path::{OwnedPath, PathBuilder};
+use libgfx_rust::path::Path;
 use libgfx_rust::{CompositingAndBlendingOperator, FloatPoint, WindingRule};
 
 use super::text_metrics::{TextMeasurements, TextMetrics};
@@ -24,9 +24,9 @@ use crate::html::canvas_rendering_context2d::CanvasTextBaseline;
 
 impl ContextState {
     /// The outlines of the glyphs of the text, drawn at the point.
-    fn text_path(&self, text: &[u16], x: f32, y: f32, max_width: Option<f64>) -> OwnedPath {
+    fn text_path(&self, text: &[u16], x: f32, y: f32, max_width: Option<f64>) -> Path {
         if max_width.is_some_and(|max_width| max_width <= 0.0) {
-            return PathBuilder::new().build();
+            return Path::new();
         }
 
         let font = self.current_font();

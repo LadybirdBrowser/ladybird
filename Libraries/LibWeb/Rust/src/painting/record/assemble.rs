@@ -674,7 +674,7 @@ mod tests {
                     context: ContextRef::default(),
                     border_radii: BorderRadii::default(),
                     path: None,
-                    winding_rule: 0,
+                    winding_rule: libgfx_rust::WindingRule::Nonzero,
                     svg_hit_areas: 0,
                     svg_stroke: None,
                     writing_mode: 0,

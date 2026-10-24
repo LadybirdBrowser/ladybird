@@ -40,7 +40,11 @@ static_assert(sizeof(FloatPoint) == sizeof(SkPoint));
 
 SkPath to_skia_path(Path const& path)
 {
-    auto data = path.data();
+    return to_skia_path(path.data());
+}
+
+SkPath to_skia_path(PathData const& data)
+{
     return SkPath::Raw(
         { reinterpret_cast<SkPoint const*>(data.points.data()), data.points.size() },
         { reinterpret_cast<SkPathVerb const*>(data.verbs.data()), data.verbs.size() },

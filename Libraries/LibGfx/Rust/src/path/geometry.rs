@@ -373,7 +373,19 @@ impl PathGeometry {
     /// Adds the contours of the other path with its points mapped, as for glyph outlines. The state of
     /// Gfx::Path is left as it was; update_state_from_contours() sets it.
     pub fn append_mapped(&mut self, other: &PathGeometry, map: impl Fn(FloatPoint) -> FloatPoint) {
-        if other.verbs.is_empty() {
+        self.append_mapped_contours(&other.verbs, &other.points, &other.conic_weights, map);
+    }
+
+    /// Adds contours given as the verbs, points and conic weights of a path, with their points mapped, as
+    /// append_mapped() does.
+    pub fn append_mapped_contours(
+        &mut self,
+        verbs: &[PathVerb],
+        points: &[FloatPoint],
+        conic_weights: &[f32],
+        map: impl Fn(FloatPoint) -> FloatPoint,
+    ) {
+        if verbs.is_empty() {
             return;
         }
         if self.verbs.last() == Some(&PathVerb::Move) {
@@ -381,9 +393,9 @@ impl PathGeometry {
             self.pop_point();
         }
         let first_appended_point = self.points.len();
-        self.verbs.extend_from_slice(&other.verbs);
-        self.points.extend(other.points.iter().map(|point| map(*point)));
-        self.conic_weights.extend_from_slice(&other.conic_weights);
+        self.verbs.extend_from_slice(verbs);
+        self.points.extend(points.iter().map(|point| map(*point)));
+        self.conic_weights.extend_from_slice(conic_weights);
         self.has_only_finite_points &= self.points[first_appended_point..]
             .iter()
             .all(|point| is_finite_point(*point));

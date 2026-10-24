@@ -6,6 +6,7 @@
 
 use super::*;
 use crate::css::style::tree::StyleNodeID;
+use libgfx_rust::{FloatPoint, FloatSize};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
@@ -737,8 +738,8 @@ impl SvgShapeGeometry {
         (used_rx, used_ry)
     }
 
-    fn svg_rect_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::PathBuilder {
-        let mut path = libgfx_rust::path::PathBuilder::new();
+    fn svg_rect_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::Path {
+        let mut path = libgfx_rust::path::Path::new();
         let computed_width = style.width();
         let computed_height = style.height();
         // FIXME: to_px rounds prematurely here - we shouldn't round to fixed point CSSPixels until
@@ -770,71 +771,91 @@ impl SvgShapeGeometry {
         }
 
         let (rx, ry) = Self::svg_rect_corner_radii(style, width as f32, height as f32);
+        let radii = FloatSize { width: rx, height: ry };
         let corner = (rx > 0.0) && (ry > 0.0);
         let x_axis_rotation = 0.0;
         let large_arc_flag = false;
         let sweep_flag = true;
 
         // 1. perform an absolute moveto operation to location (x+rx,y);
-        path.move_to((x + rx as f64) as f32, y as f32);
+        path.move_to(FloatPoint {
+            x: (x + rx as f64) as f32,
+            y: y as f32,
+        });
         // 2. perform an absolute horizontal lineto with parameter x+width-rx;
-        path.line_to((x + width - rx as f64) as f32, y as f32);
+        path.line_to(FloatPoint {
+            x: (x + width - rx as f64) as f32,
+            y: y as f32,
+        });
         // 3. if both rx and ry are greater than zero, perform an absolute elliptical arc operation
         //    to coordinate (x+width,y+ry), where rx and ry are used as the equivalent parameters
         //    to the elliptical arc command, the x-axis-rotation and large-arc-flag are set to
         //    zero, the sweep-flag is set to one;
         if corner {
             path.elliptical_arc_to(
-                (x + width) as f32,
-                (y + ry as f64) as f32,
-                rx,
-                ry,
+                FloatPoint {
+                    x: (x + width) as f32,
+                    y: (y + ry as f64) as f32,
+                },
+                radii,
                 x_axis_rotation,
                 large_arc_flag,
                 sweep_flag,
             );
         }
         // 4. perform an absolute vertical lineto parameter y+height-ry;
-        path.line_to((x + width) as f32, (y + height - ry as f64) as f32);
+        path.line_to(FloatPoint {
+            x: (x + width) as f32,
+            y: (y + height - ry as f64) as f32,
+        });
         // 5. if both rx and ry are greater than zero, perform an absolute elliptical arc operation
         //    to coordinate (x+width-rx,y+height), using the same parameters as previously;
         if corner {
             path.elliptical_arc_to(
-                (x + width - rx as f64) as f32,
-                (y + height) as f32,
-                rx,
-                ry,
+                FloatPoint {
+                    x: (x + width - rx as f64) as f32,
+                    y: (y + height) as f32,
+                },
+                radii,
                 x_axis_rotation,
                 large_arc_flag,
                 sweep_flag,
             );
         }
         // 6. perform an absolute horizontal lineto parameter x+rx;
-        path.line_to((x + rx as f64) as f32, (y + height) as f32);
+        path.line_to(FloatPoint {
+            x: (x + rx as f64) as f32,
+            y: (y + height) as f32,
+        });
         // 7. if both rx and ry are greater than zero, perform an absolute elliptical arc operation
         //    to coordinate (x,y+height-ry), using the same parameters as previously;
         if corner {
             path.elliptical_arc_to(
-                x as f32,
-                (y + height - ry as f64) as f32,
-                rx,
-                ry,
+                FloatPoint {
+                    x: x as f32,
+                    y: (y + height - ry as f64) as f32,
+                },
+                radii,
                 x_axis_rotation,
                 large_arc_flag,
                 sweep_flag,
             );
         }
         // 8. perform an absolute vertical lineto parameter y+ry
-        path.line_to(x as f32, (y + ry as f64) as f32);
+        path.line_to(FloatPoint {
+            x: x as f32,
+            y: (y + ry as f64) as f32,
+        });
         // 9. if both rx and ry are greater than zero, perform an absolute elliptical arc operation
         //    with a segment-completing close path operation, using the same parameters as
         //    previously.
         if corner {
             path.elliptical_arc_to(
-                (x + rx as f64) as f32,
-                y as f32,
-                rx,
-                ry,
+                FloatPoint {
+                    x: (x + rx as f64) as f32,
+                    y: y as f32,
+                },
+                radii,
                 x_axis_rotation,
                 large_arc_flag,
                 sweep_flag,
@@ -844,8 +865,8 @@ impl SvgShapeGeometry {
         path
     }
 
-    fn svg_circle_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::PathBuilder {
-        let mut path = libgfx_rust::path::PathBuilder::new();
+    fn svg_circle_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::Path {
+        let mut path = libgfx_rust::path::Path::new();
         let svg_reset = style.svg_reset();
         let to_px = |handle: &ComputedStyleValueHandle, basis: CssPixels| {
             handle
@@ -865,15 +886,15 @@ impl SvgShapeGeometry {
         let large_arc = false;
         let sweep = true;
         // 1. A move-to command to the point cx+r,cy;
-        path.move_to(cx + r, cy);
+        path.move_to(FloatPoint { x: cx + r, y: cy });
         // 2. arc to cx,cy+r;
-        path.arc_to(cx, cy + r, r, large_arc, sweep);
+        path.arc_to(FloatPoint { x: cx, y: cy + r }, r, large_arc, sweep);
         // 3. arc to cx-r,cy;
-        path.arc_to(cx - r, cy, r, large_arc, sweep);
+        path.arc_to(FloatPoint { x: cx - r, y: cy }, r, large_arc, sweep);
         // 4. arc to cx,cy-r;
-        path.arc_to(cx, cy - r, r, large_arc, sweep);
+        path.arc_to(FloatPoint { x: cx, y: cy - r }, r, large_arc, sweep);
         // 5. arc with a segment-completing close path operation.
-        path.arc_to(cx + r, cy, r, large_arc, sweep);
+        path.arc_to(FloatPoint { x: cx + r, y: cy }, r, large_arc, sweep);
         path
     }
 
@@ -890,8 +911,8 @@ impl SvgShapeGeometry {
         )
     }
 
-    fn svg_ellipse_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::PathBuilder {
-        let mut path = libgfx_rust::path::PathBuilder::new();
+    fn svg_ellipse_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::Path {
+        let mut path = libgfx_rust::path::Path::new();
         let svg_reset = style.svg_reset();
         let computed_rx = &svg_reset.rx;
         let computed_ry = &svg_reset.ry;
@@ -928,52 +949,80 @@ impl SvgShapeGeometry {
         if rx <= 0.0 || ry <= 0.0 {
             return path;
         }
+        let radii = FloatSize { width: rx, height: ry };
 
         let x_axis_rotation = 0.0;
         let large_arc = false;
         // NB: Spec says sweep should be false, but it's wrong. https://github.com/w3c/svgwg/issues/765
         let sweep = true;
         // 1. A move-to command to the point cx+rx,cy;
-        path.move_to(cx + rx, cy);
+        path.move_to(FloatPoint { x: cx + rx, y: cy });
         // 2. arc to cx,cy+ry;
-        path.elliptical_arc_to(cx, cy + ry, rx, ry, x_axis_rotation, large_arc, sweep);
+        path.elliptical_arc_to(
+            FloatPoint { x: cx, y: cy + ry },
+            radii,
+            x_axis_rotation,
+            large_arc,
+            sweep,
+        );
         // 3. arc to cx-rx,cy;
-        path.elliptical_arc_to(cx - rx, cy, rx, ry, x_axis_rotation, large_arc, sweep);
+        path.elliptical_arc_to(
+            FloatPoint { x: cx - rx, y: cy },
+            radii,
+            x_axis_rotation,
+            large_arc,
+            sweep,
+        );
         // 4. arc to cx,cy-ry;
-        path.elliptical_arc_to(cx, cy - ry, rx, ry, x_axis_rotation, large_arc, sweep);
+        path.elliptical_arc_to(
+            FloatPoint { x: cx, y: cy - ry },
+            radii,
+            x_axis_rotation,
+            large_arc,
+            sweep,
+        );
         // 5. arc with a segment-completing close path operation.
-        path.elliptical_arc_to(cx + rx, cy, rx, ry, x_axis_rotation, large_arc, sweep);
+        path.elliptical_arc_to(
+            FloatPoint { x: cx + rx, y: cy },
+            radii,
+            x_axis_rotation,
+            large_arc,
+            sweep,
+        );
         path
     }
 
-    fn svg_line_path(&self, attributes: FfiSvgAttributeFacts) -> libgfx_rust::path::PathBuilder {
-        let mut path = libgfx_rust::path::PathBuilder::new();
+    fn svg_line_path(&self, attributes: FfiSvgAttributeFacts) -> libgfx_rust::path::Path {
+        let mut path = libgfx_rust::path::Path::new();
         let viewport_width = self.viewport_width.to_float();
         let viewport_height = self.viewport_height.to_float();
         // 1. perform an absolute moveto operation to absolute location (x1,y1)
-        path.move_to(
-            attributes.line_x1.resolve_relative_to(viewport_width),
-            attributes.line_y1.resolve_relative_to(viewport_height),
-        );
+        path.move_to(FloatPoint {
+            x: attributes.line_x1.resolve_relative_to(viewport_width),
+            y: attributes.line_y1.resolve_relative_to(viewport_height),
+        });
         // 2. perform an absolute lineto operation to absolute location (x2,y2)
-        path.line_to(
-            attributes.line_x2.resolve_relative_to(viewport_width),
-            attributes.line_y2.resolve_relative_to(viewport_height),
-        );
+        path.line_to(FloatPoint {
+            x: attributes.line_x2.resolve_relative_to(viewport_width),
+            y: attributes.line_y2.resolve_relative_to(viewport_height),
+        });
         path
     }
 
-    fn svg_poly_path(points: Option<&[FfiFloatPoint]>, close: bool) -> libgfx_rust::path::PathBuilder {
-        let mut path = libgfx_rust::path::PathBuilder::new();
+    fn svg_poly_path(points: Option<&[FfiFloatPoint]>, close: bool) -> libgfx_rust::path::Path {
+        let mut path = libgfx_rust::path::Path::new();
         let Some(points) = points.filter(|points| !points.is_empty()) else {
             return path;
         };
         // 1. perform an absolute moveto operation to the first coordinate pair in the list of points
-        path.move_to(points[0].x, points[0].y);
+        path.move_to(FloatPoint {
+            x: points[0].x,
+            y: points[0].y,
+        });
         // 2. for each subsequent coordinate pair, perform an absolute lineto operation to that
         //    coordinate pair.
         for point in &points[1..] {
-            path.line_to(point.x, point.y);
+            path.line_to(FloatPoint { x: point.x, y: point.y });
         }
         // 3. a polygon performs a closepath command; a polyline does not.
         if close {
@@ -989,36 +1038,35 @@ impl SvgShapeGeometry {
         attributes: FfiSvgAttributeFacts,
         style: StyleValues<'_>,
         points: Option<&[FfiFloatPoint]>,
-    ) -> libgfx_rust::path::OwnedPath {
-        let builder = match attributes.geometry_kind {
-            SVG_GEOMETRY_KIND_PATH => return self.svg_path_element_path(style),
+    ) -> libgfx_rust::path::Path {
+        match attributes.geometry_kind {
+            SVG_GEOMETRY_KIND_PATH => self.svg_path_element_path(style),
             SVG_GEOMETRY_KIND_RECT => self.svg_rect_path(style),
             SVG_GEOMETRY_KIND_CIRCLE => self.svg_circle_path(style),
             SVG_GEOMETRY_KIND_ELLIPSE => self.svg_ellipse_path(style),
             SVG_GEOMETRY_KIND_LINE => self.svg_line_path(attributes),
             SVG_GEOMETRY_KIND_POLYLINE => Self::svg_poly_path(points, false),
             SVG_GEOMETRY_KIND_POLYGON => Self::svg_poly_path(points, true),
-            _ => libgfx_rust::path::PathBuilder::new(),
-        };
-        builder.build()
+            _ => libgfx_rust::path::Path::new(),
+        }
     }
 
     /// The `d` property's path. It is already a shared, immutable blob on the computed style, so
     /// the pass only has to realize it as geometry and stamp the shape's fill rule onto it.
-    fn svg_path_element_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::OwnedPath {
+    fn svg_path_element_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::Path {
         let Some(shape) = style
             .svg_reset()
             .d
             .style_value()
             .and_then(crate::css::style_value::StyleValueData::basic_shape)
         else {
-            return libgfx_rust::path::PathBuilder::new().build();
+            return libgfx_rust::path::Path::new();
         };
         // The C++ BasicShape variant `d` holds is a path().
         const BASIC_SHAPE_PATH: u8 = 6;
         debug_assert_eq!(shape.kind, BASIC_SHAPE_PATH, "the d property holds a path()");
         let mut path = shape.path.to_gfx_path();
-        path.set_fill_type(i32::from(shape.fill_rule));
+        path.set_fill_rule(libgfx_rust::WindingRule::from_raw(i32::from(shape.fill_rule)));
         path
     }
 }
@@ -1026,21 +1074,24 @@ impl SvgShapeGeometry {
 /// The geometry a shape element draws, in the user units of a viewport of `viewport_size`, from
 /// the shape `geometry` names and the computed style in `payloads`. The DOM's geometry queries
 /// measure this path. Only the `geometry_kind` and `line_*` fields of `geometry` are read.
-/// Returns a heap-allocated `Gfx::Path` that the caller owns.
+/// Calls `append` once with the byte form of the path, which `Gfx::Path` reads.
 ///
 /// # Safety
 ///
 /// `payloads` must point at `payload_count` live style group payloads, and `points` at
-/// `point_count` points.
+/// `point_count` points. `context` must be valid for `append` for the duration of this call.
+#[allow(clippy::too_many_arguments)]
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn svg_geometry_element_path(
+pub unsafe extern "C" fn svg_geometry_element_encode_path(
     geometry: FfiSvgAttributeFacts,
     payloads: *const *const c_void,
     payload_count: usize,
     points: *const FfiFloatPoint,
     point_count: usize,
     viewport_size: FfiCssPixelSize,
-) -> *mut c_void {
+    context: *mut c_void,
+    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) {
     assert!(!payloads.is_null(), "style group payload array is null");
     let mut style_payloads = FfiStylePayloads::default();
     // SAFETY: Guaranteed by the caller.
@@ -1053,9 +1104,11 @@ pub unsafe extern "C" fn svg_geometry_element_path(
         viewport_width: viewport_size.width,
         viewport_height: viewport_size.height,
     };
-    shape_geometry
+    let bytes = shape_geometry
         .path(geometry, StyleValues::new(&style_payloads), Some(points))
-        .into_raw()
+        .serialize_to_bytes();
+    // SAFETY: Guaranteed by the caller.
+    unsafe { append(context, bytes.as_ptr(), bytes.len()) };
 }
 
 impl<'pass> SvgFormattingContext<'pass> {
@@ -1067,7 +1120,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     /// The geometry a shape element draws, in the user units of the viewport it sits in.
-    fn svg_geometry_path(&self, node: Node) -> libgfx_rust::path::OwnedPath {
+    fn svg_geometry_path(&self, node: Node) -> libgfx_rust::path::Path {
         let points = self.run.callbacks.arena().svg_points(node);
         self.shape_geometry()
             .path(self.svg_attributes(node), self.style(node), points.as_deref())
@@ -1384,11 +1437,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     fn svg_text_box_path(
         &mut self,
         text_box: Node,
-    ) -> (
-        libgfx_rust::path::OwnedPath,
-        SvgCssPixelRect,
-        Vec<FfiSvgTextCharacterCell>,
-    ) {
+    ) -> (libgfx_rust::path::Path, SvgCssPixelRect, Vec<FfiSvgTextCharacterCell>) {
         let attributes = self.svg_attributes(text_box);
         // https://svgwg.org/svg2-draft/text.html#TextElementXAttribute
         // the starting X (Y) coordinate for rendering the glyphs corresponding to the given
@@ -1442,7 +1491,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         self.current_text_position.x += shaped.advance;
 
         (
-            libgfx_rust::path::OwnedPath::from_glyph_runs(&shaped.runs),
+            libgfx_rust::path::Path::from_glyph_runs(&shaped.runs),
             shaped.glyph_cells,
             shaped.character_cells,
         )
@@ -1454,11 +1503,8 @@ impl<'pass> SvgFormattingContext<'pass> {
     /// https://svgwg.org/svg2-draft/text.html#TextPathElement
     /// FIXME: The character cells are those of the text shaped from the origin; they aren't moved
     ///        onto the path or rotated along it, so only their advances are meaningful.
-    fn svg_text_path_box_path(
-        &self,
-        text_path_box: Node,
-    ) -> (libgfx_rust::path::OwnedPath, Vec<FfiSvgTextCharacterCell>) {
-        let empty = || libgfx_rust::path::PathBuilder::new().build();
+    fn svg_text_path_box_path(&self, text_path_box: Node) -> (libgfx_rust::path::Path, Vec<FfiSvgTextCharacterCell>) {
+        let empty = || libgfx_rust::path::Path::new();
         let Some(shape_path) = self.svg_referenced_shape_path(text_path_box) else {
             return (empty(), Vec::new());
         };
@@ -1489,7 +1535,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     /// The geometry of the shape element an SVG reference names, read from what that element
     /// published rather than from a box: a `<textPath>`'s target is normally a `<path>` inside a
     /// `<defs>`, and a `<defs>` builds no box at all.
-    fn svg_referenced_shape_path(&self, referring_box: Node) -> Option<libgfx_rust::path::OwnedPath> {
+    fn svg_referenced_shape_path(&self, referring_box: Node) -> Option<libgfx_rust::path::Path> {
         let arena = self.run.callbacks.arena();
         let referrer = arena.node_style_node(referring_box)?;
         let atom = self.svg_attributes(referring_box).reference_fragment_atom;
@@ -2078,7 +2124,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 let (path, character_cells) = self.svg_text_path_box_path(graphics_box);
                 (path, None, Some(character_cells))
             }
-            _ => (libgfx_rust::path::PathBuilder::new().build(), None, None),
+            _ => (libgfx_rust::path::Path::new(), None, None),
         };
 
         // https://svgwg.org/svg2-draft/coords.html#BoundingBoxes

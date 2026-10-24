@@ -74,10 +74,12 @@ Path& Path::operator=(Path&& other)
 
 Gfx::Path Path::to_gfx_path() const
 {
-    auto* path = static_cast<Gfx::Path*>(RustFFI::rust_svg_path_to_gfx_path(m_rust_path));
-    auto result = move(*path);
-    delete path;
-    return result;
+    Vector<u8> bytes;
+    auto append = [](void* context, u8 const* data, size_t length) {
+        static_cast<Vector<u8>*>(context)->append(data, length);
+    };
+    RustFFI::rust_svg_path_encode_gfx_path(m_rust_path, &bytes, append);
+    return Gfx::Path::from_serialized_bytes(bytes);
 }
 
 String Path::serialize() const

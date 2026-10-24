@@ -1581,10 +1581,10 @@ mod tests {
         TransformDataRole,
     };
     use libgfx_rust::filter::Filter;
-    use libgfx_rust::path::OwnedPath;
+    use libgfx_rust::path::Path;
     use libgfx_rust::{
-        Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, IntPoint, MaskKind,
-        Orientation, ScalingMode, WindingRule, translation_matrix,
+        Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, IntPoint,
+        MaskKind, Orientation, ScalingMode, WindingRule, translation_matrix,
     };
 
     const RED: Color = Color(0xffff0000);
@@ -3151,12 +3151,17 @@ mod tests {
     #[test]
     fn clip_paths_are_compared_by_content_across_allocations() {
         let rect = IntRect::new(10, 10, 20, 20);
-        let scene = |path_bytes: &[u8]| {
+        let scene = |apex_x: f32| {
+            let mut path = Path::new();
+            path.move_to(FloatPoint { x: 10.0, y: 30.0 });
+            path.line_to(FloatPoint { x: apex_x, y: 10.0 });
+            path.line_to(FloatPoint { x: 30.0, y: 30.0 });
+            path.close();
             let mut tree = identity_tree();
             let context = clip_context(
                 &mut tree,
                 ClipNodeData::Path(ClipPathData {
-                    path: std::sync::Arc::new(OwnedPath::from_serialized_bytes(path_bytes)),
+                    path: std::sync::Arc::new(path),
                     bounding_rect: rect,
                     fill_rule: WindingRule::Nonzero,
                 }),
@@ -3172,13 +3177,13 @@ mod tests {
                 tree,
             )
         };
-        let (old_display_list, old_tree) = scene(&[1]);
-        let (same_display_list, same_tree) = scene(&[1]);
+        let (old_display_list, old_tree) = scene(20.0);
+        let (same_display_list, same_tree) = scene(20.0);
         assert_eq!(
             damage(&old_display_list, &old_tree, &same_display_list, &same_tree),
             Some(IntRect::default())
         );
-        let (changed_display_list, changed_tree) = scene(&[2]);
+        let (changed_display_list, changed_tree) = scene(25.0);
         assert_eq!(
             damage(&old_display_list, &old_tree, &changed_display_list, &changed_tree),
             Some(IntRect::new(9, 9, 22, 22))

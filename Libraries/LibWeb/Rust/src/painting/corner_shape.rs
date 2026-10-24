@@ -9,8 +9,8 @@
 //! https://drafts.csswg.org/css-borders-4/#corner-shape-rendering
 
 use crate::css::computed_value_views::ComputedValuesView;
-use libgfx_rust::path::{OwnedPath, PathBuilder};
-use libgfx_rust::{CornerRadii, CornerRadius, FloatRect};
+use libgfx_rust::path::Path;
+use libgfx_rust::{CornerRadii, CornerRadius, FloatPoint, FloatRect};
 
 /// The superellipse parameter of each corner, in the order top-left, top-right, bottom-right,
 /// bottom-left.
@@ -432,15 +432,15 @@ pub(crate) fn border_contour_path(
     radii: CornerRadii,
     shapes: CornerShapes,
     insets: Insets,
-) -> OwnedPath {
-    let mut builder = PathBuilder::new();
+) -> Path {
+    let mut builder = Path::new();
     append_border_contour_path(&mut builder, border_rect, radii, shapes, insets);
-    builder.build()
+    builder
 }
 
 /// Appends the border contour path to `builder` as a closed subpath of its own.
 pub(crate) fn append_border_contour_path(
-    builder: &mut PathBuilder,
+    builder: &mut Path,
     border_rect: FloatRect,
     radii: CornerRadii,
     shapes: CornerShapes,
@@ -520,10 +520,16 @@ pub(crate) fn append_border_contour_path(
     let mut first = true;
     let mut extend = |point: Point| {
         if first {
-            builder.move_to(point.x as f32, point.y as f32);
+            builder.move_to(FloatPoint {
+                x: point.x as f32,
+                y: point.y as f32,
+            });
             first = false;
         } else {
-            builder.line_to(point.x as f32, point.y as f32);
+            builder.line_to(FloatPoint {
+                x: point.x as f32,
+                y: point.y as f32,
+            });
         }
     };
     let target_rect = (left, top, right, bottom);

@@ -16,7 +16,7 @@ use ak::Utf16String;
 use libcompositing_rust::display_list::canvas_2d::{Compositing, Paint, Stroke};
 use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, Recorder};
 use libcompositing_rust::display_list::commands::CanvasId;
-use libgfx_rust::path::{OwnedPath, PathBuilder};
+use libgfx_rust::path::Path;
 use libgfx_rust::{AffineTransform, Color, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, WindingRule};
 use libjs_rust::api::{ForeignCellSlot, Gc, Realm, Trace, Visitor, Vm};
 
@@ -145,7 +145,7 @@ pub(crate) struct ContextState {
     states: RefCell<Vec<DrawingState>>,
     /// The current default path, in the coordinates of the current transformation matrix.
     #[gc(untraced)]
-    path: RefCell<OwnedPath>,
+    path: RefCell<Path>,
     /// The matrix in whose coordinates the current default path is.
     ///
     /// NB: This is the current transformation matrix while that matrix is invertible. A path cannot be kept in the
@@ -162,8 +162,8 @@ pub(crate) struct ContextState {
     color_cache: RefCell<Vec<ColorCacheEntry>>,
 }
 
-fn empty_path() -> OwnedPath {
-    PathBuilder::new().build()
+fn empty_path() -> Path {
+    Path::new()
 }
 
 /// The paint of a draw with the style, with the image of a pattern added to the stream of the recorder.
@@ -262,11 +262,11 @@ impl ContextState {
     }
 
     /// The current default path, which nothing may change while the borrow lasts.
-    pub(crate) fn path(&self) -> CellRef<'_, OwnedPath> {
+    pub(crate) fn path(&self) -> CellRef<'_, Path> {
         self.path.borrow()
     }
 
-    pub(crate) fn path_mut(&self) -> RefMut<'_, OwnedPath> {
+    pub(crate) fn path_mut(&self) -> RefMut<'_, Path> {
         self.path.borrow_mut()
     }
 
@@ -699,7 +699,7 @@ impl ContextState {
         state.current_compositing_and_blending_operator == CompositingAndBlendingOperator::SourceOver
     }
 
-    pub(crate) fn fill_internal(&self, path: &OwnedPath, winding_rule: WindingRule) {
+    pub(crate) fn fill_internal(&self, path: &Path, winding_rule: WindingRule) {
         if !self.recorder_is_ready() {
             return;
         }
@@ -746,7 +746,7 @@ impl ContextState {
         self.did_draw();
     }
 
-    pub(crate) fn stroke_internal(&self, path: &OwnedPath) {
+    pub(crate) fn stroke_internal(&self, path: &Path) {
         if !self.recorder_is_ready() {
             return;
         }
@@ -810,7 +810,7 @@ impl ContextState {
         self.did_draw();
     }
 
-    pub(crate) fn clip_internal(&self, path: &OwnedPath, winding_rule: WindingRule) {
+    pub(crate) fn clip_internal(&self, path: &Path, winding_rule: WindingRule) {
         if !self.recorder_is_ready() {
             return;
         }
