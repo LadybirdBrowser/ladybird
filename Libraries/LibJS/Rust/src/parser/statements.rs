@@ -399,11 +399,12 @@ impl Parser<'_> {
         let init_start = self.position();
         let init_starts_with_async_keyword = self.match_token(TokenType::Async);
         let is_var_init = self.match_token(TokenType::Var);
-        let is_using = self.match_for_using_declaration();
+        let is_await_using = self.match_await_using_declaration();
+        let is_using = is_await_using || self.match_for_using_declaration();
         let is_let = self.match_token(TokenType::Let) && (self.flags.strict_mode || self.try_match_let_declaration());
         let is_declaration = is_var_init || is_using || is_let || self.match_token(TokenType::Const);
         let init = if is_using {
-            LocalForInit::Declaration(self.parse_using_declaration(true))
+            LocalForInit::Declaration(self.parse_using_declaration(true, is_await_using))
         } else if is_declaration {
             LocalForInit::Declaration(self.parse_variable_declaration(true))
         } else {
@@ -530,6 +531,12 @@ impl Parser<'_> {
                     self.syntax_error("Missing initializer in const declaration");
                 }
             }
+        }
+        if let LocalForInit::Declaration(ref declaration) = init
+            && let StatementKind::UsingDeclaration(ref using_declaration) = declaration.inner
+            && using_declaration.declarations.iter().any(|d| d.init.is_none())
+        {
+            self.syntax_error("Missing initializer in using declaration");
         }
         if is_await {
             // https://tc39.es/ecma262/#prod-ForInOfStatement
@@ -671,7 +678,18 @@ impl Parser<'_> {
             && !self.done()
         {
             if self.match_declaration() {
-                children.push(self.parse_declaration());
+                let declaration = self.parse_declaration();
+                // https://tc39.es/ecma262/#sec-switch-statement-static-semantics-early-errors
+                // CaseClause : `case` Expression `:` StatementList
+                // DefaultClause : `default` `:` StatementList
+                // - It is a Syntax Error if ContainsUsing of StatementList is true.
+                if matches!(declaration.inner, StatementKind::UsingDeclaration(_)) {
+                    self.syntax_error_at_position(
+                        "'using' declarations are not allowed directly in a case or default clause",
+                        declaration.range.start,
+                    );
+                }
+                children.push(declaration);
             } else {
                 children.push(self.parse_statement(true));
             }
@@ -996,14 +1014,16 @@ impl Parser<'_> {
         if self.token_value(&self.current_token) != utf16!("using") {
             return false;
         }
-        let next = self.next_token();
+        let (next, after_next) = self.next_two_tokens();
         if next.trivia_has_line_terminator {
             return false;
         }
         if next.token_type == TokenType::Identifier {
             let next_val = self.token_original_value(&next);
+            // NB: The `using of` lookahead restriction only applies to for-of and for-await-of, so `for (using of =
+            //     null;;)` declares a binding named `of`.
             if next_val == utf16!("of") {
-                return false;
+                return after_next.token_type == TokenType::Equals;
             }
         }
         // Must be an actual identifier, not just an identifier-name keyword

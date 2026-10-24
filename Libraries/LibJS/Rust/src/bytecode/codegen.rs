@@ -2981,7 +2981,7 @@ fn emit_lexical_declarations_for_block<'a>(
                 }
             }
             StatementKind::UsingDeclaration(declarations) => {
-                for declaration in declarations.iter() {
+                for declaration in &declarations.declarations {
                     let mut names = Vec::new();
                     collect_target_names(&declaration.target, &mut names, &generator.arena);
                     for (name, _) in &names {
@@ -9443,7 +9443,7 @@ fn needs_block_declaration_instantiation(scope: &ScopeData, arena: &crate::ast::
                 }
             }
             StatementKind::UsingDeclaration(declarations) => {
-                for declaration in declarations.iter() {
+                for declaration in &declarations.declarations {
                     let mut names = Vec::new();
                     collect_target_names(&declaration.target, &mut names, arena);
                     if !names.is_empty() {
@@ -9486,7 +9486,7 @@ fn count_lexical_declarations_for_block<'a>(
                 }
             }
             StatementKind::UsingDeclaration(declarations) => {
-                for declaration in declarations.iter() {
+                for declaration in &declarations.declarations {
                     let mut names = Vec::new();
                     collect_target_names(&declaration.target, &mut names, arena);
                     count += u32_from_usize(names.len());

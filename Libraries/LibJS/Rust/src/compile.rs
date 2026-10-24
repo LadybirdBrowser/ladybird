@@ -684,7 +684,7 @@ fn module_environment_binding_names(scope: &ast::ScopeData, arena: &ast::AstAren
                 }
             }
             StatementKind::UsingDeclaration(declarations) => {
-                for declaration in declarations.iter() {
+                for declaration in &declarations.declarations {
                     for_each_bound_name(&declaration.target, arena, &mut |name| {
                         names.push(ak::Utf16FlyString::from_utf16(name));
                     });
@@ -1233,7 +1233,7 @@ pub fn collect_module_declarations(
                 }
             }
             StatementKind::UsingDeclaration(using_declarations) => {
-                for declarator in using_declarations.iter() {
+                for declarator in &using_declarations.declarations {
                     for_each_bound_name(&declarator.target, arena, &mut |name| {
                         declarations.lexical_bindings.push(ModuleLexicalBinding {
                             name: name.to_vec().into(),
@@ -1717,7 +1717,7 @@ pub fn collect_script_declarations(
                 }
             }
             StatementKind::UsingDeclaration(declarations) => {
-                for declaration in declarations.iter() {
+                for declaration in &declarations.declarations {
                     for_each_bound_name(&declaration.target, arena, &mut |name| lexical_names.push(name.into()));
                 }
             }
@@ -1848,7 +1848,7 @@ fn collect_var_scoped_declarations(
                 }
             }
             StatementKind::UsingDeclaration(declarations) => {
-                for declaration in declarations.iter() {
+                for declaration in &declarations.declarations {
                     for_each_bound_name(&declaration.target, arena, &mut |name| {
                         lexical_bindings.push(LexicalBinding {
                             name: name.into(),
@@ -2235,7 +2235,7 @@ fn count_non_local_lex_declarations(scope_id: ast::ScopeId, arena: &ast::AstAren
                 }
             }
             ast::StatementKind::UsingDeclaration(declarations) => {
-                for declaration in declarations.iter() {
+                for declaration in &declarations.declarations {
                     count_non_local_names_in_target(&declaration.target, &mut count, arena);
                 }
             }
