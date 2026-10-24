@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 32 tests
 
-29 Pass
-3 Fail
+31 Pass
+1 Fail
 Pass	Can set 'z-index' to CSS-wide keywords: initial
 Pass	Can set 'z-index' to CSS-wide keywords: inherit
 Pass	Can set 'z-index' to CSS-wide keywords: unset
@@ -11,8 +11,8 @@ Pass	Can set 'z-index' to CSS-wide keywords: revert
 Pass	Can set 'z-index' to var() references:  var(--A)
 Pass	Can set 'z-index' to the 'auto' keyword: auto
 Pass	Can set 'z-index' to a number: 0
-Fail	Can set 'z-index' to a number: -3.14
-Fail	Can set 'z-index' to a number: 3.14
+Pass	Can set 'z-index' to a number: -3.14
+Pass	Can set 'z-index' to a number: 3.14
 Fail	Can set 'z-index' to a number: calc(2 + 3)
 Pass	Setting 'z-index' to a length: 0px throws TypeError
 Pass	Setting 'z-index' to a length: -3.14em throws TypeError

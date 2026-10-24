@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 31 tests
 
-29 Pass
-2 Fail
+30 Pass
+1 Fail
 Pass	Can set 'orphans' to CSS-wide keywords: initial
 Pass	Can set 'orphans' to CSS-wide keywords: inherit
 Pass	Can set 'orphans' to CSS-wide keywords: unset
@@ -11,7 +11,7 @@ Pass	Can set 'orphans' to CSS-wide keywords: revert
 Pass	Can set 'orphans' to var() references:  var(--A)
 Pass	Can set 'orphans' to a number: 0
 Pass	Can set 'orphans' to a number: -3.14
-Fail	Can set 'orphans' to a number: 3.14
+Pass	Can set 'orphans' to a number: 3.14
 Fail	Can set 'orphans' to a number: calc(2 + 3)
 Pass	Setting 'orphans' to a length: 0px throws TypeError
 Pass	Setting 'orphans' to a length: -3.14em throws TypeError
