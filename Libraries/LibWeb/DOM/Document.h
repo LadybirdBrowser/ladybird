@@ -348,7 +348,7 @@ public:
     void set_find_in_page_active_match(GC::Ptr<Range>);
     void collapse_find_in_page_active_match_if_its_text_changed();
     Vector<GC::Ref<Range>> const& find_in_page_highlighted_matches() const { return m_find_in_page_highlighted_matches; }
-    void set_find_in_page_highlighted_matches(Vector<GC::Ref<Range>>);
+    void set_find_in_page_highlighted_matches(GC::RootVector<GC::Ref<Range>>);
     void remove_find_in_page_highlighted_matches_whose_text_changed();
 
     Editing::SpellingMarkers& spelling_markers();

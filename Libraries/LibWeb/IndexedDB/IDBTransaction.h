@@ -11,6 +11,7 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/IDBDatabase.h>
 #include <LibWeb/Bindings/IDBTransaction.h>
 #include <LibWeb/DOM/Event.h>
@@ -46,7 +47,7 @@ public:
     static constexpr size_t connection_offset() { return offsetof(IDBTransaction, m_connection); }
     virtual ~IDBTransaction() override;
 
-    [[nodiscard]] static GC::Ref<IDBTransaction> create(GC::Ref<IDBDatabase>, TransactionMode, TransactionDurability, Vector<GC::Ref<ObjectStore>>);
+    [[nodiscard]] static GC::Ref<IDBTransaction> create(GC::Ref<IDBDatabase>, TransactionMode, TransactionDurability, GC::RootVector<GC::Ref<ObjectStore>>);
     [[nodiscard]] TransactionMode mode() const { return m_mode; }
     [[nodiscard]] TransactionState state() const { return m_state; }
     [[nodiscard]] GC::Ptr<WebIDL::DOMException> error() const { return m_error; }
@@ -84,7 +85,7 @@ public:
     {
         m_scope.remove_first_matching([&](auto& other) { return object_store == other; });
     }
-    void set_scope(Vector<GC::Ref<ObjectStore>> scope) { m_scope = move(scope); }
+    void set_scope(Vector<GC::Ref<ObjectStore>>&& scope) { m_scope = move(scope); }
 
     GC::Ref<IDBObjectStore> get_or_create_object_store_handle(GC::Ref<ObjectStore>);
     GC::Ptr<IDBObjectStore> object_store_handle_for(GC::Ref<ObjectStore>);
@@ -119,7 +120,7 @@ public:
     void notify_devtools_of_committed_changes();
 
 protected:
-    IDBTransaction(GC::Ref<IDBDatabase>, TransactionMode, TransactionDurability, Vector<GC::Ref<ObjectStore>>);
+    IDBTransaction(GC::Ref<IDBDatabase>, TransactionMode, TransactionDurability, Vector<GC::Ref<ObjectStore>>&&);
     virtual void visit_edges(Visitor& visitor) override;
     virtual EventTarget* get_parent(DOM::Event const&) override;
 

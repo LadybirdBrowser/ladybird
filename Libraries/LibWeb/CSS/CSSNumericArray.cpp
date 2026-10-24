@@ -12,12 +12,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSNumericArray);
 
-GC::Ref<CSSNumericArray> CSSNumericArray::create(Vector<GC::Ref<CSSNumericValue>> values)
+GC::Ref<CSSNumericArray> CSSNumericArray::create(GC::RootVector<GC::Ref<CSSNumericValue>> values)
 {
     return GC::Heap::the().allocate<CSSNumericArray>(move(values));
 }
 
-CSSNumericArray::CSSNumericArray(Vector<GC::Ref<CSSNumericValue>> values)
+CSSNumericArray::CSSNumericArray(Vector<GC::Ref<CSSNumericValue>>&& values)
     : m_values(move(values))
 {
 }

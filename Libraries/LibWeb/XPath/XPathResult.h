@@ -50,7 +50,7 @@ public:
     void set_number(WebIDL::Double number_value);
     void set_string(Utf16String string_value);
     void set_boolean(bool boolean_value);
-    void set_node_set(Vector<GC::Ptr<DOM::Node>> node_set, unsigned short type);
+    void set_node_set(Vector<GC::Ptr<DOM::Node>>&& node_set, unsigned short type);
 
 private:
     WebIDL::UnsignedShort m_result_type { 0 };

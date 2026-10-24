@@ -8,6 +8,7 @@
 
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Selection/Selection.h>
@@ -63,14 +64,14 @@ void canonicalize_collapsed_selection_for_editing(Selection&);
 void canonicalize_whitespace(DOM::BoundaryPoint, bool fix_collapsed_space = true);
 void canonicalize_whitespace_after_selection_replacement(DOM::BoundaryPoint);
 void canonicalize_whitespace_after_node_insertion(DOM::BoundaryPoint);
-Vector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const&, GC::Ref<DOM::Element>);
+GC::RootVector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const&, GC::Ref<DOM::Element>);
 void delete_the_selection(Selection&, bool block_merging = true, bool strip_wrappers = true, Selection::Direction = Selection::Direction::Forwards);
 Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node>, Utf16FlyString const& command);
 DOM::BoundaryPoint first_equivalent_point(DOM::BoundaryPoint);
 void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node>);
 bool follows_a_line_break(GC::Ref<DOM::Node>);
 void force_the_value(GC::Ref<DOM::Node>, Utf16FlyString const&, Optional<Utf16View>);
-void indent(Vector<GC::Ref<DOM::Node>>);
+void indent(GC::RootVector<GC::Ref<DOM::Node>>);
 bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, Utf16FlyString> child, Variant<GC::Ref<DOM::Node>, Utf16FlyString> parent);
 bool is_block_boundary_point(DOM::BoundaryPoint);
 bool is_block_end_point(DOM::BoundaryPoint);
@@ -139,7 +140,7 @@ Utf16String standard_inline_value(DOM::Document const&, Utf16FlyString const& co
 void toggle_lists(DOM::Document&, Utf16FlyString const&);
 bool values_are_equivalent(Utf16FlyString const&, Optional<Utf16View>, Optional<Utf16View>);
 bool values_are_loosely_equivalent(Utf16FlyString const&, Optional<Utf16View>, Optional<Utf16View>);
-GC::Ptr<DOM::Node> wrap(Vector<GC::Ref<DOM::Node>>, Function<bool(GC::Ref<DOM::Node>)> sibling_criteria, Function<GC::Ptr<DOM::Node>()> new_parent_instructions);
+GC::Ptr<DOM::Node> wrap(GC::RootVector<GC::Ref<DOM::Node>>, Function<bool(GC::Ref<DOM::Node>)> sibling_criteria, Function<GC::Ptr<DOM::Node>()> new_parent_instructions);
 
 // Utility methods:
 

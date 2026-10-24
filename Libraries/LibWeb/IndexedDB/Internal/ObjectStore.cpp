@@ -128,7 +128,7 @@ void ObjectStore::clear_records()
 {
     GC::ConservativeVector deleted_records { move(m_records) };
     if (m_mutation_log && !deleted_records.is_empty())
-        m_mutation_log->note_records_deleted(deleted_records);
+        m_mutation_log->note_records_deleted(move(deleted_records));
 }
 
 // https://w3c.github.io/IndexedDB/#generate-a-key

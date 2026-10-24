@@ -1303,10 +1303,11 @@ void LibJSGCVisitor::validate_object_on_stack(clang::VarDecl const& variable, cl
     if (type.isNull())
         return;
 
-    // The collector's own locals hold cells while it collects, when nothing allocates.
-    if (file_path_of_declaration(m_context.getSourceManager(), variable).find("/Libraries/LibGC/") != std::string::npos)
-        return;
+    validate_type_on_stack(type, location);
+}
 
+void LibJSGCVisitor::validate_type_on_stack(clang::QualType type, clang::SourceLocation location)
+{
     std::set<clang::CXXRecordDecl const*> visited;
     auto container = find_container_with_unscanned_gc_pointers(type, visited);
     if (!container)
@@ -1319,9 +1320,16 @@ void LibJSGCVisitor::validate_object_on_stack(clang::VarDecl const& variable, cl
 
 bool LibJSGCVisitor::VisitVarDecl(clang::VarDecl* variable)
 {
-    // A container passed by value is usually moved into a visited member before anything can allocate.
-    if (!variable->hasLocalStorage() || variable->isImplicit() || llvm::isa<clang::ParmVarDecl>(variable))
+    if (!variable->hasLocalStorage() || variable->isImplicit())
         return true;
+
+    // A parameter passed by value is an object on the stack of the definition, like a local. A container that is moved
+    // into a field is taken by rvalue reference instead, so that the caller keeps it until then.
+    if (llvm::isa<clang::ParmVarDecl>(variable)) {
+        auto const* function = llvm::dyn_cast<clang::FunctionDecl>(variable->getDeclContext());
+        if (!function || !function->doesThisDeclarationHaveABody() || function->isImplicit())
+            return true;
+    }
 
     validate_object_on_stack(*variable, variable->getLocation());
     return true;
@@ -1335,6 +1343,23 @@ bool LibJSGCVisitor::VisitCXXForRangeStmt(clang::CXXForRangeStmt* for_range)
         return true;
     if (auto const* range_variable = llvm::dyn_cast<clang::VarDecl>(range_statement->getSingleDecl()))
         validate_object_on_stack(*range_variable, for_range->getRangeInit()->getBeginLoc());
+    return true;
+}
+
+// A container returned by value becomes a temporary or a local of the caller.
+bool LibJSGCVisitor::VisitFunctionDecl(clang::FunctionDecl* function)
+{
+    if (function->doesThisDeclarationHaveABody() && !function->isImplicit() && !function->getReturnType()->isReferenceType())
+        validate_type_on_stack(function->getReturnType(), function->getLocation());
+    return true;
+}
+
+// The call operator of a lambda is only visited through its body.
+bool LibJSGCVisitor::VisitLambdaExpr(clang::LambdaExpr* lambda)
+{
+    auto return_type = lambda->getCallOperator()->getReturnType();
+    if (!return_type->isReferenceType())
+        validate_type_on_stack(return_type, lambda->getBeginLoc());
     return true;
 }
 

@@ -50,7 +50,7 @@ void XPathResult::set_boolean(bool boolean_value)
     m_boolean_value = boolean_value;
 }
 
-void XPathResult::set_node_set(Vector<GC::Ptr<DOM::Node>> node_set, unsigned short type)
+void XPathResult::set_node_set(Vector<GC::Ptr<DOM::Node>>&& node_set, unsigned short type)
 {
     if (type >= XPathResult::UNORDERED_NODE_ITERATOR_TYPE && type <= XPathResult::FIRST_ORDERED_NODE_TYPE)
         m_result_type = type;
