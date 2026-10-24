@@ -38,6 +38,24 @@ float NumberPercentage::resolve_relative_to(float length) const
     return m_value * length;
 }
 
+Optional<float> parse_number(Utf16View input)
+{
+    float value;
+    if (!RustFFI::rust_parse_svg_number(ffi_svg_input(input), &value))
+        return {};
+    return value;
+}
+
+Optional<NumberOptionalNumber> parse_number_optional_number(Utf16View input)
+{
+    float first;
+    float second;
+    bool has_second;
+    if (!RustFFI::rust_parse_svg_number_optional_number(ffi_svg_input(input), &first, &second, &has_second))
+        return {};
+    return NumberOptionalNumber { first, has_second ? Optional<float> { second } : OptionalNone {} };
+}
+
 Optional<NumberPercentage> parse_number_percentage(Utf16View input)
 {
     float value;

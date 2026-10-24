@@ -122,6 +122,23 @@ impl<'a> Parser<'a> {
         Ok(sign * self.parse_nonnegative_number()?)
     }
 
+    // https://svgwg.org/svg2-draft/types.html#syntax
+    // A <number> as CSS defines it, which unlike a number in path data does not allow a dot that is not followed by a digit.
+    pub(super) fn parse_css_number(&mut self) -> Result<f32, ()> {
+        let start = self.position;
+        let number = self.parse_number()?;
+        let dot = u16::from(b'.');
+        let is_digit = |unit: u16| (u16::from(b'0')..=u16::from(b'9')).contains(&unit);
+        for index in start..self.position {
+            if self.input.code_unit_at(index) == dot
+                && (index + 1 == self.position || !is_digit(self.input.code_unit_at(index + 1)))
+            {
+                return Err(());
+            }
+        }
+        Ok(number)
+    }
+
     // https://www.w3.org/TR/SVG11/paths.html#PathDataBNF
     pub(super) fn parse_nonnegative_number(&mut self) -> Result<f32, ()> {
         let starts_with_digit = self.current_ascii().is_some_and(|unit| unit.is_ascii_digit());
