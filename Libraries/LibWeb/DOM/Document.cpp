@@ -6430,6 +6430,12 @@ void Document::destroy()
         return task.document() == this;
     });
 
+    // AD-HOC: Stop running "the end" for this document, whose remaining steps would have run in those tasks.
+    if (m_html_parser_end_state) {
+        m_html_parser_end_state->cancel();
+        m_html_parser_end_state = nullptr;
+    }
+
     // AD-HOC: Mark this document as destroyed so we can remove tasks from the queue that will never be able to run.
     m_has_been_destroyed = true;
     rendering_pending_document_changed(*this);
