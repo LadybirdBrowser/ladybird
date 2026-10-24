@@ -71,7 +71,7 @@ private:
 
     virtual void push_clip(Compositing::ReplayClip const&) = 0;
     // A path stays the same for as long as it has its identity.
-    virtual void push_clip_path(Gfx::Path const&, u64 path_identity, Gfx::WindingRule) = 0;
+    virtual void push_clip_path(Gfx::PathData const&, u64 path_identity, Gfx::WindingRule) = 0;
     virtual void push_clip_path_bytes(ReadonlyBytes, Gfx::WindingRule) = 0;
     virtual void push_transform(Gfx::AffineTransform const&) = 0;
     virtual void push_layer(Compositing::ReplayLayer const&) = 0;

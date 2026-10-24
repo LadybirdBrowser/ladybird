@@ -106,6 +106,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "VideoSinkResourceId",
             "Canvas2DPaintKind",
             "Canvas2DPatternRepetition",
+            "PathGeometryData",
         ]
         .map(String::from),
     );
@@ -157,6 +158,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("Canvas2DPatternRepetition", "Compositing::Canvas2DPatternRepetition"),
         ("CapStyle", "Gfx::Path::CapStyle"),
         ("JoinStyle", "Gfx::Path::JoinStyle"),
+        ("PathGeometryData", "Gfx::FFI::PathGeometryData"),
     ] {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }

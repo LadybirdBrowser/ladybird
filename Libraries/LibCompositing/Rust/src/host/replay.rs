@@ -7,6 +7,7 @@
 use crate::display_list::commands::{DisplayListCommandType, EffectNodeIndex, ReplayClip, ReplayLayer, ReplayMask};
 use crate::display_list::replay::ReplayPainter;
 use libgfx_rust::path::OwnedPath;
+use libgfx_rust::path::ffi::PathGeometryData;
 use libgfx_rust::{AffineTransform, FloatMatrix4x4, FloatVector3, IntRect, WindingRule};
 use std::ffi::c_void;
 
@@ -18,8 +19,8 @@ pub struct FfiDisplayListReplayCallbacks {
     pub set_matrix: unsafe extern "C" fn(*mut c_void, *const FloatMatrix4x4),
     pub would_be_fully_clipped_by_painter: unsafe extern "C" fn(*mut c_void, IntRect) -> bool,
     pub push_clip: unsafe extern "C" fn(*mut c_void, *const ReplayClip),
-    /// Takes the path, the identity of the path, and the fill rule.
-    pub push_clip_path: unsafe extern "C" fn(*mut c_void, *const c_void, u64, WindingRule),
+    /// Takes the contours of the path, the identity of the path, and the fill rule.
+    pub push_clip_path: unsafe extern "C" fn(*mut c_void, *const PathGeometryData, u64, WindingRule),
     pub push_layer: unsafe extern "C" fn(*mut c_void, *const ReplayLayer),
     // Arguments: the mask, and the layer whose backdrop filter the mask's layer starts with, or null.
     pub push_mask: unsafe extern "C" fn(*mut c_void, *const ReplayMask, *const ReplayLayer),
@@ -54,8 +55,9 @@ impl ReplayPainter for FfiDisplayListReplayCallbacks {
     }
 
     fn push_clip_path(&mut self, path: &OwnedPath, winding_rule: WindingRule) {
-        // SAFETY: The C++ painter reads the Gfx::Path synchronously; the tree keeps it alive.
-        unsafe { (self.push_clip_path)(self.context, path.as_raw(), path.identity(), winding_rule) };
+        let data = path.geometry_data();
+        // SAFETY: The C++ painter reads the contours synchronously; the tree keeps the path alive.
+        unsafe { (self.push_clip_path)(self.context, &raw const data, path.identity(), winding_rule) };
     }
 
     fn push_layer(&mut self, layer: &ReplayLayer) {

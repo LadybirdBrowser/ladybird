@@ -69,6 +69,7 @@ unsafe extern "C" {
         run_count: usize,
         offset: f32,
     ) -> *mut c_void;
+    fn ladybird_gfx_path_data(path: *const c_void, out_data: *mut ffi::PathGeometryData);
     fn ladybird_gfx_font_glyph_outlines(
         font: *const c_void,
         glyphs: *const crate::text_layout::DrawGlyph,
@@ -824,6 +825,16 @@ impl OwnedPath {
         // into the String whose pointer it receives.
         unsafe { ladybird_gfx_path_append_svg_string(self.raw.as_ptr(), append_to_string, (&raw mut output).cast()) };
         output
+    }
+
+    /// The contours of the path, as C++ reads them, valid until the path changes or is dropped.
+    pub fn geometry_data(&self) -> ffi::PathGeometryData {
+        let mut data = std::mem::MaybeUninit::uninit();
+        // SAFETY: The path is live for the duration of the call, which writes the data.
+        unsafe {
+            ladybird_gfx_path_data(self.raw.as_ptr(), data.as_mut_ptr());
+            data.assume_init()
+        }
     }
 }
 

@@ -228,16 +228,21 @@ String Path::to_svg_string() const
     return string;
 }
 
-PathData Path::data() const
+PathData PathData::from_ffi(FFI::PathGeometryData const& data)
 {
-    FFI::PathGeometryData data;
-    FFI::path_geometry_data(m_geometry, &data);
     return {
         .verbs = { reinterpret_cast<PathVerb const*>(data.verbs), data.verb_count },
         .points = { reinterpret_cast<FloatPoint const*>(data.points), data.point_count },
         .conic_weights = { data.conic_weights, data.conic_weight_count },
         .winding_rule = static_cast<WindingRule>(data.fill_rule),
     };
+}
+
+PathData Path::data() const
+{
+    FFI::PathGeometryData data;
+    FFI::path_geometry_data(m_geometry, &data);
+    return PathData::from_ffi(data);
 }
 
 bool Path::operator==(Path const& other) const
@@ -521,6 +526,7 @@ void* ladybird_gfx_path_stroke_to_fill(void const*, float thickness, i32 cap_sty
 void ladybird_gfx_path_set_fill_type(void*, i32);
 void* ladybird_gfx_path_create_from_glyph_runs(Gfx::FFI::FfiGlyphRun const* runs, size_t run_count);
 void* ladybird_gfx_path_place_glyph_runs_along(void const* path, Gfx::FFI::FfiGlyphRun const* runs, size_t run_count, float offset);
+void ladybird_gfx_path_data(void const*, Gfx::FFI::PathGeometryData*);
 void ladybird_gfx_font_glyph_outlines(void const* font, Gfx::FFI::DrawGlyph const* glyphs, size_t glyph_count, void (*visit)(void*, size_t, Gfx::FFI::PathGeometryData const*), void* context);
 }
 
@@ -712,6 +718,20 @@ extern "C" void* ladybird_gfx_path_stroke_to_fill(void const* path, float thickn
         .dash_offset = dash_offset,
     };
     return new Gfx::Path(static_cast<Gfx::Path const*>(path)->stroke_to_fill(style));
+}
+
+extern "C" void ladybird_gfx_path_data(void const* path, Gfx::FFI::PathGeometryData* out_data)
+{
+    auto data = static_cast<Gfx::Path const*>(path)->data();
+    *out_data = {
+        .verbs = reinterpret_cast<u8 const*>(data.verbs.data()),
+        .verb_count = data.verbs.size(),
+        .points = reinterpret_cast<Gfx::FFI::FloatPoint const*>(data.points.data()),
+        .point_count = data.points.size(),
+        .conic_weights = data.conic_weights.data(),
+        .conic_weight_count = data.conic_weights.size(),
+        .fill_rule = static_cast<u8>(data.winding_rule),
+    };
 }
 
 extern "C" bool ladybird_gfx_path_equals(void const* a, void const* b)

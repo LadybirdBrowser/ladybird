@@ -1528,7 +1528,7 @@ void DisplayListPlayerSkia::push_clip(ReplayClip const& clip)
     clip_to_rounded_rect(canvas, clip.rect, clip.corner_radii, clip.mode == ClipMode::Difference ? SkClipOp::kDifference : SkClipOp::kIntersect);
 }
 
-void DisplayListPlayerSkia::push_clip_path(Gfx::Path const& path, u64 path_identity, Gfx::WindingRule winding_rule)
+void DisplayListPlayerSkia::push_clip_path(Gfx::PathData const& path, u64 path_identity, Gfx::WindingRule winding_rule)
 {
     surface().canvas().save();
     // A path that stays the same keeps one Skia path, so caches that are keyed on it work.
