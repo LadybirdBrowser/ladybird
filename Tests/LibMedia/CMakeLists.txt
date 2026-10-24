@@ -4,6 +4,7 @@ set(TEST_SOURCES
     TestADTSReader.cpp
     TestAudioBlockTimingRing.cpp
     TestAudioDiscardIntervals.cpp
+    TestAudioMixer.cpp
     TestBitReader.cpp
     TestBufferedRanges.cpp
     TestCICP.cpp

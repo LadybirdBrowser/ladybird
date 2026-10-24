@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Processors/AudioMixer.h>
@@ -210,7 +211,14 @@ PipelineStatus AudioMixer::mix_into_output_block_while_locked()
     auto max_frame_count = AudioBlock::max_frame_count(channel_count);
 
     auto buffer_start_frame = m_next_frame_to_write;
-    auto frames_end_cap = buffer_start_frame + static_cast<i64>(max_frame_count);
+    Checked<i64> checked_frames_end_cap = buffer_start_frame;
+    checked_frames_end_cap += static_cast<i64>(max_frame_count);
+    // A seek to the end of representable time has no frames left to mix.
+    if (checked_frames_end_cap.has_overflow()) {
+        drop_buffered_data_while_locked();
+        return PipelineStatus::EndOfStream;
+    }
+    auto frames_end_cap = checked_frames_end_cap.value();
 
     auto combined_status_after_mix = PipelineStatus::EndOfStream;
     i64 latest_mixed_frame = frames_end_cap;
