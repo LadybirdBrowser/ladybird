@@ -873,6 +873,8 @@ GC::Ref<HTML::LocalNavigable> Page::begin_hosting(HTML::CrossProcessId id, HTML:
         auto& browsing_context = *stand_in->active_browsing_context();
         browsing_context.set_browsing_context_group_id(replicated_state.browsing_context_group_id);
         browsing_context.set_is_auxiliary(replicated_state.active_browsing_context_is_auxiliary);
+        stand_in->set_is_created_by_web_content(replicated_state.top_level_is_created_by_web_content);
+        stand_in->set_session_history_entry_count(replicated_state.top_level_session_history_entry_count);
         VERIFY(m_top_level_traversable.ptr() == navigable.ptr());
         m_top_level_traversable = stand_in;
         update_needs_beforeunload_check();
