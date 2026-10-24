@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .container {
+        position: relative;
+        height: 50px;
+        font-size: 32px;
+    }
+    .shrink-to-fit {
+        position: absolute;
+        top: 0;
+    }
+    .generator::before {
+        display: contents;
+        content: "generated text";
+    }
+    .recolored {
+        color: green;
+    }
+</style>
+<div class="container">
+    <div id="mutated" class="shrink-to-fit"><span id="restyled" class="generator">a</span><span id="sibling">b</span></div>
+</div>
+<div class="container">
+    <div id="reference" class="shrink-to-fit"><span id="built-recolored" class="generator recolored">a</span><span>c</span></div>
+</div>
+<script>
+    asyncTest(async done => {
+        await animationFrame();
+
+        restyled.classList.add("recolored");
+        await animationFrame();
+        sibling.textContent = "c";
+        await animationFrame();
+        await animationFrame();
+
+        const generatorWidth = restyled.getBoundingClientRect().width;
+        const referenceGeneratorWidth = document.getElementById("built-recolored").getBoundingClientRect().width;
+        println(`generated text kept: ${generatorWidth === referenceGeneratorWidth}`);
+        println(`width matches the box built recolored: ${mutated.getBoundingClientRect().width === reference.getBoundingClientRect().width}`);
+        done();
+    });
+</script>

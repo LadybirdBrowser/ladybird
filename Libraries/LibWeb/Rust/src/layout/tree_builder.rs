@@ -3174,13 +3174,8 @@ fn stamp_pseudo_element_box_row(
     host.arena()
         .stamp_pseudo_element_row(slot, kind, generator, generated_for);
     if decision == FfiPseudoElementDecision::Contents {
-        host.arena().update_layout_style(host.host_calls(), slot, |style| {
-            style.set_display(FfiDisplay::outside_and_inside(
-                crate::css::css_enums::display_outside::INLINE,
-                crate::css::css_enums::display_inside::FLOW,
-                false,
-            ));
-        });
+        host.arena()
+            .make_display_contents_pseudo_element_box_inline(host.host_calls(), slot);
     }
     if is_list_item_marker {
         host.arena()

@@ -3815,9 +3815,31 @@ impl LayoutNodeArena {
         self.update_layout_style(host_calls, node, LayoutStyle::reset_table_properties);
     }
 
+    pub(crate) fn make_display_contents_pseudo_element_box_inline(&self, host_calls: HostCalls<'_>, node: NodeSlotId) {
+        self.update_layout_style(host_calls, node, |style| {
+            style.set_display(crate::layout::FfiDisplay::outside_and_inside(
+                crate::css::css_enums::display_outside::INLINE,
+                crate::css::css_enums::display_inside::FLOW,
+                false,
+            ));
+        });
+    }
+
+    fn is_display_contents_pseudo_element_box_holding_its_published_display(&self, node: NodeSlotId) -> bool {
+        let data = self.data(node);
+        data.kind.get() == NodeKind::InlineNode
+            && super::node_facts::has_flag(data, NodeFlag::IsPseudoElementPrincipalBox)
+            && self
+                .style_payloads(node)
+                .is_some_and(|payloads| ComputedValuesView::new(&payloads.groups).display().is_contents())
+    }
+
     pub(crate) fn reinherit_anonymous_descendants(&self, host_calls: HostCalls<'_>, node: NodeSlotId) {
         if self.node_style_record(node) == 0 {
             return;
+        }
+        if self.is_display_contents_pseudo_element_box_holding_its_published_display(node) {
+            self.make_display_contents_pseudo_element_box_inline(host_calls, node);
         }
         let parent = self.data(node).parent.get();
         let parent_is_table_wrapper_of_this_table_box = !parent.is_invalid()
