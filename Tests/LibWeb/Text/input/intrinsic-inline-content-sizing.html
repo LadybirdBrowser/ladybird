@@ -127,6 +127,14 @@
             ["list item", "", '<ul style="margin: 0; padding-left: 20px"><li>alpha beta</li></ul>'],
             ["percentage height through anonymous block", "height: 100px", '<div>alpha</div>beta <span class=atomic style="height: 50%; aspect-ratio: 2"></span>'],
             ["size-contained blocks", "", '<div style="contain: size">alpha beta gamma</div><div style="contain: inline-size; contain-intrinsic-width: 30px">alpha beta gamma</div><div>delta</div>'],
+            ["block table", "", '<table style="border-spacing: 3px"><tr><td>alpha beta</td><td>gamma</td></tr></table>'],
+            ["inline table with caption", "", '<table style="display: inline-table; border-spacing: 0"><caption>alpha beta gamma delta</caption><tr><td>x</td></tr></table> epsilon'],
+            ["collapsed table borders", "", '<table style="border-collapse: collapse; border: 6px solid"><tr><td style="border: 4px solid; padding: 0 3px">alpha beta</td><td style="border: 2px solid">gamma</td></tr></table>'],
+            ["fixed table layout", "", '<table style="table-layout: fixed; width: 150px; border-spacing: 0"><tr><td style="width: 40px">alpha beta</td><td>gamma delta</td></tr></table>'],
+            ["table constraints", "", '<table style="min-width: 130px; padding: 0 4px; border: 3px solid"><tr><td>alpha beta</td></tr></table><table style="max-width: 60px; border-spacing: 0"><tr><td>alpha beta gamma delta</td></tr></table>'],
+            ["floating table", "", '<table style="float: left; border-spacing: 0"><tr><td>alpha beta</td></tr></table>gamma'],
+            ["floating table with collapsed borders", "", '<table style="float: left; border-collapse: collapse"><tr><td style="border: 4px solid">alpha beta</td><td style="border: 4px solid">gamma</td></tr></table>'],
+            ["percentage height table cell", "height: 80px", '<table style="height: 100%; border-spacing: 0"><tr><td style="height: 50%">alpha beta</td></tr></table>'],
         ];
         for (const [name, declarations, content] of cases) {
             const container = document.createElement("div");
@@ -224,6 +232,27 @@
         document.body.append(flexContainer);
         println(`nowrap flex item width: ${flexItem.offsetWidth}`);
         flexContainer.remove();
+
+        const tableHost = document.createElement("div");
+        tableHost.style.cssText = "display:inline-block;font:20px/30px Ahem";
+        tableHost.innerHTML = "<table style='display:inline-table'><caption>AB CD</caption><tr><td>ABCD EF</td><td style='height:70px'>GH</td></tr><tr><td rowspan=2>IJ</td></tr></table>";
+        const tableWork = layoutWork(() => document.body.append(tableHost));
+        println(`inline table in an inline-block: width ${tableHost.offsetWidth}, runs under inline size measurements ${runsUnderInlineSizeMeasurements(tableWork.events)}`);
+        tableHost.remove();
+
+        for (const [name, hostStyle, tableStyle] of [
+            ["percentage max-width table in a flex container", "display:flex;width:400px", "max-width:50%"],
+            ["min-content max-width table in a flex container", "display:flex;width:400px", "width:300px;max-width:min-content"],
+            ["percentage max-width floating table", "width:400px", "float:left;max-width:50%"],
+        ]) {
+            const host = document.createElement("div");
+            host.style.cssText = `${hostStyle};font:20px/30px Ahem`;
+            host.innerHTML = `<table style="${tableStyle};border-spacing:0"><caption>AB</caption><tr><td style="padding:0">ABCD EF GH IJ KL</td></tr></table><div style="width:10px;height:10px"></div>`;
+            document.body.append(host);
+            const table = host.querySelector("table");
+            println(`${name}: table width ${table.offsetWidth}, caption width ${table.querySelector("caption").offsetWidth}`);
+            host.remove();
+        }
 
         for (const whitespace of ["normal", "pre-wrap", "break-spaces"]) {
             for (const width of ["min-content", "max-content"]) {

@@ -382,11 +382,7 @@ pub(super) fn content_sizes_of_block_container(
                 continue;
             }
             let contributions = if child_facts.is_table_wrapper() {
-                sizing.block_level_table_wrapper_outer_inline_contributions(
-                    child,
-                    scope.available_block_size(),
-                    child_constraints,
-                )
+                sizing.block_level_table_wrapper_outer_inline_contributions(child, child_constraints)
             } else {
                 sizing.outer_inline_contributions(child, scope.available_block_size(), child_constraints)
             };
@@ -437,6 +433,48 @@ pub(super) fn content_sizes_of_block_container(
                 .largest_of(largest_column_spanner_contributions)
         } else {
             contributions_of_children.largest
+        };
+        sizing_context::ContentInlineSizes {
+            sizes,
+            first_line_max_content: FirstLineMaxContent::without_floats(sizes.max),
+            dependencies: IntrinsicMeasurementDependencies {
+                percentage_block_size: sizing.resolve_percentage_block_size_dependency(node),
+                percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(node),
+                block_size: depends_on_block_size,
+            },
+        }
+    }))
+}
+
+pub(super) fn content_sizes_of_table(
+    callbacks: LayoutPass<'_>,
+    scope: &ContentSizingScope,
+    constraints: ContainingBlockConstraints,
+    depends_on_block_size: bool,
+) -> Option<sizing_context::ContentInlineSizes> {
+    let node = scope.node;
+    let facts = NodeFacts::new(&callbacks, node);
+    let is_table_box = formatting_context::independent_formatting_context_type(node, &callbacks)
+        == formatting_context::FormattingContextType::Table;
+    if !(facts.is_table_wrapper() || is_table_box)
+        || StyleValues::for_node(&callbacks, node).writing_mode() != writing_mode::HORIZONTAL_TB
+        || establishes_orthogonal_flow(&callbacks, node)
+    {
+        return None;
+    }
+    Some(scope.enter(callbacks, |run| {
+        let sizing = run.sizing();
+        let sizes = if is_table_box {
+            table_formatting_context::TableFormattingContext::new(run).content_inline_sizes(LayoutInput::new(
+                AvailableSpace {
+                    inline_size: AvailableSize::MaxContent,
+                    block_size: scope.available_block_size(),
+                },
+                constraints,
+                ParticipationInParentFormattingContext::Root,
+            ))
+        } else {
+            sizing.table_wrapper_content_inline_sizes(node, scope.available_block_size(), constraints)
         };
         sizing_context::ContentInlineSizes {
             sizes,

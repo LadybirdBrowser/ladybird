@@ -92,6 +92,14 @@ block button: 108x42, 58x62, 108x42, 108x42
 list item: 120x20, 70x40, 120x20, 120x20
 percentage height through anonymous block: 150x100, 100x100, 150x100, 120x100
 size-contained blocks: 50x80, 50x80, 50x80, 50x80
+block table: 163x28, 113x48, 163x28, 120x48
+inline table with caption: 130x108, 70x128, 130x108, 120x128
+collapsed table borders: 174x34, 124x52, 174x34, 124x52
+fixed table layout: 150x42, 150x42, 150x42, 150x42
+table constraints: 130x114, 130x114, 130x114, 130x114
+floating table: 152x22, 52x62, 152x22, 120x42
+floating table with collapsed borders: 166x30, 116x50, 166x30, 120x50
+percentage height table cell: 102x80, 52x80, 102x80, 102x80
 words, min-content: [80,90]
 words, max-content: [200,30]
 words, fit-content: [200,30]
@@ -172,6 +180,10 @@ changed text width: 160
 changed font width: 320
 decorated replacement width: 170
 nowrap flex item width: 100
+inline table in an inline-block: width 190, runs under inline size measurements 0
+percentage max-width table in a flex container: table width 200, caption width 200
+min-content max-width table in a flex container: table width 80, caption width 80
+percentage max-width floating table: table width 200, caption width 200
 normal, min-content: width 80, runs under inline size measurements 0
 normal, max-content: width 200, runs under inline size measurements 0
 pre-wrap, min-content: width 80, runs under inline size measurements 0

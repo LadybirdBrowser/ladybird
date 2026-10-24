@@ -181,10 +181,6 @@ impl<'pass> MeasurementState<'pass> {
         )
     }
 
-    pub(crate) fn callbacks(&self) -> &LayoutPass<'_> {
-        &self.callbacks
-    }
-
     pub(crate) fn create_used_values(&self, node: Node, constraints: ContainingBlockConstraints) -> UsedValues {
         used_values::create_used_values(&self.callbacks, node, constraints)
     }
