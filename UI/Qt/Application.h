@@ -55,7 +55,7 @@ public:
 
     void open_new_tab();
     void open_new_window(WebView::IsPrivate);
-    void reopen_recently_closed_tab();
+    void reopen_recently_closed_tab(BrowserWindow* target_window);
     void open_file();
 
     void restart_private_browsing_session();
