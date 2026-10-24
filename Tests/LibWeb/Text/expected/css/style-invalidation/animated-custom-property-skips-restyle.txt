@@ -1,0 +1,3 @@
+plain: skipped, rotate(45deg)
+inactive: skipped, rotate(45deg)
+ordinary: recomputed, rotate(45deg)

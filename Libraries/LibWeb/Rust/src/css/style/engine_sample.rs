@@ -675,6 +675,7 @@ impl super::StyleEngine {
             custom_property_environments,
             inheritance_parent_style_record,
             environment: &environment,
+            custom_property_registration_generation: inputs.custom_property_registration_generation,
             element_box_slot: crate::layout::node_data::NodeSlotId::INVALID.index,
         };
         crate::css::style_compute::sample_without_host(

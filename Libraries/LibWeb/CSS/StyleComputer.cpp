@@ -788,6 +788,7 @@ NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sam
             custom_property_data ? custom_property_data->identity() : 0,
             inheritance_custom_property_data ? inheritance_custom_property_data->identity() : 0,
         },
+        .custom_property_registration_generation = document().custom_property_registration_generation(),
         .inheritance_parent_style_record = inheritance_parent.has_value() ? inheritance_parent->style_record_identity().value() : 0,
         .environment = &sample->environment,
         .element_box_slot = Layout::Node::slot_id(abstract_element.element().unsafe_layout_node(read)).index,
@@ -840,6 +841,7 @@ void StyleComputer::finish_animation_sample(AnimationSample& sample, ComputedVal
     case ComputedValuesFFI::FfiHostAnimationSampleOutcome::Evaluated:
         break;
     }
+    computed_properties.set_animated_custom_properties_trigger_restyle(Badge<StyleComputer> {}, result.custom_properties_trigger_restyle);
     m_keyframes_inherited_non_inherited_style_groups |= result.keyframes_inherited_non_inherited_style_groups;
     if (result.depends_on_viewport_metrics)
         computed_properties.set_depends_on_viewport_metrics();
@@ -866,7 +868,7 @@ void StyleComputer::publish_animated_custom_properties(Layout::BegunRead const& 
     if (animated_values.is_empty()) {
         if (base.ptr() != data.ptr()) {
             abstract_element.replace_custom_property_data(Badge<StyleComputer> {}, base);
-            invalidate_animated_custom_property_readers(read, abstract_element, animated_values, move(data));
+            invalidate_animated_custom_property_readers(read, abstract_element, animated_values, move(data), true);
         }
         return;
     }
@@ -894,16 +896,19 @@ void StyleComputer::publish_animated_custom_properties(Layout::BegunRead const& 
             });
     }
     abstract_element.replace_custom_property_data(Badge<StyleComputer> {}, CustomPropertyData::create_animation_overlay(move(overlay_values), move(base), abstract_element));
-    invalidate_animated_custom_property_readers(read, abstract_element, animated_values, move(data));
+    invalidate_animated_custom_property_readers(read, abstract_element, animated_values, move(data), computed_properties.animated_custom_properties_trigger_restyle());
 }
 
-void StyleComputer::invalidate_animated_custom_property_readers(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values, RefPtr<CustomPropertyData const> old_data) const
+void StyleComputer::invalidate_animated_custom_property_readers(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values, RefPtr<CustomPropertyData const> old_data, bool recompute_style) const
 {
     auto& element = abstract_element.element();
-    // Which custom properties the element's own declarations read is not recorded: an element
-    // whose custom properties animate recomputes.
     auto& style_engine = element.document().style_computer().style_engine();
-    style_engine.record_derived_element_style_input_change(element.style_node_id(), StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle);
+    if (recompute_style) {
+        style_engine.record_derived_element_style_input_change(element.style_node_id(), StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle);
+    } else if (!abstract_element.pseudo_element().has_value()) {
+        // Style container queries can read animated values even when those values do not inherit.
+        element.invalidate_descendant_styles_depending_on_style_container_query();
+    }
 
     if (abstract_element.pseudo_element().has_value())
         return;

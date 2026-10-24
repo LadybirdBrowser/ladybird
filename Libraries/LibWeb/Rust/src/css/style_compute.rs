@@ -6043,6 +6043,8 @@ pub struct FfiHostAnimationSample {
     /// The identities of the element's custom-property environment and the one it inherits, under
     /// which values substituted against the element hold.
     pub custom_property_environments: [u64; 2],
+    /// The host's current registrations, which the engine may not have consumed yet.
+    pub custom_property_registration_generation: u64,
     pub inheritance_parent_style_record: u64,
     /// The document's side of the environment keyframes compute in. The engine fills in the
     /// element's own: its place among its siblings and its random bases.
@@ -6080,6 +6082,7 @@ pub struct FfiAnimatedCustomPropertyResult {
 #[repr(C)]
 pub struct FfiHostAnimationSampleResult {
     pub outcome: FfiHostAnimationSampleOutcome,
+    pub custom_properties_trigger_restyle: bool,
     /// The non-inherited style groups a keyframe saying `inherit` read from the parent.
     pub keyframes_inherited_non_inherited_style_groups: u32,
     pub depends_on_viewport_metrics: bool,
@@ -6100,6 +6103,7 @@ impl FfiHostAnimationSampleResult {
     fn with_outcome(outcome: FfiHostAnimationSampleOutcome) -> Self {
         Self {
             outcome,
+            custom_properties_trigger_restyle: true,
             keyframes_inherited_non_inherited_style_groups: 0,
             depends_on_viewport_metrics: false,
             font_metrics_depend_on_viewport_metrics: false,
@@ -6184,6 +6188,7 @@ pub(crate) struct AnimationSampleInput<'a> {
     /// The identities of the element's custom-property environment and the one it inherits, under
     /// which values substituted against the element hold.
     pub(crate) custom_property_environments: [u64; 2],
+    pub(crate) custom_property_registration_generation: u64,
     pub(crate) inheritance_parent_style_record: u64,
     /// The document's side of the environment keyframes compute in.
     pub(crate) environment: &'a FfiStyleComputationEnvironment,
@@ -6298,6 +6303,7 @@ impl FfiHostAnimationSample {
                 element_declares_custom_properties: self.element_declares_own_custom_properties,
             },
             custom_property_environments: self.custom_property_environments,
+            custom_property_registration_generation: self.custom_property_registration_generation,
             inheritance_parent_style_record: self.inheritance_parent_style_record,
             environment,
             element_box_slot: self.element_box_slot,
@@ -6776,6 +6782,9 @@ fn finish_animation_sample(
         && resolved.container_relative_length_unit_mask == 0
         && !resolved.needs_document_base_url
         && resolved.unfixed_random_sharings.is_empty();
+
+    let has_non_custom_property_animation = resolved.properties.iter().any(|property| property.custom_name_id == 0);
+
     let custom_results = anim::evaluate_animations(anim::ComputedAnimationBatch {
         context: input.animation_context(Some(&length_contexts.remaining), reference_box),
         device_pixels_per_css_pixel: input.environment.device_pixels_per_css_pixel,
@@ -6810,8 +6819,21 @@ fn finish_animation_sample(
             &retained,
             finalization,
         );
+        // Failed resolution keeps the default full restyle. On success, only consumers not
+        // updated by this sample can require one.
         if let Ok(readers) = readers {
             retained.extend(readers);
+
+            let uncached_interval_values_may_need_substitution =
+                custom_properties.has_uncached_interval_values && result.substitution_marks != 0;
+
+            result.custom_properties_trigger_restyle = engine.animated_custom_properties_trigger_restyle(
+                node,
+                pseudo,
+                has_non_custom_property_animation,
+                uncached_interval_values_may_need_substitution,
+                input.custom_property_registration_generation,
+            );
         }
         let rows = retained
             .iter()

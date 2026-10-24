@@ -95,6 +95,8 @@ public:
     void set_animated_custom_property(Badge<StyleComputer>, Utf16FlyString name, NonnullRefPtr<StyleValue const> value);
     void clear_animated_properties(Badge<StyleComputer>);
     OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_custom_properties() const { return m_animated_custom_properties; }
+    bool animated_custom_properties_trigger_restyle() const { return m_animated_custom_properties_trigger_restyle; }
+    void set_animated_custom_properties_trigger_restyle(Badge<StyleComputer>, bool value) { m_animated_custom_properties_trigger_restyle = value; }
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     StyleValueFFI::StyleValueData const* effective_property_data(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
 
@@ -162,6 +164,7 @@ private:
     RefPtr<AnimatedProperties> m_animated_properties;
     bool m_had_animated_post_compute_adjustment_property { false };
     OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> m_animated_custom_properties;
+    bool m_animated_custom_properties_trigger_restyle { true };
 
     mutable RefPtr<Gfx::FontCascadeList const> m_cached_computed_font_list;
     mutable TreeScopeID m_cached_computed_font_list_scope;

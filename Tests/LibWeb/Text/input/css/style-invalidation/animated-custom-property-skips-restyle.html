@@ -1,0 +1,43 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+    div {
+        --rotation: rotate(var(--turn));
+    }
+    #inactive::marker {
+        content: "marker";
+        color: red;
+    }
+    #inactive::backdrop {
+        color: red;
+    }
+    #ordinary {
+        rotate: var(--turn);
+    }
+</style>
+<div id="plain"></div>
+<div id="inactive"></div>
+<div id="ordinary"></div>
+<script>
+    test(() => {
+        CSS.registerProperty({ name: "--turn", syntax: "<angle>", inherits: false, initialValue: "0deg" });
+        const results = [];
+        for (const id of ["plain", "inactive", "ordinary"]) {
+            const target = document.getElementById(id);
+            const animation = target.animate({ "--turn": ["0deg", "360deg"], easing: "linear" }, 1000);
+            animation.pause();
+            animation.currentTime = 125;
+            internals.updateStyle();
+            internals.resetStyleInvalidationCounters();
+            for (const time of [375, 625, 125]) {
+                animation.currentTime = time;
+                internals.updateStyle();
+            }
+            const counters = internals.getStyleInvalidationCounters();
+            const recomputations = counters.elementStyleRecomputations + counters.engineComputedStyleRecords;
+            const rotation = getComputedStyle(target).getPropertyValue("--rotation");
+            results.push(`${id}: ${recomputations === 0 ? "skipped" : "recomputed"}, ${rotation}`);
+        }
+        results.forEach(println);
+    });
+</script>

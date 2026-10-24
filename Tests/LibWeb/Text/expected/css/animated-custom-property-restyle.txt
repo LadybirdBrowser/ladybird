@@ -1,0 +1,35 @@
+fresh at 250ms: 25, 25
+fresh at 750ms: 75, 75
+fresh at 250ms: 25, 25
+retained at 250ms: 0, 0
+retained at 750ms: 100, 0
+retained at 250ms: 0, 0
+mixed at 250ms: 10px, 10px
+mixed at 750ms: 30px, 30px
+mixed at 250ms: 10px, 10px
+eased at 125ms: start
+eased at 375ms: end
+eased at 125ms: start
+pseudos at 250ms: 25px, 25px, 25px
+pseudos at 750ms: 75px, 75px, 75px
+pseudos at 250ms: 25px, 25px, 25px
+pseudos cancelled: 0px, 0px, 0px
+new pseudos at 750ms: 75px, 75px
+new pseudos at 250ms: 25px, 25px
+own readers at 250ms: 25, 25px, 25
+own readers at 750ms: 75, 75px, 75
+own readers cancelled: 0, 0px, 0
+non-inheriting query at 0ms: rgb(255, 0, 0)
+non-inheriting query at 1000ms: rgb(0, 0, 255)
+non-inheriting query at 0ms: rgb(255, 0, 0)
+non-inheriting query at 1000ms: rgb(0, 0, 255)
+non-inheriting query cancelled: rgb(0, 0, 0)
+function in 100px container: 50
+function in 0px container: 75
+function in 100px container: 50
+initial layer order: 50
+pending layer order change: 75
+pending ordinary declaration: 25, 25px
+pending custom declaration: 225, 75px
+pending registration change: 7px
+pending new registration: 11px

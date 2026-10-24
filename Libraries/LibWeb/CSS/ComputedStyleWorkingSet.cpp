@@ -352,6 +352,7 @@ void ComputedStyleWorkingSet::install_animated_overlay(Badge<StyleComputer>, Com
 void ComputedStyleWorkingSet::clear_animated_properties(Badge<StyleComputer>)
 {
     m_animated_custom_properties.clear();
+    m_animated_custom_properties_trigger_restyle = true;
     if (!m_animated_properties)
         return;
 

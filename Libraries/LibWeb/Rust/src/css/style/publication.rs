@@ -3159,6 +3159,104 @@ impl RetainedState {
         self.state_summary(node, state).has_substitutions
     }
 
+    /// Whether publishing sampled custom properties requires another style computation.
+    /// The sample has already resolved the target's custom declarations that read animated values.
+    pub(crate) fn animated_custom_properties_trigger_restyle(
+        &self,
+        node: StyleNodeID,
+        pseudo: Option<u8>,
+        has_non_custom_property_animation: bool,
+        uncached_interval_values_may_need_substitution: bool,
+        host_custom_property_registration_generation: u64,
+    ) -> bool {
+        // Animations of non-custom properties may read the sampled custom properties or change the font context
+        // their registered readers compute against.
+        if has_non_custom_property_animation {
+            return true;
+        }
+
+        let has_unresolved_keyframe_easing = self
+            .element_animation_effects(node, pseudo.map_or(0, |kind| kind + 1))
+            .iter()
+            .any(|effect| {
+                effect.keyframes.iter().any(|keyframe| {
+                    keyframe
+                        .easing_value
+                        .as_ref()
+                        .is_some_and(|value| matches!(value.data(), StyleValueData::Unresolved { .. }))
+                })
+            });
+
+        // Unresolved keyframe easing may read the sampled custom properties.
+        if has_unresolved_keyframe_easing {
+            return true;
+        }
+
+        // Retained discrete intervals keep their substituted values. Fresh intervals may need
+        // another sample against the custom properties this sample publishes.
+        if uncached_interval_values_may_need_substitution {
+            return true;
+        }
+
+        // Animation sampling precedes the transaction that consumes pending registration changes.
+        // In that case, the sample used the engine's outdated registrations and underlying values.
+        if host_custom_property_registration_generation != self.custom_property_registration_generation() {
+            return true;
+        }
+
+        let target = computed::ComputedStyleTarget::new(node, pseudo.unwrap_or(u8::MAX));
+
+        // Without an assigned style record, we cannot establish that sampling covers all consumers.
+        let Some(record) = self.computed_group_sets.assigned_final_style_record(target) else {
+            return true;
+        };
+
+        // The record must still be available so we can inspect the target's current style.
+        let Some(view) = self.computed_group_sets.style_record_view(record.raw()) else {
+            return true;
+        };
+
+        if pseudo.is_none() && self.has_pseudo_styles_to_recompute(node, &view) {
+            return true;
+        }
+
+        self.ordinary_properties_may_need_substitution(node, pseudo)
+    }
+
+    /// Whether pseudo styles need updating when the element's custom properties change.
+    fn has_pseudo_styles_to_recompute(&self, node: StyleNodeID, view: &computed::StyleRecordView<'_>) -> bool {
+        // Existing pseudo-element styles may inherit the sampled values and need to be recomputed.
+        if self.computed_group_sets.assigned_pseudo_kinds(node).next().is_some() {
+            return true;
+        }
+
+        // Ignore rules for pseudo-elements that generate no box.
+        let pseudo_kinds = view.pseudo_element_styles & !self.inert_pseudo_kinds(node);
+        let marker_is_live = view.longhand_table.is_none_or(|table| table.display_is_list_item());
+        self.filter_non_generating_pseudo_kinds(node, pseudo_kinds, marker_is_live) != 0
+    }
+
+    /// Whether ordinary properties may need to compute against changed custom properties.
+    /// Missing winners or values prevent ruling out substitution.
+    fn ordinary_properties_may_need_substitution(&self, node: StyleNodeID, pseudo: Option<u8>) -> bool {
+        let key = match pseudo {
+            Some(kind) => WinnerGroupKey::current_pseudo(
+                node,
+                tree::PseudoElementTarget::new(tree::PseudoElementKind(u16::from(kind))),
+                self.program.version(),
+            ),
+            None => WinnerGroupKey::current(node, self.program.version()),
+        };
+
+        let Lookup::Known((_, state)) = self.current_winner_groups().token_for(key) else {
+            return true;
+        };
+
+        let summary = self.state_summary(node, state);
+
+        summary.has_unknown_values || summary.has_substitutions
+    }
+
     pub(super) fn state_custom_property_reads(
         &self,
         node: StyleNodeID,
