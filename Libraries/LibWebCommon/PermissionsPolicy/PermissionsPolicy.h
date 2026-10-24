@@ -29,6 +29,7 @@ enum class PolicyControlledFeature : u8 {
     FocusWithoutUserActivation,
     Fullscreen,
     Gamepad,
+    Geolocation,
     Microphone,
     PictureInPicture,
     WindowManagement,

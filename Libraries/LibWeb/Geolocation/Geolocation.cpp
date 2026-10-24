@@ -181,10 +181,10 @@ void Geolocation::request_a_position(GC::Ref<WebIDL::CallbackType> success_callb
     // 1. Let watchIDs be geolocation's [[watchIDs]].
 
     // 2. Let document be the geolocation's relevant global object's associated Document.
-    [[maybe_unused]] auto& document = window().associated_document();
+    auto& document = window().associated_document();
 
-    // FIXME: 3. If document is not allowed to use the "geolocation" feature:
-    if (false) {
+    // 3. If document is not allowed to use the "geolocation" feature:
+    if (!document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::Geolocation)) {
         // 1. If watchId was passed, remove watchId from watchIDs.
         if (watch_id.has_value())
             remove_watch_id(watch_id.value());
