@@ -27,7 +27,8 @@ SVGList<T>::SVGList(ReadOnlyList read_only)
 template<typename T>
 void SVGList<T>::visit_edges(GC::Cell::Visitor& visitor)
 {
-    visitor.visit(m_items);
+    if constexpr (!IsSame<T, Utf16String>)
+        visitor.visit(m_items);
 }
 
 // https://www.w3.org/TR/SVG2/types.html#__svg__SVGNameList__length
@@ -48,11 +49,13 @@ WebIDL::ExceptionOr<void> SVGList<T>::clear()
         return WebIDL::NoModificationAllowedError::create("Cannot modify a read-only list"_utf16);
 
     // 2. Detach and then remove all elements in the list.
-    // FIXME: Detach items.
+    for (auto const& item : m_items)
+        detach(item);
     m_items.clear();
 
-    // FIXME: 3. If the list reflects an attribute, or represents the base value of an object that reflects an attribute, then
+    // 3. If the list reflects an attribute, or represents the base value of an object that reflects an attribute, then
     //    reserialize the reflected attribute.
+    reserialize_reflected_attribute();
 
     return {};
 }
@@ -66,19 +69,23 @@ WebIDL::ExceptionOr<T> SVGList<T>::initialize_(T new_item)
         return WebIDL::NoModificationAllowedError::create("Cannot modify a read-only list"_utf16);
 
     // 2. Detach and then remove all elements in the list.
-    // FIXME: Detach items.
+    for (auto const& item : m_items)
+        detach(item);
     m_items.clear();
 
-    // FIXME: 3. If newItem is an object type, and newItem is not a detached object, then set newItem to be a newly created
+    // 3. If newItem is an object type, and newItem is not a detached object, then set newItem to be a newly created
     //    object of the same type as newItem and which has the same (number or length) value.
+    new_item = copy_if_not_detached(move(new_item));
 
-    // FIXME: 4. Attach newItem to the list interface object.
+    // 4. Attach newItem to the list interface object.
+    attach(new_item);
 
     // 5. Append newItem to this list.
     m_items.append(new_item);
 
-    // FIXME: 6. If the list reflects an attribute, or represents the base value of an object that reflects an attribute, then
+    // 6. If the list reflects an attribute, or represents the base value of an object that reflects an attribute, then
     //    reserialize the reflected attribute.
+    reserialize_reflected_attribute();
 
     // 7. Return newItem.
     return new_item;
@@ -104,8 +111,9 @@ WebIDL::ExceptionOr<T> SVGList<T>::insert_item_before(T new_item, WebIDL::Unsign
     if (m_read_only == ReadOnlyList::Yes)
         return WebIDL::NoModificationAllowedError::create("Cannot modify a read-only list"_utf16);
 
-    // FIXME: 2. If newItem is an object type, and newItem is not a detached object, then set newItem to be a newly created
+    // 2. If newItem is an object type, and newItem is not a detached object, then set newItem to be a newly created
     //    object of the same type as newItem and which has the same (number or length) value.
+    new_item = copy_if_not_detached(move(new_item));
 
     // 3. If index is greater than the length of the list, then set index to be the list length.
     if (index > m_items.size())
@@ -114,10 +122,12 @@ WebIDL::ExceptionOr<T> SVGList<T>::insert_item_before(T new_item, WebIDL::Unsign
     // 4. Insert newItem into the list at index index.
     m_items.insert(index, new_item);
 
-    // FIXME: 5. Attach newItem to the list interface object.
+    // 5. Attach newItem to the list interface object.
+    attach(new_item);
 
-    // FIXME: 6. If the list reflects an attribute, or represents the base value of an object that reflects an attribute, then
+    // 6. If the list reflects an attribute, or represents the base value of an object that reflects an attribute, then
     //    reserialize the reflected attribute.
+    reserialize_reflected_attribute();
 
     // 7. Return newItem.
     return new_item;
@@ -135,18 +145,22 @@ WebIDL::ExceptionOr<T> SVGList<T>::replace_item(T new_item, WebIDL::UnsignedLong
     if (index >= m_items.size())
         return WebIDL::IndexSizeError::create("List index out of bounds"_utf16);
 
-    // FIXME: 3. If newItem is an object type, and newItem is not a detached object, then set newItem to be a newly created
+    // 3. If newItem is an object type, and newItem is not a detached object, then set newItem to be a newly created
     //    object of the same type as newItem and which has the same (number or length) value.
+    new_item = copy_if_not_detached(move(new_item));
 
-    // FIXME: 4. Detach the element in the list at index index.
+    // 4. Detach the element in the list at index index.
+    detach(m_items[index]);
 
     // 5. Replace the element in the list at index index with newItem.
     m_items[index] = new_item;
 
-    // FIXME: 6. Attach newItem to the list interface object.
+    // 6. Attach newItem to the list interface object.
+    attach(new_item);
 
-    // FIXME: 7. If the list reflects an attribute, or represents the base value of an object that reflects an attribute, then
+    // 7. If the list reflects an attribute, or represents the base value of an object that reflects an attribute, then
     //    reserialize the reflected attribute.
+    reserialize_reflected_attribute();
 
     // 8. Return newItem.
     return new_item;
@@ -167,10 +181,15 @@ WebIDL::ExceptionOr<T> SVGList<T>::remove_item(WebIDL::UnsignedLong index)
     // 3. Let item be the list element at index index.
     auto item = m_items[index];
 
-    // FIXME: 4. Detach item.
+    // 4. Detach item.
+    detach(item);
 
     // 5. Remove the list element at index index.
     m_items.remove(index);
+
+    // AD-HOC: The spec does not reserialize the reflected attribute here, which would leave the attribute out of sync
+    //         with the list.
+    reserialize_reflected_attribute();
 
     // 6. Return item.
     return item;
@@ -184,8 +203,9 @@ WebIDL::ExceptionOr<T> SVGList<T>::append_item(T new_item)
     if (m_read_only == ReadOnlyList::Yes)
         return WebIDL::NoModificationAllowedError::create("Cannot modify a read-only list"_utf16);
 
-    // FIXME: 2. If newItem is an object type, and newItem is not a detached object, then set newItem to be a newly created
+    // 2. If newItem is an object type, and newItem is not a detached object, then set newItem to be a newly created
     //    object of the same type as newItem and which has the same (number or length) value.
+    new_item = copy_if_not_detached(move(new_item));
 
     // 3. Let index be the length of the list.
     // AD-HOC: No, this is unused.
@@ -193,10 +213,12 @@ WebIDL::ExceptionOr<T> SVGList<T>::append_item(T new_item)
     // 4. Append newItem to the end of the list.
     m_items.append(new_item);
 
-    // FIXME: 5. Attach newItem to the list interface object.
+    // 5. Attach newItem to the list interface object.
+    attach(new_item);
 
-    // FIXME: 6. If the list reflects an attribute, or represents the base value of an object that reflects an attribute, then
+    // 6. If the list reflects an attribute, or represents the base value of an object that reflects an attribute, then
     //    reserialize the reflected attribute.
+    reserialize_reflected_attribute();
 
     // 7. Return newItem.
     return new_item;
@@ -205,5 +227,6 @@ WebIDL::ExceptionOr<T> SVGList<T>::append_item(T new_item)
 template class SVGList<GC::Ref<SVGLength>>;
 template class SVGList<GC::Ref<SVGNumber>>;
 template class SVGList<GC::Ref<SVGTransform>>;
+template class SVGList<Utf16String>;
 
 }

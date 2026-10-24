@@ -48,6 +48,21 @@ protected:
 
     ReadOnlyList read_only() const { return m_read_only; }
 
+    // https://svgwg.org/svg2-draft/types.html#TermAttach
+    virtual void attach(T const&) { }
+
+    // https://svgwg.org/svg2-draft/types.html#TermDetach
+    virtual void detach(T const&) { }
+
+    // If newItem is an object type, and newItem is not a detached object, then a newly created object of the same type
+    // as newItem and which has the same value. Otherwise, newItem.
+    virtual T copy_if_not_detached(T new_item) { return new_item; }
+
+    // https://svgwg.org/svg2-draft/types.html#TermReserialize
+    virtual void reserialize_reflected_attribute() { }
+
+    Vector<T>& mutable_items() { return m_items; }
+
 private:
     Vector<T> m_items;
 

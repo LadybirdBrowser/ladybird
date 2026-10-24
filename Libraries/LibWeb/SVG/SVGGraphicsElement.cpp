@@ -33,6 +33,48 @@ SVGGraphicsElement::SVGGraphicsElement(DOM::Document& document, DOM::QualifiedNa
 {
 }
 
+void SVGGraphicsElement::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_required_extensions);
+    visitor.visit(m_system_language);
+}
+
+void SVGGraphicsElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
+{
+    Base::attribute_changed(name, old_value, value, namespace_);
+
+    // https://svgwg.org/svg2-draft/types.html#SynchronizingReflectedValues
+    // Whenever a reflected content attribute's base value changes, then the reflecting object must be synchronized,
+    // immediately after the value changed.
+    if (namespace_.has_value())
+        return;
+    if (name == AttributeNames::requiredExtensions && m_required_extensions)
+        m_required_extensions->synchronize();
+    else if (name == AttributeNames::systemLanguage && m_system_language)
+        m_system_language->synchronize();
+}
+
+// https://svgwg.org/svg2-draft/types.html#__svg__SVGTests__requiredExtensions
+GC::Ref<SVGStringList> SVGGraphicsElement::required_extensions_for_bindings()
+{
+    // The requiredExtensions IDL attribute reflects the ‘requiredExtensions’ content attribute.
+    // NB: The attribute's value is a set of space-separated tokens.
+    if (!m_required_extensions)
+        m_required_extensions = SVGStringList::create(*this, AttributeNames::requiredExtensions, SVGStringList::Separator::Whitespace);
+    return *m_required_extensions;
+}
+
+// https://svgwg.org/svg2-draft/types.html#__svg__SVGTests__systemLanguage
+GC::Ref<SVGStringList> SVGGraphicsElement::system_language_for_bindings()
+{
+    // The systemLanguage IDL attribute reflects the ‘systemLanguage’ content attribute.
+    // NB: The attribute's value is a set of comma-separated tokens.
+    if (!m_system_language)
+        m_system_language = SVGStringList::create(*this, AttributeNames::systemLanguage, SVGStringList::Separator::Comma);
+    return *m_system_language;
+}
+
 GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const& url) const
 {
     // FIXME: Complete and use the entire URL, not just the fragment.

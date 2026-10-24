@@ -169,7 +169,7 @@ def indexed_property_getter_value_mode(interface: Interface) -> str:
         return "empty_string"
     if interface.name in ("CSSUnparsedValue", "DOMStringList", "DOMTokenList", "MediaList"):
         return "optional"
-    if interface.name in ("SVGLengthList", "SVGNumberList", "SVGTransformList"):
+    if interface.name in ("SVGLengthList", "SVGNumberList", "SVGStringList", "SVGTransformList"):
         return "svg_list"
     if interface.name in ("SourceBufferList",):
         return "value"
@@ -293,7 +293,7 @@ def indexed_property_setter_call(interface: Interface, operation: SpecialOperati
         return f"impl.set_value_of_indexed_property(index, {value_name})"
     if interface.name in ("HTMLOptionsCollection", "HTMLSelectElement"):
         return f"impl.set_value_of_indexed_property(index, {value_name})"
-    if interface.name in ("SVGLengthList", "SVGNumberList", "SVGTransformList"):
+    if interface.name in ("SVGLengthList", "SVGNumberList", "SVGStringList", "SVGTransformList"):
         return f"impl.replace_item({value_name}, index)"
     return f"impl.{hook_name}(index, {value_name})"
 
@@ -345,6 +345,8 @@ def write_indexed_property_setter_implementation(
     value_parameter = operation.parameters[1]
     value_name = "idl_value"
     call = indexed_property_setter_call(interface, operation, hook_name)
+    # SVG lists implement the setter with replaceItem(), whose returned item the setter does not need.
+    discard = "(void)" if call.startswith("impl.replace_item(") else ""
 
     if interface.name in ("HTMLOptionsCollection", "HTMLSelectElement"):
         includes.add("LibWeb/DOM/Element.h")
@@ -375,7 +377,7 @@ def write_indexed_property_setter_implementation(
 {{
     auto& vm = realm.vm();
     auto& impl = wrapped_implementation_of<{fully_qualified_name_for_interface(interface)}>(wrapper);
-{conversion_steps}    TRY({call});
+{conversion_steps}    {discard}TRY({call});
     return {{}};
 }}
 

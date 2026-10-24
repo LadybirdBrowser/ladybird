@@ -1,0 +1,5 @@
+// https://svgwg.org/svg2-draft/types.html#InterfaceSVGTests
+interface mixin SVGTests {
+    [SameObject, ImplementedAs=required_extensions_for_bindings] readonly attribute SVGStringList requiredExtensions;
+    [SameObject, ImplementedAs=system_language_for_bindings] readonly attribute SVGStringList systemLanguage;
+};

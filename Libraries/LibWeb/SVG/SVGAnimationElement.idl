@@ -18,4 +18,4 @@ interface SVGAnimationElement : SVGElement {
     [FIXME] undefined endElementAt(float offset);
 };
 
-//SVGAnimationElement includes SVGTests;
+// FIXME: SVGAnimationElement includes SVGTests;

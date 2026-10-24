@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 59 tests
 
-5 Pass
-54 Fail
+6 Pass
+53 Fail
 Pass	SVGNumberList (rotate on text): getItem returns the same object for one index, with no attribute change
 Fail	SVGNumberList (rotate on text): a same-count change updates the values of the held items
 Pass	SVGNumberList (rotate on text): a same-count change keeps the held item in the list
@@ -62,4 +62,4 @@ Fail	SVGTransformList (gradientTransform): a changed transform function keeps th
 Fail	SVGTransformList (gradientTransform): a changed transform function updates the held item's type and matrix
 Fail	SVGTransformList (gradientTransform): swapping two transform functions keeps both held items
 Fail	SVGTransformList (gradientTransform): an empty list detaches every item
-Fail	SVGStringList: a change replaces the list rather than updating items
+Pass	SVGStringList: a change replaces the list rather than updating items
