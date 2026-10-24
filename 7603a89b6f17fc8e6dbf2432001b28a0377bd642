@@ -1,0 +1,16 @@
+Ladybird ends a run stopped by SIGINT or SIGTERM the way a quit ends it:
+When the session store saves the session, a handler on the event loop
+marks the store quitting and stops the loop, without asking any page
+first — so the teardown that follows records a clean exit.
+
+Chromium handles SIGHUP, SIGINT, and SIGTERM much the same, through its
+ShutdownDetector: ExitHandler::Exit() calls chrome::AttemptExit(), after
+calling chrome::ExitIgnoreUnloadHandlers() on ChromeOS. And its
+GracefulShutdownHandler() puts the default handler back at once (“We had
+one shot at graceful shutdown”), so a second signal ends even a browser
+whose UI thread is hung. Ladybird’s handlers run on the event loop
+instead, so a hung loop ignores every signal but SIGKILL.
+
+Firefox handles only SIGTERM, and only in its GTK builds, where
+nsAppShell::TermSignalHandler() schedules a quit event that exits the
+app shell’s main event loop.
