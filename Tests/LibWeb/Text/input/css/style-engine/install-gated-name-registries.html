@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    .anchor { position: absolute; width: 10px; height: 10px; }
+    #a { left: 100px; top: 0; }
+    #b { left: 200px; top: 0; }
+    #c { left: 300px; top: 0; }
+    .first { anchor-name: --first; }
+    .second { anchor-name: --second; }
+    .shared { anchor-name: --shared; }
+    .both { anchor-name: --first, --second; }
+    #follower-first { position: absolute; position-anchor: --first; left: anchor(left); top: 50px; width: 5px; height: 5px; }
+    #follower-second { position: absolute; position-anchor: --second; left: anchor(left); top: 60px; width: 5px; height: 5px; }
+    #follower-shared { position: absolute; position-anchor: --shared; left: anchor(left); top: 70px; width: 5px; height: 5px; }
+    .red { color: red; }
+    @keyframes one { from { opacity: 0.5; } to { opacity: 0.5; } }
+    @keyframes two { from { opacity: 0.25; } to { opacity: 0.25; } }
+    #animated.one { animation: one 100s; }
+    #animated.two { animation: two 100s; }
+    #animated.two.red { animation: two 100s; color: blue; }
+</style>
+<div id="container">
+    <div id="a" class="anchor first"></div>
+    <div id="b" class="anchor"></div>
+    <div id="c" class="anchor shared"></div>
+    <div id="d" class="anchor shared" style="left: 400px"></div>
+</div>
+<div id="follower-first"></div>
+<div id="follower-second"></div>
+<div id="follower-shared"></div>
+<div id="animated" class="one"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const left = id => document.getElementById(id).getBoundingClientRect().left;
+        const names = () => document.getElementById("animated").getAnimations().map(animation => animation.animationName).join(",");
+
+        println(`first follows a: ${left("follower-first")}`);
+        println(`shared follows the last anchor in tree order: ${left("follower-shared")}`);
+
+        // A restyle that keeps the element's anchor names keeps them registered.
+        a.classList.add("red");
+        println(`first after an unrelated change: ${left("follower-first")}`);
+
+        // A restyle that changes the names moves them.
+        a.classList.remove("first");
+        b.classList.add("both");
+        println(`first follows b: ${left("follower-first")}`);
+        println(`second follows b: ${left("follower-second")}`);
+        b.classList.replace("both", "first");
+        a.classList.add("second");
+        println(`second follows a: ${left("follower-second")}`);
+
+        // Moving an anchor changes its place in tree order without changing its style.
+        container.moveBefore(d, c);
+        println(`shared after moving d before c: ${left("follower-shared")}`);
+        container.moveBefore(c, d);
+        println(`shared after moving c before d: ${left("follower-shared")}`);
+
+        println(`animations: ${names()}`);
+        animated.className = "two";
+        println(`animations after a name change: ${names()}`);
+        animated.classList.add("red");
+        println(`animations after an unrelated change: ${names()}`);
+        animated.className = "";
+        println(`animations after removing the name: ${names()}`);
+    });
+</script>
