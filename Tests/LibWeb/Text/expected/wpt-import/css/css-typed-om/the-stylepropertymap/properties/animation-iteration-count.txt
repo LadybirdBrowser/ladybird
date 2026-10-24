@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 32 tests
 
-31 Pass
-1 Fail
+32 Pass
 Pass	Can set 'animation-iteration-count' to CSS-wide keywords: initial
 Pass	Can set 'animation-iteration-count' to CSS-wide keywords: inherit
 Pass	Can set 'animation-iteration-count' to CSS-wide keywords: unset
@@ -13,7 +12,7 @@ Pass	Can set 'animation-iteration-count' to the 'infinite' keyword: infinite
 Pass	Can set 'animation-iteration-count' to a number: 0
 Pass	Can set 'animation-iteration-count' to a number: -3.14
 Pass	Can set 'animation-iteration-count' to a number: 3.14
-Fail	Can set 'animation-iteration-count' to a number: calc(2 + 3)
+Pass	Can set 'animation-iteration-count' to a number: calc(2 + 3)
 Pass	Setting 'animation-iteration-count' to a length: 0px throws TypeError
 Pass	Setting 'animation-iteration-count' to a length: -3.14em throws TypeError
 Pass	Setting 'animation-iteration-count' to a length: 3.14cm throws TypeError

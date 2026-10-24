@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 31 tests
 
-28 Pass
-3 Fail
+29 Pass
+2 Fail
 Pass	Can set 'tab-size' to CSS-wide keywords: initial
 Pass	Can set 'tab-size' to CSS-wide keywords: inherit
 Pass	Can set 'tab-size' to CSS-wide keywords: unset
@@ -12,7 +12,7 @@ Pass	Can set 'tab-size' to var() references:  var(--A)
 Fail	Can set 'tab-size' to a number: 0
 Fail	Can set 'tab-size' to a number: -3.14
 Pass	Can set 'tab-size' to a number: 3.14
-Fail	Can set 'tab-size' to a number: calc(2 + 3)
+Pass	Can set 'tab-size' to a number: calc(2 + 3)
 Pass	Can set 'tab-size' to a length: 0px
 Pass	Can set 'tab-size' to a length: -3.14em
 Pass	Can set 'tab-size' to a length: 3.14cm
