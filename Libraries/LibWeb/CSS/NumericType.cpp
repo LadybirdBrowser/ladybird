@@ -143,8 +143,9 @@ Optional<NumericType> NumericType::create_from_unit_map(UnitMap const& unit_map)
     }
 
     // 3. Return the result of multiplying all the items of types.
+    // NB: Multiplying no types at all, as for the empty unit map of a plain number, results in an empty type.
     if (types.is_empty())
-        return {};
+        return NumericType {};
     auto result = types.first();
     bool first = true;
     for (auto const& type : types) {
