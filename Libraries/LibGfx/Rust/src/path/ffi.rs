@@ -504,26 +504,31 @@ pub unsafe extern "C" fn path_geometry_equals(a: *const PathGeometry, b: *const 
     unsafe { &*a }.has_same_contours(unsafe { &*b })
 }
 
+impl PathGeometryData {
+    pub fn of(geometry: &PathGeometry) -> Self {
+        let (verbs, points, conic_weights) = if geometry.has_geometry() {
+            (geometry.verbs(), geometry.points(), geometry.conic_weights())
+        } else {
+            (&[][..], &[][..], &[][..])
+        };
+        Self {
+            verbs: verbs.as_ptr().cast::<u8>(),
+            verb_count: verbs.len(),
+            points: points.as_ptr(),
+            point_count: points.len(),
+            conic_weights: conic_weights.as_ptr(),
+            conic_weight_count: conic_weights.len(),
+            fill_rule: geometry.fill_rule() as u8,
+        }
+    }
+}
+
 /// # Safety
 /// `path` must be a live path from this module, and `out_data` must point to room for the data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn path_geometry_data(path: *const PathGeometry, out_data: *mut PathGeometryData) {
     // SAFETY: Forwarded from the caller.
-    let geometry = unsafe { &*path };
-    let (verbs, points, conic_weights) = if geometry.has_geometry() {
-        (geometry.verbs(), geometry.points(), geometry.conic_weights())
-    } else {
-        (&[][..], &[][..], &[][..])
-    };
-    let data = PathGeometryData {
-        verbs: verbs.as_ptr().cast::<u8>(),
-        verb_count: verbs.len(),
-        points: points.as_ptr(),
-        point_count: points.len(),
-        conic_weights: conic_weights.as_ptr(),
-        conic_weight_count: conic_weights.len(),
-        fill_rule: geometry.fill_rule() as u8,
-    };
+    let data = PathGeometryData::of(unsafe { &*path });
     // SAFETY: The caller passes room for the data.
     unsafe { std::ptr::write(out_data, data) };
 }
