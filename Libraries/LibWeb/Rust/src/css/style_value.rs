@@ -2251,7 +2251,7 @@ const _: () = assert!(size_of::<StyleValueData>() <= 64);
 pub struct FfiComputedFontFamilyEntry {
     pub kind: u8,
     pub keyword: u16,
-    pub string: *const c_void,
+    pub string: *const CssString,
 }
 
 pub const COMPUTED_FONT_FAMILY_GENERIC: u8 = 0;

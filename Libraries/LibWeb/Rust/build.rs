@@ -2812,6 +2812,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .after_includes
         .get_or_insert_with(String::new)
         .push_str("\nnamespace Web::CSS::StyleValueFFI { union StyleValueData; }");
+    // So do the names it hands out as CSS strings.
+    computed_values_config.export.rename.insert(
+        "CssString".to_string(),
+        "Web::CSS::StyleValueFFI::CssString".to_string(),
+    );
+    computed_values_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::CSS::StyleValueFFI { struct CssString; }");
     // An animation sample and plan read the document's style engine, which the document host reaches.
     declare_document_host_of_layout_header(&mut computed_values_config);
 

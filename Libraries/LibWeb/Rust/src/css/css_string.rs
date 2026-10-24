@@ -60,12 +60,8 @@ impl CssString {
         Self { raw: 0 }
     }
 
-    pub(crate) fn as_ptr(&self) -> *const std::ffi::c_void {
-        if self.raw == 0 {
-            std::ptr::null()
-        } else {
-            (self as *const Self).cast()
-        }
+    pub(crate) fn as_ptr(&self) -> *const Self {
+        if self.raw == 0 { std::ptr::null() } else { self }
     }
 
     pub(crate) fn units(&self) -> &[u16] {

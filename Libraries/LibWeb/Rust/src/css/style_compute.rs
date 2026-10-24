@@ -15,6 +15,7 @@
 //! Element-bound inputs, such as container sizes and tree positions, are
 //! snapshotted by C++ before entering the Rust computation drive.
 
+use crate::css::css_string::CssString;
 use crate::css::ffi_support::OwnedBox;
 use std::borrow::Cow;
 use std::ffi::c_void;
@@ -2889,14 +2890,14 @@ pub struct FfiComputedAnimation {
     pub delay: f64,
     pub fill_mode: u8,
     pub composition: u8,
-    pub name: *const c_void,
+    pub name: *const CssString,
     pub timeline_kind: FfiAnimationTimelineKind,
     pub scroll_scroller: u8,
     pub scroll_axis: u8,
     /// The insets of a view() timeline.
     pub view_inset: FfiViewTimelineInset,
     /// The name of a named timeline, as a CSS string, or null.
-    pub timeline_name: *const c_void,
+    pub timeline_name: *const CssString,
     /// The edges of the animation attachment range, each a `TimelineRangeName` in the host's numbering and an offset
     /// from the start of that range: a length plus a percentage of the range.
     pub range_start_name: u8,
@@ -5004,7 +5005,7 @@ pub extern "C" fn rust_view_timeline_inset(value: &StyleValueData) -> FfiViewTim
 #[repr(C)]
 pub struct FfiTimelineDeclaration {
     /// The name, as a CSS string.
-    pub name: *const c_void,
+    pub name: *const CssString,
     pub is_view: bool,
     pub axis: u8,
     pub view_inset: FfiViewTimelineInset,
@@ -5075,7 +5076,7 @@ pub unsafe extern "C" fn rust_animation_values_timeline_declarations(
 pub unsafe extern "C" fn rust_animation_values_timeline_scope(
     values: &crate::css::computed_value_types::AnimationValues,
     context: *mut c_void,
-    scope: unsafe extern "C" fn(*mut c_void, *const c_void),
+    scope: unsafe extern "C" fn(*mut c_void, *const CssString),
 ) -> FfiTimelineScope {
     // SAFETY: A computed style group's handles point at retained style values it owns.
     let Some(value) = (unsafe { values.timeline_scope.pointer.cast::<StyleValueData>().as_ref() }) else {
@@ -5181,7 +5182,7 @@ struct AnimationTimelineDescriptor {
     scroller: u8,
     axis: u8,
     view_inset: FfiViewTimelineInset,
-    name: *const c_void,
+    name: *const CssString,
 }
 
 fn animation_timeline_descriptor(value: &StyleValueData) -> AnimationTimelineDescriptor {

@@ -34,7 +34,7 @@
 
 namespace Web::CSS {
 
-WEB_API Utf16FlyString css_string_from_rust(void const*);
+WEB_API Utf16FlyString css_string_from_rust(StyleValueFFI::CssString const*);
 
 #define ENUMERATE_CSS_STYLE_VALUE_TYPES                                                                        \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Anchor, anchor, StyleValue)                                               \
