@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 27 tests
+
+15 Pass
+12 Fail
+Pass	Empty value should return #000000
+Pass	Missing value should return #000000
+Pass	Valid simple color: should return #ffffff
+Pass	Valid simple color (containing LATIN CAPITAL LETTERS): should return #ffffff (converted to ASCII lowercase)
+Pass	Zero-padding
+Fail	Valid simple color: 4 characters long
+Pass	Invalid simple color: 8 characters long
+Pass	Invalid simple color: no starting # sign
+Pass	Invalid simple color: non ASCII hex digits
+Pass	Invalid simple color: foobar
+Pass	Invalid color: trailing Null (U+0000)
+Pass	Invalid color: trailing ;
+Fail	Valid color: leading space
+Fail	Valid color: trailing space
+Fail	Valid color: leading+trailing spaces
+Fail	Valid color: keyword crimson
+Fail	Valid color: keyword bisque
+Pass	Valid color: currentColor
+Pass	Invalid color: keyword transparent
+Pass	Invalid color: keyword inherit
+Fail	Valid color: rgb(1,1,1)
+Fail	Valid color: rgb(1,1,1,1)
+Pass	Invalid color: PILE OF POO (U+1F4A9)
+Fail	Valid color: hsl(150deg 100 53.5)
+Fail	Valid color: color(display-p3 .5 0 0)
+Fail	Valid color: color(display-p3 1 0 0)
+Fail	System colors are parsed
