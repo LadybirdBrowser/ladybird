@@ -1782,8 +1782,10 @@ fn update_layout_tree_for_svg_switch_children(
     let mut rendered_child = None;
     let mut child = host.first_dom_child(switch_element);
     while let Some(current) = child {
-        // FIXME: Evaluate the requiredExtensions and systemLanguage attributes.
-        if host.element_type_facts(Some(current)) & element_adjustment_fact::IS_SVG_ELEMENT != 0 {
+        // NB: A child whose conditional processing attributes evaluate to false asks for no box.
+        if host.element_type_facts(Some(current)) & element_adjustment_fact::IS_SVG_ELEMENT != 0
+            && host.arena().element_box_kind(Some(current)) != ElementBoxKind::NoBox
+        {
             rendered_child = Some(current);
             break;
         }
