@@ -18,10 +18,11 @@ GC::Ref<SVGAnimatedNumber> SVGAnimatedNumber::create(
     DOM::QualifiedName reflected_attribute,
     float initial_value,
     SupportsSecondValue supports_second_value,
-    ValueRepresented value_represented)
+    ValueRepresented value_represented,
+    AcceptsPercentage accepts_percentage)
 {
     return GC::Heap::the().allocate<SVGAnimatedNumber>(element, move(reflected_attribute), initial_value,
-        supports_second_value, value_represented);
+        supports_second_value, value_represented, accepts_percentage);
 }
 
 SVGAnimatedNumber::SVGAnimatedNumber(
@@ -29,12 +30,14 @@ SVGAnimatedNumber::SVGAnimatedNumber(
     DOM::QualifiedName reflected_attribute,
     float initial_value,
     SupportsSecondValue supports_second_value,
-    ValueRepresented value_represented)
+    ValueRepresented value_represented,
+    AcceptsPercentage accepts_percentage)
     : m_element(element)
     , m_reflected_attribute(move(reflected_attribute))
     , m_initial_value(initial_value)
     , m_supports_second_value(supports_second_value)
     , m_value_represented(value_represented)
+    , m_accepts_percentage(accepts_percentage)
 {
 }
 
@@ -60,19 +63,17 @@ void SVGAnimatedNumber::set_base_val(float new_value)
     if (m_supports_second_value == SupportsSecondValue::Yes) {
         // 1. Let current be the value of the reflected attribute (using the attribute's initial value if it is not
         //    present or invalid).
-        auto current = m_element->get_attribute_value(m_reflected_attribute.local_name(), m_reflected_attribute.namespace_());
-        auto current_values = current.split_view(' ', SplitBehavior::Nothing);
+        auto current = parse_number_optional_number(m_element->get_attribute_value(m_reflected_attribute.local_name(), m_reflected_attribute.namespace_()))
+                           .value_or({ m_initial_value, {} });
 
         // 2. Let first be the first number in current.
-        auto first = current_values.size() > 0 ? parse_value_or_initial(current_values[0]) : m_initial_value;
+        auto first = current.first;
 
         // 3. Let second be the second number in current if it has been explicitly specified, and if not, the implicit
         //    value as described in the definition of the attribute.
         // NB: All known usages of <number-optional-number> specify that a missing second number defaults to the value
         //     of the first number.
-        auto second = current_values.size() > 1 && !current_values[1].is_empty()
-            ? parse_value_or_initial(current_values[1])
-            : first;
+        auto second = current.second.value_or(first);
 
         // 4. If this SVGAnimatedNumber object reflects the first number, then set first to value. Otherwise, set second
         //    to value.
@@ -110,10 +111,12 @@ float SVGAnimatedNumber::anim_val() const
 
 float SVGAnimatedNumber::parse_value_or_initial(Utf16View number_value) const
 {
-    auto value = parse_number_percentage(number_value);
-    if (!value.has_value())
+    if (m_accepts_percentage == AcceptsPercentage::Yes) {
+        if (auto value = parse_number_percentage(number_value); value.has_value())
+            return value->value();
         return m_initial_value;
-    return value.release_value().value();
+    }
+    return parse_number(number_value).value_or(m_initial_value);
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGAnimatedNumber__baseVal
@@ -125,12 +128,14 @@ float SVGAnimatedNumber::get_base_or_anim_value() const
 
     // 2. If the reflected attribute is defined to take an number followed by an optional second number, then:
     if (m_supports_second_value == SupportsSecondValue::Yes) {
-        // 1. If this SVGAnimatedNumber object reflects the first number, then return the first value in value.
-        auto values = value.split_view(' ', SplitBehavior::Nothing);
-        if (values.is_empty())
+        // NB: A value that does not parse as a whole is invalid, so both numbers take the initial value.
+        auto values = parse_number_optional_number(value);
+        if (!values.has_value())
             return m_initial_value;
+
+        // 1. If this SVGAnimatedNumber object reflects the first number, then return the first value in value.
         if (m_value_represented == ValueRepresented::First)
-            return parse_value_or_initial(values[0]);
+            return values->first;
 
         // 2. Otherwise, this SVGAnimatedNumber object reflects the second number. Return the second value in value if
         //    it has been explicitly specified, and if not, return the implicit value as described in the definition of
@@ -138,9 +143,7 @@ float SVGAnimatedNumber::get_base_or_anim_value() const
         // NB: All known usages of <number-optional-number> specify that a missing second number defaults to the value
         //     of the first number.
         VERIFY(m_value_represented == ValueRepresented::Second);
-        if (values.size() > 1 && !values[1].is_empty())
-            return parse_value_or_initial(values[1]);
-        return parse_value_or_initial(values[0]);
+        return values->second.value_or(values->first);
     }
 
     // 3. Otherwise, the reflected attribute is defined to take a single number value. Return value.

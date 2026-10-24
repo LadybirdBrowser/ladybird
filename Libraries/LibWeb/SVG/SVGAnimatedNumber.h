@@ -28,12 +28,18 @@ public:
         Second,
     };
 
+    enum class AcceptsPercentage : u8 {
+        Yes,
+        No,
+    };
+
     [[nodiscard]] static GC::Ref<SVGAnimatedNumber> create(
         GC::Ref<SVGElement>,
         DOM::QualifiedName reflected_attribute,
         float initial_value,
         SupportsSecondValue = SupportsSecondValue::No,
-        ValueRepresented = ValueRepresented::First);
+        ValueRepresented = ValueRepresented::First,
+        AcceptsPercentage = AcceptsPercentage::No);
     virtual ~SVGAnimatedNumber() override;
 
     float base_val() const;
@@ -42,7 +48,7 @@ public:
     float anim_val() const;
 
 private:
-    SVGAnimatedNumber(GC::Ref<SVGElement>, DOM::QualifiedName, float, SupportsSecondValue, ValueRepresented);
+    SVGAnimatedNumber(GC::Ref<SVGElement>, DOM::QualifiedName, float, SupportsSecondValue, ValueRepresented, AcceptsPercentage);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
@@ -54,6 +60,7 @@ private:
     float m_initial_value;
     SupportsSecondValue m_supports_second_value;
     ValueRepresented m_value_represented;
+    AcceptsPercentage m_accepts_percentage;
 };
 
 }

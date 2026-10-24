@@ -47,6 +47,31 @@ fn parse_number_percentage(input: Input<'_>) -> Option<NumberPercentage> {
     parser.done().then_some(NumberPercentage { value, is_percentage })
 }
 
+// https://svgwg.org/svg2-draft/types.html#syntax
+fn parse_number(input: Input<'_>) -> Option<f32> {
+    let mut parser = Parser::new(input);
+    parser.parse_whitespace();
+    let value = parser.parse_css_number().ok()?;
+    parser.parse_whitespace();
+    parser.done().then_some(value)
+}
+
+// https://drafts.fxtf.org/filter-effects/#typedef-number-optional-number
+// <number-optional-number> = <number> <number>?
+fn parse_number_optional_number(input: Input<'_>) -> Option<(f32, Option<f32>)> {
+    let mut parser = Parser::new(input);
+    parser.parse_whitespace();
+    let first = parser.parse_css_number().ok()?;
+    parser.parse_whitespace();
+    if parser.done() {
+        return Some((first, None));
+    }
+    parser.parse_optional_comma_whitespace();
+    let second = parser.parse_css_number().ok()?;
+    parser.parse_whitespace();
+    parser.done().then_some((first, Some(second)))
+}
+
 fn parse_points(input: Input<'_>) -> Vec<[f32; 2]> {
     let mut parser = Parser::new(input);
     parser.parse_whitespace();
@@ -364,6 +389,31 @@ pub extern "C" fn rust_parse_svg_integer(input: FfiUtf16View<'_>, value: &mut i3
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn rust_parse_svg_number(input: FfiUtf16View<'_>, value: &mut f32) -> bool {
+    let Some(parsed_value) = with_input(input, parse_number).flatten() else {
+        return false;
+    };
+    *value = parsed_value;
+    true
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_parse_svg_number_optional_number(
+    input: FfiUtf16View<'_>,
+    first: &mut f32,
+    second: &mut f32,
+    has_second: &mut bool,
+) -> bool {
+    let Some((parsed_first, parsed_second)) = with_input(input, parse_number_optional_number).flatten() else {
+        return false;
+    };
+    *first = parsed_first;
+    *second = parsed_second.unwrap_or(0.0);
+    *has_second = parsed_second.is_some();
+    true
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn rust_parse_svg_number_percentage(
     input: FfiUtf16View<'_>,
     value: &mut f32,
@@ -509,6 +559,16 @@ mod tests {
             })
         );
         assert_eq!(parse_number_percentage(input("12px")), None);
+        assert_eq!(parse_number(input(" +5 ")), Some(5.0));
+        assert_eq!(parse_number(input(".5")), Some(0.5));
+        assert_eq!(parse_number(input("5.")), None);
+        assert_eq!(parse_number(input("--3")), None);
+        assert_eq!(parse_number(input("3 4")), None);
+        assert_eq!(parse_number(input("")), None);
+        assert_eq!(parse_number_optional_number(input(" 3 ")), Some((3.0, None)));
+        assert_eq!(parse_number_optional_number(input("3, 4")), Some((3.0, Some(4.0))));
+        assert_eq!(parse_number_optional_number(input("3 abc")), None);
+        assert_eq!(parse_number_optional_number(input("3,")), None);
     }
 
     #[test]

@@ -37,7 +37,8 @@ float SVGStopElement::stop_opacity() const
 GC::Ref<SVGAnimatedNumber> SVGStopElement::offset()
 {
     if (!m_stop_offset)
-        m_stop_offset = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::offset, OptionalNone {}, OptionalNone {} }, 0.f);
+        m_stop_offset = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::offset, OptionalNone {}, OptionalNone {} }, 0.f,
+            SVGAnimatedNumber::SupportsSecondValue::No, SVGAnimatedNumber::ValueRepresented::First, SVGAnimatedNumber::AcceptsPercentage::Yes);
     return *m_stop_offset;
 }
 

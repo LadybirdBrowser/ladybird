@@ -122,6 +122,14 @@ private:
 };
 
 WEB_API Optional<i32> parse_integer(Utf16View);
+WEB_API Optional<float> parse_number(Utf16View);
+
+struct NumberOptionalNumber {
+    float first { 0 };
+    Optional<float> second;
+};
+WEB_API Optional<NumberOptionalNumber> parse_number_optional_number(Utf16View);
+
 WEB_API Optional<NumberPercentage> parse_number_percentage(Utf16View);
 WEB_API Vector<Gfx::FloatPoint> parse_points(Utf16View);
 WEB_API Optional<Vector<Transform>> parse_transform(Utf16View);
