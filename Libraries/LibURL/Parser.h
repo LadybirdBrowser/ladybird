@@ -10,7 +10,6 @@
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <AK/Utf16View.h>
-#include <LibTextCodec/Forward.h>
 #include <LibURL/URL.h>
 
 namespace URL {
@@ -46,9 +45,6 @@ public:
     static Optional<URL> basic_parse(Utf16View input, Optional<URL const&> base_url = {}, Optional<StringView> encoding = {});
     static bool basic_parse(StringView input, URL& url, State state_override, Optional<StringView> encoding = {});
     static bool basic_parse(Utf16View input, URL& url, State state_override, Optional<StringView> encoding = {});
-
-    // https://url.spec.whatwg.org/#string-percent-encode-after-encoding
-    static String percent_encode_after_encoding(TextCodec::Encoder const&, StringView input, PercentEncodeSet percent_encode_set, bool space_as_plus = false);
 
     static Optional<Host> parse_host(StringView input, bool is_opaque = false);
     static Optional<Host> parse_host(Utf16View input, bool is_opaque = false);
