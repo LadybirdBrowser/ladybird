@@ -61,6 +61,10 @@ void publish_element_scroll_offset(DOM::Element const&);
 // before the build that stamps the element's row is over. Every other element spans one of each and publishes nothing.
 void publish_table_spans(DOM::Element const&);
 
+// Publishes the writing suggestion showing after the caret, at offset in text, or that none shows when text is null.
+// The tree build splits the text's box around it.
+void publish_writing_suggestion(DOM::Document&, DOM::Text const* text, size_t offset, Utf16View remainder);
+
 inline RustFFI::FfiSvgNumberPercentage to_ffi_number_percentage(SVG::NumberPercentage value)
 {
     return { .value = value.value(), .is_percentage = value.is_percentage() };

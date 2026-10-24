@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        println(await internals.requestWritingSuggestionForTesting("I like predi", 12));
+        println(await internals.requestWritingSuggestionForTesting("Lady", 4));
+        println(await internals.requestWritingSuggestionForTesting("teh", 3));
+        println(await internals.requestWritingSuggestionForTesting("predi", 2));
+        println(await internals.requestWritingSuggestionForTesting("predi ", 6));
+    });
+</script>

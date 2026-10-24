@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/writing-suggestion-end-of-text-ref.html">
+<style>
+    div { font: 20px/1.5 sans-serif; }
+</style>
+<div id="editable" contenteditable></div>
+<script>
+    const editable = document.getElementById("editable");
+    editable.focus();
+    
+    internals.sendText(editable, "I like predi");
+    internals.writingSuggestionSettled().then(() => internals.signalTestIsDone("PASS"));
+</script>
+</html>

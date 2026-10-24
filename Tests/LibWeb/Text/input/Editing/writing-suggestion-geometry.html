@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editable" contenteditable>-xyz</div>
+<script>
+    promiseTest(async () => {
+        const editable = document.getElementById("editable");
+        editable.focus();
+        getSelection().collapse(editable.firstChild, 0);
+        internals.sendText(editable, "predi");
+        const textAfterCaret = document.createRange();
+        textAfterCaret.setStart(editable.firstChild, 5);
+        textAfterCaret.setEnd(editable.firstChild, 9);
+        const leftWhileTyping = textAfterCaret.getBoundingClientRect().left;
+        await internals.writingSuggestionSettled();
+        println(`suggestion: ${internals.writingSuggestion()}`);
+        println(`text after the caret moved over: ${textAfterCaret.getBoundingClientRect().left > leftWhileTyping}`);
+    });
+</script>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editable" contenteditable></div>
+<input id="field">
+<script>
+    promiseTest(async () => {
+        // Printed only at the end, so the output itself isn't in the page that find() searches.
+        const lines = [];
+        const editable = document.getElementById("editable");
+        internals.sendText(editable, "predi");
+        await internals.writingSuggestionSettled();
+        lines.push(`suggestion: ${internals.writingSuggestion()}`);
+        lines.push(`innerText: ${editable.innerText}`);
+        lines.push(`textContent: ${editable.textContent}`);
+        lines.push(`selection: "${getSelection().toString()}"`);
+        lines.push(`find: ${window.find("ction")}`);
+
+        const field = document.getElementById("field");
+        internals.sendText(field, "predi");
+        await internals.writingSuggestionSettled();
+        lines.push(`input suggestion: ${internals.writingSuggestion()}`);
+        lines.push(`value: ${field.value}`);
+        lines.forEach(line => println(line));
+    });
+</script>

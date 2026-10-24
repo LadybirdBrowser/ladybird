@@ -12,7 +12,17 @@
 
 #import <AppKit/AppKit.h>
 
+// Inline predictions are private AppKit API. Each selector is checked with "respondsToSelector:" before use, so if
+// AppKit drops one, predictions stop showing and nothing else changes.
+@interface NSSpellChecker (LadybirdInlinePredictions)
+@property (class, readonly, getter=isAutomaticInlineCompletionEnabled) BOOL automaticInlineCompletionEnabled;
+- (NSTextCheckingResult*)completionCandidateFromCandidates:(NSArray<NSTextCheckingResult*>*)candidates;
+@end
+
 namespace Ladybird {
+
+// The private text checking type that asks for a single completion of the word at the caret.
+static constexpr NSTextCheckingTypes text_checking_type_single_completion = 1ULL << 29;
 
 // NSString and our strings hold the same UTF-16 code units, lone surrogates included, so offsets carry over unchanged.
 static NSString* ns_string_from_utf16(Utf16String const& string)
@@ -35,6 +45,11 @@ static Utf16String utf16_from_ns_string(NSString* string)
 // only this atomically counted holder crosses threads.
 struct PendingChecks : public AtomicRefCounted<PendingChecks> {
     HashMap<u64, Function<void(Vector<Web::SpellingError>)>> callbacks;
+    u64 next_id { 0 };
+};
+
+struct PendingSuggestions : public AtomicRefCounted<PendingSuggestions> {
+    HashMap<u64, Function<void(Optional<Web::WritingSuggestion>)>> callbacks;
     u64 next_id { 0 };
 };
 
@@ -104,8 +119,57 @@ public:
         [[NSSpellChecker sharedSpellChecker] learnWord:ns_string_from_utf16(word)];
     }
 
+    virtual bool can_suggest() const override
+    {
+        return [NSSpellChecker respondsToSelector:@selector(isAutomaticInlineCompletionEnabled)]
+            && [[NSSpellChecker sharedSpellChecker] respondsToSelector:@selector(completionCandidateFromCandidates:)];
+    }
+
+    virtual void suggest(DocumentTag tag, Utf16String const& text, u32 caret_offset, Function<void(Optional<Web::WritingSuggestion>)> on_complete) override
+    {
+        // The user's "Show inline predictive text" setting, which can change at any time.
+        if (!can_suggest() || !NSSpellChecker.isAutomaticInlineCompletionEnabled) {
+            on_complete({});
+            return;
+        }
+
+        auto id = m_pending_suggestions->next_id++;
+        m_pending_suggestions->callbacks.set(id, move(on_complete));
+        RefPtr<PendingSuggestions> pending_suggestions = m_pending_suggestions;
+        RefPtr<Core::WeakEventLoopReference> event_loop = Core::EventLoop::current_weak();
+        auto* string = ns_string_from_utf16(text);
+        auto handler = ^(NSInteger, NSArray<NSTextCheckingResult*>* candidates) {
+            auto strong_event_loop = event_loop->take();
+            if (!strong_event_loop)
+                return;
+            // The candidates arrive on an arbitrary queue, and the spellchecker picks among them on the main thread.
+            strong_event_loop->deferred_invoke([pending_suggestions, id, candidates]() mutable {
+                Optional<Web::WritingSuggestion> suggestion;
+                NSTextCheckingResult* candidate = [[NSSpellChecker sharedSpellChecker] completionCandidateFromCandidates:candidates];
+                if (candidate && candidate.replacementString && candidate.range.location != NSNotFound) {
+                    suggestion = Web::WritingSuggestion {
+                        static_cast<u32>(candidate.range.location),
+                        static_cast<u32>(candidate.range.length),
+                        utf16_from_ns_string(candidate.replacementString),
+                    };
+                }
+                if (auto callback = pending_suggestions->callbacks.take(id); callback.has_value())
+                    (*callback)(move(suggestion));
+            });
+        };
+        // The platform's own candidate types go along with the completion type, which is how the system asks.
+        NSTextCheckingTypes types = NSTextCheckingTypeSpelling | NSTextCheckingTypeReplacement | NSTextCheckingTypeCorrection | text_checking_type_single_completion;
+        [[NSSpellChecker sharedSpellChecker] requestCandidatesForSelectedRange:NSMakeRange(caret_offset, 0)
+                                                                      inString:string
+                                                                         types:types
+                                                                       options:nil
+                                                        inSpellDocumentWithTag:tag
+                                                             completionHandler:handler];
+    }
+
 private:
     NonnullRefPtr<PendingChecks> m_pending_checks { adopt_ref(*new PendingChecks) };
+    NonnullRefPtr<PendingSuggestions> m_pending_suggestions { adopt_ref(*new PendingSuggestions) };
 };
 
 NonnullOwnPtr<WebView::SpellChecker> create_platform_spell_checker()

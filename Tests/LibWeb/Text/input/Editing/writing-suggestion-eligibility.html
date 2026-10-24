@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="text" type="text">
+<input id="search" type="search">
+<input id="url" type="url">
+<input id="email" type="email">
+<input id="tel" type="tel">
+<input id="password" type="password">
+<input id="number" type="number">
+<input id="readonly" type="text" readonly>
+<textarea id="textarea"></textarea>
+<div id="editable" contenteditable></div>
+<div id="off" contenteditable writingsuggestions="false"></div>
+<div writingsuggestions="false"><div contenteditable><span id="inherited-off">x</span></div></div>
+<textarea id="autocomplete-off" autocomplete="off"></textarea>
+<iframe id="frame" srcdoc="<body contenteditable></body>"></iframe>
+<script>
+    promiseTest(async () => {
+        await new Promise(resolve => {
+            if (frame.contentDocument?.readyState === "complete")
+                resolve();
+            else
+                frame.onload = resolve;
+        });
+        const show = async (label, target) => {
+            internals.sendText(target, "predi");
+            await internals.writingSuggestionSettled();
+            println(`${label}: ${internals.writingSuggestion()}`);
+            internals.sendText(target, " ");
+            await internals.writingSuggestionSettled();
+        };
+
+        for (const id of ["text", "search", "url", "email", "tel", "password", "number", "readonly", "textarea", "editable", "off", "autocomplete-off"])
+            await show(id, document.getElementById(id));
+
+        const span = document.getElementById("inherited-off");
+        span.parentElement.focus();
+        getSelection().collapse(span.firstChild, 1);
+        await show("inherited-off", span.parentElement);
+
+        await show("iframe", frame.contentDocument.body);
+    });
+</script>

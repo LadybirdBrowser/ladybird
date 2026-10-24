@@ -93,6 +93,7 @@
 #include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/Page/TextEditingCommand.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
+#include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
@@ -319,6 +320,19 @@ public:
     // For tests: Calls the callback once no document of the page has spellchecking queued or in flight.
     void when_spell_checking_settled(GC::Ref<GC::Function<void()>>);
     void notify_spell_check_progress();
+
+    using WritingSuggestionRequest = GC::Ref<GC::Function<void(Optional<WritingSuggestion>)>>;
+    bool writing_suggestions_available() const { return m_writing_suggestions_available; }
+    void set_writing_suggestions_available(bool available) { m_writing_suggestions_available = available; }
+    void request_writing_suggestion(Utf16String const& text, u32 caret_offset, WritingSuggestionRequest);
+    void did_get_writing_suggestion(u64 request_id, Optional<WritingSuggestion>);
+    bool has_pending_writing_suggestions() const { return !m_pending_writing_suggestion_requests.is_empty(); }
+
+    // For tests: Calls the callback once no document of the page has a writing suggestion request queued or in flight.
+    void when_writing_suggestions_settled(GC::Ref<GC::Function<void()>>);
+    void notify_writing_suggestion_progress();
+    // For tests: Calls the callback when the next writing suggestion request goes to the UI process.
+    void when_writing_suggestion_requested(GC::Ref<GC::Function<void()>>);
 
     using GeolocationPositionResult = Variant<Geolocation::CoordinatesData, Geolocation::GeolocationPositionError::ErrorCode>;
     using GeolocationPositionCallback = GC::Ref<GC::Function<void(GeolocationPositionResult)>>;
@@ -552,6 +566,12 @@ private:
     HashMap<u64, SpellCheckRequest> m_pending_spell_check_requests;
     u64 m_next_spell_check_request_id { 0 };
     Vector<GC::Ref<GC::Function<void()>>> m_spell_checking_settled_callbacks;
+
+    bool m_writing_suggestions_available { false };
+    HashMap<u64, WritingSuggestionRequest> m_pending_writing_suggestion_requests;
+    u64 m_next_writing_suggestion_request_id { 0 };
+    Vector<GC::Ref<GC::Function<void()>>> m_writing_suggestions_settled_callbacks;
+    Vector<GC::Ref<GC::Function<void()>>> m_writing_suggestion_requested_callbacks;
 
     struct PendingGeolocationRequest {
         GeolocationPositionCallback callback;
@@ -874,6 +894,7 @@ public:
     virtual void page_did_insert_clipboard_item(Clipboard::SystemClipboardItem const&, [[maybe_unused]] StringView presentation_style) { }
     virtual void page_did_request_clipboard_entries([[maybe_unused]] u64 request_id) { }
     virtual void page_did_request_spell_check([[maybe_unused]] u64 request_id, [[maybe_unused]] Utf16String const& text) { }
+    virtual void page_did_request_writing_suggestion([[maybe_unused]] u64 request_id, [[maybe_unused]] Utf16String const& text, [[maybe_unused]] u32 caret_offset) { }
     virtual void page_did_request_primary_paste() { }
     virtual void page_did_complete_paste_action() { }
     virtual void page_did_update_primary_selection(Utf16String const&) { }

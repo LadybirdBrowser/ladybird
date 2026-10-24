@@ -239,6 +239,7 @@ private:
     virtual void set_browsing_behavior(Web::PageId page_id, WebView::BrowsingBehavior) override;
     virtual void set_enable_global_privacy_control(Web::PageId page_id, bool) override;
     virtual void set_spell_checking_available(Web::PageId page_id, bool available) override;
+    virtual void set_writing_suggestions_available(Web::PageId page_id, bool available) override;
     virtual void set_geolocation_emulated_position(Web::PageId page_id, WebView::GeolocationPositionData, Optional<u16> error_code) override;
     virtual void geolocation_position_response(Web::PageId page_id, u64 request_id, WebView::GeolocationPositionData, Optional<u16> error_code) override;
     virtual void permission_request_completed(Web::PageId page_id, u64 request_id, bool granted) override;
@@ -274,6 +275,7 @@ private:
 
     virtual void retrieved_clipboard_entries(Web::PageId page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem>) override;
     virtual void did_check_spelling(Web::PageId page_id, u64 request_id, Vector<Web::SpellingError> errors) override;
+    virtual void did_get_writing_suggestion(Web::PageId page_id, u64 request_id, Optional<Web::WritingSuggestion> suggestion) override;
     virtual void replace_context_menu_misspelling(Web::PageId page_id, Utf16String replacement) override;
     virtual void accept_spelling_word(Web::PageId page_id, Utf16String word) override;
     virtual void forget_accepted_spelling_words(Web::PageId page_id) override;

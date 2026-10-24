@@ -22,6 +22,8 @@ public:
     virtual void ignore(DocumentTag, Utf16String const& word) override;
     virtual void learn(DocumentTag, Utf16String const& word) override;
     virtual bool learns_for_every_tag() const override { return false; }
+    virtual bool can_suggest() const override { return true; }
+    virtual void suggest(DocumentTag, Utf16String const& text, u32 caret_offset, Function<void(Optional<Web::WritingSuggestion>)> on_complete) override;
 
 private:
     bool is_misspelled(DocumentTag, Utf16View word) const;
