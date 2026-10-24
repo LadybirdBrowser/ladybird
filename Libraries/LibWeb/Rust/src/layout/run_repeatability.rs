@@ -26,6 +26,10 @@ fn run_repeatability_verification() -> RunRepeatabilityVerification {
     })
 }
 
+pub(super) fn verification_is_enabled() -> bool {
+    run_repeatability_verification() != RunRepeatabilityVerification::Off
+}
+
 /// Lays out a run whose result is discarded through `run`, where the verification is on and no such run is in
 /// progress around it already. Nothing it does is traced.
 pub(super) fn lay_out_discarded_run(
