@@ -40,8 +40,21 @@ impl BigInt {
         vm.heap().allocate(|_| Self::new(big_integer))
     }
 
+    pub fn create_from_i64(vm: &Vm, value: i64) -> Gc<BigInt> {
+        Self::create(vm, SignedBigInteger::from(value))
+    }
+
+    pub fn create_from_u64(vm: &Vm, value: u64) -> Gc<BigInt> {
+        Self::create(vm, SignedBigInteger::from(value))
+    }
+
     pub fn big_integer(&self) -> &SignedBigInteger {
         &self.big_integer
+    }
+
+    /// The value, if it is an integer in the range of u64.
+    pub fn to_u64_if_exact(&self) -> Option<u64> {
+        u64::try_from(&self.big_integer).ok()
     }
 
     pub fn to_utf16_string(&self) -> Utf16String {

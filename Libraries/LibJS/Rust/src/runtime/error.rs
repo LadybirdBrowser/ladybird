@@ -174,6 +174,12 @@ impl Error {
         })
     }
 
+    /// An error with `prototype`, as OrdinaryCreateFromConstructor creates one for an error type of the embedder,
+    /// whose prototype the realm's intrinsics do not have.
+    pub fn create_with_prototype(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> Gc<Error> {
+        realm.create_object(vm, |_| Error::new(vm, Error::CLASS, prototype))
+    }
+
     pub fn create_with_message(vm: &Vm, realm: Gc<Realm>, message: Utf16String) -> Gc<Error> {
         let error = Error::create(vm, realm);
         error.set_message(vm, message);
