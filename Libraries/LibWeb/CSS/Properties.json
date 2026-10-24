@@ -2510,6 +2510,47 @@
       "font-style"
     ]
   },
+  "font-synthesis-position": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "auto",
+      "none"
+    ]
+  },
+  "font-synthesis-small-caps": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "auto",
+      "none"
+    ]
+  },
+  "font-synthesis-style": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "auto",
+      "none",
+      "oblique-only"
+    ]
+  },
+  "font-synthesis-weight": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "auto",
+      "none"
+    ]
+  },
   "font-variant": {
     "initial": "normal",
     "longhands": [
