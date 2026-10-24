@@ -1,0 +1,42 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    .wrapper {
+        width: max-content;
+    }
+
+    .column {
+        display: flex;
+        flex-direction: column;
+        height: 100px;
+    }
+
+    .item {
+        display: flex;
+        flex: 1;
+    }
+</style>
+<script>
+    function appendColumn(squareStyle, siblingStyle) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "wrapper";
+        wrapper.innerHTML = `<div class="column"><div class="item"><div class="square" style="${squareStyle}"></div><div class="sibling" style="${siblingStyle}"></div></div></div>`;
+        document.body.append(wrapper);
+        return wrapper.firstChild;
+    }
+
+    test(() => {
+        const cases = [
+            ["sibling width", "aspect-ratio: 1", "width: 5px", column => (column.querySelector(".sibling").style.width = "6px"), "aspect-ratio: 1", "width: 6px"],
+            ["square aspect ratio", "aspect-ratio: 1", "width: 5px", column => (column.querySelector(".square").style.aspectRatio = "2"), "aspect-ratio: 2", "width: 5px"],
+        ];
+        for (const [name, squareStyle, siblingStyle, mutate, mutatedSquareStyle, mutatedSiblingStyle] of cases) {
+            const mutated = appendColumn(squareStyle, siblingStyle);
+            mutated.getBoundingClientRect();
+            mutate(mutated);
+            const fresh = appendColumn(mutatedSquareStyle, mutatedSiblingStyle);
+            const matches = mutated.getBoundingClientRect().width === fresh.getBoundingClientRect().width;
+            println(`${name}: mutated column matches a fresh copy: ${matches}`);
+        }
+    });
+</script>

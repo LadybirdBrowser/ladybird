@@ -1,0 +1,2 @@
+sibling width: mutated column matches a fresh copy: true
+square aspect ratio: mutated column matches a fresh copy: true

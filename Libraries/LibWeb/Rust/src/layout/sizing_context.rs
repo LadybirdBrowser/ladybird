@@ -224,6 +224,10 @@ impl<'pass> SizingContext<'pass> {
         // OPTIMIZATION: A definite block size only distinguishes intrinsic inline measurements when a cross-axis
         // dependency can transfer it back into the inline axis. Reuse the common horizontal-flow measurement across
         // assigned block sizes, while preserving distinct entries for orthogonal flows and aspect-ratio transfers.
+        self.intrinsic_inline_size_may_depend_on_block_size(root)
+    }
+
+    pub(crate) fn intrinsic_inline_size_may_depend_on_block_size(&self, root: Node) -> bool {
         self.callbacks
             .intrinsic_size_caches()
             .intrinsic_inline_size_depends_on_block_size(self.callbacks.intrinsic_size_cache_stamp(root), || {
@@ -3025,6 +3029,18 @@ impl<'pass> SizingContext<'pass> {
         {
             if let Some(trace) = &trace {
                 trace.append(" FROM COLUMNS");
+            }
+            return self.cache_content_sizes_measured_without_layout(node, kind, key, sizes);
+        }
+        if let Some(sizes) = intrinsic_sizing::content_sizes_of_flex_container(
+            self.callbacks,
+            node,
+            constraints,
+            block_size,
+            depends_on_block_size,
+        ) {
+            if let Some(trace) = &trace {
+                trace.append(" FROM FLEX ITEMS");
             }
             return self.cache_content_sizes_measured_without_layout(node, kind, key, sizes);
         }

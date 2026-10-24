@@ -135,6 +135,17 @@
             ["floating table", "", '<table style="float: left; border-spacing: 0"><tr><td>alpha beta</td></tr></table>gamma'],
             ["floating table with collapsed borders", "", '<table style="float: left; border-collapse: collapse"><tr><td style="border: 4px solid">alpha beta</td><td style="border: 4px solid">gamma</td></tr></table>'],
             ["percentage height table cell", "height: 80px", '<table style="height: 100%; border-spacing: 0"><tr><td style="height: 50%">alpha beta</td></tr></table>'],
+            ["row flex", "", '<div style="display: flex; column-gap: 5px"><div>alpha beta</div><div style="padding: 0 3px">gamma</div></div>'],
+            ["row flex with flex factors", "", '<div style="display: flex"><div style="flex: 2 1 10px">alpha beta</div><div style="flex: 1 2 40px">gamma</div></div>'],
+            ["row flex with item constraints", "", '<div style="display: flex"><div style="min-width: 120px">alpha</div><div style="max-width: 30px">gamma delta</div><div style="flex-basis: content; width: 20px">beta</div></div>'],
+            ["row flex with a scroll container item", "", '<div style="display: flex"><div style="overflow: auto">alphabeta</div><div>gamma</div></div>'],
+            ["row flex with a percentage gap", "", '<div style="display: flex; column-gap: 10%"><div>alpha</div><div>beta</div></div>'],
+            ["wrapping row flex", "", '<div style="display: flex; flex-wrap: wrap; gap: 4px"><div>alpha beta</div><div>gamma</div><div>delta</div></div>'],
+            ["column flex", "", '<div style="display: flex; flex-direction: column"><div>alpha beta</div><div style="min-width: 70px; margin-left: 5px">gamma</div></div>'],
+            ["wrapping column flex", "", '<div style="display: flex; flex-direction: column; flex-wrap: wrap; height: 40px; column-gap: 5px"><div>alpha beta</div><div>gamma</div><div>delta</div></div>'],
+            ["column flex with an aspect ratio item", "", '<div style="display: flex; flex-direction: column"><div style="aspect-ratio: 2; height: 20px"></div><div>alpha</div></div>'],
+            ["nested flex", "", '<div style="display: flex"><div style="display: flex; flex-direction: column"><div>alpha beta</div><div style="display: flex"><span>x</span><span>yyyy</span></div></div><div>gamma</div></div>'],
+            ["row flex with a stretched aspect ratio item", "", '<div style="display: flex"><div style="aspect-ratio: 1"></div><div style="width: 10px; height: 60px"></div></div>'],
         ];
         for (const [name, declarations, content] of cases) {
             const container = document.createElement("div");

@@ -1,0 +1,5 @@
+inline-size-containment: 20
+size-containment: 20
+explicit-intrinsic-width: 50
+inline-size-container: 20
+no-containment: 200

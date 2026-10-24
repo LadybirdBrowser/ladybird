@@ -1,0 +1,80 @@
+<!doctype html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    .wrapper {
+        width: max-content;
+        font: 10px/20px Ahem;
+    }
+
+    #row {
+        display: flex;
+        gap: 3px;
+    }
+
+    #column, #column-with-image {
+        display: flex;
+        flex-direction: column;
+    }
+
+    #column-wrap {
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        height: 40px;
+        column-gap: 5px;
+    }
+</style>
+<template id="fixture">
+    <div class="wrapper"><div id="row"><div>alpha beta</div><div>gamma</div></div></div>
+    <div class="wrapper"><div id="column"><div>alpha beta</div><div>gamma</div></div></div>
+    <div class="wrapper"><div id="column-wrap"><div>alpha beta</div><div>gamma</div><div>delta</div></div></div>
+    <div class="wrapper"><div id="column-with-image"><div>alpha beta</div><div>gamma</div></div></div>
+</template>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        const image = new Image();
+        image.src = "../../Assets/120.png";
+        await image.decode();
+        const work = layoutWork(() => {
+            document.body.appendChild(document.getElementById("fixture").content.cloneNode(true));
+            document.getElementById("column-with-image").prepend(image);
+        });
+        for (const id of ["row", "column", "column-wrap", "column-with-image"]) {
+            const box = `Box<DIV>#${id}`;
+            const answers = new Set();
+            let misses = 0;
+            let blockMeasurements = 0;
+            let runsOutsideBlockMeasurements = 0;
+            work.events.forEach((measure, start) => {
+                if (measure.event !== "measure" || measure.box !== box || !measure.size.endsWith("inline")) return;
+                if (measure.cache !== "miss") return;
+                ++misses;
+                answers.add(measure.from);
+                let blockMeasurementDepth = null;
+                for (const event of work.events.slice(start + 1)) {
+                    if (event.depth <= measure.depth) break;
+                    if (blockMeasurementDepth !== null && event.depth <= blockMeasurementDepth) blockMeasurementDepth = null;
+                    if (blockMeasurementDepth !== null) continue;
+                    if (event.event === "measure" && event.size.endsWith("block") && event.cache === "miss") {
+                        ++blockMeasurements;
+                        blockMeasurementDepth = event.depth;
+                    } else if (event.event === "run") {
+                        ++runsOutsideBlockMeasurements;
+                    }
+                }
+            });
+            const width = document.getElementById(id).getBoundingClientRect().width;
+            println(
+                `${id}: ${misses} inline misses answered from ${[...answers].join(", ")}, ${blockMeasurements} block measurements, ${runsOutsideBlockMeasurements} runs outside them, width ${width}`
+            );
+        }
+        done();
+    });
+</script>

@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    .outer {
+        width: 300px;
+    }
+
+    .flex {
+        display: flex;
+        aspect-ratio: 1;
+        height: 20px;
+    }
+
+    .content {
+        width: 200px;
+        height: 10px;
+    }
+</style>
+<div class="outer"><div class="flex" id="inline-size-containment" style="contain: inline-size"><div class="content"></div></div></div>
+<div class="outer"><div class="flex" id="size-containment" style="contain: size"><div class="content"></div></div></div>
+<div class="outer"><div class="flex" id="explicit-intrinsic-width" style="contain: inline-size; contain-intrinsic-width: 50px"><div class="content"></div></div></div>
+<div class="outer"><div class="flex" id="inline-size-container" style="container-type: inline-size"><div class="content"></div></div></div>
+<div class="outer"><div class="flex" id="no-containment"><div class="content"></div></div></div>
+<script>
+    test(() => {
+        for (const id of ["inline-size-containment", "size-containment", "explicit-intrinsic-width", "inline-size-container", "no-containment"])
+            println(`${id}: ${document.getElementById(id).getBoundingClientRect().width}`);
+    });
+</script>
