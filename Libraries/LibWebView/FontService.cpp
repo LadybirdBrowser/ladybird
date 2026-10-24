@@ -163,7 +163,7 @@ ErrorOr<IPC::File> FontService::create_immutable_font_data(ReadonlyBytes bytes)
         return Error::from_errno(errno);
     return file;
 #elif defined(AK_OS_WINDOWS)
-    auto buffer = TRY(Core::AnonymousBuffer::create_with_size(bytes.size(), Core::AnonymousBuffer::Sealability::Sealable));
+    auto buffer = TRY(Core::AnonymousBuffer::create_with_size(bytes.size()));
     bytes.copy_to({ buffer.data<u8>(), buffer.size() });
     return IPC::File::clone_fd(buffer.fd());
 #else

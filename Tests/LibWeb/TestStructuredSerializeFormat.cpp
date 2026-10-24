@@ -864,7 +864,7 @@ TEST_CASE(image_bitmap_transfer_rejects_invalid_shared_pixels)
 {
     auto& realm = test_realm();
     Vector<Core::AnonymousBuffer> shared_buffers;
-    shared_buffers.append(MUST(Core::AnonymousBuffer::create_with_size(64, Core::AnonymousBuffer::Sealability::Sealable)));
+    shared_buffers.append(MUST(Core::AnonymousBuffer::create_with_size(64)));
     auto receive = [&](Vector<Core::AnonymousBuffer> const* buffers, u32 buffer_index, u64 offset, Gfx::BitmapFormat format, int width) {
         Web::HTML::TransferDataEncoder holder;
         MUST(holder.encode(true));
@@ -938,7 +938,8 @@ TEST_CASE(image_bitmap_transfer_rejects_unsealed_backing)
     auto& realm = test_realm();
     // Even a correctly sized descriptor with sealing permanently disabled must be rejected.
     Vector<Core::AnonymousBuffer> shared_buffers;
-    shared_buffers.append(MUST(Core::AnonymousBuffer::create_with_size(64)));
+    auto unsealable_fd = MUST(Core::System::anon_create(64, O_CLOEXEC, Core::System::AllowSealing::No));
+    shared_buffers.append(MUST(Core::AnonymousBuffer::create_from_anon_fd(unsealable_fd, 64)));
     Web::HTML::TransferDataEncoder holder;
     MUST(holder.encode(true));
     MUST(holder.encode(0u));

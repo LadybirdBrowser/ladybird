@@ -170,7 +170,7 @@ GamepadManager::Consumer* GamepadManager::ensure_consumer(WebContentClient& clie
     if (auto existing_consumer = m_consumers.get(&client); existing_consumer.has_value())
         return *existing_consumer;
 
-    auto state_buffer = Core::AnonymousBuffer::create_with_size(sizeof(Web::Gamepad::SharedGamepadStateBuffer), Core::AnonymousBuffer::Sealability::Sealable);
+    auto state_buffer = Core::AnonymousBuffer::create_with_size(sizeof(Web::Gamepad::SharedGamepadStateBuffer));
     if (state_buffer.is_error()) {
         dbgln("Failed to allocate a shared gamepad state buffer: {}", state_buffer.error());
         return nullptr;

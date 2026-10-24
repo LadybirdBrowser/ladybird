@@ -138,7 +138,7 @@ ErrorOr<Core::AnonymousBuffer> DisplayList::copy_to_shared_buffer() const
     if (size == 0)
         return Core::AnonymousBuffer {};
     // Sealed where the platform supports it, so the receiver cannot be faulted by the file shrinking.
-    auto buffer = TRY(Core::AnonymousBuffer::create_with_size(size, Core::AnonymousBuffer::Sealability::Sealable));
+    auto buffer = TRY(Core::AnonymousBuffer::create_with_size(size));
     RustFFI::display_list_storage_write_packed(m_storage, buffer.data<u8>());
     return buffer;
 }

@@ -73,6 +73,7 @@ public:
     static ErrorOr<SharedSingleProducerCircularQueue> create(int fd)
     {
         auto buffer = TRY(AnonymousBuffer::create_from_anon_fd(fd, sizeof(Data)));
+        TRY(buffer.validate_backing_size());
         auto* data = reinterpret_cast<Data*>(buffer.data<void>());
         return create_internal(move(buffer), data);
     }

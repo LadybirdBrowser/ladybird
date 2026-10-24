@@ -20,7 +20,7 @@ using namespace Web::Gamepad;
 
 static Core::AnonymousBuffer create_producer_buffer()
 {
-    auto buffer = MUST(Core::AnonymousBuffer::create_with_size(sizeof(SharedGamepadStateBuffer), Core::AnonymousBuffer::Sealability::Sealable));
+    auto buffer = MUST(Core::AnonymousBuffer::create_with_size(sizeof(SharedGamepadStateBuffer)));
     new (buffer.data<void>()) SharedGamepadStateBuffer {};
     return buffer;
 }
