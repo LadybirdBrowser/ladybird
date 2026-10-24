@@ -37,6 +37,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Page/Page.h>
@@ -1055,18 +1056,64 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     auto& element = owner_node()->element();
     auto pseudo_element = owner_node()->pseudo_element();
 
-    auto used_value_for_inset = [&layout_node, used_value_for_property](LengthPercentageOrAuto const& start_side, LengthPercentageOrAuto const& end_side, Function<CSSPixels(Layout::Node const&)>&& used_value_getter) -> Optional<CSSPixels> {
-        if (!layout_node.is_positioned())
-            return {};
+    // https://drafts.csswg.org/cssom/#resolved-value-special-case-property-like-top
+    enum class InsetAxis : u8 {
+        Horizontal,
+        Vertical,
+    };
+    auto resolved_value_for_inset = [&layout_node](LengthPercentageOrAuto const& side, LengthPercentageOrAuto const& opposite_side, InsetAxis axis, Function<CSSPixels(Layout::Node const&)>&& used_value_getter) -> NonnullRefPtr<StyleValue const> {
+        auto computed_value = [&] { return style_value_for_length_percentage_or_auto(side); };
 
-        // FIXME: Support getting the used value when position is sticky.
-        if (layout_node.is_sticky_position())
-            return {};
+        auto display = layout_node.display();
+        if (!layout_node.is_positioned() || display.is_none() || display.is_contents() || !Painting::has_committed_box(layout_node))
+            return computed_value();
 
-        if (!start_side.is_percentage() && !start_side.is_calculated() && !start_side.is_auto() && !end_side.is_auto())
-            return {};
+        // NB: The used value of a fixed length is the length itself. Taking it from the computed value keeps
+        //     the precision that layout units would lose. Layout saturates lengths beyond the range of layout
+        //     units, so those are reported as saturated.
+        if (side.is_length()) {
+            auto pixels = side.length().absolute_length_to_px_without_rounding();
+            if (pixels >= CSSPixels::min_integer_value && pixels <= CSSPixels::max_integer_value)
+                return computed_value();
+            return LengthStyleValue::create(Length::make_px(CSSPixels::nearest_value_for(pixels)));
+        }
 
-        return used_value_for_property(move(used_value_getter));
+        auto absolutized_against = [&](CSSPixels percentage_basis) -> NonnullRefPtr<StyleValue const> {
+            auto const& length_percentage = side.length_percentage();
+            if (length_percentage.is_percentage())
+                return LengthStyleValue::create(Length::make_px(percentage_basis.to_double() * length_percentage.percentage().as_fraction()));
+            return LengthStyleValue::create(Length::make_px(length_percentage.resolved(percentage_basis).absolute_length_to_px_without_rounding()));
+        };
+        auto size_in_axis = [axis](CSSPixelSize size) { return axis == InsetAxis::Horizontal ? size.width() : size.height(); };
+
+        // https://drafts.csswg.org/css-position/#insets
+        // For sticky positioned boxes, the inset is instead relative to the relevant scrollport's size.
+        if (layout_node.is_sticky_position()) {
+            // NB: Sticky positioning leaves an auto inset unconstrained, so its used value stays auto.
+            if (side.is_auto())
+                return computed_value();
+            // NB: This uses the same scrollport size as the sticky constraints: the content box of the nearest
+            //     scroll container, or of the viewport.
+            Layout::Box const* scroll_container = layout_node.containing_block();
+            while (scroll_container && !scroll_container->is_scroll_container())
+                scroll_container = scroll_container->containing_block();
+            if (!scroll_container || !Painting::has_committed_box(*scroll_container))
+                return computed_value();
+            return absolutized_against(size_in_axis(Painting::content_size(*scroll_container)));
+        }
+
+        // https://drafts.csswg.org/css-position/#relpos-insets
+        // If neither is auto, the position is over-constrained;
+        // NB: The resolved value is then the computed value, absolutized against the containing block.
+        // INTEROP: Percentages are absolutized rather than serialized as-is, to match other browsers.
+        if (layout_node.position() == Positioning::Relative && !side.is_auto() && !opposite_side.is_auto()) {
+            auto const* containing_block = layout_node.containing_block();
+            if (!containing_block || !Painting::has_committed_box(*containing_block))
+                return computed_value();
+            return absolutized_against(size_in_axis(Painting::content_size(*containing_block)));
+        }
+
+        return LengthStyleValue::create(Length::make_px(used_value_getter(layout_node)));
     };
 
     auto get_computed_value = [&element, pseudo_element](PropertyID property_id) -> NonnullRefPtr<StyleValue const> {
@@ -1245,30 +1292,19 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         //    Otherwise the resolved value is the computed value.
     case PropertyID::Bottom: {
         auto inset = layout_node.inset();
-        if (auto maybe_used_value = used_value_for_inset(inset.bottom(), inset.top(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.bottom; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-
-        return style_value_for_length_percentage_or_auto(inset.bottom());
+        return resolved_value_for_inset(inset.bottom(), inset.top(), InsetAxis::Vertical, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.bottom; });
     }
     case PropertyID::Left: {
         auto inset = layout_node.inset();
-        if (auto maybe_used_value = used_value_for_inset(inset.left(), inset.right(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.left; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(inset.left());
+        return resolved_value_for_inset(inset.left(), inset.right(), InsetAxis::Horizontal, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.left; });
     }
     case PropertyID::Right: {
         auto inset = layout_node.inset();
-        if (auto maybe_used_value = used_value_for_inset(inset.right(), inset.left(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.right; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-
-        return style_value_for_length_percentage_or_auto(inset.right());
+        return resolved_value_for_inset(inset.right(), inset.left(), InsetAxis::Horizontal, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.right; });
     }
     case PropertyID::Top: {
         auto inset = layout_node.inset();
-        if (auto maybe_used_value = used_value_for_inset(inset.top(), inset.bottom(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.top; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-
-        return style_value_for_length_percentage_or_auto(inset.top());
+        return resolved_value_for_inset(inset.top(), inset.bottom(), InsetAxis::Vertical, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.top; });
     }
 
         // -> A resolved value special case property defined in another specification
