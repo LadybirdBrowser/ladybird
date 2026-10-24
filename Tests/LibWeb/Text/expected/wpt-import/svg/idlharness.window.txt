@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1203 Pass
-577 Fail
+1219 Pass
+561 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -268,18 +268,18 @@ Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property
 Fail	SVGStringList interface: calling removeItem(unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
 Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "appendItem(DOMString)" with the proper type
 Fail	SVGStringList interface: calling appendItem(DOMString) on objects.a.requiredExtensions with too few arguments must throw TypeError
-Fail	SVGAnimatedBoolean interface: existence and properties of interface object
-Fail	SVGAnimatedBoolean interface object length
-Fail	SVGAnimatedBoolean interface object name
-Fail	SVGAnimatedBoolean interface: existence and properties of interface prototype object
-Fail	SVGAnimatedBoolean interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGAnimatedBoolean interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGAnimatedBoolean interface: attribute baseVal
-Fail	SVGAnimatedBoolean interface: attribute animVal
-Fail	SVGAnimatedBoolean must be primary interface of objects.feConvolveMatrix.preserveAlpha
-Fail	Stringification of objects.feConvolveMatrix.preserveAlpha
-Fail	SVGAnimatedBoolean interface: objects.feConvolveMatrix.preserveAlpha must inherit property "baseVal" with the proper type
-Fail	SVGAnimatedBoolean interface: objects.feConvolveMatrix.preserveAlpha must inherit property "animVal" with the proper type
+Pass	SVGAnimatedBoolean interface: existence and properties of interface object
+Pass	SVGAnimatedBoolean interface object length
+Pass	SVGAnimatedBoolean interface object name
+Pass	SVGAnimatedBoolean interface: existence and properties of interface prototype object
+Pass	SVGAnimatedBoolean interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimatedBoolean interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimatedBoolean interface: attribute baseVal
+Pass	SVGAnimatedBoolean interface: attribute animVal
+Pass	SVGAnimatedBoolean must be primary interface of objects.feConvolveMatrix.preserveAlpha
+Pass	Stringification of objects.feConvolveMatrix.preserveAlpha
+Pass	SVGAnimatedBoolean interface: objects.feConvolveMatrix.preserveAlpha must inherit property "baseVal" with the proper type
+Pass	SVGAnimatedBoolean interface: objects.feConvolveMatrix.preserveAlpha must inherit property "animVal" with the proper type
 Pass	SVGAnimatedEnumeration interface: existence and properties of interface object
 Pass	SVGAnimatedEnumeration interface object length
 Pass	SVGAnimatedEnumeration interface object name
@@ -300,10 +300,10 @@ Pass	SVGAnimatedInteger interface: existence and properties of interface prototy
 Pass	SVGAnimatedInteger interface: existence and properties of interface prototype object's @@unscopables property
 Pass	SVGAnimatedInteger interface: attribute baseVal
 Pass	SVGAnimatedInteger interface: attribute animVal
-Fail	SVGAnimatedInteger must be primary interface of objects.feConvolveMatrix.orderX
-Fail	Stringification of objects.feConvolveMatrix.orderX
-Fail	SVGAnimatedInteger interface: objects.feConvolveMatrix.orderX must inherit property "baseVal" with the proper type
-Fail	SVGAnimatedInteger interface: objects.feConvolveMatrix.orderX must inherit property "animVal" with the proper type
+Pass	SVGAnimatedInteger must be primary interface of objects.feConvolveMatrix.orderX
+Pass	Stringification of objects.feConvolveMatrix.orderX
+Pass	SVGAnimatedInteger interface: objects.feConvolveMatrix.orderX must inherit property "baseVal" with the proper type
+Pass	SVGAnimatedInteger interface: objects.feConvolveMatrix.orderX must inherit property "animVal" with the proper type
 Pass	SVGAnimatedNumber interface: existence and properties of interface object
 Pass	SVGAnimatedNumber interface object length
 Pass	SVGAnimatedNumber interface object name

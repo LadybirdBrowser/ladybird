@@ -105,7 +105,10 @@
 #include <LibWeb/SVG/SVGFEColorMatrixElement.h>
 #include <LibWeb/SVG/SVGFEComponentTransferElement.h>
 #include <LibWeb/SVG/SVGFECompositeElement.h>
+#include <LibWeb/SVG/SVGFEConvolveMatrixElement.h>
+#include <LibWeb/SVG/SVGFEDiffuseLightingElement.h>
 #include <LibWeb/SVG/SVGFEDisplacementMapElement.h>
+#include <LibWeb/SVG/SVGFEDistantLightElement.h>
 #include <LibWeb/SVG/SVGFEDropShadowElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 #include <LibWeb/SVG/SVGFEFuncAElement.h>
@@ -118,6 +121,9 @@
 #include <LibWeb/SVG/SVGFEMergeNodeElement.h>
 #include <LibWeb/SVG/SVGFEMorphologyElement.h>
 #include <LibWeb/SVG/SVGFEOffsetElement.h>
+#include <LibWeb/SVG/SVGFEPointLightElement.h>
+#include <LibWeb/SVG/SVGFESpecularLightingElement.h>
+#include <LibWeb/SVG/SVGFESpotLightElement.h>
 #include <LibWeb/SVG/SVGFETurbulenceElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
@@ -535,8 +541,14 @@ static GC::Ref<SVG::SVGElement> create_svg_element(Document& document, Qualified
         return create_element_on_heap<SVG::SVGFEComponentTransferElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feComposite)
         return create_element_on_heap<SVG::SVGFECompositeElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feConvolveMatrix)
+        return create_element_on_heap<SVG::SVGFEConvolveMatrixElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feDiffuseLighting)
+        return create_element_on_heap<SVG::SVGFEDiffuseLightingElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feDisplacementMap)
         return create_element_on_heap<SVG::SVGFEDisplacementMapElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feDistantLight)
+        return create_element_on_heap<SVG::SVGFEDistantLightElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feDropShadow)
         return create_element_on_heap<SVG::SVGFEDropShadowElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feFlood)
@@ -561,6 +573,12 @@ static GC::Ref<SVG::SVGElement> create_svg_element(Document& document, Qualified
         return create_element_on_heap<SVG::SVGFEMorphologyElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feOffset)
         return create_element_on_heap<SVG::SVGFEOffsetElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::fePointLight)
+        return create_element_on_heap<SVG::SVGFEPointLightElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feSpecularLighting)
+        return create_element_on_heap<SVG::SVGFESpecularLightingElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feSpotLight)
+        return create_element_on_heap<SVG::SVGFESpotLightElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feTurbulence)
         return create_element_on_heap<SVG::SVGFETurbulenceElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::filter)

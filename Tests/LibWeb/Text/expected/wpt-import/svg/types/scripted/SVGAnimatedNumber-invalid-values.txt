@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 100 tests
 
-88 Pass
-12 Fail
+100 Pass
 Pass	SVGAnimatedNumber, invalid values, SVGComponentTransferFunctionElement.prototype.slope (spaces around the value)
 Pass	SVGAnimatedNumber, invalid values, SVGComponentTransferFunctionElement.prototype.slope (newlines around the value)
 Pass	SVGAnimatedNumber, invalid values, SVGComponentTransferFunctionElement.prototype.slope (tabs around the value)
@@ -40,18 +39,18 @@ Pass	SVGAnimatedNumber, invalid values, SVGFEDropShadowElement.prototype.dx (lon
 Pass	SVGAnimatedNumber, invalid values, SVGFEDropShadowElement.prototype.dx (content attribute is not rewritten)
 Pass	SVGAnimatedNumber, invalid values, SVGFEDropShadowElement.prototype.dx (a second number is not allowed)
 Pass	SVGAnimatedNumber, invalid values, SVGFEDropShadowElement.prototype.dx (accepted number syntax)
-Fail	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (spaces around the value)
-Fail	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (newlines around the value)
-Fail	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (tabs around the value)
-Fail	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (empty string)
-Fail	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (unit suffix)
-Fail	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (trailing junk)
-Fail	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (trailing dot)
-Fail	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (two signs)
-Fail	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (lone sign)
-Fail	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (content attribute is not rewritten)
-Fail	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (a second number is not allowed)
-Fail	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (accepted number syntax)
+Pass	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (spaces around the value)
+Pass	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (newlines around the value)
+Pass	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (tabs around the value)
+Pass	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (empty string)
+Pass	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (unit suffix)
+Pass	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (trailing junk)
+Pass	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (trailing dot)
+Pass	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (two signs)
+Pass	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (lone sign)
+Pass	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (content attribute is not rewritten)
+Pass	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (a second number is not allowed)
+Pass	SVGAnimatedNumber, invalid values, SVGFEDiffuseLightingElement.prototype.surfaceScale (accepted number syntax)
 Pass	SVGAnimatedNumber, invalid values, SVGGeometryElement.prototype.pathLength (spaces around the value)
 Pass	SVGAnimatedNumber, invalid values, SVGGeometryElement.prototype.pathLength (newlines around the value)
 Pass	SVGAnimatedNumber, invalid values, SVGGeometryElement.prototype.pathLength (tabs around the value)

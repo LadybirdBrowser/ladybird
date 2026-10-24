@@ -1,0 +1,7 @@
+// https://drafts.fxtf.org/filter-effects/#InterfaceSVGFEPointLightElement
+[Exposed=Window]
+interface SVGFEPointLightElement : SVGElement {
+    readonly attribute SVGAnimatedNumber x;
+    readonly attribute SVGAnimatedNumber y;
+    readonly attribute SVGAnimatedNumber z;
+};

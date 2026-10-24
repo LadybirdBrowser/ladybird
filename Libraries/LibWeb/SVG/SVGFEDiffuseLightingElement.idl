@@ -1,0 +1,11 @@
+// https://drafts.fxtf.org/filter-effects/#InterfaceSVGFEDiffuseLightingElement
+[Exposed=Window]
+interface SVGFEDiffuseLightingElement : SVGElement {
+    readonly attribute SVGAnimatedString in1;
+    readonly attribute SVGAnimatedNumber surfaceScale;
+    readonly attribute SVGAnimatedNumber diffuseConstant;
+    readonly attribute SVGAnimatedNumber kernelUnitLengthX;
+    readonly attribute SVGAnimatedNumber kernelUnitLengthY;
+};
+
+SVGFEDiffuseLightingElement includes SVGFilterPrimitiveStandardAttributes;

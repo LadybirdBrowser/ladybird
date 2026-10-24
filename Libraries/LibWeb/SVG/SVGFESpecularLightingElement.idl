@@ -1,0 +1,12 @@
+// https://drafts.fxtf.org/filter-effects/#InterfaceSVGFESpecularLightingElement
+[Exposed=Window]
+interface SVGFESpecularLightingElement : SVGElement {
+    readonly attribute SVGAnimatedString in1;
+    readonly attribute SVGAnimatedNumber surfaceScale;
+    readonly attribute SVGAnimatedNumber specularConstant;
+    readonly attribute SVGAnimatedNumber specularExponent;
+    readonly attribute SVGAnimatedNumber kernelUnitLengthX;
+    readonly attribute SVGAnimatedNumber kernelUnitLengthY;
+};
+
+SVGFESpecularLightingElement includes SVGFilterPrimitiveStandardAttributes;

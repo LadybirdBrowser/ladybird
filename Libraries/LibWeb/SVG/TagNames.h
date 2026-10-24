@@ -22,7 +22,10 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(feColorMatrix, "feColorMatrix")             \
     __ENUMERATE_SVG_TAG(feComponentTransfer, "feComponentTransfer") \
     __ENUMERATE_SVG_TAG(feComposite, "feComposite")                 \
+    __ENUMERATE_SVG_TAG(feConvolveMatrix, "feConvolveMatrix")       \
+    __ENUMERATE_SVG_TAG(feDiffuseLighting, "feDiffuseLighting")     \
     __ENUMERATE_SVG_TAG(feDisplacementMap, "feDisplacementMap")     \
+    __ENUMERATE_SVG_TAG(feDistantLight, "feDistantLight")           \
     __ENUMERATE_SVG_TAG(feDropShadow, "feDropShadow")               \
     __ENUMERATE_SVG_TAG(feFlood, "feFlood")                         \
     __ENUMERATE_SVG_TAG(feFuncA, "feFuncA")                         \
@@ -35,6 +38,9 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(feMergeNode, "feMergeNode")                 \
     __ENUMERATE_SVG_TAG(feMorphology, "feMorphology")               \
     __ENUMERATE_SVG_TAG(feOffset, "feOffset")                       \
+    __ENUMERATE_SVG_TAG(fePointLight, "fePointLight")               \
+    __ENUMERATE_SVG_TAG(feSpecularLighting, "feSpecularLighting")   \
+    __ENUMERATE_SVG_TAG(feSpotLight, "feSpotLight")                 \
     __ENUMERATE_SVG_TAG(feTurbulence, "feTurbulence")               \
     __ENUMERATE_SVG_TAG(filter, "filter")                           \
     __ENUMERATE_SVG_TAG(foreignObject, "foreignObject")             \

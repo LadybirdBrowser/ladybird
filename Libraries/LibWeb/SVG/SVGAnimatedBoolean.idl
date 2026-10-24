@@ -1,0 +1,6 @@
+// https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedBoolean
+[Exposed=Window]
+interface SVGAnimatedBoolean {
+             attribute boolean baseVal;
+    readonly attribute boolean animVal;
+};
