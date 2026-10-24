@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
@@ -383,6 +384,10 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
     // FIXME: Check types allowed by registered custom properties.
     auto style_value = value->visit(
         [&](Number const& number) -> RefPtr<StyleValue const> {
+            // NB: Our parser represents an <opacity-value> as an opacity value that holds the number.
+            if (property_accepts_type(property.id(), ValueType::OpacityValue))
+                return OpacityValueStyleValue::create(NumberStyleValue::create(number.value()));
+
             // NB: Number before Integer, because a custom property accepts either and we want to avoid rounding in that case.
             if (property_accepts_type(property.id(), ValueType::Number)) {
                 if (property_accepts_number(property.id(), number.value()))
@@ -400,6 +405,10 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
             return {};
         },
         [&](Percentage const& percentage) -> RefPtr<StyleValue const> {
+            // NB: Our parser represents an <opacity-value> as an opacity value that holds the percentage.
+            if (property_accepts_type(property.id(), ValueType::OpacityValue))
+                return OpacityValueStyleValue::create(PercentageStyleValue::create(percentage));
+
             if (property_accepts_type(property.id(), ValueType::Percentage)) {
                 if (property_accepts_percentage(property.id(), percentage))
                     return PercentageStyleValue::create(percentage);

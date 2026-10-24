@@ -2,21 +2,21 @@ Harness status: OK
 
 Found 31 tests
 
-23 Pass
-8 Fail
+30 Pass
+1 Fail
 Pass	Can set 'opacity' to CSS-wide keywords: initial
 Pass	Can set 'opacity' to CSS-wide keywords: inherit
 Pass	Can set 'opacity' to CSS-wide keywords: unset
 Pass	Can set 'opacity' to CSS-wide keywords: revert
 Pass	Can set 'opacity' to var() references:  var(--A)
-Fail	Can set 'opacity' to a number: 0
-Fail	Can set 'opacity' to a number: -3.14
-Fail	Can set 'opacity' to a number: 3.14
+Pass	Can set 'opacity' to a number: 0
+Pass	Can set 'opacity' to a number: -3.14
+Pass	Can set 'opacity' to a number: 3.14
 Fail	Can set 'opacity' to a number: calc(2 + 3)
-Fail	Can set 'opacity' to a percent: 0%
-Fail	Can set 'opacity' to a percent: -3.14%
-Fail	Can set 'opacity' to a percent: 3.14%
-Fail	Can set 'opacity' to a percent: calc(0% + 0%)
+Pass	Can set 'opacity' to a percent: 0%
+Pass	Can set 'opacity' to a percent: -3.14%
+Pass	Can set 'opacity' to a percent: 3.14%
+Pass	Can set 'opacity' to a percent: calc(0% + 0%)
 Pass	Setting 'opacity' to a length: 0px throws TypeError
 Pass	Setting 'opacity' to a length: -3.14em throws TypeError
 Pass	Setting 'opacity' to a length: 3.14cm throws TypeError
