@@ -5079,6 +5079,22 @@
       "text-align"
     ]
   },
+  "text-align-last": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "auto",
+      "start",
+      "end",
+      "left",
+      "right",
+      "center",
+      "justify",
+      "match-parent"
+    ]
+  },
   "text-anchor": {
     "style-group": "InheritedSVGValues",
     "animation-type": "discrete",

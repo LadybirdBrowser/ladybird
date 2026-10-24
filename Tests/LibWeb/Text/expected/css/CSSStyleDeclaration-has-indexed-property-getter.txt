@@ -66,6 +66,7 @@ All properties associated with getComputedStyle(document.body):
     "stroke-width",
     "tab-size",
     "text-align",
+    "text-align-last",
     "text-anchor",
     "text-decoration-skip-ink",
     "text-indent",

@@ -943,6 +943,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'table-layout': 'auto'
 'textAlign': 'start'
 'text-align': 'start'
+'textAlignLast': 'auto'
+'text-align-last': 'auto'
 'textAnchor': 'start'
 'text-anchor': 'start'
 'textDecoration': 'rgb(0, 0, 0)'

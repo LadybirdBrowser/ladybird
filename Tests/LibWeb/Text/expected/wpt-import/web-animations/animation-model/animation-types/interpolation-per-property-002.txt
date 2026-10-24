@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 415 tests
+Found 419 tests
 
-402 Pass
+406 Pass
 13 Fail
 Pass	Setup
 Pass	isolation (type: discrete) has testInterpolation function
@@ -285,6 +285,10 @@ Pass	text-align (type: discrete) has testInterpolation function
 Pass	text-align uses discrete animation when animating between "start" and "end" with linear easing
 Pass	text-align uses discrete animation when animating between "start" and "end" with effect easing
 Pass	text-align uses discrete animation when animating between "start" and "end" with keyframe easing
+Pass	text-align-last (type: discrete) has testInterpolation function
+Pass	text-align-last uses discrete animation when animating between "start" and "end" with linear easing
+Pass	text-align-last uses discrete animation when animating between "start" and "end" with effect easing
+Pass	text-align-last uses discrete animation when animating between "start" and "end" with keyframe easing
 Pass	text-anchor (type: discrete) has testInterpolation function
 Pass	text-anchor uses discrete animation when animating between "middle" and "end" with linear easing
 Pass	text-anchor uses discrete animation when animating between "middle" and "end" with effect easing
