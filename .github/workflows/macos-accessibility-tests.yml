@@ -3,7 +3,7 @@ name: macOS accessibility tests
 # The macOS AX tests need an unlocked GUI (Aqua) login session, and an Accessibility grant for the process tree the
 # runner starts. GH-hosted machines have all that, but take a very long time to build Ladybird. Blacksmith's machines
 # boot screen-locked — so don't have all that — but build Ladybird quickly. So, we re-use the Ladybird we already built
-# on Blacksmith: packing it with Meta/package-macos-app-bundle.py, and uploading that to a (GH-hosted) screen-unlocked
+# on Blacksmith: packing it with Meta/package-macos-test-bundle.py, and uploading that to a (GH-hosted) screen-unlocked
 # machine that doesn't build but instead just runs the tests (which just takes literally 2 minutes or less).
 on:
   workflow_call:

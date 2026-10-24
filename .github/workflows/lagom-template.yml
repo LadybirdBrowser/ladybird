@@ -182,13 +182,13 @@ jobs:
           cmake --install . --strip --prefix "${GITHUB_WORKSPACE}/Install"
 
       # The macOS AX tests run against this bundle on another machine (see macos-accessibility-tests.yml). So the
-      # bundle has to be self-contained. To make it self-contained, this script deploys Qt into it, copies the
-      # libraries in, re-signs the executables with the entitlements the build used, and tars the result.
+      # bundle has to be self-contained. To make it self-contained, this script copies the libraries in, Qt included,
+      # adds the Qt platform plugin, re-signs the executables with the entitlements the build used, and tars the result.
       - name: Package the macOS app bundle for the accessibility tests
         if: ${{ inputs.os_name == 'macOS' }}
         working-directory: ${{ github.workspace }}
         run: |
-          "${{ env.pythonLocation }}/bin/python" Meta/package-macos-app-bundle.py \
+          "${{ env.pythonLocation }}/bin/python" Meta/package-macos-test-bundle.py \
             --build-dir Build --install-dir Install --output ladybird-app-bundle.tar.gz
 
       - name: Upload the macOS app bundle

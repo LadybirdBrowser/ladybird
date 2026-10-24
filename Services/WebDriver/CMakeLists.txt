@@ -18,3 +18,5 @@ target_link_libraries(WebDriver PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 if (WIN32)
     ladybird_windows_bin(WebDriver)
 endif()
+
+ladybird_sign_helper_process(WebDriver)
