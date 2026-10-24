@@ -8,7 +8,7 @@
 
 use super::selector::{
     AnPlusBPattern, AttributeCaseType, AttributeMatchType, Combinator, CompiledSelector, FfiStringView, NamespaceType,
-    PseudoClassParameterType, PseudoElementValue, QualifiedName, RustSelector, SimpleSelector,
+    PseudoClassParameterType, PseudoElementValue, QualifiedName, RustSelector, SimpleSelector, TransitionNameSelector,
 };
 use super::serialize::{StringUnits, TextSink, serialize_a_string, serialize_an_identifier};
 
@@ -224,12 +224,16 @@ fn serialize_simple_selector(sink: &mut TextSink, selector: &SimpleSelector, con
                     }
                     sink.push_ascii(")");
                 }
-                PseudoElementValue::TransitionName { is_universal, value } => {
+                PseudoElementValue::TransitionName(argument) => {
                     sink.push_ascii("(");
-                    if *is_universal {
-                        sink.push_ascii("*");
-                    } else {
-                        serialize_identifier(sink, value);
+                    match &argument.name {
+                        Some(TransitionNameSelector::Universal) => sink.push_ascii("*"),
+                        Some(TransitionNameSelector::Name(name)) => serialize_identifier(sink, name),
+                        None => {}
+                    }
+                    for class_name in &argument.classes {
+                        sink.push_ascii(".");
+                        serialize_identifier(sink, class_name);
                     }
                     sink.push_ascii(")");
                 }

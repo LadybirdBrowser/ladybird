@@ -148,7 +148,7 @@ pub(crate) enum PseudoElementParameterType {
     None,
     CompoundSelector,
     IdentList,
-    PTNameSelector,
+    PTNameAndClassSelector,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -193,7 +193,21 @@ pub enum PseudoElementValue {
     None,
     CompoundSelector(Arc<CompiledSelector>),
     Identifiers(Box<[SelectorString]>),
-    TransitionName { is_universal: bool, value: SelectorString },
+    TransitionName(Box<TransitionNameAndClassSelector>),
+}
+
+// https://drafts.csswg.org/css-view-transitions-1/#typedef-pt-name-selector
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TransitionNameSelector {
+    Universal,
+    Name(SelectorString),
+}
+
+// https://drafts.csswg.org/css-view-transitions-2/#typedef-pt-name-and-class-selector
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TransitionNameAndClassSelector {
+    pub name: Option<TransitionNameSelector>,
+    pub classes: Box<[SelectorString]>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -398,16 +412,13 @@ impl CompiledSelector {
                         },
                     },
                     SimpleSelector::PseudoElement(pseudo_element) => {
-                        if matches!(
-                            pseudo_element.pseudo_element,
-                            PseudoElementType::ViewTransitionGroup
-                                | PseudoElementType::ViewTransitionImagePair
-                                | PseudoElementType::ViewTransitionNew
-                                | PseudoElementType::ViewTransitionOld
-                        ) && matches!(
-                            pseudo_element.value,
-                            PseudoElementValue::TransitionName { is_universal: true, .. }
-                        ) {
+                        // https://drafts.csswg.org/css-view-transitions-2/#pseudo-element-class-additions
+                        // The specificity of a named view transition pseudo-element selector with a * argument and with
+                        // an empty <pt-class-selector> is zero.
+                        if let PseudoElementValue::TransitionName(argument) = &pseudo_element.value
+                            && argument.name == Some(TransitionNameSelector::Universal)
+                            && argument.classes.is_empty()
+                        {
                             Specificity::default()
                         } else {
                             let pseudo_specificity = Specificity {
