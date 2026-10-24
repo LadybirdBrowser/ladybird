@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/DistinctNumeric.h>
+#include <AK/SharedMemoryValue.h>
 #include <AK/Time.h>
 #include <LibGfx/Size.h>
 #include <LibIPC/Forward.h>
@@ -26,16 +27,18 @@ AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, VideoFramePoolID);
 struct MEDIACODECS_API VideoFrameHandle {
     static VideoFrameHandle for_frame(VideoFrame const&);
 
+    bool is_valid() const;
+
     AK::Duration conservative_end() const { return VideoFrame::conservative_end_of(timestamp, duration); }
 
     VideoFramePoolID pool_id { 0 };
     u32 slot_index { 0 };
     u64 slot_acquisition_id { 0 };
-    AK::Duration timestamp;
-    AK::Duration duration;
+    SharedMemoryValue<AK::Duration> timestamp;
+    SharedMemoryValue<AK::Duration> duration;
     Gfx::IntSize size;
     u8 bit_depth { 0 };
-    Subsampling subsampling;
+    SharedMemoryValue<Subsampling> subsampling;
     CodingIndependentCodePoints cicp;
 };
 

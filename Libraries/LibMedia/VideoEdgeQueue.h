@@ -85,7 +85,13 @@ public:
     Optional<VideoEdgeItem> peek() const { return m_ring.peek(); }
     Optional<VideoEdgeItem> peek_newest() const { return m_ring.peek_newest(); }
     void consume() { (void)m_ring.dequeue(); }
-    Optional<VideoEdgeStatus> status() const { return m_header->status.read(); }
+    Optional<VideoEdgeStatus> status() const
+    {
+        auto status = m_header->status.read();
+        if (status.has_value() && to_underlying(status->status) > to_underlying(PipelineStatus::Error))
+            status->status = PipelineStatus::Error;
+        return status;
+    }
     void set_requested_seek_id(u32 seek_id) { m_header->requested_seek_id.store(seek_id, AK::MemoryOrder::memory_order_relaxed); }
 
 private:

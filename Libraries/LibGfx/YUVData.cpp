@@ -27,7 +27,7 @@ ErrorOr<YUVData::PlaneSizes> YUVData::plane_sizes(IntSize size, u8 bit_depth, Me
 {
     if (size.is_empty())
         return Error::from_string_literal("YUVData size is empty");
-    if (bit_depth == 0 || bit_depth > 16)
+    if (bit_depth == 0 || bit_depth > 12)
         return Error::from_string_literal("Invalid YUVData bit depth");
 
     auto component_size = bit_depth <= 8 ? 1 : 2;

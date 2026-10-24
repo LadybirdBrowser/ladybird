@@ -186,6 +186,15 @@ void wire_full_node(VideoEdgeTestHarness& harness, NonnullRefPtr<VideoProducer> 
     harness.consumer->start();
 }
 
+// The consumer drops handles that describe a frame no decoder produces, so give the edge's items a real frame's format.
+VideoFrameHandle make_decodable_handle()
+{
+    VideoFrameHandle handle;
+    handle.size = { 2, 2 };
+    handle.bit_depth = 8;
+    return handle;
+}
+
 // Builds a consumer over a controlled edge pre-filled with four frames at 1.0s..1.3s under seek_id 0,
 // to exercise the seek fast path deterministically.
 NonnullRefPtr<RemoteVideoProducer> make_lookahead_consumer(VideoEdgeQueue& producer_edge, size_t& upstream_seeks)
@@ -200,7 +209,7 @@ NonnullRefPtr<RemoteVideoProducer> make_lookahead_consumer(VideoEdgeQueue& produ
     auto consumer = RemoteVideoProducer::create(move(consumer_edge), VideoFrameSlotDirectory::create(), move(delegates));
 
     for (int i = 0; i < 4; i++) {
-        VideoFrameHandle handle;
+        auto handle = make_decodable_handle();
         handle.timestamp = AK::Duration::from_milliseconds(1000 + (i * 100));
         handle.duration = AK::Duration::from_milliseconds(100);
         MUST(producer_edge.enqueue(handle, 0));
@@ -409,7 +418,7 @@ TEST_CASE(consumer_requests_seeks_before_releasing_stale_frames)
     delegates.request_start = [] { };
     delegates.request_seek = [&](AK::Duration, InvalidateHeldData) {
         events.append("seek"sv);
-        VideoFrameHandle handle;
+        auto handle = make_decodable_handle();
         handle.timestamp = AK::Duration::from_milliseconds(500);
         handle.duration = AK::Duration::from_milliseconds(100);
         handle.slot_index = 4;
@@ -423,7 +432,7 @@ TEST_CASE(consumer_requests_seeks_before_releasing_stale_frames)
     auto consumer = RemoteVideoProducer::create(move(consumer_edge), VideoFrameSlotDirectory::create(), move(delegates));
 
     for (u32 i = 0; i < 4; i++) {
-        VideoFrameHandle handle;
+        auto handle = make_decodable_handle();
         handle.timestamp = AK::Duration::from_milliseconds(1000 + (i * 100));
         handle.duration = AK::Duration::from_milliseconds(100);
         handle.slot_index = i;
@@ -472,7 +481,7 @@ TEST_CASE(consumer_releases_ring_contents_on_suspension)
     auto consumer = RemoteVideoProducer::create(move(consumer_edge), VideoFrameSlotDirectory::create(), move(delegates));
 
     for (u32 i = 0; i < 4; i++) {
-        VideoFrameHandle handle;
+        auto handle = make_decodable_handle();
         handle.timestamp = AK::Duration::from_milliseconds(1000 + (i * 100));
         handle.duration = AK::Duration::from_milliseconds(100);
         handle.slot_index = i;
@@ -487,6 +496,24 @@ TEST_CASE(consumer_releases_ring_contents_on_suspension)
     auto output = consumer->peek();
     EXPECT(output.frame == nullptr);
     EXPECT_EQ(output.status, PipelineStatus::Suspended);
+}
+
+// A ring item's times are raw words the peer wrote; one that is not a canonical Duration must not reach Duration
+// arithmetic, which would abort the consumer's process.
+TEST_CASE(consumer_reads_forged_frame_times_without_aborting)
+{
+    auto producer_edge = MUST(VideoEdgeQueue::create());
+    size_t upstream_seeks = 0;
+    auto consumer = make_lookahead_consumer(producer_edge, upstream_seeks);
+
+    auto handle = make_decodable_handle();
+    handle.duration = AK::Duration::from_milliseconds(100);
+    SharedMemoryCodec<AK::Duration>::Representation forged_timestamp { 1, 2'000'000'000 };
+    __builtin_memcpy(&handle.timestamp, &forged_timestamp, sizeof(forged_timestamp));
+    MUST(producer_edge.enqueue(handle, 0));
+
+    consumer->seek(AK::Duration::from_milliseconds(1450));
+    EXPECT_EQ(upstream_seeks, 1u);
 }
 
 namespace {

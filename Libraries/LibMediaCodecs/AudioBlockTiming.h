@@ -8,6 +8,7 @@
 
 #include <AK/Math.h>
 #include <AK/SaturatingMath.h>
+#include <AK/SharedMemoryValue.h>
 #include <AK/Time.h>
 
 namespace Media {
@@ -16,7 +17,7 @@ class AudioBlockTiming {
 public:
     AK::Duration media_time_start() const { return m_media_time_start; }
     AK::Duration media_time_duration() const { return m_media_time_duration; }
-    AK::Duration media_time_end() const { return m_media_time_start + m_media_time_duration; }
+    AK::Duration media_time_end() const { return media_time_start() + media_time_duration(); }
 
     i64 first_frame_index() const { return m_first_frame_index; }
     i64 frame_count() const { return m_frame_count; }
@@ -94,8 +95,8 @@ private:
         m_media_time_duration = AK::Duration::from_time_units(m_frame_count, 1, sample_rate);
     }
 
-    AK::Duration m_media_time_start;
-    AK::Duration m_media_time_duration;
+    SharedMemoryValue<AK::Duration> m_media_time_start;
+    SharedMemoryValue<AK::Duration> m_media_time_duration;
     i64 m_first_frame_index { 0 };
     i64 m_frame_count { 0 };
 };

@@ -85,7 +85,7 @@ void RemoteVideoProducer::discard_stale_ring_heads()
     auto discarded_any_frames = false;
     while (true) {
         auto head = m_edge.peek();
-        if (!head.has_value() || head->seek_id == m_expected_seek_id)
+        if (!head.has_value() || (head->seek_id == m_expected_seek_id && head->handle.is_valid()))
             break;
         discard_ring_head(*head);
         discarded_any_frames = true;
@@ -148,7 +148,10 @@ bool RemoteVideoProducer::can_satisfy_seek_locally(AK::Duration timestamp) const
     auto head = m_edge.peek();
     if (!head.has_value() || head->seek_id != m_expected_seek_id || timestamp < head->handle.timestamp)
         return false;
-    if (timestamp < m_edge.peek_newest()->handle.conservative_end())
+    auto newest = m_edge.peek_newest();
+    if (!newest.has_value() || !newest->handle.is_valid())
+        return false;
+    if (timestamp < newest->handle.conservative_end())
         return true;
     auto status = m_edge.status();
     return status.has_value() && status->seek_id == m_expected_seek_id && status->status == PipelineStatus::EndOfStream;

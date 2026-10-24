@@ -5,10 +5,14 @@
  */
 
 #include <AK/ConditionVariable.h>
+#include <AK/MemoryStream.h>
 #include <AK/Mutex.h>
 #include <AK/Queue.h>
 #include <AK/Time.h>
 #include <LibCore/System.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
+#include <LibMediaCodecs/Limits.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoFrameHandle.h>
 #include <LibMediaCodecs/VideoFramePool.h>
@@ -473,6 +477,49 @@ TEST_CASE(resolve_frame_rejects_stale_and_oversized_handles)
     }
     EXPECT(!frame->revalidate_backing());
     EXPECT(directory->resolve_frame(handle, [] { }) == nullptr);
+}
+
+// Handles come from another process, so one describing a frame no decoder produces must not resolve, even when the
+// slot's buffer could hold it.
+TEST_CASE(resolve_frame_rejects_handles_that_could_not_have_been_decoded)
+{
+    auto pool = make_pool();
+    auto slot = pool->try_acquire(MUST(Media::frame_plane_layout(RESOLVED_FRAME_SIZE, 12, Media::Subsampling::yuv444())).total_byte_count).release_value();
+    auto directory = Media::VideoFrameSlotDirectory::create();
+    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index), nullptr);
+    EXPECT(directory->resolve_frame(make_handle(pool, slot), [] { }) != nullptr);
+
+    auto thirteen_bit = make_handle(pool, slot);
+    thirteen_bit.bit_depth = 13;
+    EXPECT(directory->resolve_frame(thirteen_bit, [] { }) == nullptr);
+
+    auto negative_duration = make_handle(pool, slot);
+    negative_duration.duration = AK::Duration::from_milliseconds(-20);
+    EXPECT(directory->resolve_frame(negative_duration, [] { }) == nullptr);
+
+    auto unknown_primaries = make_handle(pool, slot);
+    unknown_primaries.cicp.set_color_primaries(static_cast<Media::ColorPrimaries>(200));
+    EXPECT(directory->resolve_frame(unknown_primaries, [] { }) == nullptr);
+
+    auto too_wide = make_handle(pool, slot);
+    too_wide.size = { static_cast<int>(Media::MAX_VIDEO_FRAME_DIMENSION) + 1, 1 };
+    EXPECT(!too_wide.is_valid());
+}
+
+TEST_CASE(handles_that_could_not_have_been_decoded_are_refused_over_ipc)
+{
+    auto pool = make_pool();
+    auto slot = pool->try_acquire(resolved_frame_byte_count()).release_value();
+    auto handle = make_handle(pool, slot);
+    handle.bit_depth = 13;
+
+    IPC::MessageBuffer message;
+    IPC::Encoder encoder { message };
+    MUST(encoder.encode(handle));
+    Queue<IPC::Attachment> attachments;
+    FixedMemoryStream stream { message.data().span() };
+    IPC::Decoder decoder { stream, attachments };
+    EXPECT(decoder.decode<Media::VideoFrameHandle>().is_error());
 }
 
 TEST_CASE(directory_resolves_announced_slots)
