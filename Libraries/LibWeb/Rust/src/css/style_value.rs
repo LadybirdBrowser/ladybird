@@ -1483,6 +1483,20 @@ impl RetainedNumericRangeList {
         Self { pointer, length }
     }
 
+    pub(crate) fn from_numeric_ranges(ranges: impl IntoIterator<Item = (u8, f64, f64)>) -> Self {
+        let ranges = ranges
+            .into_iter()
+            .map(|(value_type, min, max)| RetainedNumericRangeByType { value_type, min, max })
+            .collect::<Vec<_>>();
+        if ranges.is_empty() {
+            return Self::empty();
+        }
+        let ranges = ranges.into_boxed_slice();
+        let length = ranges.len();
+        let pointer = Box::into_raw(ranges) as *mut RetainedNumericRangeByType;
+        Self { pointer, length }
+    }
+
     pub(crate) fn as_slice(&self) -> &[RetainedNumericRangeByType] {
         if self.pointer.is_null() {
             return &[];
