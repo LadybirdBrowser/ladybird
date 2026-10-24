@@ -2649,8 +2649,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             return;
         }
         let mut cells = used_values::UsedValuesCellState::capture(used);
-        cells.has_content_offset = false;
-        cells.content_offset = FfiCssPixelPoint::default();
+        cells.inputs.has_content_offset = false;
+        cells.inputs.content_offset = FfiCssPixelPoint::default();
         let content_offset = used.content_offset.get();
         let entry = in_flow_block_cache::InFlowBlockEntry {
             key,
@@ -3857,7 +3857,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             } else if automatic_block_size.is_some() {
                 let measurement = formatting_context::MeasurementState::create(self.run.callbacks);
                 let measurement_root =
-                    used_values::UsedValuesCellState::capture(self.used(self.run.box_)).materialize_record();
+                    used_values::RootInputCells::capture(self.used(self.run.box_)).materialize_record();
                 let measurement_result = measurement.run_with_layout_mode(
                     self.run.box_,
                     &measurement_root,

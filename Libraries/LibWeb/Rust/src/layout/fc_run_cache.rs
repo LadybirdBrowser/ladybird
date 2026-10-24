@@ -7,17 +7,18 @@
 use super::*;
 
 /// The complete identity of a memoizable run: the layout input plus the
-/// pre-run root record state the dispatch seam captures anyway, so every
-/// value a parent hands a spawned run is part of the key. Viewport changes
-/// reach a run through that input or through the normal style/layout epoch
-/// invalidation for viewport-dependent computed values.
+/// pre-run root input cells the dispatch seam captures anyway, so every
+/// value a parent hands a spawned run that the run reads is part of the
+/// key. Viewport changes reach a run through that input or through the
+/// normal style/layout epoch invalidation for viewport-dependent computed
+/// values.
 #[derive(Clone, Copy, PartialEq)]
 pub(super) struct FcRunCacheKey {
     fc_type: formatting_context::FormattingContextType,
     purpose: formatting_context::LayoutPurpose,
     layout_mode: LayoutMode,
     input: LayoutInput,
-    root_cells: used_values::UsedValuesCellState,
+    root_cells: used_values::RootInputCells,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -66,9 +67,13 @@ impl FcRunCacheKey {
         fc_type: formatting_context::FormattingContextType,
         purpose: formatting_context::LayoutPurpose,
         layout_mode: LayoutMode,
-        input: LayoutInput,
-        root_cells: used_values::UsedValuesCellState,
+        mut input: LayoutInput,
+        root_cells: used_values::RootInputCells,
     ) -> Self {
+        if !formatting_context::run_reads_content_block_size_adopted_after_it(fc_type, &input) {
+            input.sizing.adopt_automatic_content_block_size = false;
+            input.sizing.content_block_size_after_inside_layout = None;
+        }
         Self {
             fc_type,
             purpose,
@@ -247,6 +252,7 @@ pub(super) struct FcRunCacheEntry {
     /// Whether the run is a table cell's that cannot observe the intrinsic block padding its table hands it (see
     /// table_cell_contents_never_observe_intrinsic_block_padding), so that it stands for runs with any such padding.
     table_cell_intrinsic_block_padding_unobserved: bool,
+    root_content_block_size_adopted_after_run: Option<CssPixels>,
     /// How many layouts the arena had committed when the run was stored. The subtrees the run took from the cache as
     /// they were committed are only known to be so while no layout was committed since.
     layout_commits_when_stored: u64,
@@ -276,14 +282,14 @@ impl FcRunCacheEntry {
         if !arena.paintable_row_is_populated(box_) {
             return false;
         }
-        let cells = &self.outputs.root_outcome.cells;
+        let (content_inline_size, content_block_size) = self.root_content_size_as_its_parent_holds_it();
         let root_fragment_is_the_stored_one = arena
             .with_current_committed_fragment(box_, |fragment| {
                 same_allocation(
                     fragment.line_data.as_ref(),
                     self.outputs.root_outcome.line_data.as_ref(),
-                ) && fragment.content_inline_size == cells.content_inline_size
-                    && fragment.content_block_size == cells.content_block_size
+                ) && fragment.content_inline_size == content_inline_size
+                    && fragment.content_block_size == content_block_size
             })
             .unwrap_or(false);
         root_fragment_is_the_stored_one
@@ -291,6 +297,19 @@ impl FcRunCacheEntry {
                 Some(token) => arena.committed_subtree_token(box_) == token,
                 None => links_are_committed(arena, &root.scoped_descendants),
             }
+    }
+
+    fn root_content_size_as_its_parent_holds_it(&self) -> (CssPixels, CssPixels) {
+        match &self.outputs.root_outcome.cells {
+            formatting_context::RootCellsOutcome::AllCells(cells) => {
+                (cells.inputs.content_inline_size, cells.inputs.content_block_size)
+            }
+            formatting_context::RootCellsOutcome::OutputCellsOnly(_) => (
+                self.key.root_cells.content_inline_size,
+                self.root_content_block_size_adopted_after_run
+                    .unwrap_or(self.key.root_cells.content_block_size),
+            ),
+        }
     }
 
     /// Whether the stored fragments can be replayed. Those of the subtrees the stored run took from the cache are the
@@ -311,32 +330,20 @@ impl FcRunCacheEntry {
             validity: self.validity,
             outputs: outputs_without_descendant_fragments(&self.outputs),
             table_cell_intrinsic_block_padding_unobserved: self.table_cell_intrinsic_block_padding_unobserved,
+            root_content_block_size_adopted_after_run: self.root_content_block_size_adopted_after_run,
             layout_commits_when_stored: self.layout_commits_when_stored,
             committed_subtree_token_when_descendants_dropped: Some(token),
         }
     }
 
-    /// The outputs a hit for `probe` absorbs: the stored ones, or only what escapes the stored run where the hit keeps
-    /// the committed subtree, with the root's block paddings moved by however much the intrinsic block padding `probe`
-    /// carries differs from the stored run's.
-    pub(super) fn outputs_to_replay(
-        &self,
-        probe: &FcRunCacheKey,
-        reuses_committed_subtree: bool,
-    ) -> formatting_context::RunOutputs {
-        let mut outputs = if reuses_committed_subtree {
+    /// The outputs a hit absorbs: the stored ones, or only what escapes the stored run where the hit keeps the
+    /// committed subtree.
+    pub(super) fn outputs_to_replay(&self, reuses_committed_subtree: bool) -> formatting_context::RunOutputs {
+        if reuses_committed_subtree {
             outputs_without_descendant_fragments(&self.outputs)
         } else {
             self.outputs.clone()
-        };
-        self.move_root_block_paddings_to(probe, &mut outputs);
-        outputs
-    }
-
-    fn move_root_block_paddings_to(&self, probe: &FcRunCacheKey, outputs: &mut formatting_context::RunOutputs) {
-        let cells = &mut outputs.root_outcome.cells;
-        cells.padding_top += probe.root_cells.padding_top - self.key.root_cells.padding_top;
-        cells.padding_bottom += probe.root_cells.padding_bottom - self.key.root_cells.padding_bottom;
+        }
     }
 }
 
@@ -750,8 +757,14 @@ impl FcRunCacheAttempt {
         callbacks: &LayoutPass<'_>,
         box_: Node,
         key: FcRunCacheKey,
+        input: &LayoutInput,
         outputs: &formatting_context::RunOutputs,
     ) {
+        let root_content_block_size_adopted_after_run = formatting_context::content_block_size_adopted_after_run(
+            input,
+            outputs.result.automatic_content_block_size,
+        )
+        .map(|block_size| clamp_to_max_dimension_value(block_size.max(CssPixels::default())));
         let store = callbacks.arena().fc_run_cache_store();
         let (validity, structurally_damaged_entry) = match self {
             Self::Bypass => return,
@@ -764,6 +777,7 @@ impl FcRunCacheAttempt {
                         validity,
                         outputs: outputs.clone(),
                         table_cell_intrinsic_block_padding_unobserved: false,
+                        root_content_block_size_adopted_after_run,
                         layout_commits_when_stored: callbacks.arena().layout_commit_count(),
                         committed_subtree_token_when_descendants_dropped: None,
                     },
@@ -795,7 +809,9 @@ impl FcRunCacheAttempt {
                 .sizing
                 .table_cell_intrinsic_block_padding
                 .is_some()
+                && outputs.root_outcome.cells.parent_owns_root_input_cells()
                 && table_cell_contents_never_observe_intrinsic_block_padding(callbacks, box_),
+            root_content_block_size_adopted_after_run,
             layout_commits_when_stored: callbacks.arena().layout_commit_count(),
             committed_subtree_token_when_descendants_dropped: None,
         };
@@ -904,7 +920,7 @@ mod tests {
                 },
                 ParticipationInParentFormattingContext::AtomicInline,
             ),
-            root_cells: used_values::UsedValuesCellState::capture(&UsedValues::default()),
+            root_cells: used_values::RootInputCells::capture(&UsedValues::default()),
         }
     }
 
@@ -933,7 +949,9 @@ mod tests {
                 result: formatting_context::ChildLayoutResult::default(),
                 root: None,
                 root_outcome: formatting_context::RunRootOutcome {
-                    cells: used_values::UsedValuesCellState::capture(&UsedValues::default()),
+                    cells: formatting_context::RootCellsOutcome::AllCells(used_values::UsedValuesCellState::capture(
+                        &UsedValues::default(),
+                    )),
                     own_metrics_sealed: false,
                     line_data: None,
                     rare: None,
@@ -942,6 +960,7 @@ mod tests {
                 host_findings: None,
             },
             table_cell_intrinsic_block_padding_unobserved: false,
+            root_content_block_size_adopted_after_run: None,
             layout_commits_when_stored: 0,
             committed_subtree_token_when_descendants_dropped: None,
         };
@@ -975,6 +994,48 @@ mod tests {
         store.store(0, entry(1));
         store.sweep_pending_entries(|_, validity| validity.fragment_cache_epoch == 2, |_, _| None);
         assert!(store.entries.borrow()[0].is_none());
+    }
+
+    #[test]
+    fn item_keys_leave_out_root_outputs_and_the_block_size_adopted_after_the_run_unless_the_run_reads_it() {
+        let record = UsedValues::default();
+        let item_input = LayoutInput::new(
+            AvailableSpace {
+                inline_size: AvailableSize::definite(px(300)),
+                block_size: AvailableSize::Indefinite,
+            },
+            ContainingBlockConstraints::default(),
+            ParticipationInParentFormattingContext::Item,
+        );
+        let key_of = |fc_type, input| {
+            FcRunCacheKey::new(
+                fc_type,
+                formatting_context::LayoutPurpose::Commit,
+                LayoutMode::Normal,
+                input,
+                used_values::RootInputCells::capture(&record),
+            )
+        };
+        let stored_block_key = key_of(formatting_context::FormattingContextType::Block, item_input);
+        let stored_flex_key = key_of(formatting_context::FormattingContextType::Flex, item_input);
+
+        record.has_first_baseline.set(true);
+        record.first_baseline.set(px(12));
+        record.has_line_clamp_point.set(true);
+        record.clamped_content_is_scrollable_overflow.set(true);
+        let mut adopting_input = item_input;
+        adopting_input.sizing.adopt_automatic_content_block_size = true;
+        adopting_input.sizing.content_block_size_after_inside_layout = Some(px(40));
+
+        let exact = RunInputsTheStoredRunNeverObserved::default();
+        assert!(stored_block_key.matches(
+            &key_of(formatting_context::FormattingContextType::Block, adopting_input),
+            exact
+        ));
+        assert!(!stored_flex_key.matches(
+            &key_of(formatting_context::FormattingContextType::Flex, adopting_input),
+            exact
+        ));
     }
 
     #[test]
@@ -1054,7 +1115,7 @@ mod tests {
         let mutators: [fn(&mut FcRunCacheKey); 4] = [
             |probe| probe.input.containing_block_constraints.percentage_basis_block_size = Some(px(10)),
             |probe| probe.input.available_space.block_size = AvailableSize::definite(px(10)),
-            |probe| probe.input.sizing.adopt_automatic_content_block_size = true,
+            |probe| probe.input.sizing.forced_min_border_box_block_size = Some(px(10)),
             |probe| probe.input.participation = ParticipationInParentFormattingContext::Float,
         ];
         for mutate in mutators {
