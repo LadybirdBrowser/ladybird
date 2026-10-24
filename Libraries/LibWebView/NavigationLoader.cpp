@@ -199,9 +199,10 @@ void NavigationLoader::obtain_the_response_policies(CanonicalNavigable const& na
     //        3. If navigable is not a top-level traversable:
     //           1. Let parentEnvironment be navigable's parent's active document's relevant settings object.
     //           2. Set topLevelCreationURL to parentEnvironment's top-level creation URL.
-    // NB: The UI process runs these steps for the final response only. The parent environment's top-level creation URL
-    //     is the creation URL of the top-level traversable's active document.
-    auto const& top_level_creation_url = navigable.is_top_level_traversable() ? response_url : navigable.top_level_traversable().active_document().creation_url();
+    // NB: The UI process runs these steps for the final response only.
+    auto top_level_creation_url = response_url;
+    if (!navigable.is_top_level_traversable())
+        top_level_creation_url = navigable.parent()->active_document().relevant_global_object().relevant_settings_object().top_level_creation_url().value();
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#secure-context
     // 2. If environment's top-level creation URL's scheme is "data", then return false.

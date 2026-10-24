@@ -28,6 +28,9 @@ public:
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin
     virtual URL::Origin const& origin() const = 0;
 
+    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-top-level-creation-url
+    virtual Optional<URL::URL> top_level_creation_url() const = 0;
+
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-top-level-origin
     virtual Optional<URL::Origin> top_level_origin() const = 0;
 
@@ -46,13 +49,15 @@ private:
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-settings-for-window-objects
 class WEBVIEW_API CanonicalWindowEnvironmentSettingsObject final : public CanonicalEnvironmentSettingsObject {
 public:
-    CanonicalWindowEnvironmentSettingsObject(CanonicalWindow&, Web::HTML::EnvironmentId id);
+    CanonicalWindowEnvironmentSettingsObject(CanonicalWindow&, Web::HTML::EnvironmentId id, URL::URL top_level_creation_url);
 
     virtual URL::Origin const& origin() const override;
+    virtual Optional<URL::URL> top_level_creation_url() const override { return m_top_level_creation_url; }
     virtual Optional<URL::Origin> top_level_origin() const override;
 
 private:
     CanonicalWindow& m_window;
+    URL::URL m_top_level_creation_url;
 };
 
 // https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers
@@ -61,6 +66,7 @@ public:
     CanonicalWorkerEnvironmentSettingsObject(URL::Origin, Optional<URL::Origin> top_level_origin, bool has_cross_site_ancestor, Web::HTML::EnvironmentId id);
 
     virtual URL::Origin const& origin() const override { return m_origin; }
+    virtual Optional<URL::URL> top_level_creation_url() const override { return {}; }
     virtual Optional<URL::Origin> top_level_origin() const override { return m_top_level_origin; }
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-has-cross-site-ancestor

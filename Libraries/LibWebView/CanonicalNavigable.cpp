@@ -19,6 +19,7 @@
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
+#include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/PictureInPictureManager.h>
@@ -419,12 +420,29 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
         //    - For the global object, create a new Window object.
         //    - For the global this binding, use browsingContext's WindowProxy object.
         // 6. Set window to the global object of realmExecutionContext's Realm component.
-        // NB: The realm is in the process hosting agent, which runs steps 7 to 10.
+        // NB: The realm is in the process hosting agent.
         window = CanonicalWindow::create(agent);
+
+        // 7. Let topLevelCreationURL be creationURL.
+        auto top_level_creation_url = creation_url;
+
+        // 8. Let topLevelOrigin be navigationParams's origin.
+        // NB: The UI process derives the top-level origin from the window's associated document.
+
+        // 9. If navigable's container is not null, then:
+        if (m_parent) {
+            // 1. Let parentEnvironment be navigable's container's relevant settings object.
+            auto const& parent_environment = m_parent->active_document().relevant_global_object().relevant_settings_object();
+
+            // 2. Set topLevelCreationURL to parentEnvironment's top-level creation URL.
+            top_level_creation_url = parent_environment.top_level_creation_url().value();
+
+            // 3. Set topLevelOrigin to parentEnvironment's top-level origin.
+        }
 
         // 10. Set up a window environment settings object with creationURL, realmExecutionContext, navigationParams's
         //     reserved environment, topLevelCreationURL, and topLevelOrigin.
-        window->set_up_a_window_environment_settings_object(navigation_params.environment_id);
+        window->set_up_a_window_environment_settings_object(navigation_params.environment_id, move(top_level_creation_url));
     }
 
     // 9. Let document be a new Document, with
@@ -1122,7 +1140,7 @@ Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_sta
         .active_document_url = active_document_url(),
         .active_document_origin = active_document().origin(),
         .active_document_is_fully_active = hosted_state.active_document_is_fully_active,
-        .top_level_creation_url = traversable.active_document().creation_url(),
+        .top_level_creation_url = active_document().relevant_global_object().relevant_settings_object().top_level_creation_url().value(),
         .top_level_origin = traversable.active_document().origin(),
         .top_level_is_created_by_web_content = traversable.is_created_by_web_content(),
         .top_level_session_history_entry_count = traversable.session_history().size(),
