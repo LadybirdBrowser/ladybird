@@ -695,19 +695,26 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     }
 }
 
+/// The bounds of the geometry that a path-like SVG element's box committed. Returns false for any other box.
 #[unsafe(no_mangle)]
-pub extern "C" fn render_state_paintable_computed_svg_path(
+pub extern "C" fn render_state_paintable_computed_svg_path_bounding_box(
     host: &DocumentHost,
     paintable: NodeSlotId,
-) -> *const c_void {
-    read_arena(host, node_read(), paintable, |arena, paintable| {
+    out: &mut libgfx_rust::FloatRect,
+) -> bool {
+    let bounding_box = read_arena(host, node_read(), paintable, |arena, paintable| {
         let paintable_rows = arena.paintable_rows();
         if !paintable_rows.paintable_row_is_populated(paintable) {
-            return std::ptr::null();
+            return None;
         }
         crate::painting::paintable_geometry::committed_svg_path(&paintable_rows, paintable)
-            .map_or(std::ptr::null(), |path| path.as_raw())
-    })
+            .map(|path| path.bounding_box())
+    });
+    let Some(bounding_box) = bounding_box else {
+        return false;
+    };
+    *out = libgfx_rust::FloatRect::from_array(bounding_box);
+    true
 }
 
 /// The glyph cells a text content element's box committed for its own characters, one per code

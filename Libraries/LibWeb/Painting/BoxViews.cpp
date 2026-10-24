@@ -304,9 +304,12 @@ Compositing::SpatialNodeIndex own_scroll_node_index(Layout::Node const& node)
     return row.has_value() ? row->own_scroll_node_index : Compositing::VISUAL_VIEWPORT_NODE_INDEX;
 }
 
-Gfx::Path const* committed_svg_path(Layout::Node const& node)
+Optional<Gfx::FloatRect> committed_svg_path_bounding_box(Layout::Node const& node)
 {
-    return static_cast<Gfx::Path const*>(Layout::RustFFI::render_state_paintable_computed_svg_path(node.document_host(), committed_row_slot(node)));
+    Gfx::FloatRect bounding_box;
+    if (!Layout::RustFFI::render_state_paintable_computed_svg_path_bounding_box(node.document_host(), committed_row_slot(node), &bounding_box))
+        return {};
+    return bounding_box;
 }
 
 // The glyph cells a text content element's box committed for its own characters, one per code unit, copied out
