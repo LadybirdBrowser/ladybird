@@ -3209,8 +3209,11 @@ pub unsafe extern "C" fn rust_style_value_create_filter(
 }
 
 /// Takes ownership of one leaked reference to the string.
+///
+/// # Safety
+/// `custom_ident` must be zero or one leaked AK::Utf16FlyString reference.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_custom_ident(custom_ident: usize) -> *const StyleValueData {
+pub unsafe extern "C" fn rust_style_value_create_custom_ident(custom_ident: usize) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::CustomIdent {
         custom_ident: unsafe { CssString::from_leaked_raw(custom_ident) },
     }))
