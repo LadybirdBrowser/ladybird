@@ -1315,9 +1315,16 @@ void LibJSGCVisitor::validate_object_on_stack(clang::VarDecl const& variable, cl
 
 bool LibJSGCVisitor::VisitVarDecl(clang::VarDecl* variable)
 {
-    // A container passed by value is usually moved into a visited member before anything can allocate.
-    if (!variable->hasLocalStorage() || variable->isImplicit() || llvm::isa<clang::ParmVarDecl>(variable))
+    if (!variable->hasLocalStorage() || variable->isImplicit())
         return true;
+
+    // A parameter passed by value is an object on the stack of the definition, like a local. A container that is moved
+    // into a field is taken by rvalue reference instead, so that the caller keeps it until then.
+    if (llvm::isa<clang::ParmVarDecl>(variable)) {
+        auto const* function = llvm::dyn_cast<clang::FunctionDecl>(variable->getDeclContext());
+        if (!function || !function->doesThisDeclarationHaveABody() || function->isImplicit())
+            return true;
+    }
 
     validate_object_on_stack(*variable, variable->getLocation());
     return true;
