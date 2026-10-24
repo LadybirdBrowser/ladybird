@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>Chromium bug: getComputedStyle() fixed-length inset values don't roundtrip</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#resolved-value">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1482703">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+.target {
+  position: absolute;
+}
+</style>
+
+<div class="target" id="target1" style="left: 20.7px"></div>
+<script>
+test(() => {
+  assert_equals(getComputedStyle(target1).left, '20.7px');
+}, 'Fixed-length left property value should roundtrip');
+</script>
+
+<div class="target" id="target2" style="right: 20.7px"></div>
+<script>
+test(() => {
+  assert_equals(getComputedStyle(target2).right, '20.7px');
+}, 'Fixed-length right property value should roundtrip');
+</script>
+
+<div class="target" id="target3" style="top: 20.7px"></div>
+<script>
+test(() => {
+  assert_equals(getComputedStyle(target3).top, '20.7px');
+}, 'Fixed-length top property value should roundtrip');
+</script>
+
+<div class="target" id="target4" style="bottom: 20.7px"></div>
+<script>
+test(() => {
+  assert_equals(getComputedStyle(target4).bottom, '20.7px');
+}, 'Fixed-length bottom property value should roundtrip');
+</script>

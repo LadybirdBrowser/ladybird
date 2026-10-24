@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSSOM: resolved values of the inset properties for fixed positioning</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#resolved-value">
+<link rel="help" href="https://drafts.csswg.org/css-position/#pos-sch">
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script type="module">
+import {runTests, containerForFixed} from "./support/getComputedStyle-insets.js";
+runTests({
+  style: "position: fixed",
+  containingBlockElement: containerForFixed,
+  containingBlockArea: "padding",
+  preservesPercentages: false,
+  preservesAuto: false,
+  canStretchAutoSize: true,
+  staticPositionY: 1 + 2 + 4 + 8 + 16 + 32 + 64,
+  staticPositionX: 2 + 4 + 8 + 16 + 32 + 64 + 128,
+});
+</script>
