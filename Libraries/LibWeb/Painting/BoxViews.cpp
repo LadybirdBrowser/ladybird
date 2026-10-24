@@ -158,6 +158,28 @@ BoxModelMetrics box_model(Layout::Node const& node)
     };
 }
 
+Optional<CSSPixels> anchor_resolved_size(Layout::Node const& node, CSS::PropertyID property_id)
+{
+    auto property = [&] {
+        switch (property_id) {
+        case CSS::PropertyID::MinWidth:
+            return Layout::RustFFI::FfiAnchorSizedProperty::MinWidth;
+        case CSS::PropertyID::MinHeight:
+            return Layout::RustFFI::FfiAnchorSizedProperty::MinHeight;
+        case CSS::PropertyID::MaxWidth:
+            return Layout::RustFFI::FfiAnchorSizedProperty::MaxWidth;
+        case CSS::PropertyID::MaxHeight:
+            return Layout::RustFFI::FfiAnchorSizedProperty::MaxHeight;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }();
+    CSSPixels size;
+    if (!Layout::RustFFI::layout_script_anchor_resolved_size(node.document_host(), committed_row_slot(node), property, &size))
+        return {};
+    return size;
+}
+
 CSSPixels border_box_width(Layout::Node const& node)
 {
     auto border_box = box_model(node).border_box();

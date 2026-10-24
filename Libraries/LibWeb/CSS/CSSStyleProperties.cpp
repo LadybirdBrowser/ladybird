@@ -657,6 +657,32 @@ static void ensure_pseudo_element_style_for_cssom(Layout::BegunRead const& read,
 
 static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Color, Optional<ColorResolutionStyle> = {});
 
+static bool is_min_or_max_size_property(PropertyID property_id)
+{
+    return first_is_one_of(property_id,
+        PropertyID::MaxBlockSize, PropertyID::MaxHeight, PropertyID::MaxInlineSize, PropertyID::MaxWidth,
+        PropertyID::MinBlockSize, PropertyID::MinHeight, PropertyID::MinInlineSize, PropertyID::MinWidth);
+}
+
+static bool min_or_max_size_holds_anchor_function(ComputedValues const& style, PropertyID property_id)
+{
+    // NB: computed_style_value() maps a logical alias to its physical property.
+    return style.computed_style_value(property_id)->contains_anchor_function();
+}
+
+// NB: The computed value of a min or max sizing property resolves its anchor-size() functions. Where layout did not
+//     resolve them against an anchor box, they are unresolvable: each resolves to its fallback value, and one without
+//     makes the declaration invalid at computed-value time.
+static NonnullRefPtr<StyleValue const> resolve_unresolvable_anchor_functions(PropertyID property_id, NonnullRefPtr<StyleValue const> computed_value)
+{
+    bool is_invalid = false;
+    if (auto const* substituted = StyleValueFFI::rust_style_value_with_unresolvable_anchor_functions(computed_value->rust_style_value_data(), &is_invalid))
+        return StyleValue::adopt_rust_style_value_data(substituted);
+    if (is_invalid)
+        return property_initial_value(property_id);
+    return computed_value;
+}
+
 // Brings style (and, when the property needs it, layout) up to date for computed-style property
 // access, and returns the layout node to read used values from (may be null). An empty Optional
 // means the element cannot expose computed style at all (disconnected, or no browsing context).
@@ -699,6 +725,14 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
     else
         abstract_element.document().update_style_for_element(abstract_element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
     ensure_pseudo_element_style_for_cssom(read, abstract_element);
+
+    // NB: Only layout resolves the anchor-size() functions of a min or max sizing property against an anchor box.
+    if (!needs_layout && !needs_layout_node && is_min_or_max_size_property(property_id)) {
+        if (auto style = abstract_element.computed_style(); style && min_or_max_size_holds_anchor_function(*style, property_id)) {
+            abstract_element.document().update_layout_if_needed_for_node(abstract_element.element(), DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
+            layout_node = abstract_element.layout_node(read);
+        }
+    }
 
     // Container queries and container-relative units need layout to resolve. Avoid forcing layout for every
     // getComputedStyle() call; only elements that actually depend on a query container need the post-layout style.
@@ -870,6 +904,11 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                     return resolve_touch_action_style_value(move(computed_value));
                 case PropertyID::TransformOrigin:
                     return style_value_for_transform_origin(computed_values->transform_origin(), {});
+                case PropertyID::MaxHeight:
+                case PropertyID::MaxWidth:
+                case PropertyID::MinHeight:
+                case PropertyID::MinWidth:
+                    return resolve_unresolvable_anchor_functions(computed_property_id, move(computed_value));
                 default:
                     return computed_value;
                 }
@@ -1277,6 +1316,16 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             return LengthStyleValue::create(Length::make_px(maybe_used_width.release_value()));
         return get_computed_value(property_id);
     }
+
+        // NB: The computed value of a min or max sizing property resolves its anchor-size() functions, which layout
+        //     resolves against an anchor box.
+    case PropertyID::MaxHeight:
+    case PropertyID::MaxWidth:
+    case PropertyID::MinHeight:
+    case PropertyID::MinWidth:
+        if (auto resolved_size = Painting::anchor_resolved_size(layout_node, property_id); resolved_size.has_value())
+            return LengthStyleValue::create(Length::make_px(resolved_size.release_value()));
+        return resolve_unresolvable_anchor_functions(property_id, get_computed_value(property_id));
 
         // -> bottom
         // -> left

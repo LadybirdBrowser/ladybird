@@ -327,6 +327,8 @@ struct AnchorResolutionState {
     default_anchor_box: Node,
     compensates_for_horizontal_scroll: bool,
     compensates_for_vertical_scroll: bool,
+    /// Whether an anchor function resolved against an anchor box, rather than to its fallback value.
+    resolved_against_anchor_box: bool,
 }
 
 impl AnchorResolutionState {
@@ -334,6 +336,7 @@ impl AnchorResolutionState {
         default_anchor_box: NodeSlotId::INVALID,
         compensates_for_horizontal_scroll: false,
         compensates_for_vertical_scroll: false,
+        resolved_against_anchor_box: false,
     };
 }
 
@@ -708,6 +711,7 @@ impl AbsposEngine<'_> {
                 default_anchor_box: anchor_box,
                 compensates_for_horizontal_scroll: true,
                 compensates_for_vertical_scroll: true,
+                resolved_against_anchor_box: false,
             },
             None => default_scroll_shift,
         };
@@ -757,6 +761,7 @@ impl AbsposEngine<'_> {
             default_anchor_box,
             compensates_for_horizontal_scroll: false,
             compensates_for_vertical_scroll: false,
+            resolved_against_anchor_box: false,
         };
         let mut resolve_inset = |inset: style_values::InsetValue<'_>, axis: AnchorValueAxis| {
             inset.contains_anchor_function().then(|| {
@@ -830,9 +835,10 @@ impl AbsposEngine<'_> {
     ) -> style_values::ResolvedAnchorSizes {
         // NB: Read the computed values themselves, not what an earlier resolution made of them.
         let style = *StyleValues::for_node(&self.callbacks, node);
-        let mut resolution_state = AnchorResolutionState::NO_SCROLL_SHIFT;
-        let mut resolve = |calculated: *const c_void, is_horizontal: bool, containing_block_extent: CssPixels| {
-            self.resolve_anchor_value(
+        // NB: Each resolution also tells whether any of its anchor functions resolved against an anchor box.
+        let resolve = |calculated: *const c_void, is_horizontal: bool, containing_block_extent: CssPixels| {
+            let mut resolution_state = AnchorResolutionState::NO_SCROLL_SHIFT;
+            let resolved = self.resolve_anchor_value(
                 calculated,
                 node,
                 containing_block,
@@ -844,23 +850,25 @@ impl AbsposEngine<'_> {
                     containing_block_extent,
                 },
                 &mut resolution_state,
-            )
+            );
+            (resolved, resolution_state.resolved_against_anchor_box)
         };
         let inline_size = containing_block_geometry.padding_box_inline_size();
         let block_size = containing_block_geometry.padding_box_block_size();
         // https://drafts.csswg.org/css-anchor-position-1/#anchor-size-resolution
         // If no fallback value is specified, it makes the declaration referencing it invalid at computed-value time.
-        let mut resolve_size = |size: &ComputedSize, is_horizontal: bool, initial: ComputedSizeKind| {
+        let resolve_size = |size: &ComputedSize, is_horizontal: bool, initial: ComputedSizeKind| {
             if !size.is_length_percentage() || !size.length_percentage().contains_anchor_function() {
                 return None;
             }
             let extent = if is_horizontal { inline_size } else { block_size };
-            Some(
-                match resolve(size.length_percentage().calculated_pointer(), is_horizontal, extent) {
-                    Some(px) => style_values::ResolvedSizeOverride::Length(px),
-                    None => style_values::ResolvedSizeOverride::Keyword(initial),
-                },
-            )
+            match resolve(size.length_percentage().calculated_pointer(), is_horizontal, extent) {
+                // NB: A size whose anchor functions all resolve to their fallback values resolves like anywhere
+                //     else, so it keeps reading from style. A resolved size thus always comes from an anchor box.
+                (Some(_), false) => None,
+                (Some(px), true) => Some(style_values::ResolvedSizeOverride::Length(px)),
+                (None, _) => Some(style_values::ResolvedSizeOverride::Keyword(initial)),
+            }
         };
         let mut resolved = style_values::ResolvedAnchorSizes {
             width: resolve_size(style.width(), true, ComputedSizeKind::Auto),
@@ -871,13 +879,17 @@ impl AbsposEngine<'_> {
             max_height: resolve_size(style.max_height(), false, ComputedSizeKind::None),
             ..Default::default()
         };
-        let mut resolve_margin = |margin: &ComputedLengthPercentageOrAuto, is_horizontal: bool| {
+        let resolve_margin = |margin: &ComputedLengthPercentageOrAuto, is_horizontal: bool| {
             let length_percentage = margin.length_percentage()?;
             if !length_percentage.contains_anchor_function() {
                 return None;
             }
             // NB: Margin percentages resolve against the inline size of the containing block in both axes.
-            Some(resolve(length_percentage.calculated_pointer(), is_horizontal, inline_size).unwrap_or_default())
+            Some(
+                resolve(length_percentage.calculated_pointer(), is_horizontal, inline_size)
+                    .0
+                    .unwrap_or_default(),
+            )
         };
         resolved.margin_top = resolve_margin(style.margin_top(), false);
         resolved.margin_right = resolve_margin(style.margin_right(), true);
@@ -1539,6 +1551,8 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
             _ => unreachable!("the shell was matched as an anchor function above"),
         };
         if let Some(resolved) = resolved {
+            // SAFETY: The state pointer is live and uniquely used by this synchronous resolver.
+            unsafe { (*context.resolution_state).resolved_against_anchor_box = true };
             // SAFETY: This CSS crate export transfers one Arc reference to
             // the external-resolution snapshot, which releases it after
             // calc resolution.

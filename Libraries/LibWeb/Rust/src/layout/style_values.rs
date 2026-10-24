@@ -92,8 +92,9 @@ pub(crate) enum ResolvedSizeOverride {
 }
 
 /// The sizing and margin properties of one positioned box whose computed values hold anchor-size() functions, with
-/// those functions resolved by the abspos engine. A property without one stays None and reads from style. Margins
-/// also carry the zero that auto resolves to in the axes a position area or anchor-center aligns the box in.
+/// those functions resolved by the abspos engine. A property without one stays None and reads from style, as does a
+/// sizing property whose anchor-size() functions all resolve to their fallback values. Margins also carry the zero that
+/// auto resolves to in the axes a position area or anchor-center aligns the box in.
 /// https://drafts.csswg.org/css-anchor-position-1/#anchor-size-fn
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ResolvedAnchorSizes {
