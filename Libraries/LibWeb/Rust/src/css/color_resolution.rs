@@ -19,7 +19,7 @@ use crate::css::calc::{
     resolve_calculated_number_with_channels, resolve_calculated_percentage_with_channels,
 };
 use crate::css::color_conversion::{self, Components};
-use crate::css::color_interpolation::{ResolvedColor, interpolate_color};
+use crate::css::color_interpolation::{MixItem, ResolvedColor, mix_colors};
 use crate::css::computed_value_types::{InheritedTextValues, InheritedUIValues};
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::channel_keyword;
@@ -28,7 +28,8 @@ use crate::css::css_enums::keyword_to_channel_keyword;
 use crate::css::serialize::TextSink;
 use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::css::style_value::{
-    ColorBase, CssString, RetainedStyleValueData, StyleValueData, is_none_keyword, value_depends_on_current_color,
+    ColorBase, CssString, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData, is_none_keyword,
+    value_depends_on_current_color,
 };
 
 /// Mirrors Gfx::Color: 8-bit unpremultiplied sRGB with alpha 255 meaning fully opaque.
@@ -1561,53 +1562,54 @@ pub(crate) fn percentage_from_style_value(value: &StyleValueData) -> Option<f64>
     }
 }
 
-/// Percentages are represented as values from 0 to 100.
-pub(crate) struct NormalizedPercentages {
-    pub(crate) second_percentage: f64,
-    pub(crate) alpha_multiplier: f64,
+/// The result of normalizing mix percentages. Percentages are represented as values from 0 to 100.
+pub(crate) struct NormalizedMixPercentages {
+    pub(crate) percentages: Vec<f64>,
+    pub(crate) leftover: f64,
 }
 
-// https://drafts.csswg.org/css-color-5/#color-mix-percent-norm
-pub(crate) fn normalize_percentage_pair(p1: Option<f64>, p2: Option<f64>) -> NormalizedPercentages {
-    let mut alpha_multiplier = 1.0;
+// https://drafts.csswg.org/css-values-5/#normalize-mix-percentages
+pub(crate) fn normalize_mix_percentages(items: &[Option<f64>], force_normalization: bool) -> NormalizedMixPercentages {
+    // 1. Let specified sum be the sum of the percentages specified in items (clamped to 100%), or 0% if the
+    //    percentages are omitted for all items.
+    let specified_sum = items.iter().flatten().sum::<f64>().min(100.0);
 
-    // 1. Let p1 be the first percentage and p2 the second one.
-    // NB: Provided by the caller.
-    let (_, p2) = match (p1, p2) {
-        // 2. If both percentages are omitted, they each default to 50% (an equal mix of the two
-        //    colors).
-        (None, None) => (50.0, 50.0),
-        // 3. Otherwise, if p2 is omitted, it becomes 100% - p1
-        (Some(p1), None) => (p1, 100.0 - p1),
-        // 4. Otherwise, if p1 is omitted, it becomes 100% - p2
-        (None, Some(p2)) => (100.0 - p2, p2),
-        (Some(mut p1), Some(mut p2)) => {
-            // 5. Otherwise, if both are provided and add up to greater than 100%, they are scaled
-            //    accordingly so that they add up to 100%.
-            if p1 + p2 > 100.0 {
-                let sum = p1 + p2;
-                p1 = (p1 / sum) * 100.0;
-                p2 = (p2 / sum) * 100.0;
-            }
-            // 6. Otherwise, if both are provided and add up to less than 100%, the sum is saved as
-            //    an alpha multiplier. If the sum is greater than zero, they are then scaled
-            //    accordingly so that they add up to 100%.
-            else if p1 + p2 < 100.0 {
-                let sum = p1 + p2;
-                alpha_multiplier = sum / 100.0;
-                if sum > 0.0 {
-                    p1 = (p1 / sum) * 100.0;
-                    p2 = (p2 / sum) * 100.0;
-                }
-            }
-            (p1, p2)
+    // 2. For each omitted percentage in items, set it to (100% - specified sum) / (number of omitted percentages).
+    let omitted_count = items.iter().filter(|percentage| percentage.is_none()).count();
+    let mut percentages: Vec<f64> = items
+        .iter()
+        .map(|percentage| percentage.unwrap_or_else(|| (100.0 - specified_sum) / omitted_count as f64))
+        .collect();
+
+    // 3. Let total be the sum of the percentages of all the items.
+    let total: f64 = percentages.iter().sum();
+
+    // 4. If total is greater than 100%, or if total is greater than 0% and the force normalization flag is true,
+    //    multiply every percentage in items by (100% / total).
+    if total > 100.0 || (total > 0.0 && force_normalization) {
+        for percentage in &mut percentages {
+            *percentage *= 100.0 / total;
         }
-    };
-
-    NormalizedPercentages {
-        second_percentage: p2,
-        alpha_multiplier,
     }
+
+    // 5. If total is less than 100%, let leftover be (100% - total). Otherwise, let leftover be 0%.
+    let leftover = if total < 100.0 { 100.0 - total } else { 0.0 };
+
+    // 6. Return items and leftover.
+    NormalizedMixPercentages { percentages, leftover }
+}
+
+/// The specified percentages of a color-mix(), resolved to numbers. Returns None when one does
+/// not resolve.
+pub(crate) fn color_mix_specified_percentages(percentages: &RetainedStyleValueDataList) -> Option<Vec<Option<f64>>> {
+    percentages
+        .as_slice()
+        .iter()
+        .map(|percentage| match percentage.optional_data() {
+            None => Some(None),
+            Some(value) => Some(Some(percentage_from_style_value(value)?)),
+        })
+        .collect()
 }
 
 fn resolve_native_color_components(
@@ -1777,25 +1779,13 @@ pub(crate) fn resolve_color_for_interpolation(
 pub(crate) fn resolve_color_mix(value: &StyleValueData, input: &ColorResolutionInput) -> Option<StyleValueData> {
     let StyleValueData::ColorMix {
         color_interpolation_method,
-        first_color,
-        first_percentage,
-        second_color,
-        second_percentage,
+        colors,
+        percentages,
         ..
     } = value
     else {
         return None;
     };
-
-    let percentage = |value: &RetainedStyleValueData| -> Option<Option<f64>> {
-        match value.optional_data() {
-            None => Some(None),
-            Some(value) => Some(Some(percentage_from_style_value(value)?)),
-        }
-    };
-    let p1 = percentage(first_percentage)?;
-    let p2 = percentage(second_percentage)?;
-    let normalized = normalize_percentage_pair(p1, p2);
 
     // An absent method interpolates in the rectangular Oklab space.
     let default_method = StyleValueData::ColorInterpolationMethod {
@@ -1804,17 +1794,38 @@ pub(crate) fn resolve_color_mix(value: &StyleValueData, input: &ColorResolutionI
         hue_interpolation_method: 0,
     };
     let method = color_interpolation_method.optional_data().unwrap_or(&default_method);
-
-    let resolved_from = resolve_color_for_interpolation(first_color.data(), input)?;
-    let resolved_to = resolve_color_for_interpolation(second_color.data(), input)?;
-    let delta = (normalized.second_percentage / 100.0) as f32;
-    interpolate_color(
-        &resolved_from,
-        &resolved_to,
+    calculate_a_color_mix(
+        colors.as_slice().iter().map(|color| color.data()),
+        &color_mix_specified_percentages(percentages)?,
         method,
-        delta,
-        normalized.alpha_multiplier as f32,
+        input,
     )
+}
+
+// https://drafts.csswg.org/css-color-5/#calculate-a-color-mix
+pub(crate) fn calculate_a_color_mix<'a>(
+    colors: impl Iterator<Item = &'a StyleValueData>,
+    specified_percentages: &[Option<f64>],
+    method: &StyleValueData,
+    input: &ColorResolutionInput,
+) -> Option<StyleValueData> {
+    // 1. Normalize mix percentages from the list of mix items passed to the function, with the "forced
+    //    normalization" flag set to true, letting items and leftover be the result.
+    let normalized = normalize_mix_percentages(specified_percentages, true);
+
+    // 2. Let alpha mult be 1 - leftover, interpreting leftover as a number between 0 and 1.
+    let alpha_multiplier = 1.0 - normalized.leftover / 100.0;
+
+    let items = colors
+        .zip(normalized.percentages)
+        .map(|(color, percentage)| {
+            Some(MixItem {
+                color: resolve_color_for_interpolation(color, input)?,
+                percentage,
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    mix_colors(items, method, alpha_multiplier as f32)
 }
 
 fn color_mix_to_color(value: &StyleValueData, input: &ColorResolutionInput) -> Option<Rgba> {
@@ -2192,18 +2203,19 @@ mod tests {
                 color_space: 0,
                 hue_interpolation_method: 0,
             }),
-            first_color: retained_value(color_function(
-                color_conversion::RGB,
-                [number(0.0), number(0.0), number(0.0)],
-                None,
-            )),
-            first_percentage: retained_null(),
-            second_color: retained_value(color_function(
-                color_conversion::RGB,
-                [number(255.0), number(255.0), number(255.0)],
-                None,
-            )),
-            second_percentage: retained_null(),
+            colors: RetainedStyleValueDataList::from_retained_values(vec![
+                retained_value(color_function(
+                    color_conversion::RGB,
+                    [number(0.0), number(0.0), number(0.0)],
+                    None,
+                )),
+                retained_value(color_function(
+                    color_conversion::RGB,
+                    [number(255.0), number(255.0), number(255.0)],
+                    None,
+                )),
+            ]),
+            percentages: RetainedStyleValueDataList::from_retained_values(vec![retained_null(), retained_null()]),
         };
         // A 50/50 sRGB mix of black and white; 127.5 rounds half-to-even to 128 through the
         // sRGB construction arm.
@@ -2211,27 +2223,30 @@ mod tests {
     }
 
     #[test]
-    fn percentage_pair_normalization_matches_the_spec_steps() {
-        let normalized = normalize_percentage_pair(None, None);
-        assert_eq!(normalized.second_percentage, 50.0);
-        assert_eq!(normalized.alpha_multiplier, 1.0);
+    fn mix_percentage_normalization_matches_the_spec_steps() {
+        let normalized = normalize_mix_percentages(&[None, None], true);
+        assert_eq!(normalized.percentages, [50.0, 50.0]);
+        assert_eq!(normalized.leftover, 0.0);
 
-        let normalized = normalize_percentage_pair(Some(30.0), None);
-        assert_eq!(normalized.second_percentage, 70.0);
+        let normalized = normalize_mix_percentages(&[Some(30.0), None], true);
+        assert_eq!(normalized.percentages, [30.0, 70.0]);
 
-        let normalized = normalize_percentage_pair(None, Some(30.0));
-        assert_eq!(normalized.second_percentage, 30.0);
+        let normalized = normalize_mix_percentages(&[None, Some(30.0)], true);
+        assert_eq!(normalized.percentages, [70.0, 30.0]);
 
-        let normalized = normalize_percentage_pair(Some(100.0), Some(100.0));
-        assert_eq!(normalized.second_percentage, 50.0);
-        assert_eq!(normalized.alpha_multiplier, 1.0);
+        let normalized = normalize_mix_percentages(&[Some(100.0), Some(100.0)], true);
+        assert_eq!(normalized.percentages, [50.0, 50.0]);
+        assert_eq!(normalized.leftover, 0.0);
 
-        let normalized = normalize_percentage_pair(Some(20.0), Some(30.0));
-        assert_eq!(normalized.second_percentage, 60.0);
-        assert_eq!(normalized.alpha_multiplier, 0.5);
+        let normalized = normalize_mix_percentages(&[Some(20.0), Some(30.0)], true);
+        assert_eq!(normalized.percentages, [40.0, 60.0]);
+        assert_eq!(normalized.leftover, 50.0);
 
-        let normalized = normalize_percentage_pair(Some(0.0), Some(0.0));
-        assert_eq!(normalized.alpha_multiplier, 0.0);
+        let normalized = normalize_mix_percentages(&[Some(0.0), Some(0.0)], true);
+        assert_eq!(normalized.leftover, 100.0);
+
+        let normalized = normalize_mix_percentages(&[Some(50.0), None, None], true);
+        assert_eq!(normalized.percentages, [50.0, 25.0, 25.0]);
     }
 
     #[test]

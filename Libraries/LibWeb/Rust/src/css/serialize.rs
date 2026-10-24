@@ -2106,13 +2106,12 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
         }
         StyleValueData::ColorMix {
             color_interpolation_method,
-            first_color,
-            first_percentage,
-            second_color,
-            second_percentage,
+            colors,
+            percentages,
             ..
         } => {
             use crate::css::css_enums::rectangular_color_space;
+            // https://drafts.csswg.org/css-color-5/#serial-color-mix
             sink.push_ascii("color-mix(");
             if let Some(method) = color_interpolation_method.optional_data() {
                 let is_default_oklab = matches!(
@@ -2125,60 +2124,82 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     sink.push_ascii(", ");
                 }
             }
-            let first = first_percentage.optional_data();
-            let second = second_percentage.optional_data();
-            let literal_percentage = |value: Option<&StyleValueData>| match value {
-                Some(StyleValueData::Percentage { value }) => Some(*value),
-                _ => None,
-            };
-            let is_calc = |value: Option<&StyleValueData>| matches!(value, Some(StyleValueData::Calculated { .. }));
 
-            serialize_style_value(sink, first_color.data(), mode);
-            match (first, second) {
-                (Some(first_value), Some(_)) => {
-                    let both_fifty =
-                        literal_percentage(first) == Some(50.0) && literal_percentage(second) == Some(50.0);
-                    if !both_fifty {
-                        sink.push_ascii(" ");
-                        serialize_style_value(sink, first_value, mode);
-                    }
+            let colors = colors.as_slice();
+            let percentages = percentages.as_slice();
+            let item_count = colors.len();
+            let literal_percentage =
+                |value: &crate::css::style_value::RetainedStyleValueData| match value.optional_data() {
+                    Some(StyleValueData::Percentage { value }) => Some(*value),
+                    _ => None,
+                };
+            let any_calc = percentages
+                .iter()
+                .any(|value| matches!(value.optional_data(), Some(StyleValueData::Calculated { .. })));
+            // AD-HOC: The specified sum is clamped to 100%, as when normalizing mix percentages, so that an
+            //         omitted percentage never serializes as a negative value, which would not parse.
+            let specified_sum: f64 = percentages
+                .iter()
+                .filter_map(literal_percentage)
+                .sum::<f64>()
+                .min(100.0);
+            let omitted_count = percentages
+                .iter()
+                .filter(|value| value.optional_data().is_none())
+                .count();
+            // NB: Only used when at least one percentage was omitted.
+            let omitted_percentage = (100.0 - specified_sum) / omitted_count.max(1) as f64;
+
+            // For each argument, let its effective percentage be:
+            // - its specified <percentage>, if one was explicitly provided and is not a calc()
+            //   expression;
+            // - if its <percentage> was omitted, and none of the other specified <percentage>s are
+            //   calc() expressions: (100% − specified sum) / omitted count, where specified sum is
+            //   the sum of the explicitly specified <percentage>s and omitted count is the number
+            //   of arguments with omitted <percentage>s;
+            // - otherwise, unknown.
+            let effective_percentage =
+                |value: &crate::css::style_value::RetainedStyleValueData| match value.optional_data() {
+                    Some(StyleValueData::Percentage { value }) => Some(*value),
+                    None if !any_calc => Some(omitted_percentage),
+                    _ => None,
+                };
+
+            // If all effective percentages are known, equal to each other, and greater than or
+            // equal to 100% / N, no percentages are serialized.
+            // NB: The examples in the spec and WPT keep equal percentages above 100% / N (such as
+            //     "teal 70%, peru 70%"), so they are only omitted when they equal 100% / N.
+            let equal_share = 100.0 / item_count as f64;
+            let omit_percentages = percentages
+                .iter()
+                .all(|value| effective_percentage(value) == Some(equal_share));
+
+            for (index, (color, percentage)) in colors.iter().zip(percentages).enumerate() {
+                if index > 0 {
+                    sink.push_ascii(", ");
                 }
-                (Some(first_value), None) => {
-                    if literal_percentage(first) != Some(50.0) {
-                        sink.push_ascii(" ");
-                        serialize_style_value(sink, first_value, mode);
-                    }
+                serialize_style_value(sink, color.data(), mode);
+                if omit_percentages {
+                    continue;
                 }
-                (None, Some(_)) => {
-                    if literal_percentage(second) != Some(50.0)
-                        && let Some(second_literal) = literal_percentage(second)
-                    {
+                // Otherwise, each argument's percentage is serialized as follows:
+                match percentage.optional_data() {
+                    // If a <percentage> was explicitly specified, it is serialized as-is.
+                    Some(value) => {
                         sink.push_ascii(" ");
-                        serialize_a_number(sink, 100.0 - second_literal, mode);
+                        serialize_style_value(sink, value, mode);
+                    }
+                    // If a <percentage> was omitted and none of the other specified <percentage>s
+                    // are calc() expressions: the value (100% − specified sum) / omitted count is
+                    // serialized.
+                    None if !any_calc => {
+                        sink.push_ascii(" ");
+                        serialize_a_number(sink, omitted_percentage, mode);
                         sink.push_ascii("%");
                     }
-                }
-                (None, None) => {}
-            }
-            sink.push_ascii(", ");
-            serialize_style_value(sink, second_color.data(), mode);
-            match (first, second) {
-                (Some(_), Some(second_value)) => {
-                    let sum_is_hundred = match (literal_percentage(first), literal_percentage(second)) {
-                        (Some(first_literal), Some(second_literal)) => first_literal + second_literal == 100.0,
-                        _ => false,
-                    };
-                    if !sum_is_hundred {
-                        sink.push_ascii(" ");
-                        serialize_style_value(sink, second_value, mode);
-                    }
-                }
-                (Some(_) | None, None) => {}
-                (None, Some(second_value)) => {
-                    if literal_percentage(second) != Some(50.0) && is_calc(second) {
-                        sink.push_ascii(" ");
-                        serialize_style_value(sink, second_value, mode);
-                    }
+                    // Otherwise (a <percentage> was omitted but another argument has a calc()
+                    // <percentage>): nothing is serialized.
+                    None => {}
                 }
             }
             sink.push_ascii(")");

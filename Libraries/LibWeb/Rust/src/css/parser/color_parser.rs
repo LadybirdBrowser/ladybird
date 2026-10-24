@@ -20,7 +20,9 @@ use crate::css::named_colors::named_color_from_name;
 use crate::css::parser::calc_parser::{CalcParseError, CalcParserContext, parse_a_calc_function_node};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::parser::token_stream::TokenStream;
-use crate::css::style_value::{ColorBase, RetainedNumericRangeList, RetainedStyleValueData, StyleValueData};
+use crate::css::style_value::{
+    ColorBase, RetainedNumericRangeList, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
+};
 
 use super::value_parser::{ParseContext, context_allows_random_functions, equals_ascii_case_insensitive};
 use crate::css::value_codes::*;
@@ -888,11 +890,9 @@ fn parse_mix_component(context: &ParseContext, property: u16, stream: &mut Token
     Some(MixComponent { color, percentage })
 }
 
-fn is_zero_percentage(value: Option<&StyleValueData>) -> bool {
-    matches!(value, Some(StyleValueData::Percentage { value }) if *value == 0.0)
-}
-
+// https://drafts.csswg.org/css-color-5/#color-mix
 fn parse_color_mix(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
+    // color-mix() = color-mix( <color-interpolation-method>? , [ <color> && <percentage [0,100]>? ]#)
     let mut stream = TokenStream::new(values);
     let method_start = stream.current_index();
     let method = parse_color_interpolation_method(&mut stream);
@@ -905,26 +905,25 @@ fn parse_color_mix(context: &ParseContext, property: u16, values: &[ComponentVal
     } else {
         stream.position = method_start;
     }
-    let first = parse_mix_component(context, property, &mut stream)?;
-    if !stream.next_token().is_comma() {
-        return None;
-    }
-    stream.discard_a_token();
-    let second = parse_mix_component(context, property, &mut stream)?;
-    if is_zero_percentage(first.percentage.as_ref()) && is_zero_percentage(second.percentage.as_ref()) {
-        return None;
-    }
-    stream.discard_whitespace();
-    if stream.has_next_token() {
-        return None;
+    let mut colors = Vec::new();
+    let mut percentages = Vec::new();
+    loop {
+        let component = parse_mix_component(context, property, &mut stream)?;
+        colors.push(retained(component.color));
+        percentages.push(retained_optional(component.percentage));
+        if !stream.has_next_token() {
+            break;
+        }
+        if !stream.next_token().is_comma() {
+            return None;
+        }
+        stream.discard_a_token();
     }
     Some(StyleValueData::ColorMix {
         color_base: color_base(None, COLOR_SYNTAX_MODERN),
         color_interpolation_method: retained_optional(method),
-        first_color: retained(first.color),
-        first_percentage: retained_optional(first.percentage),
-        second_color: retained(second.color),
-        second_percentage: retained_optional(second.percentage),
+        colors: RetainedStyleValueDataList::from_retained_values(colors),
+        percentages: RetainedStyleValueDataList::from_retained_values(percentages),
     })
 }
 
@@ -1156,7 +1155,6 @@ mod tests {
             "rgb(1, 2%, 3)",
             "hsl(0, 1, 2%)",
             "color(unknown 1 2 3)",
-            "color-mix(in srgb, red 0%, blue 0%)",
             "light-dark(red)",
             "contrast-color(red, blue)",
         ] {

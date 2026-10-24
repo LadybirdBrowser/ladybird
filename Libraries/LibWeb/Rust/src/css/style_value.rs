@@ -1958,15 +1958,14 @@ pub enum StyleValueData {
         name: CssString,
         origin_color: RetainedStyleValueData,
     },
-    /// color-mix() with its optional retained interpolation method value and two components,
-    /// each a retained color with an optional retained percentage.
+    /// color-mix() with its optional retained interpolation method value and its mix items:
+    /// one or more retained colors, each with an optional retained percentage. The two lists
+    /// have the same length, and an omitted percentage is a null entry.
     ColorMix {
         color_base: ColorBase,
         color_interpolation_method: RetainedStyleValueData,
-        first_color: RetainedStyleValueData,
-        first_percentage: RetainedStyleValueData,
-        second_color: RetainedStyleValueData,
-        second_percentage: RetainedStyleValueData,
+        colors: RetainedStyleValueDataList,
+        percentages: RetainedStyleValueDataList,
     },
     /// The shared data of every color style value: an optional color type and the color syntax
     /// (both C++ enums on ColorStyleValue, opaque to Rust).
@@ -2698,17 +2697,13 @@ impl StyleValueData {
             Self::ColorMix {
                 color_base,
                 color_interpolation_method,
-                first_color,
-                first_percentage,
-                second_color,
-                second_percentage,
+                colors,
+                percentages,
             } => {
                 write_color_base(hasher, color_base);
                 write_value(hasher, color_interpolation_method);
-                write_value(hasher, first_color);
-                write_value(hasher, first_percentage);
-                write_value(hasher, second_color);
-                write_value(hasher, second_percentage);
+                write_values(hasher, colors);
+                write_values(hasher, percentages);
             }
             Self::LinearGradient {
                 has_direction_value,
@@ -3681,11 +3676,7 @@ pub(crate) fn value_depends_on_current_color(value: &StyleValueData) -> bool {
     match value {
         StyleValueData::Keyword { keyword } => *keyword == crate::css::style_compute::keyword::CURRENTCOLOR,
         StyleValueData::ColorFunction { origin_color, .. } => retained_data_depends(origin_color),
-        StyleValueData::ColorMix {
-            first_color,
-            second_color,
-            ..
-        } => retained_data_depends(first_color) || retained_data_depends(second_color),
+        StyleValueData::ColorMix { colors, .. } => colors.as_slice().iter().any(retained_data_depends),
         StyleValueData::ContrastColor { color, .. } => retained_data_depends(color),
         StyleValueData::LightDark { light, dark, .. } => retained_data_depends(light) || retained_data_depends(dark),
         StyleValueData::Shadow { color, .. } => retained_data_depends(color),
@@ -3711,11 +3702,7 @@ pub(crate) fn value_depends_on_color_scheme(value: &StyleValueData) -> bool {
         StyleValueData::ColorFunction { origin_color, .. } => {
             origin_color.optional_data().is_some_and(value_depends_on_color_scheme)
         }
-        StyleValueData::ColorMix {
-            first_color,
-            second_color,
-            ..
-        } => retained_data_depends(first_color) || retained_data_depends(second_color),
+        StyleValueData::ColorMix { colors, .. } => colors.as_slice().iter().any(retained_data_depends),
         StyleValueData::ContrastColor { color, .. } => retained_data_depends(color),
         StyleValueData::LightDark { .. } => true,
         _ => false,
