@@ -1576,24 +1576,14 @@ impl ClockRecorder {
 }
 
 /// Hands the lanes `ticks` belong to a display tick at `frame_time_nanoseconds`, at which the compositor had scrolled to
-/// the `scroll_offset_count` offsets at `scroll_offsets`, and answers whether they want the next one.
-///
-/// # Safety
-///
-/// `ticks` must come from `document_host_clock_ticks` and not be released yet, and `scroll_offsets` must hold
-/// `scroll_offset_count` offsets.
+/// the offsets `scroll_offsets`, and answers whether they want the next one.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn clock_ticks_tick(
-    ticks: *const ClockTicks,
+pub extern "C" fn clock_ticks_tick(
+    ticks: crate::css::ffi_support::ArcRef<'_, ClockTicks>,
     frame_time_nanoseconds: i64,
-    scroll_offsets: *const FfiScrollOffset,
-    scroll_offset_count: usize,
+    scroll_offsets: ak::Span<'_, FfiScrollOffset>,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller, whose reference this borrows.
-    let ticks = std::mem::ManuallyDrop::new(unsafe { Arc::from_raw(ticks) });
-    // SAFETY: Guaranteed by the caller.
-    let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offset_count) };
-    ticks.tick(frame_time_nanoseconds, scroll_offsets)
+    ticks.to_arc().tick(frame_time_nanoseconds, scroll_offsets.as_slice())
 }
 
 /// Gives up the reference `ticks` holds.

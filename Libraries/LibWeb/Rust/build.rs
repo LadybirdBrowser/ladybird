@@ -2835,7 +2835,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiReplacedContentFacts".to_string(),
         "FfiStylePayloads".to_string(),
         "FfiUtf16View".to_string(),
-        // Handed back through the layout header, which builds on this one.
+        // Lent and handed back through the layout header, which builds on this one.
+        "ArcRef".to_string(),
         "OwnedArc".to_string(),
         "OwnedBox".to_string(),
         "NodeFlag".to_string(),

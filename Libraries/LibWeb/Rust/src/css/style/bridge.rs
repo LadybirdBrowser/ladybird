@@ -1247,29 +1247,25 @@ unsafe impl Sync for FfiAppliedAnimationDefinition {}
 /// The host publishes a scope whenever its rule cache is built, and keeps a reference to every set
 /// the row names until it replaces or gives the row up. The row is written as the host's other
 /// writes are, ahead of the next job, which is the first that resolves keyframes from it.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, and each buffer must hold the
-/// count it is given.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_tree_scope_animation_keyframes(
+pub extern "C" fn style_engine_set_tree_scope_animation_keyframes(
     host: &DocumentHost,
     tree_scope: u32,
     shadow_root_identity: usize,
-    name_lengths: *const u32,
-    name_units: *const u16,
-    name_unit_count: usize,
-    keyframe_sets: *const usize,
-    count: usize,
+    name_lengths: ak::Span<'_, u32>,
+    name_units: ak::Span<'_, u16>,
+    keyframe_sets: ak::Span<'_, usize>,
 ) {
-    // SAFETY: Guaranteed by the caller.
-    let row = unsafe {
-        super::animations::AnimationKeyframes::row(
-            ak::slice_from_raw_parts(name_lengths, count),
-            ak::slice_from_raw_parts(name_units, name_unit_count),
-            ak::slice_from_raw_parts(keyframe_sets, count),
-        )
-    };
+    assert_eq!(
+        name_lengths.as_slice().len(),
+        keyframe_sets.as_slice().len(),
+        "each keyframes name has a set"
+    );
+    let row = super::animations::AnimationKeyframes::row(
+        name_lengths.as_slice(),
+        name_units.as_slice(),
+        keyframe_sets.as_slice(),
+    );
     let write = super::engine_calls::EngineWrite::AnimationKeyframes {
         tree_scope: TreeScopeID(tree_scope),
         shadow_root_identity,
@@ -1472,24 +1468,18 @@ pub unsafe extern "C" fn style_engine_set_element_animation_effect_descriptions(
 /// Whether the engine describes one of an element's animation lists as holding exactly these
 /// versions of its effects, in this order, so that the host need not describe them again. Only
 /// the host describes them, so it knows without asking.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, and `versions` must hold `count`
-/// elements.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_describes_animation_effects(
+pub extern "C" fn style_engine_describes_animation_effects(
     host: &DocumentHost,
     node: u32,
     slot: u8,
-    versions: *const FfiAnimationEffectVersion,
-    count: usize,
+    versions: ak::Span<'_, FfiAnimationEffectVersion>,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
     StyleNodeID::from_raw(node).is_some_and(|node| {
         host.engine_memo()
             .described
             .borrow()
-            .describe(node, slot, unsafe { ak::slice_from_raw_parts(versions, count) })
+            .describe(node, slot, versions.as_slice())
     })
 }
 

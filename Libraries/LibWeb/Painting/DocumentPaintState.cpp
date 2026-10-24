@@ -250,7 +250,7 @@ void DocumentPaintState::recompute_selection_states(Layout::BegunRead const& rea
     for_each_node_in_highlight_range(read, range, is_excluded_from_selection, [&](DOM::Node& node, SelectionState state) {
         append_highlight_entry(read, entries, node, state);
     });
-    Layout::RustFFI::render_state_apply_selection(m_layout_node_arena->host(), viewport_row_slot(read, document), entries.data(), entries.size(), range.start_offset(), range.end_offset());
+    Layout::RustFFI::render_state_apply_selection(m_layout_node_arena->host(), viewport_row_slot(read, document), entries.span(), range.start_offset(), range.end_offset());
 }
 
 void DocumentPaintState::reset_search_text_states()
@@ -286,7 +286,7 @@ void DocumentPaintState::recompute_search_text_states(Layout::BegunRead const& r
     }
     if (active_match)
         append_range(*active_match, true);
-    Layout::RustFFI::render_state_apply_search_text(m_layout_node_arena->host(), viewport_row_slot(read, document), ranges.data(), ranges.size(), entries.data(), entries.size());
+    Layout::RustFFI::render_state_apply_search_text(m_layout_node_arena->host(), viewport_row_slot(read, document), ranges.span(), entries.span());
 }
 
 void DocumentPaintState::reset_spelling_error_states()
@@ -309,7 +309,7 @@ void DocumentPaintState::recompute_spelling_error_states(Layout::BegunRead const
             });
         }
     });
-    Layout::RustFFI::render_state_apply_spelling_errors(m_layout_node_arena->host(), viewport_row_slot(read, document), errors.data(), errors.size());
+    Layout::RustFFI::render_state_apply_spelling_errors(m_layout_node_arena->host(), viewport_row_slot(read, document), errors.span());
 }
 
 }
