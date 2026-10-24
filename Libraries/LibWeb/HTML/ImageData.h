@@ -15,6 +15,7 @@
 #include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/Bindings/PredefinedColorSpace.h>
 
 namespace Web::HTML {
 
@@ -31,6 +32,9 @@ public:
 
     u32 width() const;
     u32 height() const;
+
+    // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-imagedata-colorspace
+    Bindings::PredefinedColorSpace color_space() const;
 
     // Whether the buffer of the data attribute is detached.
     bool is_detached() const;

@@ -384,16 +384,18 @@ inline Web::HTML::StorageSerializationRecord array_buffer_view_record(StringView
     return storage_record_with_value(value);
 }
 
-inline Web::HTML::StorageSerializationRecord image_bitmap_record(i32 width, i32 height, u64 pitch, StringView format, StringView alpha_type, ReadonlyBytes data)
+// A bitmap in sRGB has no color space bytes. Any other color space follows the pixels.
+inline Web::HTML::StorageSerializationRecord image_bitmap_record(i32 width, i32 height, u64 pitch, StringView format, StringView alpha_type, ReadonlyBytes data, ReadonlyBytes color_space = {})
 {
     Vector<u8> body;
-    body.append(1);
+    body.append(color_space.is_empty() ? 1 : 2);
     append_storage_signed_leb128(body, width);
     append_storage_signed_leb128(body, height);
     append_storage_leb128(body, pitch);
     append_storage_ascii_utf16(body, format);
     append_storage_ascii_utf16(body, alpha_type);
     append_storage_bytes(body, data);
+    body.append(color_space.data(), color_space.size());
     return serializable_storage_record("ImageBitmap"sv, 1, body);
 }
 

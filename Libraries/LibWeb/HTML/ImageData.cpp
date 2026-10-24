@@ -28,6 +28,7 @@ u32 web_image_data_width(void const* image_data);
 u32 web_image_data_height(void const* image_data);
 bool web_image_data_is_detached(void const* image_data);
 u8* web_image_data_pixels(void const* image_data);
+u8 web_image_data_color_space(void const* image_data);
 
 // What the serialization steps of Bindings/Rust/src/html/image_data.rs ask of C++: the color space, encoded as for
 // any other Bindings::PredefinedColorSpace.
@@ -69,6 +70,11 @@ u32 ImageData::height() const
 bool ImageData::is_detached() const
 {
     return web_image_data_is_detached(this);
+}
+
+Bindings::PredefinedColorSpace ImageData::color_space() const
+{
+    return static_cast<Bindings::PredefinedColorSpace>(web_image_data_color_space(this));
 }
 
 u8* ImageData::pixels() const
