@@ -13,6 +13,7 @@ pub(super) fn compute_inline_sizes(
     root: &UsedValues,
     constraints: ContainingBlockConstraints,
     block_size: AvailableSize,
+    depends_on_block_size: bool,
 ) -> Option<IntrinsicInlineSizeMeasurement> {
     let facts = NodeFacts::new(&callbacks, node);
     let style = StyleValues::for_node(&callbacks, node);
@@ -55,7 +56,8 @@ pub(super) fn compute_inline_sizes(
             sizing.constraints_for_child_context(node, constraints),
             ParticipationInParentFormattingContext::BlockLevel,
         );
-        let measurement = compute_from_atomic_children(&run, input).or_else(|| compute_from_items(&run, input))?;
+        let measurement = compute_from_atomic_children(&run, input, depends_on_block_size)
+            .or_else(|| compute_from_items(&run, input, depends_on_block_size))?;
         if !facts.lays_out_in_columns() {
             return Some(measurement);
         }
@@ -73,7 +75,11 @@ pub(super) fn compute_inline_sizes(
     })
 }
 
-fn compute_from_items(run: &FormattingContextRun<'_>, input: LayoutInput) -> Option<IntrinsicInlineSizeMeasurement> {
+fn compute_from_items(
+    run: &FormattingContextRun<'_>,
+    input: LayoutInput,
+    depends_on_block_size: bool,
+) -> Option<IntrinsicInlineSizeMeasurement> {
     let sizing = run.sizing();
     let parent = block_formatting_context::BlockFormattingContext::new(run);
     let mut context = inline_formatting_context::InlineFormattingContext::new_with_rust_parent(
@@ -94,12 +100,14 @@ fn compute_from_items(run: &FormattingContextRun<'_>, input: LayoutInput) -> Opt
         min_content_inline_size_from_max_content_layout: minimum.map(clamp_to_max_dimension_value),
         depends_on_percentage_block_size: sizing.resolve_percentage_block_size_dependency(run.box_),
         depends_on_percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(run.box_),
+        depends_on_block_size,
     })
 }
 
 fn compute_from_atomic_children(
     run: &FormattingContextRun<'_>,
     input: LayoutInput,
+    depends_on_block_size: bool,
 ) -> Option<IntrinsicInlineSizeMeasurement> {
     let callbacks = run.callbacks;
     let containing_style = StyleValues::for_node(&callbacks, run.box_);
@@ -144,5 +152,6 @@ fn compute_from_atomic_children(
             .map(|lines| clamp_to_max_dimension_value(lines.finish_measurement())),
         depends_on_percentage_block_size: sizing.resolve_percentage_block_size_dependency(run.box_),
         depends_on_percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(run.box_),
+        depends_on_block_size,
     })
 }
