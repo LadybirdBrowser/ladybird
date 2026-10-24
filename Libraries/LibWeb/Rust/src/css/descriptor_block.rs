@@ -163,7 +163,11 @@ pub extern "C" fn rust_descriptor_block_length(block: &FfiDescriptorBlock) -> us
 
 // The block owns the returned value until its next mutation.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_descriptor_block_get(block: &FfiDescriptorBlock, id: u8, name: FfiUtf16View) -> *const c_void {
+pub extern "C" fn rust_descriptor_block_get(
+    block: &FfiDescriptorBlock,
+    id: u8,
+    name: FfiUtf16View,
+) -> *const StyleValueData {
     let name = name.units().unwrap();
     block
         .data()
@@ -180,7 +184,7 @@ pub extern "C" fn rust_descriptor_block_get(block: &FfiDescriptorBlock, id: u8, 
                             .enumerate()
                             .all(|(index, unit)| *unit == name.code_unit_at(index))))
         })
-        .map_or(std::ptr::null(), |descriptor| Arc::as_ptr(&descriptor.value).cast())
+        .map_or(std::ptr::null(), |descriptor| Arc::as_ptr(&descriptor.value))
 }
 
 #[unsafe(no_mangle)]
@@ -327,7 +331,7 @@ mod tests {
         let allocations = DESCRIPTOR_OWNER_ALLOCATIONS.get();
         let descriptor = snapshot.descriptors[0].view();
         let value = rust_descriptor_block_get(block, descriptor.id, descriptor.name);
-        assert_eq!(value, descriptor.value);
+        assert_eq!(value.cast(), descriptor.value);
         assert_eq!(
             serialize_descriptors(&block.data()).into_utf16(),
             "font-family: 文字; src: url(\"font.woff\");"

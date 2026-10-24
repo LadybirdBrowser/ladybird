@@ -242,11 +242,10 @@ pub struct CssStringView {
     pub length: usize,
 }
 
-/// # Safety
-/// `string` must point to a live CssString. The returned view borrows its storage.
+/// The returned view borrows the storage of `string`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_css_string_view(string: *const std::ffi::c_void) -> CssStringView {
-    let units = unsafe { &*string.cast::<CssString>() }.units();
+pub extern "C" fn rust_css_string_view(string: &CssString) -> CssStringView {
+    let units = string.units();
     CssStringView {
         data: units.as_ptr(),
         length: units.len(),

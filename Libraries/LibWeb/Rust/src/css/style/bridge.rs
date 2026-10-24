@@ -1750,22 +1750,17 @@ pub(crate) fn declares_transitions(declarations: &[crate::css::declaration_block
 
 /// Registers an element's native inline declaration block, or clears it when null.
 /// Returns whether the declarations can define transitions.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread. A non-null `block` must borrow a
-/// live `DeclarationBlock`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_element_inline_style_properties(
+pub extern "C" fn style_engine_set_element_inline_style_properties(
     host: &DocumentHost,
     node: u32,
-    block: *const c_void,
+    block: Option<&crate::css::declaration_block::DeclarationBlock>,
 ) -> bool {
     use crate::css::declaration_block::DeclarationBlock;
     let Some(node) = StyleNodeID::from_raw(node) else {
         return false;
     };
-    // SAFETY: Guaranteed by the caller.
-    let data = unsafe { block.cast::<DeclarationBlock>().as_ref() }.map(DeclarationBlock::data);
+    let data = block.map(DeclarationBlock::data);
     let has_transitions = data.as_ref().is_some_and(|data| declares_transitions(&data.properties));
     super::engine_calls::queue(host, super::engine_calls::EngineWrite::InlineStyle { node, data });
     has_transitions
@@ -2798,19 +2793,15 @@ pub extern "C" fn style_engine_next_declaration_block_version(host: &DocumentHos
 /// sheet `sheet`, and answers whether they declare transitions. The host is told first, with no engine borrowed.
 ///
 /// # Safety
-/// `host` must be a live document host, on its document's thread, and `rule` live. The callback
-/// must not mutate the native rule graph, and must remain valid for this call.
+/// The callback must not mutate the native rule graph, and must remain valid for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_native_rule_declarations_changed(
     host: &DocumentHost,
     sheet: u32,
-    rule: *const c_void,
+    rule: &crate::css::rule::NativeRule,
     context: *mut c_void,
     notify: unsafe extern "C" fn(*mut c_void),
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    // SAFETY: Guaranteed by the caller.
-    let rule = unsafe { &*rule.cast::<crate::css::rule::NativeRule>() };
     let Some(identity) = rule
         .declaration_owner_identity()
         .filter(|&identity| host.published_rules().contains(sheet, identity))
@@ -2829,19 +2820,13 @@ pub unsafe extern "C" fn style_engine_native_rule_declarations_changed(
 
 /// The native identity of the first rule after an inserted native subtree that the host published to the sheet
 /// `sheet`, or 0 for none, without creating CSSOM objects.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, and `native` a live native sheet.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_native_rule_successor(
+pub extern "C" fn style_engine_native_rule_successor(
     host: &DocumentHost,
     sheet: u32,
-    native: *const c_void,
+    native: &crate::css::style_sheet::NativeStyleSheet,
     identity: u64,
 ) -> u64 {
-    // SAFETY: Guaranteed by the caller.
-    // SAFETY: Guaranteed by the caller.
-    let native = unsafe { &*native.cast::<crate::css::style_sheet::NativeStyleSheet>() };
     host.published_rules().successor(sheet, native, identity)
 }
 

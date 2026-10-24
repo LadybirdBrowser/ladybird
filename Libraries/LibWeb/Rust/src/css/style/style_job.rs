@@ -455,24 +455,19 @@ pub(crate) struct TakesFinishedStyleIn {
 
 const TAKES_FINISHED_STYLE_IN: TakesFinishedStyleIn = TakesFinishedStyleIn { _private: () };
 
-/// Ends the transaction the host took last, and has `allocator` mint the identities its end released again first.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and `allocator` its document's allocator.
+/// Ends the transaction the host took last, and has `allocator`, its document's allocator, mint the identities its end
+/// released again first.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_end_style_transaction(
+pub extern "C" fn style_engine_end_style_transaction(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
-    allocator: *mut StyleNodeIdAllocator,
+    allocator: &mut StyleNodeIdAllocator,
 ) {
-    assert!(!allocator.is_null());
     host.end_style_transaction();
     let released = with_engine(read, host, |engine| engine.discard_style_transaction_outputs());
     let memo = host.engine_memo();
     memo.held.borrow_mut().forget(&released);
     memo.described.borrow_mut().forget(&released);
     memo.baselines.borrow_mut().forget(&released);
-    // SAFETY: As above.
-    unsafe { &mut *allocator }.release(&released);
+    allocator.release(&released);
 }

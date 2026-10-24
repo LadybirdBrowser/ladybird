@@ -78,7 +78,7 @@ namespace Web::CSS {
 
 Utf16FlyString css_string_from_rust(void const* string)
 {
-    auto view = StyleValueFFI::rust_css_string_view(string);
+    auto view = StyleValueFFI::rust_css_string_view(static_cast<StyleValueFFI::CssString const*>(string));
     return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(view.data), view.length });
 }
 

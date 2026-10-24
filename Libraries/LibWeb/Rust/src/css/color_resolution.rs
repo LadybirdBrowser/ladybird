@@ -1628,14 +1628,12 @@ fn computed_value_form(value: StyleValueData) -> StyleValueData {
 /// resolve.
 ///
 /// # Safety
-/// `value` must point at live style value data, and `style` must be null or point at a style
-/// whose group payloads outlive the call.
+/// `style` must be null or point at a style whose group payloads outlive the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_relative_color_resolved_value(
-    value: *const core::ffi::c_void,
+    value: &StyleValueData,
     style: *const FfiColorResolutionStyle,
 ) -> *const StyleValueData {
-    let value = unsafe { &*value.cast::<StyleValueData>() };
     // SAFETY: Guaranteed by the caller.
     let resolution_input = unsafe { ColorResolutionInput::for_ffi_style(style) };
     match resolve_relative_form(value, &resolution_input) {
@@ -1649,14 +1647,12 @@ pub unsafe extern "C" fn rust_relative_color_resolved_value(
 /// one strong reference, or null when the value is no mix or does not resolve.
 ///
 /// # Safety
-/// `value` must point at live style value data, and `style` must be null or point at a style
-/// whose group payloads outlive the call.
+/// `style` must be null or point at a style whose group payloads outlive the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_color_mix_resolved_value(
-    value: *const core::ffi::c_void,
+    value: &StyleValueData,
     style: *const FfiColorResolutionStyle,
 ) -> *const StyleValueData {
-    let value = unsafe { &*value.cast::<StyleValueData>() };
     if !matches!(value, StyleValueData::ColorMix { .. }) {
         return core::ptr::null();
     }
@@ -2592,17 +2588,13 @@ pub struct FfiResolvedColorValue {
 
 /// Resolves a parsed style value to an sRGB color against a style record of `host`'s document, as the record
 /// computes its own values: its used color-scheme and `color`, and its lengths. A null record names no style.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, and `value` must point at live style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_to_color_against_style_record(
+pub extern "C" fn rust_style_value_to_color_against_style_record(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     style_record: u64,
-    value: *const core::ffi::c_void,
+    value: &crate::css::style_value::StyleValueData,
 ) -> FfiResolvedColorValue {
-    let value = unsafe { &*value.cast::<crate::css::style_value::StyleValueData>() };
     let color = crate::css::style::engine_calls::with_engine(read, host, |engine| {
         engine.color_against_style_record(style_record, value)
     });
@@ -2621,14 +2613,12 @@ pub unsafe extern "C" fn rust_style_value_to_color_against_style_record(
 /// Resolves an absolutized style value to an sRGB color against a style, or declines.
 ///
 /// # Safety
-/// `value` must point at live style value data, and `style` must be null or point at a style whose group payloads
-/// outlive the call.
+/// `style` must be null or point at a style whose group payloads outlive the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_to_color(
-    value: *const core::ffi::c_void,
+    value: &crate::css::style_value::StyleValueData,
     style: *const FfiColorResolutionStyle,
 ) -> FfiResolvedColorValue {
-    let value = unsafe { &*value.cast::<crate::css::style_value::StyleValueData>() };
     // SAFETY: Guaranteed by the caller.
     let resolution_input = unsafe { ColorResolutionInput::for_ffi_style(style) };
     match to_color(value, &resolution_input) {
