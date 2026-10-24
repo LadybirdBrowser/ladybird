@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#propdef-anchor-name">
+<link rel="author" href="mailto:kojii@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+.container {
+  position: relative;
+  height: 10px;
+}
+.anchor1 {
+  anchor-name: --a1;
+  width: 5px;
+  height: 24px;
+  background: orange;
+}
+.target {
+  position: absolute;
+}
+</style>
+<body onload="checkLayoutForAnchorPos('.target')">
+  <div class="container">
+    <div class="anchor1"></div>
+
+    <!-- Specifying the width or the height should scale uniformly. -->
+    <img class="target" src="support/green-16x16.png"
+      style="width: anchor-size(--a1 width)"
+      data-expected-width=5 data-expected-height=5>
+    <img class="target" src="support/green-16x16.png"
+      style="height: anchor-size(--a1 width)"
+      data-expected-width=5 data-expected-height=5>
+
+    <!-- Smaller `min-width/height` than the natural size should be ignored. -->
+    <img class="target" src="support/green-16x16.png"
+      style="min-width: anchor-size(--a1 width)"
+      data-expected-width=16 data-expected-height=16>
+    <img class="target" src="support/green-16x16.png"
+      style="min-height: anchor-size(--a1 width)"
+      data-expected-width=16 data-expected-height=16>
+
+    <!-- Larger `min-width/height` than the natural size should scale. -->
+    <img class="target" src="support/green-16x16.png"
+      style="min-width: anchor-size(--a1 height)"
+      data-expected-width=24 data-expected-height=24>
+    <img class="target" src="support/green-16x16.png"
+      style="min-height: anchor-size(--a1 height)"
+      data-expected-width=24 data-expected-height=24>
+
+    <!-- Smaller `max-width/height` than the natural size should scale. -->
+    <img class="target" src="support/green-16x16.png"
+      style="max-width: anchor-size(--a1 width)"
+      data-expected-width=5 data-expected-height=5>
+    <img class="target" src="support/green-16x16.png"
+      style="max-height: anchor-size(--a1 width)"
+      data-expected-width=5 data-expected-height=5>
+
+    <!-- Larger `min-width/height` than the natural size should be ignored. -->
+    <img class="target" src="support/green-16x16.png"
+      style="max-width: anchor-size(--a1 height)"
+      data-expected-width=16 data-expected-height=16>
+    <img class="target" src="support/green-16x16.png"
+      style="max-height: anchor-size(--a1 height)"
+      data-expected-width=16 data-expected-height=16>
+
+    <!-- The `aspect-ratio` property should be honored. -->
+    <img class="target" src="support/green-16x16.png"
+      style="width: anchor-size(--a1 width); aspect-ratio: 0.5"
+      data-expected-width=5 data-expected-height=10>
+    <img class="target" src="support/green-16x16.png"
+      style="height: anchor-size(--a1 width); aspect-ratio: 2"
+      data-expected-width=10 data-expected-height=5>
+  </div>
+</body>

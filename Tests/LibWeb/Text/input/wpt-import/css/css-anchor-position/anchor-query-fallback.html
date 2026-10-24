@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<title>Tests the fallback value in anchor queries</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#anchor-pos">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#anchor-size">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+#container {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  width: 300px;
+}
+
+.flex-item {
+  width: 100px;
+  height: 50px;
+  flex: auto;
+}
+
+#a1 {
+  anchor-name: --a1;
+  background: orange;
+}
+#a2 {
+  anchor-name: --a2;
+  background: purple;
+}
+
+.target {
+  position: absolute;
+}
+</style>
+
+<body onload="checkLayoutForAnchorPos('.target')">
+  <div id="container">
+    <div class="flex-item" id="a1"></div>
+    <div class="flex-item"></div>
+    <div class="flex-item"></div>
+    <div class="flex-item"></div>
+    <div class="flex-item"></div>
+    <div class="flex-item"></div>
+    <div class="flex-item"></div>
+    <div class="flex-item"></div>
+    <div class="flex-item" id="a2"></div>
+
+    <!-- Fallback due to no valid anchor -->
+    <div class="target" style="left: anchor(--inexist-anchor left, 50px)" data-offset-x="50"></div>
+    <div class="target" style="width: anchor-size(--inexist-anchor width, 50px)" data-expected-width="50"></div>
+
+    <!-- Fallback due to wrong axis for anchor() -->
+    <div class="target" style="left: anchor(--a1 top, 50px)" data-offset-x="50"></div>
+    <div class="target" style="left: anchor(--a1 bottom, 50px)" data-offset-x="50"></div>
+    <div class="target" style="top: anchor(--a1 left, 50px)" data-offset-y="50"></div>
+    <div class="target" style="top: anchor(--a1 right, 50px)" data-offset-y="50"></div>
+
+    <!-- More complicated fallback values -->
+    <div class="target" style="left: anchor(--inexist-anchor left, 50%)" data-offset-x="150"></div>
+    <div class="target" style="left: anchor(--inexist-anchor left, calc(20% + 20px))" data-offset-x="80"></div>
+    <div class="target" style="left: calc(anchor(--inexist-anchor left, calc(anchor(--inexist-anchor left, 20%) + 20px)) + 20px)" data-offset-x="100"></div>
+    <div class="target" style="left: calc(anchor(--inexist-anchor left, calc(anchor-size(--inexist-anchor width, 20%) + 20px)) + 20px)" data-offset-x="100"></div>
+    <div class="target" style="top: anchor(--a1 left, anchor(--a2 top))" data-offset-y="100"></div>
+    <div class="target" style="top: anchor(--a1 left, calc((anchor(--a1 bottom) + anchor(--a2 top)) / 2))" data-offset-y="75"></div>
+    <div class="target" style="width: anchor-size(--inexist-anchor width, 50%)" data-expected-width="150"></div>
+    <div class="target" style="width: anchor-size(--inexist-anchor width, calc(20% + 20px))" data-expected-width="80"></div>
+    <div class="target" style="height: anchor-size(--inexist-anchor height, anchor-size(--a1 width))" data-expected-height="100"></div>
+    <div class="target" style="height: anchor-size(--inexist-anchor height, calc((anchor-size(--a1 width) + anchor-size(--a2 height)) / 2))" data-expected-height="75"></div>
+  </div>
+</body>
