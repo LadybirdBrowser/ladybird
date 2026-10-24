@@ -3047,8 +3047,8 @@ impl ComputedGroupSets {
     fn specified_value_dependency_properties(
         table: &ComputedLonghandTable,
         depends_on_input: impl Fn(&RetainedStyleValueData) -> bool,
-    ) -> Option<[u64; 6]> {
-        let mut properties = [0u64; 6];
+    ) -> Option<[u64; crate::css::property_metadata::LONGHAND_WORD_COUNT]> {
+        let mut properties = [0u64; crate::css::property_metadata::LONGHAND_WORD_COUNT];
         for (property, value) in table.retained_inheritance_dependent_values() {
             if !depends_on_input(value) {
                 continue;
@@ -3074,7 +3074,10 @@ impl ComputedGroupSets {
 
     /// The longhands whose previous specified values actually read `currentColor`.
     #[must_use]
-    pub fn current_color_dependency_properties(&self, target: ComputedStyleTarget) -> Option<[u64; 6]> {
+    pub fn current_color_dependency_properties(
+        &self,
+        target: ComputedStyleTarget,
+    ) -> Option<[u64; crate::css::property_metadata::LONGHAND_WORD_COUNT]> {
         Self::specified_value_dependency_properties(
             self.longhand_table_for_target(target)?,
             retained_value_depends_on_current_color,
@@ -3082,7 +3085,10 @@ impl ComputedGroupSets {
     }
 
     /// Read dependencies from a retained record even if its original node has been restyled.
-    pub(crate) fn record_current_color_dependencies(&self, record: FinalStyleRecordID) -> Option<(u32, [u64; 6])> {
+    pub(crate) fn record_current_color_dependencies(
+        &self,
+        record: FinalStyleRecordID,
+    ) -> Option<(u32, [u64; crate::css::property_metadata::LONGHAND_WORD_COUNT])> {
         let view = self.style_record_view(record.raw())?;
         let table = view.longhand_table?;
         Some((
