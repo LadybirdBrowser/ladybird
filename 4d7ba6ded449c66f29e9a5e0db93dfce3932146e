@@ -1,0 +1,18 @@
+Ladybird lays out pinned tabs in expanded vertical tabs as a wrapping
+grid of favicon tiles. Chromium’s PinnedTabContainerView does the same,
+animating them on AnimationAxis::kHorizontalWrappingVertically. So does
+the vertical pinned-tabs-container in Firefox, which lays them out with
+grid-template-columns: repeat(auto-fit, minmax(...)).
+
+Once the pinned tabs need more than half the column, Ladybird scrolls
+them with the unpinned tabs, as one list. Firefox and Chromium both give
+pinned tabs a scrolling area of their own instead. In Firefox, the
+#vertical-pinned-tabs-splitter resizes the #pinned-tabs-container, which
+scrolls by itself. And Chromium’s TabStripView keeps them in its own
+pinned_tabs_scroll_view_, apart from the unpinned_tabs_scroll_view_.
+
+While collapsed vertical tabs peek open on hover, Ladybird keeps the
+pinned tabs in rows, one tab each, with their titles. Firefox does the
+same whenever its sidebar.visibility pref is expand-on-hover: Its
+vertical #pinned-tabs-container then takes grid-template-columns: 1fr,
+and keeps the tab labels showing.
