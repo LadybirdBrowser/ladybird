@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 411 tests
 
-392 Pass
-19 Fail
+398 Pass
+13 Fail
 Pass	Setup
 Pass	isolation (type: discrete) has testInterpolation function
 Pass	isolation uses discrete animation when animating between "auto" and "isolate" with linear easing
@@ -213,12 +213,12 @@ Pass	scroll-snap-type uses discrete animation when animating between "none" and 
 Pass	scroll-snap-type uses discrete animation when animating between "none" and "x mandatory" with effect easing
 Pass	scroll-snap-type uses discrete animation when animating between "none" and "x mandatory" with keyframe easing
 Pass	scrollbar-color (type: colorPair) has testInterpolation function
-Fail	scrollbar-color supports animating as color pair of rgb()
-Fail	scrollbar-color supports animating as color pair of #RGB
-Fail	scrollbar-color supports animating as color pair of hsl()
-Fail	scrollbar-color supports animating as color pair of #RGBa
-Fail	scrollbar-color supports animating as color pair of rgba()
-Fail	scrollbar-color supports animating as color pair of hsla()
+Pass	scrollbar-color supports animating as color pair of rgb()
+Pass	scrollbar-color supports animating as color pair of #RGB
+Pass	scrollbar-color supports animating as color pair of hsl()
+Pass	scrollbar-color supports animating as color pair of #RGBa
+Pass	scrollbar-color supports animating as color pair of rgba()
+Pass	scrollbar-color supports animating as color pair of hsla()
 Pass	scrollbar-gutter (type: discrete) has testInterpolation function
 Pass	scrollbar-gutter uses discrete animation when animating between "auto" and "stable" with linear easing
 Pass	scrollbar-gutter uses discrete animation when animating between "auto" and "stable" with effect easing

@@ -7442,6 +7442,39 @@ fn combine_four_sides(
     Some(owned(shortest_four_sides(sides)))
 }
 
+fn combine_scrollbar_color(
+    context: Option<&FfiAnimationContext>,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    combine: impl Fn(&StyleValueData, &StyleValueData) -> AnimationValueResult,
+) -> Option<StyleValueData> {
+    // https://drafts.csswg.org/css-scrollbars/#scrollbar-color
+    // Computed value: specified keyword or two computed colors
+    // Animation type: by computed value
+    let (
+        StyleValueData::ScrollbarColor {
+            thumb_color: from_thumb_color,
+            track_color: from_track_color,
+        },
+        StyleValueData::ScrollbarColor {
+            thumb_color: to_thumb_color,
+            track_color: to_track_color,
+        },
+    ) = (from, to)
+    else {
+        return None;
+    };
+    let combine_colors = |from: &RetainedStyleValueData, to: &RetainedStyleValueData| {
+        let from = resolve_animation_color(context, from)?;
+        let to = resolve_animation_color(context, to)?;
+        combine(from.data(), to.data()).into_value()
+    };
+    Some(StyleValueData::ScrollbarColor {
+        thumb_color: combine_colors(from_thumb_color, to_thumb_color)?,
+        track_color: combine_colors(from_track_color, to_track_color)?,
+    })
+}
+
 pub(crate) fn interpolate_value(
     context: Option<&FfiAnimationContext>,
     property_id: u16,
@@ -7764,6 +7797,13 @@ pub(crate) fn interpolate_value(
         return discrete_value(context, from, to, delta);
     }
     assert_eq!(animation_type, ANIMATION_TYPE_BY_COMPUTED_VALUE);
+    if property_id == crate::css::property_metadata::property_id::SCROLLBAR_COLOR
+        && let Some(value) = combine_scrollbar_color(context, from, to, |from, to| {
+            interpolate_scalar_value(property_id, from, to, delta, &[])
+        })
+    {
+        return owned(value);
+    }
     let result = if is_four_sided_property(property_id) {
         combine_four_sides(from, to, |from, to| {
             interpolate_scalar_value(property_id, from, to, delta, &[])
@@ -7815,6 +7855,11 @@ fn composite_batch_value<'a>(
             | crate::css::property_metadata::property_id::TEXT_SHADOW
     ) {
         composite_shadow_list(context, underlying, animated, operation)
+    } else if property_id == crate::css::property_metadata::property_id::SCROLLBAR_COLOR {
+        combine_scrollbar_color(Some(context), underlying, animated, |underlying, animated| {
+            composite_scalar_value(underlying, animated, operation)
+        })
+        .map_or_else(handled_without_value, owned)
     } else if is_four_sided_property(property_id) {
         combine_four_sides(underlying, animated, |underlying, animated| {
             composite_scalar_value(underlying, animated, operation)
