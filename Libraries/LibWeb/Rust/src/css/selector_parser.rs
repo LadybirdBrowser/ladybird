@@ -467,6 +467,35 @@ impl<'a> SelectorParser<'a> {
                 _ => return Err(()),
             }
         }
+        for compound in &compounds {
+            let Some(SimpleSelector::PseudoElement(pseudo_element)) = compound.simple_selectors.first() else {
+                continue;
+            };
+            // https://drafts.csswg.org/css-view-transitions-1/#pseudo-root
+            // If a descendant pseudo of a pseudo-element root has no other siblings, then :only-child matches that
+            // pseudo.
+            // INTEROP: Selectors 4 allows logical combination and user action pseudo-classes after any
+            //          pseudo-element, but browsers reject every pseudo-class other than :only-child after a view
+            //          transition pseudo-element, and none at all after ::view-transition.
+            let allows_only_child = match pseudo_element.pseudo_element {
+                PseudoElementType::ViewTransition => false,
+                PseudoElementType::ViewTransitionGroup
+                | PseudoElementType::ViewTransitionImagePair
+                | PseudoElementType::ViewTransitionNew
+                | PseudoElementType::ViewTransitionOld => true,
+                _ => continue,
+            };
+            let is_only_child = |simple_selector: &SimpleSelector| {
+                matches!(simple_selector, SimpleSelector::PseudoClass(pseudo_class)
+                    if pseudo_class.pseudo_class == PseudoClassType::OnlyChild)
+            };
+            if !compound.simple_selectors[1..]
+                .iter()
+                .all(|simple_selector| allows_only_child && is_only_child(simple_selector))
+            {
+                return Err(());
+            }
+        }
         Ok(CompiledSelector::new(compounds.into_boxed_slice()))
     }
 
