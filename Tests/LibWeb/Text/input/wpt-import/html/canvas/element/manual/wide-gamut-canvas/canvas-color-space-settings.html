@@ -1,0 +1,37 @@
+<!DOCTYPE HTML>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script>
+// Test that creating canvas contexts and ImageData objects respect the
+// requested color space.
+
+const colorSpaces = [undefined, "srgb", "display-p3", "srgb-linear", "display-p3-linear"];
+for (let contextColorSpace of colorSpaces) {
+    for (let imageDataColorSpace of colorSpaces) {
+        test(function() {
+            let contextSettings = { };
+            if (contextColorSpace)
+                contextSettings.colorSpace = contextColorSpace;
+            let resolvedContextColorSpace = contextColorSpace || "srgb";
+
+            let canvas = document.createElement("canvas");
+            let ctx = canvas.getContext("2d", contextSettings);
+            assert_equals(ctx.getContextAttributes().colorSpace, resolvedContextColorSpace, `CanvasRenderingContext2DSettings.colorSpace when set to ${contextColorSpace}`);
+
+            let imageDataSettings = { };
+            if (imageDataColorSpace)
+                imageDataSettings.colorSpace = imageDataColorSpace;
+            let resolvedImageDataColorSpace = imageDataColorSpace || resolvedContextColorSpace;
+
+            let imageData = ctx.getImageData(0, 0, 1, 1, imageDataSettings);
+            assert_equals(imageData.colorSpace, resolvedImageDataColorSpace, `getImageData() colorSpace when set to ${imageDataColorSpace}`);
+
+            imageData = ctx.createImageData(1, 1, imageDataSettings);
+            assert_equals(imageData.colorSpace, resolvedImageDataColorSpace, `createImageData() colorSpace when set to ${imageDataColorSpace}`);
+
+            imageData = ctx.createImageData(imageData);
+            assert_equals(imageData.colorSpace, resolvedImageDataColorSpace, `Cloned ImageData colorSpace when set to ${imageDataColorSpace}`);
+        }, `Context ${contextColorSpace}, ImageData ${imageDataColorSpace}`);
+    }
+}
+</script>

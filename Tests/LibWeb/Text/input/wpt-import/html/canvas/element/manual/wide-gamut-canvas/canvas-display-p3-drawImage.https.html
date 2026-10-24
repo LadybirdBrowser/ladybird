@@ -1,0 +1,41 @@
+<!DOCTYPE HTML>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="canvas-display-p3.js"></script>
+<script>
+// Test that drawing images with different bit depths and color profiles into
+// sRGB and Display P3 canvases works, by reading pixels with getImageData()
+// as sRGB and Display P3 values.
+for (let [filename, expectedPixels] of Object.entries({...imageTests, ...svgImageTests})) {
+    for (let contextColorSpace of ["srgb", "display-p3"]) {
+        for (let imageDataColorSpace of ["srgb", "display-p3"]) {
+            for (let scaleImage of [false, true]) {
+                async_test(function(t) {
+                    let image = new Image();
+                    image.onload = t.step_func_done(function() {
+
+                        let canvas = document.createElement("canvas");
+                        canvas.width = 2;
+                        canvas.height = 2;
+
+                        let ctx = canvas.getContext("2d", { colorSpace: contextColorSpace });
+                        if (scaleImage)
+                            ctx.drawImage(image, 0, 0, 10, 10);
+                        else
+                            ctx.drawImage(image, 0, 0);
+
+                        let imageData = ctx.getImageData(0, 0, 1, 1, { colorSpace: imageDataColorSpace });
+
+                        let expected = expectedPixels[`${contextColorSpace} ${imageDataColorSpace}`];
+                        assert_true(pixelsApproximatelyEqual(imageData.data, expected), `Actual pixel value ${[...imageData.data]} is approximately equal to ${expected}.`);
+
+                        t.done();
+
+                    });
+                    image.src = `resources/${filename}`;
+                }, `${filename}, Context ${contextColorSpace}, ImageData ${imageDataColorSpace}, scaleImage=${scaleImage}`);
+            }
+        }
+    }
+}
+</script>

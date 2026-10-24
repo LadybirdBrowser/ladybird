@@ -1,0 +1,35 @@
+<!DOCTYPE HTML>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="canvas-display-p3.js"></script>
+<script>
+// Test that drawing ImageBitmaps with different image Blob source bit depths
+// and color profiles into sRGB and Display P3 canvases works, by reading pixels
+// with getImageData() as sRGB and Display P3 values.
+for (let [filename, expectedPixels] of Object.entries(imageTests)) {
+    for (let contextColorSpace of ["srgb", "display-p3"]) {
+        for (let imageDataColorSpace of ["srgb", "display-p3"]) {
+            for (let cropSource of [false, true]) {
+                async_test(function(t) {
+                    fetch(`resources/${filename}`)
+                        .then(t.step_func(response => response.blob()))
+                        .then(t.step_func(blob => (cropSource ? createImageBitmap(blob, 1, 1, 1, 1) : createImageBitmap(blob))))
+                        .then(t.step_func_done(function(imageBitmap) {
+                            let canvas = document.createElement("canvas");
+                            canvas.width = 2;
+                            canvas.height = 2;
+
+                            let ctx = canvas.getContext("2d", { colorSpace: contextColorSpace });
+                            ctx.drawImage(imageBitmap, 0, 0);
+
+                            let imageData = ctx.getImageData(0, 0, 1, 1, { colorSpace: imageDataColorSpace });
+
+                            let expected = expectedPixels[`${contextColorSpace} ${imageDataColorSpace}`];
+                            assert_true(pixelsApproximatelyEqual(imageData.data, expected), `Actual pixel value ${[...imageData.data]} is approximately equal to ${expected}.`);
+                        }));
+                }, `${filename}, Context ${contextColorSpace}, ImageData ${imageDataColorSpace}, cropSource=${cropSource}`);
+            }
+        }
+    }
+}
+</script>

@@ -1,0 +1,52 @@
+<!DOCTYPE HTML>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="canvas-display-p3.js"></script>
+<body>
+<script>
+// Test that drawing videos with different color spaces into sRGB and Display P3
+// canvases works, by reading pixels with getImageData() as sRGB and Display P3
+// values.
+for (let [filenameBase, expectedPixels] of Object.entries(videoTests)) {
+    for (let contextColorSpace of ["srgb", "display-p3"]) {
+        for (let imageDataColorSpace of ["srgb", "display-p3"]) {
+            for (let scaleImage of [false, true]) {
+                promise_test(async function(t) {
+
+                    let video = document.createElement("video");
+                    for (let format of ["mp4", "webm"]) {
+                        let source = document.createElement("source");
+                        source.src = `resources/${filenameBase}.${format}`;
+                        source.type = `video/${format}`;
+                        video.append(source);
+                    }
+
+                    let loadedData = new Promise(resolver => video.onloadeddata = resolver);
+
+                    document.body.append(video);
+                    await video.play();
+                    await loadedData;
+                    await new Promise(requestAnimationFrame);
+
+                    let canvas = document.createElement("canvas");
+                    canvas.width = 2;
+                    canvas.height = 2;
+
+                    let ctx = canvas.getContext("2d", { colorSpace: contextColorSpace });
+                    if (scaleImage)
+                        ctx.drawImage(video, 0, 0, 10, 10);
+                    else
+                        ctx.drawImage(video, 0, 0);
+                    video.remove();
+
+                    let imageData = ctx.getImageData(0, 0, 1, 1, { colorSpace: imageDataColorSpace });
+
+                    let expected = expectedPixels[`${contextColorSpace} ${imageDataColorSpace}`];
+                    assert_true(pixelsApproximatelyEqual(imageData.data, expected), `Actual pixel value ${[...imageData.data]} is approximately equal to ${expected}.`);
+
+                }, `${filenameBase}, Context ${contextColorSpace}, ImageData ${imageDataColorSpace}, scaleImage=${scaleImage}`);
+            }
+        }
+    }
+}
+</script>

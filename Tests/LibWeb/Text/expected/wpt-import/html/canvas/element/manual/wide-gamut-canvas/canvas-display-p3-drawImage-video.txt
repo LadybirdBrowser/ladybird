@@ -1,0 +1,37 @@
+Harness status: OK
+
+Found 32 tests
+
+32 Fail
+Fail	sRGB-FF0100, Context srgb, ImageData srgb, scaleImage=false
+Fail	sRGB-FF0100, Context srgb, ImageData srgb, scaleImage=true
+Fail	sRGB-FF0100, Context srgb, ImageData display-p3, scaleImage=false
+Fail	sRGB-FF0100, Context srgb, ImageData display-p3, scaleImage=true
+Fail	sRGB-FF0100, Context display-p3, ImageData srgb, scaleImage=false
+Fail	sRGB-FF0100, Context display-p3, ImageData srgb, scaleImage=true
+Fail	sRGB-FF0100, Context display-p3, ImageData display-p3, scaleImage=false
+Fail	sRGB-FF0100, Context display-p3, ImageData display-p3, scaleImage=true
+Fail	sRGB-BB0000, Context srgb, ImageData srgb, scaleImage=false
+Fail	sRGB-BB0000, Context srgb, ImageData srgb, scaleImage=true
+Fail	sRGB-BB0000, Context srgb, ImageData display-p3, scaleImage=false
+Fail	sRGB-BB0000, Context srgb, ImageData display-p3, scaleImage=true
+Fail	sRGB-BB0000, Context display-p3, ImageData srgb, scaleImage=false
+Fail	sRGB-BB0000, Context display-p3, ImageData srgb, scaleImage=true
+Fail	sRGB-BB0000, Context display-p3, ImageData display-p3, scaleImage=false
+Fail	sRGB-BB0000, Context display-p3, ImageData display-p3, scaleImage=true
+Fail	Rec2020-3FF000000, Context srgb, ImageData srgb, scaleImage=false
+Fail	Rec2020-3FF000000, Context srgb, ImageData srgb, scaleImage=true
+Fail	Rec2020-3FF000000, Context srgb, ImageData display-p3, scaleImage=false
+Fail	Rec2020-3FF000000, Context srgb, ImageData display-p3, scaleImage=true
+Fail	Rec2020-3FF000000, Context display-p3, ImageData srgb, scaleImage=false
+Fail	Rec2020-3FF000000, Context display-p3, ImageData srgb, scaleImage=true
+Fail	Rec2020-3FF000000, Context display-p3, ImageData display-p3, scaleImage=false
+Fail	Rec2020-3FF000000, Context display-p3, ImageData display-p3, scaleImage=true
+Fail	Rec2020-222000000, Context srgb, ImageData srgb, scaleImage=false
+Fail	Rec2020-222000000, Context srgb, ImageData srgb, scaleImage=true
+Fail	Rec2020-222000000, Context srgb, ImageData display-p3, scaleImage=false
+Fail	Rec2020-222000000, Context srgb, ImageData display-p3, scaleImage=true
+Fail	Rec2020-222000000, Context display-p3, ImageData srgb, scaleImage=false
+Fail	Rec2020-222000000, Context display-p3, ImageData srgb, scaleImage=true
+Fail	Rec2020-222000000, Context display-p3, ImageData display-p3, scaleImage=false
+Fail	Rec2020-222000000, Context display-p3, ImageData display-p3, scaleImage=true

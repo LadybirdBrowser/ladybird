@@ -1,0 +1,46 @@
+<!DOCTYPE HTML>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="canvas-display-p3.js"></script>
+<script>
+// Test that ImageBitmaps created from ImageData sources with different color
+// spaces can be drawn into sRGB and Display P3 canvases, by reading pixels with
+// getImageData() as sRGB and Display P3 values.
+function runTest(sourceColorSpace, destinationColorSpace, colors) {
+    for (let [sourceColorString, expectedColor] of Object.entries(colors)) {
+        for (let cropSource of [false, true]) {
+            async_test(function(t) {
+                let sourceColor = sourceColorString.split(",").map(x => +x);
+
+                let sourceImageData = new ImageData(4, 4, { colorSpace: sourceColorSpace });
+                for (let i = 0; i < 4 * 4 * 4; i += 4) {
+                    for (let c = 0; c < 4; ++c)
+                        sourceImageData.data[i + c] = sourceColor[c];
+                }
+
+                let imageBitmapPromise;
+                if (cropSource)
+                    imageBitmapPromise = createImageBitmap(sourceImageData, 2, 2, 2, 2);
+                else
+                    imageBitmapPromise = createImageBitmap(sourceImageData);
+
+                imageBitmapPromise.then(t.step_func_done(function(imageBitmap) {
+                    let destination = document.createElement("canvas");
+                    destination.width = 2;
+                    destination.height = 2;
+
+                    let destinationContext = destination.getContext("2d", { colorSpace: destinationColorSpace });
+                    destinationContext.drawImage(imageBitmap, 0, 0);
+
+                    let destinationImageData = destinationContext.getImageData(1, 1, 1, 1);
+
+                    assert_true(pixelsApproximatelyEqual(destinationImageData.data, expectedColor), `Actual pixel value ${[...destinationImageData.data]} is approximately equal to ${expectedColor}.`);
+                }));
+            }, `Source ${sourceColorSpace}, destination ${destinationColorSpace}, color ${sourceColorString}, cropSource=${cropSource}`);
+        }
+    }
+}
+
+runTest("srgb", "display-p3", fromSRGBToDisplayP3);
+runTest("display-p3", "srgb", fromDisplayP3ToSRGB);
+</script>
