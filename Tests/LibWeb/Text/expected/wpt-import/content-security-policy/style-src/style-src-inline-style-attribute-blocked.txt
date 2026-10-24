@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Inline style attribute should not be applied without 'unsafe-inline'
+Pass	Should fire a securitypolicyviolation event

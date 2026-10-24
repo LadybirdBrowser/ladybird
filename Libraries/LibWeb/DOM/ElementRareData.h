@@ -93,6 +93,10 @@ struct Element::RareData
     //         flag is set.
     bool had_duplicate_attribute_during_tokenization { false };
 
+    // Whether the style attribute was set while the element was not connected, so that whether Content Security
+    // Policy blocks it is decided when the element is inserted.
+    bool style_attribute_awaits_content_security_policy_check { false };
+
     // https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
     ProximityToTheViewport proximity_to_the_viewport { ProximityToTheViewport::NotDetermined };
 

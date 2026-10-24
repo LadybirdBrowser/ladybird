@@ -1,0 +1,14 @@
+Parsed: ""
+Set while not connected: ""
+Set while connected: ""
+Set through innerHTML: ""
+Set through CSSOM: "green" "green"
+Clone of CSSOM style: "green" "green"
+Input display: inline-block
+Violations before connecting nested: 4
+Set in a parent that is not connected: ""
+style-src-attr on parsed, sample "color: red"
+style-src-attr on detached, sample "color: red"
+style-src-attr on connected, sample "color: red"
+style-src-attr on inner, sample "color: red"
+style-src-attr on nested, sample "color: red"

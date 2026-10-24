@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<meta http-equiv="Content-Security-Policy" content="style-src-attr 'none' 'report-sample'">
+<script src="../include.js"></script>
+<script>
+    const violations = [];
+    document.addEventListener("securitypolicyviolation", event => {
+        violations.push(`${event.violatedDirective} on ${event.target.id}, sample "${event.sample}"`);
+    });
+</script>
+<div id="parsed" style="color: red"></div>
+<script>
+    asyncTest(done => {
+        println(`Parsed: "${parsed.style.color}"`);
+
+        const detached = document.createElement("div");
+        detached.id = "detached";
+        detached.setAttribute("style", "color: red");
+        document.body.append(detached);
+        println(`Set while not connected: "${detached.style.color}"`);
+
+        const connected = document.createElement("div");
+        connected.id = "connected";
+        document.body.append(connected);
+        connected.setAttribute("style", "color: red");
+        println(`Set while connected: "${connected.style.color}"`);
+        connected.removeAttribute("style");
+
+        const container = document.createElement("div");
+        document.body.append(container);
+        container.innerHTML = `<span id="inner" style="color: red"></span>`;
+        println(`Set through innerHTML: "${inner.style.color}"`);
+
+        const cssom = document.createElement("div");
+        cssom.id = "cssom";
+        cssom.style.color = "green";
+        document.body.append(cssom);
+        cssom.style.backgroundColor = "green";
+        println(`Set through CSSOM: "${cssom.style.color}" "${cssom.style.backgroundColor}"`);
+        const clone = cssom.cloneNode();
+        document.body.append(clone);
+        println(`Clone of CSSOM style: "${clone.style.color}" "${clone.style.backgroundColor}"`);
+
+        const input = document.createElement("input");
+        document.body.append(input);
+        println(`Input display: ${getComputedStyle(input).display}`);
+
+        const detachedParent = document.createElement("div");
+        const nested = document.createElement("div");
+        nested.id = "nested";
+        nested.setAttribute("style", "color: red");
+        detachedParent.append(nested);
+
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            println(`Violations before connecting nested: ${violations.length}`);
+            document.body.append(detachedParent);
+            println(`Set in a parent that is not connected: "${nested.style.color}"`);
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                for (const violation of violations)
+                    println(violation);
+                done();
+            }));
+        }));
+    });
+</script>

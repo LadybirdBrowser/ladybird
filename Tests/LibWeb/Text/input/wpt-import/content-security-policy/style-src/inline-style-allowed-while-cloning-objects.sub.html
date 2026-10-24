@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <!-- Programmatically converted from a WebKit Reftest, please forgive resulting idiosyncracies.-->
+    <meta http-equiv="Content-Security-Policy" content="style-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self';">
+    <title>inline-style-allowed-while-cloning-objects</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script>
+        var t = async_test("Test that violation report event was fired");
+        window.addEventListener("securitypolicyviolation", t.step_func_done(function(e) {
+            assert_equals(e.violatedDirective, "style-src-attr");
+        }));
+        window.onload = function() {
+          window.nodes = document.getElementById('nodes');
+          window.node1 = document.getElementById('node1');
+          window.node1.style.background = "yellow";
+          window.node1.style.color = "red";
+          window.node2 = document.getElementById('node1').cloneNode(true);
+          window.node2.id = "node2";
+          window.node3 = document.getElementById('node3');
+          window.node3.style.background = "blue";
+          window.node3.style.color = "green";
+          window.node4 = document.getElementById('node3').cloneNode(false);
+          window.node4.id = "node4";
+          window.node4.innerHTML = "Node #4";
+          nodes.appendChild(node1);
+          nodes.appendChild(node2);
+          nodes.appendChild(node3);
+          nodes.appendChild(node4);
+          test(function() {
+              assert_equals(node1.style.background.match(/yellow/)[0], "yellow")
+          });
+          test(function() {
+              assert_equals(node2.style.background.match(/yellow/)[0], "yellow")
+          });
+          test(function() {
+              assert_equals(node3.style.background.match(/blue/)[0], "blue")
+          });
+          test(function() {
+              assert_equals(node4.style.background.match(/blue/)[0], "blue")
+          });
+          test(function() {
+              assert_equals(node1.style.color, "red")
+          });
+          test(function() {
+              assert_equals(node2.style.color, "red")
+          });
+          test(function() {
+              assert_equals(node3.style.color, "green")
+          });
+          test(function() {
+              assert_equals(node4.style.color, "green")
+          });
+          test(function() {
+              assert_equals(window.getComputedStyle(node1).background, window.getComputedStyle(node2).background)
+          });
+          test(function() {
+              assert_equals(window.getComputedStyle(node3).background, window.getComputedStyle(node4).background)
+          });
+          test(function() {
+              assert_equals(window.getComputedStyle(node1).color, window.getComputedStyle(node2).color)
+          });
+          test(function() {
+              assert_equals(window.getComputedStyle(node3).color, window.getComputedStyle(node4).color)
+          });
+          window.ops = document.getElementById('ops');
+          ops.style.color = 'red';
+          window.clonedOps = ops.cloneNode(true);
+          window.violetOps = document.getElementById('violetOps');
+          violetOps.style.background = 'rgb(238, 130, 238)';
+          document.getElementsByTagName('body')[0].appendChild(clonedOps);
+          test(function() {
+              assert_equals(ops.style.background, "")
+          });
+          test(function() {
+              assert_equals(ops.style.color, "red")
+          });
+          test(function() {
+              assert_equals(clonedOps.style.background, "")
+          });
+          test(function() {
+              assert_equals(clonedOps.style.color, "red")
+          });
+          test(function() {
+              assert_equals(violetOps.style.background.match(/rgb\(238, 130, 238\)/)[0], "rgb(238, 130, 238)")
+          });
+          test(function() {
+              assert_equals(window.getComputedStyle(clonedOps).background, window.getComputedStyle(ops).background)
+          });
+          test(function() {
+              assert_equals(window.getComputedStyle(clonedOps).color, window.getComputedStyle(ops).color)
+          });
+          test(function() {
+              assert_equals(window.getComputedStyle(ops).background, window.getComputedStyle(violetOps).background)
+          });
+          test(function() {
+              assert_equals(window.getComputedStyle(clonedOps).background, window.getComputedStyle(violetOps).background)
+          });
+          test(function() {
+              assert_equals(ops.id, "ops")
+          });
+          test(function() {
+              assert_equals(ops.id, clonedOps.id)
+          });
+          test(function() {
+              let el = document.getElementById("svg");
+              assert_equals(el.getAttribute("style"), "");
+              el.style.background = violetOps.style.background;
+              assert_not_equals(el.style.background, "");
+              let clone = el.cloneNode(true);
+              assert_equals(el.style.background, clone.style.background)
+          }, "non-HTML namespace");
+        };
+    </script>
+</head>
+
+<body>
+    <p>
+            This test ensures that styles can be set by object.cloneNode()
+    </p>
+    <div id="nodes">
+        This is a div (nodes)
+        <div id="node1"> This is a div. (node 1 or 2)</div>
+        <div id="node3"> This is a div. (node 3 or 4)</div>
+    </div>
+    <div id="ops" style="background: rgb(238, 130, 238)">
+        Yet another div.
+    </div>
+    <div id="violetOps">
+        Yet another div.
+    </div>
+    <svg id="svg" style="background: rgb(238, 130, 238)"></svg>
+    <div id="log"></div>
+</body>
+
+</html>

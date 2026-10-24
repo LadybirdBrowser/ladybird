@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Should fire a security policy violation for the attribute
+Pass	The attribute style should not be applied and the inline style should be applied

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Security-Policy" content="style-src-elem 'unsafe-inline';
+    style-src-attr 'none';">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script>
+      var t = async_test("Should fire a security policy violation for the attribute");
+      window.addEventListener('securitypolicyviolation', t.step_func_done(function(e) {
+        assert_equals(e.violatedDirective, 'style-src-attr');
+        assert_equals(e.blockedURI, 'inline');
+      }));
+    </script>
+</head>
+
+<body style="background: green">
+  <style>
+    body {background: blue;}
+  </style>
+
+  <script>
+    async_test(function(test) {
+      assert_equals(document.body.style.length, 0);
+      assert_equals(document.styleSheets.length, 1);
+      test.done();
+    }, "The attribute style should not be applied and the inline style should be applied");
+  </script>
+
+</body>
+
+</html>
