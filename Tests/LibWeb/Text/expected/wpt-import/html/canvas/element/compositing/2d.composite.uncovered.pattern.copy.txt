@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Pattern fill() draws pixels not covered by the source object as (0,0,0,0), and does not leave the pixels unchanged.

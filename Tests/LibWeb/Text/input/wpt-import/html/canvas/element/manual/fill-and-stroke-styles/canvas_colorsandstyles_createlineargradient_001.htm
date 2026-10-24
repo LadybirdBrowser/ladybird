@@ -1,0 +1,59 @@
+<!doctype HTML>
+<html>
+    <head>
+        <title>HTML5 Canvas Test:  createlinearGradient() with two points same</title>
+        <script src="../../../../../resources/testharness.js"></script>
+        <script src="../../../../../resources/testharnessreport.js"></script>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com" />
+        <link rel="help" href="http://www.w3.org/TR/2dcontext/#dom-context-2d-createlineargradient" />
+        <meta name="assert" content="If the two points in a linear gradient have identical x,y coordinates, the canvas must paint nothing." />
+        <script type="text/javascript">
+            async_test(function(t) {
+              window.addEventListener("load", t.step_func_done(function runTest() {
+                var canvas = document.getElementById("canvas1");
+                var ctx = canvas.getContext("2d");
+                var width = canvas.width;
+                var height = canvas.height;
+
+                // Start by drawing a left to right, green-to-blue linear gradient.
+                var lingrad = ctx.createLinearGradient(0, 50, 100, 50);
+                lingrad.addColorStop(0, "rgba(0, 255, 0, 1.0)");
+                lingrad.addColorStop(1, "rgba(0, 0, 255, 1.0)");
+                ctx.fillStyle = lingrad;
+                ctx.fillRect(0, 0, 100, 50);
+
+                // Get the current state of the canvas
+                var initial = ctx.getImageData(0, 0, width, height);
+
+                // Nothing must be drawn if the two points in the linear gradient are the same.
+                lingrad = ctx.createLinearGradient(100, 100, 100, 100);
+                lingrad.addColorStop(0, "rgba(255, 0, 0, 1.0)");
+                lingrad.addColorStop(1, "rgba(255, 0, 0, 1.0)");
+                ctx.fillStyle = lingrad;
+                ctx.fillRect(0, 0, 300, 150);
+
+                // Check that nothing is drawn.
+                var after = ctx.getImageData(0, 0, width, height);
+
+                // Asserts
+                assert_equals(initial.width, after.width, "widths are equal");
+                assert_equals(initial.height, after.height, "heights are equal");
+                assert_array_equals(initial.data, after.data, "data are equal");
+
+                for (var i = 0; i < after.data.length; i += 4) {
+                  var r = after.data[i];
+                  var g = after.data[i+1];
+                  var b = after.data[i+2];
+                  var a = after.data[i+3];
+                  assert_false(r == 0xFF && g == 0 && b == 0 && a == 0xFF, "no red");
+                }
+              }));
+            }, "linear gradient from point to self draws nothing");
+        </script>
+    </head>
+    <body>
+        <p>Description: If the two points in a linear gradient have identical x,y coordinates, the canvas must paint nothing.</p>
+        <p>Test passes if there is one left-to-right, green-to-blue linear gradient seen on the page and no red is seen on the page.</p>
+        <canvas id="canvas1" width="300" height="150">Browser does not support HTML5 Canvas.</canvas>
+    </body>
+</html>
