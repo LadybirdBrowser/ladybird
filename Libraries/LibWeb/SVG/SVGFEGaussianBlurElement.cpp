@@ -66,4 +66,17 @@ GC::Ref<SVGAnimatedEnumeration> SVGFEGaussianBlurElement::edge_mode()
     return svg_animated_enumeration_for_attribute(AttributeNames::edgeMode, keywords, SVG_EDGEMODE_NONE);
 }
 
+// https://drafts.fxtf.org/filter-effects/#dom-svgfegaussianblurelement-setstddeviation
+void SVGFEGaussianBlurElement::set_std_deviation(float std_deviation_x, float std_deviation_y)
+{
+    // Sets the values for attribute stdDeviation.
+    //
+    // stdDeviationX
+    //     The X component of attribute stdDeviation.
+    //
+    // stdDeviationY
+    //     The Y component of attribute stdDeviation.
+    set_attribute_value(AttributeNames::stdDeviation, Utf16String::formatted("{} {}", std_deviation_x, std_deviation_y));
+}
+
 }
