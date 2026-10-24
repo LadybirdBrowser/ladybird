@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    // An addtrack handler may call load(), which replaces the playback manager that delivered the track while the
+    // element is still handing out that manager's tracks. The rest of that delivery must stop.
+    asyncTest(done => {
+        const video = document.getElementById("video");
+        let loads = 0;
+
+        video.audioTracks.addEventListener("addtrack", () => {
+            println(`addtrack: audio tracks ${video.audioTracks.length}`);
+            if (loads++ === 0) {
+                video.removeAttribute("src");
+                video.load();
+            }
+        });
+        video.videoTracks.addEventListener("addtrack", () => println(`FAIL: video addtrack after load()`));
+        video.addEventListener("loadedmetadata", () => println(`FAIL: loadedmetadata after load()`));
+        video.addEventListener("emptied", () => {
+            println(`emptied: readyState ${video.readyState}, audio tracks ${video.audioTracks.length}, video tracks ${video.videoTracks.length}`);
+            setTimeout(() => setTimeout(() => {
+                println(`settled: networkState ${video.networkState}, loads ${loads}`);
+                done();
+            }));
+        }, { once: true });
+
+        video.src = "../../../Assets/av1-aac-fragmented.mp4";
+    });
+</script>
