@@ -1267,7 +1267,7 @@ fn collect_script_lexical_names(
             }
         }
         ast::StatementKind::UsingDeclaration(declarations) => {
-            for declarator in declarations.iter() {
+            for declarator in &declarations.declarations {
                 for_each_bound_name(&declarator.target, arena, &mut |name| names.push(name.to_vec().into()));
             }
         }
@@ -1298,7 +1298,7 @@ fn collect_script_lexical_bindings(
             }
         }
         ast::StatementKind::UsingDeclaration(declarations) => {
-            for declarator in declarations.iter() {
+            for declarator in &declarations.declarations {
                 for_each_bound_name(&declarator.target, arena, &mut |name| {
                     bindings.push(LexicalBindingRecord {
                         name: name.to_vec().into(),
@@ -1512,7 +1512,7 @@ fn collect_module_declaration(
             }
         }
         ast::StatementKind::UsingDeclaration(declarations) => {
-            for declarator in declarations.iter() {
+            for declarator in &declarations.declarations {
                 for_each_bound_name(&declarator.target, arena, &mut |name| {
                     metadata.lexical_bindings.push(ModuleLexicalBindingRecord {
                         name: name.to_vec().into(),

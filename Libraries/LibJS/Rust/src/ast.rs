@@ -444,7 +444,7 @@ impl FunctionTable {
                 }
             }
             StatementKind::UsingDeclaration(declarations) => {
-                for decl in declarations.iter() {
+                for decl in &declarations.declarations {
                     self.collect_from_target(&decl.target, result, scopes);
                     if let Some(ref init) = decl.init {
                         self.collect_from_expression(init, result, scopes);
@@ -1659,6 +1659,13 @@ pub struct VariableDeclarationData {
     pub declarations: Vec<VariableDeclarator>,
 }
 
+/// A `using` or an `await using` declaration.
+#[derive(Clone, Debug)]
+pub struct UsingDeclarationData {
+    pub is_await: bool,
+    pub declarations: Vec<VariableDeclarator>,
+}
+
 #[derive(Clone, Debug)]
 pub struct FunctionDeclarationData {
     pub function_id: FunctionId,
@@ -1709,7 +1716,7 @@ pub enum StatementKind {
 
     // Declarations
     VariableDeclaration(Box<VariableDeclarationData>),
-    UsingDeclaration(Box<Vec<VariableDeclarator>>),
+    UsingDeclaration(Box<UsingDeclarationData>),
     FunctionDeclaration(Box<FunctionDeclarationData>),
     ClassDeclaration(Box<ClassData>),
     ErrorDeclaration,

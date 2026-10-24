@@ -671,6 +671,14 @@ impl<'a> Parser<'a> {
         token
     }
 
+    pub(crate) fn next_two_tokens(&mut self) -> (Token, Token) {
+        self.lexer.save_state();
+        let first = self.lexer.next();
+        let second = self.lexer.next();
+        self.lexer.load_state();
+        (first, second)
+    }
+
     // === Position ===
 
     pub(crate) fn position(&self) -> Position {
@@ -1354,11 +1362,28 @@ impl<'a> Parser<'a> {
                 if value != utf16!("using") {
                     return false;
                 }
+                // UsingDeclaration : `using` [no LineTerminator here] BindingList `;`
+                // NB: A reserved word cannot start the BindingList, so `using in x` is an expression.
                 let next = self.next_token();
-                !next.trivia_has_line_terminator && next.token_type.is_identifier_name()
+                !next.trivia_has_line_terminator && self.token_is_identifier(&next)
             }
+            TokenType::Await => self.match_await_using_declaration(),
             _ => false,
         }
+    }
+
+    // AwaitUsingDeclaration : CoverAwaitExpressionAndAwaitUsingDeclarationHead [no LineTerminator here] BindingList `;`
+    // AwaitUsingDeclarationHead : `await` [no LineTerminator here] `using`
+    pub(crate) fn match_await_using_declaration(&mut self) -> bool {
+        if !self.match_token(TokenType::Await) || !self.flags.await_expression_is_valid {
+            return false;
+        }
+        let (using_token, binding_token) = self.next_two_tokens();
+        using_token.token_type == TokenType::Identifier
+            && !using_token.trivia_has_line_terminator
+            && self.token_value(&using_token) == utf16!("using")
+            && !binding_token.trivia_has_line_terminator
+            && self.token_is_identifier(&binding_token)
     }
 
     fn try_match_let_declaration(&mut self) -> bool {
@@ -1551,6 +1576,11 @@ fn collect_module_declared_names(
         StatementKind::FunctionDeclaration(data) => {
             if let Some(name) = data.name {
                 names.insert(arena.name_of(name).clone());
+            }
+        }
+        StatementKind::UsingDeclaration(data) => {
+            for decl in &data.declarations {
+                collect_binding_names(&decl.target, names, arena);
             }
         }
         StatementKind::ClassDeclaration(data) => {

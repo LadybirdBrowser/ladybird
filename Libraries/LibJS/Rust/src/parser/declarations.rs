@@ -44,7 +44,7 @@ fn get_declaration_export_names(statement: &Statement, arena: &AstArena) -> Vec<
         }
         StatementKind::UsingDeclaration(declarations) => {
             let mut names = Vec::new();
-            for declaration in declarations.iter() {
+            for declaration in &declarations.declarations {
                 if let VariableDeclaratorTarget::Identifier(id) = &declaration.target {
                     names.push(arena.name_of(*id).clone());
                 }
@@ -92,6 +92,12 @@ fn collect_pattern_names(pat: &BindingPattern, names: &mut Vec<Utf16String>, are
 }
 
 impl Parser<'_> {
+    fn can_have_using_declaration(&self) -> bool {
+        // NB: The body of a dynamic function is first checked on its own as a script that can return, and it is a
+        //     FunctionBody, which can have using declarations.
+        self.scope_collector.can_have_using_declaration() || self.flags.in_function_context
+    }
+
     pub(crate) fn parse_declaration(&mut self) -> Statement {
         if self.match_token(TokenType::Async) {
             let next = self.next_token();
@@ -105,10 +111,16 @@ impl Parser<'_> {
             TokenType::Class => self.parse_class_declaration(),
             TokenType::Let | TokenType::Const => self.parse_variable_declaration(false),
             TokenType::Identifier if self.token_value(&self.current_token) == utf16!("using") => {
-                if !self.scope_collector.can_have_using_declaration() {
+                if !self.can_have_using_declaration() {
                     self.syntax_error("'using' not allowed outside of block, for loop or function");
                 }
-                self.parse_using_declaration(false)
+                self.parse_using_declaration(false, false)
+            }
+            TokenType::Await if self.match_await_using_declaration() => {
+                if !self.can_have_using_declaration() {
+                    self.syntax_error("'await using' not allowed outside of block, for loop or function");
+                }
+                self.parse_using_declaration(false, true)
             }
             _ => {
                 self.expected("declaration");
@@ -311,14 +323,19 @@ impl Parser<'_> {
         )
     }
 
-    // https://tc39.es/proposal-explicit-resource-management/
-    // UsingDeclaration : `using` BindingList `;`
-    // NB: `using` declarations have lexical scoping like `const` and invoke
-    // the Symbol.dispose method when the enclosing scope exits.
-    pub(crate) fn parse_using_declaration(&mut self, is_for_loop: bool) -> Statement {
+    // https://tc39.es/ecma262/#sec-let-and-const-declarations
+    // UsingDeclaration : `using` [no LineTerminator here] BindingList `;`
+    // AwaitUsingDeclaration : CoverAwaitExpressionAndAwaitUsingDeclarationHead [no LineTerminator here] BindingList `;`
+    // NB: `using` and `await using` declarations have lexical scoping like `const` and invoke
+    // the Symbol.dispose or Symbol.asyncDispose method when the enclosing scope exits.
+    pub(crate) fn parse_using_declaration(&mut self, is_for_loop: bool, is_await: bool) -> Statement {
         let start = self.position();
         let declaration_line = self.current_token().line_number;
         let declaration_column = self.current_token().line_column;
+        if is_await {
+            self.consume(); // consume 'await'
+            self.scope_collector.set_contains_await_expression();
+        }
         self.consume(); // consume 'using'
 
         let mut declarators: Vec<VariableDeclarator> = Vec::new();
@@ -327,7 +344,13 @@ impl Parser<'_> {
             let declaration_start = self.position();
 
             if !self.match_identifier() {
-                self.expected("identifier");
+                // NB: The error is reported at the start of the declaration, since an error inside of what follows is
+                //     dropped if it is reparsed as an assignment pattern, like in `using x = null, [] = null;`.
+                let message = format!(
+                    "Unexpected token {}. Expected identifier",
+                    self.current_token.token_type.name()
+                );
+                self.syntax_error_at_position(&message, start);
                 break;
             }
             let token = self.consume();
@@ -343,12 +366,17 @@ impl Parser<'_> {
 
             self.scope_collector
                 .add_lexical_declaration(&[name_str.as_slice()], declaration_line, declaration_column);
-            // C++ calls parse_lexical_binding() without declaration_kind for using,
-            // so we pass None to match.
+            // NB: The bindings of using declarations are constant, like those of const declarations.
             let Self {
                 scope_collector, arena, ..
             } = self;
-            scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings, &mut arena.scopes);
+            scope_collector.register_identifier(
+                id,
+                Some(DeclarationKind::Const),
+                &mut arena.identifiers,
+                &arena.strings,
+                &mut arena.scopes,
+            );
 
             let init = if self.match_token(TokenType::Equals) {
                 self.consume();
@@ -388,7 +416,13 @@ impl Parser<'_> {
             self.for_loop_declaration_has_init = any_init;
         }
 
-        self.statement(start, StatementKind::UsingDeclaration(Box::new(declarators)))
+        self.statement(
+            start,
+            StatementKind::UsingDeclaration(Box::new(UsingDeclarationData {
+                is_await,
+                declarations: declarators,
+            })),
+        )
     }
 
     // https://tc39.es/ecma262/#sec-function-definitions
@@ -2014,6 +2048,10 @@ impl Parser<'_> {
                 check_for_from = FromSpecifier::Required;
             } else if self.match_declaration() {
                 let declaration = self.parse_declaration();
+                // NB: ExportDeclaration does not include UsingDeclaration or AwaitUsingDeclaration.
+                if matches!(declaration.inner, StatementKind::UsingDeclaration(_)) {
+                    self.syntax_error_at_position("'using' declarations cannot be exported", declaration.range.start);
+                }
                 let names = get_declaration_export_names(&declaration, &self.arena);
                 for name in &names {
                     entries.push(ExportEntry {

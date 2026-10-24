@@ -513,10 +513,19 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             }
         }
 
-        StatementKind::UsingDeclaration(declarations) => {
-            dump_node!(state, "UsingDeclaration", &statement.range);
-            for (i, declaration) in declarations.iter().enumerate() {
-                dump_variable_declarator(declaration, &child_state(state, i == declarations.len() - 1), state);
+        StatementKind::UsingDeclaration(data) => {
+            let node_name = if data.is_await {
+                "AwaitUsingDeclaration"
+            } else {
+                "UsingDeclaration"
+            };
+            dump_node!(state, node_name, &statement.range);
+            for (i, declaration) in data.declarations.iter().enumerate() {
+                dump_variable_declarator(
+                    declaration,
+                    &child_state(state, i == data.declarations.len() - 1),
+                    state,
+                );
             }
         }
 
