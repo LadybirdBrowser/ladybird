@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Testing letter spacing with different length units
+1 Pass
+Pass	Testing letter spacing with different length units

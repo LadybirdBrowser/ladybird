@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	check that the state is reset
+1 Pass
+Pass	check that the state is reset

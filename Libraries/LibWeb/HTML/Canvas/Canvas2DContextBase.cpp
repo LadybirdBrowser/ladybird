@@ -29,6 +29,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -94,6 +95,15 @@ struct ResolvedFont {
     FlatPtr serialized { 0 };
 };
 
+// `FontSelection` of Bindings/Rust/src/canvas_2d/canvas.rs: the text drawing styles of a context that select the fonts
+// of its text beside its font, by the indices of their values in their IDL enumerations.
+struct CanvasFontSelection {
+    u8 font_kerning { 0 };
+    u8 font_stretch { 4 };
+    u8 font_variant_caps { 0 };
+    u8 text_rendering { 0 };
+};
+
 // `CanvasImageSourceKind` of Bindings/Rust/src/canvas_2d/canvas.rs: the sources of images that are implemented in C++.
 enum class CanvasImageSourceKind : u8 {
     HTMLImageElement,
@@ -151,7 +161,7 @@ void* web_canvas_2d_canvas_create_transport(void* canvas_host);
 void* web_canvas_2d_canvas_wrapper(void* canvas, bool canvas_is_offscreen, void* realm);
 void* web_canvas_2d_canvas_relevant_realm(void* canvas_host);
 u64 web_canvas_2d_canvas_font_environment_generation(void* canvas_host);
-bool web_canvas_2d_canvas_resolve_font(void* canvas, bool canvas_is_offscreen, FlatPtr font, ResolvedFont* out_font);
+bool web_canvas_2d_canvas_resolve_font(void* canvas, bool canvas_is_offscreen, FlatPtr font, CanvasFontSelection, ResolvedFont* out_font);
 void web_canvas_2d_canvas_resolve_color(void* canvas_host, CSS::StyleValue const* color, FontMetricsSource, u8 color_space, Gfx::Color* out_color, Gfx::Color* out_color_in_color_space);
 float web_canvas_2d_canvas_resolve_length(void* canvas_host, CSS::StyleValue const* length, FontMetricsSource);
 bool web_canvas_2d_canvas_parse_filter(void* canvas_host, FlatPtr filter, FontMetricsSource, void* functions, void (*append_function)(void*, Compositing::RustFFI::FfiFilterFunction const*));
@@ -361,7 +371,7 @@ u64 web_canvas_2d_canvas_font_environment_generation(void* canvas_host)
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-font
 template<typename CanvasType>
-static bool resolve_font(CanvasType& canvas_element, Utf16View font, ResolvedFont& out_font)
+static bool resolve_font(CanvasType& canvas_element, Utf16View font, CanvasFontSelection font_selection, ResolvedFont& out_font)
 {
     // The font IDL attribute, on setting, must be parsed as a CSS <'font'> value (but without supporting property-independent style sheet syntax like 'inherit'),
     // and the resulting font must be assigned to the context, with the 'line-height' component forced to 'normal', with the 'font-size' component converted to CSS pixels,
@@ -462,6 +472,26 @@ static bool resolve_font(CanvasType& canvas_element, Utf16View font, ResolvedFon
     if (auto caps = computed_font_variant->as_shorthand().longhand(CSS::PropertyID::FontVariantCaps); caps->to_keyword() == CSS::Keyword::SmallCaps)
         feature_values[to_underlying(CSS::FontResolutionFeatureInput::FontVariantCaps)] = caps;
 
+    // https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm
+    // NB: The text preparation algorithm sets 'font-kerning', 'font-stretch', 'font-variant-caps' and SVG
+    //     'text-rendering' from the fontKerning, fontStretch, fontVariantCaps and textRendering attributes of the
+    //     context. They select the fonts of the text, so they are applied when the font is resolved.
+    // AD-HOC: fontStretch and fontVariantCaps only apply when they are not "normal", so that the font-stretch and
+    //         font-variant-caps components of the font still apply when they are.
+    auto computed_font_width_percentage = computed_font_width->as_percentage().percentage();
+    static constexpr Array<CSS::Keyword, 3> font_kerning_keywords { CSS::Keyword::Auto, CSS::Keyword::Normal, CSS::Keyword::None };
+    if (font_selection.font_kerning != 0 && font_selection.font_kerning < font_kerning_keywords.size())
+        feature_values[to_underlying(CSS::FontResolutionFeatureInput::FontKerning)] = CSS::KeywordStyleValue::create(font_kerning_keywords[font_selection.font_kerning]);
+    static constexpr Array<double, 9> font_stretch_percentages { 50, 62.5, 75, 87.5, 100, 112.5, 125, 150, 200 };
+    if (font_selection.font_stretch != 4 && font_selection.font_stretch < font_stretch_percentages.size())
+        computed_font_width_percentage = CSS::Percentage { font_stretch_percentages[font_selection.font_stretch] };
+    static constexpr Array<CSS::Keyword, 7> font_variant_caps_keywords { CSS::Keyword::Normal, CSS::Keyword::SmallCaps, CSS::Keyword::AllSmallCaps, CSS::Keyword::PetiteCaps, CSS::Keyword::AllPetiteCaps, CSS::Keyword::Unicase, CSS::Keyword::TitlingCaps };
+    if (font_selection.font_variant_caps != 0 && font_selection.font_variant_caps < font_variant_caps_keywords.size())
+        feature_values[to_underlying(CSS::FontResolutionFeatureInput::FontVariantCaps)] = CSS::KeywordStyleValue::create(font_variant_caps_keywords[font_selection.font_variant_caps]);
+    static constexpr Array<CSS::Keyword, 4> text_rendering_keywords { CSS::Keyword::Auto, CSS::Keyword::Optimizespeed, CSS::Keyword::Optimizelegibility, CSS::Keyword::Geometricprecision };
+    if (font_selection.text_rendering != 0 && font_selection.text_rendering < text_rendering_keywords.size())
+        feature_values[to_underlying(CSS::FontResolutionFeatureInput::TextRendering)] = CSS::KeywordStyleValue::create(text_rendering_keywords[font_selection.text_rendering]);
+
     // https://drafts.csswg.org/css-font-loading/#font-source
     auto& font_computer = canvas_element.canvas_font_computer();
 
@@ -473,7 +503,7 @@ static bool resolve_font(CanvasType& canvas_element, Utf16View font, ResolvedFon
             .font_size = font_size,
             .font_slope = computed_font_style->as_font_style().to_font_slope(),
             .font_weight = computed_font_weight->as_number().number(),
-            .font_width = computed_font_width->as_percentage().percentage(),
+            .font_width = computed_font_width_percentage,
             .feature_values = move(feature_values),
             .font_feature_values_scope = {},
         });
@@ -488,13 +518,13 @@ static bool resolve_font(CanvasType& canvas_element, Utf16View font, ResolvedFon
     return true;
 }
 
-bool web_canvas_2d_canvas_resolve_font(void* canvas, bool canvas_is_offscreen, FlatPtr font, ResolvedFont* out_font)
+bool web_canvas_2d_canvas_resolve_font(void* canvas, bool canvas_is_offscreen, FlatPtr font, CanvasFontSelection font_selection, ResolvedFont* out_font)
 {
     auto font_string = Utf16String::from_raw(font);
     auto* cell = static_cast<GC::Cell*>(canvas);
     if (canvas_is_offscreen)
-        return resolve_font(*static_cast<OffscreenCanvas*>(cell), font_string.utf16_view(), *out_font);
-    return resolve_font(*static_cast<HTMLCanvasElement*>(cell), font_string.utf16_view(), *out_font);
+        return resolve_font(*static_cast<OffscreenCanvas*>(cell), font_string.utf16_view(), font_selection, *out_font);
+    return resolve_font(*static_cast<HTMLCanvasElement*>(cell), font_string.utf16_view(), font_selection, *out_font);
 }
 
 // What the CSS values of a context are resolved with: the viewport of the canvas, and the font of the context.

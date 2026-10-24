@@ -44,6 +44,7 @@ pub(crate) fn shape_text(
     text: &[u16],
     baseline_start: FloatPoint,
     letter_spacing: f32,
+    word_spacing: f32,
 ) -> Vec<ShapedRun> {
     const TEXT_PRESENTATION: EmojiPresentation = EmojiPresentation {
         is_emoji: false,
@@ -57,7 +58,7 @@ pub(crate) fn shape_text(
 
     let mut last_position = baseline_start;
     let mut add_run = |text: &[u16], font: &FontHandle| {
-        let shaped = shape_text_in_font(font, text, TextType::Common, 0.0, letter_spacing, 0.0);
+        let shaped = shape_text_in_font(font, text, TextType::Common, 0.0, letter_spacing, word_spacing);
         let mut glyphs = shaped.glyphs().to_vec();
         if last_position.x != 0.0 || last_position.y != 0.0 {
             for glyph in &mut glyphs {

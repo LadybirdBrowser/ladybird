@@ -31,7 +31,8 @@ impl ContextState {
 
         let font = self.current_font();
         let letter_spacing = self.resolved_letter_spacing();
-        let runs = shape_text(&font.cascade, text, FloatPoint { x, y }, letter_spacing);
+        let word_spacing = self.resolved_word_spacing();
+        let runs = shape_text(&font.cascade, text, FloatPoint { x, y }, letter_spacing, word_spacing);
         let path = path_of_runs(&runs);
         let text_width: f32 = runs.iter().map(|run| run.width).sum();
         let transform = text_transform(&self.drawing_state(), &font.cascade.first(), x, text_width, max_width);
@@ -75,7 +76,14 @@ impl<K: CanvasKind> RenderingContext2D<K> {
 
         let font = self.current_font();
         let letter_spacing = self.resolved_letter_spacing();
-        let runs = shape_text(&font.cascade, &text, FloatPoint { x: 0.0, y: 0.0 }, letter_spacing);
+        let word_spacing = self.resolved_word_spacing();
+        let runs = shape_text(
+            &font.cascade,
+            &text,
+            FloatPoint { x: 0.0, y: 0.0 },
+            letter_spacing,
+            word_spacing,
+        );
         let [run] = runs.as_slice() else {
             self.fill_internal(&self.text_path(&text, x, y, max_width), WindingRule::Nonzero);
             return Ok(());
@@ -158,11 +166,13 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         // 3. Let font be the current font of target, as given by that object's font attribute.
         let font = self.current_font();
         let letter_spacing = self.resolved_letter_spacing();
+        let word_spacing = self.resolved_word_spacing();
         let runs = shape_text(
             &font.cascade,
             &replaced_text,
             FloatPoint { x: 0.0, y: 0.0 },
             letter_spacing,
+            word_spacing,
         );
 
         // FIXME: 4. Let language be the target's language.

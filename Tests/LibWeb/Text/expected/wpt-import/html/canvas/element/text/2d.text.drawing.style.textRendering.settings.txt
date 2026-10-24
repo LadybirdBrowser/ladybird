@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Testing basic functionalities of textRendering in Canvas
+1 Pass
+Pass	Testing basic functionalities of textRendering in Canvas
