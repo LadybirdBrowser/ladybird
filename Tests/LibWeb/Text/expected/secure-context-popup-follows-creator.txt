@@ -1,0 +1,3 @@
+opener: false
+popup: false
+frame in popup: false

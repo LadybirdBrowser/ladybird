@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        internals.setEnvironmentsTopLevelURL("http://ladybird.org/");
+        const popup = window.open();
+        println(`opener: ${isSecureContext}`);
+        println(`popup: ${popup.isSecureContext}`);
+
+        const frame = popup.document.createElement("iframe");
+        popup.document.body.appendChild(frame);
+        println(`frame in popup: ${frame.contentWindow.isSecureContext}`);
+        popup.close();
+    });
+</script>
