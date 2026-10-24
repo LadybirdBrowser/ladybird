@@ -4464,6 +4464,16 @@ handler DisposeResources(
     completion_value: Operand
 ) @cold = call_slow_path(dispose_resources);
 
+handler AsyncDisposeResourcesStep(
+    done: out Operand,
+    awaited_value: out Operand,
+    stack: Operand,
+    completion_type: Operand,
+    completion_value: Operand,
+    await_completion_type: Operand,
+    await_completion_value: Operand
+) @cold = call_slow_path(async_dispose_resources_step);
+
 handler GetCompletionFields(
     type_dst: out Operand,
     value_dst: out Operand,

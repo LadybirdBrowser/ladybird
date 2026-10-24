@@ -184,6 +184,7 @@ asm_dispatch_table:
     .quad asm_handler_NewDisposableResourceStack
     .quad asm_handler_AddDisposableResource
     .quad asm_handler_DisposeResources
+    .quad asm_handler_AsyncDisposeResourcesStep
     .quad asm_handler_GetCompletionFields
     .quad asm_handler_SetCompletionType
     .quad asm_handler_GetTemplateObject
@@ -235,7 +236,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -1217,6 +1217,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_DisposeResources_hot_end
     .quad asm_handler_DisposeResources_cold
     .quad asm_handler_DisposeResources_cold_end
+    .quad asm_handler_AsyncDisposeResourcesStep
+    .quad asm_handler_AsyncDisposeResourcesStep_hot_end
+    .quad asm_handler_AsyncDisposeResourcesStep_cold
+    .quad asm_handler_AsyncDisposeResourcesStep_cold_end
     .quad asm_handler_GetCompletionFields
     .quad asm_handler_GetCompletionFields_hot_end
     .quad asm_handler_GetCompletionFields_cold
@@ -1421,10 +1425,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -17358,6 +17358,77 @@ asm_handler_DisposeResources:
 asm_handler_DisposeResources_hot_end:
 asm_handler_DisposeResources_cold:
 asm_handler_DisposeResources_cold_end:
+
+.p2align 4
+asm_handler_AsyncDisposeResourcesStep:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    sub sp, sp, #80
+    ldr w12, [x21, #12]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_AsyncDisposeResourcesStep.value_ready_1:
+    mov x4, x11
+    ldr w12, [x21, #16]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_AsyncDisposeResourcesStep.value_ready_2:
+    mov x5, x11
+    ldr w12, [x21, #20]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_AsyncDisposeResourcesStep.value_ready_3:
+    mov x6, x11
+    ldr w12, [x21, #24]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_AsyncDisposeResourcesStep.value_ready_4:
+    mov x7, x11
+    ldr w12, [x21, #28]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_AsyncDisposeResourcesStep.value_ready_5:
+    str x11, [sp]
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    add x3, sp, #16
+    bl CSYM(asm_slow_path_async_dispose_resources_step)
+    tbnz x0, #63, .Lasm_AsyncDisposeResourcesStep.values_exceptional_outputs_7
+    tbz x0, #32, .Lasm_AsyncDisposeResourcesStep.values_exceptional_outputs_7
+    ldr w12, [x21, #4]
+    ldr x11, [sp, #16]
+    str x11, [x27, x12, lsl #3]
+.Lasm_AsyncDisposeResourcesStep.skip_output_value_8:
+    ldr w12, [x21, #8]
+    ldr x11, [sp, #24]
+    str x11, [x27, x12, lsl #3]
+.Lasm_AsyncDisposeResourcesStep.skip_output_value_9:
+    add sp, sp, #80
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_AsyncDisposeResourcesStep.values_exceptional_outputs_7:
+.Lasm_AsyncDisposeResourcesStep.values_restore_stack_6:
+    add sp, sp, #80
+.Lasm_AsyncDisposeResourcesStep.values_call_done_0:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbz x0, #32, .Lasm_AsyncDisposeResourcesStep.slow_path_transfer_10
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_AsyncDisposeResourcesStep.slow_path_transfer_10:
+    ldr x28, [x20]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #40]
+    add x27, x28, #128
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_AsyncDisposeResourcesStep_hot_end:
+asm_handler_AsyncDisposeResourcesStep_cold:
+asm_handler_AsyncDisposeResourcesStep_cold_end:
 
 .p2align 4
 asm_handler_GetCompletionFields:

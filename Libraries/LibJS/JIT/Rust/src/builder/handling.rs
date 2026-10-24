@@ -344,6 +344,7 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::PutPrivateById
         | O::AddDisposableResource
         | O::DisposeResources
+        | O::AsyncDisposeResourcesStep
         | O::ExpRhsInt32 => GENERIC,
     }
 }
