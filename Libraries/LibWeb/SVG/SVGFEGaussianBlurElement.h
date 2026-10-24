@@ -31,6 +31,8 @@ public:
     GC::Ref<SVGAnimatedNumber> std_deviation_y();
     GC::Ref<SVGAnimatedEnumeration> edge_mode();
 
+    void set_std_deviation(float std_deviation_x, float std_deviation_y);
+
 private:
     SVGFEGaussianBlurElement(DOM::Document&, DOM::QualifiedName);
     virtual void visit_edges(Cell::Visitor&) override;
