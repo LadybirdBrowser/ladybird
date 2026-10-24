@@ -401,7 +401,6 @@ public:
         FFI::path_geometry_append_transformed_contours(path, outline, transform.data());
     }
 
-private:
     void draw_outline(u32 glyph_id, FFI::PathGeometry* outline) const
     {
 #ifdef AK_OS_MACOS
@@ -522,6 +521,7 @@ void* ladybird_gfx_path_stroke_to_fill(void const*, float thickness, i32 cap_sty
 void ladybird_gfx_path_set_fill_type(void*, i32);
 void* ladybird_gfx_path_create_from_glyph_runs(Gfx::FFI::FfiGlyphRun const* runs, size_t run_count);
 void* ladybird_gfx_path_place_glyph_runs_along(void const* path, Gfx::FFI::FfiGlyphRun const* runs, size_t run_count, float offset);
+void ladybird_gfx_font_glyph_outlines(void const* font, Gfx::FFI::DrawGlyph const* glyphs, size_t glyph_count, void (*visit)(void*, size_t, Gfx::FFI::PathGeometryData const*), void* context);
 }
 
 extern "C" void ladybird_gfx_path_destroy(void* path)
@@ -668,6 +668,21 @@ extern "C" void* ladybird_gfx_path_create_from_glyph_runs(Gfx::FFI::FfiGlyphRun 
 extern "C" void* ladybird_gfx_path_place_glyph_runs_along(void const* path, Gfx::FFI::FfiGlyphRun const* runs, size_t run_count, float offset)
 {
     return new Gfx::Path(static_cast<Gfx::Path const*>(path)->place_glyph_runs_along(adopt_glyph_runs(runs, run_count), offset));
+}
+
+// Calls the callback with the outline of each glyph, in pixels with its origin on the baseline.
+extern "C" void ladybird_gfx_font_glyph_outlines(void const* font, Gfx::FFI::DrawGlyph const* glyphs, size_t glyph_count, void (*visit)(void*, size_t, Gfx::FFI::PathGeometryData const*), void* context)
+{
+    Gfx::GlyphOutliner outliner { *static_cast<Gfx::Font const*>(font) };
+    auto* outline = Gfx::FFI::path_geometry_create();
+    ScopeGuard destroy_outline = [&] { Gfx::FFI::path_geometry_destroy(outline); };
+    for (size_t index = 0; index < glyph_count; ++index) {
+        Gfx::FFI::path_geometry_clear(outline);
+        outliner.draw_outline(glyphs[index].glyph_id, outline);
+        Gfx::FFI::PathGeometryData data;
+        Gfx::FFI::path_geometry_data(outline, &data);
+        visit(context, index, &data);
+    }
 }
 
 extern "C" void* ladybird_gfx_path_create_from_serialized_bytes(u8 const* bytes, size_t count)

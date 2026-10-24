@@ -69,6 +69,13 @@ unsafe extern "C" {
         run_count: usize,
         offset: f32,
     ) -> *mut c_void;
+    fn ladybird_gfx_font_glyph_outlines(
+        font: *const c_void,
+        glyphs: *const crate::text_layout::DrawGlyph,
+        glyph_count: usize,
+        visit: unsafe extern "C" fn(*mut c_void, usize, *const ffi::PathGeometryData),
+        context: *mut c_void,
+    );
 }
 
 /// A shaped run of glyphs in one font, as the path operations below take one.
@@ -82,6 +89,50 @@ struct FfiGlyphRun {
     font: *const c_void,
     glyphs: *const crate::text_layout::DrawGlyph,
     glyph_count: usize,
+}
+
+struct GlyphOutlineSink<'a> {
+    geometry: &'a mut PathGeometry,
+    transforms: &'a [AffineTransform],
+}
+
+unsafe extern "C" fn append_glyph_outline(
+    context: *mut c_void,
+    glyph_index: usize,
+    outline: *const ffi::PathGeometryData,
+) {
+    // SAFETY: `context` is the sink that append_glyph_outlines() passes, and the outline is a live path for this
+    // synchronous call.
+    unsafe {
+        let sink = &mut *context.cast::<GlyphOutlineSink<'_>>();
+        let transform = sink.transforms[glyph_index];
+        (*outline).append_mapped_to(sink.geometry, |point| transform.map_point(point));
+    }
+}
+
+/// Adds the outline of each glyph, in pixels with its origin on the baseline, mapped by the transform at the same
+/// index.
+fn append_glyph_outlines(
+    geometry: &mut PathGeometry,
+    font: &crate::font::FontHandle,
+    glyphs: &[crate::text_layout::DrawGlyph],
+    transforms: &[AffineTransform],
+) {
+    debug_assert_eq!(glyphs.len(), transforms.len());
+    if glyphs.is_empty() {
+        return;
+    }
+    let mut sink = GlyphOutlineSink { geometry, transforms };
+    // SAFETY: The handle keeps the font live, and the glyphs and the sink stay valid for the synchronous call.
+    unsafe {
+        ladybird_gfx_font_glyph_outlines(
+            font.as_raw(),
+            glyphs.as_ptr(),
+            glyphs.len(),
+            append_glyph_outline,
+            (&raw mut sink).cast(),
+        );
+    }
 }
 
 fn to_ffi_glyph_runs(runs: &[GlyphRun]) -> Vec<FfiGlyphRun> {
@@ -505,6 +556,60 @@ impl Path {
     /// The path that the bytes describe. Bytes that describe no path give an empty path.
     pub fn from_serialized_bytes(bytes: &[u8]) -> Path {
         Self::from_geometry(encoding::decode(bytes).unwrap_or_default())
+    }
+
+    /// The outlines of the given glyphs, as one path.
+    pub fn from_glyph_runs(runs: &[GlyphRun]) -> Path {
+        let mut geometry = PathGeometry::new();
+        for run in runs {
+            if run.font.is_invisible() {
+                continue;
+            }
+            let ascent = run.font.facts().ascent;
+            let transforms: Vec<_> = run
+                .glyphs
+                .iter()
+                .map(|glyph| AffineTransform {
+                    values: [1.0, 0.0, 0.0, 1.0, glyph.x, glyph.y + ascent],
+                })
+                .collect();
+            append_glyph_outlines(&mut geometry, &run.font, &run.glyphs, &transforms);
+        }
+        geometry.update_state_from_contours();
+        Self::from_geometry(geometry)
+    }
+
+    /// The outlines of the given glyphs, laid along the first subpath of this path that has length. Each glyph has
+    /// its origin at the distance of its x position plus the offset, and its baseline along the direction of the
+    /// path there. The glyphs stop at the first one whose middle would go past the end.
+    pub fn place_glyph_runs_along(&self, runs: &[GlyphRun], offset: f32) -> Path {
+        let mut geometry = PathGeometry::new();
+        let Some(contour) = measure::ContourMeasure::contours_of(&self.geometry).next() else {
+            return Self::from_geometry(geometry);
+        };
+        let path_length = contour.length();
+        for run in runs {
+            if run.font.is_invisible() {
+                continue;
+            }
+            let mut transforms = Vec::with_capacity(run.glyphs.len());
+            for glyph in &run.glyphs {
+                let glyph_distance = offset + glyph.x;
+                if glyph_distance + (glyph.glyph_width / 2.0) > path_length {
+                    break;
+                }
+                let (point, tangent) = contour.position_and_tangent(glyph_distance);
+                transforms.push(AffineTransform {
+                    values: [tangent.x, tangent.y, -tangent.y, tangent.x, point.x, point.y],
+                });
+            }
+            append_glyph_outlines(&mut geometry, &run.font, &run.glyphs[..transforms.len()], &transforms);
+            if transforms.len() < run.glyphs.len() {
+                break;
+            }
+        }
+        geometry.update_state_from_contours();
+        Self::from_geometry(geometry)
     }
 
     /// The contours of the path, as C++ reads them, valid until the path changes or is dropped.
