@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Interpolation for each property</title>
+<link rel="help" href="https://drafts.csswg.org/web-animations/#animation-types">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../testcommon.js"></script>
+<script src="property-list.js"></script>
+<script src="property-types.js"></script>
+<script src="property-utils.js"></script>
+<style>
+html {
+  font-size: 10px;
+}
+</style>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(function() {
+  runAnimationTypeTest(gCSSProperties2, 'testInterpolation');
+}, 'Setup');
+</script>

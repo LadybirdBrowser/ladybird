@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>font-size composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-3/#propdef-font-size">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<style>
+:root {
+  font-size: 30px;
+}
+.parent {
+  font-size: 20px;
+}
+</style>
+<body>
+<script>
+test_composition({
+  property: 'font-size',
+  underlying: '50px',
+  addFrom: '100px',
+  addTo: '200px',
+}, [
+  {at: -0.3, expect: '120px'},
+  {at: 0, expect: '150px'},
+  {at: 0.25, expect: '175px'},
+  {at: 0.5, expect: '200px'},
+  {at: 0.75, expect: '225px'},
+  {at: 1, expect: '250px'},
+  {at: 1.5, expect: '300px'},
+]);
+
+test_composition({
+  property: 'font-size',
+  underlying: '100px',
+  addFrom: '10px',
+  addTo: 'large',
+}, [
+  {at: -0.5, expect: '106px'},
+  {at: 0, expect: '110px'},
+  {at: 0.25, expect: '112px'},
+  {at: 0.5, expect: '114px'},
+  {at: 0.75, expect: '116px'},
+  {at: 1, expect: '118px'},
+  {at: 1.5, expect: '122px'},
+]);
+
+test_composition({
+  property: 'font-size',
+  underlying: '50%',
+  addFrom: 'small',
+  addTo: '20px',
+}, [
+  {at: -0.3, expect: '20.9px'},
+  {at: 0, expect: '23px'},
+  {at: 0.25, expect: '24.75px'},
+  {at: 0.5, expect: '26.5px'},
+  {at: 0.75, expect: '28.25px'},
+  {at: 1, expect: '30px'},
+  {at: 1.5, expect: '33.5px'},
+]);
+
+test_composition({
+  property: 'font-size',
+  underlying: '20%',
+  addFrom: '10rem',
+  replaceTo: '5em',
+}, [
+  {at: -0.3, expect: '365.2px'},
+  {at: 0, expect: '304px'},
+  {at: 0.25, expect: '253px'},
+  {at: 0.5, expect: '202px'},
+  {at: 0.75, expect: '151px'},
+  {at: 1, expect: '100px'},
+  {at: 1.5, expect: '0px'},
+]);
+
+test_composition({
+  property: 'font-size',
+  underlying: 'small',
+  replaceFrom: 'medium',
+  addTo: 'larger',
+}, [
+  {at: -0.3, expect: '9.7px'},
+  {at: 0, expect: '16px'},
+  {at: 0.25, expect: '21.25px'},
+  {at: 0.5, expect: '26.5px'},
+  {at: 0.75, expect: '31.75px'},
+  {at: 1, expect: '37px'},
+  {at: 1.5, expect: '47.5px'},
+]);
+</script>
+</body>

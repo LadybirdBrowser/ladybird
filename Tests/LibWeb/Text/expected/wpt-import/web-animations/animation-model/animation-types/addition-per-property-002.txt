@@ -1,0 +1,338 @@
+Harness status: OK
+
+Found 332 tests
+
+316 Pass
+16 Fail
+Pass	Setup
+Pass	isolation (type: discrete) has testAddition function
+Pass	isolation: "isolate" onto "auto"
+Pass	isolation: "auto" onto "isolate"
+Pass	justify-content (type: discrete) has testAddition function
+Pass	justify-content: "end" onto "start"
+Pass	justify-content: "start" onto "end"
+Pass	justify-items (type: discrete) has testAddition function
+Pass	justify-items: "end" onto "start"
+Pass	justify-items: "start" onto "end"
+Pass	justify-self (type: discrete) has testAddition function
+Pass	justify-self: "end" onto "start"
+Pass	justify-self: "start" onto "end"
+Pass	letter-spacing (type: lengthPercentageOrCalc) has testAddition function
+Pass	letter-spacing: length
+Pass	letter-spacing: length of rem
+Pass	letter-spacing: percentage
+Pass	letter-spacing: units "%" onto "px"
+Pass	letter-spacing: units "px" onto "%"
+Pass	letter-spacing: units "rem" onto "%"
+Pass	letter-spacing: units "%" onto "rem"
+Pass	letter-spacing: units "rem" onto "em"
+Pass	letter-spacing: units "em" onto "rem"
+Pass	letter-spacing: units "calc" onto "px"
+Pass	letter-spacing: calc
+Pass	line-height (type: discrete) has testAddition function
+Pass	line-height: "10px" onto "normal"
+Pass	line-height: "normal" onto "10px"
+Pass	line-height: "10" onto "normal"
+Pass	line-height: "normal" onto "10"
+Pass	list-style (type: discrete) has testAddition function
+Fail	list-style: "outside url("http://localhost/test-2") square" onto "inside url("http://localhost/test-1") circle"
+Pass	list-style: "inside url("http://localhost/test-1") circle" onto "outside url("http://localhost/test-2") square"
+Pass	list-style-image (type: discrete) has testAddition function
+Pass	list-style-image: "url("http://localhost/test-2")" onto "url("http://localhost/test-1")"
+Pass	list-style-image: "url("http://localhost/test-1")" onto "url("http://localhost/test-2")"
+Pass	list-style-position (type: discrete) has testAddition function
+Pass	list-style-position: "outside" onto "inside"
+Pass	list-style-position: "inside" onto "outside"
+Pass	list-style-type (type: discrete) has testAddition function
+Pass	list-style-type: "square" onto "circle"
+Pass	list-style-type: "circle" onto "square"
+Pass	mask (type: discrete) has testAddition function
+Pass	mask: "url("http://localhost/test-2")" onto "url("http://localhost/test-1")"
+Pass	mask: "url("http://localhost/test-1")" onto "url("http://localhost/test-2")"
+Pass	mask-clip (type: discrete) has testAddition function
+Pass	mask-clip: "border-box" onto "content-box"
+Pass	mask-clip: "content-box" onto "border-box"
+Pass	mask-composite (type: discrete) has testAddition function
+Pass	mask-composite: "subtract" onto "add"
+Pass	mask-composite: "add" onto "subtract"
+Pass	mask-image (type: discrete) has testAddition function
+Pass	mask-image: "url("http://localhost/test-2")" onto "url("http://localhost/test-1")"
+Pass	mask-image: "url("http://localhost/test-1")" onto "url("http://localhost/test-2")"
+Pass	mask-mode (type: discrete) has testAddition function
+Pass	mask-mode: "luminance" onto "alpha"
+Pass	mask-mode: "alpha" onto "luminance"
+Pass	mask-origin (type: discrete) has testAddition function
+Pass	mask-origin: "border-box" onto "content-box"
+Pass	mask-origin: "content-box" onto "border-box"
+Pass	mask-repeat (type: discrete) has testAddition function
+Pass	mask-repeat: "round" onto "space"
+Pass	mask-repeat: "space" onto "round"
+Pass	mask-type (type: discrete) has testAddition function
+Pass	mask-type: "luminance" onto "alpha"
+Pass	mask-type: "alpha" onto "luminance"
+Pass	mix-blend-mode (type: discrete) has testAddition function
+Pass	mix-blend-mode: "screen" onto "multiply"
+Pass	mix-blend-mode: "multiply" onto "screen"
+Pass	object-fit (type: discrete) has testAddition function
+Pass	object-fit: "contain" onto "fill"
+Pass	object-fit: "fill" onto "contain"
+Pass	offset-distance (type: lengthPercentageOrCalc) has testAddition function
+Pass	offset-distance: length
+Pass	offset-distance: length of rem
+Pass	offset-distance: percentage
+Pass	offset-distance: units "%" onto "px"
+Pass	offset-distance: units "px" onto "%"
+Pass	offset-distance: units "rem" onto "%"
+Pass	offset-distance: units "%" onto "rem"
+Pass	offset-distance: units "rem" onto "em"
+Pass	offset-distance: units "em" onto "rem"
+Pass	offset-distance: units "calc" onto "px"
+Pass	offset-distance: calc
+Pass	order (type: integer) has testAddition function
+Pass	order: integer
+Pass	outline-color (type: color) has testAddition function
+Fail	outline-color supports animating as color of rgb() with overflowed  from and to values
+Pass	outline-color supports animating as color of #RGB
+Pass	outline-color supports animating as color of hsl()
+Pass	outline-color supports animating as color of #RGBa
+Pass	outline-color supports animating as color of rgba()
+Pass	outline-color supports animating as color of hsla()
+Pass	outline-offset (type: length) has testAddition function
+Pass	outline-offset: length
+Pass	outline-offset: length of rem
+Pass	outline-style (type: discrete) has testAddition function
+Pass	outline-style: "dotted" onto "none"
+Pass	outline-style: "none" onto "dotted"
+Pass	outline-width (type: length) has testAddition function
+Pass	outline-width: length
+Pass	outline-width: length of rem
+Pass	overflow (type: discrete) has testAddition function
+Pass	overflow: "hidden" onto "visible"
+Pass	overflow: "visible" onto "hidden"
+Pass	overflow-wrap (type: discrete) has testAddition function
+Pass	overflow-wrap: "break-word" onto "normal"
+Pass	overflow-wrap: "normal" onto "break-word"
+Pass	overflow-x (type: discrete) has testAddition function
+Pass	overflow-x: "hidden" onto "visible"
+Pass	overflow-x: "visible" onto "hidden"
+Pass	overflow-y (type: discrete) has testAddition function
+Pass	overflow-y: "hidden" onto "visible"
+Pass	overflow-y: "visible" onto "hidden"
+Pass	page-break-after (type: discrete) has testAddition function
+Pass	page-break-after: "auto" onto "always"
+Pass	page-break-after: "always" onto "auto"
+Pass	page-break-before (type: discrete) has testAddition function
+Pass	page-break-before: "auto" onto "always"
+Pass	page-break-before: "always" onto "auto"
+Pass	page-break-inside (type: discrete) has testAddition function
+Pass	page-break-inside: "avoid" onto "auto"
+Pass	page-break-inside: "auto" onto "avoid"
+Pass	paint-order (type: discrete) has testAddition function
+Pass	paint-order: "stroke" onto "fill"
+Pass	paint-order: "fill" onto "stroke"
+Pass	perspective (type: length) has testAddition function
+Pass	perspective: length
+Pass	perspective: length of rem
+Pass	perspective-origin (type: position) has testAddition function
+Pass	perspective-origin: length pair
+Pass	perspective-origin: length pair of rem
+Pass	perspective-origin: position of percentage
+Pass	place-content (type: discrete) has testAddition function
+Pass	place-content: "end" onto "start"
+Pass	place-content: "start" onto "end"
+Pass	place-items (type: discrete) has testAddition function
+Pass	place-items: "end" onto "start"
+Pass	place-items: "start" onto "end"
+Pass	place-self (type: discrete) has testAddition function
+Pass	place-self: "end" onto "start"
+Pass	place-self: "start" onto "end"
+Pass	pointer-events (type: discrete) has testAddition function
+Pass	pointer-events: "none" onto "fill"
+Pass	pointer-events: "fill" onto "none"
+Pass	position (type: discrete) has testAddition function
+Pass	position: "fixed" onto "absolute"
+Pass	position: "absolute" onto "fixed"
+Pass	position-anchor (type: discrete) has testAddition function
+Pass	position-anchor: "--anchor" onto "auto"
+Pass	position-anchor: "auto" onto "--anchor"
+Pass	position-visibility (type: discrete) has testAddition function
+Fail	position-visibility: "anchor-valid" onto "always"
+Pass	position-visibility: "always" onto "anchor-valid"
+Pass	position-try-fallbacks (type: discrete) has testAddition function
+Pass	position-try-fallbacks: "flip-block" onto "none"
+Pass	position-try-fallbacks: "none" onto "flip-block"
+Pass	position-try-order (type: discrete) has testAddition function
+Pass	position-try-order: "most-width" onto "normal"
+Pass	position-try-order: "normal" onto "most-width"
+Pass	quotes (type: discrete) has testAddition function
+Pass	quotes: ""‘" "’" "“" "”"" onto ""“" "”" "‘" "’""
+Pass	quotes: ""“" "”" "‘" "’"" onto ""‘" "’" "“" "”""
+Pass	scroll-snap-align (type: discrete) has testAddition function
+Pass	scroll-snap-align: "start" onto "none"
+Pass	scroll-snap-align: "none" onto "start"
+Pass	scroll-snap-stop (type: discrete) has testAddition function
+Pass	scroll-snap-stop: "always" onto "normal"
+Pass	scroll-snap-stop: "normal" onto "always"
+Pass	scroll-snap-type (type: discrete) has testAddition function
+Pass	scroll-snap-type: "x mandatory" onto "none"
+Pass	scroll-snap-type: "none" onto "x mandatory"
+Pass	scrollbar-color (type: colorPair) has testAddition function
+Fail	scrollbar-color supports animating as color pair of rgb() with overflowed  from and to values
+Fail	scrollbar-color supports animating as color pair of #RGB
+Fail	scrollbar-color supports animating as color pair of hsl()
+Fail	scrollbar-color supports animating as color pair of #RGBa
+Fail	scrollbar-color supports animating as color pair of rgba()
+Fail	scrollbar-color supports animating as color pair of hsla()
+Pass	scrollbar-gutter (type: discrete) has testAddition function
+Pass	scrollbar-gutter: "stable" onto "auto"
+Pass	scrollbar-gutter: "auto" onto "stable"
+Pass	scrollbar-gutter: "stable both-edges" onto "auto"
+Pass	scrollbar-gutter: "auto" onto "stable both-edges"
+Pass	scrollbar-gutter: "stable both-edges" onto "stable"
+Pass	scrollbar-gutter: "stable" onto "stable both-edges"
+Pass	scrollbar-width (type: discrete) has testAddition function
+Pass	scrollbar-width: "thin" onto "auto"
+Pass	scrollbar-width: "auto" onto "thin"
+Pass	scrollbar-width: "none" onto "auto"
+Pass	scrollbar-width: "auto" onto "none"
+Pass	scrollbar-width: "none" onto "thin"
+Pass	scrollbar-width: "thin" onto "none"
+Pass	shape-outside (type: discrete) has testAddition function
+Fail	shape-outside: "url("http://localhost/test-2")" onto "url("http://localhost/test-1")"
+Fail	shape-outside: "url("http://localhost/test-1")" onto "url("http://localhost/test-2")"
+Pass	shape-rendering (type: discrete) has testAddition function
+Pass	shape-rendering: "crispEdges" onto "optimizeSpeed"
+Pass	shape-rendering: "optimizeSpeed" onto "crispEdges"
+Pass	stop-color (type: color) has testAddition function
+Fail	stop-color supports animating as color of rgb() with overflowed  from and to values
+Pass	stop-color supports animating as color of #RGB
+Pass	stop-color supports animating as color of hsl()
+Pass	stop-color supports animating as color of #RGBa
+Pass	stop-color supports animating as color of rgba()
+Pass	stop-color supports animating as color of hsla()
+Pass	stop-opacity (type: opacity) has testAddition function
+Pass	stop-opacity: [0, 1] number
+Pass	stop-opacity: [0, 1] number (clamped)
+Pass	stroke-dasharray (type: dasharray) has testAddition function
+Pass	stroke-dasharray: dasharray
+Pass	stroke-dasharray (type: discrete) has testAddition function
+Pass	stroke-dasharray: "10px, 20px" onto "none"
+Pass	stroke-dasharray: "none" onto "10px, 20px"
+Pass	stroke-linecap (type: discrete) has testAddition function
+Pass	stroke-linecap: "square" onto "round"
+Pass	stroke-linecap: "round" onto "square"
+Pass	stroke-linejoin (type: discrete) has testAddition function
+Pass	stroke-linejoin: "miter" onto "round"
+Pass	stroke-linejoin: "round" onto "miter"
+Pass	stroke-miterlimit (type: positiveNumber) has testAddition function
+Pass	stroke-miterlimit: positive number
+Pass	stroke-opacity (type: opacity) has testAddition function
+Pass	stroke-opacity: [0, 1] number
+Pass	stroke-opacity: [0, 1] number (clamped)
+Pass	table-layout (type: discrete) has testAddition function
+Pass	table-layout: "fixed" onto "auto"
+Pass	table-layout: "auto" onto "fixed"
+Pass	text-align (type: discrete) has testAddition function
+Pass	text-align: "end" onto "start"
+Pass	text-align: "start" onto "end"
+Pass	text-anchor (type: discrete) has testAddition function
+Pass	text-anchor: "end" onto "middle"
+Pass	text-anchor: "middle" onto "end"
+Pass	text-decoration (type: discrete) has testAddition function
+Fail	text-decoration: "overline" onto "underline"
+Fail	text-decoration: "underline" onto "overline"
+Pass	text-decoration-color (type: color) has testAddition function
+Fail	text-decoration-color supports animating as color of rgb() with overflowed  from and to values
+Pass	text-decoration-color supports animating as color of #RGB
+Pass	text-decoration-color supports animating as color of hsl()
+Pass	text-decoration-color supports animating as color of #RGBa
+Pass	text-decoration-color supports animating as color of rgba()
+Pass	text-decoration-color supports animating as color of hsla()
+Pass	text-decoration-line (type: discrete) has testAddition function
+Pass	text-decoration-line: "overline" onto "underline"
+Pass	text-decoration-line: "underline" onto "overline"
+Pass	text-decoration-skip-ink (type: discrete) has testAddition function
+Pass	text-decoration-skip-ink: "none" onto "auto"
+Pass	text-decoration-skip-ink: "auto" onto "none"
+Pass	text-decoration-style (type: discrete) has testAddition function
+Pass	text-decoration-style: "dotted" onto "solid"
+Pass	text-decoration-style: "solid" onto "dotted"
+Pass	text-overflow (type: discrete) has testAddition function
+Pass	text-overflow: "ellipsis" onto "clip"
+Pass	text-overflow: "clip" onto "ellipsis"
+Pass	text-rendering (type: discrete) has testAddition function
+Pass	text-rendering: "optimizeLegibility" onto "optimizeSpeed"
+Pass	text-rendering: "optimizeSpeed" onto "optimizeLegibility"
+Pass	text-shadow (type: textShadowList) has testAddition function
+Fail	text-shadow: shadow
+Pass	text-transform (type: discrete) has testAddition function
+Pass	text-transform: "uppercase" onto "capitalize"
+Pass	text-transform: "capitalize" onto "uppercase"
+Pass	text-wrap (type: discrete) has testAddition function
+Pass	text-wrap: "nowrap" onto "wrap"
+Pass	text-wrap: "wrap" onto "nowrap"
+Pass	touch-action (type: discrete) has testAddition function
+Pass	touch-action: "none" onto "auto"
+Pass	touch-action: "auto" onto "none"
+Pass	transform (type: transformList) has testAddition function
+Pass	transform: translate
+Pass	transform: rotate
+Pass	transform: scale
+Pass	transform: skew
+Pass	transform: rotate on translate
+Pass	transform: translate on rotate
+Pass	transform: rotate on rotate and translate
+Pass	transform: matrix
+Pass	transform: rotate3d
+Pass	transform: matrix3d
+Pass	transform: non-invertible matrices
+Pass	transform: non-invertible matrices in matched transform lists
+Pass	transform: non-invertible matrices in mismatched transform lists
+Pass	transform-box (type: discrete) has testAddition function
+Pass	transform-box: "border-box" onto "fill-box"
+Pass	transform-box: "fill-box" onto "border-box"
+Pass	transform-style (type: discrete) has testAddition function
+Pass	transform-style: "preserve-3d" onto "flat"
+Pass	transform-style: "flat" onto "preserve-3d"
+Pass	rotate (type: rotateList) has testAddition function
+Pass	rotate without rotation axes
+Pass	rotate with underlying transform
+Pass	rotate with different rotation axes
+Pass	translate (type: translateList) has testAddition function
+Pass	translate
+Pass	translate with underlying transform
+Pass	translate with underlying percentage value
+Pass	scale (type: scaleList) has testAddition function
+Pass	scale with two unspecified values
+Pass	scale with one unspecified value
+Pass	scale
+Pass	vector-effect (type: discrete) has testAddition function
+Pass	vector-effect: "non-scaling-stroke" onto "none"
+Pass	vector-effect: "none" onto "non-scaling-stroke"
+Pass	view-transition-name (type: discrete) has testAddition function
+Pass	view-transition-name: "header" onto "none"
+Pass	view-transition-name: "none" onto "header"
+Pass	visibility (type: visibility) has testAddition function
+Pass	visibility: onto "visible"
+Pass	visibility: onto "hidden"
+Pass	white-space (type: discrete) has testAddition function
+Pass	white-space: "nowrap" onto "pre"
+Pass	white-space: "pre" onto "nowrap"
+Pass	white-space-collapse (type: discrete) has testAddition function
+Pass	white-space-collapse: "preserve" onto "collapse"
+Pass	white-space-collapse: "collapse" onto "preserve"
+Pass	word-break (type: discrete) has testAddition function
+Pass	word-break: "break-all" onto "keep-all"
+Pass	word-break: "keep-all" onto "break-all"
+Pass	word-spacing (type: lengthPercentageOrCalc) has testAddition function
+Pass	word-spacing: length
+Pass	word-spacing: length of rem
+Pass	word-spacing: percentage
+Pass	word-spacing: units "%" onto "px"
+Pass	word-spacing: units "px" onto "%"
+Pass	word-spacing: units "rem" onto "%"
+Pass	word-spacing: units "%" onto "rem"
+Pass	word-spacing: units "rem" onto "em"
+Pass	word-spacing: units "em" onto "rem"
+Pass	word-spacing: units "calc" onto "px"
+Pass	word-spacing: calc
