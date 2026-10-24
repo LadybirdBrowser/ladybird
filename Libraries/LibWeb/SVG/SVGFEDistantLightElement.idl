@@ -1,0 +1,6 @@
+// https://drafts.fxtf.org/filter-effects/#InterfaceSVGFEDistantLightElement
+[Exposed=Window]
+interface SVGFEDistantLightElement : SVGElement {
+    readonly attribute SVGAnimatedNumber azimuth;
+    readonly attribute SVGAnimatedNumber elevation;
+};

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 32 tests
 
-28 Pass
-4 Fail
+30 Pass
+2 Fail
 Pass	SVGAnimatedEnumeration, keyword values, SVGComponentTransferFunctionElement.prototype.type (keywords)
 Pass	SVGAnimatedEnumeration, keyword values, SVGComponentTransferFunctionElement.prototype.type (case-sensitive)
 Pass	SVGAnimatedEnumeration, keyword values, SVGFEBlendElement.prototype.mode (keywords)
@@ -12,8 +12,8 @@ Pass	SVGAnimatedEnumeration, keyword values, SVGFEColorMatrixElement.prototype.t
 Pass	SVGAnimatedEnumeration, keyword values, SVGFEColorMatrixElement.prototype.type (case-sensitive)
 Pass	SVGAnimatedEnumeration, keyword values, SVGFECompositeElement.prototype.operator (keywords)
 Pass	SVGAnimatedEnumeration, keyword values, SVGFECompositeElement.prototype.operator (case-sensitive)
-Fail	SVGAnimatedEnumeration, keyword values, SVGFEConvolveMatrixElement.prototype.edgeMode (keywords)
-Fail	SVGAnimatedEnumeration, keyword values, SVGFEConvolveMatrixElement.prototype.edgeMode (case-sensitive)
+Pass	SVGAnimatedEnumeration, keyword values, SVGFEConvolveMatrixElement.prototype.edgeMode (keywords)
+Pass	SVGAnimatedEnumeration, keyword values, SVGFEConvolveMatrixElement.prototype.edgeMode (case-sensitive)
 Pass	SVGAnimatedEnumeration, keyword values, SVGFEDisplacementMapElement.prototype.xChannelSelector (keywords)
 Pass	SVGAnimatedEnumeration, keyword values, SVGFEDisplacementMapElement.prototype.xChannelSelector (case-sensitive)
 Pass	SVGAnimatedEnumeration, keyword values, SVGFEGaussianBlurElement.prototype.edgeMode (keywords)

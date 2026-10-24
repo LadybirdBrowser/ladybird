@@ -15,8 +15,10 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(amplitude, "amplitude")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(attributeName, "attributeName")                           \
     __ENUMERATE_SVG_ATTRIBUTE(attributeType, "attributeType")                           \
+    __ENUMERATE_SVG_ATTRIBUTE(azimuth, "azimuth")                                       \
     __ENUMERATE_SVG_ATTRIBUTE(baseFrequency, "baseFrequency")                           \
     __ENUMERATE_SVG_ATTRIBUTE(baseProfile, "baseProfile")                               \
+    __ENUMERATE_SVG_ATTRIBUTE(bias, "bias")                                             \
     __ENUMERATE_SVG_ATTRIBUTE(calcMode, "calcMode")                                     \
     __ENUMERATE_SVG_ATTRIBUTE(class_, "class")                                          \
     __ENUMERATE_SVG_ATTRIBUTE(clipPathUnits, "clipPathUnits")                           \
@@ -27,10 +29,12 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(cy, "cy")                                                 \
     __ENUMERATE_SVG_ATTRIBUTE(d, "d")                                                   \
     __ENUMERATE_SVG_ATTRIBUTE(diffuseConstant, "diffuseConstant")                       \
+    __ENUMERATE_SVG_ATTRIBUTE(divisor, "divisor")                                       \
     __ENUMERATE_SVG_ATTRIBUTE(dur, "dur")                                               \
     __ENUMERATE_SVG_ATTRIBUTE(dx, "dx")                                                 \
     __ENUMERATE_SVG_ATTRIBUTE(dy, "dy")                                                 \
     __ENUMERATE_SVG_ATTRIBUTE(edgeMode, "edgeMode")                                     \
+    __ENUMERATE_SVG_ATTRIBUTE(elevation, "elevation")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(fill, "fill")                                             \
     __ENUMERATE_SVG_ATTRIBUTE(exponent, "exponent")                                     \
     __ENUMERATE_SVG_ATTRIBUTE(filterUnits, "filterUnits")                               \
@@ -68,6 +72,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(offset, "offset")                                         \
     __ENUMERATE_SVG_ATTRIBUTE(opacity, "opacity")                                       \
     __ENUMERATE_SVG_ATTRIBUTE(operator_, "operator")                                    \
+    __ENUMERATE_SVG_ATTRIBUTE(order, "order")                                           \
     __ENUMERATE_SVG_ATTRIBUTE(path, "path")                                             \
     __ENUMERATE_SVG_ATTRIBUTE(pathLength, "pathLength")                                 \
     __ENUMERATE_SVG_ATTRIBUTE(patternContentUnits, "patternContentUnits")               \
@@ -128,6 +133,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(y1, "y1")                                                 \
     __ENUMERATE_SVG_ATTRIBUTE(y2, "y2")                                                 \
     __ENUMERATE_SVG_ATTRIBUTE(yChannelSelector, "yChannelSelector")                     \
+    __ENUMERATE_SVG_ATTRIBUTE(z, "z")                                                   \
     __ENUMERATE_SVG_ATTRIBUTE(zoomAndPan, "zoomAndPan")
 
 #define __ENUMERATE_SVG_ATTRIBUTE(name, attribute) extern Utf16FlyString const& name;

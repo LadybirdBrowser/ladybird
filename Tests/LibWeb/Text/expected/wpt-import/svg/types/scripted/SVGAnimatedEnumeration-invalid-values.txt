@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 52 tests
 
-46 Pass
-6 Fail
+48 Pass
+4 Fail
 Pass	SVGAnimatedEnumeration, invalid values, SVGClipPathElement.prototype.clipPathUnits (empty string)
 Pass	SVGAnimatedEnumeration, invalid values, SVGClipPathElement.prototype.clipPathUnits (content attribute is not rewritten)
 Pass	SVGAnimatedEnumeration, invalid values, SVGComponentTransferFunctionElement.prototype.type (empty string)
@@ -14,8 +14,8 @@ Pass	SVGAnimatedEnumeration, invalid values, SVGFEColorMatrixElement.prototype.t
 Pass	SVGAnimatedEnumeration, invalid values, SVGFEColorMatrixElement.prototype.type (content attribute is not rewritten)
 Pass	SVGAnimatedEnumeration, invalid values, SVGFECompositeElement.prototype.operator (empty string)
 Pass	SVGAnimatedEnumeration, invalid values, SVGFECompositeElement.prototype.operator (content attribute is not rewritten)
-Fail	SVGAnimatedEnumeration, invalid values, SVGFEConvolveMatrixElement.prototype.edgeMode (empty string)
-Fail	SVGAnimatedEnumeration, invalid values, SVGFEConvolveMatrixElement.prototype.edgeMode (content attribute is not rewritten)
+Pass	SVGAnimatedEnumeration, invalid values, SVGFEConvolveMatrixElement.prototype.edgeMode (empty string)
+Pass	SVGAnimatedEnumeration, invalid values, SVGFEConvolveMatrixElement.prototype.edgeMode (content attribute is not rewritten)
 Pass	SVGAnimatedEnumeration, invalid values, SVGFEDisplacementMapElement.prototype.xChannelSelector (empty string)
 Pass	SVGAnimatedEnumeration, invalid values, SVGFEDisplacementMapElement.prototype.xChannelSelector (content attribute is not rewritten)
 Pass	SVGAnimatedEnumeration, invalid values, SVGFEDisplacementMapElement.prototype.yChannelSelector (empty string)

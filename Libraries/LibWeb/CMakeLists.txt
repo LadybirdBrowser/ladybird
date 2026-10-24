@@ -855,6 +855,7 @@ set(SOURCES
     SVG/SMILAnimation.cpp
     SVG/SMILTimeContainer.cpp
     SVG/SVGAElement.cpp
+    SVG/SVGAnimatedBoolean.cpp
     SVG/SVGAnimatedEnumeration.cpp
     SVG/SVGAnimatedInteger.cpp
     SVG/SVGAnimatedLength.cpp
@@ -878,7 +879,10 @@ set(SOURCES
     SVG/SVGFEColorMatrixElement.cpp
     SVG/SVGFEComponentTransferElement.cpp
     SVG/SVGFECompositeElement.cpp
+    SVG/SVGFEConvolveMatrixElement.cpp
+    SVG/SVGFEDiffuseLightingElement.cpp
     SVG/SVGFEDisplacementMapElement.cpp
+    SVG/SVGFEDistantLightElement.cpp
     SVG/SVGFEDropShadowElement.cpp
     SVG/SVGFEFloodElement.cpp
     SVG/SVGFEFuncAElement.cpp
@@ -891,6 +895,9 @@ set(SOURCES
     SVG/SVGFEMergeNodeElement.cpp
     SVG/SVGFEMorphologyElement.cpp
     SVG/SVGFEOffsetElement.cpp
+    SVG/SVGFEPointLightElement.cpp
+    SVG/SVGFESpecularLightingElement.cpp
+    SVG/SVGFESpotLightElement.cpp
     SVG/SVGFETurbulenceElement.cpp
     SVG/SVGFilterElement.cpp
     SVG/SVGFilterPrimitiveStandardAttributes.cpp

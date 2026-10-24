@@ -402,6 +402,7 @@ ResizeObserverSize
 Response
 SVGAElement
 SVGAnimateMotionElement
+SVGAnimatedBoolean
 SVGAnimatedEnumeration
 SVGAnimatedInteger
 SVGAnimatedLength
@@ -423,7 +424,10 @@ SVGFEBlendElement
 SVGFEColorMatrixElement
 SVGFEComponentTransferElement
 SVGFECompositeElement
+SVGFEConvolveMatrixElement
+SVGFEDiffuseLightingElement
 SVGFEDisplacementMapElement
+SVGFEDistantLightElement
 SVGFEDropShadowElement
 SVGFEFloodElement
 SVGFEFuncAElement
@@ -436,6 +440,9 @@ SVGFEMergeElement
 SVGFEMergeNodeElement
 SVGFEMorphologyElement
 SVGFEOffsetElement
+SVGFEPointLightElement
+SVGFESpecularLightingElement
+SVGFESpotLightElement
 SVGFETurbulenceElement
 SVGFilterElement
 SVGForeignObjectElement
