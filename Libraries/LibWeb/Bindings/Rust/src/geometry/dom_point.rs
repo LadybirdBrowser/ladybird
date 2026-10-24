@@ -54,6 +54,12 @@ impl DOMPoint {
         }
     }
 
+    /// Sets the x and y coordinates, for an SVGPointList that synchronizes its points with a reflected attribute.
+    pub(crate) fn set_x_and_y(&self, x: f64, y: f64) {
+        self.point.set_x_coordinate(x);
+        self.point.set_y_coordinate(y);
+    }
+
     /// https://drafts.fxtf.org/geometry/#dom-dompointreadonly-x
     pub(crate) fn set_x(&self, _: &mut CallContext, value: f64) -> WebIdlResult<()> {
         // For the DOMPoint interface, setting the x attribute must set the x coordinate to the new value.

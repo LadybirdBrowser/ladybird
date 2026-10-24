@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/SVG/SVGLength.h>
 #include <LibWeb/SVG/SVGList.h>
 #include <LibWeb/SVG/SVGNumber.h>
@@ -228,5 +229,6 @@ template class SVGList<GC::Ref<SVGLength>>;
 template class SVGList<GC::Ref<SVGNumber>>;
 template class SVGList<GC::Ref<SVGTransform>>;
 template class SVGList<Utf16String>;
+template class SVGList<GC::Ref<Geometry::DOMPoint>>;
 
 }

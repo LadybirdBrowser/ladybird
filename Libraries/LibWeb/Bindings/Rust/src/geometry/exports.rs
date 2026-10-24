@@ -74,6 +74,28 @@ pub unsafe extern "C" fn web_dom_point_read_only_create(
     cell_into_abi(allocate(vm, DOMPointReadOnly::new(x, y, z, w)))
 }
 
+/// Stores the coordinates x, y, z and w of the point, in that order.
+///
+/// # Safety
+///
+/// `point` must be the live cell of a DOMPoint.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_dom_point_coordinates(point: *mut c_void, out_coordinates: &mut [f64; 4]) {
+    // SAFETY: The caller passes a live cell.
+    *out_coordinates = unsafe { object_from_abi::<DOMPoint>(point) }.parent().coordinates();
+}
+
+/// Sets the x and y coordinates of the point.
+///
+/// # Safety
+///
+/// `point` must be the live cell of a DOMPoint.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_dom_point_set_x_and_y(point: *mut c_void, x: f64, y: f64) {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<DOMPoint>(point) }.set_x_and_y(x, y);
+}
+
 /// # Safety
 ///
 /// `vm` must be the live VM.

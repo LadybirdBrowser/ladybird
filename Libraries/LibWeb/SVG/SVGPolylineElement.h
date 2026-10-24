@@ -7,10 +7,13 @@
 #pragma once
 
 #include <LibWeb/SVG/SVGGeometryElement.h>
+#include <LibWeb/SVG/SVGPointList.h>
 
 namespace Web::SVG {
 
-class SVGPolylineElement final : public SVGGeometryElement {
+class SVGPolylineElement final
+    : public SVGGeometryElement
+    , public SVGAnimatedPoints {
     WEB_WRAPPABLE(SVGPolylineElement, SVGGeometryElement);
     GC_DECLARE_ALLOCATOR(SVGPolylineElement);
 
@@ -26,6 +29,11 @@ private:
     virtual bool is_svg_polyline_element() const final { return true; }
 
     SVGPolylineElement(DOM::Document&, DOM::QualifiedName);
+
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    // ^SVGAnimatedPoints
+    virtual SVGElement& svg_animated_points_element() override { return *this; }
 
     Vector<Gfx::FloatPoint> m_points;
 };

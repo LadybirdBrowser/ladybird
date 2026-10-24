@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1529 Pass
-251 Fail
+1569 Pass
+211 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -996,50 +996,50 @@ Pass	SVGElement interface: objects.line must inherit property "ownerSVGElement" 
 Pass	SVGElement interface: objects.line must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.line must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.line must inherit property "correspondingUseElement" with the proper type
-Fail	SVGPointList interface: existence and properties of interface object
-Fail	SVGPointList interface object length
-Fail	SVGPointList interface object name
-Fail	SVGPointList interface: existence and properties of interface prototype object
-Fail	SVGPointList interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGPointList interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGPointList interface: attribute length
-Fail	SVGPointList interface: attribute numberOfItems
-Fail	SVGPointList interface: operation clear()
-Fail	SVGPointList interface: operation initialize(DOMPoint)
-Fail	SVGPointList interface: operation getItem(unsigned long)
-Fail	SVGPointList interface: operation insertItemBefore(DOMPoint, unsigned long)
-Fail	SVGPointList interface: operation replaceItem(DOMPoint, unsigned long)
-Fail	SVGPointList interface: operation removeItem(unsigned long)
-Fail	SVGPointList interface: operation appendItem(DOMPoint)
-Fail	SVGPointList must be primary interface of objects.polygon.points
-Fail	Stringification of objects.polygon.points
-Fail	SVGPointList interface: objects.polygon.points must inherit property "length" with the proper type
-Fail	SVGPointList interface: objects.polygon.points must inherit property "numberOfItems" with the proper type
-Fail	SVGPointList interface: objects.polygon.points must inherit property "clear()" with the proper type
-Fail	SVGPointList interface: objects.polygon.points must inherit property "initialize(DOMPoint)" with the proper type
-Fail	SVGPointList interface: calling initialize(DOMPoint) on objects.polygon.points with too few arguments must throw TypeError
-Fail	SVGPointList interface: objects.polygon.points must inherit property "getItem(unsigned long)" with the proper type
-Fail	SVGPointList interface: calling getItem(unsigned long) on objects.polygon.points with too few arguments must throw TypeError
-Fail	SVGPointList interface: objects.polygon.points must inherit property "insertItemBefore(DOMPoint, unsigned long)" with the proper type
-Fail	SVGPointList interface: calling insertItemBefore(DOMPoint, unsigned long) on objects.polygon.points with too few arguments must throw TypeError
-Fail	SVGPointList interface: objects.polygon.points must inherit property "replaceItem(DOMPoint, unsigned long)" with the proper type
-Fail	SVGPointList interface: calling replaceItem(DOMPoint, unsigned long) on objects.polygon.points with too few arguments must throw TypeError
-Fail	SVGPointList interface: objects.polygon.points must inherit property "removeItem(unsigned long)" with the proper type
-Fail	SVGPointList interface: calling removeItem(unsigned long) on objects.polygon.points with too few arguments must throw TypeError
-Fail	SVGPointList interface: objects.polygon.points must inherit property "appendItem(DOMPoint)" with the proper type
-Fail	SVGPointList interface: calling appendItem(DOMPoint) on objects.polygon.points with too few arguments must throw TypeError
+Pass	SVGPointList interface: existence and properties of interface object
+Pass	SVGPointList interface object length
+Pass	SVGPointList interface object name
+Pass	SVGPointList interface: existence and properties of interface prototype object
+Pass	SVGPointList interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGPointList interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGPointList interface: attribute length
+Pass	SVGPointList interface: attribute numberOfItems
+Pass	SVGPointList interface: operation clear()
+Pass	SVGPointList interface: operation initialize(DOMPoint)
+Pass	SVGPointList interface: operation getItem(unsigned long)
+Pass	SVGPointList interface: operation insertItemBefore(DOMPoint, unsigned long)
+Pass	SVGPointList interface: operation replaceItem(DOMPoint, unsigned long)
+Pass	SVGPointList interface: operation removeItem(unsigned long)
+Pass	SVGPointList interface: operation appendItem(DOMPoint)
+Pass	SVGPointList must be primary interface of objects.polygon.points
+Pass	Stringification of objects.polygon.points
+Pass	SVGPointList interface: objects.polygon.points must inherit property "length" with the proper type
+Pass	SVGPointList interface: objects.polygon.points must inherit property "numberOfItems" with the proper type
+Pass	SVGPointList interface: objects.polygon.points must inherit property "clear()" with the proper type
+Pass	SVGPointList interface: objects.polygon.points must inherit property "initialize(DOMPoint)" with the proper type
+Pass	SVGPointList interface: calling initialize(DOMPoint) on objects.polygon.points with too few arguments must throw TypeError
+Pass	SVGPointList interface: objects.polygon.points must inherit property "getItem(unsigned long)" with the proper type
+Pass	SVGPointList interface: calling getItem(unsigned long) on objects.polygon.points with too few arguments must throw TypeError
+Pass	SVGPointList interface: objects.polygon.points must inherit property "insertItemBefore(DOMPoint, unsigned long)" with the proper type
+Pass	SVGPointList interface: calling insertItemBefore(DOMPoint, unsigned long) on objects.polygon.points with too few arguments must throw TypeError
+Pass	SVGPointList interface: objects.polygon.points must inherit property "replaceItem(DOMPoint, unsigned long)" with the proper type
+Pass	SVGPointList interface: calling replaceItem(DOMPoint, unsigned long) on objects.polygon.points with too few arguments must throw TypeError
+Pass	SVGPointList interface: objects.polygon.points must inherit property "removeItem(unsigned long)" with the proper type
+Pass	SVGPointList interface: calling removeItem(unsigned long) on objects.polygon.points with too few arguments must throw TypeError
+Pass	SVGPointList interface: objects.polygon.points must inherit property "appendItem(DOMPoint)" with the proper type
+Pass	SVGPointList interface: calling appendItem(DOMPoint) on objects.polygon.points with too few arguments must throw TypeError
 Pass	SVGPolylineElement interface: existence and properties of interface object
 Pass	SVGPolylineElement interface object length
 Pass	SVGPolylineElement interface object name
 Pass	SVGPolylineElement interface: existence and properties of interface prototype object
 Pass	SVGPolylineElement interface: existence and properties of interface prototype object's "constructor" property
 Pass	SVGPolylineElement interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGPolylineElement interface: attribute points
-Fail	SVGPolylineElement interface: attribute animatedPoints
+Pass	SVGPolylineElement interface: attribute points
+Pass	SVGPolylineElement interface: attribute animatedPoints
 Pass	SVGPolylineElement must be primary interface of objects.polyline
 Pass	Stringification of objects.polyline
-Fail	SVGPolylineElement interface: objects.polyline must inherit property "points" with the proper type
-Fail	SVGPolylineElement interface: objects.polyline must inherit property "animatedPoints" with the proper type
+Pass	SVGPolylineElement interface: objects.polyline must inherit property "points" with the proper type
+Pass	SVGPolylineElement interface: objects.polyline must inherit property "animatedPoints" with the proper type
 Pass	SVGGeometryElement interface: objects.polyline must inherit property "pathLength" with the proper type
 Pass	SVGGeometryElement interface: objects.polyline must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
 Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.polyline with too few arguments must throw TypeError
@@ -1066,12 +1066,12 @@ Pass	SVGPolygonElement interface object name
 Pass	SVGPolygonElement interface: existence and properties of interface prototype object
 Pass	SVGPolygonElement interface: existence and properties of interface prototype object's "constructor" property
 Pass	SVGPolygonElement interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGPolygonElement interface: attribute points
-Fail	SVGPolygonElement interface: attribute animatedPoints
+Pass	SVGPolygonElement interface: attribute points
+Pass	SVGPolygonElement interface: attribute animatedPoints
 Pass	SVGPolygonElement must be primary interface of objects.polygon
 Pass	Stringification of objects.polygon
-Fail	SVGPolygonElement interface: objects.polygon must inherit property "points" with the proper type
-Fail	SVGPolygonElement interface: objects.polygon must inherit property "animatedPoints" with the proper type
+Pass	SVGPolygonElement interface: objects.polygon must inherit property "points" with the proper type
+Pass	SVGPolygonElement interface: objects.polygon must inherit property "animatedPoints" with the proper type
 Pass	SVGGeometryElement interface: objects.polygon must inherit property "pathLength" with the proper type
 Pass	SVGGeometryElement interface: objects.polygon must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
 Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.polygon with too few arguments must throw TypeError
