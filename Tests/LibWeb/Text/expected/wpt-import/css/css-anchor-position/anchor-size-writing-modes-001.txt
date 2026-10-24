@@ -2,28 +2,28 @@ Harness status: OK
 
 Found 24 tests
 
-24 Fail
-Fail	.target 1
-Fail	.target 2
-Fail	.target 3
-Fail	.target 4
-Fail	.target 5
-Fail	.target 6
-Fail	.target 7
-Fail	.target 8
-Fail	.target 9
-Fail	.target 10
-Fail	.target 11
-Fail	.target 12
-Fail	.target 13
-Fail	.target 14
-Fail	.target 15
-Fail	.target 16
-Fail	.target 17
-Fail	.target 18
-Fail	.target 19
-Fail	.target 20
-Fail	.target 21
-Fail	.target 22
-Fail	.target 23
-Fail	.target 24
+24 Pass
+Pass	.target 1
+Pass	.target 2
+Pass	.target 3
+Pass	.target 4
+Pass	.target 5
+Pass	.target 6
+Pass	.target 7
+Pass	.target 8
+Pass	.target 9
+Pass	.target 10
+Pass	.target 11
+Pass	.target 12
+Pass	.target 13
+Pass	.target 14
+Pass	.target 15
+Pass	.target 16
+Pass	.target 17
+Pass	.target 18
+Pass	.target 19
+Pass	.target 20
+Pass	.target 21
+Pass	.target 22
+Pass	.target 23
+Pass	.target 24

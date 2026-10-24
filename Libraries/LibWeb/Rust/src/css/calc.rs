@@ -2569,27 +2569,30 @@ pub(crate) fn length_percentage_calculated_style_value(
     }
 }
 
-/// Wraps a computed anchor() inset value into the calculated style value the
-/// layout engine resolves, matching what the C++ bridge built through
-/// CalculatedStyleValue::create with CalculationContext::for_property for the
-/// top/right/bottom/left properties: the anchor value as a non-math-function
-/// leaf of the length numeric type, percentages resolving as length, and no
-/// integer rounding. Those properties accept the full float range for both
-/// length and percentage, which equals the clamp fallback for an absent
-/// accepted-range entry, so the wrapper carries an empty range list.
+/// Wraps a computed anchor() or anchor-size() value into the calculated style
+/// value the layout engine resolves, matching what the C++ bridge built
+/// through CalculatedStyleValue::create with CalculationContext::for_property
+/// for the top/right/bottom/left properties: the anchor value as a
+/// non-math-function leaf of the length numeric type, percentages resolving as
+/// length, and no integer rounding. Those properties accept the full float
+/// range for both length and percentage, which equals the clamp fallback for
+/// an absent accepted-range entry, so the wrapper carries an empty range list.
 ///
 /// # Safety
-/// `anchor` must point at live anchor style value data.
+/// `anchor` must point at live anchor() or anchor-size() style value data.
 // NB: Same main-thread-only contract as `handle` above.
 #[allow(clippy::arc_with_non_send_sync)]
-pub(crate) unsafe fn create_anchor_inset_calculated(
+pub(crate) unsafe fn create_anchor_function_calculated(
     anchor: *const crate::css::style_value::StyleValueData,
 ) -> Arc<crate::css::style_value::StyleValueData> {
     use crate::css::style_value::StyleValueData;
 
     assert!(
-        matches!(unsafe { &*anchor }, StyleValueData::Anchor { .. }),
-        "anchor inset handle holds a non-anchor style value"
+        matches!(
+            unsafe { &*anchor },
+            StyleValueData::Anchor { .. } | StyleValueData::AnchorSize { .. }
+        ),
+        "anchor function handle holds a non-anchor style value"
     );
     unsafe { Arc::increment_strong_count(anchor) };
     let anchor_value = unsafe { RetainedStyleValueData::from_retained_pointer(anchor) };
@@ -4186,9 +4189,9 @@ pub(crate) enum AbsolutizedCalculation {
     Value(crate::css::style_value::StyleValueData),
 }
 
-/// Absolutizes the fallback value of an anchor() function, which keeps its anchor query
-/// until style and layout interleaving resolves it. Returns the rebuilt function, none when
-/// nothing changed, or None when the fallback value cannot absolutize.
+/// Absolutizes the fallback value of an anchor() or anchor-size() function, which keeps its
+/// anchor query until style and layout interleaving resolves it. Returns the rebuilt function,
+/// none when nothing changed, or None when the fallback value cannot absolutize.
 pub(crate) fn absolutize_anchor_function(
     value: &crate::css::style_value::StyleValueData,
     length_context: &crate::css::style_compute::FfiLengthResolutionContext,
@@ -4196,12 +4199,7 @@ pub(crate) fn absolutize_anchor_function(
     random_base_values: &[crate::css::style_compute::FfiRandomBaseValue],
 ) -> Option<Option<crate::css::style_value::StyleValueData>> {
     use crate::css::style_value::StyleValueData;
-    let StyleValueData::Anchor {
-        has_anchor_name,
-        anchor_name,
-        anchor_side,
-        fallback_value,
-    } = value
+    let (StyleValueData::Anchor { fallback_value, .. } | StyleValueData::AnchorSize { fallback_value, .. }) = value
     else {
         return None;
     };
@@ -4227,7 +4225,7 @@ pub(crate) fn absolutize_anchor_function(
                 AbsolutizedCalculation::Value(value) => value,
             }
         }
-        Some(fallback @ StyleValueData::Anchor { .. }) => {
+        Some(fallback @ (StyleValueData::Anchor { .. } | StyleValueData::AnchorSize { .. })) => {
             match absolutize_anchor_function(fallback, length_context, tree_counting, random_base_values)? {
                 Some(value) => value,
                 None => return Some(None),
@@ -4235,11 +4233,33 @@ pub(crate) fn absolutize_anchor_function(
         }
         Some(_) => return Some(None),
     };
-    Some(Some(StyleValueData::Anchor {
-        has_anchor_name: *has_anchor_name,
-        anchor_name: anchor_name.clone(),
-        anchor_side: anchor_side.clone_retained(),
-        fallback_value: RetainedStyleValueData::from_arc(Arc::new(absolutized_fallback)),
+    let fallback_value = RetainedStyleValueData::from_arc(Arc::new(absolutized_fallback));
+    Some(Some(match value {
+        StyleValueData::Anchor {
+            has_anchor_name,
+            anchor_name,
+            anchor_side,
+            ..
+        } => StyleValueData::Anchor {
+            has_anchor_name: *has_anchor_name,
+            anchor_name: anchor_name.clone(),
+            anchor_side: anchor_side.clone_retained(),
+            fallback_value,
+        },
+        StyleValueData::AnchorSize {
+            has_anchor_name,
+            anchor_name,
+            has_anchor_size,
+            anchor_size,
+            ..
+        } => StyleValueData::AnchorSize {
+            has_anchor_name: *has_anchor_name,
+            anchor_name: anchor_name.clone(),
+            has_anchor_size: *has_anchor_size,
+            anchor_size: *anchor_size,
+            fallback_value,
+        },
+        _ => unreachable!("the value was matched as an anchor function above"),
     }))
 }
 
@@ -4329,8 +4349,11 @@ pub(crate) fn absolutize_calculation_value(
         }
         let source = external.source.data();
         let StyleValueData::TreeCountingFunction { function, .. } = source else {
-            if matches!(source, StyleValueData::Anchor { .. }) {
-                // anchor() stays unresolved until style and layout interleaving supplies
+            if matches!(
+                source,
+                StyleValueData::Anchor { .. } | StyleValueData::AnchorSize { .. }
+            ) {
+                // anchor() and anchor-size() stay unresolved until style and layout interleaving supplies
                 // an anchor resolver, matching the context-free computed-value pass.
                 if let Some(absolutized) =
                     absolutize_anchor_function(source, length_context, tree_counting, random_base_values)?
@@ -4688,7 +4711,11 @@ impl CalcNode {
 
     pub(crate) fn contains_anchor_function(&self) -> bool {
         if let CalcNode::NonMathFunction { value, .. } = self
-            && matches!(value.data(), crate::css::style_value::StyleValueData::Anchor { .. })
+            && matches!(
+                value.data(),
+                crate::css::style_value::StyleValueData::Anchor { .. }
+                    | crate::css::style_value::StyleValueData::AnchorSize { .. }
+            )
         {
             return true;
         }

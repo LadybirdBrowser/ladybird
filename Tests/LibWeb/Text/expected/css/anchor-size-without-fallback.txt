@@ -1,0 +1,8 @@
+width: anchor-size(--a width): 200
+max-width: anchor-size(--a width): 200
+position: relative; width: anchor-size(--a width): 200
+width: anchor-size(--a width, 33px): 33
+position: absolute; width: anchor-size(--missing width, 2em): 20
+position: absolute; width: calc(anchor-size(--missing width, 3em) + 1px): 31
+position: absolute; width: anchor-size(--missing width, 10cqw): 20
+position: absolute; position-anchor: --a; width: anchor-size(width, 2em): 50

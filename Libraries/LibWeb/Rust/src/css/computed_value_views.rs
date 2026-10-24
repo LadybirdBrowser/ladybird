@@ -44,8 +44,14 @@ pub(crate) fn resolve_calc_to_px_without_rounding(calculated: *const c_void, per
     assert!(!calculated.is_null());
     // SAFETY: The style value stays alive for the pass.
     let value = unsafe { &*calculated.cast::<StyleValueData>() };
-    crate::css::calc::resolve_calculated_length_without_context(value, percentage_basis.to_double())
-        .expect("computed length-percentage calc failed to resolve")
+    crate::css::calc::resolve_calculated_length_without_context(value, percentage_basis.to_double()).unwrap_or_else(|| {
+        assert!(
+            matches!(value, StyleValueData::Calculated { rust_calculation, .. } if rust_calculation.node().contains_anchor_function()),
+            "computed length-percentage calc failed to resolve"
+        );
+        // NB: The abspos engine resolves the anchor functions it can itself, so these are unresolvable.
+        crate::layout::style_values::resolve_calc_with_unresolvable_anchor_functions(calculated, percentage_basis)
+    })
 }
 
 pub(crate) fn resolve_calc_to_px(calculated: *const c_void, percentage_basis: CssPixels) -> CssPixels {
@@ -330,6 +336,19 @@ static AUTO_COMPUTED_SIZE: SyncComputedSize = SyncComputedSize(ComputedSize {
 /// stored size.
 pub(crate) fn auto_computed_size() -> &'static ComputedSize {
     &AUTO_COMPUTED_SIZE.0
+}
+
+static NONE_COMPUTED_SIZE: SyncComputedSize = SyncComputedSize(ComputedSize {
+    kind: ComputedSizeKind::None,
+    value: ComputedStyleValueHandle {
+        pointer: std::ptr::null(),
+    },
+});
+
+/// A shared computed `none` size for readers that substitute none for a
+/// stored size.
+pub(crate) fn none_computed_size() -> &'static ComputedSize {
+    &NONE_COMPUTED_SIZE.0
 }
 
 fn counter_definitions(handle: &ComputedStyleValueHandle) -> &[crate::css::style_value::RetainedCounterDefinition] {

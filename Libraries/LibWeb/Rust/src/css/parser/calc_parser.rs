@@ -23,7 +23,7 @@ use crate::css::css_string::CssString;
 use crate::css::css_tokenizer::ParserTokenKind;
 use crate::css::math_functions::{MathFunction, math_function_from_name};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
-use crate::css::parser::positions_shapes_parser::parse_anchor_function;
+use crate::css::parser::positions_shapes_parser::{parse_anchor_function, parse_anchor_size_function};
 use crate::css::property_metadata::property_name;
 use crate::css::style_compute::LENGTH_UNIT_NAMES;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
@@ -224,9 +224,8 @@ fn parse_non_math_function(
             numeric_type: CalcNumericType::default(),
         }));
     }
-    // NB: Only anchor() becomes a NonMathFunction calc leaf. anchor-size() remains a native
-    //     style value.
-    let parsed = parse_anchor_function(parse_context, context.property, value);
+    let parsed = parse_anchor_function(parse_context, context.property, value)
+        .or_else(|| parse_anchor_size_function(parse_context, context.property, value));
     let Some(parsed) = parsed else {
         return Err(CalcParseError::NotHandled);
     };

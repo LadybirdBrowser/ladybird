@@ -2765,8 +2765,11 @@ impl ComputedSize {
             Some(StyleValueData::Calculated { .. }) => Self::retained(ComputedSizeKind::Calculated, data),
             Some(StyleValueData::Percentage { .. }) => Self::retained(ComputedSizeKind::Percentage, data),
             Some(StyleValueData::Length { .. }) => Self::retained(ComputedSizeKind::Length, data),
-            // FIXME: Support `anchor-size(..)`.
-            Some(StyleValueData::AnchorSize { .. }) => Self::keyword(ComputedSizeKind::None),
+            // NB: Layout resolves anchor-size() itself, through the calculation that wraps it.
+            Some(StyleValueData::AnchorSize { .. }) => Self {
+                kind: ComputedSizeKind::Calculated,
+                value: anchor_function_calculated_handle(data),
+            },
             _ => Self::keyword(ComputedSizeKind::Auto),
         }
     }
@@ -2868,6 +2871,15 @@ impl AlignmentValues {
     }
 }
 
+/// A handle to the calculated style value wrapping the anchor() or anchor-size() value `data` holds.
+fn anchor_function_calculated_handle(data: &RetainedStyleValueData) -> ComputedStyleValueHandle {
+    // SAFETY: The caller matched `data` as live anchor() or anchor-size() style value data.
+    let calculated = unsafe { crate::css::calc::create_anchor_function_calculated(data.pointer().cast()) };
+    ComputedStyleValueHandle {
+        pointer: std::sync::Arc::into_raw(calculated).cast(),
+    }
+}
+
 impl ComputedLengthPercentageOrAuto {
     fn auto() -> Self {
         Self {
@@ -2912,6 +2924,12 @@ impl ComputedLengthPercentageOrAuto {
             ) => Self {
                 is_auto: false,
                 value: ComputedStyleValueHandle::from_retained(data),
+            },
+            // NB: Layout resolves an anchor-size() margin itself, through the calculation that wraps it. Insets keep
+            //     their anchor functions in separate wrappers instead, and expose auto here.
+            Some(StyleValueData::AnchorSize { .. }) if !default_is_auto => Self {
+                is_auto: false,
+                value: anchor_function_calculated_handle(data),
             },
             _ if default_is_auto => Self::auto(),
             _ => Self::zero(),
@@ -3834,7 +3852,10 @@ pub(crate) fn rust_build_surround_group(
 
     let build_or_reuse_group_payload = || {
         let anchor = |data: &RetainedStyleValueData| {
-            if matches!(data.optional_data(), Some(StyleValueData::Anchor { .. })) {
+            if matches!(
+                data.optional_data(),
+                Some(StyleValueData::Anchor { .. } | StyleValueData::AnchorSize { .. })
+            ) {
                 ComputedStyleValueHandle::from_retained(data)
             } else {
                 ComputedStyleValueHandle::empty()
@@ -3867,7 +3888,7 @@ pub(crate) fn rust_build_surround_group(
                 return ComputedStyleValueHandle::empty();
             }
             // SAFETY: The handle retains anchor style value data.
-            let calculated = unsafe { crate::css::calc::create_anchor_inset_calculated(handle.pointer.cast()) };
+            let calculated = unsafe { crate::css::calc::create_anchor_function_calculated(handle.pointer.cast()) };
             ComputedStyleValueHandle {
                 pointer: std::sync::Arc::into_raw(calculated).cast(),
             }

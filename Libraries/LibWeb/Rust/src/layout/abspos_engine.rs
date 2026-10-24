@@ -251,7 +251,16 @@ impl<'pass> AbsposEngine<'pass> {
     }
 
     fn style(&self, node: Node) -> StyleValues<'pass> {
-        StyleValues::for_node(&self.callbacks, node)
+        let style = StyleValues::for_node(&self.callbacks, node);
+        if !style.is_absolutely_positioned() {
+            return style;
+        }
+        let anchor_resolved_values = self
+            .records
+            .used_values_if_owned(node)
+            .and_then(|used| used.anchor_resolved_values.get())
+            .map(|resolved| &**resolved);
+        style.with_anchor_resolved_values(anchor_resolved_values)
     }
 
     fn facts(&self, node: Node) -> NodeFacts<'_> {
@@ -310,15 +319,6 @@ impl<'pass> AbsposEngine<'pass> {
             derives_from_own_computed_values: false,
         }
     }
-}
-
-fn calc_node_create_px_dimension(value: f64) -> *const c_void {
-    crate::css::calc::rust_calc_node_create_numeric_dimension(
-        formatting_context::CALC_NUMERIC_KIND_LENGTH,
-        value,
-        crate::css::style_compute::px_length_unit(),
-    )
-    .cast()
 }
 
 struct AnchorResolutionState {
@@ -596,6 +596,38 @@ impl AbsposEngine<'_> {
         }
     }
 
+    /// https://drafts.csswg.org/css-anchor-position-1/#anchor-size-fn
+    /// The length an anchor-size() function with the given <anchor-size> keyword resolves to against the anchor box
+    /// `rect`, used in a property of the horizontal axis or not.
+    fn anchor_size(
+        &self,
+        anchor_size: Option<u8>,
+        rect: CssPixelRect,
+        positioned_box: Node,
+        containing_block: Node,
+        is_horizontal_axis: bool,
+    ) -> CssPixels {
+        use crate::css::css_enums::anchor_size;
+        // The logical <anchor-size> keywords (block, inline, self-block, and self-inline) map to one of the physical
+        // keywords according to either the writing mode of the box (for self-block and self-inline) or the writing
+        // mode of the box's containing block (for block and inline).
+        let inline_axis_is_horizontal =
+            |writing_mode_box: Node| self.style(writing_mode_box).writing_mode() == writing_mode::HORIZONTAL_TB;
+        // If the <anchor-size> keyword is omitted, it defaults to behaving as whatever keyword matches the axis of
+        // the property that anchor-size() is used in.
+        let measures_width = match anchor_size {
+            None => is_horizontal_axis,
+            Some(anchor_size::WIDTH) => true,
+            Some(anchor_size::HEIGHT) => false,
+            Some(anchor_size::INLINE) => inline_axis_is_horizontal(containing_block),
+            Some(anchor_size::BLOCK) => !inline_axis_is_horizontal(containing_block),
+            Some(anchor_size::SELF_INLINE) => inline_axis_is_horizontal(positioned_box),
+            Some(anchor_size::SELF_BLOCK) => !inline_axis_is_horizontal(positioned_box),
+            Some(_) => unreachable!("anchor-size() holds an unknown <anchor-size> keyword"),
+        };
+        if measures_width { rect.width } else { rect.height }
+    }
+
     fn note_resolved_anchor_function(
         &self,
         anchor_box: Node,
@@ -621,7 +653,7 @@ impl AbsposEngine<'_> {
     #[allow(clippy::too_many_arguments)]
     fn resolve_anchor_value(
         &self,
-        value: style_values::InsetValue,
+        calculated: *const c_void,
         positioned_box: Node,
         containing_block: Node,
         containing_block_geometry: Option<ContainingBlockGeometry>,
@@ -629,8 +661,6 @@ impl AbsposEngine<'_> {
         axis: AnchorValueAxis,
         resolution_state: &mut AnchorResolutionState,
     ) -> Option<CssPixels> {
-        assert!(value.contains_anchor_function());
-        let calculated = value.anchor_bearing_calculated();
         let mut callback_context = AnchorCalcCallbackContext {
             engine: self,
             positioned_box,
@@ -729,7 +759,7 @@ impl AbsposEngine<'_> {
         let mut resolve_inset = |inset: style_values::InsetValue<'_>, axis: AnchorValueAxis| {
             inset.contains_anchor_function().then(|| {
                 self.resolve_anchor_value(
-                    inset,
+                    inset.anchor_bearing_calculated(),
                     node,
                     containing_block,
                     entry_containing_block_geometry.copied(),
@@ -785,6 +815,88 @@ impl AbsposEngine<'_> {
                 AnchorResolutionState::NO_SCROLL_SHIFT
             };
         (Some(resolved), default_scroll_shift)
+    }
+
+    /// Resolves the anchor-size() functions in the sizing and margin properties of `node`.
+    /// https://drafts.csswg.org/css-anchor-position-1/#anchor-size-fn
+    fn resolve_anchor_sizes(
+        &self,
+        node: Node,
+        containing_block: Node,
+        containing_block_geometry: &ContainingBlockGeometry,
+        entry_coordinate_space_box: Node,
+    ) -> style_values::ResolvedAnchorSizes {
+        // NB: Read the computed values themselves, not what an earlier resolution made of them.
+        let style = *StyleValues::for_node(&self.callbacks, node);
+        let mut resolution_state = AnchorResolutionState::NO_SCROLL_SHIFT;
+        let mut resolve = |calculated: *const c_void, is_horizontal: bool, containing_block_extent: CssPixels| {
+            self.resolve_anchor_value(
+                calculated,
+                node,
+                containing_block,
+                Some(*containing_block_geometry),
+                entry_coordinate_space_box,
+                AnchorValueAxis {
+                    is_from_end: false,
+                    is_horizontal,
+                    containing_block_extent,
+                },
+                &mut resolution_state,
+            )
+        };
+        let inline_size = containing_block_geometry.padding_box_inline_size();
+        let block_size = containing_block_geometry.padding_box_block_size();
+        // https://drafts.csswg.org/css-anchor-position-1/#anchor-size-resolution
+        // If no fallback value is specified, it makes the declaration referencing it invalid at computed-value time.
+        let mut resolve_size = |size: &ComputedSize, is_horizontal: bool, initial: ComputedSizeKind| {
+            if !size.is_length_percentage() || !size.length_percentage().contains_anchor_function() {
+                return None;
+            }
+            let extent = if is_horizontal { inline_size } else { block_size };
+            Some(
+                match resolve(size.length_percentage().calculated_pointer(), is_horizontal, extent) {
+                    Some(px) => style_values::ResolvedSizeOverride::Length(px),
+                    None => style_values::ResolvedSizeOverride::Keyword(initial),
+                },
+            )
+        };
+        let mut resolved = style_values::ResolvedAnchorSizes {
+            width: resolve_size(style.width(), true, ComputedSizeKind::Auto),
+            min_width: resolve_size(style.min_width(), true, ComputedSizeKind::Auto),
+            max_width: resolve_size(style.max_width(), true, ComputedSizeKind::None),
+            height: resolve_size(style.height(), false, ComputedSizeKind::Auto),
+            min_height: resolve_size(style.min_height(), false, ComputedSizeKind::Auto),
+            max_height: resolve_size(style.max_height(), false, ComputedSizeKind::None),
+            ..Default::default()
+        };
+        let mut resolve_margin = |margin: &ComputedLengthPercentageOrAuto, is_horizontal: bool| {
+            let length_percentage = margin.length_percentage()?;
+            if !length_percentage.contains_anchor_function() {
+                return None;
+            }
+            // NB: Margin percentages resolve against the inline size of the containing block in both axes.
+            Some(resolve(length_percentage.calculated_pointer(), is_horizontal, inline_size).unwrap_or_default())
+        };
+        resolved.margin_top = resolve_margin(style.margin_top(), false);
+        resolved.margin_right = resolve_margin(style.margin_right(), true);
+        resolved.margin_bottom = resolve_margin(style.margin_bottom(), false);
+        resolved.margin_left = resolve_margin(style.margin_left(), true);
+        resolved
+    }
+
+    /// Makes the resolved anchor sizes of `inputs` visible to the style reads of `node` in this run's records.
+    fn install_resolved_anchor_sizes(&self, node: Node, inputs: &abspos_inputs::AbsposLayoutInputs) {
+        if inputs.resolved_anchor_sizes.is_empty() {
+            return;
+        }
+        let used = self.used(node);
+        if used.anchor_resolved_values.get().is_none() {
+            let _ = used
+                .anchor_resolved_values
+                .set(Box::new(style_values::AnchorResolvedValues::new(
+                    &inputs.resolved_anchor_sizes,
+                )));
+        }
     }
 
     /// https://drafts.csswg.org/css-anchor-position-1/#anchor-center
@@ -1321,14 +1433,20 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
     let engine = unsafe { &*context.engine };
     // SAFETY: `shell` is the live Rust style-value data retained by the CSS
     // calc core's non-math-function node for this synchronous resolution.
-    let StyleValueData::Anchor {
-        has_anchor_name,
-        anchor_name: explicit_anchor_name,
-        anchor_side,
-        fallback_value,
-    } = (unsafe { &*shell.cast::<StyleValueData>() })
-    else {
-        return std::ptr::null();
+    let (has_anchor_name, explicit_anchor_name, fallback_value) = match unsafe { &*shell.cast::<StyleValueData>() } {
+        StyleValueData::Anchor {
+            has_anchor_name,
+            anchor_name,
+            fallback_value,
+            ..
+        }
+        | StyleValueData::AnchorSize {
+            has_anchor_name,
+            anchor_name,
+            fallback_value,
+            ..
+        } => (*has_anchor_name, anchor_name, fallback_value),
+        _ => return std::ptr::null(),
     };
     let style = engine.style(context.positioned_box);
     let bound_anchor_name = has_anchor_name.then(|| explicit_anchor_name.to_fly_string());
@@ -1349,68 +1467,57 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
             context.containing_block_geometry.as_ref(),
             context.entry_coordinate_space_box,
         );
-        if let Some(side) = engine.anchor_side(
-            anchor_side_from_style_value(anchor_side.data()),
-            rect,
-            context.positioned_box,
-            context.containing_block,
-            context.is_from_end,
-            context.is_horizontal_axis,
-        ) {
-            // SAFETY: The state pointer is live and uniquely used by this
-            // synchronous resolver.
-            let resolution_state = unsafe { &mut *context.resolution_state };
-            engine.note_resolved_anchor_function(anchor_box, context.is_horizontal_axis, resolution_state);
-            let inset = if context.is_from_end {
-                context.containing_block_extent - side
-            } else {
-                side
-            };
+        // SAFETY: As above.
+        let resolved = match unsafe { &*shell.cast::<StyleValueData>() } {
+            StyleValueData::Anchor { anchor_side, .. } => engine
+                .anchor_side(
+                    anchor_side_from_style_value(anchor_side.data()),
+                    rect,
+                    context.positioned_box,
+                    context.containing_block,
+                    context.is_from_end,
+                    context.is_horizontal_axis,
+                )
+                .map(|side| {
+                    // SAFETY: The state pointer is live and uniquely used by this
+                    // synchronous resolver.
+                    let resolution_state = unsafe { &mut *context.resolution_state };
+                    engine.note_resolved_anchor_function(anchor_box, context.is_horizontal_axis, resolution_state);
+                    if context.is_from_end {
+                        context.containing_block_extent - side
+                    } else {
+                        side
+                    }
+                }),
+            StyleValueData::AnchorSize {
+                has_anchor_size,
+                anchor_size,
+                ..
+            } => Some(engine.anchor_size(
+                has_anchor_size.then_some(*anchor_size),
+                rect,
+                context.positioned_box,
+                context.containing_block,
+                context.is_horizontal_axis,
+            )),
+            _ => unreachable!("the shell was matched as an anchor function above"),
+        };
+        if let Some(resolved) = resolved {
             // SAFETY: This CSS crate export transfers one Arc reference to
             // the external-resolution snapshot, which releases it after
             // calc resolution.
-            return calc_node_create_px_dimension(inset.to_double());
+            return style_values::calc_node_create_px_dimension(resolved.to_double());
         }
     }
 
-    match fallback_value.optional_data() {
-        None => std::ptr::null(),
-        Some(StyleValueData::Length { value, unit }) => {
-            // Computed anchor() fallbacks hold absolute lengths only; relative
-            // units carry NaN canonical ratios.
-            let ratio = crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[*unit as usize];
-            assert!(ratio.is_finite());
-            calc_node_create_px_dimension(CssPixels::nearest_value_for(*value * ratio).to_double())
-        }
-        Some(StyleValueData::Percentage { value }) => {
-            calc_node_create_px_dimension(context.containing_block_extent.to_double() * (value / 100.0))
-        }
-        Some(StyleValueData::Calculated { .. }) => {
-            let mut nested_context = *context;
-            // SAFETY: The anchor() shell retains the fallback calculation for
-            // this synchronous resolution.
-            let resolved = unsafe {
-                style_values::resolve_calc_with_external_resolutions(
-                    fallback_value.pointer().cast(),
-                    context.containing_block_extent,
-                    (&raw mut nested_context).cast(),
-                    Some(resolve_anchor_non_math_function),
-                )
-            };
-            if !resolved.resolved {
-                return std::ptr::null();
-            }
-            calc_node_create_px_dimension(resolved.value)
-        }
-        Some(StyleValueData::Anchor { .. }) => {
-            let mut nested_context = *context;
-            // SAFETY: The outer anchor() shell retains the nested anchor()
-            // for this synchronous resolution.
-            unsafe {
-                resolve_anchor_non_math_function((&raw mut nested_context).cast(), fallback_value.pointer().cast())
-            }
-        }
-        Some(_) => unreachable!("anchor() fallback must be a length, percentage, calculation or nested anchor()"),
+    // SAFETY: The callback context is live for this synchronous resolution.
+    unsafe {
+        style_values::anchor_function_fallback_node(
+            fallback_value,
+            context.containing_block_extent,
+            std::ptr::from_mut(context).cast(),
+            resolve_anchor_non_math_function,
+        )
     }
 }
 
@@ -2442,6 +2549,7 @@ impl<'pass> AbsposEngine<'pass> {
     // metrics, the inset-aware inline solve, the pre-inside-layout block
     // pass, and the definiteness overrides insets and aspect ratios provide.
     pub(crate) fn dimension_out_of_flow_root(&self, node: Node, inputs: abspos_inputs::AbsposLayoutInputs) {
+        self.install_resolved_anchor_sizes(node, &inputs);
         let (available_space, constraints) = out_of_flow_root_space(inputs);
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let resolved = inputs.resolved_anchor_insets.as_ref();
@@ -2526,6 +2634,7 @@ impl<'pass> AbsposEngine<'pass> {
         inputs: abspos_inputs::AbsposLayoutInputs,
         automatic_content_block_size_of_inside_layout: Option<CssPixels>,
     ) {
+        self.install_resolved_anchor_sizes(node, &inputs);
         let (available_space, constraints) = out_of_flow_root_space(inputs);
         let containing_block_size = geometry::LogicalSize {
             inline_size: available_space.inline_size.to_px_or_zero(),
@@ -2716,7 +2825,7 @@ impl<'pass> AbsposEngine<'pass> {
             child.coordinate_space_box,
             unresolved_containing_block_info,
         );
-        let (containing_block_info, resolved) = if let Some((
+        let (containing_block_info, resolved, resolved_anchor_sizes) = if let Some((
             static_position_rect,
             position_area_containing_block_info,
             position_area_geometry,
@@ -2725,6 +2834,12 @@ impl<'pass> AbsposEngine<'pass> {
         )) = position_area_inputs
         {
             child.static_position_rect = static_position_rect;
+            let resolved_anchor_sizes = self.resolve_anchor_sizes(
+                child_box,
+                child.containing_block(),
+                &position_area_geometry,
+                child.coordinate_space_box,
+            );
             let resolved = self.resolve_anchor_insets(
                 child_box,
                 child.containing_block(),
@@ -2733,8 +2848,14 @@ impl<'pass> AbsposEngine<'pass> {
                 Some(anchor_box),
             );
             let resolved = self.position_area_stretch_insets(child_box, resolved, stretches_inline, stretches_block);
-            (position_area_containing_block_info, resolved)
+            (position_area_containing_block_info, resolved, resolved_anchor_sizes)
         } else {
+            let resolved_anchor_sizes = self.resolve_anchor_sizes(
+                child_box,
+                child.containing_block(),
+                &containing_block_geometry,
+                child.coordinate_space_box,
+            );
             let resolved = self.resolve_anchor_insets(
                 child_box,
                 child.containing_block(),
@@ -2759,7 +2880,7 @@ impl<'pass> AbsposEngine<'pass> {
                 &mut child.static_position_rect,
                 &mut containing_block_info,
             );
-            (containing_block_info, resolved)
+            (containing_block_info, resolved, resolved_anchor_sizes)
         };
         let inputs = abspos_inputs::AbsposLayoutInputs {
             containing_block: child.containing_block(),
@@ -2767,7 +2888,9 @@ impl<'pass> AbsposEngine<'pass> {
             static_position_rect: child.static_position_rect,
             containing_block_info,
             resolved_anchor_insets: resolved,
+            resolved_anchor_sizes,
         };
+        self.install_resolved_anchor_sizes(child_box, &inputs);
         self.layout_element(run, child_box, inputs);
     }
 
