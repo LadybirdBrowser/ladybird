@@ -406,10 +406,10 @@ WebIDL::ExceptionOr<Utf16String> HTMLCanvasElement::to_data_url(Utf16View type, 
 
     // 2. If this canvas element's bitmap has no pixels (i.e. either its horizontal dimension or its vertical dimension is zero),
     //    then return the string "data:,". (This is the shortest data: URL; it represents the empty string in a text/plain resource.)
-    auto bitmap = get_bitmap_from_surface();
+    auto bitmap = get_frame_for_serialization(type);
     if (!is_origin_clean())
         return WebIDL::SecurityError::create(HTML::relevant_realm(*this), "Canvas is not origin-clean"_utf16);
-    if (!bitmap)
+    if (!bitmap.has_value())
         return "data:,"_utf16;
 
     // 3. Let file be a serialization of this canvas element's bitmap as a file, passing type and quality if given.
@@ -441,7 +441,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
     // 2. Let result be null.
     // 3. If this canvas element's bitmap has pixels (i.e., neither its horizontal dimension nor its vertical dimension is zero),
     //    then set result to a copy of this canvas element's bitmap.
-    auto bitmap_result = get_bitmap_from_surface();
+    auto bitmap_result = get_frame_for_serialization(type);
     if (!is_origin_clean())
         return WebIDL::SecurityError::create(HTML::relevant_realm(*this), "Canvas is not origin-clean"_utf16);
 
@@ -451,7 +451,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, callback, bitmap_result, type = move(type_string), quality] {
         // 1. If result is non-null, then set result to a serialization of result as a file with type and quality if given.
         Optional<SerializeBitmapResult> file_result;
-        if (bitmap_result) {
+        if (bitmap_result.has_value()) {
             if (auto result = serialize_bitmap(*bitmap_result, type, quality); !result.is_error())
                 file_result = result.release_value();
         }

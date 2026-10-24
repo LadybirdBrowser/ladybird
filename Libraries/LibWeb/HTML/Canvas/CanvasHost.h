@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Utf16View.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
@@ -43,6 +44,9 @@ public:
     virtual RefPtr<Gfx::Bitmap> get_bitmap_from_surface();
     // The bitmap of the canvas in the color space of its context, with that color space.
     Optional<Gfx::DecodedImageFrame> get_frame_from_surface();
+    // The bitmap of the canvas as a serialization of it as a file of the type takes it: in the color space of its
+    // context if the file can include a color profile, and converted to sRGB otherwise.
+    Optional<Gfx::DecodedImageFrame> get_frame_for_serialization(Utf16View type);
     virtual bool is_origin_clean() const;
 
 protected:

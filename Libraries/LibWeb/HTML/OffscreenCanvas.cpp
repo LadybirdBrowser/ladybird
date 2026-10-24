@@ -424,8 +424,10 @@ GC::Ref<WebIDL::Promise> convert_to_blob(JS::Realm& realm, HTML::OffscreenCanvas
         return WebIDL::create_rejected_promise_for(offscreen_canvas.relevant_global_object(), error);
     }
 
+    auto image_encode_options = options.value_or({});
+
     // 4. Let bitmap be a copy of this's bitmap.
-    auto bitmap = offscreen_canvas.get_bitmap_from_surface();
+    auto bitmap = offscreen_canvas.get_frame_for_serialization(image_encode_options.type);
 
     // 5. Let result be a new promise object.
     auto result_promise = WebIDL::create_promise_for(offscreen_canvas.relevant_global_object());
@@ -433,14 +435,12 @@ GC::Ref<WebIDL::Promise> convert_to_blob(JS::Realm& realm, HTML::OffscreenCanvas
     // 6. Let global be this's relevant global object.
     auto& global = offscreen_canvas.relevant_global_object();
 
-    auto image_encode_options = options.value_or({});
-
     // 7. Run these steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [realm = GC::Ref(realm), &global, result_promise, bitmap, image_encode_options] {
         // 1. Let file be a serialization of bitmap as a file, with options's type and quality if present.
         Optional<HTML::SerializeBitmapResult> file_result {};
 
-        if (bitmap) {
+        if (bitmap.has_value()) {
             if (auto result = HTML::serialize_bitmap(*bitmap, image_encode_options.type, image_encode_options.quality); !result.is_error())
                 file_result = result.release_value();
         }

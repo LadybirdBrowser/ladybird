@@ -47,6 +47,11 @@ ErrorOr<ByteBuffer> PNGWriter::encode(Gfx::Bitmap const& bitmap, Options options
         png_set_iCCP(png_ptr, info_ptr, "embedded profile", 0, options.icc_data->data(), options.icc_data->size());
     }
 
+    if (options.cicp.has_value()) {
+        auto const& cicp = *options.cicp;
+        png_set_cICP(png_ptr, info_ptr, to_underlying(cicp.color_primaries()), to_underlying(cicp.transfer_characteristics()), to_underlying(cicp.matrix_coefficients()), to_underlying(cicp.video_full_range_flag()));
+    }
+
     if (bitmap.format() == BitmapFormat::BGRA8888 || bitmap.format() == BitmapFormat::BGRx8888) {
         png_set_bgr(png_ptr);
     }
