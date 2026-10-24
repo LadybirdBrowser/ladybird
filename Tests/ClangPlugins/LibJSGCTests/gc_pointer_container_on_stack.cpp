@@ -181,6 +181,46 @@ void rooted_or_not_holding_gc_pointers(State& state)
         (void)cell;
 }
 
+// expected-error@+1 {{'Vector<GC::Ref<GC::Cell>>' keeps GC pointers in heap memory that is not scanned for roots}}
+Vector<GC::Ref<GC::Cell>> return_cells()
+{
+    return {};
+}
+
+// expected-error@+1 {{keeps GC pointers in heap memory that is not scanned for roots}}
+Optional<Vector<GC::Ref<GC::Cell>>> return_optional_cells()
+{
+    return {};
+}
+
+// expected-error@+1 {{'Vector<GC::Ref<GC::Cell>>' keeps GC pointers in heap memory that is not scanned for roots}}
+State return_state()
+{
+    return {};
+}
+
+void return_from_lambda()
+{
+    // expected-error@+1 {{keeps GC pointers in heap memory that is not scanned for roots}}
+    auto lambda = [] { return Vector<GC::Ref<GC::Cell>> {}; };
+    (void)lambda;
+}
+
+GC::RootVector<GC::Ref<GC::Cell>> return_root_vector()
+{
+    return {};
+}
+
+Vector<GC::Ref<GC::Cell>> const& return_reference(State& state)
+{
+    return state.cells;
+}
+
+Span<GC::Ref<GC::Cell>> return_span(State& state)
+{
+    return state.cells.span();
+}
+
 void range_over_temporary()
 {
     // expected-error@+1 {{'Vector<GC::Ref<GC::Cell>>' keeps GC pointers in heap memory that is not scanned for roots}}
