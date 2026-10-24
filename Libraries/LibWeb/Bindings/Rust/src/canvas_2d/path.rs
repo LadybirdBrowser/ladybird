@@ -7,7 +7,7 @@
 //! The operations of the CanvasPath mixin on the current default path of a 2D context, whose steps are in
 //! html/canvas_path.rs.
 
-use libgfx_rust::path::PathMut;
+use libgfx_rust::path::Path;
 
 use super::context::{CanvasKind, RenderingContext2D};
 use super::float;
@@ -17,14 +17,13 @@ use crate::html::canvas_path::{
 };
 
 impl<K: CanvasKind> RenderingContext2D<K> {
-    fn build_path<R>(&self, function: impl FnOnce(&mut PathMut<'_>) -> R) -> R {
-        let mut path = self.path_mut();
-        function(&mut path.as_path_mut())
+    fn build_path<R>(&self, function: impl FnOnce(&mut Path) -> R) -> R {
+        function(&mut self.path_mut())
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-closepath
     pub(crate) fn close_path(&self, _: &mut CallContext) -> WebIdlResult<()> {
-        self.build_path(|path| canvas_path::close_path(path));
+        self.build_path(canvas_path::close_path);
         Ok(())
     }
 

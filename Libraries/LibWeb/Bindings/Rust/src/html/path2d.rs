@@ -9,7 +9,7 @@
 use core::cell::RefCell;
 
 use ak::Utf16String;
-use libgfx_rust::path::{OwnedPath, PathBuilder, PathMut};
+use libgfx_rust::path::Path;
 use libjs_rust::api::Trace;
 
 use super::canvas_path::{
@@ -29,7 +29,7 @@ pub(crate) enum Path2DOrDOMString {
 #[gc(crate = libjs_rust)]
 pub(crate) struct Path2D {
     #[gc(untraced)]
-    path: RefCell<OwnedPath>,
+    path: RefCell<Path>,
 }
 
 impl Wrappable for Path2D {}
@@ -48,21 +48,20 @@ impl Path2D {
     /// # Safety
     ///
     /// Nothing may change the path while the reference is in use.
-    pub(crate) unsafe fn path_unguarded(&self) -> &OwnedPath {
+    pub(crate) unsafe fn path_unguarded(&self) -> &Path {
         // SAFETY: The caller keeps the path from changing while it reads it.
         unsafe { self.path.try_borrow_unguarded() }.expect("nothing changes the path meanwhile")
     }
 
-    fn build<R>(&self, function: impl FnOnce(&mut PathMut<'_>) -> R) -> R {
-        let mut path = self.path.borrow_mut();
-        function(&mut path.as_path_mut())
+    fn build<R>(&self, function: impl FnOnce(&mut Path) -> R) -> R {
+        function(&mut self.path.borrow_mut())
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d
     pub(crate) fn construct(_: &mut CallContext, path: Option<Path2DOrDOMString>) -> WebIdlResult<Self> {
         // 1. Let output be a new Path2D object.
         let output = Self {
-            path: RefCell::new(PathBuilder::new().build()),
+            path: RefCell::new(Path::new()),
         };
 
         // 2. If path is not given, then return output.
@@ -142,7 +141,7 @@ impl Path2D {
     // The operations of the CanvasPath mixin, whose steps are in canvas_path.rs.
 
     pub(crate) fn close_path(&self, _: &mut CallContext) -> WebIdlResult<()> {
-        self.build(|path| canvas_path::close_path(path));
+        self.build(canvas_path::close_path);
         Ok(())
     }
 

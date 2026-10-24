@@ -14,7 +14,7 @@ use crate::css::style_value::{BasicShapeData, OwnedBasicShapeData, RetainedStyle
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::{paintable_geometry, style_queries};
-use libgfx_rust::{FloatMatrix4x4, rotation_matrix, translation_matrix};
+use libgfx_rust::{FloatMatrix4x4, FloatPoint, rotation_matrix, translation_matrix};
 
 use super::basic_shapes::{basic_shape_kind, position_resolved};
 
@@ -299,10 +299,10 @@ pub(crate) fn compute_offset_transform(
                 // <url>: If the URL does not reference a shape element this behaves as path("m 0 0") instead.
                 // FIXME: Use the equivalent path of a referenced SVG shape element.
                 Some(_) => {
-                    let mut builder = libgfx_rust::path::PathBuilder::new();
-                    builder.move_to(0.0, 0.0);
+                    let mut builder = libgfx_rust::path::Path::new();
+                    builder.move_to(FloatPoint { x: 0.0, y: 0.0 });
                     let start = starting_position.unwrap_or((border_box.x.to_double(), border_box.y.to_double()));
-                    (builder.build(), false, start)
+                    (builder, false, start)
                 }
             };
             is_closed_loop = closed;

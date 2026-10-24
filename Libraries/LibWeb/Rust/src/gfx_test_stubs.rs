@@ -107,6 +107,17 @@ extern "C" fn ladybird_gfx_glyph_run_glyph_intercepts(
 }
 
 #[unsafe(no_mangle)]
+extern "C" fn ladybird_gfx_font_glyph_outlines(
+    _font: *const c_void,
+    _glyphs: *const DrawGlyph,
+    _glyph_count: usize,
+    _visit: unsafe extern "C" fn(*mut c_void, usize, *const c_void),
+    _context: *mut c_void,
+) {
+    unreachable!("no unit test reads a font");
+}
+
+#[unsafe(no_mangle)]
 extern "C" fn ladybird_gfx_path_create_from_ops(_kinds: *const u8, _values: *const f32, _count: usize) -> *mut c_void {
     unreachable!("no unit test builds a path");
 }

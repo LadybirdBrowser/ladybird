@@ -154,12 +154,11 @@ fn paint_middle_button_scroll_indicator<O: Observer>(recorder: &mut PaintRecorde
     let x = device_origin.x as f32;
     let y = device_origin.y as f32;
     let mut paint_arrow = |p1: FloatPoint, p2: FloatPoint, p3: FloatPoint| {
-        let mut builder = libgfx_rust::path::PathBuilder::new();
-        builder.move_to(p1.x, p1.y);
-        builder.line_to(p2.x, p2.y);
-        builder.line_to(p3.x, p3.y);
-        builder.close();
-        let path = builder.build();
+        let mut path = libgfx_rust::path::Path::new();
+        path.move_to(p1);
+        path.line_to(p2);
+        path.line_to(p3);
+        path.close();
         recorder.recorder.fill_path(FillPathParams {
             force_dark_role: ForceDarkRole::None,
             path: &path,

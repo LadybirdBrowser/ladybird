@@ -6,7 +6,7 @@
 
 use crate::display_list::commands::{DisplayListCommandType, EffectNodeIndex, ReplayClip, ReplayLayer, ReplayMask};
 use crate::display_list::replay::ReplayPainter;
-use libgfx_rust::path::OwnedPath;
+use libgfx_rust::path::Path;
 use libgfx_rust::path::ffi::PathGeometryData;
 use libgfx_rust::{AffineTransform, FloatMatrix4x4, FloatVector3, IntRect, WindingRule};
 use std::ffi::c_void;
@@ -54,7 +54,7 @@ impl ReplayPainter for FfiDisplayListReplayCallbacks {
         unsafe { (self.push_clip)(self.context, clip) };
     }
 
-    fn push_clip_path(&mut self, path: &OwnedPath, winding_rule: WindingRule) {
+    fn push_clip_path(&mut self, path: &Path, winding_rule: WindingRule) {
         let data = path.geometry_data();
         // SAFETY: The C++ painter reads the contours synchronously; the tree keeps the path alive.
         unsafe { (self.push_clip_path)(self.context, &raw const data, path.identity(), winding_rule) };

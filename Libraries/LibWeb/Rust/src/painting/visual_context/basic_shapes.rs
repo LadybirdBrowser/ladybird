@@ -14,8 +14,8 @@ use crate::painting::border_radii::{BorderRadii, normalize_border_radii_data};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::{paintable_geometry, style_queries};
-use libgfx_rust::WindingRule;
-use libgfx_rust::path::{OwnedPath, PathBuilder};
+use libgfx_rust::path::Path;
+use libgfx_rust::{FloatPoint, FloatSize, WindingRule};
 
 pub(super) mod basic_shape_kind {
     pub const INSET: u8 = 0;
@@ -245,14 +245,14 @@ pub(crate) fn position_resolved(position: Option<&StyleValueData>, rect: CssPixe
     )
 }
 
-fn path_from_resolved_rect(top: f32, right: f32, bottom: f32, left: f32) -> OwnedPath {
-    let mut builder = PathBuilder::new();
-    builder.move_to(left, top);
-    builder.line_to(right, top);
-    builder.line_to(right, bottom);
-    builder.line_to(left, bottom);
+fn path_from_resolved_rect(top: f32, right: f32, bottom: f32, left: f32) -> Path {
+    let mut builder = Path::new();
+    builder.move_to(FloatPoint { x: left, y: top });
+    builder.line_to(FloatPoint { x: right, y: top });
+    builder.line_to(FloatPoint { x: right, y: bottom });
+    builder.line_to(FloatPoint { x: left, y: bottom });
     builder.close();
-    builder.build()
+    builder
 }
 
 fn inset_to_path(
@@ -262,7 +262,7 @@ fn inset_to_path(
     left: &RetainedStyleValueData,
     border_radius: &RetainedStyleValueData,
     reference_box: CssPixelRect,
-) -> OwnedPath {
+) -> Path {
     let mut resolved_top = to_px_or_zero(top, reference_box.height).to_float();
     let mut resolved_right = to_px_or_zero(right, reference_box.width).to_float();
     let mut resolved_bottom = to_px_or_zero(bottom, reference_box.height).to_float();
@@ -315,46 +315,103 @@ fn inset_to_path(
     rounded_rect_path(top_edge, right_edge, bottom_edge, left_edge, radii)
 }
 
-fn rounded_rect_path(
-    top_edge: f32,
-    right_edge: f32,
-    bottom_edge: f32,
-    left_edge: f32,
-    radii: BorderRadii,
-) -> OwnedPath {
+fn rounded_rect_path(top_edge: f32, right_edge: f32, bottom_edge: f32, left_edge: f32, radii: BorderRadii) -> Path {
     if !radii.has_any_radius() {
         return path_from_resolved_rect(top_edge, right_edge, bottom_edge, left_edge);
     }
 
     let [tl_h, tl_v, tr_h, tr_v, br_h, br_v, bl_h, bl_v] = radii.values.map(CssPixels::to_float);
 
-    let mut path = PathBuilder::new();
-    path.move_to(left_edge + tl_h, top_edge);
-    path.line_to(right_edge - tr_h, top_edge);
+    let mut path = Path::new();
+    path.move_to(FloatPoint {
+        x: left_edge + tl_h,
+        y: top_edge,
+    });
+    path.line_to(FloatPoint {
+        x: right_edge - tr_h,
+        y: top_edge,
+    });
     if tr_h > 0.0 && tr_v > 0.0 {
-        path.elliptical_arc_to(right_edge, top_edge + tr_v, tr_h, tr_v, 0.0, false, true);
+        path.elliptical_arc_to(
+            FloatPoint {
+                x: right_edge,
+                y: top_edge + tr_v,
+            },
+            FloatSize {
+                width: tr_h,
+                height: tr_v,
+            },
+            0.0,
+            false,
+            true,
+        );
     }
-    path.line_to(right_edge, bottom_edge - br_v);
+    path.line_to(FloatPoint {
+        x: right_edge,
+        y: bottom_edge - br_v,
+    });
     if br_h > 0.0 && br_v > 0.0 {
-        path.elliptical_arc_to(right_edge - br_h, bottom_edge, br_h, br_v, 0.0, false, true);
+        path.elliptical_arc_to(
+            FloatPoint {
+                x: right_edge - br_h,
+                y: bottom_edge,
+            },
+            FloatSize {
+                width: br_h,
+                height: br_v,
+            },
+            0.0,
+            false,
+            true,
+        );
     }
-    path.line_to(left_edge + bl_h, bottom_edge);
+    path.line_to(FloatPoint {
+        x: left_edge + bl_h,
+        y: bottom_edge,
+    });
     if bl_h > 0.0 && bl_v > 0.0 {
-        path.elliptical_arc_to(left_edge, bottom_edge - bl_v, bl_h, bl_v, 0.0, false, true);
+        path.elliptical_arc_to(
+            FloatPoint {
+                x: left_edge,
+                y: bottom_edge - bl_v,
+            },
+            FloatSize {
+                width: bl_h,
+                height: bl_v,
+            },
+            0.0,
+            false,
+            true,
+        );
     }
-    path.line_to(left_edge, top_edge + tl_v);
+    path.line_to(FloatPoint {
+        x: left_edge,
+        y: top_edge + tl_v,
+    });
     if tl_h > 0.0 && tl_v > 0.0 {
-        path.elliptical_arc_to(left_edge + tl_h, top_edge, tl_h, tl_v, 0.0, false, true);
+        path.elliptical_arc_to(
+            FloatPoint {
+                x: left_edge + tl_h,
+                y: top_edge,
+            },
+            FloatSize {
+                width: tl_h,
+                height: tl_v,
+            },
+            0.0,
+            false,
+            true,
+        );
     }
     path.close();
-    path.build()
+    path
 }
 
 fn circle_to_path(
     radius: &RetainedStyleValueData,
     position: &RetainedStyleValueData,
     reference_box: CssPixelRect,
-) -> OwnedPath {
+) -> Path {
     let translated_reference_box = CssPixelRect::new(
         CssPixels::from_raw(0),
         CssPixels::from_raw(0),
@@ -370,20 +427,55 @@ fn circle_to_path(
     let center_y = center.y.to_float();
     // NB: The circle is traced in quarter arcs from its rightmost point, as SVG traces a <circle>, so that both
     //     rasterize alike.
-    let mut path = PathBuilder::new();
-    path.move_to(center_x + radius_px, center_y);
-    path.arc_to(center_x, center_y + radius_px, radius_px, false, true);
-    path.arc_to(center_x - radius_px, center_y, radius_px, false, true);
-    path.arc_to(center_x, center_y - radius_px, radius_px, false, true);
-    path.arc_to(center_x + radius_px, center_y, radius_px, false, true);
-    path.build()
+    let mut path = Path::new();
+    path.move_to(FloatPoint {
+        x: center_x + radius_px,
+        y: center_y,
+    });
+    path.arc_to(
+        FloatPoint {
+            x: center_x,
+            y: center_y + radius_px,
+        },
+        radius_px,
+        false,
+        true,
+    );
+    path.arc_to(
+        FloatPoint {
+            x: center_x - radius_px,
+            y: center_y,
+        },
+        radius_px,
+        false,
+        true,
+    );
+    path.arc_to(
+        FloatPoint {
+            x: center_x,
+            y: center_y - radius_px,
+        },
+        radius_px,
+        false,
+        true,
+    );
+    path.arc_to(
+        FloatPoint {
+            x: center_x + radius_px,
+            y: center_y,
+        },
+        radius_px,
+        false,
+        true,
+    );
+    path
 }
 
 fn ellipse_to_path(
     radius: &RetainedStyleValueData,
     position: &RetainedStyleValueData,
     reference_box: CssPixelRect,
-) -> OwnedPath {
+) -> Path {
     let translated_reference_box = CssPixelRect::new(
         CssPixels::from_raw(0),
         CssPixels::from_raw(0),
@@ -399,19 +491,62 @@ fn ellipse_to_path(
     let center_y = center.y.to_float();
     let radius_x = size.width.to_float();
     let radius_y = size.height.to_float();
+    let radii = FloatSize {
+        width: radius_x,
+        height: radius_y,
+    };
     // NB: The ellipse is traced in quarter arcs from its rightmost point, as SVG traces an <ellipse>, so that both
     //     rasterize alike.
-    let mut path = PathBuilder::new();
-    path.move_to(center_x + radius_x, center_y);
-    path.elliptical_arc_to(center_x, center_y + radius_y, radius_x, radius_y, 0.0, false, true);
-    path.elliptical_arc_to(center_x - radius_x, center_y, radius_x, radius_y, 0.0, false, true);
-    path.elliptical_arc_to(center_x, center_y - radius_y, radius_x, radius_y, 0.0, false, true);
-    path.elliptical_arc_to(center_x + radius_x, center_y, radius_x, radius_y, 0.0, false, true);
-    path.build()
+    let mut path = Path::new();
+    path.move_to(FloatPoint {
+        x: center_x + radius_x,
+        y: center_y,
+    });
+    path.elliptical_arc_to(
+        FloatPoint {
+            x: center_x,
+            y: center_y + radius_y,
+        },
+        radii,
+        0.0,
+        false,
+        true,
+    );
+    path.elliptical_arc_to(
+        FloatPoint {
+            x: center_x - radius_x,
+            y: center_y,
+        },
+        radii,
+        0.0,
+        false,
+        true,
+    );
+    path.elliptical_arc_to(
+        FloatPoint {
+            x: center_x,
+            y: center_y - radius_y,
+        },
+        radii,
+        0.0,
+        false,
+        true,
+    );
+    path.elliptical_arc_to(
+        FloatPoint {
+            x: center_x + radius_x,
+            y: center_y,
+        },
+        radii,
+        0.0,
+        false,
+        true,
+    );
+    path
 }
 
-fn polygon_to_path(points: &crate::css::style_value::RetainedShapePointList, reference_box: CssPixelRect) -> OwnedPath {
-    let mut path = PathBuilder::new();
+fn polygon_to_path(points: &crate::css::style_value::RetainedShapePointList, reference_box: CssPixelRect) -> Path {
+    let mut path = Path::new();
     let mut first = true;
     for point in points.as_slice() {
         let [x, y] = point.values();
@@ -422,14 +557,20 @@ fn polygon_to_path(points: &crate::css::style_value::RetainedShapePointList, ref
             .to_px(reference_box.height)
             .to_float();
         if first {
-            path.move_to(resolved_x, resolved_y);
+            path.move_to(FloatPoint {
+                x: resolved_x,
+                y: resolved_y,
+            });
         } else {
-            path.line_to(resolved_x, resolved_y);
+            path.line_to(FloatPoint {
+                x: resolved_x,
+                y: resolved_y,
+            });
         }
         first = false;
     }
     path.close();
-    path.build()
+    path
 }
 
 /// One coordinate of a shape() point: a length-percentage, or a position edge holding one.
@@ -447,14 +588,14 @@ pub(crate) fn shape_to_path(
     points: &[crate::css::style_value::RetainedShapePoint],
     commands: &[crate::css::style_value::ShapeCommand],
     reference_box: CssPixelRect,
-) -> OwnedPath {
+) -> Path {
     use crate::css::style_value::{ShapeCommandKind, ShapeControlPointAnchor};
     let (width, height) = (reference_box.width, reference_box.height);
     let resolve = |point: &crate::css::style_value::RetainedShapePoint| {
         let [x, y] = point.values();
         (shape_coordinate(x, width), shape_coordinate(y, height))
     };
-    let mut path = PathBuilder::new();
+    let mut path = Path::new();
     let mut points = points.iter();
     let mut current = (0.0f32, 0.0f32);
     let mut subpath_start = current;
@@ -474,11 +615,17 @@ pub(crate) fn shape_to_path(
             ShapeCommandKind::From | ShapeCommandKind::Move => {
                 current = end_point(resolve(points.next().unwrap()));
                 subpath_start = current;
-                path.move_to(current.0, current.1);
+                path.move_to(FloatPoint {
+                    x: current.0,
+                    y: current.1,
+                });
             }
             ShapeCommandKind::Line => {
                 current = end_point(resolve(points.next().unwrap()));
-                path.line_to(current.0, current.1);
+                path.line_to(FloatPoint {
+                    x: current.0,
+                    y: current.1,
+                });
             }
             ShapeCommandKind::HorizontalLine => {
                 let (x, _) = resolve(points.next().unwrap());
@@ -487,7 +634,10 @@ pub(crate) fn shape_to_path(
                 } else {
                     (x, start.1)
                 };
-                path.line_to(current.0, current.1);
+                path.line_to(FloatPoint {
+                    x: current.0,
+                    y: current.1,
+                });
             }
             ShapeCommandKind::VerticalLine => {
                 let (_, y) = resolve(points.next().unwrap());
@@ -496,7 +646,10 @@ pub(crate) fn shape_to_path(
                 } else {
                     (start.0, y)
                 };
-                path.line_to(current.0, current.1);
+                path.line_to(FloatPoint {
+                    x: current.0,
+                    y: current.1,
+                });
             }
             ShapeCommandKind::Curve | ShapeCommandKind::Smooth => {
                 let end = end_point(resolve(points.next().unwrap()));
@@ -518,8 +671,18 @@ pub(crate) fn shape_to_path(
                     control_points.insert(0, reflected);
                 }
                 match control_points[..] {
-                    [only] => path.quadratic_bezier_curve_to(only.0, only.1, end.0, end.1),
-                    [first, second] => path.cubic_bezier_curve_to(first.0, first.1, second.0, second.1, end.0, end.1),
+                    [only] => path.quadratic_bezier_curve_to(
+                        FloatPoint { x: only.0, y: only.1 },
+                        FloatPoint { x: end.0, y: end.1 },
+                    ),
+                    [first, second] => path.cubic_bezier_curve_to(
+                        FloatPoint { x: first.0, y: first.1 },
+                        FloatPoint {
+                            x: second.0,
+                            y: second.1,
+                        },
+                        FloatPoint { x: end.0, y: end.1 },
+                    ),
                     _ => unreachable!("a curve has one or two control points"),
                 }
                 control_point = control_points.last().copied();
@@ -544,10 +707,11 @@ pub(crate) fn shape_to_path(
                     crate::css::table_group_builder::angle_degrees(points.next().unwrap().values()[0].data())
                         .unwrap_or(0.0);
                 path.elliptical_arc_to(
-                    end.0,
-                    end.1,
-                    radius_x.abs(),
-                    radius_y.abs(),
+                    FloatPoint { x: end.0, y: end.1 },
+                    FloatSize {
+                        width: radius_x.abs(),
+                        height: radius_y.abs(),
+                    },
                     rotation_degrees.to_radians() as f32,
                     command.arc_large,
                     command.arc_clockwise,
@@ -561,7 +725,7 @@ pub(crate) fn shape_to_path(
         }
         previous_control_point = control_point;
     }
-    path.build()
+    path
 }
 
 /// The device-space path of a computed basic shape whose reference box is `reference_box`, and its fill rule.
@@ -569,7 +733,7 @@ pub(crate) fn basic_shape_device_path(
     shape: &BasicShapeData,
     reference_box: CssPixelRect,
     pixel_ratio: f64,
-) -> (OwnedPath, WindingRule) {
+) -> (Path, WindingRule) {
     let BasicShapeData {
         kind,
         v0,
@@ -610,7 +774,7 @@ pub(crate) fn basic_shape_device_path(
 }
 
 /// The device-space path of a path whose coordinates are relative to the origin of `reference_box`.
-fn device_path_from_local_path(path: OwnedPath, reference_box: CssPixelRect, pixel_ratio: f64) -> OwnedPath {
+fn device_path_from_local_path(path: Path, reference_box: CssPixelRect, pixel_ratio: f64) -> Path {
     let translated_path = path.copy_transformed([
         1.0,
         0.0,
@@ -703,7 +867,7 @@ fn geometry_box_path(
     style: crate::css::computed_value_views::ComputedValuesView<'_>,
     geometry_box: u16,
     reference_box: CssPixelRect,
-) -> OwnedPath {
+) -> Path {
     let border = [
         style.border_top_width(),
         style.border_right_width(),
@@ -746,7 +910,7 @@ pub(crate) fn compute_basic_shape_clip_path_data(
     layout_arena: &impl PaintRead,
     slot: NodeSlotId,
     pixel_ratio: f64,
-) -> Option<(OwnedPath, libgfx_rust::IntRect, WindingRule)> {
+) -> Option<(Path, libgfx_rust::IntRect, WindingRule)> {
     let node = slot;
     let style = layout_arena.node_style_if_live(node)?;
     let clip_path = style_queries::handle_value(&style.mask().clip_path)?;

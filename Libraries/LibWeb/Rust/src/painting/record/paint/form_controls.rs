@@ -8,7 +8,7 @@ use crate::painting::paint_read::PaintRead;
 use crate::painting::record::trace::Observer;
 
 use crate::painting::force_dark::ForceDarkRole;
-use libgfx_rust::path::{OwnedPath, PathBuilder};
+use libgfx_rust::path::Path;
 
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
@@ -16,7 +16,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::recorder::{FillPathParams, PaintStyleOrColor};
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::PaintRecorder;
-use libgfx_rust::{Color, IntRect, ShouldAntiAlias, WindingRule};
+use libgfx_rust::{Color, FloatPoint, IntRect, ShouldAntiAlias, WindingRule};
 
 // Note: the color names reflect what the colors would be for a light theme,
 // not necessary the actual colors.
@@ -106,16 +106,15 @@ fn centered_square_device_rect<O: Observer>(
     recorder.converter.enclosing_device_rect(rect)
 }
 
-fn check_mark_path(checkbox_rect: IntRect) -> OwnedPath {
-    let mut builder = PathBuilder::new();
-    builder.move_to(72.0, 14.0);
-    builder.line_to(37.0, 64.0);
-    builder.line_to(19.0, 47.0);
-    builder.line_to(8.0, 58.0);
-    builder.line_to(40.0, 89.0);
-    builder.line_to(85.0, 24.0);
-    builder.close();
-    let path = builder.build();
+fn check_mark_path(checkbox_rect: IntRect) -> Path {
+    let mut path = Path::new();
+    path.move_to(FloatPoint { x: 72.0, y: 14.0 });
+    path.line_to(FloatPoint { x: 37.0, y: 64.0 });
+    path.line_to(FloatPoint { x: 19.0, y: 47.0 });
+    path.line_to(FloatPoint { x: 8.0, y: 58.0 });
+    path.line_to(FloatPoint { x: 40.0, y: 89.0 });
+    path.line_to(FloatPoint { x: 85.0, y: 24.0 });
+    path.close();
 
     let checkmark_width = 100.0f32;
     let checkmark_height = 100.0f32;

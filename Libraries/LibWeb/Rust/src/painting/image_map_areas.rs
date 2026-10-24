@@ -6,8 +6,8 @@
 
 use crate::css::style::fast_hash::FastMap;
 use crate::layout::node_data::NodeSlotId;
-use libgfx_rust::WindingRule;
-use libgfx_rust::path::{OwnedPath, PathBuilder};
+use libgfx_rust::path::Path;
+use libgfx_rust::{FloatPoint, WindingRule};
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -39,7 +39,7 @@ impl AreaShape {
 pub enum AreaCoverage {
     /// The default state, which covers the whole image.
     WholeImage,
-    Shape(OwnedPath),
+    Shape(Path),
     /// A shape that is empty, such as one with too few coordinates.
     Nothing,
 }
@@ -58,7 +58,7 @@ impl AreaCoverage {
             //         that exactly covers the entire image excludes the image's borders and padding. Treat the default
             //         state as covering everything that hits the image instead.
             Self::WholeImage => true,
-            Self::Shape(path) => path.contains(x, y, WindingRule::EvenOdd as i32),
+            Self::Shape(path) => path.contains(x, y, WindingRule::EvenOdd),
             Self::Nothing => false,
         }
     }
@@ -74,7 +74,7 @@ pub struct PublishedImageMapArea {
 // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
 /// The shape to layer onto the image, built with the same operations the DOM side built it with,
 /// so that the containment test is the one `Gfx::Path` already answered.
-fn shape_path(shape: AreaShape, coords: &[f64]) -> Option<OwnedPath> {
+fn shape_path(shape: AreaShape, coords: &[f64]) -> Option<Path> {
     // Each area element in areas must be processed as follows to obtain a shape to layer onto the image:
 
     // 1. Find the state that the element's shape attribute represents.
@@ -108,14 +108,14 @@ fn shape_path(shape: AreaShape, coords: &[f64]) -> Option<OwnedPath> {
             let x = coords[0] as f32;
             let y = coords[1] as f32;
             let radius = coords[2] as f32;
-            let mut builder = PathBuilder::new();
-            builder.move_to(x + radius, y);
-            builder.arc_to(x, y + radius, radius, false, true);
-            builder.arc_to(x - radius, y, radius, false, true);
-            builder.arc_to(x, y - radius, radius, false, true);
-            builder.arc_to(x + radius, y, radius, false, true);
+            let mut builder = Path::new();
+            builder.move_to(FloatPoint { x: x + radius, y });
+            builder.arc_to(FloatPoint { x, y: y + radius }, radius, false, true);
+            builder.arc_to(FloatPoint { x: x - radius, y }, radius, false, true);
+            builder.arc_to(FloatPoint { x, y: y - radius }, radius, false, true);
+            builder.arc_to(FloatPoint { x: x + radius, y }, radius, false, true);
             builder.close();
-            Some(builder.build())
+            Some(builder)
         }
         // The shape is a rectangle that exactly covers the entire image.
         // NB: AreaCoverage answers for the default state without a shape.
@@ -125,15 +125,15 @@ fn shape_path(shape: AreaShape, coords: &[f64]) -> Option<OwnedPath> {
                 return None;
             }
 
-            let mut builder = PathBuilder::new();
+            let mut builder = Path::new();
             let (x, y) = vertex(0);
-            builder.move_to(x, y);
+            builder.move_to(FloatPoint { x, y });
             for index in 1..coords.len() / 2 {
                 let (x, y) = vertex(index);
-                builder.line_to(x, y);
+                builder.line_to(FloatPoint { x, y });
             }
             builder.close();
-            Some(builder.build())
+            Some(builder)
         }
         AreaShape::Rectangle => {
             if coords.len() < 4 {
@@ -158,13 +158,13 @@ fn shape_path(shape: AreaShape, coords: &[f64]) -> Option<OwnedPath> {
             // corner is given by the coordinate (x2, y2), those coordinates being interpreted as CSS pixels from the
             // top left corner of the image.
             let [left, top, right, bottom] = corners.map(|corner| corner as f32);
-            let mut builder = PathBuilder::new();
-            builder.move_to(left, top);
-            builder.line_to(right, top);
-            builder.line_to(right, bottom);
-            builder.line_to(left, bottom);
+            let mut builder = Path::new();
+            builder.move_to(FloatPoint { x: left, y: top });
+            builder.line_to(FloatPoint { x: right, y: top });
+            builder.line_to(FloatPoint { x: right, y: bottom });
+            builder.line_to(FloatPoint { x: left, y: bottom });
             builder.close();
-            Some(builder.build())
+            Some(builder)
         }
     }
 }

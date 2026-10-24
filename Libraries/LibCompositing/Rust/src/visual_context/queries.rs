@@ -339,7 +339,7 @@ impl VisualContextTree {
                 }) {
                     return false;
                 }
-                clip_path.path.contains(point.x, point.y, clip_path.fill_rule as i32)
+                clip_path.path.contains(point.x, point.y, clip_path.fill_rule)
             }
             ClipNodeData::Dead => true,
         }

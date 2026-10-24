@@ -6,7 +6,7 @@
 
 use super::commands::*;
 use crate::display_list::ffi_bytes::FfiBytes;
-use libgfx_rust::path::OwnedPath;
+use libgfx_rust::path::Path;
 use libgfx_rust::{AffineTransform, CornerRadii, FloatRect, IntRect, WindingRule, enclosing_int_rect};
 use std::rc::Rc;
 
@@ -67,7 +67,7 @@ impl PendingInlineClip {
         }
     }
 
-    pub fn intersecting_path(path: &OwnedPath, path_winding_rule: WindingRule) -> Self {
+    pub fn intersecting_path(path: &Path, path_winding_rule: WindingRule) -> Self {
         Self {
             kind: InlineClipKind::Path,
             path_winding_rule,

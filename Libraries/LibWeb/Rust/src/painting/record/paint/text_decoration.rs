@@ -16,8 +16,8 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::recorder::{PaintStyleOrColor, StrokePathParams};
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::PaintRecorder;
-use libgfx_rust::path::PathBuilder;
-use libgfx_rust::{CapStyle, Color, IntPoint, JoinStyle, LineStyle, ShouldAntiAlias};
+use libgfx_rust::path::Path;
+use libgfx_rust::{CapStyle, Color, FloatPoint, IntPoint, JoinStyle, LineStyle, ShouldAntiAlias};
 
 #[derive(Clone, Copy, Default)]
 pub(crate) struct TextDecorationSet {
@@ -345,12 +345,15 @@ fn compute_skip_ink_segments<O: Observer>(
     segments
 }
 
-fn build_triangle_wave_path(from: IntPoint, to: IntPoint, amplitude: f32) -> PathBuilder {
-    let mut path = PathBuilder::new();
+fn build_triangle_wave_path(from: IntPoint, to: IntPoint, amplitude: f32) -> Path {
+    let mut path = Path::new();
     if from.y != to.y {
         return path;
     }
-    path.move_to(from.x as f32, from.y as f32);
+    path.move_to(FloatPoint {
+        x: from.x as f32,
+        y: from.y as f32,
+    });
 
     let wavelength = amplitude * 2.0;
     let half_wavelength = amplitude;
@@ -361,51 +364,63 @@ fn build_triangle_wave_path(from: IntPoint, to: IntPoint, amplitude: f32) -> Pat
     let mut remaining = (to.x as f32 - position_x).abs();
     while remaining > wavelength {
         // Draw a whole wave
-        path.line_to(position_x + quarter_wavelength, position_y - quarter_wavelength);
-        path.line_to(
-            position_x + quarter_wavelength + half_wavelength,
-            position_y + quarter_wavelength,
-        );
-        path.line_to(position_x + wavelength, position_y);
+        path.line_to(FloatPoint {
+            x: position_x + quarter_wavelength,
+            y: position_y - quarter_wavelength,
+        });
+        path.line_to(FloatPoint {
+            x: position_x + quarter_wavelength + half_wavelength,
+            y: position_y + quarter_wavelength,
+        });
+        path.line_to(FloatPoint {
+            x: position_x + wavelength,
+            y: position_y,
+        });
         position_x += wavelength;
         remaining = (to.x as f32 - position_x).abs();
     }
 
     // Up
     if remaining > quarter_wavelength {
-        path.line_to(position_x + quarter_wavelength, position_y - quarter_wavelength);
+        path.line_to(FloatPoint {
+            x: position_x + quarter_wavelength,
+            y: position_y - quarter_wavelength,
+        });
         position_x += quarter_wavelength;
         remaining = (to.x as f32 - position_x).abs();
     } else if remaining >= 1.0 {
         let fraction = remaining / quarter_wavelength;
-        path.line_to(
-            position_x + (fraction * quarter_wavelength),
-            position_y - (fraction * quarter_wavelength),
-        );
+        path.line_to(FloatPoint {
+            x: position_x + (fraction * quarter_wavelength),
+            y: position_y - (fraction * quarter_wavelength),
+        });
         remaining = 0.0;
     }
 
     // Down
     if remaining > half_wavelength {
-        path.line_to(position_x + half_wavelength, position_y + quarter_wavelength);
+        path.line_to(FloatPoint {
+            x: position_x + half_wavelength,
+            y: position_y + quarter_wavelength,
+        });
         position_x += half_wavelength;
         remaining = (to.x as f32 - position_x).abs();
     } else if remaining >= 1.0 {
         let fraction = remaining / half_wavelength;
-        path.line_to(
-            position_x + (fraction * half_wavelength),
-            position_y - quarter_wavelength + (fraction * half_wavelength),
-        );
+        path.line_to(FloatPoint {
+            x: position_x + (fraction * half_wavelength),
+            y: position_y - quarter_wavelength + (fraction * half_wavelength),
+        });
         remaining = 0.0;
     }
 
     // Back to middle
     if remaining >= 1.0 {
         let fraction = remaining / quarter_wavelength;
-        path.line_to(
-            position_x + (fraction * quarter_wavelength),
-            position_y + ((1.0 - fraction) * quarter_wavelength),
-        );
+        path.line_to(FloatPoint {
+            x: position_x + (fraction * quarter_wavelength),
+            y: position_y + ((1.0 - fraction) * quarter_wavelength),
+        });
     }
     path
 }
@@ -598,7 +613,7 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                         x: segment.end_x,
                         y: wave_y,
                     };
-                    let path = build_triangle_wave_path(from, to, amplitude as f32).build();
+                    let path = build_triangle_wave_path(from, to, amplitude as f32);
                     recorder.recorder.stroke_path(StrokePathParams {
                         force_dark_role: ForceDarkRole::Foreground,
                         cap_style: CapStyle::Round,
