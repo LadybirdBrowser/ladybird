@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 20 tests
 
-11 Pass
-9 Fail
+16 Pass
+4 Fail
 Pass	SVGNumberList (rotate on text): animVal read before an attribute change reports the new item count
 Pass	SVGNumberList (rotate on text): animVal read before an attribute change reports the new value
 Pass	SVGNumberList (rotate on text): the animVal list object survives an attribute change
@@ -19,8 +19,8 @@ Fail	SVGPointList (points on polyline, animatedPoints): animVal read before an a
 Pass	SVGPointList (points on polyline, animatedPoints): the animVal list object survives an attribute change
 Fail	SVGPointList (points on polyline, animatedPoints): animVal reports the new item count after a baseVal DOM change
 Fail	SVGPointList (points on polyline, animatedPoints): animVal items are read only
-Fail	SVGTransformList (gradientTransform on linearGradient): animVal read before an attribute change reports the new item count
-Fail	SVGTransformList (gradientTransform on linearGradient): animVal read before an attribute change reports the new value
-Fail	SVGTransformList (gradientTransform on linearGradient): the animVal list object survives an attribute change
-Fail	SVGTransformList (gradientTransform on linearGradient): animVal reports the new item count after a baseVal DOM change
-Fail	SVGTransformList (gradientTransform on linearGradient): animVal items are read only
+Pass	SVGTransformList (gradientTransform on linearGradient): animVal read before an attribute change reports the new item count
+Pass	SVGTransformList (gradientTransform on linearGradient): animVal read before an attribute change reports the new value
+Pass	SVGTransformList (gradientTransform on linearGradient): the animVal list object survives an attribute change
+Pass	SVGTransformList (gradientTransform on linearGradient): animVal reports the new item count after a baseVal DOM change
+Pass	SVGTransformList (gradientTransform on linearGradient): animVal items are read only

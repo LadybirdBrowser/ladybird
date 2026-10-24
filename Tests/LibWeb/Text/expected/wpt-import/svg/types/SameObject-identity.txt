@@ -1,9 +1,9 @@
-Harness status: Error
+Harness status: OK
 
-Found 66 tests
+Found 81 tests
 
-64 Pass
-2 Fail
+80 Pass
+1 Fail
 Pass	SVGAnimatedLength: rect.x
 Pass	SVGAnimatedLength: rect.y
 Pass	SVGAnimatedLength: rect.width
@@ -66,7 +66,22 @@ Pass	SVGAnimatedEnumeration: tp.spacing
 Pass	SVGAnimatedEnumeration: text.lengthAdjust
 Pass	SVGAnimatedAngle: mk.orientAngle
 Pass	SVGAnimatedAngle.baseVal: mk.orientAngle.baseVal
-Fail	SVGAnimatedTransformList: rect.transform
-Fail	SVGAnimatedTransformList.baseVal: rect.transform.baseVal
+Pass	SVGAnimatedTransformList: rect.transform
+Pass	SVGAnimatedTransformList.baseVal: rect.transform.baseVal
 Pass	SVGAnimatedTransformList: pat.patternTransform
 Pass	SVGAnimatedTransformList: lg.gradientTransform
+Pass	SVGTransform.matrix (held transform)
+Pass	SVGAnimatedString: use.href
+Pass	SVGAnimatedString: rect.className
+Pass	SVGAnimatedString: anchor.target
+Pass	SVGAnimatedRect: root.viewBox
+Pass	SVGAnimatedRect.baseVal (DOMRect): root.viewBox.baseVal
+Pass	SVGAnimatedRect.animVal (DOMRectReadOnly): root.viewBox.animVal
+Pass	SVGAnimatedPreserveAspectRatio: root.preserveAspectRatio
+Pass	SVGAnimatedPreserveAspectRatio.baseVal: root.preserveAspectRatio.baseVal
+Pass	SVGPointList: poly.points
+Pass	SVGPointList: poly.animatedPoints
+Pass	SVGStringList: rect.requiredExtensions
+Pass	SVGStringList: rect.systemLanguage
+Fail	DOMPointReadOnly: root.currentTranslate
+Pass	DOMTokenList: anchor.relList

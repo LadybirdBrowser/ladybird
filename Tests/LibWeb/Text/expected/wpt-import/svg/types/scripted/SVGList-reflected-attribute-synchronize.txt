@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 59 tests
 
-22 Pass
-37 Fail
+50 Pass
+9 Fail
 Pass	SVGNumberList (rotate on text): getItem returns the same object for one index, with no attribute change
 Pass	SVGNumberList (rotate on text): a same-count change updates the values of the held items
 Pass	SVGNumberList (rotate on text): a same-count change keeps the held item in the list
@@ -34,32 +34,32 @@ Fail	SVGPointList (points on polyline): a shrink detaches the truncated item, wh
 Fail	SVGPointList (points on polyline): the truncated item stops reaching the element and stops being read only
 Pass	SVGPointList (points on polyline): the list interface object survives the change
 Fail	SVGPointList (points on polyline): an empty string empties the list and detaches every item
-Fail	SVGTransformList (transform on g): getItem returns the same object for one index, with no attribute change
-Fail	SVGTransformList (transform on g): a same-count change updates the values of the held items
-Fail	SVGTransformList (transform on g): a same-count change keeps the held item in the list
-Fail	SVGTransformList (transform on g): the held item is still attached after a same-count change
-Fail	SVGTransformList (transform on g): a grow updates the held item and appends new ones
-Fail	SVGTransformList (transform on g): a shrink updates the held items that are still in range
-Fail	SVGTransformList (transform on g): a shrink detaches the truncated item, which keeps its value
-Fail	SVGTransformList (transform on g): the truncated item stops reaching the element and stops being read only
-Fail	SVGTransformList (transform on g): the list interface object survives the change
-Fail	SVGTransformList (transform on g): an empty string empties the list and detaches every item
-Fail	SVGTransformList (gradientTransform on linearGradient): getItem returns the same object for one index, with no attribute change
-Fail	SVGTransformList (gradientTransform on linearGradient): a same-count change updates the values of the held items
-Fail	SVGTransformList (gradientTransform on linearGradient): a same-count change keeps the held item in the list
-Fail	SVGTransformList (gradientTransform on linearGradient): the held item is still attached after a same-count change
-Fail	SVGTransformList (gradientTransform on linearGradient): a grow updates the held item and appends new ones
-Fail	SVGTransformList (gradientTransform on linearGradient): a shrink updates the held items that are still in range
-Fail	SVGTransformList (gradientTransform on linearGradient): a shrink detaches the truncated item, which keeps its value
-Fail	SVGTransformList (gradientTransform on linearGradient): the truncated item stops reaching the element and stops being read only
-Fail	SVGTransformList (gradientTransform on linearGradient): the list interface object survives the change
-Fail	SVGTransformList (gradientTransform on linearGradient): an empty string empties the list and detaches every item
-Fail	SVGTransformList (transform): a changed transform function keeps the held item in the list
-Fail	SVGTransformList (transform): a changed transform function updates the held item's type and matrix
-Fail	SVGTransformList (transform): swapping two transform functions keeps both held items
-Fail	SVGTransformList (transform): an empty list detaches every item
-Fail	SVGTransformList (gradientTransform): a changed transform function keeps the held item in the list
-Fail	SVGTransformList (gradientTransform): a changed transform function updates the held item's type and matrix
-Fail	SVGTransformList (gradientTransform): swapping two transform functions keeps both held items
-Fail	SVGTransformList (gradientTransform): an empty list detaches every item
+Pass	SVGTransformList (transform on g): getItem returns the same object for one index, with no attribute change
+Pass	SVGTransformList (transform on g): a same-count change updates the values of the held items
+Pass	SVGTransformList (transform on g): a same-count change keeps the held item in the list
+Pass	SVGTransformList (transform on g): the held item is still attached after a same-count change
+Pass	SVGTransformList (transform on g): a grow updates the held item and appends new ones
+Pass	SVGTransformList (transform on g): a shrink updates the held items that are still in range
+Pass	SVGTransformList (transform on g): a shrink detaches the truncated item, which keeps its value
+Pass	SVGTransformList (transform on g): the truncated item stops reaching the element and stops being read only
+Pass	SVGTransformList (transform on g): the list interface object survives the change
+Pass	SVGTransformList (transform on g): an empty string empties the list and detaches every item
+Pass	SVGTransformList (gradientTransform on linearGradient): getItem returns the same object for one index, with no attribute change
+Pass	SVGTransformList (gradientTransform on linearGradient): a same-count change updates the values of the held items
+Pass	SVGTransformList (gradientTransform on linearGradient): a same-count change keeps the held item in the list
+Pass	SVGTransformList (gradientTransform on linearGradient): the held item is still attached after a same-count change
+Pass	SVGTransformList (gradientTransform on linearGradient): a grow updates the held item and appends new ones
+Pass	SVGTransformList (gradientTransform on linearGradient): a shrink updates the held items that are still in range
+Pass	SVGTransformList (gradientTransform on linearGradient): a shrink detaches the truncated item, which keeps its value
+Pass	SVGTransformList (gradientTransform on linearGradient): the truncated item stops reaching the element and stops being read only
+Pass	SVGTransformList (gradientTransform on linearGradient): the list interface object survives the change
+Pass	SVGTransformList (gradientTransform on linearGradient): an empty string empties the list and detaches every item
+Pass	SVGTransformList (transform): a changed transform function keeps the held item in the list
+Pass	SVGTransformList (transform): a changed transform function updates the held item's type and matrix
+Pass	SVGTransformList (transform): swapping two transform functions keeps both held items
+Pass	SVGTransformList (transform): an empty list detaches every item
+Pass	SVGTransformList (gradientTransform): a changed transform function keeps the held item in the list
+Pass	SVGTransformList (gradientTransform): a changed transform function updates the held item's type and matrix
+Pass	SVGTransformList (gradientTransform): swapping two transform functions keeps both held items
+Pass	SVGTransformList (gradientTransform): an empty list detaches every item
 Pass	SVGStringList: a change replaces the list rather than updating items

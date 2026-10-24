@@ -16,6 +16,8 @@
 
 namespace Web::SVG {
 
+class SVGAnimatedTransformList;
+
 class SVGGradientElement
     : public SVGElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
@@ -43,6 +45,7 @@ public:
 
     GC::Ref<SVGAnimatedEnumeration> gradient_units_for_bindings();
     GC::Ref<SVGAnimatedEnumeration> spread_method_for_bindings();
+    GC::Ref<SVGAnimatedTransformList> gradient_transform_for_bindings();
 
 protected:
     SVGGradientElement(DOM::Document&, DOM::QualifiedName);
@@ -88,6 +91,7 @@ private:
 
     Optional<SpreadMethod> m_spread_method = {};
     Optional<Gfx::AffineTransform> m_gradient_transform = {};
+    GC::Ptr<SVGAnimatedTransformList> m_gradient_transform_for_bindings;
 };
 
 }

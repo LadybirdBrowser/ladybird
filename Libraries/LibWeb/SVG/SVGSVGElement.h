@@ -74,6 +74,7 @@ public:
     GC::Ref<Geometry::DOMMatrix> create_svg_matrix() const;
     GC::Ref<Geometry::DOMRect> create_svg_rect() const;
     GC::Ref<SVGTransform> create_svg_transform() const;
+    WebIDL::ExceptionOr<GC::Ref<SVGTransform>> create_svg_transform_from_matrix(Bindings::DOMMatrix2DInit const&) const;
 
     // Deprecated methods that have no effect when called, but which are kept for compatibility reasons.
     WebIDL::UnsignedLong suspend_redraw(WebIDL::UnsignedLong max_wait_milliseconds) const

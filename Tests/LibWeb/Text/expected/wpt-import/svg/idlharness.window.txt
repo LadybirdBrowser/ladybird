@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1490 Pass
-290 Fail
+1529 Pass
+251 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -424,7 +424,7 @@ Pass	SVGSVGElement interface: operation createSVGPoint()
 Pass	SVGSVGElement interface: operation createSVGMatrix()
 Pass	SVGSVGElement interface: operation createSVGRect()
 Pass	SVGSVGElement interface: operation createSVGTransform()
-Fail	SVGSVGElement interface: operation createSVGTransformFromMatrix(optional DOMMatrix2DInit)
+Pass	SVGSVGElement interface: operation createSVGTransformFromMatrix(optional DOMMatrix2DInit)
 Pass	SVGSVGElement interface: operation getElementById(DOMString)
 Pass	SVGSVGElement interface: operation suspendRedraw(unsigned long)
 Pass	SVGSVGElement interface: operation unsuspendRedraw(unsigned long)
@@ -461,8 +461,8 @@ Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGPoint(
 Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGMatrix()" with the proper type
 Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGRect()" with the proper type
 Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGTransform()" with the proper type
-Fail	SVGSVGElement interface: objects.svg must inherit property "createSVGTransformFromMatrix(optional DOMMatrix2DInit)" with the proper type
-Fail	SVGSVGElement interface: calling createSVGTransformFromMatrix(optional DOMMatrix2DInit) on objects.svg with too few arguments must throw TypeError
+Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGTransformFromMatrix(optional DOMMatrix2DInit)" with the proper type
+Pass	SVGSVGElement interface: calling createSVGTransformFromMatrix(optional DOMMatrix2DInit) on objects.svg with too few arguments must throw TypeError
 Pass	SVGSVGElement interface: objects.svg must inherit property "getElementById(DOMString)" with the proper type
 Pass	SVGSVGElement interface: calling getElementById(DOMString) on objects.svg with too few arguments must throw TypeError
 Pass	SVGSVGElement interface: objects.svg must inherit property "suspendRedraw(unsigned long)" with the proper type
@@ -703,9 +703,9 @@ Pass	SVGTransform interface: constant SVG_TRANSFORM_SKEWX on interface prototype
 Pass	SVGTransform interface: constant SVG_TRANSFORM_SKEWY on interface object
 Pass	SVGTransform interface: constant SVG_TRANSFORM_SKEWY on interface prototype object
 Pass	SVGTransform interface: attribute type
-Fail	SVGTransform interface: attribute matrix
+Pass	SVGTransform interface: attribute matrix
 Pass	SVGTransform interface: attribute angle
-Fail	SVGTransform interface: operation setMatrix(optional DOMMatrix2DInit)
+Pass	SVGTransform interface: operation setMatrix(optional DOMMatrix2DInit)
 Pass	SVGTransform interface: operation setTranslate(float, float)
 Pass	SVGTransform interface: operation setScale(float, float)
 Pass	SVGTransform interface: operation setRotate(float, float, float)
@@ -721,10 +721,10 @@ Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit prope
 Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "SVG_TRANSFORM_SKEWX" with the proper type
 Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "SVG_TRANSFORM_SKEWY" with the proper type
 Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "type" with the proper type
-Fail	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "matrix" with the proper type
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "matrix" with the proper type
 Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "angle" with the proper type
-Fail	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "setMatrix(optional DOMMatrix2DInit)" with the proper type
-Fail	SVGTransform interface: calling setMatrix(optional DOMMatrix2DInit) on objects.svg.createSVGTransform() with too few arguments must throw TypeError
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "setMatrix(optional DOMMatrix2DInit)" with the proper type
+Pass	SVGTransform interface: calling setMatrix(optional DOMMatrix2DInit) on objects.svg.createSVGTransform() with too few arguments must throw TypeError
 Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "setTranslate(float, float)" with the proper type
 Pass	SVGTransform interface: calling setTranslate(float, float) on objects.svg.createSVGTransform() with too few arguments must throw TypeError
 Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "setScale(float, float)" with the proper type
@@ -750,28 +750,28 @@ Pass	SVGTransformList interface: operation insertItemBefore(SVGTransform, unsign
 Pass	SVGTransformList interface: operation replaceItem(SVGTransform, unsigned long)
 Pass	SVGTransformList interface: operation removeItem(unsigned long)
 Pass	SVGTransformList interface: operation appendItem(SVGTransform)
-Fail	SVGTransformList interface: operation createSVGTransformFromMatrix(optional DOMMatrix2DInit)
-Fail	SVGTransformList interface: operation consolidate()
-Fail	SVGTransformList must be primary interface of objects.pattern.patternTransform.baseVal
-Fail	Stringification of objects.pattern.patternTransform.baseVal
-Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "length" with the proper type
-Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "numberOfItems" with the proper type
-Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "clear()" with the proper type
-Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "initialize(SVGTransform)" with the proper type
-Fail	SVGTransformList interface: calling initialize(SVGTransform) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
-Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "getItem(unsigned long)" with the proper type
-Fail	SVGTransformList interface: calling getItem(unsigned long) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
-Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "insertItemBefore(SVGTransform, unsigned long)" with the proper type
-Fail	SVGTransformList interface: calling insertItemBefore(SVGTransform, unsigned long) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
-Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "replaceItem(SVGTransform, unsigned long)" with the proper type
-Fail	SVGTransformList interface: calling replaceItem(SVGTransform, unsigned long) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
-Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "removeItem(unsigned long)" with the proper type
-Fail	SVGTransformList interface: calling removeItem(unsigned long) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
-Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "appendItem(SVGTransform)" with the proper type
-Fail	SVGTransformList interface: calling appendItem(SVGTransform) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
-Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "createSVGTransformFromMatrix(optional DOMMatrix2DInit)" with the proper type
-Fail	SVGTransformList interface: calling createSVGTransformFromMatrix(optional DOMMatrix2DInit) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
-Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "consolidate()" with the proper type
+Pass	SVGTransformList interface: operation createSVGTransformFromMatrix(optional DOMMatrix2DInit)
+Pass	SVGTransformList interface: operation consolidate()
+Pass	SVGTransformList must be primary interface of objects.pattern.patternTransform.baseVal
+Pass	Stringification of objects.pattern.patternTransform.baseVal
+Pass	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "length" with the proper type
+Pass	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "numberOfItems" with the proper type
+Pass	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "clear()" with the proper type
+Pass	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "initialize(SVGTransform)" with the proper type
+Pass	SVGTransformList interface: calling initialize(SVGTransform) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Pass	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "getItem(unsigned long)" with the proper type
+Pass	SVGTransformList interface: calling getItem(unsigned long) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Pass	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "insertItemBefore(SVGTransform, unsigned long)" with the proper type
+Pass	SVGTransformList interface: calling insertItemBefore(SVGTransform, unsigned long) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Pass	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "replaceItem(SVGTransform, unsigned long)" with the proper type
+Pass	SVGTransformList interface: calling replaceItem(SVGTransform, unsigned long) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Pass	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "removeItem(unsigned long)" with the proper type
+Pass	SVGTransformList interface: calling removeItem(unsigned long) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Pass	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "appendItem(SVGTransform)" with the proper type
+Pass	SVGTransformList interface: calling appendItem(SVGTransform) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Pass	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "createSVGTransformFromMatrix(optional DOMMatrix2DInit)" with the proper type
+Pass	SVGTransformList interface: calling createSVGTransformFromMatrix(optional DOMMatrix2DInit) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Pass	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "consolidate()" with the proper type
 Pass	SVGAnimatedTransformList interface: existence and properties of interface object
 Pass	SVGAnimatedTransformList interface object length
 Pass	SVGAnimatedTransformList interface object name
@@ -780,10 +780,10 @@ Pass	SVGAnimatedTransformList interface: existence and properties of interface p
 Pass	SVGAnimatedTransformList interface: existence and properties of interface prototype object's @@unscopables property
 Pass	SVGAnimatedTransformList interface: attribute baseVal
 Pass	SVGAnimatedTransformList interface: attribute animVal
-Fail	SVGAnimatedTransformList must be primary interface of objects.pattern.patternTransform
-Fail	Stringification of objects.pattern.patternTransform
-Fail	SVGAnimatedTransformList interface: objects.pattern.patternTransform must inherit property "baseVal" with the proper type
-Fail	SVGAnimatedTransformList interface: objects.pattern.patternTransform must inherit property "animVal" with the proper type
+Pass	SVGAnimatedTransformList must be primary interface of objects.pattern.patternTransform
+Pass	Stringification of objects.pattern.patternTransform
+Pass	SVGAnimatedTransformList interface: objects.pattern.patternTransform must inherit property "baseVal" with the proper type
+Pass	SVGAnimatedTransformList interface: objects.pattern.patternTransform must inherit property "animVal" with the proper type
 Pass	SVGPreserveAspectRatio interface: existence and properties of interface object
 Pass	SVGPreserveAspectRatio interface object length
 Pass	SVGPreserveAspectRatio interface object name
@@ -1421,7 +1421,7 @@ Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_REFLECT on interfac
 Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_REPEAT on interface object
 Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_REPEAT on interface prototype object
 Pass	SVGGradientElement interface: attribute gradientUnits
-Fail	SVGGradientElement interface: attribute gradientTransform
+Pass	SVGGradientElement interface: attribute gradientTransform
 Pass	SVGGradientElement interface: attribute spreadMethod
 Pass	SVGGradientElement interface: attribute href
 Pass	SVGLinearGradientElement interface: existence and properties of interface object
@@ -1445,7 +1445,7 @@ Pass	SVGGradientElement interface: objects.linearGradient must inherit property 
 Pass	SVGGradientElement interface: objects.linearGradient must inherit property "SVG_SPREADMETHOD_REFLECT" with the proper type
 Pass	SVGGradientElement interface: objects.linearGradient must inherit property "SVG_SPREADMETHOD_REPEAT" with the proper type
 Pass	SVGGradientElement interface: objects.linearGradient must inherit property "gradientUnits" with the proper type
-Fail	SVGGradientElement interface: objects.linearGradient must inherit property "gradientTransform" with the proper type
+Pass	SVGGradientElement interface: objects.linearGradient must inherit property "gradientTransform" with the proper type
 Pass	SVGGradientElement interface: objects.linearGradient must inherit property "spreadMethod" with the proper type
 Pass	SVGGradientElement interface: objects.linearGradient must inherit property "href" with the proper type
 Pass	SVGElement interface: objects.linearGradient must inherit property "className" with the proper type
@@ -1478,7 +1478,7 @@ Pass	SVGGradientElement interface: objects.radialGradient must inherit property 
 Pass	SVGGradientElement interface: objects.radialGradient must inherit property "SVG_SPREADMETHOD_REFLECT" with the proper type
 Pass	SVGGradientElement interface: objects.radialGradient must inherit property "SVG_SPREADMETHOD_REPEAT" with the proper type
 Pass	SVGGradientElement interface: objects.radialGradient must inherit property "gradientUnits" with the proper type
-Fail	SVGGradientElement interface: objects.radialGradient must inherit property "gradientTransform" with the proper type
+Pass	SVGGradientElement interface: objects.radialGradient must inherit property "gradientTransform" with the proper type
 Pass	SVGGradientElement interface: objects.radialGradient must inherit property "spreadMethod" with the proper type
 Pass	SVGGradientElement interface: objects.radialGradient must inherit property "href" with the proper type
 Pass	SVGElement interface: objects.radialGradient must inherit property "className" with the proper type
@@ -1509,7 +1509,7 @@ Pass	SVGPatternElement interface: existence and properties of interface prototyp
 Pass	SVGPatternElement interface: existence and properties of interface prototype object's @@unscopables property
 Pass	SVGPatternElement interface: attribute patternUnits
 Pass	SVGPatternElement interface: attribute patternContentUnits
-Fail	SVGPatternElement interface: attribute patternTransform
+Pass	SVGPatternElement interface: attribute patternTransform
 Pass	SVGPatternElement interface: attribute x
 Pass	SVGPatternElement interface: attribute y
 Pass	SVGPatternElement interface: attribute width
@@ -1521,7 +1521,7 @@ Pass	SVGPatternElement must be primary interface of objects.pattern
 Pass	Stringification of objects.pattern
 Pass	SVGPatternElement interface: objects.pattern must inherit property "patternUnits" with the proper type
 Pass	SVGPatternElement interface: objects.pattern must inherit property "patternContentUnits" with the proper type
-Fail	SVGPatternElement interface: objects.pattern must inherit property "patternTransform" with the proper type
+Pass	SVGPatternElement interface: objects.pattern must inherit property "patternTransform" with the proper type
 Pass	SVGPatternElement interface: objects.pattern must inherit property "x" with the proper type
 Pass	SVGPatternElement interface: objects.pattern must inherit property "y" with the proper type
 Pass	SVGPatternElement interface: objects.pattern must inherit property "width" with the proper type

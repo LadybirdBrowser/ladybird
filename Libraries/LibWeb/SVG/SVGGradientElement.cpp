@@ -8,6 +8,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
+#include <LibWeb/SVG/SVGAnimatedTransformList.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGUnitTypes.h>
@@ -33,6 +34,8 @@ void SVGGradientElement::attribute_changed(Utf16FlyString const& name, Optional<
         } else {
             m_gradient_transform = {};
         }
+        if (m_gradient_transform_for_bindings)
+            m_gradient_transform_for_bindings->synchronize();
     }
 }
 
@@ -155,6 +158,18 @@ void SVGGradientElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
+    visitor.visit(m_gradient_transform_for_bindings);
+}
+
+// https://svgwg.org/svg2-draft/pservers.html#__svg__SVGGradientElement__gradientTransform
+GC::Ref<SVGAnimatedTransformList> SVGGradientElement::gradient_transform_for_bindings()
+{
+    // The gradientTransform IDL attribute reflects the computed value of the transform property and the
+    // 'gradientTransform' presentation attribute for ‘linearGradient’ and ‘radialGradient’ elements.
+    // FIXME: Reflect the computed value of the transform property rather than only the presentation attribute.
+    if (!m_gradient_transform_for_bindings)
+        m_gradient_transform_for_bindings = SVGAnimatedTransformList::create(*this, AttributeNames::gradientTransform);
+    return *m_gradient_transform_for_bindings;
 }
 
 // https://svgwg.org/svg2-draft/pservers.html#__svg__SVGGradientElement__gradientUnits

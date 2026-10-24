@@ -21,6 +21,8 @@
 
 namespace Web::SVG {
 
+class SVGAnimatedTransformList;
+
 class SVGPatternElement
     : public SVGElement
     , public SVGFitToViewBox
@@ -53,6 +55,7 @@ public:
 
     GC::Ref<SVGAnimatedEnumeration> pattern_units_for_bindings();
     GC::Ref<SVGAnimatedEnumeration> pattern_content_units_for_bindings();
+    GC::Ref<SVGAnimatedTransformList> pattern_transform_for_bindings();
 
     // https://w3c.github.io/svgwg/svg2-draft/pservers.html#__svg__SVGPatternElement__x
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, SVGLengthValue::number(0));
@@ -99,6 +102,7 @@ private:
     Optional<SVGUnits> m_pattern_units;
     Optional<SVGUnits> m_pattern_content_units;
     Optional<Gfx::AffineTransform> m_pattern_transform;
+    GC::Ptr<SVGAnimatedTransformList> m_pattern_transform_for_bindings;
     Optional<NumberPercentage> m_x;
     Optional<NumberPercentage> m_y;
     Optional<NumberPercentage> m_width;

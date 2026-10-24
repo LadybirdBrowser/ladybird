@@ -37,6 +37,9 @@ public:
 
     // https://drafts.fxtf.org/geometry/#dom-dommatrix-rotateaxisangleself
     void rotate_axis_angle_self(double x, double y, double z, double angle);
+
+    // Sets the elements m11, m12, m13, m14, m21, ..., m44, in that order, and whether the matrix is 2D.
+    void set_elements(Array<double, 16> const& elements, bool is_2d);
 };
 
 }

@@ -19,7 +19,7 @@ class SVGAnimatedTransformList final : public Bindings::GCAllocatedWrappable {
 public:
     static constexpr size_t base_val_offset() { return offsetof(SVGAnimatedTransformList, m_base_val); }
     static constexpr size_t anim_val_offset() { return offsetof(SVGAnimatedTransformList, m_anim_val); }
-    [[nodiscard]] static GC::Ref<SVGAnimatedTransformList> create(GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val);
+    [[nodiscard]] static GC::Ref<SVGAnimatedTransformList> create(GC::Ref<SVGElement>, Utf16FlyString reflected_attribute);
     virtual ~SVGAnimatedTransformList() override = default;
 
     GC::Ref<SVGTransformList> base_val() const
@@ -31,6 +31,9 @@ public:
     {
         return m_anim_val;
     }
+
+    // https://svgwg.org/svg2-draft/types.html#SynchronizingReflectedValues
+    void synchronize();
 
 private:
     SVGAnimatedTransformList(GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val);
