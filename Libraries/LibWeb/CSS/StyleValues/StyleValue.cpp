@@ -316,6 +316,11 @@ bool StyleValue::is_computationally_independent() const
     return ComputedValuesFFI::rust_style_value_is_computationally_independent(m_value.operator->());
 }
 
+bool StyleValue::contains_anchor_function() const
+{
+    return StyleValueFFI::rust_style_value_contains_anchor_function(m_value.operator->());
+}
+
 void StyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     auto string = to_utf16_string(mode);

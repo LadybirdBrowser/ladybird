@@ -4280,11 +4280,8 @@ pub(crate) fn absolutize_calculation_value(
         rust_calculation,
         resolve_as_is_number,
         resolve_as_base,
-        resolved_type,
         has_percentages_resolve_as,
-        percentages_resolve_as,
-        resolve_numbers_as_integers,
-        accepted_ranges,
+        ..
     } = value
     else {
         return None;
@@ -4393,50 +4390,178 @@ pub(crate) fn absolutize_calculation_value(
         &context,
         &externals,
         |evaluation_context, callbacks| {
-            let simplified = root.simplify(evaluation_context, callbacks);
-            if let Some(percentage) = percentage_dimension_mix(&simplified, evaluation_context) {
-                return AbsolutizedCalculation::Percentage(percentage);
-            }
-            if let Some(collapsed) =
-                collapse_absolutized_calculation(&simplified, *resolve_numbers_as_integers, accepted_ranges.as_slice())
-            {
-                return AbsolutizedCalculation::Value(collapsed);
-            }
-            // https://drafts.csswg.org/css-values-4/#functional-numeric
-            // "the value of a numeric function is clamped to the range allowed in the context it is used
-            // at computed value time if possible, and at used value time otherwise."
-            // NB: A lone percentage stays a calculation (see collapse_absolutized_calculation), but its
-            //     range is already known, so it is clamped now like a calculation that collapses.
-            let simplified = match &*simplified {
-                CalcNode::Numeric(leaf @ CalcNumericValue::Percentage(..)) => {
-                    let clamped = CalcSerializer::clamp_and_censor_numeric_leaf(
-                        *leaf,
-                        *resolve_numbers_as_integers,
-                        accepted_ranges.as_slice(),
-                    );
-                    if clamped == *leaf {
-                        simplified
-                    } else {
-                        Arc::new(CalcNode::Numeric(clamped))
-                    }
-                }
-                _ => simplified,
-            };
-            if Arc::ptr_eq(&simplified, &root) {
-                return AbsolutizedCalculation::Unchanged;
-            }
-            AbsolutizedCalculation::Value(StyleValueData::Calculated {
-                rust_calculation: CalcNodeHandle::from_arc(simplified),
-                resolve_as_is_number: *resolve_as_is_number,
-                resolve_as_base: *resolve_as_base,
-                resolved_type: *resolved_type,
-                has_percentages_resolve_as: *has_percentages_resolve_as,
-                percentages_resolve_as: *percentages_resolve_as,
-                resolve_numbers_as_integers: *resolve_numbers_as_integers,
-                accepted_ranges: accepted_ranges.clone(),
-            })
+            computed_calculation_from_simplified(
+                value,
+                &root,
+                root.simplify(evaluation_context, callbacks),
+                evaluation_context,
+            )
         },
     ))
+}
+
+/// The computed value form of the Calculated style value `value`, whose tree `root` simplified to `simplified`.
+fn computed_calculation_from_simplified(
+    value: &crate::css::style_value::StyleValueData,
+    root: &Arc<CalcNode>,
+    simplified: Arc<CalcNode>,
+    evaluation_context: &CalcEvaluationContext,
+) -> AbsolutizedCalculation {
+    use crate::css::style_value::StyleValueData;
+    let StyleValueData::Calculated {
+        resolve_as_is_number,
+        resolve_as_base,
+        resolved_type,
+        has_percentages_resolve_as,
+        percentages_resolve_as,
+        resolve_numbers_as_integers,
+        accepted_ranges,
+        ..
+    } = value
+    else {
+        unreachable!("computed_calculation_from_simplified requires calculated value data");
+    };
+    if let Some(percentage) = percentage_dimension_mix(&simplified, evaluation_context) {
+        return AbsolutizedCalculation::Percentage(percentage);
+    }
+    if let Some(collapsed) =
+        collapse_absolutized_calculation(&simplified, *resolve_numbers_as_integers, accepted_ranges.as_slice())
+    {
+        return AbsolutizedCalculation::Value(collapsed);
+    }
+    // https://drafts.csswg.org/css-values-4/#functional-numeric
+    // "the value of a numeric function is clamped to the range allowed in the context it is used
+    // at computed value time if possible, and at used value time otherwise."
+    // NB: A lone percentage stays a calculation (see collapse_absolutized_calculation), but its
+    //     range is already known, so it is clamped now like a calculation that collapses.
+    let simplified = match &*simplified {
+        CalcNode::Numeric(leaf @ CalcNumericValue::Percentage(..)) => {
+            let clamped = CalcSerializer::clamp_and_censor_numeric_leaf(
+                *leaf,
+                *resolve_numbers_as_integers,
+                accepted_ranges.as_slice(),
+            );
+            if clamped == *leaf {
+                simplified
+            } else {
+                Arc::new(CalcNode::Numeric(clamped))
+            }
+        }
+        _ => simplified,
+    };
+    if Arc::ptr_eq(&simplified, root) {
+        return AbsolutizedCalculation::Unchanged;
+    }
+    AbsolutizedCalculation::Value(StyleValueData::Calculated {
+        rust_calculation: CalcNodeHandle::from_arc(simplified),
+        resolve_as_is_number: *resolve_as_is_number,
+        resolve_as_base: *resolve_as_base,
+        resolved_type: *resolved_type,
+        has_percentages_resolve_as: *has_percentages_resolve_as,
+        percentages_resolve_as: *percentages_resolve_as,
+        resolve_numbers_as_integers: *resolve_numbers_as_integers,
+        accepted_ranges: accepted_ranges.clone(),
+    })
+}
+
+/// Replaces the anchor() and anchor-size() functions of a computed `<length-percentage>` with their fallback values,
+/// as where they are unresolvable. Returns the rebuilt value, none when it holds no anchor functions, or None when one
+/// of them has no fallback value.
+/// https://drafts.csswg.org/css-anchor-position-1/#anchor-size-resolution
+/// If no fallback value is specified, it makes the declaration referencing it invalid at computed-value time.
+#[allow(clippy::arc_with_non_send_sync)]
+pub(crate) fn substitute_unresolvable_anchor_functions(
+    value: &crate::css::style_value::StyleValueData,
+) -> Option<Option<RetainedStyleValueData>> {
+    use crate::css::style_value::StyleValueData;
+    match value {
+        StyleValueData::Anchor { fallback_value, .. } | StyleValueData::AnchorSize { fallback_value, .. } => {
+            let fallback = fallback_value.optional_data()?;
+            Some(Some(
+                substitute_unresolvable_anchor_functions(fallback)?.unwrap_or_else(|| fallback_value.clone()),
+            ))
+        }
+        StyleValueData::Calculated {
+            rust_calculation,
+            resolve_as_is_number,
+            resolve_as_base,
+            has_percentages_resolve_as,
+            ..
+        } if rust_calculation.node().contains_anchor_function() => {
+            let root = rust_calculation.node_arc();
+            let mut externals = Vec::new();
+            collect_external_resolutions(&root, &mut externals);
+            for external in &mut externals {
+                if external.kind != CalcExternalResolutionKind::NonMathFunction
+                    || !matches!(
+                        external.source.data(),
+                        StyleValueData::Anchor { .. } | StyleValueData::AnchorSize { .. }
+                    )
+                {
+                    continue;
+                }
+                let substituted = substitute_unresolvable_anchor_functions(external.source.data())?
+                    .expect("an anchor function is always substituted");
+                external.resolved_node = Some(length_percentage_calc_node(substituted.data())?);
+            }
+            let context = FfiCalcResolutionContext {
+                basis_kind: 0,
+                basis_value: 0.0,
+                basis_unit: 0,
+                length_resolution_context: std::ptr::null(),
+                element_facts: std::ptr::null(),
+            };
+            let resolve_as =
+                resolve_as_from_fields(*has_percentages_resolve_as, *resolve_as_is_number, *resolve_as_base);
+            let computed = with_ffi_evaluation(resolve_as, &context, &externals, |evaluation_context, callbacks| {
+                computed_calculation_from_simplified(
+                    value,
+                    &root,
+                    root.simplify(evaluation_context, callbacks),
+                    evaluation_context,
+                )
+            });
+            Some(Some(match computed {
+                AbsolutizedCalculation::Unchanged => unreachable!("substituting an anchor function changes the tree"),
+                AbsolutizedCalculation::Percentage(value) => {
+                    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Percentage { value }))
+                }
+                AbsolutizedCalculation::Value(value) => RetainedStyleValueData::from_arc(Arc::new(value)),
+            }))
+        }
+        _ => Some(None),
+    }
+}
+
+/// Whether a `<length-percentage>` is or holds an anchor() or anchor-size() function.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_contains_anchor_function(value: &crate::css::style_value::StyleValueData) -> bool {
+    use crate::css::style_value::StyleValueData;
+    match value {
+        StyleValueData::Anchor { .. } | StyleValueData::AnchorSize { .. } => true,
+        StyleValueData::Calculated { rust_calculation, .. } => rust_calculation.node().contains_anchor_function(),
+        _ => false,
+    }
+}
+
+/// The value of a computed `<length-percentage>` whose anchor() and anchor-size() functions are unresolvable: one
+/// strong reference to it with the functions replaced by their fallback values, or null when it holds no anchor
+/// functions or when one of them has no fallback value, which `is_invalid` tells apart.
+///
+/// # Safety
+/// `value` must point at live style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_with_unresolvable_anchor_functions(
+    value: *const std::ffi::c_void,
+    is_invalid: &mut bool,
+) -> *const crate::css::style_value::StyleValueData {
+    // SAFETY: Guaranteed by the caller.
+    let value = unsafe { &*value.cast::<crate::css::style_value::StyleValueData>() };
+    let substituted = substitute_unresolvable_anchor_functions(value);
+    *is_invalid = substituted.is_none();
+    substituted
+        .flatten()
+        .map_or(std::ptr::null(), RetainedStyleValueData::into_pointer)
 }
 
 /// A calculation leaf for a length-percentage style value, or None for other kinds.
