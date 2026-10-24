@@ -1668,6 +1668,8 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
     fetch_algorithms_input.process_response = [self = GC::Ref(*this), byte_range = move(byte_range), fetch_generation](auto response) mutable {
         auto& fetch_data = self->m_remote_fetch_data;
 
+        auto response_is_cors_cross_origin = response->is_cors_cross_origin();
+
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
@@ -1705,7 +1707,7 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
         // 2. Let updateMedia be to queue a media element task given the media element to run the first appropriate steps from the media data processing
         //    steps list below. (A new task is used for this so that the work described below occurs relative to the appropriate media element event task
         //    source rather than using the networking task source.)
-        auto update_media = GC::create_function(self->heap(), [weak_self = GC::Weak(self), fetch_generation](ByteBuffer media_data) mutable {
+        auto update_media = GC::create_function(self->heap(), [weak_self = GC::Weak(self), fetch_generation, response_is_cors_cross_origin](ByteBuffer media_data) mutable {
             if (!weak_self)
                 return;
             if (fetch_generation != weak_self->m_current_fetch_generation)
@@ -1715,6 +1717,8 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
             // 6. Update the media data with the contents of response's unsafe response obtained in this fashion. response can be CORS-same-origin or
             //    CORS-cross-origin; this affects whether subtitles referenced in the media data are exposed in the API and, for video elements, whether
             //    a canvas gets tainted when the video is drawn on it.
+            if (response_is_cors_cross_origin)
+                weak_self->m_media_data_is_cors_cross_origin = true;
             fetch_data->stream->add_chunk_at(fetch_data->offset, media_data.bytes());
             fetch_data->offset += media_data.size();
 
@@ -2025,6 +2029,13 @@ Optional<Compositing::VideoSinkResourceId> HTMLMediaElement::video_sink_resource
     if (!m_active_video_sink)
         return {};
     return m_active_video_sink->resource_id();
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#media-data
+bool HTMLMediaElement::media_data_is_cors_cross_origin() const
+{
+    // NB: Media data from a MediaSource or a MediaStream is provided by the page itself.
+    return m_media_data_is_cors_cross_origin;
 }
 
 Optional<Compositing::CapturedVideoFrame> HTMLMediaElement::capture_current_video_frame() const
@@ -2675,6 +2686,7 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
     if (m_playback_manager)
         m_playback_manager->on_playback_state_change = nullptr;
     release_active_video_sink();
+    m_media_data_is_cors_cross_origin = false;
     m_audio_tracks->remove_all_tracks();
     m_video_tracks->remove_all_tracks();
     update_audio_play_state();

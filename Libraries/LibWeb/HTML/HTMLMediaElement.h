@@ -201,6 +201,7 @@ public:
 
     Optional<Media::VideoSinkHandle> video_sink_handle() const;
     Optional<Compositing::CapturedVideoFrame> capture_current_video_frame() const;
+    bool media_data_is_cors_cross_origin() const;
 
     struct VideoFrameCounts {
         u64 presented { 0 };
@@ -393,6 +394,7 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-readystate
     ReadyState m_ready_state { ReadyState::HaveNothing };
     bool m_has_fired_loadeddata { false };
+    bool m_media_data_is_cors_cross_origin { false };
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-seeking
     bool m_seeking { false };
