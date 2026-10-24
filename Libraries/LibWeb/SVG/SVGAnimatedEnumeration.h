@@ -27,7 +27,14 @@ public:
         u16 value;
     };
 
-    [[nodiscard]] static GC::Ref<SVGAnimatedEnumeration> create(GC::Ref<SVGElement>, Utf16FlyString reflected_attribute, ReadonlySpan<Keyword> keywords, u16 initial_value);
+    // Whether the reflecting IDL attribute is SVGMarkerElement's orientType, whose reflected attribute can also take an
+    // angle value.
+    enum class ReflectsOrientType : u8 {
+        No,
+        Yes,
+    };
+
+    [[nodiscard]] static GC::Ref<SVGAnimatedEnumeration> create(GC::Ref<SVGElement>, Utf16FlyString reflected_attribute, ReadonlySpan<Keyword> keywords, u16 initial_value, ReflectsOrientType = ReflectsOrientType::No);
     virtual ~SVGAnimatedEnumeration() override;
 
     u16 base_val() const { return base_or_anim_value(); }
@@ -36,7 +43,7 @@ public:
     u16 anim_val() const { return base_or_anim_value(); }
 
 private:
-    SVGAnimatedEnumeration(GC::Ref<SVGElement>, Utf16FlyString reflected_attribute, ReadonlySpan<Keyword> keywords, u16 initial_value);
+    SVGAnimatedEnumeration(GC::Ref<SVGElement>, Utf16FlyString reflected_attribute, ReadonlySpan<Keyword> keywords, u16 initial_value, ReflectsOrientType);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -46,6 +53,7 @@ private:
     Utf16FlyString m_reflected_attribute;
     ReadonlySpan<Keyword> m_keywords;
     u16 m_initial_value { 0 };
+    ReflectsOrientType m_reflects_orient_type { ReflectsOrientType::No };
 };
 
 }

@@ -328,6 +328,13 @@ GC::Ref<SVGNumber> SVGSVGElement::create_svg_number() const
     return SVGNumber::create(0, SVGNumber::ReadOnly::No);
 }
 
+// https://svgwg.org/svg2-draft/struct.html#__svg__SVGSVGElement__createSVGAngle
+GC::Ref<SVGAngle> SVGSVGElement::create_svg_angle() const
+{
+    // A new, detached SVGAngle object whose value is the unitless <number> 0.
+    return SVGAngle::create_detached({}, SVGAngle::ReadOnly::No);
+}
+
 GC::Ref<SVGLength> SVGSVGElement::create_svg_length() const
 {
     // A new, detached SVGLength object whose value is the unitless <number> 0.

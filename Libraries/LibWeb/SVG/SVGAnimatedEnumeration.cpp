@@ -5,24 +5,27 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/SVG/SVGAngle.h>
 #include <LibWeb/SVG/SVGAnimatedEnumeration.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/SVG/SVGMarkerElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGAnimatedEnumeration);
 
-GC::Ref<SVGAnimatedEnumeration> SVGAnimatedEnumeration::create(GC::Ref<SVGElement> element, Utf16FlyString reflected_attribute, ReadonlySpan<Keyword> keywords, u16 initial_value)
+GC::Ref<SVGAnimatedEnumeration> SVGAnimatedEnumeration::create(GC::Ref<SVGElement> element, Utf16FlyString reflected_attribute, ReadonlySpan<Keyword> keywords, u16 initial_value, ReflectsOrientType reflects_orient_type)
 {
-    return GC::Heap::the().allocate<SVGAnimatedEnumeration>(element, move(reflected_attribute), keywords, initial_value);
+    return GC::Heap::the().allocate<SVGAnimatedEnumeration>(element, move(reflected_attribute), keywords, initial_value, reflects_orient_type);
 }
 
-SVGAnimatedEnumeration::SVGAnimatedEnumeration(GC::Ref<SVGElement> element, Utf16FlyString reflected_attribute, ReadonlySpan<Keyword> keywords, u16 initial_value)
+SVGAnimatedEnumeration::SVGAnimatedEnumeration(GC::Ref<SVGElement> element, Utf16FlyString reflected_attribute, ReadonlySpan<Keyword> keywords, u16 initial_value, ReflectsOrientType reflects_orient_type)
     : m_element(element)
     , m_reflected_attribute(move(reflected_attribute))
     , m_keywords(keywords)
     , m_initial_value(initial_value)
+    , m_reflects_orient_type(reflects_orient_type)
 {
 }
 
@@ -51,11 +54,16 @@ WebIDL::ExceptionOr<void> SVGAnimatedEnumeration::set_base_val(u16 base_val)
         }
         return {};
     }();
-    if (!keyword.has_value())
+    auto is_orient_angle = m_reflects_orient_type == ReflectsOrientType::Yes && value == SVGMarkerElement::SVG_MARKER_ORIENT_ANGLE;
+    if (!keyword.has_value() && !is_orient_angle)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid value for baseVal"_utf16 };
 
-    // FIXME: 3. Otherwise, if the reflecting IDL attribute is orientType and value is SVG_MARKER_ORIENT_ANGLE, then set the
+    // 3. Otherwise, if the reflecting IDL attribute is orientType and value is SVG_MARKER_ORIENT_ANGLE, then set the
     //    reflected attribute to the string "0".
+    if (is_orient_angle) {
+        m_element->set_attribute_value(m_reflected_attribute, "0"_utf16);
+        return {};
+    }
 
     // 4. Otherwise, value is the numeric type value for a specific, single keyword value for the reflected attribute.
     //    Set the reflected attribute to that value.
@@ -76,6 +84,9 @@ u16 SVGAnimatedEnumeration::base_or_anim_value() const
         if (value.utf16_view() == mapping.keyword)
             return mapping.value;
     }
+    // NB: For orientType, an <angle> or <number> value maps to SVG_MARKER_ORIENT_ANGLE.
+    if (m_reflects_orient_type == ReflectsOrientType::Yes && SVGAngle::parse(value).has_value())
+        return SVGMarkerElement::SVG_MARKER_ORIENT_ANGLE;
     return m_initial_value;
 }
 

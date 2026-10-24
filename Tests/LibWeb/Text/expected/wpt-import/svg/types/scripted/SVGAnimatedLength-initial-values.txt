@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 130 tests
 
-120 Pass
-10 Fail
+128 Pass
+2 Fail
 Pass	SVGAnimatedLength, initial values, SVGCircleElement.prototype.cx (remove)
 Pass	SVGAnimatedLength, initial values, SVGCircleElement.prototype.cx (invalid value)
 Pass	SVGAnimatedLength, initial values, SVGCircleElement.prototype.cy (remove)
@@ -66,14 +66,14 @@ Pass	SVGAnimatedLength, initial values, SVGLinearGradientElement.prototype.x2 (r
 Pass	SVGAnimatedLength, initial values, SVGLinearGradientElement.prototype.x2 (invalid value)
 Pass	SVGAnimatedLength, initial values, SVGLinearGradientElement.prototype.y2 (remove)
 Pass	SVGAnimatedLength, initial values, SVGLinearGradientElement.prototype.y2 (invalid value)
-Fail	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.refX (remove)
-Fail	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.refX (invalid value)
-Fail	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.refY (remove)
-Fail	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.refY (invalid value)
-Fail	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.markerWidth (remove)
-Fail	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.markerWidth (invalid value)
-Fail	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.markerHeight (remove)
-Fail	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.markerHeight (invalid value)
+Pass	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.refX (remove)
+Pass	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.refX (invalid value)
+Pass	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.refY (remove)
+Pass	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.refY (invalid value)
+Pass	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.markerWidth (remove)
+Pass	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.markerWidth (invalid value)
+Pass	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.markerHeight (remove)
+Pass	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.markerHeight (invalid value)
 Pass	SVGAnimatedLength, initial values, SVGMaskElement.prototype.x (remove)
 Pass	SVGAnimatedLength, initial values, SVGMaskElement.prototype.x (invalid value)
 Pass	SVGAnimatedLength, initial values, SVGMaskElement.prototype.y (remove)

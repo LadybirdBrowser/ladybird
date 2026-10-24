@@ -855,6 +855,8 @@ set(SOURCES
     SVG/SMILAnimation.cpp
     SVG/SMILTimeContainer.cpp
     SVG/SVGAElement.cpp
+    SVG/SVGAngle.cpp
+    SVG/SVGAnimatedAngle.cpp
     SVG/SVGAnimatedBoolean.cpp
     SVG/SVGAnimatedEnumeration.cpp
     SVG/SVGAnimatedInteger.cpp
@@ -914,6 +916,7 @@ set(SOURCES
     SVG/SVGLinearGradientElement.cpp
     SVG/SVGLineElement.cpp
     SVG/SVGList.cpp
+    SVG/SVGMarkerElement.cpp
     SVG/SVGMaskElement.cpp
     SVG/SVGMetadataElement.cpp
     SVG/SVGMPathElement.cpp

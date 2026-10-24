@@ -2,8 +2,8 @@ Harness status: Error
 
 Found 66 tests
 
-63 Pass
-3 Fail
+64 Pass
+2 Fail
 Pass	SVGAnimatedLength: rect.x
 Pass	SVGAnimatedLength: rect.y
 Pass	SVGAnimatedLength: rect.width
@@ -65,7 +65,7 @@ Pass	SVGAnimatedEnumeration: tp.method
 Pass	SVGAnimatedEnumeration: tp.spacing
 Pass	SVGAnimatedEnumeration: text.lengthAdjust
 Pass	SVGAnimatedAngle: mk.orientAngle
-Fail	SVGAnimatedAngle.baseVal: mk.orientAngle.baseVal
+Pass	SVGAnimatedAngle.baseVal: mk.orientAngle.baseVal
 Fail	SVGAnimatedTransformList: rect.transform
 Fail	SVGAnimatedTransformList.baseVal: rect.transform.baseVal
 Pass	SVGAnimatedTransformList: pat.patternTransform

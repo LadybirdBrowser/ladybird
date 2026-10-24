@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 32 tests
 
-30 Pass
-2 Fail
+32 Pass
 Pass	SVGAnimatedEnumeration, keyword values, SVGComponentTransferFunctionElement.prototype.type (keywords)
 Pass	SVGAnimatedEnumeration, keyword values, SVGComponentTransferFunctionElement.prototype.type (case-sensitive)
 Pass	SVGAnimatedEnumeration, keyword values, SVGFEBlendElement.prototype.mode (keywords)
@@ -28,8 +27,8 @@ Pass	SVGAnimatedEnumeration, keyword values, SVGGradientElement.prototype.spread
 Pass	SVGAnimatedEnumeration, keyword values, SVGGradientElement.prototype.spreadMethod (case-sensitive)
 Pass	SVGAnimatedEnumeration, keyword values, SVGGradientElement.prototype.gradientUnits (keywords)
 Pass	SVGAnimatedEnumeration, keyword values, SVGGradientElement.prototype.gradientUnits (case-sensitive)
-Fail	SVGAnimatedEnumeration, keyword values, SVGMarkerElement.prototype.markerUnits (keywords)
-Fail	SVGAnimatedEnumeration, keyword values, SVGMarkerElement.prototype.markerUnits (case-sensitive)
+Pass	SVGAnimatedEnumeration, keyword values, SVGMarkerElement.prototype.markerUnits (keywords)
+Pass	SVGAnimatedEnumeration, keyword values, SVGMarkerElement.prototype.markerUnits (case-sensitive)
 Pass	SVGAnimatedEnumeration, keyword values, SVGTextContentElement.prototype.lengthAdjust (keywords)
 Pass	SVGAnimatedEnumeration, keyword values, SVGTextContentElement.prototype.lengthAdjust (case-sensitive)
 Pass	SVGAnimatedEnumeration, keyword values, SVGTextPathElement.prototype.method (keywords)
