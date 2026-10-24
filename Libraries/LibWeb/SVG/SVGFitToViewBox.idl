@@ -1,5 +1,5 @@
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGFitToViewBox
 interface mixin SVGFitToViewBox {
     [SameObject, ImplementedAs=view_box_for_bindings] readonly attribute SVGAnimatedRect viewBox;
-    [FIXME, SameObject] readonly attribute SVGAnimatedPreserveAspectRatio preserveAspectRatio;
+    [SameObject, ImplementedAs=preserve_aspect_ratio_for_bindings] readonly attribute SVGAnimatedPreserveAspectRatio preserveAspectRatio;
 };

@@ -28,7 +28,7 @@ SVGPatternElement::SVGPatternElement(DOM::Document& document, DOM::QualifiedName
 
 void SVGPatternElement::initialize_element()
 {
-    SVGFitToViewBox::initialize_fit_to_view_box();
+    SVGFitToViewBox::initialize_fit_to_view_box(*this);
 }
 
 void SVGPatternElement::visit_edges(Cell::Visitor& visitor)

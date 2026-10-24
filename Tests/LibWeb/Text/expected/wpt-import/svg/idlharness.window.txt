@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1322 Pass
-458 Fail
+1400 Pass
+380 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -436,7 +436,7 @@ Pass	SVGSVGElement interface: operation animationsPaused()
 Pass	SVGSVGElement interface: operation getCurrentTime()
 Pass	SVGSVGElement interface: operation setCurrentTime(float)
 Pass	SVGSVGElement interface: attribute viewBox
-Fail	SVGSVGElement interface: attribute preserveAspectRatio
+Pass	SVGSVGElement interface: attribute preserveAspectRatio
 Pass	SVGSVGElement must be primary interface of objects.svg
 Pass	Stringification of objects.svg
 Pass	SVGSVGElement interface: objects.svg must inherit property "x" with the proper type
@@ -478,7 +478,7 @@ Pass	SVGSVGElement interface: objects.svg must inherit property "getCurrentTime(
 Pass	SVGSVGElement interface: objects.svg must inherit property "setCurrentTime(float)" with the proper type
 Pass	SVGSVGElement interface: calling setCurrentTime(float) on objects.svg with too few arguments must throw TypeError
 Pass	SVGSVGElement interface: objects.svg must inherit property "viewBox" with the proper type
-Fail	SVGSVGElement interface: objects.svg must inherit property "preserveAspectRatio" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "preserveAspectRatio" with the proper type
 Pass	SVGGraphicsElement interface: objects.svg must inherit property "transform" with the proper type
 Pass	SVGGraphicsElement interface: objects.svg must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.svg with too few arguments must throw TypeError
@@ -577,11 +577,11 @@ Pass	SVGSymbolElement interface: existence and properties of interface prototype
 Pass	SVGSymbolElement interface: existence and properties of interface prototype object's "constructor" property
 Pass	SVGSymbolElement interface: existence and properties of interface prototype object's @@unscopables property
 Pass	SVGSymbolElement interface: attribute viewBox
-Fail	SVGSymbolElement interface: attribute preserveAspectRatio
+Pass	SVGSymbolElement interface: attribute preserveAspectRatio
 Pass	SVGSymbolElement must be primary interface of objects.symbol
 Pass	Stringification of objects.symbol
 Pass	SVGSymbolElement interface: objects.symbol must inherit property "viewBox" with the proper type
-Fail	SVGSymbolElement interface: objects.symbol must inherit property "preserveAspectRatio" with the proper type
+Pass	SVGSymbolElement interface: objects.symbol must inherit property "preserveAspectRatio" with the proper type
 Pass	SVGGraphicsElement interface: objects.symbol must inherit property "transform" with the proper type
 Pass	SVGGraphicsElement interface: objects.symbol must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.symbol with too few arguments must throw TypeError
@@ -784,72 +784,72 @@ Fail	SVGAnimatedTransformList must be primary interface of objects.pattern.patte
 Fail	Stringification of objects.pattern.patternTransform
 Fail	SVGAnimatedTransformList interface: objects.pattern.patternTransform must inherit property "baseVal" with the proper type
 Fail	SVGAnimatedTransformList interface: objects.pattern.patternTransform must inherit property "animVal" with the proper type
-Fail	SVGPreserveAspectRatio interface: existence and properties of interface object
-Fail	SVGPreserveAspectRatio interface object length
-Fail	SVGPreserveAspectRatio interface object name
-Fail	SVGPreserveAspectRatio interface: existence and properties of interface prototype object
-Fail	SVGPreserveAspectRatio interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGPreserveAspectRatio interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_UNKNOWN on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_UNKNOWN on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_NONE on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_NONE on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMIN on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMIN on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMIN on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMIN on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMIN on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMIN on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMID on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMID on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMID on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMID on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMID on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMID on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMAX on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMAX on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMAX on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMAX on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMAX on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMAX on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_UNKNOWN on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_UNKNOWN on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_MEET on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_MEET on interface prototype object
-Fail	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_SLICE on interface object
-Fail	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_SLICE on interface prototype object
-Fail	SVGPreserveAspectRatio interface: attribute align
-Fail	SVGPreserveAspectRatio interface: attribute meetOrSlice
-Fail	SVGPreserveAspectRatio must be primary interface of objects.image.preserveAspectRatio.baseVal
-Fail	Stringification of objects.image.preserveAspectRatio.baseVal
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_UNKNOWN" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_NONE" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMINYMIN" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMIDYMIN" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMAXYMIN" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMINYMID" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMIDYMID" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMAXYMID" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMINYMAX" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMIDYMAX" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMAXYMAX" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_MEETORSLICE_UNKNOWN" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_MEETORSLICE_MEET" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_MEETORSLICE_SLICE" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "align" with the proper type
-Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "meetOrSlice" with the proper type
-Fail	SVGAnimatedPreserveAspectRatio interface: existence and properties of interface object
-Fail	SVGAnimatedPreserveAspectRatio interface object length
-Fail	SVGAnimatedPreserveAspectRatio interface object name
-Fail	SVGAnimatedPreserveAspectRatio interface: existence and properties of interface prototype object
-Fail	SVGAnimatedPreserveAspectRatio interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGAnimatedPreserveAspectRatio interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGAnimatedPreserveAspectRatio interface: attribute baseVal
-Fail	SVGAnimatedPreserveAspectRatio interface: attribute animVal
-Fail	SVGAnimatedPreserveAspectRatio must be primary interface of objects.image.preserveAspectRatio
-Fail	Stringification of objects.image.preserveAspectRatio
-Fail	SVGAnimatedPreserveAspectRatio interface: objects.image.preserveAspectRatio must inherit property "baseVal" with the proper type
-Fail	SVGAnimatedPreserveAspectRatio interface: objects.image.preserveAspectRatio must inherit property "animVal" with the proper type
+Pass	SVGPreserveAspectRatio interface: existence and properties of interface object
+Pass	SVGPreserveAspectRatio interface object length
+Pass	SVGPreserveAspectRatio interface object name
+Pass	SVGPreserveAspectRatio interface: existence and properties of interface prototype object
+Pass	SVGPreserveAspectRatio interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGPreserveAspectRatio interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_UNKNOWN on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_UNKNOWN on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_NONE on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_NONE on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMIN on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMIN on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMIN on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMIN on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMIN on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMIN on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMID on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMID on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMID on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMID on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMID on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMID on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMAX on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMAX on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMAX on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMAX on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMAX on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMAX on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_UNKNOWN on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_UNKNOWN on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_MEET on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_MEET on interface prototype object
+Pass	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_SLICE on interface object
+Pass	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_SLICE on interface prototype object
+Pass	SVGPreserveAspectRatio interface: attribute align
+Pass	SVGPreserveAspectRatio interface: attribute meetOrSlice
+Pass	SVGPreserveAspectRatio must be primary interface of objects.image.preserveAspectRatio.baseVal
+Pass	Stringification of objects.image.preserveAspectRatio.baseVal
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_UNKNOWN" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_NONE" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMINYMIN" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMIDYMIN" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMAXYMIN" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMINYMID" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMIDYMID" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMAXYMID" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMINYMAX" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMIDYMAX" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMAXYMAX" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_MEETORSLICE_UNKNOWN" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_MEETORSLICE_MEET" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_MEETORSLICE_SLICE" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "align" with the proper type
+Pass	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "meetOrSlice" with the proper type
+Pass	SVGAnimatedPreserveAspectRatio interface: existence and properties of interface object
+Pass	SVGAnimatedPreserveAspectRatio interface object length
+Pass	SVGAnimatedPreserveAspectRatio interface object name
+Pass	SVGAnimatedPreserveAspectRatio interface: existence and properties of interface prototype object
+Pass	SVGAnimatedPreserveAspectRatio interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimatedPreserveAspectRatio interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimatedPreserveAspectRatio interface: attribute baseVal
+Pass	SVGAnimatedPreserveAspectRatio interface: attribute animVal
+Pass	SVGAnimatedPreserveAspectRatio must be primary interface of objects.image.preserveAspectRatio
+Pass	Stringification of objects.image.preserveAspectRatio
+Pass	SVGAnimatedPreserveAspectRatio interface: objects.image.preserveAspectRatio must inherit property "baseVal" with the proper type
+Pass	SVGAnimatedPreserveAspectRatio interface: objects.image.preserveAspectRatio must inherit property "animVal" with the proper type
 Pass	SVGRectElement interface: existence and properties of interface object
 Pass	SVGRectElement interface object length
 Pass	SVGRectElement interface object name
@@ -1295,7 +1295,7 @@ Pass	SVGImageElement interface: attribute x
 Pass	SVGImageElement interface: attribute y
 Pass	SVGImageElement interface: attribute width
 Pass	SVGImageElement interface: attribute height
-Fail	SVGImageElement interface: attribute preserveAspectRatio
+Pass	SVGImageElement interface: attribute preserveAspectRatio
 Pass	SVGImageElement interface: attribute crossOrigin
 Pass	SVGImageElement interface: attribute href
 Pass	SVGImageElement must be primary interface of objects.image
@@ -1304,7 +1304,7 @@ Pass	SVGImageElement interface: objects.image must inherit property "x" with the
 Pass	SVGImageElement interface: objects.image must inherit property "y" with the proper type
 Pass	SVGImageElement interface: objects.image must inherit property "width" with the proper type
 Pass	SVGImageElement interface: objects.image must inherit property "height" with the proper type
-Fail	SVGImageElement interface: objects.image must inherit property "preserveAspectRatio" with the proper type
+Pass	SVGImageElement interface: objects.image must inherit property "preserveAspectRatio" with the proper type
 Pass	SVGImageElement interface: objects.image must inherit property "crossOrigin" with the proper type
 Pass	SVGImageElement interface: objects.image must inherit property "href" with the proper type
 Pass	SVGGraphicsElement interface: objects.image must inherit property "transform" with the proper type
@@ -1378,7 +1378,7 @@ Pass	SVGMarkerElement interface: attribute orient
 Pass	SVGMarkerElement interface: operation setOrientToAuto()
 Pass	SVGMarkerElement interface: operation setOrientToAngle(SVGAngle)
 Pass	SVGMarkerElement interface: attribute viewBox
-Fail	SVGMarkerElement interface: attribute preserveAspectRatio
+Pass	SVGMarkerElement interface: attribute preserveAspectRatio
 Pass	SVGMarkerElement must be primary interface of objects.marker
 Pass	Stringification of objects.marker
 Pass	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKERUNITS_UNKNOWN" with the proper type
@@ -1400,7 +1400,7 @@ Pass	SVGMarkerElement interface: objects.marker must inherit property "setOrient
 Pass	SVGMarkerElement interface: objects.marker must inherit property "setOrientToAngle(SVGAngle)" with the proper type
 Pass	SVGMarkerElement interface: calling setOrientToAngle(SVGAngle) on objects.marker with too few arguments must throw TypeError
 Pass	SVGMarkerElement interface: objects.marker must inherit property "viewBox" with the proper type
-Fail	SVGMarkerElement interface: objects.marker must inherit property "preserveAspectRatio" with the proper type
+Pass	SVGMarkerElement interface: objects.marker must inherit property "preserveAspectRatio" with the proper type
 Pass	SVGElement interface: objects.marker must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.marker must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.marker must inherit property "viewportElement" with the proper type
@@ -1515,7 +1515,7 @@ Pass	SVGPatternElement interface: attribute y
 Pass	SVGPatternElement interface: attribute width
 Pass	SVGPatternElement interface: attribute height
 Pass	SVGPatternElement interface: attribute viewBox
-Fail	SVGPatternElement interface: attribute preserveAspectRatio
+Pass	SVGPatternElement interface: attribute preserveAspectRatio
 Pass	SVGPatternElement interface: attribute href
 Pass	SVGPatternElement must be primary interface of objects.pattern
 Pass	Stringification of objects.pattern
@@ -1527,7 +1527,7 @@ Pass	SVGPatternElement interface: objects.pattern must inherit property "y" with
 Pass	SVGPatternElement interface: objects.pattern must inherit property "width" with the proper type
 Pass	SVGPatternElement interface: objects.pattern must inherit property "height" with the proper type
 Pass	SVGPatternElement interface: objects.pattern must inherit property "viewBox" with the proper type
-Fail	SVGPatternElement interface: objects.pattern must inherit property "preserveAspectRatio" with the proper type
+Pass	SVGPatternElement interface: objects.pattern must inherit property "preserveAspectRatio" with the proper type
 Pass	SVGPatternElement interface: objects.pattern must inherit property "href" with the proper type
 Pass	SVGElement interface: objects.pattern must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.pattern must inherit property "ownerSVGElement" with the proper type
@@ -1618,11 +1618,11 @@ Pass	SVGViewElement interface: existence and properties of interface prototype o
 Pass	SVGViewElement interface: existence and properties of interface prototype object's "constructor" property
 Pass	SVGViewElement interface: existence and properties of interface prototype object's @@unscopables property
 Pass	SVGViewElement interface: attribute viewBox
-Fail	SVGViewElement interface: attribute preserveAspectRatio
+Pass	SVGViewElement interface: attribute preserveAspectRatio
 Pass	SVGViewElement must be primary interface of objects.view
 Pass	Stringification of objects.view
 Pass	SVGViewElement interface: objects.view must inherit property "viewBox" with the proper type
-Fail	SVGViewElement interface: objects.view must inherit property "preserveAspectRatio" with the proper type
+Pass	SVGViewElement interface: objects.view must inherit property "preserveAspectRatio" with the proper type
 Pass	SVGElement interface: objects.view must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.view must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.view must inherit property "viewportElement" with the proper type

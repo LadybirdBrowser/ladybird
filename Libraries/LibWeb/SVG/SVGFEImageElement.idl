@@ -1,7 +1,7 @@
 // https://drafts.csswg.org/filter-effects-1/#feImageElement
 [Exposed=Window]
 interface SVGFEImageElement : SVGElement {
-    [FIXME] readonly attribute SVGAnimatedPreserveAspectRatio preserveAspectRatio;
+    [ImplementedAs=preserve_aspect_ratio_for_bindings] readonly attribute SVGAnimatedPreserveAspectRatio preserveAspectRatio;
     [FIXME] readonly attribute SVGAnimatedString crossOrigin;
 };
 

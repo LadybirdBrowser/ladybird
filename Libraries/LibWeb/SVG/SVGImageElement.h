@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Layout/ImageProvider.h>
+#include <LibWeb/SVG/SVGAnimatedPreserveAspectRatio.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 
 namespace Web::SVG {
@@ -43,6 +44,8 @@ public:
     // https://w3c.github.io/svgwg/svg2-draft/embedded.html#__svg__SVGImageElement__height
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, SVGLengthValue::number(0));
 
+    GC::Ref<SVGAnimatedPreserveAspectRatio> preserve_aspect_ratio_for_bindings();
+
     // ^Layout::ImageProvider
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
 
@@ -66,6 +69,7 @@ private:
 
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
+    GC::Ptr<SVGAnimatedPreserveAspectRatio> m_preserve_aspect_ratio;
 };
 
 }

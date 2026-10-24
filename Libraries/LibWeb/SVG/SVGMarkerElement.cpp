@@ -18,7 +18,7 @@ SVGMarkerElement::SVGMarkerElement(DOM::Document& document, DOM::QualifiedName q
 
 void SVGMarkerElement::initialize_element()
 {
-    SVGFitToViewBox::initialize_fit_to_view_box();
+    SVGFitToViewBox::initialize_fit_to_view_box(*this);
 }
 
 void SVGMarkerElement::visit_edges(Cell::Visitor& visitor)

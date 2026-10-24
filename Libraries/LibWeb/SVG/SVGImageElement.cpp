@@ -44,6 +44,15 @@ void SVGImageElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
     visitor.visit(m_resource_request);
+    visitor.visit(m_preserve_aspect_ratio);
+}
+
+// https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__preserveAspectRatio
+GC::Ref<SVGAnimatedPreserveAspectRatio> SVGImageElement::preserve_aspect_ratio_for_bindings()
+{
+    if (!m_preserve_aspect_ratio)
+        m_preserve_aspect_ratio = SVGAnimatedPreserveAspectRatio::create(*this);
+    return *m_preserve_aspect_ratio;
 }
 
 void SVGImageElement::adopted_from(DOM::Document& old_document)

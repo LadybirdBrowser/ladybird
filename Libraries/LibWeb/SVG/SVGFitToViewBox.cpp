@@ -12,14 +12,16 @@
 
 namespace Web::SVG {
 
-void SVGFitToViewBox::initialize_fit_to_view_box()
+void SVGFitToViewBox::initialize_fit_to_view_box(SVGElement& element)
 {
     m_view_box_for_bindings = SVGAnimatedRect::create();
+    m_preserve_aspect_ratio_for_bindings = SVGAnimatedPreserveAspectRatio::create(element);
 }
 
 void SVGFitToViewBox::visit_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_view_box_for_bindings);
+    visitor.visit(m_preserve_aspect_ratio_for_bindings);
 }
 
 void SVGFitToViewBox::attribute_changed(DOM::Element& element, Utf16FlyString const& name, Optional<Utf16String> const& value)
