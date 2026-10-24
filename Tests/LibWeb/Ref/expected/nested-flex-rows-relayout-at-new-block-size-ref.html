@@ -1,0 +1,42 @@
+<!doctype html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #rows {
+        display: flex;
+        height: 80px;
+        column-gap: 10px;
+    }
+
+    .row {
+        display: flex;
+        column-gap: 10px;
+    }
+
+    .bottom-aligned {
+        align-items: flex-end;
+    }
+
+    .item {
+        width: 40px;
+        background: lightgray;
+    }
+
+    .box {
+        width: 20px;
+        height: 20px;
+        background: green;
+    }
+
+    .half {
+        height: 50%;
+        background: green;
+    }
+</style>
+<div id="rows">
+    <div class="row"><div class="item"><div class="box"></div></div><div class="item"><div class="half"></div></div></div>
+    <div class="row bottom-aligned"><div class="item"><div class="box"></div></div></div>
+    <div class="row"><div class="row"><div class="item"><div class="half"></div></div><div class="item"><div class="box"></div></div></div></div>
+</div>

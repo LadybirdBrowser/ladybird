@@ -326,6 +326,27 @@ impl ColumnEarlyBreaks {
     }
 }
 
+pub(crate) fn root_lays_out_content_against_its_own_block_size(
+    sizing: &sizing_context::SizingContext<'_>,
+    root: Node,
+) -> bool {
+    let facts = sizing.facts(root);
+    let outside_marker = facts.list_item_marker();
+    let marker_resolves_against_list_item_block_size = facts.is_list_item_box()
+        && !outside_marker.is_invalid()
+        && !sizing.facts(outside_marker).list_marker_is_inside()
+        && sizing.own_style_depends_on_percentage_block_size(outside_marker);
+    facts.is_fieldset_box()
+        || facts.lays_out_in_columns()
+        || is_line_clamp_container(sizing.callbacks(), root)
+        || facts.uses_button_layout()
+        || facts.is_text_input()
+        || facts.is_anonymous_button_content_wrapper()
+        || facts.is_anonymous_button_content_box()
+        || facts.is_table_wrapper()
+        || marker_resolves_against_list_item_block_size
+}
+
 impl<'pass> BlockFormattingContext<'pass> {
     pub(crate) fn new(run: &FormattingContextRun<'pass>) -> Self {
         let style = StyleValues::for_node(&run.callbacks, run.box_);

@@ -3734,6 +3734,12 @@ impl<'pass> AbsposEngine<'pass> {
         if style.position() != positioning::RELATIVE {
             return;
         }
+        formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
+            self.records,
+            &self.callbacks,
+            node,
+            false,
+        );
 
         let resolve_opposing = |first: style_values::InsetValue, second: style_values::InsetValue, basis: CssPixels| {
             let resolved_first = first.to_px(basis);

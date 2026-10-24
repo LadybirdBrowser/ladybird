@@ -1057,6 +1057,14 @@ pub(crate) struct ChildLayoutResult {
     /// For a box with a preferred aspect ratio, the block size of its laid out content.
     pub content_block_size_for_aspect_ratio_minimum: Option<CssPixels>,
     pub depends_on_percentage_block_size: bool,
+    pub own_block_size_observation: OwnBlockSizeObservation,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum OwnBlockSizeObservation {
+    #[default]
+    Observed,
+    Unobserved,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2050,6 +2058,33 @@ pub(super) fn run_formatting_context(
     if let Some(discarded_outputs) = &discarded_outputs {
         run_repeatability::verify_repeated_run(&callbacks, box_, discarded_outputs, &outputs);
     }
+    if cache_attempt.stores_outputs() {
+        run_repeatability::verify_run_ignores_its_unobserved_own_block_size(
+            &callbacks,
+            box_,
+            root_cells,
+            input,
+            &outputs,
+            |root_cells_at_other_own_block_size, input_at_other_own_block_size| {
+                execute_formatting_context_run(
+                    builds_fragments,
+                    root_cells_at_other_own_block_size,
+                    box_,
+                    root_containing_block,
+                    parent_grid,
+                    fc_type,
+                    layout_mode,
+                    should_collect_devtools_layout_data,
+                    callbacks,
+                    input_at_other_own_block_size,
+                    parent_block,
+                    None,
+                    None,
+                    None,
+                )
+            },
+        );
+    }
     cache_attempt.conclude(&callbacks, box_, cache_key, &input, &outputs);
     absorb_run_outputs(&callbacks, parent_fragments, parent_used, box_, &input, outputs, false)
 }
@@ -2149,6 +2184,7 @@ fn execute_formatting_context_run(
 ) -> RunOutputs {
     assert!(!box_.is_invalid());
     let parent_owns_root_input_cells = parent_owns_root_input_cells(&callbacks, box_, &input);
+    let run_is_handed_table_inline_layout_outside_its_key = table_inline_layout.is_some();
     let root_used = root_cells.materialize_record();
     let outputs = RunRecords::with_root(
         callbacks,
@@ -2389,6 +2425,10 @@ fn execute_formatting_context_run(
                 );
             }
             result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
+            if !run_is_handed_table_inline_layout_outside_its_key {
+                result.own_block_size_observation =
+                    own_block_size_observation_of_item_run(run, fc_type, &input, &result);
+            }
 
             // NB: The root's descendants are laid out in the frame the root establishes.
             let take_run_fragments = || {
@@ -2867,7 +2907,7 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
     let cache_key =
         fc_run_cache::FcRunCacheKey::new(FormattingContextType::Block, LayoutMode::Normal, input, root_cells);
     let builds_fragments = run_builds_fragments(LayoutMode::Normal, &input, false);
-    let execute = |previous_line_data| {
+    let execute_at = |root_cells, input, previous_line_data| {
         execute_formatting_context_run(
             builds_fragments,
             root_cells,
@@ -2895,7 +2935,7 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
         ) {
             return None;
         }
-        return Some(execute(None).result);
+        return Some(execute_at(root_cells, input, None).result);
     }
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
         cell,
@@ -2924,11 +2964,22 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
         || "RUN AHEAD OF INTRINSIC BLOCK PADDING",
     );
     let previous_line_data = cache_attempt.previous_line_data();
-    let discarded_outputs = run_repeatability::lay_out_discarded_run(&run.callbacks, || execute(None));
-    let outputs = execute(previous_line_data);
+    let discarded_outputs =
+        run_repeatability::lay_out_discarded_run(&run.callbacks, || execute_at(root_cells, input, None));
+    let outputs = execute_at(root_cells, input, previous_line_data);
     if let Some(discarded_outputs) = &discarded_outputs {
         run_repeatability::verify_repeated_run(&run.callbacks, cell, discarded_outputs, &outputs);
     }
+    run_repeatability::verify_run_ignores_its_unobserved_own_block_size(
+        &run.callbacks,
+        cell,
+        root_cells,
+        input,
+        &outputs,
+        |root_cells_at_other_own_block_size, input_at_other_own_block_size| {
+            execute_at(root_cells_at_other_own_block_size, input_at_other_own_block_size, None)
+        },
+    );
     cache_attempt.conclude(&run.callbacks, cell, cache_key, &input, &outputs);
     Some(outputs.result)
 }
@@ -2940,6 +2991,50 @@ pub(super) fn parent_owns_root_input_cells(callbacks: &LayoutPass<'_>, box_: Nod
         && !input.available_space.inline_size.is_intrinsic_sizing_constraint()
         && !input.available_space.block_size.is_intrinsic_sizing_constraint()
         && !frame_established_by(callbacks, box_).is_orthogonal_to(callbacks.frame)
+}
+
+fn own_block_size_observation_of_item_run(
+    run: &FormattingContextRun,
+    fc_type: FormattingContextType,
+    input: &LayoutInput,
+    result: &ChildLayoutResult,
+) -> OwnBlockSizeObservation {
+    let root_used = run.records.used_values(run.box_);
+    let item_is_plain_block_container_laid_out_without_its_own_block_size = fc_type == FormattingContextType::Block
+        && run.layout_mode == LayoutMode::Normal
+        && !run.callbacks.frame.is_transposed()
+        && parent_owns_root_input_cells(&run.callbacks, run.box_, input)
+        && !result.depends_on_percentage_block_size
+        && !root_used.has_descendant_that_depends_on_percentage_block_size.get()
+        && !block_formatting_context::root_lays_out_content_against_its_own_block_size(&run.sizing(), run.box_)
+        && !root_content_includes_an_orthogonal_flow_sized_by_the_root_block_size(&run.callbacks, run.box_);
+    if item_is_plain_block_container_laid_out_without_its_own_block_size {
+        OwnBlockSizeObservation::Unobserved
+    } else {
+        OwnBlockSizeObservation::Observed
+    }
+}
+
+fn root_content_includes_an_orthogonal_flow_sized_by_the_root_block_size(
+    callbacks: &LayoutPass<'_>,
+    root: Node,
+) -> bool {
+    let mut boxes_whose_children_the_root_contains: smallvec::SmallVec<[Node; 8]> = smallvec::smallvec![root];
+    while let Some(container) = boxes_whose_children_the_root_contains.pop() {
+        for child in callbacks.children(container) {
+            let facts = NodeFacts::new(callbacks, child);
+            if facts.is_text_node() || facts.is_absolutely_positioned() {
+                continue;
+            }
+            if frame_established_by(callbacks, child).is_orthogonal_to(callbacks.frame) {
+                return true;
+            }
+            if facts.is_anonymous() || (facts.is_inline() && !facts.is_atomic_inline()) {
+                boxes_whose_children_the_root_contains.push(child);
+            }
+        }
+    }
+    false
 }
 
 pub(super) fn content_block_size_adopted_after_run(

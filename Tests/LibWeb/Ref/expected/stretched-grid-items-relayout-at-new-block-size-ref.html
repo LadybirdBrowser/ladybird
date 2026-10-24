@@ -1,0 +1,103 @@
+<!doctype html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #items {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 40px;
+        grid-auto-rows: minmax(0, 1fr);
+        height: 80px;
+        column-gap: 10px;
+        font-size: 0;
+    }
+
+    .item {
+        width: 40px;
+        background: lightgray;
+    }
+
+    .box {
+        width: 20px;
+        height: 20px;
+        background: green;
+    }
+
+    .half {
+        height: 50%;
+        background: green;
+    }
+
+    .stretch-fit {
+        height: stretch;
+        background: green;
+    }
+
+    fieldset.item {
+        display: flex;
+        align-items: flex-end;
+        min-inline-size: 0;
+        margin: 0;
+        border: 0;
+        padding: 0;
+    }
+
+    .multicol {
+        column-count: 2;
+        column-gap: 0;
+        column-fill: auto;
+    }
+
+    .multicol > div {
+        height: 20px;
+    }
+
+    button.item {
+        margin: 0;
+        border: 0;
+        padding: 0;
+        font-size: 0;
+    }
+
+    button.item > span {
+        display: inline-block;
+    }
+
+    .clamped {
+        continue: collapse;
+    }
+
+    .clamped > span {
+        display: inline-block;
+        vertical-align: top;
+        width: 40px;
+        height: 20px;
+    }
+
+    .green {
+        background: green;
+    }
+
+    .blue {
+        background: blue;
+    }
+
+    .purple {
+        background: purple;
+    }
+
+    .orange {
+        background: orange;
+    }
+</style>
+<div id="items">
+    <div class="item"><div class="box"></div></div>
+    <div class="item"><div class="half"></div></div>
+    <div class="item"><div class="stretch-fit"></div></div>
+    <fieldset class="item"><div class="box"></div></fieldset>
+    <div class="item multicol"><div class="green"></div><div class="blue"></div><div class="purple"></div><div class="orange"></div></div>
+    <button class="item"><span class="box"></span></button>
+    <div class="item clamped"><span class="green"></span><span class="blue"></span><span class="purple"></span><span class="orange"></span></div>
+</div>
