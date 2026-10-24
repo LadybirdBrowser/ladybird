@@ -1,5 +1,5 @@
 describe("basic usage", () => {
-    test.xfail("disposes after block exit", () => {
+    test("disposes after block exit", () => {
         let disposed = false;
         let inBlock = false;
         {
@@ -17,7 +17,7 @@ describe("basic usage", () => {
         expect(disposed).toBeTrue();
     });
 
-    test.xfail("disposes in reverse order after block exit", () => {
+    test("disposes in reverse order after block exit", () => {
         const disposed = [];
         {
             expect(disposed).toHaveLength(0);
@@ -37,7 +37,7 @@ describe("basic usage", () => {
         expect(disposed).toEqual(["b", "a"]);
     });
 
-    test.xfail("disposes in reverse order after block exit even in same declaration", () => {
+    test("disposes in reverse order after block exit even in same declaration", () => {
         const disposed = [];
         {
             expect(disposed).toHaveLength(0);
@@ -63,7 +63,7 @@ describe("behavior with exceptions", () => {
         this.name = name;
     }
 
-    test.xfail("is run even after throw", () => {
+    test("is run even after throw", () => {
         let disposed = false;
         let inBlock = false;
         let inCatch = false;
@@ -88,7 +88,7 @@ describe("behavior with exceptions", () => {
         expect(inCatch).toBeTrue();
     });
 
-    test.xfail("throws error if dispose method does", () => {
+    test("throws error if dispose method does", () => {
         let disposed = false;
         let endOfTry = false;
         let inCatch = false;
@@ -112,7 +112,7 @@ describe("behavior with exceptions", () => {
         expect(inCatch).toBeTrue();
     });
 
-    test.xfail("if block and using throw get suppressed error", () => {
+    test("if block and using throw get suppressed error", () => {
         let disposed = false;
         let inCatch = false;
         try {
@@ -138,7 +138,7 @@ describe("behavior with exceptions", () => {
         expect(inCatch).toBeTrue();
     });
 
-    test.xfail("multiple throwing disposes give suppressed error", () => {
+    test("multiple throwing disposes give suppressed error", () => {
         let inCatch = false;
         try {
             {
@@ -167,7 +167,7 @@ describe("behavior with exceptions", () => {
         expect(inCatch).toBeTrue();
     });
 
-    test.xfail("3 throwing disposes give chaining suppressed error", () => {
+    test("3 throwing disposes give chaining suppressed error", () => {
         let inCatch = false;
         try {
             {
@@ -208,7 +208,7 @@ describe("behavior with exceptions", () => {
         expect(inCatch).toBeTrue();
     });
 
-    test.xfail("normal error and multiple disposing errors give chaining suppressed errors", () => {
+    test("normal error and multiple disposing errors give chaining suppressed errors", () => {
         let inCatch = false;
         try {
             using a = {
@@ -243,7 +243,7 @@ describe("behavior with exceptions", () => {
 });
 
 describe("works in a bunch of scopes", () => {
-    test.xfail("works in block", () => {
+    test("works in block", () => {
         let dispose = false;
         expect(dispose).toBeFalse();
         {
@@ -258,7 +258,7 @@ describe("works in a bunch of scopes", () => {
         expect(dispose).toBeTrue();
     });
 
-    test.xfail("works in static class block", () => {
+    test("works in static class block", () => {
         let dispose = false;
         expect(dispose).toBeFalse();
         class A {
@@ -275,7 +275,7 @@ describe("works in a bunch of scopes", () => {
         expect(dispose).toBeTrue();
     });
 
-    test.xfail("works in function", () => {
+    test("works in function", () => {
         let dispose = [];
         function f(val) {
             const disposeLength = dispose.length;
@@ -293,7 +293,7 @@ describe("works in a bunch of scopes", () => {
         expect(dispose).toEqual([0, 1]);
     });
 
-    test.xfail("switch block is treated as full block in function", () => {
+    test("blocks in switch cases dispose at their end", () => {
         let disposeFull = [];
         let disposeInner = false;
 
@@ -328,7 +328,7 @@ describe("works in a bunch of scopes", () => {
             // fallthrough
             case 1:
                 {
-                    expect(disposeFull).toEqual([]);
+                    expect(disposeFull).toEqual(["b", "a"]);
                     expect(disposeInner).toBeFalse();
 
                     using inner = {
@@ -355,19 +355,19 @@ describe("works in a bunch of scopes", () => {
         }
 
         expect(disposeInner).toBeTrue();
-        expect(disposeFull).toEqual(["c", "b", "a"]);
+        expect(disposeFull).toEqual(["b", "a", "c"]);
     });
 });
 
 describe("invalid using bindings", () => {
-    test.xfail("nullish values do not throw", () => {
+    test("nullish values do not throw", () => {
         using a = null,
             b = undefined;
         expect(a).toBeNull();
         expect(b).toBeUndefined();
     });
 
-    test.xfail("non-object throws", () => {
+    test("non-object throws", () => {
         [0, "a", true, NaN, 4n, Symbol.dispose].forEach(value => {
             expect(() => {
                 using v = value;
@@ -375,13 +375,13 @@ describe("invalid using bindings", () => {
         });
     });
 
-    test.xfail("object without dispose throws", () => {
+    test("object without dispose throws", () => {
         expect(() => {
             using a = {};
         }).toThrowWithMessage(TypeError, "does not have dispose method");
     });
 
-    test.xfail("object with non callable dispose throws", () => {
+    test("object with non callable dispose throws", () => {
         [0, "a", true, NaN, 4n, Symbol.dispose, [], {}].forEach(value => {
             expect(() => {
                 using a = { [Symbol.dispose]: value };
@@ -409,7 +409,7 @@ describe("using is still a valid variable name", () => {
         expect(using).toBe(1);
     });
 
-    test.xfail("using", () => {
+    test("using", () => {
         "use strict";
         using using = null;
         expect(using).toBeNull();
@@ -461,5 +461,153 @@ describe("syntax errors / weird artifacts which remain valid", () => {
 
     test("cannot have a using declaration named let", () => {
         expect("using let = null").not.toEval();
+    });
+});
+
+describe("control flow", () => {
+    const disposable = (log, name) => ({
+        [Symbol.dispose]() {
+            log.push(name);
+        },
+    });
+
+    test("break and continue to labels dispose of every scope they leave", () => {
+        const log = [];
+        outer: for (let i = 0; i < 2; i++) {
+            using a = disposable(log, `a${i}`);
+            for (let j = 0; j < 2; j++) {
+                using b = disposable(log, `b${i}${j}`);
+                {
+                    using c = disposable(log, `c${i}${j}`);
+                    if (i === 0) continue outer;
+                    break outer;
+                }
+            }
+        }
+        expect(log).toEqual(["c00", "b00", "a0", "c10", "b10", "a1"]);
+
+        log.length = 0;
+        block: {
+            using a = disposable(log, "a");
+            {
+                using b = disposable(log, "b");
+                break block;
+            }
+        }
+        expect(log).toEqual(["b", "a"]);
+    });
+
+    test("return from a finally block disposes of every scope it leaves", () => {
+        const log = [];
+        function f() {
+            using a = disposable(log, "a");
+            try {
+                using b = disposable(log, "b");
+                return 1;
+            } finally {
+                using c = disposable(log, "c");
+                return 2;
+            }
+        }
+        expect(f()).toBe(2);
+        expect(log).toEqual(["b", "c", "a"]);
+    });
+
+    test("completion value of a block", () => {
+        const log = [];
+        expect(eval("{ using a = disposable(log, 'a'); 42; }")).toBe(42);
+        expect(eval("1; { using b = disposable(log, 'b'); }")).toBe(1);
+        expect(eval("l: { using c = disposable(log, 'c'); 3; break l; }")).toBe(3);
+        expect(log).toEqual(["a", "b", "c"]);
+    });
+
+    test("generator return() and throw() while suspended in a scope", () => {
+        const log = [];
+        function* generator() {
+            using a = disposable(log, "a");
+            try {
+                using b = disposable(log, "b");
+                yield 1;
+                log.push("resumed");
+            } finally {
+                log.push("finally");
+            }
+        }
+
+        let iterator = generator();
+        iterator.next();
+        expect(iterator.return(5)).toEqual({ value: 5, done: true });
+        expect(log).toEqual(["b", "finally", "a"]);
+
+        log.length = 0;
+        iterator = generator();
+        iterator.next();
+        expect(() => iterator.throw(new Error("thrown"))).toThrowWithMessage(Error, "thrown");
+        expect(log).toEqual(["b", "finally", "a"]);
+
+        log.length = 0;
+        iterator = generator();
+        iterator.next();
+        gc();
+        expect(iterator.next()).toEqual({ value: undefined, done: true });
+        expect(log).toEqual(["resumed", "b", "finally", "a"]);
+    });
+
+    test("for-of disposes of the resource before closing the iterator", () => {
+        const log = [];
+        function makeIterator(values) {
+            let index = 0;
+            return {
+                [Symbol.iterator]() {
+                    return this;
+                },
+                next() {
+                    return index < values.length ? { value: values[index++], done: false } : { done: true };
+                },
+                return() {
+                    log.push("return");
+                    return {};
+                },
+            };
+        }
+
+        const throwing = {
+            [Symbol.dispose]() {
+                log.push("dispose");
+                throw new Error("dispose");
+            },
+        };
+        expect(() => {
+            for (using x of makeIterator([throwing])) break;
+        }).toThrowWithMessage(Error, "dispose");
+        expect(log).toEqual(["dispose", "return"]);
+
+        log.length = 0;
+        expect(() => {
+            for (using x of makeIterator([1])) log.push("body");
+        }).toThrow(TypeError);
+        expect(log).toEqual(["return"]);
+
+        log.length = 0;
+        function* generator() {
+            for (using x of makeIterator([disposable(log, "x")])) yield 1;
+        }
+        const iterator = generator();
+        iterator.next();
+        iterator.return();
+        expect(log).toEqual(["x", "return"]);
+    });
+});
+
+describe("parsing", () => {
+    test("using followed by a reserved word is an expression", () => {
+        expect("{ var using, x = {}; using in x; using instanceof Object; }").toEval();
+    });
+
+    test("using declarations are allowed in the body of a dynamic function", () => {
+        const log = [];
+        const f = new Function("log", "using a = { [Symbol.dispose]() { log.push('a'); } }; log.push('body');");
+        f(log);
+        expect(log).toEqual(["body", "a"]);
     });
 });

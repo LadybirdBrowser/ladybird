@@ -1302,7 +1302,7 @@ fn collect_script_lexical_bindings(
                 for_each_bound_name(&declarator.target, arena, &mut |name| {
                     bindings.push(LexicalBindingRecord {
                         name: name.to_vec().into(),
-                        is_constant: false,
+                        is_constant: true,
                     });
                 });
             }
@@ -1516,7 +1516,7 @@ fn collect_module_declaration(
                 for_each_bound_name(&declarator.target, arena, &mut |name| {
                     metadata.lexical_bindings.push(ModuleLexicalBindingRecord {
                         name: name.to_vec().into(),
-                        is_constant: false,
+                        is_constant: true,
                         function_index: -1,
                     });
                 });
