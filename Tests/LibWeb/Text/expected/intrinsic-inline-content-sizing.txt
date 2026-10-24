@@ -100,6 +100,17 @@ table constraints: 130x114, 130x114, 130x114, 130x114
 floating table: 152x22, 52x62, 152x22, 120x42
 floating table with collapsed borders: 166x30, 116x50, 166x30, 120x50
 percentage height table cell: 102x80, 52x80, 102x80, 102x80
+row flex: 161x20, 111x40, 161x20, 120x40
+row flex with flex factors: 185x20, 110x40, 185x20, 120x40
+row flex with item constraints: 190x40, 190x40, 190x40, 190x40
+row flex with a scroll container item: 140x20, 140x20, 140x20, 140x20
+row flex with a percentage gap: 90x20, 90x20, 90x20, 90x20
+wrapping row flex: 208x20, 50x88, 208x20, 120x44
+column flex: 100x40, 75x60, 100x40, 100x40
+wrapping column flex: 155x40, 50x40, 155x40, 120x40
+column flex with an aspect ratio item: 50x40, 50x40, 50x40, 50x40
+nested flex: 150x40, 100x60, 150x40, 120x60
+row flex with a stretched aspect ratio item: 10x60, 10x60, 10x60, 10x60
 words, min-content: [80,90]
 words, max-content: [200,30]
 words, fit-content: [200,30]

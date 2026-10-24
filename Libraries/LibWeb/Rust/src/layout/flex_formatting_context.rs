@@ -3418,7 +3418,51 @@ impl<'pass> FlexFormattingContext<'pass> {
         sum
     }
 
-    pub(super) fn run(&mut self, run: &FormattingContextRun<'pass>, layout_input: LayoutInput) {
+    fn cross_content_contribution_depends_on_used_main_size(&self, index: usize) -> bool {
+        let node = self.flex_items[index].box_;
+        let facts = self.facts(node);
+        let has_natural_inline_size = facts.is_replaced_box() && facts.has_auto_content_width();
+        if has_natural_inline_size && self.style(node).height().is_auto() {
+            return false;
+        }
+        let cross_size_may_transfer_from_main_size =
+            facts.preferred_aspect_ratio().is_some() && !has_natural_inline_size;
+        cross_size_may_transfer_from_main_size || self.sizing().intrinsic_inline_size_may_depend_on_block_size(node)
+    }
+
+    pub(super) fn content_inline_size(&mut self, layout_input: LayoutInput) -> CssPixels {
+        if self.main_axis_is_horizontal() {
+            self.prepare_items(layout_input);
+            self.collect_flex_items_into_flex_lines();
+            self.resolve_flexible_lengths();
+            return self.calculate_intrinsic_main_size_of_flex_container();
+        }
+        if !self.is_single_line() && layout_input.available_space.inline_size == AvailableSize::MaxContent {
+            self.prepare_items(layout_input);
+            self.collect_flex_items_into_flex_lines();
+            self.resolve_flexible_lengths();
+            for index in 0..self.flex_items.len() {
+                self.determine_hypothetical_cross_size_of_item(index);
+            }
+            self.calculate_cross_size_of_each_flex_line();
+            self.handle_align_content_stretch();
+            return self.calculate_intrinsic_cross_size_of_flex_container();
+        }
+        self.generate_items_and_determine_available_space(layout_input);
+        if (0..self.flex_items.len()).any(|index| self.cross_content_contribution_depends_on_used_main_size(index)) {
+            self.determine_flex_base_sizes_and_hypothetical_main_sizes();
+            self.collect_flex_items_into_flex_lines();
+            self.resolve_flexible_lengths();
+        }
+        self.calculate_intrinsic_cross_size_of_flex_container()
+    }
+
+    fn prepare_items(&mut self, layout_input: LayoutInput) {
+        self.generate_items_and_determine_available_space(layout_input);
+        self.determine_flex_base_sizes_and_hypothetical_main_sizes();
+    }
+
+    fn generate_items_and_determine_available_space(&mut self, layout_input: LayoutInput) {
         let available_space = layout_input.available_space;
         // This implements https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
 
@@ -3430,7 +3474,9 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.generate_anonymous_flex_items();
         // 2. Determine the available main and cross space for the flex items
         self.determine_available_space_for_items(available_space);
+    }
 
+    fn determine_flex_base_sizes_and_hypothetical_main_sizes(&mut self) {
         // https://drafts.csswg.org/css-flexbox-1/#definite-sizes
         // 3. If a single-line flex container has a definite cross size,
         //    the automatic preferred outer cross size of any stretched flex items is the flex container’s inner cross size
@@ -3538,6 +3584,11 @@ impl<'pass> FlexFormattingContext<'pass> {
             self.flex_items[index].hypothetical_main_size =
                 css_clamp(self.flex_items[index].flex_base_size, clamp_min, clamp_max).max(CssPixels::default());
         }
+    }
+
+    pub(super) fn run(&mut self, run: &FormattingContextRun<'pass>, layout_input: LayoutInput) {
+        let available_space = layout_input.available_space;
+        self.prepare_items(layout_input);
 
         // 5. Collect flex items into flex lines:
         // After this step no additional items are to be added to flex_lines or any of its items!

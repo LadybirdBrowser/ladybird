@@ -487,3 +487,51 @@ pub(super) fn content_sizes_of_table(
         }
     }))
 }
+
+pub(super) fn content_sizes_of_flex_container(
+    callbacks: LayoutPass<'_>,
+    node: Node,
+    constraints: ContainingBlockConstraints,
+    block_size: Option<CssPixels>,
+    depends_on_block_size: bool,
+) -> Option<sizing_context::ContentInlineSizes> {
+    let facts = NodeFacts::new(&callbacks, node);
+    if formatting_context::independent_formatting_context_type(node, &callbacks)
+        != formatting_context::FormattingContextType::Flex
+        || facts.node_has_size_containment()
+        || facts.node_has_inline_size_containment()
+        || StyleValues::for_node(&callbacks, node).writing_mode() != writing_mode::HORIZONTAL_TB
+        || establishes_orthogonal_flow(&callbacks, node)
+    {
+        return None;
+    }
+    let content_inline_size_under = |inline_size_constraint: SizeConstraint, available_inline_size: AvailableSize| {
+        let scope = ContentSizingScope::new(&callbacks, node, constraints, block_size, inline_size_constraint);
+        scope.enter(callbacks, |run| {
+            let size = flex_formatting_context::FlexFormattingContext::new(run).content_inline_size(LayoutInput::new(
+                AvailableSpace {
+                    inline_size: available_inline_size,
+                    block_size: scope.available_block_size(),
+                },
+                constraints,
+                ParticipationInParentFormattingContext::Root,
+            ));
+            let sizing = run.sizing();
+            let dependencies = IntrinsicMeasurementDependencies {
+                percentage_block_size: sizing.resolve_percentage_block_size_dependency(node),
+                percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(node),
+                block_size: depends_on_block_size,
+            };
+            (size, dependencies)
+        })
+    };
+    let (min, min_content_dependencies) =
+        content_inline_size_under(SizeConstraint::MinContent, AvailableSize::MinContent);
+    let (max, max_content_dependencies) =
+        content_inline_size_under(SizeConstraint::MaxContent, AvailableSize::MaxContent);
+    Some(sizing_context::ContentInlineSizes {
+        sizes: sizing_context::ContentSizes { min, max },
+        first_line_max_content: FirstLineMaxContent::without_floats(max),
+        dependencies: min_content_dependencies.union(max_content_dependencies),
+    })
+}
