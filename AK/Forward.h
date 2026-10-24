@@ -100,6 +100,9 @@ class CircularQueue;
 template<typename T>
 struct Traits;
 
+template<typename T>
+struct SharedMemoryCodec;
+
 template<typename T, typename TraitsForT = Traits<T>, bool IsOrdered = false>
 class HashTable;
 

@@ -9,6 +9,7 @@
 #include <AK/Array.h>
 #include <AK/Assertions.h>
 #include <AK/Checked.h>
+#include <AK/Optional.h>
 #include <AK/Platform.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
@@ -239,6 +240,13 @@ public:
         i64 seconds = sane_mod(milliseconds, 1'000);
         return Duration(seconds, milliseconds * 1'000'000);
     }
+    // Refuses a nanosecond part of a second or more.
+    [[nodiscard]] constexpr static Optional<Duration> maybe_from_seconds_and_nanoseconds(i64 seconds, u32 nanoseconds)
+    {
+        if (nanoseconds >= 1'000'000'000)
+            return {};
+        return Duration(seconds, nanoseconds);
+    }
     [[nodiscard]] static Duration from_timespec(const struct timespec&);
     [[nodiscard]] static Duration from_timeval(const struct timeval&);
     [[nodiscard]] static Duration from_time_units(i64 units, u32 numerator, u32 denominator);
@@ -355,6 +363,7 @@ public:
 
 private:
     friend struct Formatter<Duration>;
+    friend struct SharedMemoryCodec<Duration>;
 
     constexpr explicit Duration(i64 seconds, u32 nanoseconds)
         : m_seconds(seconds)
