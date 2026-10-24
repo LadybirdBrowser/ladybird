@@ -47,13 +47,13 @@ public:
     void note_key_generator_changed(u64 old_value);
 
     // Record that records were deleted from the object store, saving them for re-insertion on revert.
-    void note_records_deleted(Vector<ObjectStoreRecord>);
+    void note_records_deleted(Vector<ObjectStoreRecord>&&);
 
     // Record that a new record was stored in the object store, saving the key for deletion on revert.
     void note_record_stored(GC::Ref<Key> key);
 
     // Record that records were deleted from an index, saving them for re-insertion on revert.
-    void note_index_records_deleted(GC::Ref<Index>, Vector<IndexRecord>);
+    void note_index_records_deleted(GC::Ref<Index>, Vector<IndexRecord>&&);
 
     // Record that a new record was stored in an index, saving it for deletion on revert.
     void note_index_record_stored(GC::Ref<Index>, IndexRecord);

@@ -58,7 +58,7 @@ public:
 
     Optional<Entry const&> get(URL::URL const& url, Utf16View type) const;
 
-    void set(URL::URL const& url, Utf16View type, CallbackList);
+    void set(URL::URL const& url, Utf16View type, CallbackList&&);
     void append(URL::URL const& url, Utf16View type, CallbackFunction);
     void complete_fetch(URL::URL const& url, Utf16View type, GC::Ptr<ModuleScript>);
 

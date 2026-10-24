@@ -24,7 +24,7 @@ Optional<ModuleMap::Entry const&> ModuleMap::get(URL::URL const& url, Utf16View 
     return m_values.get({ url, type });
 }
 
-void ModuleMap::set(URL::URL const& url, Utf16View type, CallbackList callbacks)
+void ModuleMap::set(URL::URL const& url, Utf16View type, CallbackList&& callbacks)
 {
     VERIFY(!m_values.contains({ url, type }));
     m_values.set({ url, type }, move(callbacks));

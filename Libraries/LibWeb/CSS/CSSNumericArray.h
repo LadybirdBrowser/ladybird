@@ -31,7 +31,7 @@ public:
     bool is_equal_numeric_values(GC::Ref<CSSNumericArray> other) const;
 
 private:
-    CSSNumericArray(Vector<GC::Ref<CSSNumericValue>>);
+    CSSNumericArray(Vector<GC::Ref<CSSNumericValue>>&&);
 
     Vector<GC::Ref<CSSNumericValue>> m_values;
 };

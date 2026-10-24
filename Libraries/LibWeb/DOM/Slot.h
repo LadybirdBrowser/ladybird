@@ -20,7 +20,7 @@ public:
     void set_slot_name(Utf16FlyString name) { m_name = move(name); }
 
     ReadonlySpan<DOM::Slottable> assigned_nodes_internal() const { return m_assigned_nodes; }
-    void set_assigned_nodes(Vector<DOM::Slottable> assigned_nodes) { m_assigned_nodes = move(assigned_nodes); }
+    void set_assigned_nodes(Vector<DOM::Slottable>&& assigned_nodes) { m_assigned_nodes = move(assigned_nodes); }
 
 protected:
     void visit_edges(JS::Cell::Visitor&);

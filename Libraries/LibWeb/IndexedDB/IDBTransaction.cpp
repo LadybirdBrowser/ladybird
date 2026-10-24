@@ -22,7 +22,7 @@ GC_DEFINE_ALLOCATOR(IDBTransaction);
 
 IDBTransaction::~IDBTransaction() = default;
 
-IDBTransaction::IDBTransaction(GC::Ref<IDBDatabase> connection, TransactionMode mode, TransactionDurability durability, Vector<GC::Ref<ObjectStore>> scopes)
+IDBTransaction::IDBTransaction(GC::Ref<IDBDatabase> connection, TransactionMode mode, TransactionDurability durability, Vector<GC::Ref<ObjectStore>>&& scopes)
     : EventTarget()
     , m_connection(connection)
     , m_mode(mode)

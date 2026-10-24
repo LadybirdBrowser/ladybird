@@ -41,7 +41,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> CSSTransformValue::create_for_co
     return CSSTransformValue::create(transforms);
 }
 
-CSSTransformValue::CSSTransformValue(Vector<GC::Ref<CSSTransformComponent>> transforms)
+CSSTransformValue::CSSTransformValue(Vector<GC::Ref<CSSTransformComponent>>&& transforms)
     : CSSStyleValue()
     , m_transforms(move(transforms))
 {

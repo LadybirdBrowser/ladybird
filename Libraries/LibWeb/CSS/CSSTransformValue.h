@@ -35,7 +35,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
 
 private:
-    explicit CSSTransformValue(Vector<GC::Ref<CSSTransformComponent>>);
+    explicit CSSTransformValue(Vector<GC::Ref<CSSTransformComponent>>&&);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Vector<GC::Ref<CSSTransformComponent>> m_transforms;
