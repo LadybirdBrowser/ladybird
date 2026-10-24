@@ -977,6 +977,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'text-indent': '0px'
 'textJustify': 'auto'
 'text-justify': 'auto'
+'textOrientation': 'mixed'
+'text-orientation': 'mixed'
 'textOverflow': 'clip'
 'text-overflow': 'clip'
 'textRendering': 'auto'

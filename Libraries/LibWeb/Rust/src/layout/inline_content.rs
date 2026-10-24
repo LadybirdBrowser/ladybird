@@ -38,7 +38,7 @@ pub enum InlineItem {
 
 impl PartialEq for GlyphRunRecord {
     fn eq(&self, other: &Self) -> bool {
-        self.font == other.font && self.glyphs == other.glyphs
+        self.font == other.font && self.glyphs == other.glyphs && self.is_upright == other.is_upright
     }
 }
 
@@ -86,6 +86,8 @@ impl LineRecord {
 pub struct GlyphRunRecord {
     pub glyphs: libgfx_rust::text_layout::GlyphBuffer,
     pub font: libgfx_rust::font::FontHandle,
+    /// Whether the glyphs are set upright in vertical text.
+    pub is_upright: bool,
     // Conservative painted bounds in CSS pixels, relative to the run's baseline origin.
     pub bounding_box: libgfx_rust::FloatRect,
 }
@@ -183,6 +185,7 @@ impl InlineContent {
                     std::sync::Arc::new(GlyphRunRecord {
                         glyphs: glyph_data.glyphs,
                         font: glyph_data.font,
+                        is_upright: glyph_data.is_upright,
                         bounding_box,
                     })
                 });
@@ -430,13 +433,42 @@ impl InlineContent {
                 ),
                 content_size,
             );
+            fragment.relpos_delta = delta_to_physical(fragment.relpos_delta);
+            if fragment.glyph_run.as_ref().is_some_and(|run| run.is_upright) {
+                // NB: Upright glyphs are painted unturned, stacked downwards one em apart and centered within the
+                //     line, so the fragment is painted as horizontal text whose glyphs sit at those positions.
+                let run = fragment.glyph_run.as_ref().unwrap();
+                let ascent = fragment.baseline.to_double() as f32;
+                let line_width = rect.width.to_double() as f32;
+                let mut glyphs = run.glyphs.clone();
+                for glyph in glyphs.to_mut().iter_mut() {
+                    let inline_position = glyph.x;
+                    glyph.x = (line_width - glyph.glyph_width) / 2.0;
+                    glyph.y += inline_position;
+                }
+                let bounding_box = libgfx_rust::FloatRect::from_array(
+                    libgfx_rust::text_layout::glyph_run_bounding_box(&run.font, &glyphs, 1.0),
+                );
+                fragment.glyph_run = Some(std::sync::Arc::new(GlyphRunRecord {
+                    glyphs,
+                    font: run.font.clone(),
+                    is_upright: true,
+                    bounding_box,
+                }));
+                fragment.baseline = CssPixels::nearest_value_for_f32(ascent);
+                fragment.writing_mode = crate::css::css_enums::writing_mode::HORIZONTAL_TB;
+                fragment.inline_offset = rect.x;
+                fragment.block_offset = rect.y;
+                fragment.inline_length = rect.width;
+                fragment.block_length = rect.height;
+                continue;
+            }
             // NB: A vertical fragment keeps its inline offset and length along the physical vertical axis.
             fragment.writing_mode = writing_mode;
             fragment.inline_offset = rect.y;
             fragment.block_offset = rect.x;
             fragment.inline_length = rect.height;
             fragment.block_length = rect.width;
-            fragment.relpos_delta = delta_to_physical(fragment.relpos_delta);
         }
         for piece in &mut content.inline_box_pieces {
             let mut rect = piece.border_box_rect;

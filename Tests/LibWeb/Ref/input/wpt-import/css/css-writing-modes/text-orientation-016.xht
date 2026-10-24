@@ -1,0 +1,81 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: text-orientation - sideways</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" title="5.1. Orienting Text: the 'text-orientation' property" href="http://www.w3.org/TR/css-writing-modes-3/#text-orientation" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/text-orientation-016-ref.xht" />
+
+  <meta content="ahem image" name="flags" />
+  <meta content="This test checks that sideways-oriented latin text is baseline-aligned alphabetically within the line box and not baseline-aligned centrally. This test uses exclusively 'p' and 'É' glyphs to verify this." name="assert" />
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div
+    {
+      border-bottom: blue solid 15px;
+      border-top: blue solid 15px;
+    }
+
+  div#test
+    {
+      background-color: blue;
+      color: yellow;
+      font-family: Ahem;
+      font-size: 20px;
+      line-height: 2;
+      text-orientation: sideways;
+      writing-mode: vertical-rl;
+    }
+
+  span#p80
+    {
+      font-size: 4em; /* computes to 80px */
+    }
+
+  span#p40
+    {
+      font-size: 2em; /* computes to 40px */
+    }
+
+  span#E10
+    {
+      font-size: 0.5em; /* computes to 10px */
+    }
+
+  span#E20
+    {
+      font-size: 1em; /* computes to 20px */
+    }
+
+  div#reference
+    {
+      margin-top: 8px;
+      width: 200px;
+    }
+
+  img
+    {
+      vertical-align: top;
+    }
+  ]]></style>
+ </head>
+
+ <body>
+
+  <p>Test passes if both blue-and-yellow rectangles are <strong>identical</strong>.</p>
+
+  <div id="test"><span id="p80">p</span><span id="p40">p</span><br /><span id="E10">ÉÉÉÉ</span><span id="E20">ÉÉÉÉ</span></div>
+
+  <div id="reference"><img src="support/swatch-blue.png" width="14" height="40" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" width="8" height="40" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" width="58" height="40" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" width="16" height="40" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" width="104" height="40" alt="Image download support must be enabled" />
+
+<img src="support/swatch-blue.png" width="14" height="40" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" width="16" height="40" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" width="50" height="40" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" width="16" height="40" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" width="104" height="40" alt="Image download support must be enabled" />
+
+<img src="support/swatch-blue.png" width="14" height="40" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" width="16" height="40" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" width="58" height="40" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" width="8" height="40" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" width="104" height="40" alt="Image download support must be enabled" /></div>
+
+ </body>
+</html>

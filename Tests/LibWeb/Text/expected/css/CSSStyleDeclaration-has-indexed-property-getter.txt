@@ -75,6 +75,7 @@ All properties associated with getComputedStyle(document.body):
     "text-decoration-skip-ink",
     "text-indent",
     "text-justify",
+    "text-orientation",
     "text-rendering",
     "text-shadow",
     "text-transform",

@@ -163,6 +163,9 @@ pub(crate) struct TextChunkInputs<'text> {
     pub should_wrap_lines: bool,
     pub should_respect_linebreaks: bool,
     pub unidirectional_ltr: bool,
+    /// Whether the text is vertical text in mixed orientation, where some characters are typeset upright and others
+    /// sideways.
+    pub splits_at_orientation_changes: bool,
 }
 
 pub(crate) fn chunk_text(inputs: TextChunkInputs<'_>) -> Vec<TextChunk> {
@@ -370,9 +373,33 @@ fn is_utf16_low_surrogate(code_unit: u16) -> bool {
     (0xdc00..=0xdfff).contains(&code_unit)
 }
 
+/// Whether a code point is typeset upright in vertical text whose text orientation is 'mixed'.
+// FIXME: Use the Vertical_Orientation property of Unicode (UAX #50) instead of these blocks of characters, which are
+//        mostly upright.
+pub(crate) fn code_point_is_upright_in_mixed_orientation(code_point: u32) -> bool {
+    matches!(
+        code_point,
+        0x1100..=0x11FF
+            | 0x2E80..=0x303F
+            | 0x3040..=0x31FF
+            | 0x3200..=0x4DBF
+            | 0x4E00..=0x9FFF
+            | 0xA960..=0xA97F
+            | 0xAC00..=0xD7FF
+            | 0xF900..=0xFAFF
+            | 0xFE10..=0xFE1F
+            | 0xFE30..=0xFE4F
+            | 0xFF01..=0xFF0C
+            | 0xFF0E..=0xFF1B
+            | 0xFF1F..=0xFF60
+            | 0xFFE0..=0xFFE6
+            | 0x20000..=0x3FFFF
+    )
+}
+
 /// Mirrors AK::Utf16View::code_point_at, including its lone-surrogate
 /// pass-through behavior.
-pub(super) fn code_point_at(text: &[u16], index: usize) -> u32 {
+pub(crate) fn code_point_at(text: &[u16], index: usize) -> u32 {
     let code_unit = text[index];
     let code_point = u32::from(code_unit);
     if !is_utf16_high_surrogate(code_unit) && !is_utf16_low_surrogate(code_unit) {
@@ -453,6 +480,7 @@ struct PendingChunk {
     start: usize,
     font: FontHandle,
     text_type: u8,
+    is_upright: bool,
     broken_on_tab: bool,
 }
 
@@ -474,6 +502,7 @@ struct TextChunker<'text> {
     should_wrap_lines: bool,
     should_respect_linebreaks: bool,
     unidirectional_ltr: bool,
+    splits_at_orientation_changes: bool,
     current_index: usize,
     last_non_whitespace_font: Option<FontHandle>,
 }
@@ -494,6 +523,7 @@ impl<'text> TextChunker<'text> {
             should_wrap_lines: inputs.should_wrap_lines,
             should_respect_linebreaks: inputs.should_respect_linebreaks,
             unidirectional_ltr: inputs.unidirectional_ltr,
+            splits_at_orientation_changes: inputs.splits_at_orientation_changes,
             current_index: 0,
             last_non_whitespace_font: None,
         }
@@ -508,6 +538,10 @@ impl<'text> TextChunker<'text> {
             return line_box_fragment::GLYPH_TEXT_TYPE_LTR;
         }
         text_type_for_code_point(self.current_code_point())
+    }
+
+    fn current_code_point_is_upright(&self) -> bool {
+        self.splits_at_orientation_changes && code_point_is_upright_in_mixed_orientation(self.current_code_point())
     }
 
     fn next_grapheme_boundary(&self) -> usize {
@@ -731,6 +765,7 @@ impl<'text> TextChunker<'text> {
                 start: self.current_index,
                 font: self.expected_font_for(code_point),
                 text_type: self.current_text_type(),
+                is_upright: self.current_code_point_is_upright(),
                 broken_on_tab: false,
             };
 
@@ -805,6 +840,14 @@ impl<'text> TextChunker<'text> {
                 // of line wrapping, while keeping the direction lookup inside the text.
                 if self.current_index < self.text.len()
                     && pending.text_type != self.current_text_type()
+                    && let Some(chunk) = self.try_commit_chunk_at_cursor(&pending, can_break_at_current_position)
+                {
+                    return Some(chunk);
+                }
+
+                // NB: Each chunk is typeset either upright or sideways as a whole, so split it where that changes.
+                if self.current_index < self.text.len()
+                    && pending.is_upright != self.current_code_point_is_upright()
                     && let Some(chunk) = self.try_commit_chunk_at_cursor(&pending, can_break_at_current_position)
                 {
                     return Some(chunk);
@@ -897,6 +940,10 @@ pub(crate) fn text_chunks(
         word_break: parent_style.word_break(),
         font_variant_emoji: parent_style.font_variant_emoji(),
         frozen_font_list: parent_style.frozen_font_list_ref(),
+        splits_at_orientation_changes: matches!(
+            parent_style.writing_mode(),
+            writing_mode::VERTICAL_RL | writing_mode::VERTICAL_LR
+        ) && parent_style.text_orientation() == text_orientation::MIXED,
     };
     let text = &callbacks.text_content(node).text;
     callbacks.text_content(node).text_chunks(&key, || {
@@ -909,6 +956,7 @@ pub(crate) fn text_chunks(
             should_wrap_lines,
             should_respect_linebreaks,
             unidirectional_ltr,
+            splits_at_orientation_changes: key.splits_at_orientation_changes,
         })
     })
 }

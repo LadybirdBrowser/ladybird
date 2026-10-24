@@ -5291,6 +5291,16 @@
       "distribute>inter-character"
     ]
   },
+  "text-orientation": {
+    "style-group": "InheritedBoxValues",
+    "animation-type": "none",
+    "inherited": true,
+    "initial": "mixed",
+    "requires-computation": "never",
+    "valid-types": [
+      "text-orientation"
+    ]
+  },
   "text-overflow": {
     "style-group": "BoxValues",
     "affects-layout": false,

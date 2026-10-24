@@ -473,6 +473,7 @@ scalar_accessors! {
     }
     inherited_box: {
         writing_mode: u8 => writing_mode,
+        text_orientation: u8 => text_orientation,
         direction: u8 => direction,
         visibility: u8 => visibility,
     }

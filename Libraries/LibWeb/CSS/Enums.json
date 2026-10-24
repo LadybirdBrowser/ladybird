@@ -1169,6 +1169,11 @@
     "inter-word",
     "inter-character"
   ],
+  "text-orientation": [
+    "mixed",
+    "upright",
+    "sideways"
+  ],
   "text-overflow": [
     "clip",
     "ellipsis"
