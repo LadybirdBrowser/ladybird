@@ -110,6 +110,11 @@ impl IteratorPrototype {
         define(&names.some, raw_native!(IteratorPrototype::some), 1);
         define(&names.take, raw_native!(IteratorPrototype::take), 1);
         define(&names.toArray, raw_native!(IteratorPrototype::to_array), 0);
+        define(
+            &PropertyKey::from(vm.well_known_symbols().dispose),
+            raw_native!(IteratorPrototype::symbol_dispose),
+            0,
+        );
 
         // 27.1.4.1 Iterator.prototype.constructor, https://tc39.es/ecma262/#sec-iterator.prototype.constructor
         object.define_native_accessor(
@@ -826,6 +831,24 @@ impl IteratorPrototype {
             // c. Append value to items.
             items.push(value);
         }
+    }
+
+    // 27.1.4.14 Iterator.prototype [ %Symbol.dispose% ] ( ), https://tc39.es/ecma262/#sec-iterator.prototype-%symbol.dispose%
+    fn symbol_dispose(vm: &Vm) -> ThrowCompletionOr<Value> {
+        // 1. Let obj be the this value.
+        let object = vm.this_value();
+
+        // 2. Let return be ? GetMethod(obj, "return").
+        let return_method = object.get_method(vm, &vm.names.return_)?;
+
+        // 3. If return is not undefined, then
+        if let Some(return_method) = return_method {
+            // a. Perform ? Call(return, obj).
+            call_function_object(vm, return_method, object, &[])?;
+        }
+
+        // 4. Return undefined.
+        Ok(Value::UNDEFINED)
     }
 
     // 27.1.4.15 Iterator.prototype [ %Symbol.iterator% ] ( ), https://tc39.es/ecma262/#sec-iterator.prototype-%symbol.iterator%
