@@ -1303,10 +1303,6 @@ void LibJSGCVisitor::validate_object_on_stack(clang::VarDecl const& variable, cl
     if (type.isNull())
         return;
 
-    // The collector's own locals hold cells while it collects, when nothing allocates.
-    if (file_path_of_declaration(m_context.getSourceManager(), variable).find("/Libraries/LibGC/") != std::string::npos)
-        return;
-
     std::set<clang::CXXRecordDecl const*> visited;
     auto container = find_container_with_unscanned_gc_pointers(type, visited);
     if (!container)
