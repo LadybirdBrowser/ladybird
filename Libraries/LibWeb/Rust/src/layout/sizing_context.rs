@@ -172,17 +172,14 @@ impl<'pass> SizingContext<'pass> {
         !self.callbacks.first_child(node).is_invalid()
     }
 
-    fn block_size_for_intrinsic_inline_measurement_cache_key(
-        &self,
-        root: Node,
-        block_size: Option<CssPixels>,
-    ) -> Option<CssPixels> {
-        let block_size = block_size?;
+    fn intrinsic_inline_measurement_may_depend_on_block_size(&self, root: Node, block_size: Option<CssPixels>) -> bool {
+        if block_size.is_none() {
+            return true;
+        }
         // OPTIMIZATION: A definite block size only distinguishes intrinsic inline measurements when a cross-axis
         // dependency can transfer it back into the inline axis. Reuse the common horizontal-flow measurement across
         // assigned block sizes, while preserving distinct entries for orthogonal flows and aspect-ratio transfers.
-        let depends_on_block_size = self
-            .callbacks
+        self.callbacks
             .intrinsic_size_caches()
             .intrinsic_inline_size_depends_on_block_size(self.callbacks.intrinsic_size_cache_stamp(root), || {
                 let mut pending = vec![root];
@@ -218,8 +215,7 @@ impl<'pass> SizingContext<'pass> {
                     }
                 }
                 false
-            });
-        depends_on_block_size.then_some(block_size)
+            })
     }
 
     pub(crate) fn content_block_size_from_aspect_ratio(&self, node: Node, content_inline_size: CssPixels) -> CssPixels {
@@ -2274,6 +2270,11 @@ impl<'pass> SizingContext<'pass> {
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicInlineSizeMeasurement> {
         let key = self.key_in_frame(key);
+        let key = if self.intrinsic_inline_measurement_may_depend_on_block_size(node, key.measured_at_block_size) {
+            key
+        } else {
+            key.with_measured_at_block_size_masked()
+        };
         let measurement = self
             .callbacks
             .intrinsic_size_caches()
@@ -2309,6 +2310,7 @@ impl<'pass> SizingContext<'pass> {
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
         result: formatting_context::ChildLayoutResult,
+        depends_on_block_size: bool,
     ) {
         self.intrinsic_inline_measurement_cache_put(
             node,
@@ -2319,6 +2321,7 @@ impl<'pass> SizingContext<'pass> {
                 min_content_inline_size_from_max_content_layout: result.min_content_inline_size_from_max_content_layout,
                 depends_on_percentage_block_size: result.depends_on_percentage_block_size,
                 depends_on_percentage_inline_basis: self.measurement_root_observes_percentage_inline_basis(node),
+                depends_on_block_size,
             },
         );
     }
@@ -2500,11 +2503,7 @@ impl<'pass> SizingContext<'pass> {
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(
             node,
             IntrinsicSizeCacheKind::MinContentInline,
-            formatting_context::cache_key(
-                None,
-                self.block_size_for_intrinsic_inline_measurement_cache_key(node, block_size),
-                constraints,
-            ),
+            formatting_context::cache_key(None, block_size, constraints),
         ) {
             self.callbacks
                 .arena()
@@ -2532,11 +2531,7 @@ impl<'pass> SizingContext<'pass> {
         self.intrinsic_inline_measurement_cache_get(
             node,
             IntrinsicSizeCacheKind::MaxContentInline,
-            formatting_context::cache_key(
-                None,
-                self.block_size_for_intrinsic_inline_measurement_cache_key(node, block_size),
-                constraints,
-            ),
+            formatting_context::cache_key(None, block_size, constraints),
         )?
         .min_content_inline_size_from_max_content_layout
     }
@@ -2758,17 +2753,14 @@ impl<'pass> SizingContext<'pass> {
             IntrinsicSizeCacheKind::MaxContentInline => (SizeConstraint::MaxContent, AvailableSize::MaxContent),
             _ => unreachable!("inline measurement cache kind must use the inline axis"),
         };
-        let key = formatting_context::cache_key(
-            None,
-            self.block_size_for_intrinsic_inline_measurement_cache_key(node, block_size),
-            constraints,
-        );
+        let key = formatting_context::cache_key(None, block_size, constraints);
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(node, kind, key) {
             self.callbacks.arena().layout_trace.intrinsic_size_hit(node, kind, "");
             return cached.automatic_content_inline_size;
         }
 
         let trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
+        let depends_on_block_size = self.intrinsic_inline_measurement_may_depend_on_block_size(node, block_size);
         let measurement = formatting_context::MeasurementState::create(self.callbacks);
         let root = measurement.create_used_values(node, constraints);
         // NB: A parent layout can assign a definite block size that is not present in computed style,
@@ -2794,6 +2786,7 @@ impl<'pass> SizingContext<'pass> {
                 &root,
                 constraints,
                 block_size,
+                depends_on_block_size,
             )
         {
             if let Some(trace) = &trace {
@@ -2830,7 +2823,7 @@ impl<'pass> SizingContext<'pass> {
             node,
             result.depends_on_percentage_block_size,
         );
-        self.cache_intrinsic_inline_measurement(node, kind, key, result);
+        self.cache_intrinsic_inline_measurement(node, kind, key, result, depends_on_block_size);
         value
     }
 
