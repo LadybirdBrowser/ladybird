@@ -501,6 +501,13 @@ void HTMLCanvasElement::set_canvas_content_dirty()
 
 void HTMLCanvasElement::prepare_for_compositing()
 {
+    // OPTIMIZATION: Nothing shows a 2D canvas that has no box, and its readbacks read what it drew rather than what it
+    //               presented, so what it draws stays unpresented until it has a box. That spares the Compositor a
+    //               copy of every frame it draws, which for a canvas that draws in memory is an upload. The rendering
+    //               update lays out before it prepares canvases, so a canvas presents in the update that gives it a box.
+    if (canvas_rendering_context_2d() && !has_layout_box())
+        return;
+
     if (m_canvas_content_dirty) {
         m_canvas_content_dirty = false;
 

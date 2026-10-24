@@ -216,6 +216,8 @@ interface Internals {
     DOMString dumpSiteIsolationProcessTree();
     // Reports if the browser process has created a document for the iframe that it hasn't made active yet.
     boolean hasPopulatedDocument(HTMLIFrameElement iframe);
+    // Whether the canvas drew content that it has not presented to the compositor yet.
+    boolean canvasHasUnpresentedContent(HTMLCanvasElement canvas);
     undefined crashRemoteFrameProcesses();
     // Stops loading and reloads as the browser's Stop and Reload buttons do.
     undefined stopLoadingThroughUIProcess();
