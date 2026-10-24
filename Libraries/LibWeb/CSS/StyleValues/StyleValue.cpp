@@ -510,6 +510,11 @@ GC::Ref<CSSStyleValue> StyleValue::reify(Utf16FlyString const& associated_proper
         return as_number().reify(associated_property);
     case Type::OpacityValue:
         return as_opacity_value().reify(associated_property);
+    case Type::TextIndent:
+        // NB: A text-indent without the `hanging` or `each-line` keywords is just its length-percentage.
+        if (!m_value->text_indent.hanging && !m_value->text_indent.each_line)
+            return wrap_rust_child(m_value->text_indent.length_percentage)->reify(associated_property);
+        break;
     case Type::Unresolved:
         return as_unresolved().reify(associated_property);
     case Type::ValueList:

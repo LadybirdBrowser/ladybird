@@ -3107,6 +3107,20 @@ pub unsafe extern "C" fn rust_style_value_create_ratio(
     }))
 }
 
+/// Takes ownership of one strong reference to the length-percentage value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_text_indent(
+    length_percentage: *const StyleValueData,
+    hanging: bool,
+    each_line: bool,
+) -> *const StyleValueData {
+    Arc::into_raw(Arc::new(StyleValueData::TextIndent {
+        length_percentage: unsafe { RetainedStyleValueData::from_retained_pointer(length_percentage) },
+        hanging,
+        each_line,
+    }))
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_guaranteed_invalid() -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::GuaranteedInvalid))

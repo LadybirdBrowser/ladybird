@@ -66,7 +66,7 @@ static NonnullRefPtr<StyleValueList> style_value_list_for_property(StyleValueVec
 static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(JS::VM& vm, PropertyNameAndID const& property, Variant<GC::Ref<CSSStyleValue>, Utf16String> const& value)
 {
     // To create an internal representation, given a string property and a string or CSSStyleValue value:
-    return value.visit(
+    auto internal_representation = TRY(value.visit(
         [&property](GC::Ref<CSSStyleValue> const& css_style_value) {
             return css_style_value->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::Yes);
         },
@@ -78,7 +78,17 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_r
             auto result = TRY(CSSStyleValue::parse_a_css_style_value(vm, property.name(), css_text, CSSStyleValue::ParseMultiple::No));
             // AD-HOC: Result is a CSSStyleValue but we want an internal representation, so... convert it again I guess?
             return result.get<GC::Ref<CSSStyleValue>>()->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::Yes);
-        });
+        }));
+
+    // AD-HOC: Our parser represents a text-indent that is just a length-percentage as a text-indent value, and style
+    //         computation expects that.
+    if (property.id() == PropertyID::TextIndent
+        && (internal_representation->is_length() || internal_representation->is_percentage() || internal_representation->is_calculated())) {
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_text_indent(
+            StyleValueFFI::rust_style_value_retain(internal_representation->rust_style_value_data()), false, false));
+    }
+
+    return internal_representation;
 }
 
 static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> normalize_overflow_clip_margin_internal_representation(
