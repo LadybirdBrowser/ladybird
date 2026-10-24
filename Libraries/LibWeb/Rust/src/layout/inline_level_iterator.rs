@@ -395,6 +395,32 @@ impl Item {
 
         Some(self.take_prefix_before(split, shape(&text[start..split]), shape(&text[split..end])))
     }
+
+    pub(crate) fn grapheme_cluster_inline_sizes(
+        &self,
+        text: &[u16],
+        segmenter: &text_chunker::GraphemeSegmenter,
+        letter_spacing: f32,
+        word_spacing: f32,
+    ) -> Vec<CssPixels> {
+        assert_eq!(self.type_, ItemType::Text);
+        let mut remainder = self.clone();
+        let mut sizes = Vec::new();
+        while remainder.border_box_inline_size() > CssPixels::default()
+            && let Some(prefix) = remainder.split_for_overflow_break(
+                text,
+                segmenter,
+                letter_spacing,
+                word_spacing,
+                CssPixels::default(),
+                true,
+            )
+        {
+            sizes.push(prefix.inline_size);
+        }
+        sizes.push(remainder.inline_size);
+        sizes
+    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -489,9 +515,9 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         let mut node = self.context().first_child(containing_block);
         while !node.is_invalid() {
             let facts = self.context().facts(node);
-            // NB: The width query cannot derive float interactions or block interruptions from inline items.
-            //     Reject them during this existing traversal, before shaping text or sizing atomic children.
-            if intrinsic_inline_sizing && (facts.is_floating() || facts.is_inline_flow_interrupting_block()) {
+            // NB: The width query cannot derive float interactions from inline items. Reject them during this
+            //     existing traversal, before shaping text or sizing atomic children.
+            if intrinsic_inline_sizing && facts.is_floating() {
                 return None;
             }
             if !facts.is_text_node() {
@@ -919,29 +945,37 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             }
             if facts.is_inline_flow_interrupting_block() {
                 self.skip_to_next();
-                return Some(Item::new(ItemType::BlockLevelBox, node));
+                let mut item = Item::new(ItemType::BlockLevelBox, node);
+                if self.atomic_sizing == AtomicInlineSizing::Contributions {
+                    self.size_item_by_outer_inline_contributions(&mut item);
+                }
+                return Some(item);
             }
             return Some(self.generate_element_item(node));
         }
     }
 
+    fn size_item_by_outer_inline_contributions(&self, item: &mut Item) {
+        let context = self.context();
+        let contributions = context.sizing().outer_inline_contributions(
+            item.node,
+            context.input.available_space.block_size,
+            context.input.containing_block_constraints,
+        );
+        item.inline_size = contributions.max_content_inline_size;
+        item.min_content_inline_size = Some(contributions.min_content_inline_size);
+        item.padding_start = contributions.padding_start;
+        item.padding_end = contributions.padding_end;
+        item.border_start = contributions.border_start;
+        item.border_end = contributions.border_end;
+        item.margin_start = contributions.margin_start;
+        item.margin_end = contributions.margin_end;
+    }
+
     fn generate_element_item(&mut self, node: Node) -> Item {
         let mut item = Item::new(ItemType::Element, node);
         if self.atomic_sizing == AtomicInlineSizing::Contributions {
-            let context = self.context();
-            let contributions = context.sizing().outer_inline_contributions(
-                node,
-                context.input.available_space.block_size,
-                context.input.containing_block_constraints,
-            );
-            item.inline_size = contributions.max_content_inline_size;
-            item.min_content_inline_size = Some(contributions.min_content_inline_size);
-            item.padding_start = contributions.padding_start;
-            item.padding_end = contributions.padding_end;
-            item.border_start = contributions.border_start;
-            item.border_end = contributions.border_end;
-            item.margin_start = contributions.margin_start;
-            item.margin_end = contributions.margin_end;
+            self.size_item_by_outer_inline_contributions(&mut item);
         } else {
             let used = if self.box_model_node_stack.last().copied() == Some(node) {
                 self.context().used(node)

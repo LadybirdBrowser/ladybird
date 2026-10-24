@@ -1440,6 +1440,46 @@ impl<'context> InlineFormattingContext<'context> {
         self.intrinsic_inline_size_from_items(items, ItemMeasurement::MinContentFromMaxContentItems)
     }
 
+    pub(crate) fn content_sizes_from_items(
+        &self,
+        items: &[inline_level_iterator::Item],
+        depends_on_block_size: bool,
+    ) -> sizing_context::ContentInlineSizes {
+        let containing_style = self.style(self.containing_block);
+        let container_wraps = containing_style.text_wrap_mode() == text_wrap_mode::WRAP;
+        let text_indentation =
+            TextIndentation::of(containing_style, self.input.containing_block_constraints.inline_basis());
+        let mut max_content_lines = ContentSizingLines::new(
+            LinesWithoutLineBoxes::indented_by(false, text_indentation),
+            container_wraps,
+        );
+        let mut min_content_lines = ContentSizingLines::new(
+            LinesWithoutLineBoxes::indented_by(true, text_indentation),
+            container_wraps,
+        );
+        for index in 0..items.len() {
+            max_content_lines.append(self, items, index);
+            min_content_lines.append(self, items, index);
+        }
+        let (max_content_inline_size, first_line_max_content) =
+            max_content_lines.lines.finish_measurement_and_first_line();
+        let min_content_inline_size = min_content_lines.lines.finish_measurement();
+        let sizing = self.sizing();
+        sizing_context::ContentInlineSizes {
+            sizes: sizing_context::ContentSizes {
+                min: min_content_inline_size,
+                max: max_content_inline_size,
+            },
+            first_line_max_content,
+            dependencies: IntrinsicMeasurementDependencies {
+                percentage_block_size: sizing.resolve_percentage_block_size_dependency(self.containing_block),
+                percentage_inline_basis: sizing
+                    .measurement_root_observes_percentage_inline_basis(self.containing_block),
+                block_size: depends_on_block_size,
+            },
+        }
+    }
+
     pub(crate) fn intrinsic_inline_size_from_items(
         &self,
         items: &[inline_level_iterator::Item],
@@ -2594,20 +2634,57 @@ pub(crate) enum ItemMeasurement {
     MinContentFromMaxContentItems,
 }
 
+#[derive(Clone, Copy, Default)]
+pub(crate) struct TextIndentation {
+    inline_size: CssPixels,
+    hanging: bool,
+    each_line: bool,
+}
+
+impl TextIndentation {
+    pub(crate) fn of(style: StyleValues<'_>, inline_basis: CssPixels) -> Self {
+        Self {
+            inline_size: style.text_indent().to_px(inline_basis),
+            hanging: style.text_indent_hanging(),
+            each_line: style.text_indent_each_line(),
+        }
+    }
+
+    pub(crate) fn indent_of_line(self, is_first_line: bool, follows_forced_break: bool) -> CssPixels {
+        let indents = is_first_line || (self.each_line && follows_forced_break);
+        if indents != self.hanging {
+            self.inline_size
+        } else {
+            CssPixels::default()
+        }
+    }
+}
+
 #[derive(Default)]
 pub(super) struct LinesWithoutLineBoxes {
     breaks_at_every_opportunity: bool,
+    text_indentation: TextIndentation,
     greatest_inline_size: CssPixels,
+    first_line_inline_size: Option<CssPixels>,
     inline_size: CssPixels,
     has_fragments: bool,
     ends_in_whitespace: bool,
     trailing_whitespace_inline_size: CssPixels,
+    follows_forced_break: bool,
 }
 
 impl LinesWithoutLineBoxes {
     pub(super) fn new(breaks_at_every_opportunity: bool) -> Self {
         Self {
             breaks_at_every_opportunity,
+            ..Self::default()
+        }
+    }
+
+    fn indented_by(breaks_at_every_opportunity: bool, text_indentation: TextIndentation) -> Self {
+        Self {
+            breaks_at_every_opportunity,
+            text_indentation,
             ..Self::default()
         }
     }
@@ -2624,6 +2701,14 @@ impl LinesWithoutLineBoxes {
         self.greatest_inline_size
     }
 
+    fn finish_measurement_and_first_line(mut self) -> (CssPixels, CssPixels) {
+        self.finish();
+        (
+            self.greatest_inline_size,
+            self.first_line_inline_size.unwrap_or_default(),
+        )
+    }
+
     fn is_empty_or_ends_in_whitespace(&self) -> bool {
         !self.has_fragments || self.ends_in_whitespace
     }
@@ -2632,26 +2717,245 @@ impl LinesWithoutLineBoxes {
         self.breaks_at_every_opportunity && self.has_fragments
     }
 
+    fn start_line_if_empty(&mut self) {
+        if !self.has_fragments {
+            self.inline_size += self
+                .text_indentation
+                .indent_of_line(self.first_line_inline_size.is_none(), self.follows_forced_break);
+        }
+    }
+
     fn append(
         &mut self,
         border_box_inline_size: CssPixels,
         ends_in_whitespace: bool,
         trailing_whitespace_inline_size: CssPixels,
     ) {
+        self.start_line_if_empty();
         self.inline_size += border_box_inline_size;
         self.has_fragments = true;
         self.ends_in_whitespace = ends_in_whitespace;
         self.trailing_whitespace_inline_size = trailing_whitespace_inline_size;
     }
 
-    fn finish(&mut self) {
-        self.greatest_inline_size = self
-            .greatest_inline_size
-            .max(self.inline_size - self.trailing_whitespace_inline_size);
+    fn note_line(&mut self, inline_size: CssPixels) {
+        self.greatest_inline_size = self.greatest_inline_size.max(inline_size);
+        self.first_line_inline_size
+            .get_or_insert(inline_size.max(CssPixels::default()));
         self.inline_size = CssPixels::default();
         self.has_fragments = false;
         self.ends_in_whitespace = false;
         self.trailing_whitespace_inline_size = CssPixels::default();
+    }
+
+    fn finish(&mut self) {
+        if self.has_fragments {
+            self.note_line(self.inline_size - self.trailing_whitespace_inline_size);
+            self.follows_forced_break = false;
+        }
+    }
+
+    fn force_break(&mut self) {
+        self.start_line_if_empty();
+        self.note_line(self.inline_size - self.trailing_whitespace_inline_size);
+        self.follows_forced_break = true;
+    }
+
+    fn append_block_level_box(&mut self, margin_box_inline_size: CssPixels) {
+        self.finish();
+        self.note_line(margin_box_inline_size);
+        self.follows_forced_break = false;
+    }
+}
+
+struct ContentSizingLines {
+    lines: LinesWithoutLineBoxes,
+    container_wraps: bool,
+    pending_start_margin: CssPixels,
+    pending_start_border: CssPixels,
+    pending_start_padding: CssPixels,
+    previous_text_item_breaks_between_graphemes: bool,
+}
+
+impl ContentSizingLines {
+    fn new(lines: LinesWithoutLineBoxes, container_wraps: bool) -> Self {
+        Self {
+            lines,
+            container_wraps,
+            pending_start_margin: CssPixels::default(),
+            pending_start_border: CssPixels::default(),
+            pending_start_padding: CssPixels::default(),
+            previous_text_item_breaks_between_graphemes: false,
+        }
+    }
+
+    fn measures_min_content(&self) -> bool {
+        self.lines.breaks_at_every_opportunity
+    }
+
+    fn append(&mut self, context: &InlineFormattingContext<'_>, items: &[inline_level_iterator::Item], index: usize) {
+        let item = &items[index];
+        let remaining_items = &items[index + 1..];
+        let previous_text_item_breaks_between_graphemes =
+            std::mem::take(&mut self.previous_text_item_breaks_between_graphemes);
+        let line_is_empty_or_ends_in_whitespace = self.lines.is_empty_or_ends_in_whitespace();
+        if item.is_collapsible_whitespace && line_is_empty_or_ends_in_whitespace {
+            if self.lines.breaks_before_next_fragment()
+                && matches!(
+                    context.text_item_wrap_opportunity(
+                        item,
+                        context.style(context.parent_node(item.node)),
+                        true,
+                        remaining_items,
+                        line_is_empty_or_ends_in_whitespace,
+                        false,
+                    ),
+                    TextItemWrapOpportunity::BeforeWhitespaceSequence(_)
+                )
+            {
+                self.lines.finish();
+            }
+            self.pending_start_margin += item.margin_start;
+            self.pending_start_border += item.border_start;
+            self.pending_start_padding += item.padding_start;
+            return;
+        }
+        let content_inline_size = if self.measures_min_content() {
+            item.min_content_inline_size.unwrap_or(item.inline_size)
+        } else {
+            item.inline_size
+        };
+        if item.type_ == inline_level_iterator::ItemType::BlockLevelBox {
+            self.lines.append_block_level_box(line_box::inline_advance(
+                item.margin_start,
+                item.border_start + item.padding_start,
+                content_inline_size,
+                item.padding_end + item.border_end,
+                item.margin_end,
+            ));
+            return;
+        }
+        let margin_start = item.margin_start + std::mem::take(&mut self.pending_start_margin);
+        let border_start = item.border_start + std::mem::take(&mut self.pending_start_border);
+        let padding_start = item.padding_start + std::mem::take(&mut self.pending_start_padding);
+        let border_box_inline_size = line_box::inline_advance(
+            margin_start,
+            border_start + padding_start,
+            content_inline_size,
+            item.padding_end + item.border_end,
+            item.margin_end,
+        );
+        match item.type_ {
+            inline_level_iterator::ItemType::ForcedBreak => self.lines.force_break(),
+            inline_level_iterator::ItemType::Element => {
+                self.lines
+                    .append_atomic_inline(border_box_inline_size, self.container_wraps);
+            }
+            // An absolutely positioned box only takes a static position, which the pending inline edges attach to.
+            inline_level_iterator::ItemType::AbsolutelyPositionedElement => {}
+            inline_level_iterator::ItemType::BlockLevelBox | inline_level_iterator::ItemType::FloatingElement => {
+                unreachable!("items for content sizing hold no floats and size block-level boxes as lines of their own")
+            }
+            inline_level_iterator::ItemType::Text => {
+                let style = context.style(context.parent_node(item.node));
+                let trailing_whitespace_inline_size = if matches!(
+                    style.white_space_collapse(),
+                    white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
+                ) {
+                    item.trailing_whitespace.inline_size
+                } else {
+                    CssPixels::default()
+                };
+                if style.text_wrap_mode() == text_wrap_mode::WRAP {
+                    let is_whitespace = item.is_collapsible_whitespace || item.is_ascii_whitespace(context);
+                    let breaks_between_graphemes = !is_whitespace && breaks_between_graphemes(style);
+                    let opportunity = if self.lines.breaks_before_next_fragment() {
+                        let can_break_after_previous_grapheme_broken_item =
+                            previous_text_item_breaks_between_graphemes && !breaks_between_graphemes;
+                        context.text_item_wrap_opportunity(
+                            item,
+                            style,
+                            is_whitespace,
+                            remaining_items,
+                            line_is_empty_or_ends_in_whitespace || can_break_after_previous_grapheme_broken_item,
+                            false,
+                        )
+                    } else {
+                        TextItemWrapOpportunity::None
+                    };
+                    if is_whitespace {
+                        if matches!(opportunity, TextItemWrapOpportunity::BeforeWhitespaceSequence(_)) {
+                            self.lines.finish();
+                            return;
+                        }
+                        self.lines
+                            .append(border_box_inline_size, true, trailing_whitespace_inline_size);
+                        return;
+                    }
+                    if breaks_between_graphemes && self.measures_min_content() {
+                        self.previous_text_item_breaks_between_graphemes = true;
+                        self.append_text_broken_between_graphemes(
+                            context,
+                            item,
+                            style,
+                            margin_start,
+                            border_start + padding_start,
+                            trailing_whitespace_inline_size,
+                        );
+                        return;
+                    }
+                    if opportunity == TextItemWrapOpportunity::BeforeText {
+                        self.lines.finish();
+                    }
+                }
+                self.lines.append(
+                    border_box_inline_size,
+                    item.ends_in_ascii_space(context),
+                    trailing_whitespace_inline_size,
+                );
+            }
+        }
+    }
+
+    fn append_text_broken_between_graphemes(
+        &mut self,
+        context: &InlineFormattingContext<'_>,
+        item: &inline_level_iterator::Item,
+        style: StyleValues<'_>,
+        margin_start: CssPixels,
+        border_and_padding_start: CssPixels,
+        trailing_whitespace_inline_size: CssPixels,
+    ) {
+        let text_content = context.callbacks.text_content(item.node);
+        let cluster_inline_sizes = item.grapheme_cluster_inline_sizes(
+            &text_content.text,
+            text_content.grapheme_segmenter(),
+            style.letter_spacing().to_double() as f32,
+            style.word_spacing().to_double() as f32,
+        );
+        let border_and_padding_end = item.padding_end + item.border_end;
+        if border_and_padding_start + item.inline_size + border_and_padding_end > CssPixels::default() {
+            self.lines.finish();
+        }
+        let last_cluster_index = cluster_inline_sizes.len() - 1;
+        for (index, cluster_inline_size) in cluster_inline_sizes.into_iter().enumerate() {
+            let leading = if index == 0 {
+                margin_start + border_and_padding_start
+            } else {
+                CssPixels::default()
+            };
+            if index < last_cluster_index {
+                self.lines
+                    .append(leading + cluster_inline_size, false, CssPixels::default());
+                self.lines.finish();
+            } else {
+                self.lines.append(
+                    leading + cluster_inline_size + border_and_padding_end + item.margin_end,
+                    item.ends_in_ascii_space(context),
+                    trailing_whitespace_inline_size,
+                );
+            }
+        }
     }
 }
 

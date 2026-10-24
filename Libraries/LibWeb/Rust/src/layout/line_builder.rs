@@ -57,9 +57,7 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     current_block_offset: CssPixels,
     max_block_size_on_current_line: CssPixels,
     unbreakable_run_inline_size_interrupted_by_float: CssPixels,
-    text_indent: CssPixels,
-    text_indent_hanging: bool,
-    text_indent_each_line: bool,
+    text_indentation: inline_formatting_context::TextIndentation,
     direction: u8,
     last_line_needs_update: bool,
     is_continuation: bool,
@@ -108,9 +106,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             current_block_offset: CssPixels::default(),
             max_block_size_on_current_line: CssPixels::default(),
             unbreakable_run_inline_size_interrupted_by_float: CssPixels::default(),
-            text_indent: style.text_indent().to_px(containing_inline_size),
-            text_indent_hanging: style.text_indent_hanging(),
-            text_indent_each_line: style.text_indent_each_line(),
+            text_indentation: inline_formatting_context::TextIndentation::of(style, containing_inline_size),
             direction: style.direction(),
             last_line_needs_update: false,
             is_continuation: false,
@@ -249,15 +245,11 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.max_block_size_on_current_line = CssPixels::default();
         self.last_line_needs_update = true;
         self.should_advance_to_last_line_box_block_end = false;
-        let mut should_indent = (self.line_count() <= 1 && !self.is_continuation)
-            || (self.text_indent_each_line && forced == ForcedBreak::Yes);
-        if self.text_indent_hanging {
-            should_indent = !should_indent;
-        }
-        if should_indent {
-            let indent = self.text_indent;
-            self.line_mut(line_index).inline_length += indent;
-        }
+        let indent = self.text_indentation.indent_of_line(
+            self.line_count() <= 1 && !self.is_continuation,
+            forced == ForcedBreak::Yes,
+        );
+        self.line_mut(line_index).inline_length += indent;
         self.current_line_committed_pending_margin = false;
     }
 
