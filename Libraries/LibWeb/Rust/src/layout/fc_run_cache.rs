@@ -15,7 +15,6 @@ use super::*;
 #[derive(Clone, Copy, PartialEq)]
 pub(super) struct FcRunCacheKey {
     fc_type: formatting_context::FormattingContextType,
-    purpose: formatting_context::LayoutPurpose,
     layout_mode: LayoutMode,
     input: LayoutInput,
     root_cells: used_values::RootInputCells,
@@ -65,7 +64,6 @@ impl RunInputsTheStoredRunNeverObserved {
 impl FcRunCacheKey {
     pub(super) fn new(
         fc_type: formatting_context::FormattingContextType,
-        purpose: formatting_context::LayoutPurpose,
         layout_mode: LayoutMode,
         mut input: LayoutInput,
         root_cells: used_values::RootInputCells,
@@ -76,7 +74,6 @@ impl FcRunCacheKey {
         }
         Self {
             fc_type,
-            purpose,
             layout_mode,
             input,
             root_cells,
@@ -85,11 +82,6 @@ impl FcRunCacheKey {
 
     pub(super) fn fc_type(&self) -> formatting_context::FormattingContextType {
         self.fc_type
-    }
-
-    /// Whether the run lays out fragments, which an entry can then also stand for.
-    fn builds_fragments(&self) -> bool {
-        formatting_context::run_builds_fragments(self.purpose, self.layout_mode)
     }
 
     pub(super) fn has_no_table_cell_intrinsic_block_padding(&self) -> bool {
@@ -115,7 +107,6 @@ impl FcRunCacheKey {
             return false;
         }
         self.fc_type == probe.fc_type
-            && self.purpose == probe.purpose
             && self.layout_mode == probe.layout_mode
             && self.root_cells == probe.root_cells
             && layout_inputs_match_ignoring_unobserved(&self.input, &probe.input, unobserved)
@@ -337,6 +328,18 @@ impl FcRunCacheEntry {
             committed_subtree_token_when_descendants_dropped: Some(token),
             last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(self.last_used_at_layout_commit()),
             structural_epoch_bumps_when_stored: self.structural_epoch_bumps_when_stored,
+        }
+    }
+
+    pub(super) fn outputs_without_fragments(&self) -> formatting_context::RunOutputs {
+        formatting_context::RunOutputs {
+            result: self.outputs.result,
+            root: None,
+            root_outcome: self.outputs.root_outcome.clone(),
+            atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: self
+                .outputs
+                .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+            host_findings: self.outputs.host_findings.clone(),
         }
     }
 
@@ -739,13 +742,12 @@ pub(super) fn run_root_validity(callbacks: &LayoutPass<'_>, box_: Node) -> FcRun
 }
 
 /// A run's cache interaction, decided at probe time and concluded after
-/// the run executes. Uncacheable classes bypass entirely: measurement and
-/// intrinsic-sizing runs produce no fragments; subgridded grid items copy
-/// the parent grid's mid-run track state, which the key cannot see;
-/// anchor()-positioned roots keep their bypass while the resolved-inset
-/// side effects are audited; pass entries and internal runs are not
-/// spawned child runs; devtools collection emits per-run callbacks a
-/// replay would skip.
+/// the run executes. Uncacheable classes bypass entirely: subgridded grid
+/// items copy the parent grid's mid-run track state, which the key cannot
+/// see; anchor()-positioned roots keep their bypass while the resolved-inset
+/// side effects are audited; pass entries, measurement roots and internal
+/// runs are not spawned child runs; devtools collection emits per-run
+/// callbacks a replay would skip.
 pub(super) enum FcRunCacheAttempt {
     Bypass,
     Store {
@@ -756,7 +758,7 @@ pub(super) enum FcRunCacheAttempt {
         validity: FcRunCacheValidity,
         structurally_damaged_entry: Option<std::sync::Arc<FcRunCacheEntry>>,
     },
-    /// A run that builds no fragments, whose result is kept for its exact key.
+    /// A run that builds no fragments, whose result is kept.
     StoreResultOnly {
         validity: FcRunCacheValidity,
     },
@@ -770,45 +772,19 @@ impl FcRunCacheAttempt {
         }
     }
 
-    /// Err carries the entry the caller must replay instead of running.
+    /// Err carries the entry the caller must replay instead of running. A probe whose run builds fragments takes only
+    /// an entry whose run built them; any other probe reads the result of any matching entry.
     pub(super) fn probe(
         box_: Node,
         parent_grid_is_present: bool,
-        layout_mode: LayoutMode,
+        builds_fragments: bool,
         should_collect_devtools_layout_data: bool,
         callbacks: &LayoutPass<'_>,
         key: &FcRunCacheKey,
     ) -> Result<Self, FcRunCacheHit> {
-        if !key.builds_fragments() {
-            if !can_describe_run_in_any_layout_mode(
-                box_,
-                parent_grid_is_present,
-                should_collect_devtools_layout_data,
-                callbacks,
-                key,
-            ) {
-                return Ok(Self::Bypass);
-            }
-            let validity = run_root_validity(callbacks, box_);
-            if let Some(entry) = callbacks
-                .arena()
-                .fc_run_cache_store()
-                .first_entry_where(box_.slot_index(), |entry| {
-                    entry.validity == validity && entry.outputs.root.is_none() && entry.key == *key
-                })
-            {
-                entry.note_used_at_layout_commit(callbacks.arena().layout_commit_count());
-                return Err(FcRunCacheHit {
-                    entry,
-                    reuses_committed_subtree: false,
-                });
-            }
-            return Ok(Self::StoreResultOnly { validity });
-        }
         if !can_describe_run(
             box_,
             parent_grid_is_present,
-            layout_mode,
             should_collect_devtools_layout_data,
             callbacks,
             key,
@@ -817,6 +793,18 @@ impl FcRunCacheAttempt {
         }
         let store = callbacks.arena().fc_run_cache_store();
         let validity = run_root_validity(callbacks, box_);
+        if !builds_fragments {
+            if let Some(entry) = store.first_entry_where(box_.slot_index(), |entry| {
+                entry.validity == validity && entry.answers_probe_for(key)
+            }) {
+                entry.note_used_at_layout_commit(callbacks.arena().layout_commit_count());
+                return Err(FcRunCacheHit {
+                    entry,
+                    reuses_committed_subtree: false,
+                });
+            }
+            return Ok(Self::StoreResultOnly { validity });
+        }
         let mut reuses_committed_subtree = false;
         if let Some(entry) = store.first_entry_where(box_.slot_index(), |entry| {
             if entry.validity != validity || entry.outputs.root.is_none() || !entry.answers_probe_for(key) {
@@ -929,24 +917,6 @@ impl FcRunCacheAttempt {
 pub(super) fn can_describe_run(
     box_: Node,
     parent_grid_is_present: bool,
-    layout_mode: LayoutMode,
-    should_collect_devtools_layout_data: bool,
-    callbacks: &LayoutPass<'_>,
-    key: &FcRunCacheKey,
-) -> bool {
-    layout_mode == LayoutMode::Normal
-        && can_describe_run_in_any_layout_mode(
-            box_,
-            parent_grid_is_present,
-            should_collect_devtools_layout_data,
-            callbacks,
-            key,
-        )
-}
-
-pub(super) fn can_describe_run_in_any_layout_mode(
-    box_: Node,
-    parent_grid_is_present: bool,
     should_collect_devtools_layout_data: bool,
     callbacks: &LayoutPass<'_>,
     key: &FcRunCacheKey,
@@ -1014,7 +984,6 @@ mod tests {
     fn key(available_inline: AvailableSize, percentage_basis_inline_size: Option<CssPixels>) -> FcRunCacheKey {
         FcRunCacheKey {
             fc_type: formatting_context::FormattingContextType::Block,
-            purpose: formatting_context::LayoutPurpose::Commit,
             layout_mode: LayoutMode::Normal,
             input: LayoutInput::new(
                 AvailableSpace {
@@ -1344,7 +1313,6 @@ mod tests {
         let key_of = |fc_type, input| {
             FcRunCacheKey::new(
                 fc_type,
-                formatting_context::LayoutPurpose::Commit,
                 LayoutMode::Normal,
                 input,
                 used_values::RootInputCells::capture(&record),

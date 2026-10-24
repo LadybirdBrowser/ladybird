@@ -1922,10 +1922,9 @@ impl<'pass> SizingContext<'pass> {
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         layout_mode: LayoutMode,
+        layout_builds_fragments: bool,
     ) -> Option<std::sync::Arc<fragment_tree::Fragment>> {
-        if formatting_context::run_builds_fragments(self.purpose, layout_mode)
-            && let Some(fragment) = self.try_reuse_empty_atomic_root_metrics(node)
-        {
+        if layout_builds_fragments && let Some(fragment) = self.try_reuse_empty_atomic_root_metrics(node) {
             return Some(fragment);
         }
         self.dimension_empty_atomic_root_fresh(node, available_space, constraints, layout_mode);

@@ -1,0 +1,2 @@
+PASS: the cell's commit replays the inline-block its measurement laid out (work + checks)
+PASS: a measured cell reuses its unchanged inline-block from the previous pass (work + checks)

@@ -48,6 +48,7 @@ pub(super) fn layout_replaced_with_children(
 
     let wrapper_result = formatting_context::run_formatting_context(
         run.purpose,
+        formatting_context::RootFragments::WhereTheRunInputAllows,
         run.fragments.as_deref(),
         wrapper_state,
         wrapper,

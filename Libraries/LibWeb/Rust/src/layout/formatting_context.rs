@@ -124,8 +124,24 @@ impl LayoutPurpose {
     }
 }
 
-pub(crate) fn run_builds_fragments(purpose: LayoutPurpose, layout_mode: LayoutMode) -> bool {
-    layout_mode == LayoutMode::Normal && !purpose.is_measurement()
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RootFragments {
+    WhereTheRunInputAllows,
+    LeftOut,
+}
+
+pub(crate) fn run_builds_fragments(
+    layout_mode: LayoutMode,
+    input: &LayoutInput,
+    parent_collects_fragments: bool,
+) -> bool {
+    // NB: An atomic inline lays its content out at the inline size it resolves from the space it is offered, which
+    //     MathML layout offers at max-content.
+    layout_mode == LayoutMode::Normal
+        && (input.participation == ParticipationInParentFormattingContext::AtomicInline
+            || !input.available_space.inline_size.is_intrinsic_sizing_constraint())
+        && !input.available_space.block_size.is_intrinsic_sizing_constraint()
+        && (parent_collects_fragments || input.participation != ParticipationInParentFormattingContext::Root)
 }
 
 pub(crate) struct MeasurementState<'pass> {
@@ -148,12 +164,40 @@ impl<'pass> MeasurementState<'pass> {
         layout_mode: LayoutMode,
         input: LayoutInput,
     ) -> ChildLayoutResult {
+        self.launch(
+            RootFragments::WhereTheRunInputAllows,
+            node,
+            node_used,
+            layout_mode,
+            input,
+        )
+    }
+
+    pub(crate) fn run_without_root_fragments(
+        &self,
+        node: Node,
+        node_used: &UsedValues,
+        layout_mode: LayoutMode,
+        input: LayoutInput,
+    ) -> ChildLayoutResult {
+        self.launch(RootFragments::LeftOut, node, node_used, layout_mode, input)
+    }
+
+    fn launch(
+        &self,
+        root_fragments: RootFragments,
+        node: Node,
+        node_used: &UsedValues,
+        layout_mode: LayoutMode,
+        input: LayoutInput,
+    ) -> ChildLayoutResult {
         let fc_type = independent_formatting_context_type(node, &self.callbacks);
         let root_containing_block = self
             .callbacks
             .containing_block_for_child_run(node, &input.participation);
         run_formatting_context(
             LayoutPurpose::Measurement,
+            root_fragments,
             None,
             node_used,
             node,
@@ -177,6 +221,7 @@ impl<'pass> MeasurementState<'pass> {
 pub(crate) fn run_fragmentainer(
     outer: &FormattingContextRun,
     purpose: LayoutPurpose,
+    builds_fragments: bool,
     input: LayoutInput,
     fragmentainer: std::rc::Rc<fragmentation::FragmentainerContext>,
 ) -> RunOutputs {
@@ -187,6 +232,7 @@ pub(crate) fn run_fragmentainer(
         .containing_block_for_child_run(box_, &input.participation);
     execute_formatting_context_run(
         purpose,
+        builds_fragments,
         used_values::RootInputCells::capture(outer.records.used_values(box_)),
         box_,
         root_containing_block,
@@ -1888,6 +1934,7 @@ fn body_input_with_inner_available_space(run: &FormattingContextRun, input: &Lay
 #[expect(clippy::too_many_arguments)]
 pub(super) fn run_formatting_context(
     purpose: LayoutPurpose,
+    root_fragments: RootFragments,
     parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
     parent_used: &UsedValues,
     box_: Node,
@@ -1906,9 +1953,16 @@ pub(super) fn run_formatting_context(
         parent_fragments.clear_reused_subtree_root(box_, parent_used);
     }
     let root_cells = used_values::RootInputCells::capture(parent_used);
+    let builds_fragments = root_fragments == RootFragments::WhereTheRunInputAllows
+        && run_builds_fragments(layout_mode, &input, parent_fragments.is_some());
+    assert!(
+        parent_fragments.is_none() || builds_fragments,
+        "the run of {box_:?} builds no fragments for its parent to commit"
+    );
     if callbacks.scratch().reads_no_memoized_layout() {
         let outputs = execute_formatting_context_run(
             purpose,
+            builds_fragments,
             root_cells,
             box_,
             root_containing_block,
@@ -1925,10 +1979,10 @@ pub(super) fn run_formatting_context(
         );
         return absorb_run_outputs(&callbacks, parent_fragments, parent_used, box_, &input, outputs, false);
     }
-    let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, purpose, layout_mode, input, root_cells);
+    let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, layout_mode, input, root_cells);
     let memoizes_measurement = purpose.is_measurement()
         && callbacks.scratch().memoizes_measurements()
-        && fc_run_cache::can_describe_run_in_any_layout_mode(
+        && fc_run_cache::can_describe_run(
             box_,
             parent_grid.is_some(),
             should_collect_devtools_layout_data,
@@ -1945,7 +1999,7 @@ pub(super) fn run_formatting_context(
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
         box_,
         parent_grid.is_some(),
-        layout_mode,
+        builds_fragments,
         should_collect_devtools_layout_data,
         &callbacks,
         &cache_key,
@@ -1965,20 +2019,22 @@ pub(super) fn run_formatting_context(
                 return result;
             }
             let reuses_committed_subtree = hit.reuses_committed_subtree;
-            let builds_no_fragments = hit.entry.outputs.root.is_none();
+            let action = if !builds_fragments {
+                "READ RESULT"
+            } else if reuses_committed_subtree {
+                "REUSE SUBTREE"
+            } else {
+                "REPLAY FRAGMENTS"
+            };
             let _trace = callbacks
                 .arena()
                 .layout_trace
-                .run(box_, fc_type, purpose, layout_mode, || {
-                    if reuses_committed_subtree {
-                        "REUSE SUBTREE"
-                    } else if builds_no_fragments {
-                        "READ RESULT"
-                    } else {
-                        "REPLAY FRAGMENTS"
-                    }
-                });
-            let outputs = hit.entry.outputs_to_replay(reuses_committed_subtree);
+                .run(box_, fc_type, purpose, layout_mode, || action);
+            let outputs = if builds_fragments {
+                hit.entry.outputs_to_replay(reuses_committed_subtree)
+            } else {
+                hit.entry.outputs_without_fragments()
+            };
             return absorb_run_outputs(
                 &callbacks,
                 parent_fragments,
@@ -1998,6 +2054,7 @@ pub(super) fn run_formatting_context(
     let discarded_outputs = run_repeatability::lay_out_discarded_run(&callbacks, || {
         execute_formatting_context_run(
             purpose,
+            builds_fragments,
             root_cells,
             box_,
             root_containing_block,
@@ -2015,6 +2072,7 @@ pub(super) fn run_formatting_context(
     });
     let outputs = execute_formatting_context_run(
         purpose,
+        builds_fragments,
         root_cells,
         box_,
         root_containing_block,
@@ -2127,6 +2185,7 @@ fn lays_out_box_for_its_content_inline_sizes(
 #[expect(clippy::too_many_arguments)]
 fn execute_formatting_context_run(
     purpose: LayoutPurpose,
+    builds_fragments: bool,
     root_cells: used_values::RootInputCells,
     box_: Node,
     root_containing_block: Node,
@@ -2160,7 +2219,7 @@ fn execute_formatting_context_run(
                 treat_block_axis_percentage_insets_as_auto_beyond_root: input
                     .sizing
                     .treat_block_axis_percentage_insets_as_auto_beyond_root,
-                fragments: run_builds_fragments(purpose, layout_mode).then(|| {
+                fragments: builds_fragments.then(|| {
                     std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new(
                         box_,
                         (!root_containing_block.is_invalid()).then_some(root_containing_block),
@@ -2706,7 +2765,7 @@ pub(crate) fn layout_inside_child(
 ) -> ChildLayoutOutcome {
     let facts = NodeFacts::new(&run.callbacks, child);
     let used = run.records.used_values(child);
-    let child_run_builds_fragments = run_builds_fragments(run.purpose, layout_mode);
+    let child_run_builds_fragments = run_builds_fragments(layout_mode, &input, run.fragments.is_some());
     if let Some((padding_top, padding_bottom)) = input.sizing.table_cell_intrinsic_block_padding {
         debug_assert!(facts.is_table_cell());
         debug_assert!(matches!(
@@ -2742,6 +2801,7 @@ pub(crate) fn layout_inside_child(
             input.available_space,
             input.containing_block_constraints,
             layout_mode,
+            child_run_builds_fragments,
         );
         // OPTIMIZATION: A box that took its metrics from its committed fragment is placed with that fragment, where
         // it shows the box as the record holds it.
@@ -2809,6 +2869,7 @@ pub(crate) fn layout_inside_child(
         dimension_root_in_parent_scope(parent_block, child, &input, child_run_builds_fragments);
     let result = run_formatting_context(
         run.purpose,
+        RootFragments::WhereTheRunInputAllows,
         run.fragments.as_deref(),
         used,
         child,
@@ -2865,16 +2926,13 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
         );
     input.sizing.flex_self_block_size_resolution_space = None;
     let root_cells = used_values::RootInputCells::capture(run.records.used_values(cell));
-    let cache_key = fc_run_cache::FcRunCacheKey::new(
-        FormattingContextType::Block,
-        LayoutPurpose::Commit,
-        LayoutMode::Normal,
-        input,
-        root_cells,
-    );
+    let cache_key =
+        fc_run_cache::FcRunCacheKey::new(FormattingContextType::Block, LayoutMode::Normal, input, root_cells);
+    let builds_fragments = run_builds_fragments(LayoutMode::Normal, &input, false);
     let execute = |previous_line_data| {
         execute_formatting_context_run(
             LayoutPurpose::Commit,
+            builds_fragments,
             root_cells,
             cell,
             root_containing_block,
@@ -2894,7 +2952,6 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
         if !fc_run_cache::can_describe_run(
             cell,
             false,
-            LayoutMode::Normal,
             run.should_collect_devtools_layout_data,
             &run.callbacks,
             &cache_key,
@@ -2906,7 +2963,7 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
         cell,
         false,
-        LayoutMode::Normal,
+        builds_fragments,
         run.should_collect_devtools_layout_data,
         &run.callbacks,
         &cache_key,
@@ -3290,6 +3347,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         let fc_type = independent_formatting_context_type(root_for_layout, &callbacks);
         run_formatting_context(
             LayoutPurpose::Commit,
+            RootFragments::WhereTheRunInputAllows,
             Some(&entry_fragments),
             root_for_layout_used,
             root_for_layout,
@@ -3450,6 +3508,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         .expect("partial relayout root must establish an independent formatting context");
     run_formatting_context(
         run.purpose,
+        RootFragments::WhereTheRunInputAllows,
         Some(fragments),
         root_used,
         root,

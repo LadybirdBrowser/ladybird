@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; }
+    table { border-spacing: 0; width: 300px; }
+    td { padding: 0; font: 20px/20px SerenitySans; }
+    #cell { height: 100px; }
+    #nested { display: inline-block; width: 80px; }
+</style>
+<table><tr><td id="cell"><div id="nested">some words that wrap</div></td></tr></table>
+<script>
+    layoutTest({
+        steps: [
+            {
+                name: "the cell's commit replays the inline-block its measurement laid out",
+                mutate: () => {
+                    nested.textContent = "other words that wrap";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<TD>#cell MEASURE min-content inline (cache=miss) FROM ITEMS
+                          BlockContainer<TD>#cell MEASURE max-content inline (cache=hit)
+                          TableWrapper(anonymous)/block RUN (cache=miss)
+                            Box<TABLE>/table RUN (cache=miss)
+                              BlockContainer<TD>#cell MEASURE min-content inline (cache=hit)
+                              BlockContainer<TD>#cell MEASURE max-content inline (cache=hit)
+                              BlockContainer<TD>#cell MEASURE max-content block (cache=miss)
+                                BlockContainer<TD>#cell/block (measurement, intrinsic) RUN (cache=bypass)
+                                  BlockContainer<DIV>#nested/block (measurement, intrinsic) RUN (cache=miss)
+                              BlockContainer<TD>#cell MEASURE max-content block (cache=hit)
+                              BlockContainer<TD>#cell MEASURE CELL (cache=miss)
+                                BlockContainer<TD>#cell/block (measurement) RUN (cache=miss)
+                                  BlockContainer<DIV>#nested/block (measurement) RUN (cache=miss)
+                              BlockContainer<TD>#cell/block RUN (cache=miss)
+                                BlockContainer<DIV>#nested/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(nested.getBoundingClientRect().width, 80, "nested width");
+                },
+            },
+            {
+                name: "a measured cell reuses its unchanged inline-block from the previous pass",
+                mutate: () => {
+                    cell.style.height = "120px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<TD>#cell MEASURE min-content inline (cache=miss) FROM ITEMS
+                          BlockContainer<TD>#cell MEASURE max-content inline (cache=hit)
+                          TableWrapper(anonymous)/block RUN (cache=miss)
+                            Box<TABLE>/table RUN (cache=miss)
+                              BlockContainer<TD>#cell MEASURE min-content inline (cache=hit)
+                              BlockContainer<TD>#cell MEASURE max-content inline (cache=hit)
+                              BlockContainer<TD>#cell MEASURE max-content block (cache=miss)
+                                BlockContainer<TD>#cell/block (measurement, intrinsic) RUN (cache=bypass)
+                                  BlockContainer<DIV>#nested/block (measurement, intrinsic) READ RESULT
+                              BlockContainer<TD>#cell MEASURE max-content block (cache=hit)
+                              BlockContainer<TD>#cell MEASURE CELL (cache=miss)
+                                BlockContainer<TD>#cell/block (measurement) RUN (cache=miss)
+                                  BlockContainer<DIV>#nested/block (measurement) REUSE SUBTREE
+                              BlockContainer<TD>#cell/block RUN (cache=miss)
+                                BlockContainer<DIV>#nested/block REUSE SUBTREE
+                `,
+                check: equal => {
+                    const rect = nested.getBoundingClientRect();
+                    equal(rect.width, 80, "nested width");
+                    equal(rect.height, 80, "nested height");
+                    equal(cell.getBoundingClientRect().height, 120, "cell height");
+                },
+            },
+        ],
+    });
+</script>

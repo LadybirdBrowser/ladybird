@@ -2767,7 +2767,7 @@ impl<'pass> TableFormattingContext<'pass> {
             .uses_collapsing_borders_model
             .set(used.uses_collapsing_borders_model.get());
 
-        let result = measurement.run_with_layout_mode(
+        let result = measurement.run_without_root_fragments(
             cell.box_,
             &measured_root,
             self.run.layout_mode,
