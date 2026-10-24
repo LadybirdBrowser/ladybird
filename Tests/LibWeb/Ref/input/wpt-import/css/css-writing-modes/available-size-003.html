@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Testing Available Space in Orthogonal Flows / height / content height</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://www.w3.org/TR/css-writing-modes-3/#orthogonal-auto">
+<link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/reference/available-size-001-ref.html">
+<meta name="assert" content="When an orthogonal flow's parent doesn't have a definite block size and the nearest ancestor scroller does have a fixed height, use that, making sure you stick with the content height.">
+<style>
+#scroller {
+  font-family: monospace; /* to be able to reliably measure things in ch*/
+  font-size: 20px;
+  height: 8ch;
+  width: 300px; /* Shrinkwrapping this div is not what we're interested in testing here, so give it a width. See nested-orthogonal-001.html for that. */
+  overflow: hidden;
+  color: transparent;
+  position: relative; /* to act as a container of #red */
+  padding: 1ch 0;
+}
+
+#parent { padding-bottom: 2ch; } /* so that the content height of the parent and of the fixed size scrolling ancestor are different */
+#ortho { writing-mode: vertical-rl; }
+
+span {
+  background: green;
+  display: inline-block; /* This should not change it's size or position, but makes the size of the background predictable*/
+}
+
+#red { /* Not necessary when when comparing to the reference, but makes human judgement easier */
+  position: absolute;
+  background: red;
+  left: 0; top: 1ch;
+  writing-mode: vertical-rl;
+  z-index: -1;
+}
+</style>
+
+<p>Test passes if there is a <strong>green rectangle</strong> below and <strong>no red</strong>.
+
+<div id=scroller>
+  <aside id=red>0</aside>
+  <div id=parent>
+    <div id=ortho>0 0 0 0 <span>0</span> 0 0 0</div>
+    <!-- If this div take its height from the height of its scrollable ancestor,
+         it should wrap just right for the green 0 to overlap with the red one. -->
+  </div>
+</div>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Testing Available Space in Orthogonal Flows / height + min-height / not remaining size</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://www.w3.org/TR/css-writing-modes-3/#orthogonal-auto">
+<link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/reference/available-size-001-ref.html">
+<meta name="assert" content="When an orthogonal flow's parent doesn't have a definite block size and the nearest ancestor scroller does a have fixed height, use that whole height increased by min-height if that's larger, even if some other content already consumes some of it (same as -005, with min-height).">
+<style>
+#scroller {
+  font-family: monospace; /* to be able to reliably measure things in ch*/
+  font-size: 20px;
+  height: 4ch;
+  min-height: 8ch;
+  width: 300px; /* Shrinkwrapping this div is not what we're interested in testing here, so give it a width. See nested-orthogonal-001.html for that. */
+  overflow: hidden;
+  color: transparent;
+  position: relative; /* to act as a container of #red */
+}
+
+#parent { padding-bottom: 2ch; } /* so that the content height of the parent and of the fixed size scrolling ancestor are different */
+#ortho { writing-mode: vertical-rl; }
+
+span {
+  background: green;
+  display: inline-block; /* This should not change it's size or position, but makes the size of the background predictable*/
+}
+
+#red { /* Not necessary when when comparing to the reference, but makes human judgement easier */
+  position: absolute;
+  background: red;
+  left: 0;
+  writing-mode: vertical-rl;
+  z-index: -1;
+  top: 1ch;
+}
+#spacer { /* shrinks the remaining space of the parent div. */
+  height: 1ch;
+  width: 100%;
+}
+</style>
+
+<p>Test passes if there is a <strong>green rectangle</strong> below and <strong>no red</strong>.
+
+<div id=scroller>
+  <aside id="red">0</aside>
+  <div id=parent>
+    <aside id=spacer></aside>
+    <div id=ortho>0 0 0 0 <span>0</span> 0 0 0</div>
+  </div>
+  <!-- If the inner div take its height from the height of its scrollable
+  ancestor, it should wrap just right for the green 0 to overlap with the red
+  one. If instead it takes it size from the remaining height after having
+  removed #spacer, or does some other calculation that takes #spacer into
+  account, it won't line up with #red.-->
+</div>

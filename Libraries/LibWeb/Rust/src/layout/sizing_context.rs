@@ -3499,17 +3499,47 @@ impl<'pass> SizingContext<'pass> {
         // - the nearest ancestor scrollport’s inner size if that is fixed, else / capped by its inner max size if
         //   that is fixed, floored by its inner min size if that is fixed
         // - the initial containing block’s size
-        // FIXME: Consider the nearest ancestor scrollport.
+        let fixed_size = |size: &ComputedSize| {
+            (size.is_length_percentage() && !size.contains_percentage()).then(|| size.to_px(CssPixels::default()))
+        };
+        let containing_block = self.callbacks.in_flow_containing_block(node);
+        let mut scrollport_size = None;
+        let mut ancestor = containing_block;
+        while !ancestor.is_invalid() {
+            if self.facts(ancestor).is_scroll_container() {
+                let style = self.style(ancestor);
+                let inner = |size: CssPixels| {
+                    if style.box_sizing() == box_sizing::BORDER_BOX {
+                        (size
+                            - style.border_left_width()
+                            - style.border_right_width()
+                            - style.padding_left().to_px(CssPixels::default())
+                            - style.padding_right().to_px(CssPixels::default()))
+                        .max(CssPixels::default())
+                    } else {
+                        size
+                    }
+                };
+                let maximum = fixed_size(style.max_width()).map(inner);
+                let minimum = fixed_size(style.min_width()).map(inner);
+                scrollport_size = fixed_size(style.width())
+                    .map(inner)
+                    .map(|size| maximum.map_or(size, |maximum| size.min(maximum)))
+                    .or(maximum)
+                    .map(|size| minimum.map_or(size, |minimum| size.max(minimum)));
+                break;
+            }
+            ancestor = self.callbacks.parent(ancestor);
+        }
+        let scrollport_and_initial_containing_block_size = scrollport_size
+            .map_or(initial_containing_block_size, |size| {
+                size.min(initial_containing_block_size)
+            });
         // NB: An intrinsic size measurement of the box has no available space, but its containing block's size, which
         //     the available space is when it is definite, still arrives as the percentage basis.
         let available_inline_size = match (available_space.inline_size, constraints.percentage_basis_inline_size) {
             (AvailableSize::Definite(size), _) | (_, Some(size)) => size,
             _ => {
-                let containing_block = self.callbacks.in_flow_containing_block(node);
-                let fixed_size = |size: &ComputedSize| {
-                    (size.is_length_percentage() && !size.contains_percentage())
-                        .then(|| size.to_px(CssPixels::default()))
-                };
                 let containing_block_max_size = (!containing_block.is_invalid())
                     .then(|| {
                         let style = self.style(containing_block);
@@ -3518,8 +3548,8 @@ impl<'pass> SizingContext<'pass> {
                         })
                     })
                     .flatten();
-                containing_block_max_size.map_or(initial_containing_block_size, |maximum| {
-                    maximum.min(initial_containing_block_size)
+                containing_block_max_size.map_or(scrollport_and_initial_containing_block_size, |maximum| {
+                    maximum.min(scrollport_and_initial_containing_block_size)
                 })
             }
         };
@@ -3542,7 +3572,7 @@ impl<'pass> SizingContext<'pass> {
             // FIXME: Lay out the box in columns of that width where its content overflows its block size.
             let constraint = self.calculate_stretch_fit_inline_size(
                 node,
-                AvailableSize::definite(available_inline_size.min(initial_containing_block_size)),
+                AvailableSize::definite(available_inline_size.min(scrollport_and_initial_containing_block_size)),
             );
             let max_content = self.calculate_max_content_inline_size(node, constraints);
             if max_content <= constraint {
