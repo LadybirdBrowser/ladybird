@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 95 tests
 
-92 Pass
-3 Fail
+95 Pass
 Pass	Can set 'height' to CSS-wide keywords: initial
 Pass	Can set 'height' to CSS-wide keywords: inherit
 Pass	Can set 'height' to CSS-wide keywords: unset
@@ -11,7 +10,7 @@ Pass	Can set 'height' to CSS-wide keywords: revert
 Pass	Can set 'height' to var() references:  var(--A)
 Pass	Can set 'height' to the 'auto' keyword: auto
 Pass	Can set 'height' to a percent: 0%
-Fail	Can set 'height' to a percent: -3.14%
+Pass	Can set 'height' to a percent: -3.14%
 Pass	Can set 'height' to a percent: 3.14%
 Pass	Can set 'height' to a percent: calc(0% + 0%)
 Pass	Can set 'height' to a length: 0px
@@ -42,7 +41,7 @@ Pass	Can set 'min-height' to CSS-wide keywords: unset
 Pass	Can set 'min-height' to CSS-wide keywords: revert
 Pass	Can set 'min-height' to var() references:  var(--A)
 Pass	Can set 'min-height' to a percent: 0%
-Fail	Can set 'min-height' to a percent: -3.14%
+Pass	Can set 'min-height' to a percent: -3.14%
 Pass	Can set 'min-height' to a percent: 3.14%
 Pass	Can set 'min-height' to a percent: calc(0% + 0%)
 Pass	Can set 'min-height' to a length: 0px
@@ -74,7 +73,7 @@ Pass	Can set 'max-height' to CSS-wide keywords: revert
 Pass	Can set 'max-height' to var() references:  var(--A)
 Pass	Can set 'max-height' to the 'none' keyword: none
 Pass	Can set 'max-height' to a percent: 0%
-Fail	Can set 'max-height' to a percent: -3.14%
+Pass	Can set 'max-height' to a percent: -3.14%
 Pass	Can set 'max-height' to a percent: 3.14%
 Pass	Can set 'max-height' to a percent: calc(0% + 0%)
 Pass	Can set 'max-height' to a length: 0px

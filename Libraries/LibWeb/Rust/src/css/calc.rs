@@ -4312,6 +4312,26 @@ pub(crate) fn absolutize_calculation_value(
             {
                 return AbsolutizedCalculation::Value(collapsed);
             }
+            // https://drafts.csswg.org/css-values-4/#functional-numeric
+            // "the value of a numeric function is clamped to the range allowed in the context it is used
+            // at computed value time if possible, and at used value time otherwise."
+            // NB: A lone percentage stays a calculation (see collapse_absolutized_calculation), but its
+            //     range is already known, so it is clamped now like a calculation that collapses.
+            let simplified = match &*simplified {
+                CalcNode::Numeric(leaf @ CalcNumericValue::Percentage(..)) => {
+                    let clamped = CalcSerializer::clamp_and_censor_numeric_leaf(
+                        *leaf,
+                        *resolve_numbers_as_integers,
+                        accepted_ranges.as_slice(),
+                    );
+                    if clamped == *leaf {
+                        simplified
+                    } else {
+                        Arc::new(CalcNode::Numeric(clamped))
+                    }
+                }
+                _ => simplified,
+            };
             if Arc::ptr_eq(&simplified, &root) {
                 return AbsolutizedCalculation::Unchanged;
             }

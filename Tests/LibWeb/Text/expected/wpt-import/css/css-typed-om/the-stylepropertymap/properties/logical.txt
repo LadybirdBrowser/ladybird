@@ -196,7 +196,7 @@ Pass	Can set 'padding-block-start' to CSS-wide keywords: unset
 Pass	Can set 'padding-block-start' to CSS-wide keywords: revert
 Pass	Can set 'padding-block-start' to var() references:  var(--A)
 Pass	Can set 'padding-block-start' to a percent: 0%
-Fail	Can set 'padding-block-start' to a percent: -3.14%
+Pass	Can set 'padding-block-start' to a percent: -3.14%
 Pass	Can set 'padding-block-start' to a percent: 3.14%
 Pass	Can set 'padding-block-start' to a percent: calc(0% + 0%)
 Pass	Can set 'padding-block-start' to a length: 0px
@@ -227,7 +227,7 @@ Pass	Can set 'padding-block-end' to CSS-wide keywords: unset
 Pass	Can set 'padding-block-end' to CSS-wide keywords: revert
 Pass	Can set 'padding-block-end' to var() references:  var(--A)
 Pass	Can set 'padding-block-end' to a percent: 0%
-Fail	Can set 'padding-block-end' to a percent: -3.14%
+Pass	Can set 'padding-block-end' to a percent: -3.14%
 Pass	Can set 'padding-block-end' to a percent: 3.14%
 Pass	Can set 'padding-block-end' to a percent: calc(0% + 0%)
 Pass	Can set 'padding-block-end' to a length: 0px
@@ -258,7 +258,7 @@ Pass	Can set 'padding-inline-start' to CSS-wide keywords: unset
 Pass	Can set 'padding-inline-start' to CSS-wide keywords: revert
 Pass	Can set 'padding-inline-start' to var() references:  var(--A)
 Pass	Can set 'padding-inline-start' to a percent: 0%
-Fail	Can set 'padding-inline-start' to a percent: -3.14%
+Pass	Can set 'padding-inline-start' to a percent: -3.14%
 Pass	Can set 'padding-inline-start' to a percent: 3.14%
 Pass	Can set 'padding-inline-start' to a percent: calc(0% + 0%)
 Pass	Can set 'padding-inline-start' to a length: 0px
@@ -289,7 +289,7 @@ Pass	Can set 'padding-inline-end' to CSS-wide keywords: unset
 Pass	Can set 'padding-inline-end' to CSS-wide keywords: revert
 Pass	Can set 'padding-inline-end' to var() references:  var(--A)
 Pass	Can set 'padding-inline-end' to a percent: 0%
-Fail	Can set 'padding-inline-end' to a percent: -3.14%
+Pass	Can set 'padding-inline-end' to a percent: -3.14%
 Pass	Can set 'padding-inline-end' to a percent: 3.14%
 Pass	Can set 'padding-inline-end' to a percent: calc(0% + 0%)
 Pass	Can set 'padding-inline-end' to a length: 0px
@@ -1354,7 +1354,7 @@ Pass	Can set 'border-start-start-radius' to CSS-wide keywords: unset
 Pass	Can set 'border-start-start-radius' to CSS-wide keywords: revert
 Pass	Can set 'border-start-start-radius' to var() references:  var(--A)
 Pass	Can set 'border-start-start-radius' to a percent: 0%
-Pass	Can set 'border-start-start-radius' to a percent: -3.14%
+Fail	Can set 'border-start-start-radius' to a percent: -3.14%
 Pass	Can set 'border-start-start-radius' to a percent: 3.14%
 Pass	Can set 'border-start-start-radius' to a percent: calc(0% + 0%)
 Pass	Can set 'border-start-start-radius' to a length: 0px
@@ -1385,7 +1385,7 @@ Pass	Can set 'border-start-end-radius' to CSS-wide keywords: unset
 Pass	Can set 'border-start-end-radius' to CSS-wide keywords: revert
 Pass	Can set 'border-start-end-radius' to var() references:  var(--A)
 Pass	Can set 'border-start-end-radius' to a percent: 0%
-Pass	Can set 'border-start-end-radius' to a percent: -3.14%
+Fail	Can set 'border-start-end-radius' to a percent: -3.14%
 Pass	Can set 'border-start-end-radius' to a percent: 3.14%
 Pass	Can set 'border-start-end-radius' to a percent: calc(0% + 0%)
 Pass	Can set 'border-start-end-radius' to a length: 0px
@@ -1416,7 +1416,7 @@ Pass	Can set 'border-end-start-radius' to CSS-wide keywords: unset
 Pass	Can set 'border-end-start-radius' to CSS-wide keywords: revert
 Pass	Can set 'border-end-start-radius' to var() references:  var(--A)
 Pass	Can set 'border-end-start-radius' to a percent: 0%
-Pass	Can set 'border-end-start-radius' to a percent: -3.14%
+Fail	Can set 'border-end-start-radius' to a percent: -3.14%
 Pass	Can set 'border-end-start-radius' to a percent: 3.14%
 Pass	Can set 'border-end-start-radius' to a percent: calc(0% + 0%)
 Pass	Can set 'border-end-start-radius' to a length: 0px
@@ -1447,7 +1447,7 @@ Pass	Can set 'border-end-end-radius' to CSS-wide keywords: unset
 Pass	Can set 'border-end-end-radius' to CSS-wide keywords: revert
 Pass	Can set 'border-end-end-radius' to var() references:  var(--A)
 Pass	Can set 'border-end-end-radius' to a percent: 0%
-Pass	Can set 'border-end-end-radius' to a percent: -3.14%
+Fail	Can set 'border-end-end-radius' to a percent: -3.14%
 Pass	Can set 'border-end-end-radius' to a percent: 3.14%
 Pass	Can set 'border-end-end-radius' to a percent: calc(0% + 0%)
 Pass	Can set 'border-end-end-radius' to a length: 0px
