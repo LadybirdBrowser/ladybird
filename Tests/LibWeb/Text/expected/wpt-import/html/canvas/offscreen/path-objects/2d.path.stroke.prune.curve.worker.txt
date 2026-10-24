@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Zero-length line segments from quadraticCurveTo and bezierCurveTo are removed before stroking

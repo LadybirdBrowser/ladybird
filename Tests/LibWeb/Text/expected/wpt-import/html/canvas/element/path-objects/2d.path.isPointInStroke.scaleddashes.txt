@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	isPointInStroke() should return correct results on dashed paths at high scale factors
