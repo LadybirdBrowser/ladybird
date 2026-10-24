@@ -115,16 +115,17 @@ static Gfx::Path geometry_path(SVGGeometryElement const& element, CSSPixelSize v
         payloads[index] = computed_values.style_group_payload(static_cast<CSS::StyleGroupIndex>(index));
     auto points = Layout::svg_shape_points(element);
     static_assert(sizeof(Gfx::FloatPoint) == sizeof(Layout::RustFFI::FfiFloatPoint));
-    auto* native_path = static_cast<Gfx::Path*>(Layout::RustFFI::svg_geometry_element_path(
+    Vector<u8> path_bytes;
+    Layout::RustFFI::svg_geometry_element_encode_path(
         Layout::svg_geometry_facts(element),
         payloads.data(),
         payloads.size(),
         reinterpret_cast<Layout::RustFFI::FfiFloatPoint const*>(points.data()),
         points.size(),
-        viewport_size));
-    auto path = move(*native_path);
-    delete native_path;
-    return path;
+        viewport_size,
+        &path_bytes,
+        [](void* context, u8 const* data, size_t length) { static_cast<Vector<u8>*>(context)->append(data, length); });
+    return Gfx::Path::from_serialized_bytes(path_bytes);
 }
 
 Gfx::Path SVGGeometryElement::computed_path()
