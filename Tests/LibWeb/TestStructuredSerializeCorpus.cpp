@@ -253,6 +253,8 @@ static Vector<CorpusEntry> build_corpus_entries()
 
         Array<u8, 16> bitmap_pixels {};
         add("serializable-ImageBitmap"_string, image_bitmap_record(2, 2, 8, "BGRA8888"sv, "premultiplied"sv, { bitmap_pixels.data(), bitmap_pixels.size() }));
+        Array<u8, 3> display_p3 { 1, 12, 13 }; // CICP, SMPTE432 primaries, sRGB transfer characteristics
+        add("serializable-ImageBitmap-display-p3"_string, image_bitmap_record(2, 2, 8, "BGRA8888"sv, "premultiplied"sv, { bitmap_pixels.data(), bitmap_pixels.size() }, { display_p3.data(), display_p3.size() }));
     }
 
     add("serializable-Module"_string, webassembly_module_storage_record(s_minimal_webassembly_module_bytes.span()));

@@ -91,6 +91,17 @@ pub unsafe extern "C" fn web_image_data_is_detached(image_data: *mut c_void) -> 
     unsafe { object_from_abi::<ImageData>(image_data) }.is_detached()
 }
 
+/// The colorSpace of the ImageData, as the underlying value of a Web::Bindings::PredefinedColorSpace.
+///
+/// # Safety
+///
+/// `image_data` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_data_color_space(image_data: *mut c_void) -> u8 {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageData>(image_data) }.predefined_color_space() as u8
+}
+
 /// The first byte of the pixels of the ImageData, or null if its buffer is detached or its data has no room for them.
 ///
 /// # Safety

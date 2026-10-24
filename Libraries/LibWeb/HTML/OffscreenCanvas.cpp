@@ -217,7 +217,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> OffscreenCanvas::transfer_to_image_bit
     }
 
     // 3. Let image be a newly created ImageBitmap object that references the same underlying bitmap data as this OffscreenCanvas object's bitmap.
-    auto image = ImageBitmap::create(get_bitmap_from_surface());
+    auto image = ImageBitmap::create(get_frame_from_surface());
     // NB: The bitmap data that image references keeps the origin-clean flag of this OffscreenCanvas object's bitmap.
     image->set_origin_clean(is_origin_clean());
 

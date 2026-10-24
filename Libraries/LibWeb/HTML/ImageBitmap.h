@@ -10,6 +10,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/ImageBitmap.h>
 #include <LibWeb/Bindings/RustInterface.h>
@@ -47,6 +48,8 @@ class WEB_API ImageBitmap final : public Bindings::RustInterfaceCell {
 public:
     // A new ImageBitmap whose bitmap data is the bitmap, or that has none.
     static GC::Ref<ImageBitmap> create(RefPtr<Gfx::Bitmap const>);
+    // A new ImageBitmap whose bitmap data is the frame, with its color space, or that has none.
+    static GC::Ref<ImageBitmap> create(Optional<Gfx::DecodedImageFrame>);
 
     WebIDL::UnsignedLong width() const;
     WebIDL::UnsignedLong height() const;
@@ -63,6 +66,8 @@ public:
 
     // The bitmap of the bitmap data, which the ImageBitmap keeps until it is closed or transferred.
     Gfx::Bitmap const* bitmap() const;
+    // The bitmap data with its color space.
+    Gfx::DecodedImageFrame const* frame() const;
 
     static size_t shared_pixels_size(Gfx::Bitmap const&);
 };

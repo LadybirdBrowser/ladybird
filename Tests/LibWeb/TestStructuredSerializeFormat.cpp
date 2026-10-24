@@ -604,6 +604,17 @@ TEST_CASE(image_serializables_encode_to_frozen_bytes)
         auto expected = image_bitmap_record(bitmap->width(), bitmap->height(), bitmap->pitch(), "BGRA8888"sv, "premultiplied"sv, data);
         expect_storage_encoding(image_bitmap, expected);
     }
+
+    {
+        auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 2, 2 }));
+        auto color_space = MUST(Gfx::ColorSpace::from_cicp({ Media::ColorPrimaries::SMPTE432, Media::TransferCharacteristics::SRGB, Media::MatrixCoefficients::Identity, Media::VideoFullRangeFlag::Full }));
+        auto image_bitmap = Web::HTML::ImageBitmap::create(Gfx::DecodedImageFrame { *bitmap, move(color_space) });
+
+        ReadonlyBytes data { bitmap->scanline_u8(0), bitmap->data_size() };
+        Array<u8, 3> display_p3 { 1, 12, 13 }; // CICP, SMPTE432 primaries, sRGB transfer characteristics
+        auto expected = image_bitmap_record(bitmap->width(), bitmap->height(), bitmap->pitch(), "BGRA8888"sv, "premultiplied"sv, data, { display_p3.data(), display_p3.size() });
+        expect_storage_encoding(image_bitmap, expected);
+    }
 }
 
 static GC::Ref<JS::Object> wrap_image_bitmap(JS::Realm& realm, GC::Ref<Web::HTML::ImageBitmap> image_bitmap)
@@ -848,6 +859,7 @@ TEST_CASE(image_bitmap_transfer_rejects_invalid_shared_pixels)
         MUST(holder.encode(1));
         MUST(holder.encode(format));
         MUST(holder.encode(Gfx::AlphaType::Premultiplied));
+        MUST(holder.encode(static_cast<u8>(0))); // sRGB
         Web::HTML::TransferDataDecoder decoder { move(holder) };
         if (buffers)
             decoder.set_shared_buffers(*buffers);
@@ -920,6 +932,7 @@ TEST_CASE(image_bitmap_transfer_rejects_unsealed_backing)
     MUST(holder.encode(1));
     MUST(holder.encode(Gfx::BitmapFormat::BGRA8888));
     MUST(holder.encode(Gfx::AlphaType::Premultiplied));
+    MUST(holder.encode(static_cast<u8>(0))); // sRGB
     Web::HTML::TransferDataDecoder decoder { move(holder) };
     decoder.set_shared_buffers(shared_buffers);
     EXPECT(receive_image_bitmap(realm, decoder).is_error());

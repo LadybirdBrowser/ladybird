@@ -20,7 +20,7 @@ enum ResizeQuality { "pixelated", "low", "medium", "high" };
 dictionary ImageBitmapOptions {
     // FIXME: ImageOrientation imageOrientation = "from-image";
     // FIXME: PremultiplyAlpha premultiplyAlpha = "default";
-    // FIXME: ColorSpaceConversion colorSpaceConversion = "default";
+    ColorSpaceConversion colorSpaceConversion = "default";
     [EnforceRange] unsigned long resizeWidth;
     [EnforceRange] unsigned long resizeHeight;
     ResizeQuality resizeQuality = "low";
