@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <LibGfx/Filter.h>
+#include <LibGfx/ColorFilterType.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 

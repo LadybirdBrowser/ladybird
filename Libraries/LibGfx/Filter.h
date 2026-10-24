@@ -15,16 +15,6 @@
 
 namespace Gfx {
 
-enum class ColorFilterType {
-    Brightness,
-    Contrast,
-    Grayscale,
-    Invert,
-    Opacity,
-    Saturate,
-    Sepia
-};
-
 // An image filter graph in the serialized form painting hands across the FFI, the display list and
 // IPC. Graphs are built on the Rust side; this side carries them and reads them into Skia.
 class Filter {

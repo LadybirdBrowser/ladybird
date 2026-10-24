@@ -14,6 +14,7 @@
 #include <LibCompositing/TypesRustFFI.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/ColorFilterType.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/CornerRadii.h>
 #include <LibGfx/GradientInterpolation.h>
