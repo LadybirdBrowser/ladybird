@@ -1024,10 +1024,18 @@ pub(crate) struct ChildLayoutResult {
     pub content_block_size_for_aspect_ratio_minimum: Option<CssPixels>,
     pub depends_on_percentage_block_size: bool,
     pub own_block_size_observation: OwnBlockSizeObservation,
+    pub percentage_inline_basis_observation: PercentageInlineBasisObservation,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum OwnBlockSizeObservation {
+    #[default]
+    Observed,
+    Unobserved,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum PercentageInlineBasisObservation {
     #[default]
     Observed,
     Unobserved,
@@ -1296,7 +1304,7 @@ impl<'pass> FormattingContextRun<'pass> {
     }
 
     #[inline]
-    pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'pass> {
+    pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'pass, 'static> {
         sizing_context::SizingContext::new(self.records, self.callbacks)
     }
 
@@ -1534,15 +1542,11 @@ pub(crate) fn independent_root_automatic_block_size(
 }
 
 fn flex_self_block_size_resolution_space(
-    child_run_builds_fragments: bool,
     sizing: &sizing_context::SizingContext,
     node: Node,
     resolution_space: AvailableSpace,
     constraints: ContainingBlockConstraints,
 ) -> Option<AvailableSpace> {
-    if !child_run_builds_fragments {
-        return None;
-    }
     let style = sizing.style(node);
     if !style.display().is_flex_inside() || !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
         return None;
@@ -1621,7 +1625,6 @@ fn apply_root_sizing_directives(
                 block_size: AvailableSize::Indefinite,
             };
             let flex_self_resolution_space = flex_self_block_size_resolution_space(
-                run.fragments.is_some(),
                 &run.sizing(),
                 run.box_,
                 inline_definite_space,
@@ -1815,31 +1818,31 @@ fn dimension_root_in_parent_scope(
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
     child: Node,
     input: &LayoutInput,
-    child_run_builds_fragments: bool,
+    child_run_follows: bool,
 ) -> Option<AvailableSpace> {
+    let flex_self_resolution_space_of_following_run = |parent: &block_formatting_context::BlockFormattingContext| {
+        child_run_follows
+            .then(|| {
+                flex_self_block_size_resolution_space(
+                    &parent.sizing(),
+                    child,
+                    input.available_space,
+                    input.containing_block_constraints,
+                )
+            })
+            .flatten()
+    };
     match input.participation {
         ParticipationInParentFormattingContext::BlockLevel => {
             let parent = parent_block.expect("a block-level run requires an enclosing block formatting context");
             parent.commit_block_level_root_inline_size(child, input);
-            let flex_self_resolution_space = flex_self_block_size_resolution_space(
-                child_run_builds_fragments,
-                &parent.sizing(),
-                child,
-                input.available_space,
-                input.containing_block_constraints,
-            );
+            let flex_self_resolution_space = flex_self_resolution_space_of_following_run(parent);
             parent.resolve_block_level_root_block_size_before_body(child, input, flex_self_resolution_space.is_some());
             flex_self_resolution_space
         }
         ParticipationInParentFormattingContext::Float => {
             let parent = parent_block.expect("a floating run requires an enclosing block formatting context");
-            let flex_self_resolution_space = flex_self_block_size_resolution_space(
-                child_run_builds_fragments,
-                &parent.sizing(),
-                child,
-                input.available_space,
-                input.containing_block_constraints,
-            );
+            let flex_self_resolution_space = flex_self_resolution_space_of_following_run(parent);
             parent.dimension_float_root(child, input, flex_self_resolution_space.is_some());
             flex_self_resolution_space
         }
@@ -2392,6 +2395,8 @@ fn execute_formatting_context_run(
             if !run_is_handed_table_inline_layout_outside_its_key {
                 result.own_block_size_observation =
                     own_block_size_observation_of_item_run(run, fc_type, &input, &result);
+                result.percentage_inline_basis_observation =
+                    percentage_inline_basis_observation_of_item_run(run, fc_type, &input);
             }
 
             // NB: The root's descendants are laid out in the frame the root establishes.
@@ -2794,7 +2799,7 @@ pub(crate) fn layout_inside_child(
         return ChildLayoutOutcome::ReenterCurrent;
     };
     input.sizing.flex_self_block_size_resolution_space =
-        dimension_root_in_parent_scope(parent_block, child, &input, child_run_builds_fragments);
+        dimension_root_in_parent_scope(parent_block, child, &input, true);
     let result = run_formatting_context(
         run.fragments.as_deref(),
         used,
@@ -2849,6 +2854,21 @@ pub(crate) struct ChildRunShape {
     pub(crate) input: LayoutInput,
     pub(crate) root_cells: used_values::RootInputCells,
     pub(crate) root_containing_block: Node,
+}
+
+impl ChildRunShape {
+    pub(crate) fn lays_out_at(&self, inline_size: CssPixels, constraints: ContainingBlockConstraints) -> bool {
+        self.root_cells.content_inline_size == inline_size && self.input.containing_block_constraints == constraints
+    }
+}
+
+pub(crate) trait ChildRunShapes {
+    fn child_run_shape_at(
+        &self,
+        node: Node,
+        inline_size: CssPixels,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<ChildRunShape>;
 }
 
 pub(crate) struct ChildRunPlan {
@@ -3030,6 +3050,23 @@ fn root_content_includes_an_orthogonal_flow_sized_by_the_root_block_size(
         }
     }
     false
+}
+
+fn percentage_inline_basis_observation_of_item_run(
+    run: &FormattingContextRun,
+    fc_type: FormattingContextType,
+    input: &LayoutInput,
+) -> PercentageInlineBasisObservation {
+    let item_is_block_container_whose_content_resolves_percentages_against_itself = fc_type
+        == FormattingContextType::Block
+        && run.layout_mode == LayoutMode::Normal
+        && parent_owns_root_input_cells(&run.callbacks, run.box_, input)
+        && !run.sizing().measurement_root_observes_percentage_inline_basis(run.box_);
+    if item_is_block_container_whose_content_resolves_percentages_against_itself {
+        PercentageInlineBasisObservation::Unobserved
+    } else {
+        PercentageInlineBasisObservation::Observed
+    }
 }
 
 pub(super) fn content_block_size_adopted_after_run(

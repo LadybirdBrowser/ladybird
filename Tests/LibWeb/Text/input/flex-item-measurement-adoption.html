@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px SerenitySans; }
+    #host { width: 400px; }
+    .row { display: flex; }
+    .start { align-items: flex-start; }
+    .fixed { width: 120px; }
+    .flexible { flex: 1; min-width: 0; }
+    .half { height: 50%; }
+</style>
+<div id="host"></div>
+<script>
+    const height = id => document.getElementById(id).getBoundingClientRect().height;
+    layoutTest({
+        steps: [
+            {
+                name: "items that are not stretched commit the run their measurement laid out",
+                mutate: () => {
+                    host.innerHTML = `<div class="row start" id="notStretched"><div class="fixed" id="shortItem">one line</div><div class="fixed" id="tallItem">some words that wrap into lines</div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#notStretched.row.start/flex RUN (cache=miss)
+                            BlockContainer<DIV>#shortItem.fixed/block RUN (cache=miss)
+                            BlockContainer<DIV>#tallItem.fixed/block RUN (cache=miss)
+                            BlockContainer<DIV>#shortItem.fixed/block REPLAY FRAGMENTS
+                            BlockContainer<DIV>#tallItem.fixed/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(height("shortItem"), 20, "short item height");
+                    equal(height("tallItem"), 80, "tall item height");
+                },
+            },
+            {
+                name: "stretched block items commit the run their measurement laid out",
+                mutate: () => {
+                    host.innerHTML = `<div class="row" id="stretched"><div class="fixed" id="stretchedShort">one line</div><div class="fixed" id="stretchedTall">some words that wrap into lines</div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#stretched.row/flex RUN (cache=miss)
+                            BlockContainer<DIV>#stretchedShort.fixed/block RUN (cache=miss)
+                            BlockContainer<DIV>#stretchedTall.fixed/block RUN (cache=miss)
+                            BlockContainer<DIV>#stretchedShort.fixed/block REPLAY FRAGMENTS
+                            BlockContainer<DIV>#stretchedTall.fixed/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(height("stretchedShort"), 80, "stretched short item height");
+                    equal(height("stretchedTall"), 80, "stretched tall item height");
+                },
+            },
+            {
+                name: "a stretched item with a percentage-height child lays it out again at its stretched size",
+                mutate: () => {
+                    host.innerHTML = `<div class="row" id="percentage"><div class="fixed" id="percentageItem"><div class="half" id="halfChild">one line</div></div><div class="fixed" id="percentageSibling">some words that wrap into lines</div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#percentage.row/flex RUN (cache=miss)
+                            BlockContainer<DIV>#percentageItem.fixed/block RUN (cache=miss)
+                            BlockContainer<DIV>#percentageSibling.fixed/block RUN (cache=miss)
+                            BlockContainer<DIV>#percentageItem.fixed/block RUN (cache=miss)
+                            BlockContainer<DIV>#percentageSibling.fixed/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(height("percentageItem"), 80, "percentage item height");
+                    equal(height("halfChild"), 40, "percentage child height");
+                },
+            },
+            {
+                name: "the next pass takes the block size of the stretched item with a percentage-height child from the size cache",
+                mutate: () => {
+                    document.getElementById("percentage").style.paddingTop = "1px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#percentage.row/flex RUN (cache=miss)
+                            BlockContainer<DIV>#percentageItem.fixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#percentageSibling.fixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#percentageItem.fixed/block REUSE SUBTREE
+                            BlockContainer<DIV>#percentageSibling.fixed/block REUSE SUBTREE
+                `,
+            },
+            {
+                name: "a nested flex row is measured without layout runs to adopt, so its items are laid out when it commits",
+                mutate: () => {
+                    host.innerHTML = `<div class="row" id="outer"><div class="row" id="inner" style="width: 250px"><div class="fixed" id="innerShort">one line</div><div class="fixed" id="innerTall">some words that wrap into lines</div></div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#outer.row/flex RUN (cache=miss)
+                            Box<DIV>#inner.row MEASURE max-content block (cache=miss)
+                              Box<DIV>#inner.row/flex (intrinsic) RUN (cache=bypass)
+                                BlockContainer<DIV>#innerShort.fixed MEASURE max-content block (cache=miss)
+                                  BlockContainer<DIV>#innerShort.fixed/block (intrinsic) RUN (cache=bypass)
+                                BlockContainer<DIV>#innerTall.fixed MEASURE max-content block (cache=miss)
+                                  BlockContainer<DIV>#innerTall.fixed/block (intrinsic) RUN (cache=bypass)
+                                BlockContainer<DIV>#innerShort.fixed MEASURE max-content block (cache=hit)
+                                BlockContainer<DIV>#innerTall.fixed MEASURE max-content block (cache=hit)
+                                BlockContainer<DIV>#innerShort.fixed MEASURE max-content block (cache=hit)
+                                BlockContainer<DIV>#innerTall.fixed MEASURE max-content block (cache=hit)
+                            Box<DIV>#inner.row/flex RUN (cache=miss)
+                              BlockContainer<DIV>#innerShort.fixed/block RUN (cache=miss)
+                              BlockContainer<DIV>#innerTall.fixed/block RUN (cache=miss)
+                `,
+                check: equal => {
+                    equal(height("inner"), 80, "inner flex row height");
+                    equal(height("innerShort"), 80, "inner short item height");
+                },
+            },
+            {
+                name: "a flex row laid out before its width changes",
+                mutate: () => {
+                    host.innerHTML = `<div class="row start" id="resized"><div class="fixed" id="resizedFixed">one line</div><div class="flexible" id="resizedFlexible">some words that wrap into lines</div></div>`;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#resized.row.start/flex RUN (cache=miss)
+                            BlockContainer<DIV>#resizedFixed.fixed/block RUN (cache=miss)
+                            BlockContainer<DIV>#resizedFlexible.flexible/block RUN (cache=miss)
+                            BlockContainer<DIV>#resizedFixed.fixed/block REPLAY FRAGMENTS
+                            BlockContainer<DIV>#resizedFlexible.flexible/block REPLAY FRAGMENTS
+                `,
+            },
+            {
+                name: "the next pass at another width reuses the item whose width did not change and adopts the one that did",
+                mutate: () => {
+                    host.style.width = "300px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#resized.row.start/flex RUN (cache=miss)
+                            BlockContainer<DIV>#resizedFixed.fixed MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#resizedFlexible.flexible/block RUN (cache=miss)
+                            BlockContainer<DIV>#resizedFixed.fixed/block REUSE SUBTREE
+                            BlockContainer<DIV>#resizedFlexible.flexible/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(height("resizedFixed"), 20, "fixed item height");
+                },
+            },
+        ],
+    });
+</script>

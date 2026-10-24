@@ -327,7 +327,7 @@ impl ColumnEarlyBreaks {
 }
 
 pub(crate) fn root_lays_out_content_against_its_own_block_size(
-    sizing: &sizing_context::SizingContext<'_>,
+    sizing: &sizing_context::SizingContext<'_, '_>,
     root: Node,
 ) -> bool {
     let facts = sizing.facts(root);
@@ -533,7 +533,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     #[inline]
-    pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'pass> {
+    pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'pass, 'static> {
         sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
     }
 

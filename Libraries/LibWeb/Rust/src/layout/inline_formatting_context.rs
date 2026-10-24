@@ -1306,7 +1306,7 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     #[inline]
-    pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'context> {
+    pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'context, 'static> {
         self.parent.sizing()
     }
 

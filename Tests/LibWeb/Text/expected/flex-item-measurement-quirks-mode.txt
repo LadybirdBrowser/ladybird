@@ -1,0 +1,3 @@
+quirks mode: true
+column flex item and its min-height: 50% child: 20 20
+stretched row flex item and its min-height: 50% child: 300 150

@@ -263,7 +263,7 @@ impl BlockLevelContributions {
     fn place_floats_among_children_of(
         &mut self,
         callbacks: &LayoutPass<'_>,
-        sizing: &sizing_context::SizingContext<'_>,
+        sizing: &sizing_context::SizingContext<'_, '_>,
         container: Node,
         available_block_size: AvailableSize,
         constraints: ContainingBlockConstraints,

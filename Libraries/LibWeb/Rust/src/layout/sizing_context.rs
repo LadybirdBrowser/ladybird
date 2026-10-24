@@ -110,10 +110,11 @@ pub(crate) struct TableWrapperBlockSizes {
     pub(crate) wrapper_content_block_size: CssPixels,
 }
 
-pub(crate) struct SizingContext<'pass> {
+pub(crate) struct SizingContext<'pass, 'container> {
     records: &'pass RunRecords<'pass>,
     callbacks: LayoutPass<'pass>,
     style_cache: Cell<Option<(Node, &'pass FfiStylePayloads)>>,
+    child_run_shapes: Option<&'container dyn formatting_context::ChildRunShapes>,
 }
 
 /// Whether a size is `auto` itself, rather than a calc-size() with an auto basis.
@@ -162,13 +163,24 @@ pub(crate) fn stretch_fit_block_margins(
     (margin_top, margin_bottom)
 }
 
-impl<'pass> SizingContext<'pass> {
+impl<'pass, 'container> SizingContext<'pass, 'container> {
     #[inline]
     pub(crate) fn new(records: &'pass RunRecords<'pass>, callbacks: LayoutPass<'pass>) -> Self {
         Self {
             records,
             callbacks,
             style_cache: Cell::new(None),
+            child_run_shapes: None,
+        }
+    }
+
+    pub(crate) fn with_child_run_shapes(
+        self,
+        child_run_shapes: &'container dyn formatting_context::ChildRunShapes,
+    ) -> Self {
+        Self {
+            child_run_shapes: Some(child_run_shapes),
+            ..self
         }
     }
 
@@ -3092,24 +3104,31 @@ impl<'pass> SizingContext<'pass> {
             return cached.size;
         }
 
-        let _trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
-        let measurement = formatting_context::MeasurementState::create(self.callbacks);
-        let root = measurement.create_used_values(node, constraints);
-        root.block_size_constraint.set(size_constraint);
-        root.has_definite_block_size.set(false);
-        root.set_content_inline_size(inline_size);
-        let result = measurement.run(
-            node,
-            &root,
-            LayoutInput::new(
-                AvailableSpace {
-                    inline_size: AvailableSize::definite(inline_size),
-                    block_size: available_block_size,
-                },
-                constraints,
-                ParticipationInParentFormattingContext::Root,
-            ),
-        );
+        let result = if kind == IntrinsicSizeCacheKind::MaxContentBlock
+            && let Some(child_run_shapes) = self.child_run_shapes
+            && let Some(shape) = child_run_shapes.child_run_shape_at(node, inline_size, constraints)
+        {
+            formatting_context::lay_out_shape_for_its_result(self.callbacks, shape, LayoutMode::Normal)
+        } else {
+            let _trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
+            let measurement = formatting_context::MeasurementState::create(self.callbacks);
+            let root = measurement.create_used_values(node, constraints);
+            root.block_size_constraint.set(size_constraint);
+            root.has_definite_block_size.set(false);
+            root.set_content_inline_size(inline_size);
+            measurement.run(
+                node,
+                &root,
+                LayoutInput::new(
+                    AvailableSpace {
+                        inline_size: AvailableSize::definite(inline_size),
+                        block_size: available_block_size,
+                    },
+                    constraints,
+                    ParticipationInParentFormattingContext::Root,
+                ),
+            )
+        };
         let value = clamp_to_max_dimension_value(result.automatic_content_block_size);
         self.charge_measurement_dependency_to_measured_box_and_containing_block(
             node,
