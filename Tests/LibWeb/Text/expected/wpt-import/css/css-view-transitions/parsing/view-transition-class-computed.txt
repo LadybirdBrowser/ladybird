@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 11 tests
 
-11 Fail
-Fail	Property view-transition-class value 'none'
-Fail	Property view-transition-class value 'foo'
-Fail	Property view-transition-class value 'bar'
-Fail	Property view-transition-class value 'baz'
-Fail	Property view-transition-class value 'foo bar'
-Fail	Property view-transition-class value 'foo bar baz'
-Fail	Property view-transition-class value 'unset'
-Fail	Property view-transition-class value 'initial'
-Fail	Property view-transition-class value 'inherit'
-Fail	Property view-transition-class value 'revert'
-Fail	Property view-transition-class value 'revert-layer'
+11 Pass
+Pass	Property view-transition-class value 'none'
+Pass	Property view-transition-class value 'foo'
+Pass	Property view-transition-class value 'bar'
+Pass	Property view-transition-class value 'baz'
+Pass	Property view-transition-class value 'foo bar'
+Pass	Property view-transition-class value 'foo bar baz'
+Pass	Property view-transition-class value 'unset'
+Pass	Property view-transition-class value 'initial'
+Pass	Property view-transition-class value 'inherit'
+Pass	Property view-transition-class value 'revert'
+Pass	Property view-transition-class value 'revert-layer'

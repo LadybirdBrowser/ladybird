@@ -5591,6 +5591,21 @@
     ],
     "multiplicity": "coordinating-list"
   },
+  "view-transition-class": {
+    "style-group": "MiscResetValues",
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "multiplicity": "list",
+    "requires-computation": "never",
+    "valid-types": [
+      "custom-ident ![none]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
   "view-transition-name": {
     "style-group": "MiscResetValues",
     "affects-layout": false,
