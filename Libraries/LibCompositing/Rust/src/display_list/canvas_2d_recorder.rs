@@ -34,7 +34,7 @@ pub trait Transport {
     type VideoFrameHold: ?Sized;
     type Bitmap;
 
-    fn create_context(&self, size: IntSize, alpha: bool) -> bool;
+    fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool) -> bool;
     fn canvas_id(&self) -> Option<CanvasId>;
     fn destroy_context(&self);
 
@@ -66,8 +66,8 @@ impl<T: Transport> Recorder<T> {
         }
     }
 
-    pub fn create_context(&self, size: IntSize, alpha: bool) -> bool {
-        self.transport.create_context(size, alpha)
+    pub fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool) -> bool {
+        self.transport.create_context(size, alpha, will_read_frequently)
     }
 
     pub fn canvas_id(&self) -> Option<CanvasId> {
@@ -259,7 +259,7 @@ mod tests {
         type VideoFrameHold = u32;
         type Bitmap = IntRect;
 
-        fn create_context(&self, size: IntSize, _alpha: bool) -> bool {
+        fn create_context(&self, size: IntSize, _alpha: bool, _will_read_frequently: bool) -> bool {
             size.width > 0 && size.height > 0
         }
 
@@ -398,7 +398,7 @@ mod tests {
     #[test]
     fn the_calls_of_the_context_reach_the_transport() {
         let recorder = Recorder::new(FakeTransport::default());
-        assert!(recorder.create_context(IntSize { width: 2, height: 2 }, true));
+        assert!(recorder.create_context(IntSize { width: 2, height: 2 }, true, false));
         assert_eq!(recorder.canvas_id(), Some(CanvasId(5)));
         recorder.present();
         recorder.flush();

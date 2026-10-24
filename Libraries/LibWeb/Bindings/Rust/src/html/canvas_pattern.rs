@@ -50,7 +50,9 @@ fn read_back_current_video_frame(video: CppInterface) -> Option<ImageFrameHandle
         width,
         height,
     };
-    if width <= 0 || height <= 0 || !recorder.create_context(IntSize { width, height }, true) {
+    // NB: The context only exists to be read back.
+    let will_read_frequently = true;
+    if width <= 0 || height <= 0 || !recorder.create_context(IntSize { width, height }, true, will_read_frequently) {
         return None;
     }
 

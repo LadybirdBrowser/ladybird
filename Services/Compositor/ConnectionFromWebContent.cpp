@@ -279,7 +279,7 @@ Messages::CompositorWebContentServer::ReserveCanvasIdsResponse ConnectionFromWeb
     return { first_canvas_id, reserved_canvas_id_count };
 }
 
-void ConnectionFromWebContent::create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha)
+void ConnectionFromWebContent::create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently)
 {
     // NB: WebContent names its contexts with the IDs of its range in order, so each ID names one context only.
     if (m_reserved_canvas_ids.is_used_up() || canvas_id.value() != m_reserved_canvas_ids.next) {
@@ -288,7 +288,7 @@ void ConnectionFromWebContent::create_canvas_2d_context(Compositing::CanvasId ca
     }
     ++m_reserved_canvas_ids.next;
     // NB: A context that cannot be created is not a protocol violation: commands recorded for it are dropped.
-    (void)m_canvas_host.create_2d_context(canvas_id, size, alpha);
+    (void)m_canvas_host.create_2d_context(canvas_id, size, alpha, will_read_frequently);
 }
 
 void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::FontResourceId> kept_font_ids, Vector<Compositing::DisplayListFontResource> added_fonts, Vector<Compositing::DisplayListImageFrameResource> image_frames)

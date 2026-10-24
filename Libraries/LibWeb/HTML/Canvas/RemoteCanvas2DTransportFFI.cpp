@@ -34,7 +34,7 @@ static_assert(to_underlying(Gfx::AlphaType::Unpremultiplied) == 1);
 extern "C" {
 
 void web_canvas_2d_transport_unref(void* transport);
-bool web_canvas_2d_transport_create_context(void* transport, i32 width, i32 height, bool alpha);
+bool web_canvas_2d_transport_create_context(void* transport, i32 width, i32 height, bool alpha, bool will_read_frequently);
 bool web_canvas_2d_transport_canvas_id(void const* transport, u64* out_canvas_id);
 void web_canvas_2d_transport_destroy_context(void* transport);
 void web_canvas_2d_transport_append_command(void* transport, ReadonlyBytes record);
@@ -62,9 +62,9 @@ void web_canvas_2d_transport_unref(void* transport)
     transport_from(transport).unref();
 }
 
-bool web_canvas_2d_transport_create_context(void* transport, i32 width, i32 height, bool alpha)
+bool web_canvas_2d_transport_create_context(void* transport, i32 width, i32 height, bool alpha, bool will_read_frequently)
 {
-    return transport_from(transport).create_context({ width, height }, alpha);
+    return transport_from(transport).create_context({ width, height }, alpha, will_read_frequently);
 }
 
 bool web_canvas_2d_transport_canvas_id(void const* transport, u64* out_canvas_id)

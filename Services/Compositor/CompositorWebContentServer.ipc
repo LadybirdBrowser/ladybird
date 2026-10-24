@@ -39,7 +39,7 @@ endpoint CompositorWebContentServer
 
     // Hands WebContent a range of canvas IDs it may name its own 2D contexts with, so creating one needs no round trip.
     reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)
-    create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha) =|
+    create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently) =|
     // The segments draw with the fonts of the previous batch named in kept_font_ids, and with added_fonts. The other
     // fonts of the previous batch are released. The image frames are those that the segments draw.
     update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::FontResourceId> kept_font_ids, Vector<Compositing::DisplayListFontResource> added_fonts, Vector<Compositing::DisplayListImageFrameResource> image_frames) =|
