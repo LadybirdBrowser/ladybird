@@ -273,6 +273,7 @@ private:
     void run_remote_mode_resource_fetch_steps(ByteRange, u32 fetch_generation);
 
     void add_current_video_sink(Media::VideoSinkHandle);
+    void disable_active_video_sink();
     void release_active_video_sink();
 
     Optional<Utf16String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);

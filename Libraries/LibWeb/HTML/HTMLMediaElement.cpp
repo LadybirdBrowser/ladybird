@@ -287,7 +287,8 @@ void HTMLMediaElement::finalize()
         m_playback_manager->on_playback_state_change = nullptr;
         m_playback_manager->on_buffered_ranges_change = nullptr;
     }
-    release_active_video_sink();
+    // A collected element only has a layout box if its document dies with it, leaving nothing to repaint.
+    disable_active_video_sink();
 
     if (m_playback_position_update_timer) {
         m_playback_position_update_timer->stop();
@@ -2081,7 +2082,7 @@ void HTMLMediaElement::detach_video_sink_edge()
     m_active_video_sink->unregister();
 }
 
-void HTMLMediaElement::release_active_video_sink()
+void HTMLMediaElement::disable_active_video_sink()
 {
     auto handle = video_sink_handle();
     if (m_active_video_sink)
@@ -2089,6 +2090,11 @@ void HTMLMediaElement::release_active_video_sink()
     m_active_video_sink.clear();
     if (m_playback_manager && handle.has_value())
         m_playback_manager->disable_video_sink_by_handle(*handle);
+}
+
+void HTMLMediaElement::release_active_video_sink()
+{
+    disable_active_video_sink();
     if (auto* video_element = as_if<HTMLVideoElement>(this))
         Painting::push_video_paint_facts(*video_element);
 }
