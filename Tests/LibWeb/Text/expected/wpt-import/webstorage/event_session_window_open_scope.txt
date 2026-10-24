@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	sessionStorage events from a new window opened via window.open() should not fire in the opener

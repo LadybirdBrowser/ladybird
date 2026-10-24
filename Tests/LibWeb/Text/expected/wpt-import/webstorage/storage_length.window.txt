@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	localStorage.length (method access)
+Pass	localStorage.length (proprty access)
+Pass	sessionStorage.length (method access)
+Pass	sessionStorage.length (proprty access)

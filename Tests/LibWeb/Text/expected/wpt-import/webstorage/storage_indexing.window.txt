@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Indexed getter on localStorage
+Pass	Getting number properties on localStorage
+Pass	Getting number-valued string properties on localStorage
+Pass	Getting existing number-valued properties on localStorage
+Pass	Indexed getter on sessionStorage
+Pass	Getting number properties on sessionStorage
+Pass	Getting number-valued string properties on sessionStorage
+Pass	Getting existing number-valued properties on sessionStorage

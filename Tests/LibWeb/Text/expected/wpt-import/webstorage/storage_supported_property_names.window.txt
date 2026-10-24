@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Object.getOwnPropertyNames on localStorage Storage
+Pass	Object.getOwnPropertyNames on localStorage storage with empty collection
+Pass	Object.getOwnPropertyNames on sessionStorage Storage
+Pass	Object.getOwnPropertyNames on sessionStorage storage with empty collection

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	The in operator in localStorage: property access
+Pass	The in operator in localStorage: method access
+Pass	The in operator in sessionStorage: property access
+Pass	The in operator in sessionStorage: method access

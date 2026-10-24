@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Should throw TypeError for function "function() { localStorage.key(); }".
+Pass	Should throw TypeError for function "function() { localStorage.getItem(); }".
+Pass	Should throw TypeError for function "function() { localStorage.setItem(); }".
+Pass	Should throw TypeError for function "function() { localStorage.setItem("a"); }".
+Pass	Should throw TypeError for function "function() { localStorage.removeItem(); }".
+Pass	Should throw TypeError for function "function() { sessionStorage.key(); }".
+Pass	Should throw TypeError for function "function() { sessionStorage.getItem(); }".
+Pass	Should throw TypeError for function "function() { sessionStorage.setItem(); }".
+Pass	Should throw TypeError for function "function() { sessionStorage.setItem("a"); }".
+Pass	Should throw TypeError for function "function() { sessionStorage.removeItem(); }".

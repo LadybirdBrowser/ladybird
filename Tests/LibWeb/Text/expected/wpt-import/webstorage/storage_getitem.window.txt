@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Get value by getIten(key) and named access in localStorage.
+Pass	All items should be added to localStorage.
+Pass	Named access to localStorage should be correct
+Pass	localStorage.getItem should be correct
+Pass	Get value by getIten(key) and named access in sessionStorage.
+Pass	All items should be added to sessionStorage.
+Pass	Named access to sessionStorage should be correct
+Pass	sessionStorage.getItem should be correct

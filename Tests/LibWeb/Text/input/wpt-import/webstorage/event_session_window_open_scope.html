@@ -1,0 +1,40 @@
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <title>WebStorage Test: sessionStorage event - window scope</title>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+ </head>
+ <body>
+    <h1>event_session_window_open_scope</h1>
+    <div id="log"></div>
+    <script>
+        async_test(function(t) {
+            sessionStorage.clear();
+            t.add_cleanup(function() { sessionStorage.clear(); });
+
+            var events = [];
+            window.addEventListener('storage', t.step_func(function(event) {
+                events.push(event);
+            }), false);
+
+            var win = window.open("resources/session_change_item_window.html");
+            t.add_cleanup(function() { win.close(); });
+
+            window.addEventListener('message', t.step_func(function(e) {
+                if (e.data && e.data.error) {
+                    assert_unreached(e.data.error);
+                    return;
+                }
+                if (e.data && e.data.done) {
+                    t.step_timeout(function() {
+                        assert_equals(events.length, 0,
+                            "sessionStorage events from a new window should not fire in the opener (different session scope)");
+                        t.done();
+                    }, 500);
+                }
+            }));
+        }, "sessionStorage events from a new window opened via window.open() should not fire in the opener");
+    </script>
+ </body>
+</html>

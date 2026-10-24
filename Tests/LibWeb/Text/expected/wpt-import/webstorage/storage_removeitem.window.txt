@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	localStorage.removeItem()
+Pass	delete localStorage[]
+Pass	localStorage.removeItem(null)
+Pass	localStorage.removeItem(undefined)
+Pass	sessionStorage.removeItem()
+Pass	delete sessionStorage[]
+Pass	sessionStorage.removeItem(null)
+Pass	sessionStorage.removeItem(undefined)

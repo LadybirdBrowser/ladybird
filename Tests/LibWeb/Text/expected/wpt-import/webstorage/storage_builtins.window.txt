@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Builtins in localStorage
+Pass	Builtins in sessionStorage

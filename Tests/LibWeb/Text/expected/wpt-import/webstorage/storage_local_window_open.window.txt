@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	A new window to make sure there is a copy of the previous window's localStorage, and that they do not diverge after a change
