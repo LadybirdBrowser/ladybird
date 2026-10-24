@@ -121,14 +121,128 @@ pub(super) fn content_sizes_of_inline_content(
         if !facts.lays_out_in_columns() {
             return Some(sizes);
         }
-        let max = fragmentation::multicol_intrinsic_inline_size(style, sizes.sizes.max, false);
+        let multicol_sizes = multicol_content_sizes(style, sizes.sizes);
         Some(sizing_context::ContentInlineSizes {
-            sizes: sizing_context::ContentSizes {
-                min: fragmentation::multicol_intrinsic_inline_size(style, sizes.sizes.min, true),
-                max,
-            },
-            first_line_max_content: max,
+            sizes: multicol_sizes,
+            first_line_max_content: multicol_sizes.max,
             ..sizes
         })
     })
+}
+
+fn multicol_content_sizes(
+    style: StyleValues<'_>,
+    largest_contributions: sizing_context::ContentSizes,
+) -> sizing_context::ContentSizes {
+    sizing_context::ContentSizes {
+        min: fragmentation::multicol_intrinsic_inline_size(style, largest_contributions.min, true),
+        max: fragmentation::multicol_intrinsic_inline_size(style, largest_contributions.max, false),
+    }
+}
+
+fn child_is_inline_level(callbacks: &LayoutPass<'_>, child: Node) -> bool {
+    let facts = NodeFacts::new(callbacks, child);
+    facts.is_flow_layout_participant() && facts.is_inline()
+}
+
+fn flow_has_floats_or_clearance(callbacks: &LayoutPass<'_>, block_container: Node) -> bool {
+    let mut unvisited: Vec<Node> = callbacks.children(block_container).collect();
+    while let Some(participant) = unvisited.pop() {
+        let facts = NodeFacts::new(callbacks, participant);
+        if facts.is_text_node() {
+            continue;
+        }
+        if facts.is_flow_layout_participant()
+            && (facts.is_floating() || StyleValues::for_node(callbacks, participant).clear() != clear::NONE)
+        {
+            return true;
+        }
+        if formatting_context::formatting_context_type_created_by_box(facts).is_none() {
+            unvisited.extend(callbacks.children(participant));
+        }
+    }
+    false
+}
+
+fn auto_width_rendered_legend_has_limits_that_layout_ignores(callbacks: &LayoutPass<'_>, fieldset: Node) -> bool {
+    let legend = NodeFacts::new(callbacks, fieldset).rendered_legend();
+    if legend.is_invalid() {
+        return false;
+    }
+    let legend_style = StyleValues::for_node(callbacks, legend);
+    legend_style.width().is_auto()
+        && (legend_style.width().calc_size().is_some()
+            || !legend_style.max_width().is_none()
+            || !sizing_context::is_plain_auto(legend_style.min_width())
+            || NodeFacts::new(callbacks, legend).has_preferred_aspect_ratio())
+}
+
+pub(super) fn content_sizes_of_block_container(
+    callbacks: LayoutPass<'_>,
+    scope: &ContentSizingScope,
+    constraints: ContainingBlockConstraints,
+    depends_on_block_size: bool,
+) -> Option<sizing_context::ContentInlineSizes> {
+    let node = scope.node;
+    let facts = NodeFacts::new(&callbacks, node);
+    let style = StyleValues::for_node(&callbacks, node);
+    if facts.children_are_inline()
+        || formatting_context::independent_formatting_context_type(node, &callbacks)
+            != formatting_context::FormattingContextType::Block
+        || facts.is_table_wrapper()
+        || facts.node_has_size_containment()
+        || facts.node_has_inline_size_containment()
+        || style.writing_mode() != writing_mode::HORIZONTAL_TB
+        || establishes_orthogonal_flow(&callbacks, node)
+        || block_formatting_context::is_line_clamp_container(&callbacks, node)
+        || auto_width_rendered_legend_has_limits_that_layout_ignores(&callbacks, node)
+        || callbacks
+            .children(node)
+            .any(|child| child_is_inline_level(&callbacks, child))
+        || flow_has_floats_or_clearance(&callbacks, node)
+    {
+        return None;
+    }
+    Some(scope.enter(callbacks, |run| {
+        let sizing = run.sizing();
+        let child_constraints = sizing.constraints_for_child_context(node, constraints);
+        let collects_column_spanners = facts.lays_out_in_columns();
+        let mut largest_contributions = sizing_context::ContentSizes::default();
+        let mut largest_column_spanner_contributions = sizing_context::ContentSizes::default();
+        for child in callbacks.children(node) {
+            let child_facts = NodeFacts::new(&callbacks, child);
+            if !child_facts.is_flow_layout_participant() {
+                continue;
+            }
+            let contributions = if child_facts.is_table_wrapper() {
+                sizing.block_level_table_wrapper_outer_inline_contributions(
+                    child,
+                    scope.available_block_size(),
+                    child_constraints,
+                )
+            } else {
+                sizing.outer_inline_contributions(child, scope.available_block_size(), child_constraints)
+            }
+            .margin_box_contributions();
+            if collects_column_spanners && block_formatting_context::is_column_spanner(&callbacks, child) {
+                largest_column_spanner_contributions = largest_column_spanner_contributions.largest_of(contributions);
+            } else {
+                largest_contributions = largest_contributions.largest_of(contributions);
+            }
+        }
+        let sizes = if collects_column_spanners {
+            multicol_content_sizes(style, largest_contributions).largest_of(largest_column_spanner_contributions)
+        } else {
+            largest_contributions
+        };
+        sizing_context::ContentInlineSizes {
+            sizes,
+            first_line_max_content: sizes.max,
+            dependencies: IntrinsicMeasurementDependencies {
+                percentage_block_size: sizing.resolve_percentage_block_size_dependency(node),
+                percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(node),
+                block_size: depends_on_block_size,
+            },
+        }
+    }))
 }

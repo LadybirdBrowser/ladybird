@@ -325,18 +325,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     pub(crate) fn new(run: &FormattingContextRun<'pass>) -> Self {
         let style = StyleValues::for_node(&run.callbacks, run.box_);
         let computed_continue = style.continue_();
-        // https://drafts.csswg.org/css-overflow-4/#continue
-        // If the box is a block container, then it must establish an independent formatting context that also becomes
-        // a line-clamp container.
-        // https://drafts.csswg.org/css-overflow-4/#webkit-line-clamp
-        // The -webkit-legacy value behaves identically to collapse, except that it only takes effect if the specified
-        // value of the display property is -webkit-box or -webkit-inline-box and the value of the -webkit-box-orient
-        // property is vertical.
-        let is_line_clamp_container = (computed_continue == continue_value::COLLAPSE
-            || (computed_continue == continue_value::_WEBKIT_LEGACY
-                && style.display_before_box_type_transformation().is_webkit_box_inside()
-                && style.webkit_box_orient() == webkit_box_orient::VERTICAL))
-            && !NodeFacts::new(&run.callbacks, run.box_).lays_out_in_columns();
+        let is_line_clamp_container = is_line_clamp_container(&run.callbacks, run.box_);
         // AD-HOC: Content after a -webkit-legacy clamp point stays scrollable overflow, matching other engines. Sites
         //         detect clamped text by comparing scrollHeight with clientHeight.
         let clamped_content_is_scrollable_overflow =
@@ -3536,11 +3525,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn is_column_spanner(&self, node: Node) -> bool {
-        let facts = self.facts(node);
-        facts.is_flow_layout_participant()
-            && !facts.is_floating()
-            && facts.display().is_block_outside()
-            && self.style(node).column_span() == column_span::ALL
+        is_column_spanner(&self.run.callbacks, node)
     }
 
     fn sibling_boxes_from(&self, first: Node) -> impl Iterator<Item = Node> + '_ {
@@ -4953,6 +4938,31 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         has_intervening_in_flow_box.then_some(true)
     }
+}
+
+pub(crate) fn is_line_clamp_container(callbacks: &LayoutPass<'_>, node: Node) -> bool {
+    let style = StyleValues::for_node(callbacks, node);
+    let computed_continue = style.continue_();
+    // https://drafts.csswg.org/css-overflow-4/#continue
+    // If the box is a block container, then it must establish an independent formatting context that also becomes
+    // a line-clamp container.
+    // https://drafts.csswg.org/css-overflow-4/#webkit-line-clamp
+    // The -webkit-legacy value behaves identically to collapse, except that it only takes effect if the specified
+    // value of the display property is -webkit-box or -webkit-inline-box and the value of the -webkit-box-orient
+    // property is vertical.
+    (computed_continue == continue_value::COLLAPSE
+        || (computed_continue == continue_value::_WEBKIT_LEGACY
+            && style.display_before_box_type_transformation().is_webkit_box_inside()
+            && style.webkit_box_orient() == webkit_box_orient::VERTICAL))
+        && !NodeFacts::new(callbacks, node).lays_out_in_columns()
+}
+
+pub(crate) fn is_column_spanner(callbacks: &LayoutPass<'_>, node: Node) -> bool {
+    let facts = NodeFacts::new(callbacks, node);
+    facts.is_flow_layout_participant()
+        && !facts.is_floating()
+        && facts.display().is_block_outside()
+        && StyleValues::for_node(callbacks, node).column_span() == column_span::ALL
 }
 
 fn table_box_of_wrapper(callbacks: LayoutPass<'_>, wrapper: Node) -> Node {
