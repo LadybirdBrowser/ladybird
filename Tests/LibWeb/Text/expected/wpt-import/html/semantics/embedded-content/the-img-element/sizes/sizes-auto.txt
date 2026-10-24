@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 74 tests
 
-38 Pass
-36 Fail
+56 Pass
+18 Fail
 Pass	<img sizes="1px" data-ref="ref1" srcset="/images/green-1x1.png?img1 50w, /images/green-16x16.png?img1 51w">
 Pass	<picture><source sizes="1px" srcset="/images/green-1x1.png?picture1 50w, /images/green-16x16.png?picture1 51w"><img data-ref="ref1"></picture>
 Pass	<img sizes="" data-ref="ref2" srcset="/images/green-1x1.png?img2 50w, /images/green-16x16.png?img2 51w">
 Pass	<picture><source sizes="" srcset="/images/green-1x1.png?picture2 50w, /images/green-16x16.png?picture2 51w"><img data-ref="ref2"></picture>
-Fail	<img loading="lazy" sizes="auto" width="10" data-ref="ref1" srcset="/images/green-1x1.png?img3 50w, /images/green-16x16.png?img3 51w">
+Pass	<img loading="lazy" sizes="auto" width="10" data-ref="ref1" srcset="/images/green-1x1.png?img3 50w, /images/green-16x16.png?img3 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture3 50w, /images/green-16x16.png?picture3 51w"><img loading="lazy" sizes="auto" width="10" data-ref="ref1"></picture>
-Fail	<img loading="lazy" sizes="AUTO" width="10" data-ref="ref1" srcset="/images/green-1x1.png?img4 50w, /images/green-16x16.png?img4 51w">
+Pass	<img loading="lazy" sizes="AUTO" width="10" data-ref="ref1" srcset="/images/green-1x1.png?img4 50w, /images/green-16x16.png?img4 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture4 50w, /images/green-16x16.png?picture4 51w"><img loading="lazy" sizes="AUTO" width="10" data-ref="ref1"></picture>
 Pass	<img loading="lazy" width="10" data-ref="ref2" srcset="/images/green-1x1.png?img5 50w, /images/green-16x16.png?img5 51w">
 Pass	<picture><source srcset="/images/green-1x1.png?picture5 50w, /images/green-16x16.png?picture5 51w"><img loading="lazy" width="10" data-ref="ref2"></picture>
@@ -22,53 +22,53 @@ Pass	<img loading="lazy" style="width: 100%; max-width: 10px" data-ref="ref2" sr
 Pass	<picture><source srcset="/images/green-1x1.png?picture8 50w, /images/green-16x16.png?picture8 51w"><img loading="lazy" style="width: 100%; max-width: 10px" data-ref="ref2"></picture>
 Pass	<img loading="lazy" sizes="auto" width="500" data-ref="ref2" srcset="/images/green-1x1.png?img9 50w, /images/green-16x16.png?img9 51w">
 Pass	<picture><source srcset="/images/green-1x1.png?picture9 50w, /images/green-16x16.png?picture9 51w"><img loading="lazy" sizes="auto" width="500" data-ref="ref2"></picture>
-Fail	<img loading="lazy" sizes="auto" width="10" style="visibility: hidden" data-ref="ref1" srcset="/images/green-1x1.png?img10 50w, /images/green-16x16.png?img10 51w">
+Pass	<img loading="lazy" sizes="auto" width="10" style="visibility: hidden" data-ref="ref1" srcset="/images/green-1x1.png?img10 50w, /images/green-16x16.png?img10 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture10 50w, /images/green-16x16.png?picture10 51w"><img loading="lazy" sizes="auto" width="10" style="visibility: hidden" data-ref="ref1"></picture>
-Fail	<img loading="lazy" sizes="auto" width="10" style="display: inline" hidden="" data-ref="ref1" srcset="/images/green-1x1.png?img11 50w, /images/green-16x16.png?img11 51w">
+Pass	<img loading="lazy" sizes="auto" width="10" style="display: inline" hidden="" data-ref="ref1" srcset="/images/green-1x1.png?img11 50w, /images/green-16x16.png?img11 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture11 50w, /images/green-16x16.png?picture11 51w"><img loading="lazy" sizes="auto" width="10" style="display: inline" hidden="" data-ref="ref1"></picture>
-Fail	<img loading="lazy" sizes="auto" width="0" data-ref="ref1" srcset="/images/green-1x1.png?img12 50w, /images/green-16x16.png?img12 51w">
+Pass	<img loading="lazy" sizes="auto" width="0" data-ref="ref1" srcset="/images/green-1x1.png?img12 50w, /images/green-16x16.png?img12 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture12 50w, /images/green-16x16.png?picture12 51w"><img loading="lazy" sizes="auto" width="0" data-ref="ref1"></picture>
-Fail	<img loading="lazy" sizes="auto" style="width: 0px" data-ref="ref1" srcset="/images/green-1x1.png?img13 50w, /images/green-16x16.png?img13 51w">
+Pass	<img loading="lazy" sizes="auto" style="width: 0px" data-ref="ref1" srcset="/images/green-1x1.png?img13 50w, /images/green-16x16.png?img13 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture13 50w, /images/green-16x16.png?picture13 51w"><img loading="lazy" sizes="auto" style="width: 0px" data-ref="ref1"></picture>
 Pass	<img loading="lazy" sizes="auto" data-ref="ref2" srcset="/images/green-1x1.png?img14 50w, /images/green-16x16.png?img14 51w">
 Pass	<picture><source srcset="/images/green-1x1.png?picture14 50w, /images/green-16x16.png?picture14 51w"><img loading="lazy" sizes="auto" data-ref="ref2"></picture>
-Fail	<img loading="lazy" sizes="auto, 100vw" width="10" data-ref="ref1" srcset="/images/green-1x1.png?img15 50w, /images/green-16x16.png?img15 51w">
+Pass	<img loading="lazy" sizes="auto, 100vw" width="10" data-ref="ref1" srcset="/images/green-1x1.png?img15 50w, /images/green-16x16.png?img15 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture15 50w, /images/green-16x16.png?picture15 51w"><img loading="lazy" sizes="auto, 100vw" width="10" data-ref="ref1"></picture>
 Pass	<img loading="lazy" sizes="100vw, auto" width="10" data-ref="ref2" srcset="/images/green-1x1.png?img16 50w, /images/green-16x16.png?img16 51w">
 Pass	<picture><source sizes="100vw, auto" srcset="/images/green-1x1.png?picture16 50w, /images/green-16x16.png?picture16 51w"><img loading="lazy" width="10" data-ref="ref2"></picture>
 Pass	<img loading="eager" sizes="auto" width="10" data-ref="ref2" srcset="/images/green-1x1.png?img17 50w, /images/green-16x16.png?img17 51w">
 Pass	<picture><source srcset="/images/green-1x1.png?picture17 50w, /images/green-16x16.png?picture17 51w"><img loading="eager" sizes="auto" width="10" data-ref="ref2"></picture>
-Fail	<img loading="lazy" sizes="auto" width="100%" data-ref="ref1" srcset="/images/green-1x1.png?img18 50w, /images/green-16x16.png?img18 51w">
+Pass	<img loading="lazy" sizes="auto" width="100%" data-ref="ref1" srcset="/images/green-1x1.png?img18 50w, /images/green-16x16.png?img18 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture18 50w, /images/green-16x16.png?picture18 51w"><img loading="lazy" sizes="auto" width="100%" data-ref="ref1"></picture>
 Pass	<img loading="lazy" sizes="auto" width="100%" data-ref="ref2" srcset="/images/green-1x1.png?img19 50w, /images/green-16x16.png?img19 51w">
 Pass	<picture><source srcset="/images/green-1x1.png?picture19 50w, /images/green-16x16.png?picture19 51w"><img loading="lazy" sizes="auto" width="100%" data-ref="ref2"></picture>
-Fail	<img loading="lazy" sizes="auto" style="height: 10px; aspect-ratio: 10 / 10" data-ref="ref1" srcset="/images/green-1x1.png?img20 50w, /images/green-16x16.png?img20 51w">
+Pass	<img loading="lazy" sizes="auto" style="height: 10px; aspect-ratio: 10 / 10" data-ref="ref1" srcset="/images/green-1x1.png?img20 50w, /images/green-16x16.png?img20 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture20 50w, /images/green-16x16.png?picture20 51w"><img loading="lazy" sizes="auto" style="height: 10px; aspect-ratio: 10 / 10" data-ref="ref1"></picture>
 Pass	<img loading="lazy" sizes="auto" style="height: 10px; aspect-ratio: 500 / 10" data-ref="ref2" srcset="/images/green-1x1.png?img21 50w, /images/green-16x16.png?img21 51w">
 Pass	<picture><source srcset="/images/green-1x1.png?picture21 50w, /images/green-16x16.png?picture21 51w"><img loading="lazy" sizes="auto" style="height: 10px; aspect-ratio: 500 / 10" data-ref="ref2"></picture>
-Fail	<img loading="lazy" sizes="auto" style="min-height: 10px; aspect-ratio: 10 / 10" data-ref="ref1" srcset="/images/green-1x1.png?img22 50w, /images/green-16x16.png?img22 51w">
+Pass	<img loading="lazy" sizes="auto" style="min-height: 10px; aspect-ratio: 10 / 10" data-ref="ref1" srcset="/images/green-1x1.png?img22 50w, /images/green-16x16.png?img22 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture22 50w, /images/green-16x16.png?picture22 51w"><img loading="lazy" sizes="auto" style="min-height: 10px; aspect-ratio: 10 / 10" data-ref="ref1"></picture>
 Pass	<img loading="lazy" sizes="auto" style="min-height: 10px; aspect-ratio: 500 / 10" data-ref="ref2" srcset="/images/green-1x1.png?img23 50w, /images/green-16x16.png?img23 51w">
 Pass	<picture><source srcset="/images/green-1x1.png?picture23 50w, /images/green-16x16.png?picture23 51w"><img loading="lazy" sizes="auto" style="min-height: 10px; aspect-ratio: 500 / 10" data-ref="ref2"></picture>
-Fail	<img loading="lazy" sizes="auto" style="inline-size: 10px" data-ref="ref1" srcset="/images/green-1x1.png?img24 50w, /images/green-16x16.png?img24 51w">
+Pass	<img loading="lazy" sizes="auto" style="inline-size: 10px" data-ref="ref1" srcset="/images/green-1x1.png?img24 50w, /images/green-16x16.png?img24 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture24 50w, /images/green-16x16.png?picture24 51w"><img loading="lazy" sizes="auto" style="inline-size: 10px" data-ref="ref1"></picture>
 Pass	<img loading="lazy" sizes="auto" style="min-inline-size: 10px" data-ref="ref2" srcset="/images/green-1x1.png?img25 50w, /images/green-16x16.png?img25 51w">
 Pass	<picture><source srcset="/images/green-1x1.png?picture25 50w, /images/green-16x16.png?picture25 51w"><img loading="lazy" sizes="auto" style="min-inline-size: 10px" data-ref="ref2"></picture>
-Fail	<img loading="lazy" sizes="auto" style="block-size: 10px; aspect-ratio: 10 / 10" data-ref="ref1" srcset="/images/green-1x1.png?img26 50w, /images/green-16x16.png?img26 51w">
+Pass	<img loading="lazy" sizes="auto" style="block-size: 10px; aspect-ratio: 10 / 10" data-ref="ref1" srcset="/images/green-1x1.png?img26 50w, /images/green-16x16.png?img26 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture26 50w, /images/green-16x16.png?picture26 51w"><img loading="lazy" sizes="auto" style="block-size: 10px; aspect-ratio: 10 / 10" data-ref="ref1"></picture>
-Fail	<img loading="lazy" sizes="auto" style="min-block-size: 10px; aspect-ratio: 10 / 10" data-ref="ref1" srcset="/images/green-1x1.png?img27 50w, /images/green-16x16.png?img27 51w">
+Pass	<img loading="lazy" sizes="auto" style="min-block-size: 10px; aspect-ratio: 10 / 10" data-ref="ref1" srcset="/images/green-1x1.png?img27 50w, /images/green-16x16.png?img27 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture27 50w, /images/green-16x16.png?picture27 51w"><img loading="lazy" sizes="auto" style="min-block-size: 10px; aspect-ratio: 10 / 10" data-ref="ref1"></picture>
-Fail	<img loading="lazy" sizes="auto" style="block-size: 10px; writing-mode: vertical-rl" data-ref="ref1" srcset="/images/green-1x1.png?img28 50w, /images/green-16x16.png?img28 51w">
+Pass	<img loading="lazy" sizes="auto" style="block-size: 10px; writing-mode: vertical-rl" data-ref="ref1" srcset="/images/green-1x1.png?img28 50w, /images/green-16x16.png?img28 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture28 50w, /images/green-16x16.png?picture28 51w"><img loading="lazy" sizes="auto" style="block-size: 10px; writing-mode: vertical-rl" data-ref="ref1"></picture>
 Pass	<img loading="lazy" sizes="auto" style="min-block-size: 10px; writing-mode: vertical-rl" data-ref="ref2" srcset="/images/green-1x1.png?img29 50w, /images/green-16x16.png?img29 51w">
 Pass	<picture><source srcset="/images/green-1x1.png?picture29 50w, /images/green-16x16.png?picture29 51w"><img loading="lazy" sizes="auto" style="min-block-size: 10px; writing-mode: vertical-rl" data-ref="ref2"></picture>
-Fail	<img loading="lazy" sizes="auto" style="inline-size: 10px; aspect-ratio: 10/10; writing-mode: vertical-rl" data-ref="ref1" srcset="/images/green-1x1.png?img30 50w, /images/green-16x16.png?img30 51w">
+Pass	<img loading="lazy" sizes="auto" style="inline-size: 10px; aspect-ratio: 10/10; writing-mode: vertical-rl" data-ref="ref1" srcset="/images/green-1x1.png?img30 50w, /images/green-16x16.png?img30 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture30 50w, /images/green-16x16.png?picture30 51w"><img loading="lazy" sizes="auto" style="inline-size: 10px; aspect-ratio: 10/10; writing-mode: vertical-rl" data-ref="ref1"></picture>
-Fail	<img loading="lazy" sizes="auto" style="min-inline-size: 10px; aspect-ratio: 10/10; writing-mode: vertical-rl" data-ref="ref1" srcset="/images/green-1x1.png?img31 50w, /images/green-16x16.png?img31 51w">
+Pass	<img loading="lazy" sizes="auto" style="min-inline-size: 10px; aspect-ratio: 10/10; writing-mode: vertical-rl" data-ref="ref1" srcset="/images/green-1x1.png?img31 50w, /images/green-16x16.png?img31 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture31 50w, /images/green-16x16.png?picture31 51w"><img loading="lazy" sizes="auto" style="min-inline-size: 10px; aspect-ratio: 10/10; writing-mode: vertical-rl" data-ref="ref1"></picture>
-Fail	<img loading="lazy" sizes="auto" style="--my-width: 10px; width: var(--my-width)" data-ref="ref1" srcset="/images/green-1x1.png?img32 50w, /images/green-16x16.png?img32 51w">
+Pass	<img loading="lazy" sizes="auto" style="--my-width: 10px; width: var(--my-width)" data-ref="ref1" srcset="/images/green-1x1.png?img32 50w, /images/green-16x16.png?img32 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture32 50w, /images/green-16x16.png?picture32 51w"><img loading="lazy" sizes="auto" style="--my-width: 10px; width: var(--my-width)" data-ref="ref1"></picture>
-Fail	<img loading="lazy" sizes="auto" style="width: calc(5px + 5px)" data-ref="ref1" srcset="/images/green-1x1.png?img33 50w, /images/green-16x16.png?img33 51w">
+Pass	<img loading="lazy" sizes="auto" style="width: calc(5px + 5px)" data-ref="ref1" srcset="/images/green-1x1.png?img33 50w, /images/green-16x16.png?img33 51w">
 Fail	<picture><source srcset="/images/green-1x1.png?picture33 50w, /images/green-16x16.png?picture33 51w"><img loading="lazy" sizes="auto" style="width: calc(5px + 5px)" data-ref="ref1"></picture>
 Pass	<img loading="lazy" sizes="auto" style="position: absolute; left: 50%; right: 49%" data-ref="ref2" srcset="/images/green-1x1.png?img34 50w, /images/green-16x16.png?img34 51w">
 Pass	<picture><source srcset="/images/green-1x1.png?picture34 50w, /images/green-16x16.png?picture34 51w"><img loading="lazy" sizes="auto" style="position: absolute; left: 50%; right: 49%" data-ref="ref2"></picture>

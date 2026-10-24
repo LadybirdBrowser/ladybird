@@ -197,7 +197,8 @@ void HTMLImageElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* ol
     if (is_subtree_root == IsSubtreeRoot::Yes && is<HTMLPictureElement>(old_ancestor))
         update_the_image_data();
 
-    // FIXME: 2. Set removedNode's last auto-sizes width to null.
+    // 2. Set removedNode's last auto-sizes width to null.
+    m_last_auto_sizes_width = {};
 }
 
 void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
@@ -1712,6 +1713,19 @@ Optional<ImageSourceAndPixelDensity> HTMLImageElement::select_an_image_source()
 void HTMLImageElement::set_source_set(SourceSet source_set)
 {
     m_source_set = move(source_set);
+}
+
+Optional<CSSPixels> HTMLImageElement::concrete_object_size_width_if_rendered() const
+{
+    Layout::ForcedReadScope read { document() };
+    const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementWidth);
+
+    auto const* layout_node = this->layout_node(read);
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
+        return {};
+
+    // FIXME: Account for object-fit, which can make the concrete object size differ from the content box.
+    return Painting::content_width(*layout_node);
 }
 
 bool HTMLImageElement::allows_auto_sizes() const
