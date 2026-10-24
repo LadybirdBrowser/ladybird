@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/caret-color-auto-follows-color-ref.html">
+<style>
+    div { font: 20px/1.5 sans-serif; }
+</style>
+<div id="editable" contenteditable>Some text</div>
+<script>
+    const editable = document.getElementById("editable");
+    editable.focus();
+    getSelection().collapse(editable.firstChild, 9);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        editable.style.color = "blue";
+        requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove("reftest-wait")));
+    }));
+</script>
+</html>

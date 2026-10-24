@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .red { color: red; }
+</style>
+<div id="outer">outer <span id="inherits">inherits</span> <span id="own" class="red">own</span> <span id="declared" style="caret-color: auto; color: green">declared</span></div>
+<script>
+    test(() => {
+        const caretColor = id => getComputedStyle(document.getElementById(id)).caretColor;
+        const report = label => println(`${label}: outer ${caretColor("outer")}, inherits ${caretColor("inherits")}, own ${caretColor("own")}, declared ${caretColor("declared")}`);
+
+        report("initial");
+        document.getElementById("outer").style.color = "blue";
+        report("outer color set");
+        document.getElementById("own").className = "";
+        report("own color removed");
+        document.getElementById("declared").style.color = "purple";
+        report("declared color changed");
+    });
+</script>
