@@ -23,6 +23,8 @@ pub(crate) struct GlyphData {
     pub(crate) text_type: u8,
     // GlyphRun::width is not updated by the C++ fragment merge machine.
     pub(crate) width: f32,
+    /// Whether the glyphs are set upright in vertical text, one em apart along the inline axis.
+    pub(crate) is_upright: bool,
 }
 
 // The advance of a run's trailing whitespace, recorded at shaping time so that trimming it subtracts exactly what

@@ -132,10 +132,9 @@ impl LineBoxData {
                 && self.fragments.last().is_some_and(|last| {
                     !last.has_soft_wrap_opportunity_after
                         && last.layout_node == layout_node
-                        && last
-                            .glyphs
-                            .as_ref()
-                            .is_some_and(|last_glyphs| last_glyphs.font == glyphs.font)
+                        && last.glyphs.as_ref().is_some_and(|last_glyphs| {
+                            last_glyphs.font == glyphs.font && last_glyphs.is_upright == glyphs.is_upright
+                        })
                         && last.start + last.length_in_code_units == start
                 })
         });

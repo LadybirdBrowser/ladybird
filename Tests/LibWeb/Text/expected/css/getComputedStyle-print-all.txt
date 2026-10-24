@@ -73,6 +73,7 @@ text-anchor: start
 text-decoration-skip-ink: auto
 text-indent: 0px
 text-justify: auto
+text-orientation: mixed
 text-rendering: auto
 text-shadow: none
 text-transform: none

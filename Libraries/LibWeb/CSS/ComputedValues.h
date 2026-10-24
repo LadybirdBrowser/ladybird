@@ -819,7 +819,8 @@ public:
                 && direction == other.direction
                 && writing_mode == other.writing_mode
                 && content_visibility == other.content_visibility
-                && image_rendering == other.image_rendering;
+                && image_rendering == other.image_rendering
+                && text_orientation == other.text_orientation;
         }
     };
 

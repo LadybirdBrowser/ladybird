@@ -68,6 +68,7 @@ pub struct InheritedBoxValues {
     pub writing_mode: u8,
     pub content_visibility: u8,
     pub image_rendering: u8,
+    pub text_orientation: u8,
 }
 
 impl ComputedStyleValueHandle {
@@ -333,6 +334,7 @@ impl_content_hash_by_field!(InheritedBoxValues {
     writing_mode,
     content_visibility,
     image_rendering,
+    text_orientation,
 });
 // The anchor-inset wrappers are pure derivatives of the anchor-inset fields, so payload equality
 // excludes them and the hash follows it field for field.
@@ -2667,7 +2669,7 @@ pub(crate) fn build_group_payload_with_rust_fill<T: StyleGroupPayload>(
     share_equal_group_payload(scratch.as_ref(), parent).unwrap_or_else(|| scratch.publish())
 }
 
-/// Builds an inherited box group payload from the five computed keyword
+/// Builds an inherited box group payload from the six computed keyword
 /// values, sharing instead of allocating whenever it can: the parent's
 /// payload when every field matches it, or the immortal default payload when
 /// every field holds its initial value. Every input is a canonical computed
@@ -2676,6 +2678,7 @@ pub(crate) fn build_group_payload_with_rust_fill<T: StyleGroupPayload>(
 /// The returned payload carries one reference for the caller; fresh payloads
 /// start at one, shared payloads are retained, and default payloads are
 /// intentionally leaked and never counted.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_inherited_box_group(
     group_index: usize,
     visibility: &RetainedStyleValueData,
@@ -2683,6 +2686,7 @@ pub(crate) fn build_inherited_box_group(
     writing_mode: &RetainedStyleValueData,
     content_visibility: &RetainedStyleValueData,
     image_rendering: &RetainedStyleValueData,
+    text_orientation: &RetainedStyleValueData,
     parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
@@ -2702,6 +2706,7 @@ pub(crate) fn build_inherited_box_group(
             crate::css::style_compute::keyword_to_content_visibility,
         ),
         image_rendering: keyword_code(image_rendering, crate::css::style_compute::keyword_to_image_rendering),
+        text_orientation: keyword_code(text_orientation, crate::css::style_compute::keyword_to_text_orientation),
     };
 
     share_or_publish_group_payload::<InheritedBoxValues>(group_index, built, parent)
@@ -4081,7 +4086,9 @@ impl InheritedTableValues {
 
 impl InheritedBoxValues {
     fn initial() -> Self {
-        use crate::css::css_enums::{content_visibility, direction, image_rendering, visibility, writing_mode};
+        use crate::css::css_enums::{
+            content_visibility, direction, image_rendering, text_orientation, visibility, writing_mode,
+        };
 
         Self {
             visibility: visibility::VISIBLE,
@@ -4089,6 +4096,7 @@ impl InheritedBoxValues {
             writing_mode: writing_mode::HORIZONTAL_TB,
             content_visibility: content_visibility::VISIBLE,
             image_rendering: image_rendering::AUTO,
+            text_orientation: text_orientation::MIXED,
         }
     }
 }
