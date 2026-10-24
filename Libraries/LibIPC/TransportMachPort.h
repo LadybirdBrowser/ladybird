@@ -103,7 +103,13 @@ private:
     void write_read_notification_byte();
     void mark_peer_eof();
     void release_send_waiters();
-    void send_mach_message(PendingMessage&);
+    enum class SendOutcome {
+        Sent,
+        // The peer's queue is full. Only a message with no port rights is ever left unsent, because a send the
+        // kernel has already copied in comes back pseudo-received, with its rights changed under it.
+        WouldBlock,
+    };
+    SendOutcome send_mach_message(PendingMessage&);
     void process_received_message(u8* buffer);
 
     Core::MachPort m_receive_port;

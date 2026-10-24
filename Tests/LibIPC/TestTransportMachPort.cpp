@@ -5,6 +5,7 @@
  */
 
 #include <AK/MemoryStream.h>
+#include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/System.h>
 #include <LibIPC/Attachment.h>
@@ -17,6 +18,7 @@
 #include <LibIPC/TransportMachPort.h>
 #include <LibTest/TestCase.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 static void post_transport_handle(IPC::TransportMachPort& carrier, IPC::TransportHandle const& handle)
 {
@@ -281,4 +283,136 @@ TEST_CASE(message_with_too_many_attachments_disconnects_the_peer)
     }
     EXPECT_EQ(received, 0uz);
     EXPECT(!peer->is_open());
+}
+
+// Two peers that each post more messages than the kernel queue holds, before either reads: a transport whose IO thread
+// blocks in a send can't drain its own queue, so two of them facing each other would wait on each other for good.
+TEST_CASE(a_flood_in_both_directions_does_not_deadlock)
+{
+    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
+
+    // Well past MACH_PORT_QLIMIT_LARGE (1024) in each direction.
+    constexpr size_t message_count = 4096;
+    for (size_t i = 0; i < message_count; ++i) {
+        IPC::MessageDataType to_peer;
+        to_peer.append(1);
+        Vector<IPC::Attachment> no_attachments;
+        TRY_OR_FAIL(paired.local->post_message(move(to_peer), no_attachments));
+
+        IPC::MessageDataType to_local;
+        to_local.append(2);
+        TRY_OR_FAIL(peer->post_message(move(to_local), no_attachments));
+    }
+
+    size_t received_by_peer = 0;
+    size_t received_by_local = 0;
+    while (received_by_peer < message_count || received_by_local < message_count) {
+        if (received_by_peer < message_count) {
+            peer->wait_until_readable();
+            (void)peer->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+                EXPECT_EQ(message.bytes.bytes()[0], 1u);
+                ++received_by_peer;
+            });
+        }
+        if (received_by_local < message_count) {
+            paired.local->wait_until_readable();
+            (void)paired.local->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+                EXPECT_EQ(message.bytes.bytes()[0], 2u);
+                ++received_by_local;
+            });
+        }
+    }
+    EXPECT_EQ(received_by_peer, message_count);
+    EXPECT_EQ(received_by_local, message_count);
+}
+
+// The same flood with payloads too large to send inline, which travel out of line.
+// A send that times out on a full peer queue comes back pseudo-received, with a send right of its own on the
+// destination. Every one of them has to be released again, or the peer never hears that its last sender has gone.
+TEST_CASE(closing_after_timed_out_sends_still_reaches_the_peer_as_eof)
+{
+    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
+
+    // Well past MACH_PORT_QLIMIT_LARGE (1024) while the peer reads nothing, so most of these time out at least once;
+    // some inline, some out of line.
+    constexpr size_t message_count = 4096;
+    for (size_t i = 0; i < message_count; ++i) {
+        IPC::MessageDataType to_peer;
+        to_peer.resize(i % 2 == 0 ? 1 : 8192);
+        to_peer[0] = 7;
+        Vector<IPC::Attachment> no_attachments;
+        TRY_OR_FAIL(paired.local->post_message(move(to_peer), no_attachments));
+    }
+    paired.local->flush();
+
+    size_t received = 0;
+    while (received < message_count) {
+        peer->wait_until_readable();
+        (void)peer->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+            EXPECT_EQ(message.bytes.bytes()[0], 7u);
+            ++received;
+        });
+    }
+    EXPECT_EQ(received, message_count);
+
+    OwnPtr<IPC::TransportMachPort> closed_end = move(paired.local);
+    closed_end.clear();
+
+    // Polled, rather than waited for, so a leaked right fails the test instead of hanging it.
+    auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
+    auto should_shutdown = IPC::TransportMachPort::ShouldShutdown::No;
+    while (should_shutdown == IPC::TransportMachPort::ShouldShutdown::No && MonotonicTime::now() < deadline) {
+        should_shutdown = peer->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&&) {
+            FAIL("nothing else was sent");
+        });
+        if (should_shutdown == IPC::TransportMachPort::ShouldShutdown::No)
+            usleep(10'000);
+    }
+    EXPECT_EQ(should_shutdown, IPC::TransportMachPort::ShouldShutdown::Yes);
+}
+
+TEST_CASE(a_flood_of_out_of_line_messages_in_both_directions_does_not_deadlock)
+{
+    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
+
+    constexpr size_t message_count = 2048;
+    constexpr size_t payload_size = 8192;
+    for (size_t i = 0; i < message_count; ++i) {
+        IPC::MessageDataType to_peer;
+        to_peer.resize(payload_size);
+        to_peer[0] = 1;
+        Vector<IPC::Attachment> no_attachments;
+        TRY_OR_FAIL(paired.local->post_message(move(to_peer), no_attachments));
+
+        IPC::MessageDataType to_local;
+        to_local.resize(payload_size);
+        to_local[0] = 2;
+        TRY_OR_FAIL(peer->post_message(move(to_local), no_attachments));
+    }
+
+    size_t received_by_peer = 0;
+    size_t received_by_local = 0;
+    while (received_by_peer < message_count || received_by_local < message_count) {
+        if (received_by_peer < message_count) {
+            peer->wait_until_readable();
+            (void)peer->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+                EXPECT_EQ(message.bytes.bytes().size(), payload_size);
+                EXPECT_EQ(message.bytes.bytes()[0], 1u);
+                ++received_by_peer;
+            });
+        }
+        if (received_by_local < message_count) {
+            paired.local->wait_until_readable();
+            (void)paired.local->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+                EXPECT_EQ(message.bytes.bytes().size(), payload_size);
+                EXPECT_EQ(message.bytes.bytes()[0], 2u);
+                ++received_by_local;
+            });
+        }
+    }
+    EXPECT_EQ(received_by_peer, message_count);
+    EXPECT_EQ(received_by_local, message_count);
 }
