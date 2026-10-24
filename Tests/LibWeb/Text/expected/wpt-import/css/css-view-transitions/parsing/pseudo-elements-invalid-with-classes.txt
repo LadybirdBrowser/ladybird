@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	"::view-transition-group(*.*)" should be an invalid selector
+Pass	"::view-transition-group(*. cls)" should be an invalid selector
+Pass	"::view-transition-group(*.cls. c)" should be an invalid selector
+Pass	"::view-transition-group(*.cls>cls)" should be an invalid selector
+Pass	"::view-transition-group(*.cls.foo.*)" should be an invalid selector
+Pass	"::view-transition-image-pair(*.*)" should be an invalid selector
+Pass	"::view-transition-image-pair(*. cls)" should be an invalid selector
+Pass	"::view-transition-image-pair(*.cls. c)" should be an invalid selector
+Pass	"::view-transition-image-pair(*.cls>cls)" should be an invalid selector
+Pass	"::view-transition-image-pair(*.cls.foo.*)" should be an invalid selector
+Pass	"::view-transition-old(*.*)" should be an invalid selector
+Pass	"::view-transition-old(*. cls)" should be an invalid selector
+Pass	"::view-transition-old(*.cls. c)" should be an invalid selector
+Pass	"::view-transition-old(*.cls>cls)" should be an invalid selector
+Pass	"::view-transition-old(*.cls.foo.*)" should be an invalid selector
+Pass	"::view-transition-new(*.*)" should be an invalid selector
+Pass	"::view-transition-new(*. cls)" should be an invalid selector
+Pass	"::view-transition-new(*.cls. c)" should be an invalid selector
+Pass	"::view-transition-new(*.cls>cls)" should be an invalid selector
+Pass	"::view-transition-new(*.cls.foo.*)" should be an invalid selector

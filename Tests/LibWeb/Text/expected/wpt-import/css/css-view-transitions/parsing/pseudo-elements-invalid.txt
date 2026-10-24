@@ -1,0 +1,681 @@
+Harness status: OK
+
+Found 675 tests
+
+570 Pass
+105 Fail
+Fail	"::view-transition.a" should be an invalid selector
+Pass	"::view-transition div" should be an invalid selector
+Fail	"::view-transition:hover" should be an invalid selector
+Fail	"::view-transition:active" should be an invalid selector
+Fail	"::view-transition:first-child" should be an invalid selector
+Fail	"::view-transition:last-child" should be an invalid selector
+Fail	"::view-transition:empty" should be an invalid selector
+Fail	"::view-transition:visited" should be an invalid selector
+Fail	"::view-transition:enabled" should be an invalid selector
+Pass	":not(::view-transition)" should be an invalid selector
+Pass	":has(::view-transition)" should be an invalid selector
+Fail	"::view-transition:only-child" should be an invalid selector
+Pass	"::view-transition(*)" should be an invalid selector
+Pass	"::view-transition(valid)" should be an invalid selector
+Pass	"::view-transition(root)" should be an invalid selector
+Fail	"::view-transition-group(*).a" should be an invalid selector
+Pass	"::view-transition-group(*) div" should be an invalid selector
+Fail	"::view-transition-group(*):hover" should be an invalid selector
+Fail	"::view-transition-group(*):active" should be an invalid selector
+Fail	"::view-transition-group(*):first-child" should be an invalid selector
+Fail	"::view-transition-group(*):last-child" should be an invalid selector
+Fail	"::view-transition-group(*):empty" should be an invalid selector
+Fail	"::view-transition-group(*):visited" should be an invalid selector
+Fail	"::view-transition-group(*):enabled" should be an invalid selector
+Pass	":not(::view-transition-group(*))" should be an invalid selector
+Pass	":has(::view-transition-group(*))" should be an invalid selector
+Fail	"::view-transition-group(valid).a" should be an invalid selector
+Pass	"::view-transition-group(valid) div" should be an invalid selector
+Fail	"::view-transition-group(valid):hover" should be an invalid selector
+Fail	"::view-transition-group(valid):active" should be an invalid selector
+Fail	"::view-transition-group(valid):first-child" should be an invalid selector
+Fail	"::view-transition-group(valid):last-child" should be an invalid selector
+Fail	"::view-transition-group(valid):empty" should be an invalid selector
+Fail	"::view-transition-group(valid):visited" should be an invalid selector
+Fail	"::view-transition-group(valid):enabled" should be an invalid selector
+Pass	":not(::view-transition-group(valid))" should be an invalid selector
+Pass	":has(::view-transition-group(valid))" should be an invalid selector
+Fail	"::view-transition-group(root).a" should be an invalid selector
+Pass	"::view-transition-group(root) div" should be an invalid selector
+Fail	"::view-transition-group(root):hover" should be an invalid selector
+Fail	"::view-transition-group(root):active" should be an invalid selector
+Fail	"::view-transition-group(root):first-child" should be an invalid selector
+Fail	"::view-transition-group(root):last-child" should be an invalid selector
+Fail	"::view-transition-group(root):empty" should be an invalid selector
+Fail	"::view-transition-group(root):visited" should be an invalid selector
+Fail	"::view-transition-group(root):enabled" should be an invalid selector
+Pass	":not(::view-transition-group(root))" should be an invalid selector
+Pass	":has(::view-transition-group(root))" should be an invalid selector
+Pass	"::view-transition-group" should be an invalid selector
+Pass	"::view-transition-group.a" should be an invalid selector
+Pass	"::view-transition-group div" should be an invalid selector
+Pass	"::view-transition-group:hover" should be an invalid selector
+Pass	"::view-transition-group:active" should be an invalid selector
+Pass	"::view-transition-group:first-child" should be an invalid selector
+Pass	"::view-transition-group:last-child" should be an invalid selector
+Pass	"::view-transition-group:empty" should be an invalid selector
+Pass	"::view-transition-group:visited" should be an invalid selector
+Pass	"::view-transition-group:enabled" should be an invalid selector
+Pass	":not(::view-transition-group)" should be an invalid selector
+Pass	":has(::view-transition-group)" should be an invalid selector
+Pass	"::view-transition-group()" should be an invalid selector
+Pass	"::view-transition-group().a" should be an invalid selector
+Pass	"::view-transition-group() div" should be an invalid selector
+Pass	"::view-transition-group():hover" should be an invalid selector
+Pass	"::view-transition-group():active" should be an invalid selector
+Pass	"::view-transition-group():first-child" should be an invalid selector
+Pass	"::view-transition-group():last-child" should be an invalid selector
+Pass	"::view-transition-group():empty" should be an invalid selector
+Pass	"::view-transition-group():visited" should be an invalid selector
+Pass	"::view-transition-group():enabled" should be an invalid selector
+Pass	":not(::view-transition-group())" should be an invalid selector
+Pass	":has(::view-transition-group())" should be an invalid selector
+Pass	"::view-transition-group(default)" should be an invalid selector
+Pass	"::view-transition-group(default).a" should be an invalid selector
+Pass	"::view-transition-group(default) div" should be an invalid selector
+Pass	"::view-transition-group(default):hover" should be an invalid selector
+Pass	"::view-transition-group(default):active" should be an invalid selector
+Pass	"::view-transition-group(default):first-child" should be an invalid selector
+Pass	"::view-transition-group(default):last-child" should be an invalid selector
+Pass	"::view-transition-group(default):empty" should be an invalid selector
+Pass	"::view-transition-group(default):visited" should be an invalid selector
+Pass	"::view-transition-group(default):enabled" should be an invalid selector
+Pass	":not(::view-transition-group(default))" should be an invalid selector
+Pass	":has(::view-transition-group(default))" should be an invalid selector
+Pass	"::view-transition-group(unset)" should be an invalid selector
+Pass	"::view-transition-group(unset).a" should be an invalid selector
+Pass	"::view-transition-group(unset) div" should be an invalid selector
+Pass	"::view-transition-group(unset):hover" should be an invalid selector
+Pass	"::view-transition-group(unset):active" should be an invalid selector
+Pass	"::view-transition-group(unset):first-child" should be an invalid selector
+Pass	"::view-transition-group(unset):last-child" should be an invalid selector
+Pass	"::view-transition-group(unset):empty" should be an invalid selector
+Pass	"::view-transition-group(unset):visited" should be an invalid selector
+Pass	"::view-transition-group(unset):enabled" should be an invalid selector
+Pass	":not(::view-transition-group(unset))" should be an invalid selector
+Pass	":has(::view-transition-group(unset))" should be an invalid selector
+Pass	"::view-transition-group(initial)" should be an invalid selector
+Pass	"::view-transition-group(initial).a" should be an invalid selector
+Pass	"::view-transition-group(initial) div" should be an invalid selector
+Pass	"::view-transition-group(initial):hover" should be an invalid selector
+Pass	"::view-transition-group(initial):active" should be an invalid selector
+Pass	"::view-transition-group(initial):first-child" should be an invalid selector
+Pass	"::view-transition-group(initial):last-child" should be an invalid selector
+Pass	"::view-transition-group(initial):empty" should be an invalid selector
+Pass	"::view-transition-group(initial):visited" should be an invalid selector
+Pass	"::view-transition-group(initial):enabled" should be an invalid selector
+Pass	":not(::view-transition-group(initial))" should be an invalid selector
+Pass	":has(::view-transition-group(initial))" should be an invalid selector
+Pass	"::view-transition-group(inherit)" should be an invalid selector
+Pass	"::view-transition-group(inherit).a" should be an invalid selector
+Pass	"::view-transition-group(inherit) div" should be an invalid selector
+Pass	"::view-transition-group(inherit):hover" should be an invalid selector
+Pass	"::view-transition-group(inherit):active" should be an invalid selector
+Pass	"::view-transition-group(inherit):first-child" should be an invalid selector
+Pass	"::view-transition-group(inherit):last-child" should be an invalid selector
+Pass	"::view-transition-group(inherit):empty" should be an invalid selector
+Pass	"::view-transition-group(inherit):visited" should be an invalid selector
+Pass	"::view-transition-group(inherit):enabled" should be an invalid selector
+Pass	":not(::view-transition-group(inherit))" should be an invalid selector
+Pass	":has(::view-transition-group(inherit))" should be an invalid selector
+Pass	"::view-transition-group(revert)" should be an invalid selector
+Pass	"::view-transition-group(revert).a" should be an invalid selector
+Pass	"::view-transition-group(revert) div" should be an invalid selector
+Pass	"::view-transition-group(revert):hover" should be an invalid selector
+Pass	"::view-transition-group(revert):active" should be an invalid selector
+Pass	"::view-transition-group(revert):first-child" should be an invalid selector
+Pass	"::view-transition-group(revert):last-child" should be an invalid selector
+Pass	"::view-transition-group(revert):empty" should be an invalid selector
+Pass	"::view-transition-group(revert):visited" should be an invalid selector
+Pass	"::view-transition-group(revert):enabled" should be an invalid selector
+Pass	":not(::view-transition-group(revert))" should be an invalid selector
+Pass	":has(::view-transition-group(revert))" should be an invalid selector
+Pass	"::view-transition-group(revert-layer)" should be an invalid selector
+Pass	"::view-transition-group(revert-layer).a" should be an invalid selector
+Pass	"::view-transition-group(revert-layer) div" should be an invalid selector
+Pass	"::view-transition-group(revert-layer):hover" should be an invalid selector
+Pass	"::view-transition-group(revert-layer):active" should be an invalid selector
+Pass	"::view-transition-group(revert-layer):first-child" should be an invalid selector
+Pass	"::view-transition-group(revert-layer):last-child" should be an invalid selector
+Pass	"::view-transition-group(revert-layer):empty" should be an invalid selector
+Pass	"::view-transition-group(revert-layer):visited" should be an invalid selector
+Pass	"::view-transition-group(revert-layer):enabled" should be an invalid selector
+Pass	":not(::view-transition-group(revert-layer))" should be an invalid selector
+Pass	":has(::view-transition-group(revert-layer))" should be an invalid selector
+Pass	"::view-transition-group(foo, bar)" should be an invalid selector
+Pass	"::view-transition-group(foo, bar).a" should be an invalid selector
+Pass	"::view-transition-group(foo, bar) div" should be an invalid selector
+Pass	"::view-transition-group(foo, bar):hover" should be an invalid selector
+Pass	"::view-transition-group(foo, bar):active" should be an invalid selector
+Pass	"::view-transition-group(foo, bar):first-child" should be an invalid selector
+Pass	"::view-transition-group(foo, bar):last-child" should be an invalid selector
+Pass	"::view-transition-group(foo, bar):empty" should be an invalid selector
+Pass	"::view-transition-group(foo, bar):visited" should be an invalid selector
+Pass	"::view-transition-group(foo, bar):enabled" should be an invalid selector
+Pass	":not(::view-transition-group(foo, bar))" should be an invalid selector
+Pass	":has(::view-transition-group(foo, bar))" should be an invalid selector
+Pass	"::view-transition-group(foo bar)" should be an invalid selector
+Pass	"::view-transition-group(foo bar).a" should be an invalid selector
+Pass	"::view-transition-group(foo bar) div" should be an invalid selector
+Pass	"::view-transition-group(foo bar):hover" should be an invalid selector
+Pass	"::view-transition-group(foo bar):active" should be an invalid selector
+Pass	"::view-transition-group(foo bar):first-child" should be an invalid selector
+Pass	"::view-transition-group(foo bar):last-child" should be an invalid selector
+Pass	"::view-transition-group(foo bar):empty" should be an invalid selector
+Pass	"::view-transition-group(foo bar):visited" should be an invalid selector
+Pass	"::view-transition-group(foo bar):enabled" should be an invalid selector
+Pass	":not(::view-transition-group(foo bar))" should be an invalid selector
+Pass	":has(::view-transition-group(foo bar))" should be an invalid selector
+Pass	"::view-transition-group(#bar)" should be an invalid selector
+Pass	"::view-transition-group(#bar).a" should be an invalid selector
+Pass	"::view-transition-group(#bar) div" should be an invalid selector
+Pass	"::view-transition-group(#bar):hover" should be an invalid selector
+Pass	"::view-transition-group(#bar):active" should be an invalid selector
+Pass	"::view-transition-group(#bar):first-child" should be an invalid selector
+Pass	"::view-transition-group(#bar):last-child" should be an invalid selector
+Pass	"::view-transition-group(#bar):empty" should be an invalid selector
+Pass	"::view-transition-group(#bar):visited" should be an invalid selector
+Pass	"::view-transition-group(#bar):enabled" should be an invalid selector
+Pass	":not(::view-transition-group(#bar))" should be an invalid selector
+Pass	":has(::view-transition-group(#bar))" should be an invalid selector
+Fail	"::view-transition-image-pair(*).a" should be an invalid selector
+Pass	"::view-transition-image-pair(*) div" should be an invalid selector
+Fail	"::view-transition-image-pair(*):hover" should be an invalid selector
+Fail	"::view-transition-image-pair(*):active" should be an invalid selector
+Fail	"::view-transition-image-pair(*):first-child" should be an invalid selector
+Fail	"::view-transition-image-pair(*):last-child" should be an invalid selector
+Fail	"::view-transition-image-pair(*):empty" should be an invalid selector
+Fail	"::view-transition-image-pair(*):visited" should be an invalid selector
+Fail	"::view-transition-image-pair(*):enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair(*))" should be an invalid selector
+Pass	":has(::view-transition-image-pair(*))" should be an invalid selector
+Fail	"::view-transition-image-pair(valid).a" should be an invalid selector
+Pass	"::view-transition-image-pair(valid) div" should be an invalid selector
+Fail	"::view-transition-image-pair(valid):hover" should be an invalid selector
+Fail	"::view-transition-image-pair(valid):active" should be an invalid selector
+Fail	"::view-transition-image-pair(valid):first-child" should be an invalid selector
+Fail	"::view-transition-image-pair(valid):last-child" should be an invalid selector
+Fail	"::view-transition-image-pair(valid):empty" should be an invalid selector
+Fail	"::view-transition-image-pair(valid):visited" should be an invalid selector
+Fail	"::view-transition-image-pair(valid):enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair(valid))" should be an invalid selector
+Pass	":has(::view-transition-image-pair(valid))" should be an invalid selector
+Fail	"::view-transition-image-pair(root).a" should be an invalid selector
+Pass	"::view-transition-image-pair(root) div" should be an invalid selector
+Fail	"::view-transition-image-pair(root):hover" should be an invalid selector
+Fail	"::view-transition-image-pair(root):active" should be an invalid selector
+Fail	"::view-transition-image-pair(root):first-child" should be an invalid selector
+Fail	"::view-transition-image-pair(root):last-child" should be an invalid selector
+Fail	"::view-transition-image-pair(root):empty" should be an invalid selector
+Fail	"::view-transition-image-pair(root):visited" should be an invalid selector
+Fail	"::view-transition-image-pair(root):enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair(root))" should be an invalid selector
+Pass	":has(::view-transition-image-pair(root))" should be an invalid selector
+Pass	"::view-transition-image-pair" should be an invalid selector
+Pass	"::view-transition-image-pair.a" should be an invalid selector
+Pass	"::view-transition-image-pair div" should be an invalid selector
+Pass	"::view-transition-image-pair:hover" should be an invalid selector
+Pass	"::view-transition-image-pair:active" should be an invalid selector
+Pass	"::view-transition-image-pair:first-child" should be an invalid selector
+Pass	"::view-transition-image-pair:last-child" should be an invalid selector
+Pass	"::view-transition-image-pair:empty" should be an invalid selector
+Pass	"::view-transition-image-pair:visited" should be an invalid selector
+Pass	"::view-transition-image-pair:enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair)" should be an invalid selector
+Pass	":has(::view-transition-image-pair)" should be an invalid selector
+Pass	"::view-transition-image-pair()" should be an invalid selector
+Pass	"::view-transition-image-pair().a" should be an invalid selector
+Pass	"::view-transition-image-pair() div" should be an invalid selector
+Pass	"::view-transition-image-pair():hover" should be an invalid selector
+Pass	"::view-transition-image-pair():active" should be an invalid selector
+Pass	"::view-transition-image-pair():first-child" should be an invalid selector
+Pass	"::view-transition-image-pair():last-child" should be an invalid selector
+Pass	"::view-transition-image-pair():empty" should be an invalid selector
+Pass	"::view-transition-image-pair():visited" should be an invalid selector
+Pass	"::view-transition-image-pair():enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair())" should be an invalid selector
+Pass	":has(::view-transition-image-pair())" should be an invalid selector
+Pass	"::view-transition-image-pair(default)" should be an invalid selector
+Pass	"::view-transition-image-pair(default).a" should be an invalid selector
+Pass	"::view-transition-image-pair(default) div" should be an invalid selector
+Pass	"::view-transition-image-pair(default):hover" should be an invalid selector
+Pass	"::view-transition-image-pair(default):active" should be an invalid selector
+Pass	"::view-transition-image-pair(default):first-child" should be an invalid selector
+Pass	"::view-transition-image-pair(default):last-child" should be an invalid selector
+Pass	"::view-transition-image-pair(default):empty" should be an invalid selector
+Pass	"::view-transition-image-pair(default):visited" should be an invalid selector
+Pass	"::view-transition-image-pair(default):enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair(default))" should be an invalid selector
+Pass	":has(::view-transition-image-pair(default))" should be an invalid selector
+Pass	"::view-transition-image-pair(unset)" should be an invalid selector
+Pass	"::view-transition-image-pair(unset).a" should be an invalid selector
+Pass	"::view-transition-image-pair(unset) div" should be an invalid selector
+Pass	"::view-transition-image-pair(unset):hover" should be an invalid selector
+Pass	"::view-transition-image-pair(unset):active" should be an invalid selector
+Pass	"::view-transition-image-pair(unset):first-child" should be an invalid selector
+Pass	"::view-transition-image-pair(unset):last-child" should be an invalid selector
+Pass	"::view-transition-image-pair(unset):empty" should be an invalid selector
+Pass	"::view-transition-image-pair(unset):visited" should be an invalid selector
+Pass	"::view-transition-image-pair(unset):enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair(unset))" should be an invalid selector
+Pass	":has(::view-transition-image-pair(unset))" should be an invalid selector
+Pass	"::view-transition-image-pair(initial)" should be an invalid selector
+Pass	"::view-transition-image-pair(initial).a" should be an invalid selector
+Pass	"::view-transition-image-pair(initial) div" should be an invalid selector
+Pass	"::view-transition-image-pair(initial):hover" should be an invalid selector
+Pass	"::view-transition-image-pair(initial):active" should be an invalid selector
+Pass	"::view-transition-image-pair(initial):first-child" should be an invalid selector
+Pass	"::view-transition-image-pair(initial):last-child" should be an invalid selector
+Pass	"::view-transition-image-pair(initial):empty" should be an invalid selector
+Pass	"::view-transition-image-pair(initial):visited" should be an invalid selector
+Pass	"::view-transition-image-pair(initial):enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair(initial))" should be an invalid selector
+Pass	":has(::view-transition-image-pair(initial))" should be an invalid selector
+Pass	"::view-transition-image-pair(inherit)" should be an invalid selector
+Pass	"::view-transition-image-pair(inherit).a" should be an invalid selector
+Pass	"::view-transition-image-pair(inherit) div" should be an invalid selector
+Pass	"::view-transition-image-pair(inherit):hover" should be an invalid selector
+Pass	"::view-transition-image-pair(inherit):active" should be an invalid selector
+Pass	"::view-transition-image-pair(inherit):first-child" should be an invalid selector
+Pass	"::view-transition-image-pair(inherit):last-child" should be an invalid selector
+Pass	"::view-transition-image-pair(inherit):empty" should be an invalid selector
+Pass	"::view-transition-image-pair(inherit):visited" should be an invalid selector
+Pass	"::view-transition-image-pair(inherit):enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair(inherit))" should be an invalid selector
+Pass	":has(::view-transition-image-pair(inherit))" should be an invalid selector
+Pass	"::view-transition-image-pair(revert)" should be an invalid selector
+Pass	"::view-transition-image-pair(revert).a" should be an invalid selector
+Pass	"::view-transition-image-pair(revert) div" should be an invalid selector
+Pass	"::view-transition-image-pair(revert):hover" should be an invalid selector
+Pass	"::view-transition-image-pair(revert):active" should be an invalid selector
+Pass	"::view-transition-image-pair(revert):first-child" should be an invalid selector
+Pass	"::view-transition-image-pair(revert):last-child" should be an invalid selector
+Pass	"::view-transition-image-pair(revert):empty" should be an invalid selector
+Pass	"::view-transition-image-pair(revert):visited" should be an invalid selector
+Pass	"::view-transition-image-pair(revert):enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair(revert))" should be an invalid selector
+Pass	":has(::view-transition-image-pair(revert))" should be an invalid selector
+Pass	"::view-transition-image-pair(revert-layer)" should be an invalid selector
+Pass	"::view-transition-image-pair(revert-layer).a" should be an invalid selector
+Pass	"::view-transition-image-pair(revert-layer) div" should be an invalid selector
+Pass	"::view-transition-image-pair(revert-layer):hover" should be an invalid selector
+Pass	"::view-transition-image-pair(revert-layer):active" should be an invalid selector
+Pass	"::view-transition-image-pair(revert-layer):first-child" should be an invalid selector
+Pass	"::view-transition-image-pair(revert-layer):last-child" should be an invalid selector
+Pass	"::view-transition-image-pair(revert-layer):empty" should be an invalid selector
+Pass	"::view-transition-image-pair(revert-layer):visited" should be an invalid selector
+Pass	"::view-transition-image-pair(revert-layer):enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair(revert-layer))" should be an invalid selector
+Pass	":has(::view-transition-image-pair(revert-layer))" should be an invalid selector
+Pass	"::view-transition-image-pair(foo, bar)" should be an invalid selector
+Pass	"::view-transition-image-pair(foo, bar).a" should be an invalid selector
+Pass	"::view-transition-image-pair(foo, bar) div" should be an invalid selector
+Pass	"::view-transition-image-pair(foo, bar):hover" should be an invalid selector
+Pass	"::view-transition-image-pair(foo, bar):active" should be an invalid selector
+Pass	"::view-transition-image-pair(foo, bar):first-child" should be an invalid selector
+Pass	"::view-transition-image-pair(foo, bar):last-child" should be an invalid selector
+Pass	"::view-transition-image-pair(foo, bar):empty" should be an invalid selector
+Pass	"::view-transition-image-pair(foo, bar):visited" should be an invalid selector
+Pass	"::view-transition-image-pair(foo, bar):enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair(foo, bar))" should be an invalid selector
+Pass	":has(::view-transition-image-pair(foo, bar))" should be an invalid selector
+Pass	"::view-transition-image-pair(foo bar)" should be an invalid selector
+Pass	"::view-transition-image-pair(foo bar).a" should be an invalid selector
+Pass	"::view-transition-image-pair(foo bar) div" should be an invalid selector
+Pass	"::view-transition-image-pair(foo bar):hover" should be an invalid selector
+Pass	"::view-transition-image-pair(foo bar):active" should be an invalid selector
+Pass	"::view-transition-image-pair(foo bar):first-child" should be an invalid selector
+Pass	"::view-transition-image-pair(foo bar):last-child" should be an invalid selector
+Pass	"::view-transition-image-pair(foo bar):empty" should be an invalid selector
+Pass	"::view-transition-image-pair(foo bar):visited" should be an invalid selector
+Pass	"::view-transition-image-pair(foo bar):enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair(foo bar))" should be an invalid selector
+Pass	":has(::view-transition-image-pair(foo bar))" should be an invalid selector
+Pass	"::view-transition-image-pair(#bar)" should be an invalid selector
+Pass	"::view-transition-image-pair(#bar).a" should be an invalid selector
+Pass	"::view-transition-image-pair(#bar) div" should be an invalid selector
+Pass	"::view-transition-image-pair(#bar):hover" should be an invalid selector
+Pass	"::view-transition-image-pair(#bar):active" should be an invalid selector
+Pass	"::view-transition-image-pair(#bar):first-child" should be an invalid selector
+Pass	"::view-transition-image-pair(#bar):last-child" should be an invalid selector
+Pass	"::view-transition-image-pair(#bar):empty" should be an invalid selector
+Pass	"::view-transition-image-pair(#bar):visited" should be an invalid selector
+Pass	"::view-transition-image-pair(#bar):enabled" should be an invalid selector
+Pass	":not(::view-transition-image-pair(#bar))" should be an invalid selector
+Pass	":has(::view-transition-image-pair(#bar))" should be an invalid selector
+Fail	"::view-transition-old(*).a" should be an invalid selector
+Pass	"::view-transition-old(*) div" should be an invalid selector
+Fail	"::view-transition-old(*):hover" should be an invalid selector
+Fail	"::view-transition-old(*):active" should be an invalid selector
+Fail	"::view-transition-old(*):first-child" should be an invalid selector
+Fail	"::view-transition-old(*):last-child" should be an invalid selector
+Fail	"::view-transition-old(*):empty" should be an invalid selector
+Fail	"::view-transition-old(*):visited" should be an invalid selector
+Fail	"::view-transition-old(*):enabled" should be an invalid selector
+Pass	":not(::view-transition-old(*))" should be an invalid selector
+Pass	":has(::view-transition-old(*))" should be an invalid selector
+Fail	"::view-transition-old(valid).a" should be an invalid selector
+Pass	"::view-transition-old(valid) div" should be an invalid selector
+Fail	"::view-transition-old(valid):hover" should be an invalid selector
+Fail	"::view-transition-old(valid):active" should be an invalid selector
+Fail	"::view-transition-old(valid):first-child" should be an invalid selector
+Fail	"::view-transition-old(valid):last-child" should be an invalid selector
+Fail	"::view-transition-old(valid):empty" should be an invalid selector
+Fail	"::view-transition-old(valid):visited" should be an invalid selector
+Fail	"::view-transition-old(valid):enabled" should be an invalid selector
+Pass	":not(::view-transition-old(valid))" should be an invalid selector
+Pass	":has(::view-transition-old(valid))" should be an invalid selector
+Fail	"::view-transition-old(root).a" should be an invalid selector
+Pass	"::view-transition-old(root) div" should be an invalid selector
+Fail	"::view-transition-old(root):hover" should be an invalid selector
+Fail	"::view-transition-old(root):active" should be an invalid selector
+Fail	"::view-transition-old(root):first-child" should be an invalid selector
+Fail	"::view-transition-old(root):last-child" should be an invalid selector
+Fail	"::view-transition-old(root):empty" should be an invalid selector
+Fail	"::view-transition-old(root):visited" should be an invalid selector
+Fail	"::view-transition-old(root):enabled" should be an invalid selector
+Pass	":not(::view-transition-old(root))" should be an invalid selector
+Pass	":has(::view-transition-old(root))" should be an invalid selector
+Pass	"::view-transition-old" should be an invalid selector
+Pass	"::view-transition-old.a" should be an invalid selector
+Pass	"::view-transition-old div" should be an invalid selector
+Pass	"::view-transition-old:hover" should be an invalid selector
+Pass	"::view-transition-old:active" should be an invalid selector
+Pass	"::view-transition-old:first-child" should be an invalid selector
+Pass	"::view-transition-old:last-child" should be an invalid selector
+Pass	"::view-transition-old:empty" should be an invalid selector
+Pass	"::view-transition-old:visited" should be an invalid selector
+Pass	"::view-transition-old:enabled" should be an invalid selector
+Pass	":not(::view-transition-old)" should be an invalid selector
+Pass	":has(::view-transition-old)" should be an invalid selector
+Pass	"::view-transition-old()" should be an invalid selector
+Pass	"::view-transition-old().a" should be an invalid selector
+Pass	"::view-transition-old() div" should be an invalid selector
+Pass	"::view-transition-old():hover" should be an invalid selector
+Pass	"::view-transition-old():active" should be an invalid selector
+Pass	"::view-transition-old():first-child" should be an invalid selector
+Pass	"::view-transition-old():last-child" should be an invalid selector
+Pass	"::view-transition-old():empty" should be an invalid selector
+Pass	"::view-transition-old():visited" should be an invalid selector
+Pass	"::view-transition-old():enabled" should be an invalid selector
+Pass	":not(::view-transition-old())" should be an invalid selector
+Pass	":has(::view-transition-old())" should be an invalid selector
+Pass	"::view-transition-old(default)" should be an invalid selector
+Pass	"::view-transition-old(default).a" should be an invalid selector
+Pass	"::view-transition-old(default) div" should be an invalid selector
+Pass	"::view-transition-old(default):hover" should be an invalid selector
+Pass	"::view-transition-old(default):active" should be an invalid selector
+Pass	"::view-transition-old(default):first-child" should be an invalid selector
+Pass	"::view-transition-old(default):last-child" should be an invalid selector
+Pass	"::view-transition-old(default):empty" should be an invalid selector
+Pass	"::view-transition-old(default):visited" should be an invalid selector
+Pass	"::view-transition-old(default):enabled" should be an invalid selector
+Pass	":not(::view-transition-old(default))" should be an invalid selector
+Pass	":has(::view-transition-old(default))" should be an invalid selector
+Pass	"::view-transition-old(unset)" should be an invalid selector
+Pass	"::view-transition-old(unset).a" should be an invalid selector
+Pass	"::view-transition-old(unset) div" should be an invalid selector
+Pass	"::view-transition-old(unset):hover" should be an invalid selector
+Pass	"::view-transition-old(unset):active" should be an invalid selector
+Pass	"::view-transition-old(unset):first-child" should be an invalid selector
+Pass	"::view-transition-old(unset):last-child" should be an invalid selector
+Pass	"::view-transition-old(unset):empty" should be an invalid selector
+Pass	"::view-transition-old(unset):visited" should be an invalid selector
+Pass	"::view-transition-old(unset):enabled" should be an invalid selector
+Pass	":not(::view-transition-old(unset))" should be an invalid selector
+Pass	":has(::view-transition-old(unset))" should be an invalid selector
+Pass	"::view-transition-old(initial)" should be an invalid selector
+Pass	"::view-transition-old(initial).a" should be an invalid selector
+Pass	"::view-transition-old(initial) div" should be an invalid selector
+Pass	"::view-transition-old(initial):hover" should be an invalid selector
+Pass	"::view-transition-old(initial):active" should be an invalid selector
+Pass	"::view-transition-old(initial):first-child" should be an invalid selector
+Pass	"::view-transition-old(initial):last-child" should be an invalid selector
+Pass	"::view-transition-old(initial):empty" should be an invalid selector
+Pass	"::view-transition-old(initial):visited" should be an invalid selector
+Pass	"::view-transition-old(initial):enabled" should be an invalid selector
+Pass	":not(::view-transition-old(initial))" should be an invalid selector
+Pass	":has(::view-transition-old(initial))" should be an invalid selector
+Pass	"::view-transition-old(inherit)" should be an invalid selector
+Pass	"::view-transition-old(inherit).a" should be an invalid selector
+Pass	"::view-transition-old(inherit) div" should be an invalid selector
+Pass	"::view-transition-old(inherit):hover" should be an invalid selector
+Pass	"::view-transition-old(inherit):active" should be an invalid selector
+Pass	"::view-transition-old(inherit):first-child" should be an invalid selector
+Pass	"::view-transition-old(inherit):last-child" should be an invalid selector
+Pass	"::view-transition-old(inherit):empty" should be an invalid selector
+Pass	"::view-transition-old(inherit):visited" should be an invalid selector
+Pass	"::view-transition-old(inherit):enabled" should be an invalid selector
+Pass	":not(::view-transition-old(inherit))" should be an invalid selector
+Pass	":has(::view-transition-old(inherit))" should be an invalid selector
+Pass	"::view-transition-old(revert)" should be an invalid selector
+Pass	"::view-transition-old(revert).a" should be an invalid selector
+Pass	"::view-transition-old(revert) div" should be an invalid selector
+Pass	"::view-transition-old(revert):hover" should be an invalid selector
+Pass	"::view-transition-old(revert):active" should be an invalid selector
+Pass	"::view-transition-old(revert):first-child" should be an invalid selector
+Pass	"::view-transition-old(revert):last-child" should be an invalid selector
+Pass	"::view-transition-old(revert):empty" should be an invalid selector
+Pass	"::view-transition-old(revert):visited" should be an invalid selector
+Pass	"::view-transition-old(revert):enabled" should be an invalid selector
+Pass	":not(::view-transition-old(revert))" should be an invalid selector
+Pass	":has(::view-transition-old(revert))" should be an invalid selector
+Pass	"::view-transition-old(revert-layer)" should be an invalid selector
+Pass	"::view-transition-old(revert-layer).a" should be an invalid selector
+Pass	"::view-transition-old(revert-layer) div" should be an invalid selector
+Pass	"::view-transition-old(revert-layer):hover" should be an invalid selector
+Pass	"::view-transition-old(revert-layer):active" should be an invalid selector
+Pass	"::view-transition-old(revert-layer):first-child" should be an invalid selector
+Pass	"::view-transition-old(revert-layer):last-child" should be an invalid selector
+Pass	"::view-transition-old(revert-layer):empty" should be an invalid selector
+Pass	"::view-transition-old(revert-layer):visited" should be an invalid selector
+Pass	"::view-transition-old(revert-layer):enabled" should be an invalid selector
+Pass	":not(::view-transition-old(revert-layer))" should be an invalid selector
+Pass	":has(::view-transition-old(revert-layer))" should be an invalid selector
+Pass	"::view-transition-old(foo, bar)" should be an invalid selector
+Pass	"::view-transition-old(foo, bar).a" should be an invalid selector
+Pass	"::view-transition-old(foo, bar) div" should be an invalid selector
+Pass	"::view-transition-old(foo, bar):hover" should be an invalid selector
+Pass	"::view-transition-old(foo, bar):active" should be an invalid selector
+Pass	"::view-transition-old(foo, bar):first-child" should be an invalid selector
+Pass	"::view-transition-old(foo, bar):last-child" should be an invalid selector
+Pass	"::view-transition-old(foo, bar):empty" should be an invalid selector
+Pass	"::view-transition-old(foo, bar):visited" should be an invalid selector
+Pass	"::view-transition-old(foo, bar):enabled" should be an invalid selector
+Pass	":not(::view-transition-old(foo, bar))" should be an invalid selector
+Pass	":has(::view-transition-old(foo, bar))" should be an invalid selector
+Pass	"::view-transition-old(foo bar)" should be an invalid selector
+Pass	"::view-transition-old(foo bar).a" should be an invalid selector
+Pass	"::view-transition-old(foo bar) div" should be an invalid selector
+Pass	"::view-transition-old(foo bar):hover" should be an invalid selector
+Pass	"::view-transition-old(foo bar):active" should be an invalid selector
+Pass	"::view-transition-old(foo bar):first-child" should be an invalid selector
+Pass	"::view-transition-old(foo bar):last-child" should be an invalid selector
+Pass	"::view-transition-old(foo bar):empty" should be an invalid selector
+Pass	"::view-transition-old(foo bar):visited" should be an invalid selector
+Pass	"::view-transition-old(foo bar):enabled" should be an invalid selector
+Pass	":not(::view-transition-old(foo bar))" should be an invalid selector
+Pass	":has(::view-transition-old(foo bar))" should be an invalid selector
+Pass	"::view-transition-old(#bar)" should be an invalid selector
+Pass	"::view-transition-old(#bar).a" should be an invalid selector
+Pass	"::view-transition-old(#bar) div" should be an invalid selector
+Pass	"::view-transition-old(#bar):hover" should be an invalid selector
+Pass	"::view-transition-old(#bar):active" should be an invalid selector
+Pass	"::view-transition-old(#bar):first-child" should be an invalid selector
+Pass	"::view-transition-old(#bar):last-child" should be an invalid selector
+Pass	"::view-transition-old(#bar):empty" should be an invalid selector
+Pass	"::view-transition-old(#bar):visited" should be an invalid selector
+Pass	"::view-transition-old(#bar):enabled" should be an invalid selector
+Pass	":not(::view-transition-old(#bar))" should be an invalid selector
+Pass	":has(::view-transition-old(#bar))" should be an invalid selector
+Fail	"::view-transition-new(*).a" should be an invalid selector
+Pass	"::view-transition-new(*) div" should be an invalid selector
+Fail	"::view-transition-new(*):hover" should be an invalid selector
+Fail	"::view-transition-new(*):active" should be an invalid selector
+Fail	"::view-transition-new(*):first-child" should be an invalid selector
+Fail	"::view-transition-new(*):last-child" should be an invalid selector
+Fail	"::view-transition-new(*):empty" should be an invalid selector
+Fail	"::view-transition-new(*):visited" should be an invalid selector
+Fail	"::view-transition-new(*):enabled" should be an invalid selector
+Pass	":not(::view-transition-new(*))" should be an invalid selector
+Pass	":has(::view-transition-new(*))" should be an invalid selector
+Fail	"::view-transition-new(valid).a" should be an invalid selector
+Pass	"::view-transition-new(valid) div" should be an invalid selector
+Fail	"::view-transition-new(valid):hover" should be an invalid selector
+Fail	"::view-transition-new(valid):active" should be an invalid selector
+Fail	"::view-transition-new(valid):first-child" should be an invalid selector
+Fail	"::view-transition-new(valid):last-child" should be an invalid selector
+Fail	"::view-transition-new(valid):empty" should be an invalid selector
+Fail	"::view-transition-new(valid):visited" should be an invalid selector
+Fail	"::view-transition-new(valid):enabled" should be an invalid selector
+Pass	":not(::view-transition-new(valid))" should be an invalid selector
+Pass	":has(::view-transition-new(valid))" should be an invalid selector
+Fail	"::view-transition-new(root).a" should be an invalid selector
+Pass	"::view-transition-new(root) div" should be an invalid selector
+Fail	"::view-transition-new(root):hover" should be an invalid selector
+Fail	"::view-transition-new(root):active" should be an invalid selector
+Fail	"::view-transition-new(root):first-child" should be an invalid selector
+Fail	"::view-transition-new(root):last-child" should be an invalid selector
+Fail	"::view-transition-new(root):empty" should be an invalid selector
+Fail	"::view-transition-new(root):visited" should be an invalid selector
+Fail	"::view-transition-new(root):enabled" should be an invalid selector
+Pass	":not(::view-transition-new(root))" should be an invalid selector
+Pass	":has(::view-transition-new(root))" should be an invalid selector
+Pass	"::view-transition-new" should be an invalid selector
+Pass	"::view-transition-new.a" should be an invalid selector
+Pass	"::view-transition-new div" should be an invalid selector
+Pass	"::view-transition-new:hover" should be an invalid selector
+Pass	"::view-transition-new:active" should be an invalid selector
+Pass	"::view-transition-new:first-child" should be an invalid selector
+Pass	"::view-transition-new:last-child" should be an invalid selector
+Pass	"::view-transition-new:empty" should be an invalid selector
+Pass	"::view-transition-new:visited" should be an invalid selector
+Pass	"::view-transition-new:enabled" should be an invalid selector
+Pass	":not(::view-transition-new)" should be an invalid selector
+Pass	":has(::view-transition-new)" should be an invalid selector
+Pass	"::view-transition-new()" should be an invalid selector
+Pass	"::view-transition-new().a" should be an invalid selector
+Pass	"::view-transition-new() div" should be an invalid selector
+Pass	"::view-transition-new():hover" should be an invalid selector
+Pass	"::view-transition-new():active" should be an invalid selector
+Pass	"::view-transition-new():first-child" should be an invalid selector
+Pass	"::view-transition-new():last-child" should be an invalid selector
+Pass	"::view-transition-new():empty" should be an invalid selector
+Pass	"::view-transition-new():visited" should be an invalid selector
+Pass	"::view-transition-new():enabled" should be an invalid selector
+Pass	":not(::view-transition-new())" should be an invalid selector
+Pass	":has(::view-transition-new())" should be an invalid selector
+Pass	"::view-transition-new(default)" should be an invalid selector
+Pass	"::view-transition-new(default).a" should be an invalid selector
+Pass	"::view-transition-new(default) div" should be an invalid selector
+Pass	"::view-transition-new(default):hover" should be an invalid selector
+Pass	"::view-transition-new(default):active" should be an invalid selector
+Pass	"::view-transition-new(default):first-child" should be an invalid selector
+Pass	"::view-transition-new(default):last-child" should be an invalid selector
+Pass	"::view-transition-new(default):empty" should be an invalid selector
+Pass	"::view-transition-new(default):visited" should be an invalid selector
+Pass	"::view-transition-new(default):enabled" should be an invalid selector
+Pass	":not(::view-transition-new(default))" should be an invalid selector
+Pass	":has(::view-transition-new(default))" should be an invalid selector
+Pass	"::view-transition-new(unset)" should be an invalid selector
+Pass	"::view-transition-new(unset).a" should be an invalid selector
+Pass	"::view-transition-new(unset) div" should be an invalid selector
+Pass	"::view-transition-new(unset):hover" should be an invalid selector
+Pass	"::view-transition-new(unset):active" should be an invalid selector
+Pass	"::view-transition-new(unset):first-child" should be an invalid selector
+Pass	"::view-transition-new(unset):last-child" should be an invalid selector
+Pass	"::view-transition-new(unset):empty" should be an invalid selector
+Pass	"::view-transition-new(unset):visited" should be an invalid selector
+Pass	"::view-transition-new(unset):enabled" should be an invalid selector
+Pass	":not(::view-transition-new(unset))" should be an invalid selector
+Pass	":has(::view-transition-new(unset))" should be an invalid selector
+Pass	"::view-transition-new(initial)" should be an invalid selector
+Pass	"::view-transition-new(initial).a" should be an invalid selector
+Pass	"::view-transition-new(initial) div" should be an invalid selector
+Pass	"::view-transition-new(initial):hover" should be an invalid selector
+Pass	"::view-transition-new(initial):active" should be an invalid selector
+Pass	"::view-transition-new(initial):first-child" should be an invalid selector
+Pass	"::view-transition-new(initial):last-child" should be an invalid selector
+Pass	"::view-transition-new(initial):empty" should be an invalid selector
+Pass	"::view-transition-new(initial):visited" should be an invalid selector
+Pass	"::view-transition-new(initial):enabled" should be an invalid selector
+Pass	":not(::view-transition-new(initial))" should be an invalid selector
+Pass	":has(::view-transition-new(initial))" should be an invalid selector
+Pass	"::view-transition-new(inherit)" should be an invalid selector
+Pass	"::view-transition-new(inherit).a" should be an invalid selector
+Pass	"::view-transition-new(inherit) div" should be an invalid selector
+Pass	"::view-transition-new(inherit):hover" should be an invalid selector
+Pass	"::view-transition-new(inherit):active" should be an invalid selector
+Pass	"::view-transition-new(inherit):first-child" should be an invalid selector
+Pass	"::view-transition-new(inherit):last-child" should be an invalid selector
+Pass	"::view-transition-new(inherit):empty" should be an invalid selector
+Pass	"::view-transition-new(inherit):visited" should be an invalid selector
+Pass	"::view-transition-new(inherit):enabled" should be an invalid selector
+Pass	":not(::view-transition-new(inherit))" should be an invalid selector
+Pass	":has(::view-transition-new(inherit))" should be an invalid selector
+Pass	"::view-transition-new(revert)" should be an invalid selector
+Pass	"::view-transition-new(revert).a" should be an invalid selector
+Pass	"::view-transition-new(revert) div" should be an invalid selector
+Pass	"::view-transition-new(revert):hover" should be an invalid selector
+Pass	"::view-transition-new(revert):active" should be an invalid selector
+Pass	"::view-transition-new(revert):first-child" should be an invalid selector
+Pass	"::view-transition-new(revert):last-child" should be an invalid selector
+Pass	"::view-transition-new(revert):empty" should be an invalid selector
+Pass	"::view-transition-new(revert):visited" should be an invalid selector
+Pass	"::view-transition-new(revert):enabled" should be an invalid selector
+Pass	":not(::view-transition-new(revert))" should be an invalid selector
+Pass	":has(::view-transition-new(revert))" should be an invalid selector
+Pass	"::view-transition-new(revert-layer)" should be an invalid selector
+Pass	"::view-transition-new(revert-layer).a" should be an invalid selector
+Pass	"::view-transition-new(revert-layer) div" should be an invalid selector
+Pass	"::view-transition-new(revert-layer):hover" should be an invalid selector
+Pass	"::view-transition-new(revert-layer):active" should be an invalid selector
+Pass	"::view-transition-new(revert-layer):first-child" should be an invalid selector
+Pass	"::view-transition-new(revert-layer):last-child" should be an invalid selector
+Pass	"::view-transition-new(revert-layer):empty" should be an invalid selector
+Pass	"::view-transition-new(revert-layer):visited" should be an invalid selector
+Pass	"::view-transition-new(revert-layer):enabled" should be an invalid selector
+Pass	":not(::view-transition-new(revert-layer))" should be an invalid selector
+Pass	":has(::view-transition-new(revert-layer))" should be an invalid selector
+Pass	"::view-transition-new(foo, bar)" should be an invalid selector
+Pass	"::view-transition-new(foo, bar).a" should be an invalid selector
+Pass	"::view-transition-new(foo, bar) div" should be an invalid selector
+Pass	"::view-transition-new(foo, bar):hover" should be an invalid selector
+Pass	"::view-transition-new(foo, bar):active" should be an invalid selector
+Pass	"::view-transition-new(foo, bar):first-child" should be an invalid selector
+Pass	"::view-transition-new(foo, bar):last-child" should be an invalid selector
+Pass	"::view-transition-new(foo, bar):empty" should be an invalid selector
+Pass	"::view-transition-new(foo, bar):visited" should be an invalid selector
+Pass	"::view-transition-new(foo, bar):enabled" should be an invalid selector
+Pass	":not(::view-transition-new(foo, bar))" should be an invalid selector
+Pass	":has(::view-transition-new(foo, bar))" should be an invalid selector
+Pass	"::view-transition-new(foo bar)" should be an invalid selector
+Pass	"::view-transition-new(foo bar).a" should be an invalid selector
+Pass	"::view-transition-new(foo bar) div" should be an invalid selector
+Pass	"::view-transition-new(foo bar):hover" should be an invalid selector
+Pass	"::view-transition-new(foo bar):active" should be an invalid selector
+Pass	"::view-transition-new(foo bar):first-child" should be an invalid selector
+Pass	"::view-transition-new(foo bar):last-child" should be an invalid selector
+Pass	"::view-transition-new(foo bar):empty" should be an invalid selector
+Pass	"::view-transition-new(foo bar):visited" should be an invalid selector
+Pass	"::view-transition-new(foo bar):enabled" should be an invalid selector
+Pass	":not(::view-transition-new(foo bar))" should be an invalid selector
+Pass	":has(::view-transition-new(foo bar))" should be an invalid selector
+Pass	"::view-transition-new(#bar)" should be an invalid selector
+Pass	"::view-transition-new(#bar).a" should be an invalid selector
+Pass	"::view-transition-new(#bar) div" should be an invalid selector
+Pass	"::view-transition-new(#bar):hover" should be an invalid selector
+Pass	"::view-transition-new(#bar):active" should be an invalid selector
+Pass	"::view-transition-new(#bar):first-child" should be an invalid selector
+Pass	"::view-transition-new(#bar):last-child" should be an invalid selector
+Pass	"::view-transition-new(#bar):empty" should be an invalid selector
+Pass	"::view-transition-new(#bar):visited" should be an invalid selector
+Pass	"::view-transition-new(#bar):enabled" should be an invalid selector
+Pass	":not(::view-transition-new(#bar))" should be an invalid selector
+Pass	":has(::view-transition-new(#bar))" should be an invalid selector
