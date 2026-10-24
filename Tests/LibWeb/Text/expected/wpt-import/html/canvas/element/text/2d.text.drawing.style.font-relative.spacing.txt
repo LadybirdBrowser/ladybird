@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Testing letter spacing and word spacing with font-relative length
+1 Pass
+Pass	Testing letter spacing and word spacing with font-relative length

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Set word spacing and word spacing to font dependent value and verify it works after font change.
+1 Pass
+Pass	Set word spacing and word spacing to font dependent value and verify it works after font change.

@@ -20,7 +20,7 @@ use libgfx_rust::path::Path;
 use libgfx_rust::{AffineTransform, Color, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, WindingRule};
 use libjs_rust::api::{ForeignCellSlot, Gc, Realm, Trace, Visitor, Vm};
 
-use super::canvas::{Canvas, FontMetricsSource, ResolvedFont, StyleValue, parse_color};
+use super::canvas::{Canvas, FontMetricsSource, FontSelection, ResolvedFont, StyleValue, parse_color};
 use super::drawing_state::{CanvasColor, DrawingState, FillOrStrokeStyle};
 use super::host::{Bitmap, CppTransport, LentImageFrame};
 use crate::bindings::interface::Wrappable;
@@ -626,8 +626,29 @@ impl ContextState {
 
     /// Sets the font of the current drawing state, unless the value is not a CSS font.
     pub(crate) fn assign_font(&self, font: &Utf16String) {
-        if let Some(font) = self.canvas.resolve_font(font) {
+        let font_selection = FontSelection::of(&self.drawing_state());
+        if let Some(font) = self.canvas.resolve_font(font, font_selection) {
             self.drawing_state_mut().font = Some(font);
+        }
+    }
+
+    /// Resolves the font of the current drawing state again, after a change to the text drawing styles that select
+    /// its fonts.
+    pub(crate) fn font_selection_did_change(&self) {
+        let font = self.drawing_state().font.as_ref().map(|font| font.serialized.clone());
+        if let Some(font) = font {
+            self.assign_font(&font);
+        }
+    }
+
+    /// The word spacing of the current drawing state in CSS pixels.
+    pub(crate) fn resolved_word_spacing(&self) -> f32 {
+        let word_spacing = self.drawing_state().word_spacing.clone();
+        match word_spacing {
+            Some(word_spacing) => self
+                .canvas
+                .resolve_length(&word_spacing.length, self.font_metrics_source()),
+            None => 0.0,
         }
     }
 

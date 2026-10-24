@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Testing value setting of fontStretch in Canvas
+1 Pass
+Pass	Testing value setting of fontStretch in Canvas
