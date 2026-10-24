@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .one { background-image: linear-gradient(red, blue); }
+    .two { background-image: linear-gradient(red, blue), linear-gradient(green, yellow); }
+</style>
+<div id="one-then-two"><div class="one"></div><div class="two"></div></div>
+<div id="two-then-one"><div class="two"></div><div class="one"></div></div>
+<div id="changing" class="one"></div>
+<script>
+    function report(label, element) {
+        const style = getComputedStyle(element);
+        println(`${label}: attachment ${style.backgroundAttachment}, repeat ${style.backgroundRepeat}, size ${style.backgroundSize}, origin ${style.backgroundOrigin}, clip ${style.backgroundClip}, position ${style.backgroundPosition}`);
+    }
+
+    test(() => {
+        // Alike siblings whose rules give each another number of background layers, in either order.
+        for (const id of ["one-then-two", "two-then-one"]) {
+            for (const [index, child] of [...document.getElementById(id).children].entries())
+                report(`${id} ${index} (${child.className})`, child);
+        }
+
+        // An element whose number of layers changes after its first style.
+        const changing = document.getElementById("changing");
+        report("one", changing);
+        changing.className = "two";
+        report("two", changing);
+        changing.className = "one";
+        report("one again", changing);
+    });
+</script>
