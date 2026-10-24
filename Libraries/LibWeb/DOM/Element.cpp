@@ -61,6 +61,7 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DOMTokenList.h>
@@ -3219,9 +3220,39 @@ double Element::current_css_zoom() const
     return 1.0;
 }
 
+static bool style_attribute_is_blocked_by_content_security_policy(Element& element, Utf16View value)
+{
+    if (auto shadow_root = element.containing_shadow_root(); shadow_root && shadow_root->is_user_agent_internal())
+        return false;
+    return ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(element, ContentSecurityPolicy::Directives::Directive::InlineType::StyleAttribute, value) == ContentSecurityPolicy::Directives::Directive::Result::Blocked;
+}
+
+static void prefetch_inline_style_image_resources(CSS::CSSStyleProperties const&, Document&);
+
+void Element::clone_inline_style_from(Element const& source)
+{
+    // NB: A source whose style attribute still awaits its check leaves the copy to make that check once connected.
+    auto const* source_rare_data = source.element_rare_data();
+    if (!m_inline_style || !source.m_inline_style || (source_rare_data && source_rare_data->style_attribute_awaits_content_security_policy_check))
+        return;
+    m_inline_style->set_declarations_from(*source.m_inline_style);
+    if (auto* rare_data = element_rare_data())
+        rare_data->style_attribute_awaits_content_security_policy_check = false;
+}
+
 void Element::inserted()
 {
     Base::inserted();
+
+    if (auto* rare_data = element_rare_data(); rare_data && rare_data->style_attribute_awaits_content_security_policy_check && is_connected()) {
+        rare_data->style_attribute_awaits_content_security_policy_check = false;
+        if (auto value = attribute(HTML::AttributeNames::style); value.has_value() && m_inline_style) {
+            if (style_attribute_is_blocked_by_content_security_policy(*this, value->utf16_view()))
+                m_inline_style->set_declarations_from_text({});
+            else
+                prefetch_inline_style_image_resources(*m_inline_style, document());
+        }
+    }
 
     if (is_connected()) {
         if (m_style_attribute_is_dirty)
@@ -6478,7 +6509,25 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         document().flush_deferred_style_change_event();
         if (!m_inline_style)
             m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this });
-        m_inline_style->set_declarations_from_text(value_or_empty);
+        // https://html.spec.whatwg.org/multipage/dom.html#the-style-attribute
+        // However, if the Should element's inline behavior be blocked by Content Security Policy? algorithm returns
+        // "Blocked" when executed upon the attribute's element, "style attribute", and the attribute's value, then
+        // the style rules defined in the attribute's value must not be applied to the element.
+        // NB: The internal elements of a user agent shadow tree get their style attribute before they are inserted
+        //     into it, and are styled by the user agent rather than the document. So the check is made when an
+        //     element that is not connected becomes connected, and the resources its declarations use are fetched then.
+        if (value.has_value() && !is_connected()) {
+            ensure_element_rare_data().style_attribute_awaits_content_security_policy_check = true;
+            m_inline_style->set_declarations_from_text(*value);
+            return;
+        }
+        if (auto* rare_data = element_rare_data())
+            rare_data->style_attribute_awaits_content_security_policy_check = false;
+        if (!value.has_value()) {
+            m_inline_style->set_declarations_from_text({});
+            return;
+        }
+        m_inline_style->set_declarations_from_text(style_attribute_is_blocked_by_content_security_policy(*this, *value) ? Utf16View {} : *value);
         prefetch_inline_style_image_resources(*m_inline_style, document());
     } else if (local_name == HTML::AttributeNames::dir || local_name == HTML::AttributeNames::lang) {
         bool const is_dir = local_name == HTML::AttributeNames::dir;

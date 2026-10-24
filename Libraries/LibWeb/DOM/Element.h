@@ -510,6 +510,7 @@ public:
     void prepare_for_inline_style_change();
     bool can_defer_inline_style_attribute_update() const;
     void did_update_inline_style();
+    void clone_inline_style_from(Element const&);
 
     GC::Ref<CSS::CSSStyleProperties> style();
     GC::Ref<CSS::StylePropertyMap> attribute_style_map();

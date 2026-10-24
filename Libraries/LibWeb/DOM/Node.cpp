@@ -2260,6 +2260,10 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
             element_copy->append_attribute(name, Utf16String::from_utf16(value));
         });
 
+        // INTEROP: The copy takes the inline style declarations of node instead of having Content Security Policy
+        //          check the style attribute it was given again, so that styles set through CSSOM survive cloning.
+        element_copy->clone_inline_style_from(*element);
+
         copy = move(element_copy);
     }
 

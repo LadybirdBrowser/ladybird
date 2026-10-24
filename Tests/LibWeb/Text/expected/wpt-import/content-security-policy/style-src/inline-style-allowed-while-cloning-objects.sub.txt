@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 25 tests
+
+22 Pass
+3 Fail
+Pass	Test that violation report event was fired
+Pass	inline-style-allowed-while-cloning-objects
+Pass	inline-style-allowed-while-cloning-objects 1
+Pass	inline-style-allowed-while-cloning-objects 2
+Pass	inline-style-allowed-while-cloning-objects 3
+Pass	inline-style-allowed-while-cloning-objects 4
+Pass	inline-style-allowed-while-cloning-objects 5
+Pass	inline-style-allowed-while-cloning-objects 6
+Pass	inline-style-allowed-while-cloning-objects 7
+Pass	inline-style-allowed-while-cloning-objects 8
+Pass	inline-style-allowed-while-cloning-objects 9
+Pass	inline-style-allowed-while-cloning-objects 10
+Pass	inline-style-allowed-while-cloning-objects 11
+Pass	inline-style-allowed-while-cloning-objects 12
+Pass	inline-style-allowed-while-cloning-objects 13
+Pass	inline-style-allowed-while-cloning-objects 14
+Pass	inline-style-allowed-while-cloning-objects 15
+Pass	inline-style-allowed-while-cloning-objects 16
+Pass	inline-style-allowed-while-cloning-objects 17
+Pass	inline-style-allowed-while-cloning-objects 18
+Fail	inline-style-allowed-while-cloning-objects 19
+Fail	inline-style-allowed-while-cloning-objects 20
+Pass	inline-style-allowed-while-cloning-objects 21
+Pass	inline-style-allowed-while-cloning-objects 22
+Fail	non-HTML namespace
