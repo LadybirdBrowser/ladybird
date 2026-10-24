@@ -259,6 +259,8 @@ pub(super) struct FcRunCacheEntry {
     /// The committed subtree token of the box when its committed fragments were found to be the stored ones, after
     /// which the entry keeps no descendant fragments: they stay the stored ones while the token does.
     committed_subtree_token_when_descendants_dropped: Option<u32>,
+    last_used_at_layout_commit: std::sync::atomic::AtomicU64,
+    structural_epoch_bumps_when_stored: u32,
 }
 
 /// A stored run a probe may take in place of running, and whether it keeps the box's committed subtree.
@@ -333,7 +335,43 @@ impl FcRunCacheEntry {
             root_content_block_size_adopted_after_run: self.root_content_block_size_adopted_after_run,
             layout_commits_when_stored: self.layout_commits_when_stored,
             committed_subtree_token_when_descendants_dropped: Some(token),
+            last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(self.last_used_at_layout_commit()),
+            structural_epoch_bumps_when_stored: self.structural_epoch_bumps_when_stored,
         }
+    }
+
+    fn last_used_at_layout_commit(&self) -> u64 {
+        self.last_used_at_layout_commit
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    fn note_used_at_layout_commit(&self, layout_commit_count: u64) {
+        self.last_used_at_layout_commit
+            .store(layout_commit_count, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn holds_uncommitted_fragments(&self) -> bool {
+        self.outputs.root.is_some() && self.committed_subtree_token_when_descendants_dropped.is_none()
+    }
+
+    fn may_have_been_committed_by_the_last_layout(&self, layout_commit_count: u64) -> bool {
+        self.holds_uncommitted_fragments() && self.last_used_at_layout_commit() + 1 >= layout_commit_count
+    }
+
+    fn went_unused_too_long(&self, layout_commit_count: u64) -> bool {
+        self.holds_uncommitted_fragments()
+            && layout_commit_count.saturating_sub(self.last_used_at_layout_commit())
+                > LAYOUT_COMMITS_AN_UNCOMMITTED_ENTRY_SURVIVES_UNUSED
+    }
+
+    fn answers_probe_for(&self, key: &FcRunCacheKey) -> bool {
+        let unobserved = RunInputsTheStoredRunNeverObserved::proven_by_stored_run(&self.outputs);
+        self.key.matches(key, unobserved)
+            || (self.table_cell_intrinsic_block_padding_unobserved
+                && self
+                    .key
+                    .without_table_cell_intrinsic_block_padding()
+                    .matches(&key.without_table_cell_intrinsic_block_padding(), unobserved))
     }
 
     /// The outputs a hit absorbs: the stored ones, or only what escapes the stored run where the hit keeps the
@@ -404,15 +442,25 @@ struct InlineLayoutDamage {
     structural_epoch_bumps: u32,
 }
 
-/// How many results of runs that build no fragments a box keeps, the latest first.
-const RESULT_ONLY_ENTRIES_PER_BOX: usize = 4;
+/// How many entries a box keeps beside its latest one and the one whose fragments it committed, the newest first.
+const EARLIER_ENTRIES_PER_BOX: usize = 3;
 
-/// Per-document store of completed run results, surviving across layout passes on the node arena: one entry per slot
-/// for the runs that lay out fragments, and a few for the runs that only measure.
+const LAYOUT_COMMITS_AN_UNCOMMITTED_ENTRY_SURVIVES_UNUSED: u64 = 2;
+
+#[derive(Clone, Default)]
+struct FcRunCacheSlot {
+    latest: Option<std::sync::Arc<FcRunCacheEntry>>,
+    committed: Option<std::sync::Arc<FcRunCacheEntry>>,
+}
+
+type EarlierEntriesOfBox = smallvec::SmallVec<[std::sync::Arc<FcRunCacheEntry>; EARLIER_ENTRIES_PER_BOX]>;
+
+/// Per-document store of completed run results, surviving across layout passes on the node arena: per box the latest
+/// entry, the one whose fragments the box committed where a later store moved it aside, and a few earlier ones.
 #[derive(Clone, Default)]
 pub(crate) struct FcRunCacheArenaStore {
-    entries: RefCell<Vec<Option<std::sync::Arc<FcRunCacheEntry>>>>,
-    result_only_entries: RefCell<HashMap<u32, Vec<std::sync::Arc<FcRunCacheEntry>>>>,
+    slots: RefCell<Vec<FcRunCacheSlot>>,
+    earlier_entries: RefCell<HashMap<u32, EarlierEntriesOfBox>>,
     inline_layout_damage: RefCell<Vec<InlineLayoutDamage>>,
     pending_sweep_slots: RefCell<Vec<u32>>,
     enrolled_for_sweep: RefCell<Vec<bool>>,
@@ -430,58 +478,55 @@ impl FcRunCacheArenaStore {
         }
     }
 
-    pub(crate) fn note_invalidated_entry(&self, node: Node) {
-        if self
-            .entries
+    fn slot_holds_entries(&self, slot: u32) -> bool {
+        self.slots
             .borrow()
-            .get(node.slot_index() as usize)
-            .is_some_and(Option::is_some)
-            || self.result_only_entries.borrow().contains_key(&node.slot_index())
-        {
+            .get(slot as usize)
+            .is_some_and(|entries| entries.latest.is_some() || entries.committed.is_some())
+    }
+
+    pub(crate) fn note_invalidated_entry(&self, node: Node) {
+        if self.slot_holds_entries(node.slot_index()) {
             self.enqueue_for_sweep(node.slot_index());
         }
     }
 
-    /// The stored result of a run that builds no fragments, for exactly `key`.
-    fn matching_result_only(
+    /// The first entry of `slot` that `answers`, trying the one whose fragments the box committed first, then the
+    /// latest, then the earlier ones newest first. A matching entry stays stored and hands out a shared handle.
+    fn first_entry_where(
         &self,
         slot: u32,
-        validity: FcRunCacheValidity,
-        key: &FcRunCacheKey,
+        mut answers: impl FnMut(&FcRunCacheEntry) -> bool,
     ) -> Option<std::sync::Arc<FcRunCacheEntry>> {
-        self.result_only_entries
+        {
+            let slots = self.slots.borrow();
+            let entries = slots.get(slot as usize)?;
+            if let Some(entry) = [&entries.committed, &entries.latest]
+                .into_iter()
+                .flatten()
+                .find(|entry| answers(entry))
+            {
+                return Some(entry.clone());
+            }
+        }
+        self.earlier_entries
             .borrow()
             .get(&slot)?
             .iter()
-            .find(|entry| entry.validity == validity && entry.key == *key)
+            .find(|entry| answers(entry))
             .cloned()
     }
 
-    fn store_result_only(&self, slot: u32, entry: FcRunCacheEntry) {
-        let mut entries = self.result_only_entries.borrow_mut();
-        let stored = entries.entry(slot).or_default();
-        stored.retain(|stored| stored.key != entry.key);
-        stored.insert(0, std::sync::Arc::new(entry));
-        stored.truncate(RESULT_ONLY_ENTRIES_PER_BOX);
-        drop(entries);
-        self.enqueue_for_sweep(slot);
-    }
-
     pub(crate) fn remove_entry(&self, slot: u32) {
-        if let Some(entry) = self.entries.borrow_mut().get_mut(slot as usize) {
-            *entry = None;
+        if let Some(entries) = self.slots.borrow_mut().get_mut(slot as usize) {
+            *entries = FcRunCacheSlot::default();
         }
-        self.result_only_entries.borrow_mut().remove(&slot);
+        self.earlier_entries.borrow_mut().remove(&slot);
         self.forget_inline_layout_damage(slot);
     }
 
     pub(crate) fn note_inline_layout_damage(&self, box_: Node) {
-        if self
-            .entries
-            .borrow()
-            .get(box_.slot_index() as usize)
-            .is_none_or(Option::is_none)
-        {
+        if !self.slot_holds_entries(box_.slot_index()) {
             return;
         }
         let mut damage = self.inline_layout_damage.borrow_mut();
@@ -495,15 +540,13 @@ impl FcRunCacheArenaStore {
                 structural_epoch_bumps: 1,
             };
         } else {
-            entry.structural_epoch_bumps = entry
-                .structural_epoch_bumps
-                .checked_add(1)
-                .expect("inline layout damage counter overflowed");
+            entry.structural_epoch_bumps = entry.structural_epoch_bumps.wrapping_add(1);
         }
     }
 
-    /// How many structural changes the inline content of `box_` saw since its entry was stored.
-    fn inline_layout_damage_since_stored(&self, box_: Node) -> u32 {
+    /// How many structural changes the inline content of `box_` saw while it held entries, which an entry tells apart
+    /// from those before its run by the count when it was stored.
+    fn structural_epoch_bumps_of(&self, box_: Node) -> u32 {
         self.inline_layout_damage
             .borrow()
             .get(box_.slot_index() as usize)
@@ -517,120 +560,173 @@ impl FcRunCacheArenaStore {
         }
     }
 
-    /// A matching entry stays stored and hands out a shared handle. A stale
-    /// entry survives until the fresh run replaces it, allowing structural
-    /// inline damage to use its line data during that run.
-    fn matching(
-        &self,
-        slot: u32,
-        validity: FcRunCacheValidity,
-        key: &FcRunCacheKey,
-    ) -> Option<std::sync::Arc<FcRunCacheEntry>> {
-        let entries = self.entries.borrow();
-        let stored = entries.get(slot as usize)?;
-        let entry = stored.as_ref()?;
-        if entry.validity != validity {
-            return None;
-        }
-        let unobserved = RunInputsTheStoredRunNeverObserved::proven_by_stored_run(&entry.outputs);
-        if !entry.key.matches(key, unobserved)
-            && !(entry.table_cell_intrinsic_block_padding_unobserved
-                && entry
-                    .key
-                    .without_table_cell_intrinsic_block_padding()
-                    .matches(&key.without_table_cell_intrinsic_block_padding(), unobserved))
-        {
-            return None;
-        }
-        Some(entry.clone())
-    }
-
+    /// A stale entry survives until the sweep after the pass, allowing structural inline damage to use its line data
+    /// during the fresh run.
     fn structurally_damaged_entry(
         &self,
-        slot: u32,
+        box_: Node,
         validity: FcRunCacheValidity,
         key: &FcRunCacheKey,
-        structural_epoch_bumps: u32,
     ) -> Option<std::sync::Arc<FcRunCacheEntry>> {
-        if structural_epoch_bumps == 0 {
-            return None;
-        }
-        let entries = self.entries.borrow();
-        let entry = entries.get(slot as usize)?.as_ref()?;
-        if entry.validity.slot_generation != validity.slot_generation
-            || !entry.key.matches(
-                key,
-                RunInputsTheStoredRunNeverObserved::accepted_when_reusing_stale_line_data_after_structural_inline_damage(
-                    &entry.outputs,
-                ),
-            )
-            // Each child-list edit bumps once when topology changes and once
-            // when the parent is marked for layout-tree-update layout.
-            || validity
-                .fragment_cache_epoch
-                .wrapping_sub(entry.validity.fragment_cache_epoch)
-                != structural_epoch_bumps
-                    .checked_mul(2)
-                    .expect("inline layout damage epoch delta overflowed")
-        {
-            return None;
-        }
-        Some(entry.clone())
+        let structural_epoch_bumps = self.structural_epoch_bumps_of(box_);
+        self.first_entry_where(box_.slot_index(), |entry| {
+            let structural_epoch_bumps_since_stored =
+                structural_epoch_bumps.wrapping_sub(entry.structural_epoch_bumps_when_stored);
+            entry.outputs.root.is_some()
+                && structural_epoch_bumps_since_stored != 0
+                && entry.validity.slot_generation == validity.slot_generation
+                && entry.key.matches(
+                    key,
+                    RunInputsTheStoredRunNeverObserved::accepted_when_reusing_stale_line_data_after_structural_inline_damage(
+                        &entry.outputs,
+                    ),
+                )
+                // Each child-list edit bumps once when topology changes and once
+                // when the parent is marked for layout-tree-update layout.
+                && validity
+                    .fragment_cache_epoch
+                    .wrapping_sub(entry.validity.fragment_cache_epoch)
+                    == structural_epoch_bumps_since_stored
+                        .checked_mul(2)
+                        .expect("inline layout damage epoch delta overflowed")
+        })
     }
 
-    fn store(&self, slot: u32, entry: FcRunCacheEntry) {
-        let mut entries = self.entries.borrow_mut();
-        if entries.len() <= slot as usize {
-            entries.resize_with(slot as usize + 1, || None);
+    fn store(&self, box_: Node, mut entry: FcRunCacheEntry) {
+        let slot = box_.slot_index();
+        entry.structural_epoch_bumps_when_stored = self.structural_epoch_bumps_of(box_);
+        let mut slots = self.slots.borrow_mut();
+        if slots.len() <= slot as usize {
+            slots.resize_with(slot as usize + 1, FcRunCacheSlot::default);
         }
-        match entries[slot as usize].as_mut().and_then(std::sync::Arc::get_mut) {
-            Some(stored) => *stored = entry,
-            None => entries[slot as usize] = Some(std::sync::Arc::new(entry)),
+        let entries = &mut slots[slot as usize];
+        let mut earlier_entries = self.earlier_entries.borrow_mut();
+        if let Some(earlier) = earlier_entries.get_mut(&slot) {
+            earlier.retain(|earlier| earlier.key != entry.key);
+            if earlier.is_empty() {
+                earlier_entries.remove(&slot);
+            }
         }
-        drop(entries);
-        // The damage counts the structural changes since the stored entry's run.
-        self.forget_inline_layout_damage(slot);
+        let mut displaced = entries.committed.take_if(|committed| committed.key == entry.key);
+        match entries.latest.take() {
+            Some(latest) if latest.key == entry.key => displaced = Some(latest),
+            Some(latest) if latest.committed_subtree_token_when_descendants_dropped.is_some() => {
+                displaced = entries.committed.replace(latest).or(displaced);
+            }
+            Some(latest) => {
+                let earlier = earlier_entries.entry(slot).or_default();
+                if earlier.len() == EARLIER_ENTRIES_PER_BOX {
+                    let oldest_result_only_or_oldest = earlier
+                        .iter()
+                        .rposition(|earlier| earlier.outputs.root.is_none())
+                        .unwrap_or(EARLIER_ENTRIES_PER_BOX - 1);
+                    displaced = Some(earlier.remove(oldest_result_only_or_oldest)).or(displaced);
+                }
+                earlier.insert(0, latest);
+            }
+            None => {}
+        }
+        entries.latest = Some(shared_entry_in_allocation_of(displaced, entry));
+        drop(earlier_entries);
+        drop(slots);
         // NB: Invalidation can occur between probing a run and storing its result.
         self.enqueue_for_sweep(slot);
     }
 
-    /// Releases stale entries after their last chance to supply reusable inline line data, and drops the descendant
-    /// fragments of entries whose fragments the box committed, for which `committed_subtree_token` gives the token.
+    /// Releases stale entries after their last chance to supply reusable inline line data. Drops the descendant
+    /// fragments of the entry whose fragments the box committed, for which `committed_subtree_token` gives the token,
+    /// and the entries holding fragments the box did not commit once they went unused for a while, except the latest
+    /// entry of a box that committed none.
     pub(super) fn sweep_pending_entries(
         &self,
         mut keep: impl FnMut(u32, FcRunCacheValidity) -> bool,
         mut committed_subtree_token: impl FnMut(Node, &FcRunCacheEntry) -> Option<u32>,
+        layout_commit_count: u64,
     ) {
-        let mut entries = self.entries.borrow_mut();
-        let mut result_only_entries = self.result_only_entries.borrow_mut();
+        let mut slots = self.slots.borrow_mut();
+        let mut earlier_entries = self.earlier_entries.borrow_mut();
         let mut enrolled = self.enrolled_for_sweep.borrow_mut();
-        for slot in self.pending_sweep_slots.borrow_mut().drain(..) {
+        let mut pending_sweep_slots = self.pending_sweep_slots.borrow_mut();
+        let mut slots_holding_entries_that_may_go_unused = Vec::new();
+        for slot in pending_sweep_slots.drain(..) {
             enrolled[slot as usize] = false;
-            if let Some(stored) = result_only_entries.get_mut(&slot) {
-                stored.retain(|entry| keep(slot, entry.validity));
-                if stored.is_empty() {
-                    result_only_entries.remove(&slot);
+            let Some(entries) = slots.get_mut(slot as usize) else {
+                continue;
+            };
+            let mut earlier = earlier_entries.remove(&slot).unwrap_or_default();
+            entries.committed.take_if(|committed| !keep(slot, committed.validity));
+            entries.latest.take_if(|latest| !keep(slot, latest.validity));
+            earlier.retain(|earlier| keep(slot, earlier.validity));
+            let mut token_of = |entry: &FcRunCacheEntry| {
+                committed_subtree_token(Node::new(slot, entry.validity.slot_generation), entry)
+            };
+            if let Some(latest) = &mut entries.latest
+                && latest.may_have_been_committed_by_the_last_layout(layout_commit_count)
+                && let Some(token) = token_of(latest)
+            {
+                *latest = std::sync::Arc::new(latest.without_descendant_fragments(token));
+                entries.committed = None;
+            } else {
+                entries.latest.take_if(|latest| {
+                    latest.committed_subtree_token_when_descendants_dropped.is_some() && token_of(latest).is_none()
+                });
+                if let Some((index, token)) = earlier.iter().enumerate().find_map(|(index, earlier)| {
+                    earlier
+                        .may_have_been_committed_by_the_last_layout(layout_commit_count)
+                        .then(|| token_of(earlier))
+                        .flatten()
+                        .map(|token| (index, token))
+                }) {
+                    entries.committed = Some(std::sync::Arc::new(
+                        earlier.remove(index).without_descendant_fragments(token),
+                    ));
+                } else {
+                    entries.committed.take_if(|committed| token_of(committed).is_none());
                 }
             }
-            let Some(stored) = entries.get_mut(slot as usize) else {
-                continue;
-            };
-            let Some(entry) = stored else {
-                continue;
-            };
-            if !keep(slot, entry.validity) {
-                *stored = None;
+            let box_holds_an_entry_it_committed = entries.committed.is_some();
+            earlier.retain(|earlier| !earlier.went_unused_too_long(layout_commit_count));
+            if box_holds_an_entry_it_committed {
+                entries
+                    .latest
+                    .take_if(|latest| latest.went_unused_too_long(layout_commit_count));
+            }
+            if entries.latest.is_none() && !earlier.is_empty() {
+                entries.latest = Some(earlier.remove(0));
+            }
+            let may_go_unused = |entry: &std::sync::Arc<FcRunCacheEntry>| entry.holds_uncommitted_fragments();
+            if earlier.iter().any(may_go_unused)
+                || (entries.committed.is_some() && entries.latest.as_ref().is_some_and(may_go_unused))
+            {
+                slots_holding_entries_that_may_go_unused.push(slot);
+            }
+            if !earlier.is_empty() {
+                earlier_entries.insert(slot, earlier);
+            }
+            if entries.latest.is_none() && entries.committed.is_none() {
                 self.forget_inline_layout_damage(slot);
-                continue;
-            }
-            if entry.committed_subtree_token_when_descendants_dropped.is_some() {
-                continue;
-            }
-            let box_ = Node::new(slot, entry.validity.slot_generation);
-            if let Some(token) = committed_subtree_token(box_, entry) {
-                *entry = std::sync::Arc::new(entry.without_descendant_fragments(token));
             }
         }
+        for slot in slots_holding_entries_that_may_go_unused {
+            enrolled[slot as usize] = true;
+            pending_sweep_slots.push(slot);
+        }
+    }
+}
+
+fn shared_entry_in_allocation_of(
+    displaced: Option<std::sync::Arc<FcRunCacheEntry>>,
+    entry: FcRunCacheEntry,
+) -> std::sync::Arc<FcRunCacheEntry> {
+    let Some(mut displaced) = displaced else {
+        return std::sync::Arc::new(entry);
+    };
+    match std::sync::Arc::get_mut(&mut displaced) {
+        Some(unshared) => {
+            *unshared = entry;
+            displaced
+        }
+        None => std::sync::Arc::new(entry),
     }
 }
 
@@ -694,12 +790,14 @@ impl FcRunCacheAttempt {
                 return Ok(Self::Bypass);
             }
             let validity = run_root_validity(callbacks, box_);
-            if let Some(entry) =
-                callbacks
-                    .arena()
-                    .fc_run_cache_store()
-                    .matching_result_only(box_.slot_index(), validity, key)
+            if let Some(entry) = callbacks
+                .arena()
+                .fc_run_cache_store()
+                .first_entry_where(box_.slot_index(), |entry| {
+                    entry.validity == validity && entry.outputs.root.is_none() && entry.key == *key
+                })
             {
+                entry.note_used_at_layout_commit(callbacks.arena().layout_commit_count());
                 return Err(FcRunCacheHit {
                     entry,
                     reuses_committed_subtree: false,
@@ -719,22 +817,25 @@ impl FcRunCacheAttempt {
         }
         let store = callbacks.arena().fc_run_cache_store();
         let validity = run_root_validity(callbacks, box_);
-        let structural_epoch_bumps = store.inline_layout_damage_since_stored(box_);
-        if let Some(entry) = store.matching(box_.slot_index(), validity, key) {
-            let reuses_committed_subtree = entry.describes_committed_subtree(callbacks.arena(), box_);
-            if !reuses_committed_subtree && entry.can_be_replayed(callbacks) {
+        let mut reuses_committed_subtree = false;
+        if let Some(entry) = store.first_entry_where(box_.slot_index(), |entry| {
+            if entry.validity != validity || entry.outputs.root.is_none() || !entry.answers_probe_for(key) {
+                return false;
+            }
+            reuses_committed_subtree = entry.describes_committed_subtree(callbacks.arena(), box_);
+            reuses_committed_subtree || entry.can_be_replayed(callbacks)
+        }) {
+            if !reuses_committed_subtree {
                 // NB: Once the replayed fragments are committed, the entry can drop them.
                 store.enqueue_for_sweep(box_.slot_index());
             }
-            if reuses_committed_subtree || entry.can_be_replayed(callbacks) {
-                return Err(FcRunCacheHit {
-                    entry,
-                    reuses_committed_subtree,
-                });
-            }
+            entry.note_used_at_layout_commit(callbacks.arena().layout_commit_count());
+            return Err(FcRunCacheHit {
+                entry,
+                reuses_committed_subtree,
+            });
         }
-        let structurally_damaged_entry =
-            store.structurally_damaged_entry(box_.slot_index(), validity, key, structural_epoch_bumps);
+        let structurally_damaged_entry = store.structurally_damaged_entry(box_, validity, key);
         Ok(Self::Store {
             validity,
             structurally_damaged_entry,
@@ -770,8 +871,8 @@ impl FcRunCacheAttempt {
             Self::Bypass => return,
             Self::StoreResultOnly { validity } => {
                 debug_assert!(outputs.root.is_none(), "a run that builds no fragments returned a root");
-                store.store_result_only(
-                    box_.slot_index(),
+                store.store(
+                    box_,
                     FcRunCacheEntry {
                         key,
                         validity,
@@ -780,6 +881,10 @@ impl FcRunCacheAttempt {
                         root_content_block_size_adopted_after_run,
                         layout_commits_when_stored: callbacks.arena().layout_commit_count(),
                         committed_subtree_token_when_descendants_dropped: None,
+                        last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(
+                            callbacks.arena().layout_commit_count(),
+                        ),
+                        structural_epoch_bumps_when_stored: 0,
                     },
                 );
                 return;
@@ -814,8 +919,10 @@ impl FcRunCacheAttempt {
             root_content_block_size_adopted_after_run,
             layout_commits_when_stored: callbacks.arena().layout_commit_count(),
             committed_subtree_token_when_descendants_dropped: None,
+            last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(callbacks.arena().layout_commit_count()),
+            structural_epoch_bumps_when_stored: 0,
         };
-        store.store(box_.slot_index(), entry);
+        store.store(box_, entry);
     }
 }
 
@@ -936,18 +1043,37 @@ mod tests {
         }
     }
 
-    #[test]
-    fn sweep_checks_changed_entries_without_discarding_reusable_stale_data_early() {
-        let store = FcRunCacheArenaStore::default();
-        let entry = |epoch| FcRunCacheEntry {
-            key: key(AvailableSize::definite(px(300)), Some(px(300))),
+    fn at(inline_size: i64) -> FcRunCacheKey {
+        key(AvailableSize::definite(px(inline_size)), Some(px(inline_size)))
+    }
+
+    fn root_with_a_descendant() -> fragment_tree::UnplacedRootFragment {
+        fragment_tree::UnplacedRootFragment {
+            node: Node::new(0, 1),
+            scoped_descendants: vec![fragment_tree::FragmentLink::for_test(Node::new(1, 1))],
+            reused_subtree_roots: HashSet::default(),
+            propagated_pending_abspos: Vec::new(),
+            propagated_anchor_candidates: Vec::new(),
+            propagated_inline_containing_block_rects: Vec::new(),
+            propagated_abspos_containing_block_info: Vec::new(),
+        }
+    }
+
+    fn entry(
+        key: FcRunCacheKey,
+        fragment_cache_epoch: u32,
+        root: Option<fragment_tree::UnplacedRootFragment>,
+        layout_commit_count: u64,
+    ) -> FcRunCacheEntry {
+        FcRunCacheEntry {
+            key,
             validity: FcRunCacheValidity {
                 slot_generation: 1,
-                fragment_cache_epoch: epoch,
+                fragment_cache_epoch,
             },
             outputs: formatting_context::RunOutputs {
                 result: formatting_context::ChildLayoutResult::default(),
-                root: None,
+                root,
                 root_outcome: formatting_context::RunRootOutcome {
                     cells: formatting_context::RootCellsOutcome::AllCells(used_values::UsedValuesCellState::capture(
                         &UsedValues::default(),
@@ -961,17 +1087,52 @@ mod tests {
             },
             table_cell_intrinsic_block_padding_unobserved: false,
             root_content_block_size_adopted_after_run: None,
-            layout_commits_when_stored: 0,
+            layout_commits_when_stored: layout_commit_count,
             committed_subtree_token_when_descendants_dropped: None,
-        };
-        store.store(0, entry(1));
-        store.store(1, entry(1));
-        store.sweep_pending_entries(|_, _| true, |_, _| None);
-        store.sweep_pending_entries(|_, _| panic!("unchanged entries must not be swept"), |_, _| None);
+            last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(layout_commit_count),
+            structural_epoch_bumps_when_stored: 0,
+        }
+    }
+
+    fn widths(inline_sizes: &[i64]) -> Vec<AvailableSize> {
+        inline_sizes
+            .iter()
+            .map(|&inline_size| AvailableSize::definite(px(inline_size)))
+            .collect()
+    }
+
+    fn widths_of_entries(store: &FcRunCacheArenaStore, slot: u32) -> Vec<AvailableSize> {
+        let mut widths = Vec::new();
+        store.first_entry_where(slot, |entry| {
+            widths.push(entry.key.input.available_space.inline_size);
+            false
+        });
+        widths
+    }
+
+    fn width_of_committed_entry(store: &FcRunCacheArenaStore, slot: u32) -> Option<AvailableSize> {
+        store.slots.borrow()[slot as usize]
+            .committed
+            .as_ref()
+            .map(|entry| entry.key.input.available_space.inline_size)
+    }
+
+    fn mark_entries_of_key(marked: FcRunCacheKey) -> impl FnMut(Node, &FcRunCacheEntry) -> Option<u32> {
+        move |_, entry| (entry.key == marked).then_some(7)
+    }
+
+    #[test]
+    fn sweep_checks_changed_entries_without_discarding_reusable_stale_data_early() {
+        let store = FcRunCacheArenaStore::default();
+        let entry = |epoch| entry(at(300), epoch, None, 0);
+        store.store(Node::new(0, 1), entry(1));
+        store.store(Node::new(1, 1), entry(1));
+        store.sweep_pending_entries(|_, _| true, |_, _| None, 1);
+        store.sweep_pending_entries(|_, _| panic!("unchanged entries must not be swept"), |_, _| None, 2);
 
         store.note_invalidated_entry(Node::new(0, 1));
         store.note_invalidated_entry(Node::new(0, 1));
-        assert!(store.entries.borrow()[0].is_some());
+        assert_eq!(widths_of_entries(&store, 0).len(), 1);
         let mut checked = 0;
         store.sweep_pending_entries(
             |slot, _| {
@@ -980,20 +1141,193 @@ mod tests {
                 false
             },
             |_, _| None,
+            3,
         );
         assert_eq!(checked, 1);
-        assert!(store.entries.borrow()[0].is_none());
-        assert!(store.entries.borrow()[1].is_some());
+        assert!(widths_of_entries(&store, 0).is_empty());
+        assert_eq!(widths_of_entries(&store, 1).len(), 1);
 
         store.note_invalidated_entry(Node::new(1, 1));
-        store.store(1, entry(2));
-        store.sweep_pending_entries(|_, validity| validity.fragment_cache_epoch == 2, |_, _| None);
-        assert!(store.entries.borrow()[1].is_some());
+        store.store(Node::new(1, 1), entry(2));
+        store.sweep_pending_entries(|_, validity| validity.fragment_cache_epoch == 2, |_, _| None, 4);
+        assert_eq!(widths_of_entries(&store, 1).len(), 1);
 
         // A result stored after a mid-run invalidation still needs its validity checked.
-        store.store(0, entry(1));
-        store.sweep_pending_entries(|_, validity| validity.fragment_cache_epoch == 2, |_, _| None);
-        assert!(store.entries.borrow()[0].is_none());
+        store.store(Node::new(0, 1), entry(1));
+        store.sweep_pending_entries(|_, validity| validity.fragment_cache_epoch == 2, |_, _| None, 5);
+        assert!(widths_of_entries(&store, 0).is_empty());
+    }
+
+    #[test]
+    fn a_store_keeps_the_entry_whose_fragments_the_box_committed_beside_newer_ones() {
+        let store = FcRunCacheArenaStore::default();
+        let box_ = Node::new(0, 1);
+        store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
+        store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(300)), 1);
+        store.store(box_, entry(at(320), 1, Some(root_with_a_descendant()), 1));
+        store.store(box_, entry(at(340), 1, None, 1));
+        assert_eq!(
+            width_of_committed_entry(&store, 0),
+            Some(AvailableSize::definite(px(300)))
+        );
+        assert_eq!(widths_of_entries(&store, 0), widths(&[300, 340, 320]));
+
+        store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 1));
+        assert_eq!(width_of_committed_entry(&store, 0), None);
+        assert_eq!(widths_of_entries(&store, 0), widths(&[300, 340, 320]));
+    }
+
+    #[test]
+    fn the_sweep_marks_the_entry_whose_fragments_the_box_committed_and_drops_its_descendant_fragments() {
+        let store = FcRunCacheArenaStore::default();
+        let box_ = Node::new(0, 1);
+        store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
+        store.store(box_, entry(at(320), 1, Some(root_with_a_descendant()), 0));
+        store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(300)), 1);
+        let committed = store.slots.borrow()[0]
+            .committed
+            .clone()
+            .expect("the earlier entry whose fragments the box committed moves beside the latest one");
+        assert_eq!(
+            committed.key.input.available_space.inline_size,
+            AvailableSize::definite(px(300))
+        );
+        assert_eq!(committed.committed_subtree_token_when_descendants_dropped, Some(7));
+        assert!(committed.outputs.root.as_ref().unwrap().scoped_descendants.is_empty());
+        assert_eq!(widths_of_entries(&store, 0), widths(&[300, 320]));
+
+        let both_are_committed =
+            |_, entry: &FcRunCacheEntry| (entry.key == at(300) || entry.key == at(320)).then_some(7);
+        store.sweep_pending_entries(|_, _| true, both_are_committed, 2);
+        assert_eq!(
+            width_of_committed_entry(&store, 0),
+            Some(AvailableSize::definite(px(300))),
+            "only an entry stored or used since the previous layout commit can have been committed by the last one"
+        );
+        store
+            .first_entry_where(0, |entry| entry.key == at(320))
+            .unwrap()
+            .note_used_at_layout_commit(2);
+        store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(320)), 3);
+        assert_eq!(width_of_committed_entry(&store, 0), None);
+        assert_eq!(widths_of_entries(&store, 0), widths(&[320]));
+    }
+
+    #[test]
+    fn an_earlier_entry_committed_in_place_of_the_marked_latest_one_stays_beside_later_stores() {
+        let store = FcRunCacheArenaStore::default();
+        let box_ = Node::new(0, 1);
+        store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
+        store.store(box_, entry(at(320), 1, Some(root_with_a_descendant()), 0));
+        store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(320)), 1);
+        store
+            .first_entry_where(0, |entry| entry.key == at(300))
+            .unwrap()
+            .note_used_at_layout_commit(1);
+        store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(300)), 2);
+        assert_eq!(
+            width_of_committed_entry(&store, 0),
+            Some(AvailableSize::definite(px(300)))
+        );
+        store.store(box_, entry(at(340), 1, None, 2));
+        assert_eq!(
+            width_of_committed_entry(&store, 0),
+            Some(AvailableSize::definite(px(300))),
+            "the entry marked before the box committed another one no longer describes the committed subtree"
+        );
+        assert_eq!(widths_of_entries(&store, 0), widths(&[300, 340]));
+    }
+
+    #[test]
+    fn a_committed_entry_that_no_longer_describes_the_committed_subtree_goes() {
+        let store = FcRunCacheArenaStore::default();
+        let box_ = Node::new(0, 1);
+        store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
+        store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(300)), 1);
+        store.store(box_, entry(at(320), 1, Some(root_with_a_descendant()), 1));
+        assert_eq!(widths_of_entries(&store, 0), widths(&[300, 320]));
+        store.sweep_pending_entries(|_, _| true, |_, _| None, 2);
+        assert_eq!(widths_of_entries(&store, 0), widths(&[320]));
+    }
+
+    #[test]
+    fn entries_holding_fragments_the_box_never_committed_go_after_two_unused_layout_commits_beside_one_it_did() {
+        let store = FcRunCacheArenaStore::default();
+        let box_ = Node::new(0, 1);
+        store.store(box_, entry(at(280), 1, Some(root_with_a_descendant()), 0));
+        store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(280)), 1);
+        store.store(box_, entry(at(300), 1, None, 1));
+        store.store(box_, entry(at(320), 1, Some(root_with_a_descendant()), 1));
+        store.store(box_, entry(at(340), 1, Some(root_with_a_descendant()), 1));
+        store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(280)), 2);
+        store
+            .first_entry_where(0, |entry| entry.key == at(320))
+            .unwrap()
+            .note_used_at_layout_commit(2);
+        store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(280)), 3);
+        store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(280)), 4);
+        assert_eq!(widths_of_entries(&store, 0), widths(&[280, 320, 300]));
+        store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(280)), 5);
+        assert_eq!(widths_of_entries(&store, 0), widths(&[280, 300]));
+        store.sweep_pending_entries(
+            |_, _| panic!("a box holding no fragments it did not commit is not swept again"),
+            |_, _| None,
+            6,
+        );
+    }
+
+    #[test]
+    fn the_latest_entry_of_a_box_that_committed_none_of_its_entries_stays() {
+        let store = FcRunCacheArenaStore::default();
+        let box_ = Node::new(0, 1);
+        store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
+        for layout_commit_count in 1..5 {
+            store.sweep_pending_entries(|_, _| true, |_, _| None, layout_commit_count);
+        }
+        assert_eq!(widths_of_entries(&store, 0), widths(&[300]));
+    }
+
+    #[test]
+    fn earlier_entries_make_room_oldest_first_and_results_of_runs_without_fragments_first() {
+        let store = FcRunCacheArenaStore::default();
+        let box_ = Node::new(0, 1);
+        store.store(box_, entry(at(100), 1, Some(root_with_a_descendant()), 0));
+        store.store(box_, entry(at(200), 1, None, 0));
+        store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
+        store.store(box_, entry(at(400), 1, Some(root_with_a_descendant()), 0));
+        assert_eq!(widths_of_entries(&store, 0), widths(&[400, 300, 200, 100]));
+        store.store(box_, entry(at(500), 1, Some(root_with_a_descendant()), 0));
+        assert_eq!(widths_of_entries(&store, 0), widths(&[500, 400, 300, 100]));
+        store.store(box_, entry(at(600), 1, Some(root_with_a_descendant()), 0));
+        assert_eq!(widths_of_entries(&store, 0), widths(&[600, 500, 400, 300]));
+        store.store(box_, entry(at(400), 1, None, 0));
+        assert_eq!(widths_of_entries(&store, 0), widths(&[400, 600, 500, 300]));
+    }
+
+    #[test]
+    fn a_store_keeps_the_inline_damage_an_earlier_entry_saw() {
+        let store = FcRunCacheArenaStore::default();
+        let box_ = Node::new(0, 1);
+        store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
+        store.note_inline_layout_damage(box_);
+        store.store(box_, entry(at(320), 3, None, 0));
+        let damaged_validity = FcRunCacheValidity {
+            slot_generation: 1,
+            fragment_cache_epoch: 3,
+        };
+        let damaged = store
+            .structurally_damaged_entry(box_, damaged_validity, &at(300))
+            .expect("the entry stored before the damage supplies its line data");
+        assert_eq!(
+            damaged.key.input.available_space.inline_size,
+            AvailableSize::definite(px(300))
+        );
+        store.note_inline_layout_damage(box_);
+        assert!(
+            store
+                .structurally_damaged_entry(box_, damaged_validity, &at(300))
+                .is_none()
+        );
     }
 
     #[test]

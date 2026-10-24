@@ -1540,9 +1540,10 @@ impl LayoutNodeArena {
         self.sweep_stale_fc_run_cache_entries();
     }
 
-    /// Drops entries whose slot or epoch no longer matches.
-    /// Checks only entries invalidated or stored since the previous sweep. Stale entries
-    /// survive until commit so inline layout can reuse their undamaged line prefixes.
+    /// Drops entries whose slot or epoch no longer matches, marks the entry whose fragments each box
+    /// committed and ages the others. Checks only boxes whose entries were invalidated, stored or used
+    /// since the previous sweep, or can still age out. Stale entries survive until commit so inline
+    /// layout can reuse their undamaged line prefixes.
     fn sweep_stale_fc_run_cache_entries(&self) {
         self.fc_run_cache_store.sweep_pending_entries(
             |slot, validity| {
@@ -1560,6 +1561,7 @@ impl LayoutNodeArena {
                     .describes_committed_subtree(self, box_)
                     .then(|| self.committed_subtree_token(box_))
             },
+            self.layout_commit_count(),
         );
     }
 
