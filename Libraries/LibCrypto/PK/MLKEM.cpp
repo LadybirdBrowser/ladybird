@@ -48,7 +48,6 @@ static ErrorOr<ByteBuffer> read_mlkem_private_key(MLKEMSize size, ASN1::Decoder&
 {
     // expandedKey ::= OCTET STRING (SIZE (1632 | 2400 | 3168))
 
-    ENTER_TYPED_SCOPE(OctetString, "expandedKey");
     READ_OBJECT(OctetString, StringView, expanded_key_bits);
 
     auto const expanded_key = expanded_key_bits.bytes();
@@ -71,8 +70,6 @@ static ErrorOr<ByteBuffer> read_mlkem_private_key(MLKEMSize size, ASN1::Decoder&
     default:
         VERIFY_NOT_REACHED();
     }
-    POP_SCOPE();
-
     return ByteBuffer::copy(expanded_key);
 }
 
@@ -108,7 +105,7 @@ ErrorOr<MLKEM::KeyPairType> MLKEM::parse_mlkem_key(MLKEMSize size, ReadonlyBytes
         REWRITE_TAG(OctetString);
         return generate_key_pair(size, TRY(read_mlkem_seed(decoder, current_scope)));
     }
-    if (tag.kind == ASN1::Kind::OctetString) {
+    if (tag.kind == ASN1::Kind::OctetString && tag.type == ASN1::Type::Primitive) {
         return KeyPairType {
             {},
             { {}, {}, TRY(read_mlkem_private_key(size, decoder, current_scope)) }
