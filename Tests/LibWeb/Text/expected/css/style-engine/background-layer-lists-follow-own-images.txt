@@ -1,7 +1,7 @@
 one-then-two 0 (one): attachment scroll, repeat repeat, size auto, origin padding-box, clip border-box, position 0% 0%
-one-then-two 1 (two): attachment scroll, repeat repeat, size auto, origin padding-box, clip border-box, position 0% 0%
-two-then-one 0 (two): attachment scroll, repeat repeat, size auto, origin padding-box, clip border-box, position 0% 0%
+one-then-two 1 (two): attachment scroll, scroll, repeat repeat, repeat, size auto, auto, origin padding-box, padding-box, clip border-box, border-box, position 0% 0%, 0% 0%
+two-then-one 0 (two): attachment scroll, scroll, repeat repeat, repeat, size auto, auto, origin padding-box, padding-box, clip border-box, border-box, position 0% 0%, 0% 0%
 two-then-one 1 (one): attachment scroll, repeat repeat, size auto, origin padding-box, clip border-box, position 0% 0%
 one: attachment scroll, repeat repeat, size auto, origin padding-box, clip border-box, position 0% 0%
-two: attachment scroll, repeat repeat, size auto, origin padding-box, clip border-box, position 0% 0%
+two: attachment scroll, scroll, repeat repeat, repeat, size auto, auto, origin padding-box, padding-box, clip border-box, border-box, position 0% 0%, 0% 0%
 one again: attachment scroll, repeat repeat, size auto, origin padding-box, clip border-box, position 0% 0%

@@ -3454,6 +3454,20 @@ fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: Compu
     longhand_table.set_computed(entry.property_id, computed, source_slot);
 }
 
+/// The background longhands whose lists are coordinated with the number of background-image layers when they compute.
+const BACKGROUND_LAYER_LONGHANDS: [u16; 7] = {
+    use crate::css::property_metadata::property_id as prop;
+    [
+        prop::BACKGROUND_ATTACHMENT,
+        prop::BACKGROUND_CLIP,
+        prop::BACKGROUND_ORIGIN,
+        prop::BACKGROUND_POSITION_X,
+        prop::BACKGROUND_POSITION_Y,
+        prop::BACKGROUND_REPEAT,
+        prop::BACKGROUND_SIZE,
+    ]
+};
+
 /// Drives the property computation loop: iterates every longhand in
 /// computation order, resolves logical pairing, reads the winning cascaded
 /// declarations straight from the store, selects between the cascaded,
@@ -3547,12 +3561,18 @@ pub(crate) unsafe fn drive_property_computation(
     let mut computed_float: Option<u16> = None;
     let mut computed_position: Option<u16> = None;
     debug_assert!(computed_property_words.is_none_or(|words| words.len() == LONGHAND_WORD_COUNT));
+    let is_selected = |property_id: u16| {
+        let property_index = usize::from(property_id - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
+        computed_property_words.is_some_and(|words| words[property_index / 64] & (1 << (property_index % 64)) != 0)
+    };
+    // NB: The background layer longhands are coordinated with the number of background-image layers as they compute,
+    //     so a drive that evaluates background-image again evaluates them again as well.
+    let background_image_is_selected = is_selected(prop::BACKGROUND_IMAGE);
 
     for &property_id in computation_order {
         let required_driver_input = is_required_driver_input(property_id);
-        let property_index = usize::from(property_id - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
-        let property_is_selected =
-            computed_property_words.is_some_and(|words| words[property_index / 64] & (1 << (property_index % 64)) != 0);
+        let property_is_selected = is_selected(property_id)
+            || (background_image_is_selected && BACKGROUND_LAYER_LONGHANDS.contains(&property_id));
         if !required_driver_input && !property_is_selected && computed_property_words.is_some() {
             continue;
         }
