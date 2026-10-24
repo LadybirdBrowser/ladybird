@@ -38,7 +38,9 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
 
             // If image is not fully decodable, then return bad.
             // If image has a natural width or natural height (or both) equal to zero, then return bad.
-            if (!image_provider_is_usable_for_canvas(*image_element))
+            // NB: An image whose current request is not completely available is not fully decodable, even while the
+            //     request still holds image data.
+            if (image_element->current_request().state() != HTML::ImageRequest::State::CompletelyAvailable || !image_provider_is_usable_for_canvas(*image_element))
                 return { CanvasImageSourceUsability::Bad };
             return Optional<CanvasImageSourceUsability> {};
         },
