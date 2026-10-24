@@ -169,9 +169,10 @@ private:
     virtual void get_source(Web::PageId page_id) override;
     virtual void inspect_dom_tree(Web::PageId page_id) override;
     virtual void inspect_storage(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id) override;
-    virtual Messages::WebContentServer::SetSessionStorageItemResponse set_session_storage_item(Web::PageId page_id, Utf16String key, Utf16String value) override;
-    virtual Messages::WebContentServer::RemoveSessionStorageItemResponse remove_session_storage_item(Web::PageId page_id, Utf16String key) override;
-    virtual Messages::WebContentServer::ClearSessionStorageResponse clear_session_storage(Web::PageId page_id) override;
+    virtual void storage_area_changed(Web::StorageAPI::StorageAreaId area_id, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value, String url) override;
+    virtual void storage_area_write_acknowledged(Web::StorageAPI::StorageAreaId area_id) override;
+    virtual void storage_area_write_refused(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values) override;
+    virtual void storage_area_reset(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values) override;
     virtual void inspect_dom_node(Web::PageId page_id, WebView::DOMNodeProperties::Type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options) override;
     virtual void inspect_grid_layouts(Web::PageId page_id, Web::UniqueNodeID root_node_id) override;
     virtual void inspect_current_grid(Web::PageId page_id, Web::UniqueNodeID node_id) override;

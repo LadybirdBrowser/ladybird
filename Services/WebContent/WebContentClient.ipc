@@ -61,6 +61,7 @@
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/StorageAPI/StorageAreaId.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/WebDriver/Response.h>
 #include <LibWebCommon/WebView/AccessibilityNodeData.h>
@@ -202,7 +203,11 @@ endpoint WebContentClient routed by Web::PageId page_id
     [NotRouted] did_request_storage_keys(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id) => (Vector<Utf16String> keys)
     did_clear_storage(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id) => ()
     [NotRouted] did_request_storage_usage(Web::PageId page_id, Web::HTML::EnvironmentId environment_id) => (u64 usage)
-    did_change_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value) =|
+    [NotRouted] connect_to_storage_area(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id) => (Optional<Web::StorageAPI::StorageAreaId> area_id, Vector<Utf16String> keys, Vector<Utf16String> values, u64 usage)
+    disconnect_from_storage_area(Web::StorageAPI::StorageAreaId area_id) =|
+    set_storage_item(Web::StorageAPI::StorageAreaId area_id, Utf16String key, Utf16String value, String url) =|
+    remove_storage_item(Web::StorageAPI::StorageAreaId area_id, Utf16String key, String url) =|
+    clear_storage_area(Web::StorageAPI::StorageAreaId area_id, String url) =|
     did_update_indexed_database(Web::PageId page_id, String update) =|
     did_post_broadcast_channel_message(Web::PageId page_id, Web::HTML::PostedBroadcastChannelMessage message) =|
 

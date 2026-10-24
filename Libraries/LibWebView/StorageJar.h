@@ -75,8 +75,8 @@ public:
 
     ~StorageJar();
 
-    // Called after every change this jar applies, whoever asked for it. Every write goes through the jar, so a mirror
-    // of a bottle that listens here hears about every change to it.
+    // Called after every change this jar applies, whoever asked for it, after the StorageAreaRegistry has heard of
+    // it. The registry is told directly, so nothing here can be unhooked by mistake.
     Function<void(StorageChange const&)> on_change;
 
     Optional<Utf16String> get_item(StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key);

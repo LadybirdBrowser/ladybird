@@ -59,6 +59,7 @@
 #include <LibWebView/ChildIdentity.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/RequestServerSiteBindings.h>
+#include <LibWebView/StorageAreaRegistry.h>
 #include <LibWebView/WebContentPage.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
@@ -69,7 +70,8 @@ class ViewImplementation;
 
 class WEBVIEW_API WebContentClient final
     : public IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint, WebContentClientPageRoutingStub>
-    , public WebContentClientEndpoint {
+    , public WebContentClientEndpoint
+    , public StorageAreaListener {
     C_OBJECT_ABSTRACT(WebContentClient);
 
     friend class WebContentTestClient;
@@ -142,6 +144,9 @@ public:
     // True for every page ID the UI process has handed to this connection, closed pages included, since a
     // message the connection sent while it had the page can arrive after the page is gone.
     virtual bool may_act_for_page(Web::PageId page_id) const override;
+    // True for every storage area ID the UI process has handed to this connection, torn-down areas included, for
+    // the same reason.
+    virtual bool may_act_for_storage_area(Web::StorageAPI::StorageAreaId) const override;
 
     Optional<u64> exclusive_performance_owner() const;
 
@@ -188,6 +193,17 @@ private:
     virtual Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key) override;
     virtual Messages::WebContentClient::DidRequestStorageKeysResponse did_request_storage_keys(Web::PageId page_id, Web::StorageAPI::StorageEndpointType, Web::HTML::EnvironmentId environment_id) override;
     virtual Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(Web::PageId page_id, Web::HTML::EnvironmentId environment_id) override;
+    virtual Messages::WebContentClient::ConnectToStorageAreaResponse connect_to_storage_area(Web::PageId page_id, Web::StorageAPI::StorageEndpointType, Web::HTML::EnvironmentId environment_id) override;
+    virtual void disconnect_from_storage_area(Web::StorageAPI::StorageAreaId) override;
+    virtual void set_storage_item(Web::StorageAPI::StorageAreaId, Utf16String key, Utf16String value, String url) override;
+    virtual void remove_storage_item(Web::StorageAPI::StorageAreaId, Utf16String key, String url) override;
+    virtual void clear_storage_area(Web::StorageAPI::StorageAreaId, String url) override;
+
+    // StorageAreaListener: what the registry tells this process about the areas it mirrors.
+    virtual void storage_area_changed(Web::StorageAPI::StorageAreaId, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, String const& url) override;
+    virtual void storage_area_write_acknowledged(Web::StorageAPI::StorageAreaId) override;
+    virtual void storage_area_write_refused(Web::StorageAPI::StorageAreaId, Vector<StorageItem>) override;
+    virtual void storage_area_reset(Web::StorageAPI::StorageAreaId, Vector<StorageItem>) override;
     virtual Messages::WebContentClient::DidStartDownloadWithoutRequestResponse did_start_download_without_request(Web::PageId page_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size) override;
     virtual Messages::WebContentClient::DidStartDownloadResponse did_start_download(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
     virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(Web::PageId page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set) override;

@@ -126,6 +126,7 @@ WebContentClient::~WebContentClient()
         page.value->close();
     cancel_navigation_transactions();
     remove_blob_url_entries();
+    StorageAreaRegistry::the().remove_listener(*this);
     WorkerProcessManager::the().remove_web_content_owner(*this);
     GamepadManager::the().client_disconnected(*this);
     clients().remove(this);
@@ -392,6 +393,11 @@ bool WebContentClient::may_act_for_page(Web::PageId page_id) const
     return m_pages.contains(page_id) || m_unassigned_initial_page_id == page_id;
 }
 
+bool WebContentClient::may_act_for_storage_area(Web::StorageAPI::StorageAreaId area_id) const
+{
+    return StorageAreaRegistry::the().was_issued_to(*this, area_id);
+}
+
 Optional<CanonicalNavigable&> WebContentClient::hosted_navigable(Web::HTML::CrossProcessId navigable_id)
 {
     Optional<CanonicalNavigable&> result;
@@ -538,6 +544,7 @@ void WebContentClient::did_lose_process()
     cancel_navigation_transactions();
     fail_renderer_owned_downloads();
     remove_blob_url_entries();
+    StorageAreaRegistry::the().remove_listener(*this);
 
     if (requested_close)
         return;
@@ -694,6 +701,71 @@ Messages::WebContentClient::DidRequestStorageUsageResponse WebContentClient::did
         return page->did_request_storage_usage(move(environment_id));
 
     return 0u;
+}
+
+Messages::WebContentClient::ConnectToStorageAreaResponse WebContentClient::connect_to_storage_area(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id)
+{
+    if (auto* page = this->page(page_id))
+        return page->connect_to_storage_area(storage_endpoint, move(environment_id));
+
+    // A closed page has no storage to connect to; the mirror stays detached.
+    return { {}, {}, {}, 0 };
+}
+
+void WebContentClient::disconnect_from_storage_area(Web::StorageAPI::StorageAreaId area_id)
+{
+    StorageAreaRegistry::the().disconnect(*this, area_id);
+}
+
+void WebContentClient::set_storage_item(Web::StorageAPI::StorageAreaId area_id, Utf16String key, Utf16String value, String url)
+{
+    StorageAreaRegistry::the().set_item(*this, area_id, key, value, url);
+}
+
+void WebContentClient::remove_storage_item(Web::StorageAPI::StorageAreaId area_id, Utf16String key, String url)
+{
+    StorageAreaRegistry::the().remove_item(*this, area_id, key, url);
+}
+
+void WebContentClient::clear_storage_area(Web::StorageAPI::StorageAreaId area_id, String url)
+{
+    StorageAreaRegistry::the().clear(*this, area_id, url);
+}
+
+static void split_items(Vector<StorageItem> const& items, Vector<Utf16String>& keys, Vector<Utf16String>& values)
+{
+    keys.ensure_capacity(items.size());
+    values.ensure_capacity(items.size());
+    for (auto const& item : items) {
+        keys.unchecked_append(item.key);
+        values.unchecked_append(item.value);
+    }
+}
+
+void WebContentClient::storage_area_changed(Web::StorageAPI::StorageAreaId area_id, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, String const& url)
+{
+    async_storage_area_changed(area_id, key, old_value, new_value, url);
+}
+
+void WebContentClient::storage_area_write_acknowledged(Web::StorageAPI::StorageAreaId area_id)
+{
+    async_storage_area_write_acknowledged(area_id);
+}
+
+void WebContentClient::storage_area_write_refused(Web::StorageAPI::StorageAreaId area_id, Vector<StorageItem> items)
+{
+    Vector<Utf16String> keys;
+    Vector<Utf16String> values;
+    split_items(items, keys, values);
+    async_storage_area_write_refused(area_id, move(keys), move(values));
+}
+
+void WebContentClient::storage_area_reset(Web::StorageAPI::StorageAreaId area_id, Vector<StorageItem> items)
+{
+    Vector<Utf16String> keys;
+    Vector<Utf16String> values;
+    split_items(items, keys, values);
+    async_storage_area_reset(area_id, move(keys), move(values));
 }
 
 Messages::WebContentClient::DidStartDownloadWithoutRequestResponse WebContentClient::did_start_download_without_request(Web::PageId page_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size)

@@ -10,7 +10,6 @@
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StatsLog.h>
-#include <LibDevTools/StorageHelpers.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibWebCommon/Geolocation/GeolocationPositionErrorCode.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
@@ -31,6 +30,7 @@
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/PictureInPictureManager.h>
 #include <LibWebView/RequestServerManager.h>
+#include <LibWebView/StorageAreaRegistry.h>
 #include <LibWebView/StorageJar.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
@@ -1284,6 +1284,28 @@ void WebContentPage::did_clear_storage(Web::StorageAPI::StorageEndpointType stor
         storage_jar->clear_storage_key(storage_endpoint, *canonical_key);
 }
 
+Messages::WebContentClient::ConnectToStorageAreaResponse WebContentPage::connect_to_storage_area(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id)
+{
+    auto canonical_key = canonical_storage_key(environment_id);
+    auto* storage_jar = this->storage_jar(storage_endpoint);
+    if (!canonical_key.has_value() || !storage_jar)
+        return { {}, {}, {}, 0 };
+
+    auto connection = StorageAreaRegistry::the().connect(client(), *storage_jar, storage_endpoint, *canonical_key);
+    if (!connection.has_value())
+        return { {}, {}, {}, 0 };
+
+    Vector<Utf16String> keys;
+    Vector<Utf16String> values;
+    keys.ensure_capacity(connection->items.size());
+    values.ensure_capacity(connection->items.size());
+    for (auto& item : connection->items) {
+        keys.unchecked_append(move(item.key));
+        values.unchecked_append(move(item.value));
+    }
+    return { connection->id, move(keys), move(values), connection->usage };
+}
+
 void WebContentPage::did_change_needs_beforeunload_check(bool needs_beforeunload_check)
 {
     m_needs_beforeunload_check = needs_beforeunload_check;
@@ -1905,32 +1927,6 @@ void WebContentPage::did_receive_network_response_headers(u64 request_id, u32 st
     if (displays_tab()) {
         if (view().on_network_response_headers_received)
             view().on_network_response_headers_received(request_id, status_code, reason_phrase, response_headers, cache_state);
-    }
-}
-
-void WebContentPage::did_change_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value)
-{
-    if (displays_tab()) {
-        auto host = DevTools::storage_host_for_url(url);
-        if (!host.has_value())
-            return;
-
-        DevTools::DevToolsDelegate::StorageChange::Type type;
-        if (!key.has_value())
-            type = DevTools::DevToolsDelegate::StorageChange::Type::Cleared;
-        else if (!old_value.has_value())
-            type = DevTools::DevToolsDelegate::StorageChange::Type::Added;
-        else if (!new_value.has_value())
-            type = DevTools::DevToolsDelegate::StorageChange::Type::Deleted;
-        else
-            type = DevTools::DevToolsDelegate::StorageChange::Type::Changed;
-
-        view().notify_storage_changed({
-            .storage_endpoint = storage_endpoint,
-            .host = host.release_value(),
-            .type = type,
-            .key = key.has_value() ? Optional<String> { key->to_utf8() } : Optional<String> {},
-        });
     }
 }
 

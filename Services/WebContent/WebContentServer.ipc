@@ -50,6 +50,7 @@
 #include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/StorageAPI/StorageAreaId.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Response.h>
@@ -155,9 +156,10 @@ endpoint WebContentServer routed by Web::PageId page_id
     get_source(Web::PageId page_id) =|
     inspect_dom_tree(Web::PageId page_id) =|
     inspect_storage(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id) =|
-    [NotRouted] set_session_storage_item(Web::PageId page_id, Utf16String key, Utf16String value) => (Optional<WebView::StorageSetResult> result)
-    [NotRouted] remove_session_storage_item(Web::PageId page_id, Utf16String key) => (Optional<Utf16String> old_value)
-    [NotRouted] clear_session_storage(Web::PageId page_id) => (bool did_clear)
+    storage_area_changed(Web::StorageAPI::StorageAreaId area_id, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value, String url) =|
+    storage_area_write_acknowledged(Web::StorageAPI::StorageAreaId area_id) =|
+    storage_area_write_refused(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values) =|
+    storage_area_reset(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values) =|
     inspect_dom_node(Web::PageId page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options) =|
     inspect_grid_layouts(Web::PageId page_id, Web::UniqueNodeID root_node_id) =|
     inspect_current_grid(Web::PageId page_id, Web::UniqueNodeID node_id) =|

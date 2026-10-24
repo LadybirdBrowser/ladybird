@@ -1620,21 +1620,6 @@ void ViewImplementation::inspect_storage(Web::StorageAPI::StorageEndpointType st
     page().async_inspect_storage(storage_endpoint, request_id);
 }
 
-Optional<StorageSetResult> ViewImplementation::set_session_storage_item(Utf16String const& key, Utf16String const& value)
-{
-    return page().set_session_storage_item(key, value);
-}
-
-Optional<Utf16String> ViewImplementation::remove_session_storage_item(Utf16String const& key)
-{
-    return page().remove_session_storage_item(key);
-}
-
-bool ViewImplementation::clear_session_storage()
-{
-    return page().clear_session_storage();
-}
-
 void ViewImplementation::inspect_accessibility_tree()
 {
     page().async_inspect_accessibility_tree();

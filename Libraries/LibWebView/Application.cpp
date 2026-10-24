@@ -26,6 +26,7 @@
 #include <LibDatabase/Database.h>
 #include <LibDevTools/DevToolsServer.h>
 #include <LibDevTools/FirefoxClient.h>
+#include <LibDevTools/StorageHelpers.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibHTTP/Cache/CacheMode.h>
@@ -66,6 +67,7 @@
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/SiteCompatibility.h>
 #include <LibWebView/SpellChecker.h>
+#include <LibWebView/StorageAreaRegistry.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
@@ -1603,9 +1605,69 @@ void Application::launch_spare_web_content_process()
     });
 }
 
+// DevTools hears of every change to a jar, whoever made it, keyed on the host of the page that made it — or on the
+// storage key, when the change came from the browser itself.
+static void notify_devtools_of_storage_change(StorageJar& jar, StorageChange const& change, Optional<String> const& url)
+{
+    Optional<String> host;
+    if (url.has_value())
+        host = DevTools::storage_host_for_url(*url);
+    if (!host.has_value())
+        host = change.storage_key;
+
+    DevTools::DevToolsDelegate::StorageChange::Type type;
+    switch (change.type) {
+    case StorageChange::Type::Set:
+        type = change.old_value.has_value() ? DevTools::DevToolsDelegate::StorageChange::Type::Changed : DevTools::DevToolsDelegate::StorageChange::Type::Added;
+        break;
+    case StorageChange::Type::Removed:
+        type = DevTools::DevToolsDelegate::StorageChange::Type::Deleted;
+        break;
+    case StorageChange::Type::Cleared:
+    case StorageChange::Type::Reset:
+        type = DevTools::DevToolsDelegate::StorageChange::Type::Cleared;
+        break;
+    }
+
+    Vector<DevTools::DevToolsDelegate::StorageChange> devtools_changes;
+    devtools_changes.append({
+        .storage_endpoint = change.storage_endpoint,
+        .host = *host,
+        .type = type,
+        .key = change.key.map([](auto const& key) { return key.to_utf8(); }),
+    });
+
+    // A reset says only that the bottle changed, not how; DevTools can't be told that, so it hears the bottle emptied
+    // and then every item still in it added back.
+    if (change.type == StorageChange::Type::Reset) {
+        for (auto const& item : jar.get_all_items(change.storage_endpoint, change.storage_key)) {
+            devtools_changes.append({
+                .storage_endpoint = change.storage_endpoint,
+                .host = *host,
+                .type = DevTools::DevToolsDelegate::StorageChange::Type::Added,
+                .key = item.key.to_utf8(),
+            });
+        }
+    }
+
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        bool owns_jar = view.session().storage_jar.ptr() == &jar || (view.has_traversable() && &view.traversable().session_storage() == &jar);
+        if (owns_jar) {
+            for (auto const& devtools_change : devtools_changes)
+                view.notify_storage_changed(devtools_change);
+        }
+        return IterationDecision::Continue;
+    });
+}
+
 ErrorOr<void> Application::launch_services()
 {
     m_default_session = BrowsingSession::create(IsPrivate::No);
+    StorageAreaRegistry::the().on_change_for_devtools = [this](StorageJar& jar, WebView::StorageChange const& change, Optional<String> const& url) {
+        // Only an attached DevTools has anyone to tell, and the lookup below isn't free on a page's write path.
+        if (m_devtools)
+            notify_devtools_of_storage_change(jar, change, url);
+    };
 
     m_settings_observer = make<ApplicationSettingsObserver>();
     m_bookmark_store_observer = make<ApplicationBookmarkStoreObserver>();
@@ -3317,31 +3379,27 @@ void Application::inspect_storage(DevTools::TabDescription const& description, W
     view->inspect_storage(storage_endpoint, request_id);
 }
 
+// The jar a tab's storage of this kind lives in: session storage belongs to the tab's traversable, local storage to
+// its browsing session. Every DevTools edit goes through the jar, like every other write, so the pages mirroring the
+// bottle hear of it the same way.
+static ErrorOr<StorageJar*> storage_jar_for_devtools(ViewImplementation& view, Web::StorageAPI::StorageEndpointType storage_endpoint)
+{
+    if (storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage) {
+        if (!view.has_traversable())
+            return Error::from_string_literal("Unable to locate session storage");
+        return &view.traversable().session_storage();
+    }
+    return view.session().storage_jar.ptr();
+}
+
 ErrorOr<Optional<String>> Application::set_storage_item(DevTools::TabDescription const& description, Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& key, String const& value) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value())
         return Error::from_string_literal("Unable to locate tab");
 
-    if (storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage) {
-        auto key_utf16 = Utf16String::from_utf8(key);
-        auto value_utf16 = Utf16String::from_utf8(value);
-        auto result = view->set_session_storage_item(key_utf16, value_utf16);
-        if (!result.has_value())
-            return Error::from_string_literal("Unable to locate session storage");
-        return TRY(storage_set_result_to_error_or_old_value(result.release_value()));
-    }
-
-    auto key_utf16 = Utf16String::from_utf8(key);
-    auto value_utf16 = Utf16String::from_utf8(value);
-    auto old_value = TRY(storage_set_result_to_error_or_old_value(view->session().storage_jar->set_item(storage_endpoint, storage_key, key_utf16, value_utf16)));
-    if (!old_value.has_value()) {
-        view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Added, key });
-    } else if (*old_value != value) {
-        view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Changed, key });
-    }
-
-    return old_value;
+    auto* storage_jar = TRY(storage_jar_for_devtools(*view, storage_endpoint));
+    return TRY(storage_set_result_to_error_or_old_value(storage_jar->set_item(storage_endpoint, storage_key, Utf16String::from_utf8(key), Utf16String::from_utf8(value))));
 }
 
 ErrorOr<Optional<String>> Application::remove_storage_item(DevTools::TabDescription const& description, Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& key) const
@@ -3350,16 +3408,13 @@ ErrorOr<Optional<String>> Application::remove_storage_item(DevTools::TabDescript
     if (!view.has_value())
         return Error::from_string_literal("Unable to locate tab");
 
-    if (storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage)
-        return view->remove_session_storage_item(Utf16String::from_utf8(key)).map([](auto const& old_value) { return old_value.to_utf8(); });
-
+    auto* storage_jar = TRY(storage_jar_for_devtools(*view, storage_endpoint));
     auto key_utf16 = Utf16String::from_utf8(key);
-    auto old_value = view->session().storage_jar->get_item(storage_endpoint, storage_key, key_utf16);
+    auto old_value = storage_jar->get_item(storage_endpoint, storage_key, key_utf16);
     if (!old_value.has_value())
         return Optional<String> {};
 
-    view->session().storage_jar->remove_item(storage_endpoint, storage_key, key_utf16);
-    view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Deleted, key });
+    storage_jar->remove_item(storage_endpoint, storage_key, key_utf16);
     return old_value->to_utf8();
 }
 
@@ -3369,17 +3424,8 @@ ErrorOr<void> Application::clear_storage(DevTools::TabDescription const& descrip
     if (!view.has_value())
         return Error::from_string_literal("Unable to locate tab");
 
-    if (storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage) {
-        view->clear_session_storage();
-        return {};
-    }
-
-    auto keys = view->session().storage_jar->get_all_keys(storage_endpoint, storage_key);
-    if (keys.is_empty())
-        return {};
-
-    view->session().storage_jar->clear_storage_key(storage_endpoint, storage_key);
-    view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Cleared, {} });
+    auto* storage_jar = TRY(storage_jar_for_devtools(*view, storage_endpoint));
+    storage_jar->clear_storage_key(storage_endpoint, storage_key);
     return {};
 }
 
