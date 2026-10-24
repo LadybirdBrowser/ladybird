@@ -70,6 +70,7 @@ test(() => {
         "    Box<DIV>#flex/flex RUN (cache=miss)",
         "      BlockContainer(anonymous) MEASURE max-content inline (cache=miss) FROM ITEMS",
         "      BlockContainer(anonymous) MEASURE min-content inline (cache=hit) FROM MAX-CONTENT",
+        "      BlockContainer<DIV>#column MEASURE min-content inline (cache=miss) FROM CHILDREN",
         "      Box<DIV>#item MEASURE max-content block (cache=miss)",
         "        Box<DIV>#item/flex (measurement, intrinsic) RUN (cache=bypass)",
         "          BlockContainer<P> INLINE SIZE FROM ITEMS",
@@ -88,6 +89,7 @@ test(() => {
         { depth: 2, event: "run", box: "Box<DIV>#flex", formattingContext: "flex", measurement: false, intrinsic: false, action: "RUN", cache: "miss" },
         { depth: 3, event: "measure", box: "BlockContainer(anonymous)", size: "max-content inline", cache: "miss", from: "items" },
         { depth: 3, event: "measure", box: "BlockContainer(anonymous)", size: "min-content inline", cache: "hit", from: "max-content" },
+        { depth: 3, event: "measure", box: "BlockContainer<DIV>#column", size: "min-content inline", cache: "miss", from: "children" },
         { depth: 3, event: "measure", box: "Box<DIV>#item", size: "max-content block", cache: "miss" },
         { depth: 4, event: "run", box: "Box<DIV>#item", formattingContext: "flex", measurement: true, intrinsic: true, action: "RUN", cache: "bypass" },
         { depth: 5, event: "inline size from items", box: "BlockContainer<P>" },
@@ -135,11 +137,11 @@ test(() => {
     exerciseWork("work rejects asynchronous mutations", () => Promise.resolve(),
         "flush,begin,take", "mutate must be synchronous");
     exerciseWork("work counts the events a filter object matches", () => {}, "flush,begin,flush,take", null,
-        work => work.count({ event: "measure", cache: "miss" }) === 2 && work.count({ event: "measure cell" }) === 2);
+        work => work.count({ event: "measure", cache: "miss" }) === 3 && work.count({ event: "measure cell" }) === 2);
     exerciseWork("work counts the events a filter function matches", () => {}, "flush,begin,flush,take", null,
         work => work.count(event => event.depth === 0) === 2);
     exerciseWork("work names each matching box once, in trace order", () => {}, "flush,begin,flush,take", null,
-        work => work.boxes({ event: "measure" }).join() === "BlockContainer(anonymous),Box<DIV>#item");
+        work => work.boxes({ event: "measure" }).join() === "BlockContainer(anonymous),BlockContainer<DIV>#column,Box<DIV>#item");
     exerciseWork("work keeps the trace text", () => {}, "flush,begin,flush,take", null, work => work.text === trace);
 });
 </script>

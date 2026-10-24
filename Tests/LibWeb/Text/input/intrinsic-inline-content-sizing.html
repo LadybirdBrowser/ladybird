@@ -17,6 +17,18 @@
     }
 </style>
 <script>
+    function runsUnderInlineSizeMeasurements(events) {
+        let runs = 0;
+        const openInlineSizeMeasurementDepths = [];
+        for (const event of events) {
+            while (openInlineSizeMeasurementDepths.length && openInlineSizeMeasurementDepths.at(-1) >= event.depth)
+                openInlineSizeMeasurementDepths.pop();
+            if (event.event === "run" && openInlineSizeMeasurementDepths.length) runs++;
+            if (event.event === "measure" && event.size.endsWith("inline")) openInlineSizeMeasurementDepths.push(event.depth);
+        }
+        return runs;
+    }
+
     asyncTest(async done => {
         await document.fonts.load("10px Ahem");
         const cases = [
@@ -77,6 +89,25 @@
             ["negative indent wider than first line", "text-indent: -40px", "a bbbbb"],
             ["negative indent wider than content", "text-indent: -100px", "aa bb"],
             ["negative margin wider than first line", "", '<span style="margin-left: -40px">a</span> bbbbb'],
+            ["negative block margins", "", '<div style="margin: 0 -15px">alpha beta</div><div style="margin-left: -8px">gamma</div>'],
+            ["block margins beyond content", "", '<div style="margin-right: -200px">alpha beta</div>'],
+            ["nested block contributions", "", '<div style="padding: 0 5px"><div style="width: 70px">alpha</div><div style="margin-left: 20px">beta gamma</div></div><div style="border-left: 3px solid">delta</div>'],
+            ["block constraints", "", '<div style="width: 80px; min-width: 90px; max-width: 100px; padding: 0 4px; margin: 0 3px">alpha</div><div style="max-width: 60px">beta gamma delta</div><div style="min-width: 130px">epsilon</div>'],
+            ["block percentages", "", '<div style="width: 50%; margin-left: 10%; padding-right: 5%">alpha beta</div><div>gamma</div>'],
+            ["new formatting context blocks", "", '<div style="display: flow-root; margin: 0 -10px 0 25px">alpha beta</div><div style="overflow: hidden; margin-left: -20px">gamma delta</div>'],
+            ["floats in sibling blocks", "", '<div><div style="float: left; width: 100px; height: 100px"></div></div><div><div style="float: left; width: 80px; height: 10px"></div></div>'],
+            ["float in a block beside later inline content", "", '<div><div style="float: left; width: 50px; height: 20px"></div></div>text <span style="float: left; width: 30px; height: 20px"></span>more'],
+            ["hanging indent wider than first line in a block", "", '<div style="text-indent: 40px hanging">aa bb</div>'],
+            ["negative indent wider than first line in a block", "", '<div style="text-indent: -40px">a bbbbb</div>'],
+            ["negative margin wider than first line in a block", "", '<div><span style="margin-left: -40px">a</span> bbbbb</div>'],
+            ["column spanner", "columns: 2; column-gap: 10px", '<div>alpha beta</div><div style="column-span: all">gamma delta epsilon</div>'],
+            ["fieldset", "", '<fieldset style="margin: 0; padding: 0 5px; border: 2px solid"><legend style="padding: 0">alpha beta gamma</legend>delta</fieldset>'],
+            ["fieldset legend with min-width", "", '<fieldset style="margin: 0; padding: 0 5px; border: 2px solid"><legend style="padding: 0; min-width: 200px">ab</legend>x</fieldset>'],
+            ["fieldset legend with max-width", "", '<fieldset style="margin: 0; padding: 0 5px; border: 2px solid"><legend style="padding: 0; max-width: 50px">alpha beta gamma</legend>delta</fieldset>'],
+            ["block button", "", '<button style="display: block; font: inherit; padding: 0 3px; border: 1px solid">alpha beta</button><div>gamma</div>'],
+            ["list item", "", '<ul style="margin: 0; padding-left: 20px"><li>alpha beta</li></ul>'],
+            ["percentage height through anonymous block", "height: 100px", '<div>alpha</div>beta <span class=atomic style="height: 50%; aspect-ratio: 2"></span>'],
+            ["size-contained blocks", "", '<div style="contain: size">alpha beta gamma</div><div style="contain: inline-size; contain-intrinsic-width: 30px">alpha beta gamma</div><div>delta</div>'],
         ];
         for (const [name, declarations, content] of cases) {
             const container = document.createElement("div");
@@ -182,8 +213,7 @@
                 scrollContainer.innerHTML = "<p id=\"first\">ABCD EF GH</p><p id=\"second\">AB CD</p>";
                 const work = layoutWork(() => document.body.append(scrollContainer));
                 const measuredWidth = scrollContainer.offsetWidth;
-                const measuredParagraphs = work.boxes({ event: "inline size from items" }).join(", ") || "none";
-                println(`${whitespace}, ${width}: width ${measuredWidth}, paragraphs measured from items ${measuredParagraphs}`);
+                println(`${whitespace}, ${width}: width ${measuredWidth}, runs under inline size measurements ${runsUnderInlineSizeMeasurements(work.events)}`);
                 scrollContainer.remove();
             }
         }

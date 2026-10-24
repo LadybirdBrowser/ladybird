@@ -24,6 +24,24 @@ pub(crate) struct OuterInlineContributions {
     pub(crate) margin_end: CssPixels,
 }
 
+impl OuterInlineContributions {
+    pub(crate) fn margin_box_contributions(&self) -> ContentSizes {
+        let margin_box_inline_size = |content_inline_size| {
+            line_box::inline_advance(
+                self.margin_start,
+                self.border_start + self.padding_start,
+                content_inline_size,
+                self.padding_end + self.border_end,
+                self.margin_end,
+            )
+        };
+        ContentSizes {
+            min: margin_box_inline_size(self.min_content_inline_size),
+            max: margin_box_inline_size(self.max_content_inline_size),
+        }
+    }
+}
+
 /// Inline size limits transferred from the block axis through a preferred aspect ratio.
 #[derive(Clone, Copy)]
 pub(crate) struct TransferredInlineSizeLimits {
@@ -39,10 +57,19 @@ impl TransferredInlineSizeLimits {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ContentSizes {
     pub(crate) min: CssPixels,
     pub(crate) max: CssPixels,
+}
+
+impl ContentSizes {
+    pub(crate) fn largest_of(self, other: Self) -> Self {
+        Self {
+            min: self.min.max(other.min),
+            max: self.max.max(other.max),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -988,6 +1015,35 @@ impl<'pass> SizingContext<'pass> {
         (!content_box.is_invalid() && self.facts(content_box).is_anonymous_button_content_box()).then_some(content_box)
     }
 
+    fn forwards_percentage_bases_as_anonymous_box(&self, node: Node, used: &UsedValues) -> bool {
+        let facts = self.facts(node);
+        facts.is_box()
+            && facts.is_anonymous()
+            && !facts.is_table_cell()
+            && !facts.has_auto_content_box_size()
+            && ((used.inline_size_constraint.get() == SizeConstraint::None
+                && used.block_size_constraint.get() == SizeConstraint::None)
+                || self.is_anonymous_block_box_in_block_flow(node))
+    }
+
+    fn is_anonymous_block_box_in_block_flow(&self, node: Node) -> bool {
+        let facts = self.facts(node);
+        if !facts.is_anonymous() || !facts.is_block_container() || facts.is_table_wrapper() {
+            return false;
+        }
+        let parent = self.callbacks.parent(node);
+        if parent.is_invalid() {
+            return false;
+        }
+        let parent_facts = self.facts(parent);
+        parent_facts.is_block_container()
+            && !parent_facts.children_are_inline()
+            && matches!(
+                formatting_context::formatting_context_type_created_by_box(parent_facts),
+                None | Some(formatting_context::FormattingContextType::Block)
+            )
+    }
+
     pub(crate) fn constraints_for_child_context(
         &self,
         containing_block: Node,
@@ -1000,12 +1056,7 @@ impl<'pass> SizingContext<'pass> {
         // against the closest non-anonymous ancestor, so an anonymous containing block without a
         // definite size of its own passes the constraints it was given through. Anonymous table
         // cells are the exception: they are proper containing blocks with their own size semantics.
-        let should_forward_indefinite_basis = facts.is_box()
-            && facts.is_anonymous()
-            && !facts.is_table_cell()
-            && !facts.has_auto_content_box_size()
-            && used.inline_size_constraint.get() == SizeConstraint::None
-            && used.block_size_constraint.get() == SizeConstraint::None;
+        let should_forward_indefinite_basis = self.forwards_percentage_bases_as_anonymous_box(containing_block, used);
 
         let inline = if used.has_definite_inline_size() {
             Some(used.content_inline_size.get())
@@ -1153,14 +1204,10 @@ impl<'pass> SizingContext<'pass> {
         let style = self.style(node);
         let in_quirks_mode = facts.document_in_quirks_mode();
         let svg_root_forwards_quirks_basis = facts.is_svg_svg_box() && in_quirks_mode;
-        let forwards_block_basis_as_anonymous_box = facts.is_box()
-            && facts.is_anonymous()
-            && !facts.is_table_cell()
-            && !facts.has_auto_content_box_size()
-            && self.records.used_values_if_owned(node).is_some_and(|used| {
-                used.inline_size_constraint.get() == SizeConstraint::None
-                    && used.block_size_constraint.get() == SizeConstraint::None
-            });
+        let forwards_block_basis_as_anonymous_box = self
+            .records
+            .used_values_if_owned(node)
+            .is_some_and(|used| self.forwards_percentage_bases_as_anonymous_box(node, used));
         let forwards_quirks_basis_as_auto_height_block_container = in_quirks_mode
             && !facts.is_viewport()
             && !facts.is_table_cell()
@@ -2202,6 +2249,46 @@ impl<'pass> SizingContext<'pass> {
         }
     }
 
+    pub(crate) fn block_level_table_wrapper_outer_inline_contributions(
+        &self,
+        wrapper: Node,
+        available_block_size: AvailableSize,
+        constraints: ContainingBlockConstraints,
+    ) -> OuterInlineContributions {
+        let table_inline_size_under = |inline_size| {
+            self.compute_table_box_inline_size_inside_wrapper(
+                wrapper,
+                AvailableSpace {
+                    inline_size,
+                    block_size: available_block_size,
+                },
+                constraints,
+                None,
+                formatting_context::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
+            )
+        };
+        let max_content_inline_size = table_inline_size_under(AvailableSize::MaxContent);
+        let min_content_inline_size = table_inline_size_under(AvailableSize::MinContent);
+        formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
+            self.records,
+            &self.callbacks,
+            wrapper,
+            self.skipped_child_depends_on_percentage_block_size(wrapper),
+        );
+        let style = self.style(wrapper);
+        let indefinite_inline_basis = CssPixels::default();
+        OuterInlineContributions {
+            min_content_inline_size,
+            max_content_inline_size,
+            margin_start: style.margin_left().to_px(indefinite_inline_basis),
+            border_start: CssPixels::default(),
+            padding_start: CssPixels::default(),
+            padding_end: CssPixels::default(),
+            border_end: CssPixels::default(),
+            margin_end: style.margin_right().to_px(indefinite_inline_basis),
+        }
+    }
+
     fn atomic_root_content_inline_size(
         &self,
         node: Node,
@@ -2938,47 +3025,18 @@ impl<'pass> SizingContext<'pass> {
             if let Some(trace) = &trace {
                 trace.append(" FROM ITEMS");
             }
-            self.charge_measurement_dependency_to_measured_box_and_containing_block(
-                node,
-                sizes.dependencies.percentage_block_size,
-            );
-            let min_content_inline_size = clamp_to_max_dimension_value(sizes.sizes.min);
-            let max_content_inline_size = clamp_to_max_dimension_value(sizes.sizes.max);
-            let first_line_max_content = clamp_to_max_dimension_value(sizes.first_line_max_content);
-            let measurement_from_items = |automatic_content_inline_size| IntrinsicInlineSizeMeasurement {
-                automatic_content_inline_size,
-                min_content_inline_size_from_max_content_layout: None,
-                first_line_max_content_inline_size: None,
-                depends_on_percentage_block_size: sizes.dependencies.percentage_block_size,
-                depends_on_percentage_inline_basis: sizes.dependencies.percentage_inline_basis,
-                depends_on_block_size: sizes.dependencies.block_size,
-            };
-            self.intrinsic_inline_measurement_cache_put(
-                node,
-                IntrinsicSizeCacheKind::MinContentInline,
-                key,
-                measurement_from_items(min_content_inline_size),
-            );
-            self.intrinsic_inline_measurement_cache_put(
-                node,
-                IntrinsicSizeCacheKind::MaxContentInline,
-                key,
-                IntrinsicInlineSizeMeasurement {
-                    min_content_inline_size_from_max_content_layout: Some(min_content_inline_size),
-                    first_line_max_content_inline_size: Some(first_line_max_content),
-                    ..measurement_from_items(max_content_inline_size)
-                },
-            );
-            let (size, first_line_max_content) = match kind {
-                IntrinsicSizeCacheKind::MinContentInline => (min_content_inline_size, None),
-                IntrinsicSizeCacheKind::MaxContentInline => (max_content_inline_size, Some(first_line_max_content)),
-                _ => unreachable!("inline measurement cache kind must use the inline axis"),
-            };
-            return ContentInlineSizeAnswer {
-                size,
-                first_line_max_content,
-                dependencies: sizes.dependencies,
-            };
+            return self.cache_content_sizes_measured_without_layout(node, kind, key, sizes);
+        }
+        if let Some(sizes) = intrinsic_sizing::content_sizes_of_block_container(
+            self.callbacks,
+            &scope,
+            constraints,
+            depends_on_block_size,
+        ) {
+            if let Some(trace) = &trace {
+                trace.append(" FROM CHILDREN");
+            }
+            return self.cache_content_sizes_measured_without_layout(node, kind, key, sizes);
         }
         let input = LayoutInput::new(
             AvailableSpace {
@@ -3008,6 +3066,56 @@ impl<'pass> SizingContext<'pass> {
             size: measurement.automatic_content_inline_size,
             first_line_max_content: None,
             dependencies: measurement.dependencies(),
+        }
+    }
+
+    fn cache_content_sizes_measured_without_layout(
+        &self,
+        node: Node,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+        sizes: ContentInlineSizes,
+    ) -> ContentInlineSizeAnswer {
+        self.charge_measurement_dependency_to_measured_box_and_containing_block(
+            node,
+            sizes.dependencies.percentage_block_size,
+        );
+        let min_content_inline_size = clamp_to_max_dimension_value(sizes.sizes.min);
+        let max_content_inline_size = clamp_to_max_dimension_value(sizes.sizes.max);
+        let first_line_max_content = clamp_to_max_dimension_value(sizes.first_line_max_content);
+        let measurement_without_layout = |automatic_content_inline_size| IntrinsicInlineSizeMeasurement {
+            automatic_content_inline_size,
+            min_content_inline_size_from_max_content_layout: None,
+            first_line_max_content_inline_size: None,
+            depends_on_percentage_block_size: sizes.dependencies.percentage_block_size,
+            depends_on_percentage_inline_basis: sizes.dependencies.percentage_inline_basis,
+            depends_on_block_size: sizes.dependencies.block_size,
+        };
+        self.intrinsic_inline_measurement_cache_put(
+            node,
+            IntrinsicSizeCacheKind::MinContentInline,
+            key,
+            measurement_without_layout(min_content_inline_size),
+        );
+        self.intrinsic_inline_measurement_cache_put(
+            node,
+            IntrinsicSizeCacheKind::MaxContentInline,
+            key,
+            IntrinsicInlineSizeMeasurement {
+                min_content_inline_size_from_max_content_layout: Some(min_content_inline_size),
+                first_line_max_content_inline_size: Some(first_line_max_content),
+                ..measurement_without_layout(max_content_inline_size)
+            },
+        );
+        let (size, first_line_max_content) = match kind {
+            IntrinsicSizeCacheKind::MinContentInline => (min_content_inline_size, None),
+            IntrinsicSizeCacheKind::MaxContentInline => (max_content_inline_size, Some(first_line_max_content)),
+            _ => unreachable!("inline measurement cache kind must use the inline axis"),
+        };
+        ContentInlineSizeAnswer {
+            size,
+            first_line_max_content,
+            dependencies: sizes.dependencies,
         }
     }
 
