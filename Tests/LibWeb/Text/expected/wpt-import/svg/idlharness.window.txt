@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1582 Pass
-198 Fail
+1586 Pass
+194 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1104,7 +1104,7 @@ Pass	SVGTextContentElement interface: constant LENGTHADJUST_SPACING on interface
 Pass	SVGTextContentElement interface: constant LENGTHADJUST_SPACING on interface prototype object
 Pass	SVGTextContentElement interface: constant LENGTHADJUST_SPACINGANDGLYPHS on interface object
 Pass	SVGTextContentElement interface: constant LENGTHADJUST_SPACINGANDGLYPHS on interface prototype object
-Fail	SVGTextContentElement interface: attribute textLength
+Pass	SVGTextContentElement interface: attribute textLength
 Pass	SVGTextContentElement interface: attribute lengthAdjust
 Pass	SVGTextContentElement interface: operation getNumberOfChars()
 Pass	SVGTextContentElement interface: operation getComputedTextLength()
@@ -1142,7 +1142,7 @@ Pass	SVGTextPositioningElement interface: objects.text must inherit property "ro
 Pass	SVGTextContentElement interface: objects.text must inherit property "LENGTHADJUST_UNKNOWN" with the proper type
 Pass	SVGTextContentElement interface: objects.text must inherit property "LENGTHADJUST_SPACING" with the proper type
 Pass	SVGTextContentElement interface: objects.text must inherit property "LENGTHADJUST_SPACINGANDGLYPHS" with the proper type
-Fail	SVGTextContentElement interface: objects.text must inherit property "textLength" with the proper type
+Pass	SVGTextContentElement interface: objects.text must inherit property "textLength" with the proper type
 Pass	SVGTextContentElement interface: objects.text must inherit property "lengthAdjust" with the proper type
 Pass	SVGTextContentElement interface: objects.text must inherit property "getNumberOfChars()" with the proper type
 Pass	SVGTextContentElement interface: objects.text must inherit property "getComputedTextLength()" with the proper type
@@ -1188,7 +1188,7 @@ Pass	SVGTextPositioningElement interface: objects.tspan must inherit property "r
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "LENGTHADJUST_UNKNOWN" with the proper type
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "LENGTHADJUST_SPACING" with the proper type
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "LENGTHADJUST_SPACINGANDGLYPHS" with the proper type
-Fail	SVGTextContentElement interface: objects.tspan must inherit property "textLength" with the proper type
+Pass	SVGTextContentElement interface: objects.tspan must inherit property "textLength" with the proper type
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "lengthAdjust" with the proper type
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "getNumberOfChars()" with the proper type
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "getComputedTextLength()" with the proper type
@@ -1255,7 +1255,7 @@ Pass	SVGTextPathElement interface: objects.textPath must inherit property "href"
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "LENGTHADJUST_UNKNOWN" with the proper type
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "LENGTHADJUST_SPACING" with the proper type
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "LENGTHADJUST_SPACINGANDGLYPHS" with the proper type
-Fail	SVGTextContentElement interface: objects.textPath must inherit property "textLength" with the proper type
+Pass	SVGTextContentElement interface: objects.textPath must inherit property "textLength" with the proper type
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "lengthAdjust" with the proper type
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "getNumberOfChars()" with the proper type
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "getComputedTextLength()" with the proper type
