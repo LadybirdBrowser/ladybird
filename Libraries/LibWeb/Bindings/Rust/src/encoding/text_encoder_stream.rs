@@ -11,16 +11,20 @@ use core::cell::Cell;
 use ak::Utf16String;
 use libjs_rust::api::{EmbedderClass, EmbedderValue, Trace, Value};
 
-use crate::bindings::conversions::{CppInterface, create_uint8_array, to_dom_string};
+use crate::bindings::conversions::{create_uint8_array, to_dom_string};
+use crate::bindings::interface::Ref;
 use crate::bindings::interface::{Wrappable, with_temporary_execution_context};
 use crate::bindings::{CallContext, WebIdlResult};
-use crate::streams::generic_transform_stream::{TransformSteps, TransformStream};
+use crate::streams::generic_transform_stream::{TransformSteps, create_and_set_up};
+use crate::streams::readable_stream::ReadableStream;
+use crate::streams::transform_stream::TransformStream;
+use crate::streams::writable_stream::WritableStream;
 
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct TextEncoderStream {
     // https://streams.spec.whatwg.org/#generictransformstream-transform
-    transform: TransformStream,
+    transform: Ref<TransformStream>,
 }
 
 impl Wrappable for TextEncoderStream {}
@@ -45,7 +49,7 @@ impl TextEncoderStream {
         //    flushAlgorithm.
         // 6. Set this's transform to transformStream.
         Ok(Self {
-            transform: TransformStream::create_and_set_up(cx, encoder),
+            transform: create_and_set_up(cx, encoder),
         })
     }
 
@@ -56,15 +60,15 @@ impl TextEncoderStream {
     }
 
     // https://streams.spec.whatwg.org/#dom-generictransformstream-readable
-    pub(crate) fn readable(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn readable(&self, _: &mut CallContext) -> WebIdlResult<Ref<ReadableStream>> {
         // The readable getter steps are to return this's transform.[[readable]].
-        Ok(self.transform.readable(cx))
+        Ok(self.transform.readable_stream())
     }
 
     // https://streams.spec.whatwg.org/#dom-generictransformstream-writable
-    pub(crate) fn writable(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn writable(&self, _: &mut CallContext) -> WebIdlResult<Ref<WritableStream>> {
         // The writable getter steps are to return this's transform.[[writable]].
-        Ok(self.transform.writable(cx))
+        Ok(self.transform.writable_stream())
     }
 }
 
@@ -142,7 +146,7 @@ fn scalar_value_from_surrogates(leading: u16, trailing: u16) -> char {
 
 impl TransformSteps for Encoder {
     // https://encoding.spec.whatwg.org/#encode-and-enqueue-a-chunk
-    fn transform(&self, cx: &CallContext, transform: &TransformStream, chunk: Value) -> WebIdlResult<()> {
+    fn transform(&self, cx: &CallContext, transform: Ref<TransformStream>, chunk: Value) -> WebIdlResult<()> {
         // 1. Let input be the result of converting chunk to a DOMString.
         let input = with_temporary_execution_context(cx.realm(), || to_dom_string(cx.vm(), chunk))?;
 
@@ -166,7 +170,7 @@ impl TransformSteps for Encoder {
                     let chunk = create_uint8_array(cx, &output)?;
 
                     // 2. Enqueue chunk into encoder's transform.
-                    transform.enqueue(Value::from_object(chunk));
+                    TransformStream::enqueue(transform, cx.vm(), Value::from_object(chunk));
                 }
 
                 // 3. Return.
@@ -186,7 +190,7 @@ impl TransformSteps for Encoder {
     }
 
     // https://encoding.spec.whatwg.org/#encode-and-flush
-    fn flush(&self, cx: &CallContext, transform: &TransformStream) -> WebIdlResult<()> {
+    fn flush(&self, cx: &CallContext, transform: Ref<TransformStream>) -> WebIdlResult<()> {
         // 1. If encoder's leading surrogate is non-null:
         if self.leading_surrogate.get().is_some() {
             // 1. Let chunk be the result of creating a Uint8Array object given « 0xEF, 0xBF, 0xBD » and encoder's
@@ -195,7 +199,7 @@ impl TransformSteps for Encoder {
             let chunk = create_uint8_array(cx, &REPLACEMENT_CHARACTER_UTF8_BYTES)?;
 
             // 2. Enqueue chunk into encoder's transform.
-            transform.enqueue(Value::from_object(chunk));
+            TransformStream::enqueue(transform, cx.vm(), Value::from_object(chunk));
         }
         Ok(())
     }

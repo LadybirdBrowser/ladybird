@@ -66,12 +66,7 @@ ALLOWED_REALM_MENTIONS = {
         41,
         "service worker jobs, caches, and container promises still materialize results in selected realms",
     ),
-    "Streams": (
-        35,
-        219,
-        "Streams algorithms still use realms for controller/read/write operations and chunk conversion, and the "
-        "TransformStreams that Rust implementations set up take the realm of their algorithms",
-    ),
+    "Streams": (5, 14, "the C++ facade of the Rust streams creates streams and promises in caller-selected realms"),
     "TrustedTypes": (2, 9, "Trusted Types policy factory operations still use selected realms"),
     "WebAssembly": (
         15,

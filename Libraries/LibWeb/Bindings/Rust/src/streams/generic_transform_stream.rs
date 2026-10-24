@@ -5,149 +5,152 @@
  */
 
 //! The TransformStream of an interface that includes GenericTransformStream,
-//! https://streams.spec.whatwg.org/#generictransformstream, which LibWeb implements in C++.
+//! https://streams.spec.whatwg.org/#generictransformstream, which the interface sets up with steps of its own.
 
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{
-    EmbedderCell, EmbedderValue, ForeignCellSlot, Gc, Object, RawNativeFunctionResult, Trace, Value,
-};
+use libjs_rust::api::{EmbedderCell, EmbedderValue, ForeignCellSlot, Gc, Trace, Value};
 
-use crate::bindings::conversions::CppInterface;
-use crate::bindings::interface::realm_arguments;
+use crate::bindings::interface::{Ref, allocate, with_temporary_execution_context_and_callbacks};
+use crate::bindings::promise::{WebIdlPromise, create_rejected_promise, create_resolved_promise, exception_value};
 use crate::bindings::{CallContext, WebIdlResult};
+use crate::streams::algorithms::{CancelAlgorithm, FlushAlgorithm, TransformAlgorithm};
+use crate::streams::transform_stream::TransformStream;
 
-/// The steps of the transformAlgorithm, with the chunk, and of the flushAlgorithm, without one.
-type StepsEntry = unsafe extern "C" fn(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    steps: *mut c_void,
-    transform: *mut c_void,
-    chunk: *const u64,
-) -> RawNativeFunctionResult;
-
-/// Web::Streams::TransformStreamSide
-#[repr(u8)]
-enum Side {
-    Readable,
-    Writable,
-}
-
-unsafe extern "C" {
-    /// A new TransformStream in the realm, set up with a transformAlgorithm and a flushAlgorithm that call the entry
-    /// with the steps, a cell that the stream keeps alive.
-    fn web_transform_stream_create(realm: *mut c_void, steps: *mut c_void, run_steps: StepsEntry) -> *mut c_void;
-
-    fn web_transform_stream_enqueue(transform: *mut c_void, chunk: u64);
-
-    /// The wrapper in the realm of the stream's [[readable]] or [[writable]].
-    fn web_transform_stream_side(transform: *mut c_void, realm: *mut c_void, side: Side) -> *mut c_void;
-}
-
-/// The transformAlgorithm and flushAlgorithm that a TransformStream is set up with,
-/// https://streams.spec.whatwg.org/#transformstream-set-up, which the stream holds in a cell of their own. They
-/// resolve the promise that the algorithm returns, or reject it with what they throw.
+/// The transformAlgorithm and the flushAlgorithm that an interface sets its TransformStream up with,
+/// https://streams.spec.whatwg.org/#transformstream-set-up, which live in a cell of their own. An exception that they
+/// throw rejects the promise of the algorithm.
 pub(crate) trait TransformSteps: EmbedderValue {
-    fn transform(&self, cx: &CallContext, transform: &TransformStream, chunk: Value) -> WebIdlResult<()>;
+    fn transform(&self, cx: &CallContext, transform: Ref<TransformStream>, chunk: Value) -> WebIdlResult<()>;
 
-    fn flush(&self, cx: &CallContext, transform: &TransformStream) -> WebIdlResult<()>;
+    fn flush(&self, cx: &CallContext, transform: Ref<TransformStream>) -> WebIdlResult<()>;
 }
 
+type TransformEntry = unsafe fn(&CallContext, NonNull<c_void>, Ref<TransformStream>, Value) -> WebIdlResult<()>;
+type FlushEntry = unsafe fn(&CallContext, NonNull<c_void>, Ref<TransformStream>) -> WebIdlResult<()>;
+
+/// The steps of an implementation of TransformSteps, with the stream that they were set up for. The steps run in the
+/// realm of the stream, as the callbacks of a transformer run in their own realm, so what they enqueue is created there.
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
-pub(crate) struct TransformStream(ForeignCellSlot);
+pub(crate) struct RustTransformSteps {
+    steps: ForeignCellSlot,
+    stream: Ref<TransformStream>,
+    #[gc(untraced)]
+    transform: TransformEntry,
+    #[gc(untraced)]
+    flush: FlushEntry,
+}
 
-impl TransformStream {
-    /// # Safety
-    ///
-    /// `transform` must be a live TransformStream.
-    unsafe fn from_raw(transform: *mut c_void) -> Self {
-        let slot = ForeignCellSlot::empty();
-        // SAFETY: The caller passes a live TransformStream, a cell of the heap.
-        unsafe { slot.set(Some(NonNull::new(transform).expect("LibWeb passes a TransformStream"))) };
-        Self(slot)
+impl Clone for RustTransformSteps {
+    fn clone(&self) -> Self {
+        let steps = ForeignCellSlot::empty();
+        // SAFETY: The slot of `self` keeps the cell alive.
+        unsafe { steps.set(Some(NonNull::new(self.steps.as_ptr()).expect("the steps are a cell"))) };
+        Self {
+            steps,
+            stream: self.stream,
+            transform: self.transform,
+            flush: self.flush,
+        }
     }
+}
 
-    /// A new TransformStream, set up with the steps,
-    /// https://streams.spec.whatwg.org/#transformstream-set-up
-    pub(crate) fn create_and_set_up<T: TransformSteps>(cx: &CallContext, steps: T) -> Self {
-        let steps = T::CLASS.allocate(cx.vm(), steps);
-        // SAFETY: The realm and the cell are live, and the entry takes a cell of the class of the steps.
-        unsafe {
-            Self::from_raw(web_transform_stream_create(
-                cx.realm().as_ptr().cast(),
-                steps.as_ptr().cast(),
-                run_steps::<T>,
-            ))
+impl RustTransformSteps {
+    fn new<T: TransformSteps>(steps: Gc<EmbedderCell<T>>, stream: Ref<TransformStream>) -> Self {
+        let slot = ForeignCellSlot::empty();
+        // SAFETY: The steps are a live cell.
+        unsafe { slot.set(Some(steps.as_non_null().cast())) };
+        Self {
+            steps: slot,
+            stream,
+            transform: transform_entry::<T>,
+            flush: flush_entry::<T>,
         }
     }
 
-    /// https://streams.spec.whatwg.org/#transformstream-enqueue
-    pub(crate) fn enqueue(&self, chunk: Value) {
-        // SAFETY: The slot keeps the stream alive.
-        unsafe { web_transform_stream_enqueue(self.0.as_ptr(), chunk.0) };
+    fn steps(&self) -> NonNull<c_void> {
+        NonNull::new(self.steps.as_ptr()).expect("the steps are a cell")
     }
 
-    /// The stream's [[readable]].
-    pub(crate) fn readable(&self, cx: &CallContext) -> CppInterface {
-        self.side(cx, Side::Readable)
+    /// The transformAlgorithmWrapper of setting up the stream, given the chunk.
+    pub(crate) fn transform(&self, cx: &CallContext, chunk: Value) -> WebIdlPromise {
+        // 1. Let result be the result of running transformAlgorithm given chunk. If this throws an exception e, return
+        //    a promise rejected with e.
+        let result = with_temporary_execution_context_and_callbacks(cx.realm(), || {
+            // SAFETY: The entry is that of the class of the steps.
+            unsafe { (self.transform)(cx, self.steps(), self.stream, chunk) }
+        });
+        promise_for(cx, result)
     }
 
-    /// The stream's [[writable]].
-    pub(crate) fn writable(&self, cx: &CallContext) -> CppInterface {
-        self.side(cx, Side::Writable)
-    }
-
-    fn side(&self, cx: &CallContext, side: Side) -> CppInterface {
-        // SAFETY: The slot keeps the stream alive, and the realm is live.
-        let wrapper = unsafe { web_transform_stream_side(self.0.as_ptr(), cx.realm().as_ptr().cast(), side) };
-        let wrapper = NonNull::new(wrapper.cast::<Object>()).expect("LibWeb returns a wrapper");
-        // SAFETY: LibWeb returns a live wrapper of the ReadableStream or the WritableStream that the side names.
-        unsafe { CppInterface::from_wrapper(Gc::from_non_null(wrapper)) }
+    /// The flushAlgorithmWrapper of setting up the stream.
+    pub(crate) fn flush(&self, cx: &CallContext) -> WebIdlPromise {
+        // 1. Let result be the result of running flushAlgorithm, if flushAlgorithm was given, or null otherwise. If
+        //    this throws an exception e, return a promise rejected with e.
+        let result = with_temporary_execution_context_and_callbacks(cx.realm(), || {
+            // SAFETY: The entry is that of the class of the steps.
+            unsafe { (self.flush)(cx, self.steps(), self.stream) }
+        });
+        promise_for(cx, result)
     }
 }
 
-/// The steps of the transformAlgorithm, given a chunk, or else of the flushAlgorithm, of a TransformStream that
-/// create_and_set_up() set up.
-///
+/// A promise rejected with the exception that steps threw, or else, as their result is not a promise, a promise
+/// resolved with undefined.
+fn promise_for(cx: &CallContext, result: WebIdlResult<()>) -> WebIdlPromise {
+    match result {
+        Err(exception) => {
+            let reason = exception_value(cx.vm(), cx.realm(), exception);
+            create_rejected_promise(cx.vm(), cx.realm(), reason)
+        }
+        // 2. If result is a Promise, then return result.
+        // 3. Return a promise resolved with undefined.
+        Ok(()) => create_resolved_promise(cx.vm(), cx.realm(), Value::UNDEFINED),
+    }
+}
+
 /// # Safety
 ///
-/// LibWeb passes the VM, the realm of the stream, the cell of the steps, which the stream keeps alive, the stream, and
-/// a chunk that is live for the call or null.
-unsafe extern "C" fn run_steps<T: TransformSteps>(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    steps: *mut c_void,
-    transform: *mut c_void,
-    chunk: *const u64,
-) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the live VM, realm, cell and stream.
-    let (cx, steps, transform) = unsafe { steps_arguments::<T>(vm, realm, steps, transform) };
+/// `steps` must be a live cell of the class of `T`.
+unsafe fn transform_entry<T: TransformSteps>(
+    cx: &CallContext,
+    steps: NonNull<c_void>,
+    stream: Ref<TransformStream>,
+    chunk: Value,
+) -> WebIdlResult<()> {
+    // SAFETY: The caller passes a live cell of the class of T.
+    let steps = unsafe { T::CLASS.downcast(steps) }.expect("the steps are of the class they were set up with");
     let _type_error_realm = cx.vm().type_error_realm_scope(cx.realm());
-    // SAFETY: The caller passes a chunk that is live for the call, or null.
-    let result = match unsafe { chunk.as_ref() } {
-        Some(&chunk) => steps.transform(&cx, &transform, Value(chunk)),
-        None => steps.flush(&cx, &transform),
-    };
-    RawNativeFunctionResult::from_completion(result.map(|()| Value::UNDEFINED).map_err(|error| error.throw(&cx)))
+    steps.transform(cx, stream, chunk)
 }
 
 /// # Safety
 ///
-/// The pointers must be the live VM, a live realm, a live cell of the class of the steps and a live TransformStream.
-unsafe fn steps_arguments<'vm, T: TransformSteps>(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    steps: *mut c_void,
-    transform: *mut c_void,
-) -> (CallContext<'vm>, Gc<EmbedderCell<T>>, TransformStream) {
-    // SAFETY: The caller passes the live VM and realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    let steps = NonNull::new(steps).expect("LibWeb passes the steps");
-    // SAFETY: The caller passes a live cell of an embedder class.
-    let steps = unsafe { T::CLASS.downcast(steps) }.expect("LibWeb passes the steps it was given");
-    // SAFETY: The caller passes a live TransformStream.
-    let transform = unsafe { TransformStream::from_raw(transform) };
-    (CallContext::new(vm, realm), steps, transform)
+/// `steps` must be a live cell of the class of `T`.
+unsafe fn flush_entry<T: TransformSteps>(
+    cx: &CallContext,
+    steps: NonNull<c_void>,
+    stream: Ref<TransformStream>,
+) -> WebIdlResult<()> {
+    // SAFETY: The caller passes a live cell of the class of T.
+    let steps = unsafe { T::CLASS.downcast(steps) }.expect("the steps are of the class they were set up with");
+    let _type_error_realm = cx.vm().type_error_realm_scope(cx.realm());
+    steps.flush(cx, stream)
+}
+
+/// A new TransformStream, set up with the steps, https://streams.spec.whatwg.org/#transformstream-set-up
+pub(crate) fn create_and_set_up<T: TransformSteps>(cx: &CallContext, steps: T) -> Ref<TransformStream> {
+    let steps = T::CLASS.allocate(cx.vm(), steps);
+    let stream = allocate(cx.vm(), TransformStream::new(cx.realm()));
+    let algorithms = RustTransformSteps::new(steps, stream);
+    TransformStream::set_up(
+        stream,
+        cx,
+        TransformAlgorithm::RustWrapper(algorithms.clone()),
+        FlushAlgorithm::RustWrapper(algorithms),
+        CancelAlgorithm::Wrapper(None),
+    );
+    stream
 }

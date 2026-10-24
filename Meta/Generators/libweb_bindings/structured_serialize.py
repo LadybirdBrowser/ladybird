@@ -317,10 +317,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> create_transferred_platform_object(
         VERIFY(global_scope);
         auto transferable = HTML::OffscreenCanvas::create(global_scope->this_impl(), 0, 0);
 """)
-        elif interface.name in ("ReadableStream", "TransformStream", "WritableStream"):
-            out.write(
-                f"        auto transferable = GC::Heap::the().allocate<{fully_qualified_name_for_interface(interface)}>();\n"
-            )
         else:
             out.write(f"        auto transferable = {fully_qualified_name_for_interface(interface)}::create();\n")
         out.write("""        TRY(transferable->transfer_receiving_steps(target_realm, decoder));

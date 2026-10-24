@@ -1,5 +1,5 @@
 // https://streams.spec.whatwg.org/#readablestreambyobreader
-    [Exposed=*]
+    [Exposed=*, ImplementedIn=Rust]
 interface ReadableStreamBYOBReader {
     constructor(ReadableStream stream);
 

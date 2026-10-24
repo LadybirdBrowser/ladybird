@@ -13,11 +13,15 @@ use encoding_rs::Encoding;
 use libjs_rust::api::{EmbedderClass, EmbedderValue, PrimitiveString, Trace, Value};
 use libtextcodec_rust::{DecodingFailed, StreamingDecoder, encoding_for_label};
 
-use crate::bindings::conversions::{CppInterface, UsvString, buffer_source_type_of};
+use crate::bindings::conversions::{UsvString, buffer_source_type_of};
+use crate::bindings::interface::Ref;
 use crate::bindings::interface::Wrappable;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::encoding::text_decoder::TextDecoderOptions;
-use crate::streams::generic_transform_stream::{TransformSteps, TransformStream};
+use crate::streams::generic_transform_stream::{TransformSteps, create_and_set_up};
+use crate::streams::readable_stream::ReadableStream;
+use crate::streams::transform_stream::TransformStream;
+use crate::streams::writable_stream::WritableStream;
 
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
@@ -30,7 +34,7 @@ pub(crate) struct TextDecoderStream {
     // https://encoding.spec.whatwg.org/#textdecoder-ignore-bom-flag
     ignore_bom: bool,
     // https://streams.spec.whatwg.org/#generictransformstream-transform
-    transform: TransformStream,
+    transform: Ref<TransformStream>,
 }
 
 impl Wrappable for TextDecoderStream {}
@@ -87,7 +91,7 @@ impl TextDecoderStream {
             encoding,
             fatal,
             ignore_bom,
-            transform: TransformStream::create_and_set_up(cx, decoder),
+            transform: create_and_set_up(cx, decoder),
         }
     }
 
@@ -111,15 +115,15 @@ impl TextDecoderStream {
     }
 
     // https://streams.spec.whatwg.org/#dom-generictransformstream-readable
-    pub(crate) fn readable(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn readable(&self, _: &mut CallContext) -> WebIdlResult<Ref<ReadableStream>> {
         // The readable getter steps are to return this's transform.[[readable]].
-        Ok(self.transform.readable(cx))
+        Ok(self.transform.readable_stream())
     }
 
     // https://streams.spec.whatwg.org/#dom-generictransformstream-writable
-    pub(crate) fn writable(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn writable(&self, _: &mut CallContext) -> WebIdlResult<Ref<WritableStream>> {
         // The writable getter steps are to return this's transform.[[writable]].
-        Ok(self.transform.writable(cx))
+        Ok(self.transform.writable_stream())
     }
 }
 
@@ -138,10 +142,14 @@ impl EmbedderValue for Decoder {
 }
 
 /// Enqueues the output of the decoder in the transform as a string, unless it is the empty string.
-fn enqueue_output_chunk(cx: &CallContext, transform: &TransformStream, output: &[u16]) {
+fn enqueue_output_chunk(cx: &CallContext, transform: Ref<TransformStream>, output: &[u16]) {
     let output_chunk = UsvString::from_utf16_replacing_lone_surrogates(output).into_utf16_string();
     if !output_chunk.is_empty() {
-        transform.enqueue(Value::from_string(PrimitiveString::create(cx.vm(), output_chunk)));
+        TransformStream::enqueue(
+            transform,
+            cx.vm(),
+            Value::from_string(PrimitiveString::create(cx.vm(), output_chunk)),
+        );
     }
 }
 
@@ -151,7 +159,7 @@ fn decoding_failed(_: DecodingFailed) -> Exception {
 
 impl TransformSteps for Decoder {
     // https://encoding.spec.whatwg.org/#decode-and-enqueue-a-chunk
-    fn transform(&self, cx: &CallContext, transform: &TransformStream, chunk: Value) -> WebIdlResult<()> {
+    fn transform(&self, cx: &CallContext, transform: Ref<TransformStream>, chunk: Value) -> WebIdlResult<()> {
         // 1. Let bufferSource be the result of converting chunk to an AllowSharedBufferSource.
         let Some(buffer_source) = buffer_source_type_of(chunk) else {
             return Err(Exception::TypeError(Utf16String::from_ascii(
@@ -181,7 +189,7 @@ impl TransformSteps for Decoder {
     }
 
     // https://encoding.spec.whatwg.org/#flush-and-enqueue
-    fn flush(&self, cx: &CallContext, transform: &TransformStream) -> WebIdlResult<()> {
+    fn flush(&self, cx: &CallContext, transform: Ref<TransformStream>) -> WebIdlResult<()> {
         // 1. Let output be the I/O queue of scalar values « end-of-queue ».
         // 2. While true:
         //     1. Let item be the result of reading from decoder's I/O queue.

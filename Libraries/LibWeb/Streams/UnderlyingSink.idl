@@ -1,4 +1,5 @@
 // https://streams.spec.whatwg.org/#dictdef-underlyingsink
+[ImplementedIn=Rust]
 dictionary UnderlyingSink {
     UnderlyingSinkStartCallback start;
     UnderlyingSinkWriteCallback write;

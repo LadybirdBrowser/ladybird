@@ -12,18 +12,22 @@ use ak::Utf16String;
 use libcompress_rust::{Decompressed, Decompressor};
 use libjs_rust::api::{EmbedderClass, EmbedderValue, Trace, Value};
 
-use crate::bindings::conversions::{CppInterface, create_uint8_array};
+use crate::bindings::conversions::create_uint8_array;
+use crate::bindings::interface::Ref;
 use crate::bindings::interface::Wrappable;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::compression::buffer_source_of_chunk;
 use crate::compression::compression_stream::CompressionFormat;
-use crate::streams::generic_transform_stream::{TransformSteps, TransformStream};
+use crate::streams::generic_transform_stream::{TransformSteps, create_and_set_up};
+use crate::streams::readable_stream::ReadableStream;
+use crate::streams::transform_stream::TransformStream;
+use crate::streams::writable_stream::WritableStream;
 
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct DecompressionStream {
     // https://streams.spec.whatwg.org/#generictransformstream-transform
-    transform: TransformStream,
+    transform: Ref<TransformStream>,
 }
 
 impl Wrappable for DecompressionStream {}
@@ -41,20 +45,20 @@ impl DecompressionStream {
         // 5. Set this's transform to a new TransformStream.
         // 6. Set up this's transform with transformAlgorithm set to transformAlgorithm and flushAlgorithm set to flushAlgorithm.
         Ok(Self {
-            transform: TransformStream::create_and_set_up(cx, context),
+            transform: create_and_set_up(cx, context),
         })
     }
 
     // https://streams.spec.whatwg.org/#dom-generictransformstream-readable
-    pub(crate) fn readable(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn readable(&self, _: &mut CallContext) -> WebIdlResult<Ref<ReadableStream>> {
         // The readable getter steps are to return this's transform.[[readable]].
-        Ok(self.transform.readable(cx))
+        Ok(self.transform.readable_stream())
     }
 
     // https://streams.spec.whatwg.org/#dom-generictransformstream-writable
-    pub(crate) fn writable(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn writable(&self, _: &mut CallContext) -> WebIdlResult<Ref<WritableStream>> {
         // The writable getter steps are to return this's transform.[[writable]].
-        Ok(self.transform.writable(cx))
+        Ok(self.transform.writable_stream())
     }
 }
 
@@ -97,7 +101,7 @@ fn decompression_failed(step: &str, error: &str) -> Exception {
 
 impl TransformSteps for DecompressionContext {
     // https://compression.spec.whatwg.org/#decompress-and-enqueue-a-chunk
-    fn transform(&self, cx: &CallContext, transform: &TransformStream, chunk: Value) -> WebIdlResult<()> {
+    fn transform(&self, cx: &CallContext, transform: Ref<TransformStream>, chunk: Value) -> WebIdlResult<()> {
         // 1. If chunk is not a BufferSource type, then throw a TypeError.
         let chunk = buffer_source_of_chunk(cx, chunk)?;
 
@@ -117,7 +121,7 @@ impl TransformSteps for DecompressionContext {
             let array = create_uint8_array(cx, &buffer)?;
 
             // 5. For each Uint8Array array of arrays, enqueue array in ds's transform.
-            transform.enqueue(Value::from_object(array));
+            TransformStream::enqueue(transform, cx.vm(), Value::from_object(array));
         }
 
         // 6. If the end of the compressed input has been reached, and ds's context has not fully consumed chunk, then
@@ -132,7 +136,7 @@ impl TransformSteps for DecompressionContext {
     }
 
     // https://compression.spec.whatwg.org/#decompress-flush-and-enqueue
-    fn flush(&self, cx: &CallContext, transform: &TransformStream) -> WebIdlResult<()> {
+    fn flush(&self, cx: &CallContext, transform: Ref<TransformStream>) -> WebIdlResult<()> {
         // 1. Let buffer be the result of decompressing an empty input with ds's format and context, with the finish
         //    flag.
         // NB: Each chunk gave all the output that the decoder could make of it, so an empty input gives no more.
@@ -148,7 +152,7 @@ impl TransformSteps for DecompressionContext {
             let array = create_uint8_array(cx, &buffer)?;
 
             // 2. For each Uint8Array array of arrays, enqueue array in ds's transform.
-            transform.enqueue(Value::from_object(array));
+            TransformStream::enqueue(transform, cx.vm(), Value::from_object(array));
         }
 
         // 3. If the end of the compressed input has not been reached, then throw a TypeError.

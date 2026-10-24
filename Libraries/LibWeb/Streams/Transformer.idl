@@ -1,4 +1,5 @@
 // https://streams.spec.whatwg.org/#dictdef-transformer
+[ImplementedIn=Rust]
 dictionary Transformer {
     TransformerStartCallback start;
     TransformerTransformCallback transform;

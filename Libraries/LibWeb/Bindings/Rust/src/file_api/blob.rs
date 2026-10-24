@@ -12,15 +12,16 @@ use core::ops::Deref;
 use core::ptr::NonNull;
 
 use ak::{Utf16String, Utf16StringUnits};
-use libjs_rust::api::{Gc, MarkedVec, Object, RawNativeFunctionResult, Trace};
+use libjs_rust::api::{MarkedVec, RawNativeFunctionResult, Trace};
 use libwebcommon_rust::mime_sniff::mime_type::MimeType;
 
 use super::file::File;
-use crate::bindings::conversions::{BufferSource, CppInterface, UsvString};
-use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate, cell_into_abi};
+use crate::bindings::conversions::{BufferSource, UsvString};
+use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate, cell_from_abi, cell_into_abi};
 use crate::bindings::promise::{WebIdlPromise, promise_from_abi};
 use crate::bindings::structured_data::{Serializable, SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, WebIdlResult};
+use crate::streams::readable_stream::ReadableStream;
 
 unsafe extern "C" {
     fn web_blob_bytes_destroy(owner: *mut c_void);
@@ -468,11 +469,11 @@ impl Blob {
     }
 
     // https://w3c.github.io/FileAPI/#dom-blob-stream
-    pub(crate) fn stream(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
-        // SAFETY: The realm is live, LibWeb copies the bytes, and it returns the wrapper of a new ReadableStream.
+    pub(crate) fn stream(&self, cx: &mut CallContext) -> WebIdlResult<Ref<ReadableStream>> {
+        // SAFETY: The realm is live, LibWeb copies the bytes, and it returns a new ReadableStream.
         unsafe {
             let stream = web_blob_get_stream(cx.realm().as_ptr().cast(), ak::Span::new(&self.raw_bytes()));
-            Ok(CppInterface::from_wrapper(object_from_abi(stream)))
+            Ok(cell_from_abi(stream))
         }
     }
 
@@ -539,17 +540,6 @@ impl Blob {
         // SAFETY: C++ hands over the bytes it decoded.
         Ok(unsafe { Self::with_foreign_bytes(bytes, r#type) })
     }
-}
-
-/// The object that LibWeb returns.
-///
-/// # Safety
-///
-/// `object` must be a live object.
-unsafe fn object_from_abi(object: *mut c_void) -> Gc<Object> {
-    let object = NonNull::new(object.cast::<Object>()).expect("LibWeb returns an object");
-    // SAFETY: The caller passes a live object.
-    unsafe { Gc::from_non_null(object) }
 }
 
 impl Serializable for Blob {

@@ -23,7 +23,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWeb/Streams/ReadableStreamOperations.h>
+#include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -201,7 +201,6 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
 // https://fetch.spec.whatwg.org/#abort-fetch
 void abort_fetch(WebIDL::Promise const& promise, GC::Ref<Infrastructure::Request> request, GC::Ptr<Response> response_object, JS::Value error)
 {
-    auto& realm = WebIDL::promise_realm(promise);
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Aborting fetch with: request @ {}, error = {}", request.ptr(), error);
 
     // 1. Reject promise with error.
@@ -211,7 +210,7 @@ void abort_fetch(WebIDL::Promise const& promise, GC::Ref<Infrastructure::Request
     // 2. If request’s body is non-null and is readable, then cancel request’s body with error.
     if (auto* body = request->body().get_pointer<GC::Ref<Infrastructure::Body>>(); body != nullptr && (*body)->stream()->is_readable()) {
         // NOTE: Cancel here is different than the cancel method of stream and refers to https://streams.spec.whatwg.org/#readablestream-cancel
-        Streams::readable_stream_cancel(realm, (*body)->stream(), error);
+        (*body)->stream()->cancel(error);
     }
 
     // 3. If responseObject is null, then return.
