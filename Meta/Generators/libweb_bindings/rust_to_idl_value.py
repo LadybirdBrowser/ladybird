@@ -104,6 +104,8 @@ def rust_to_idl_value(
         return f"sequence_from_js(vm, {value}, Vec::new(), |value| {element})"
     if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "record":
         return rust_record_to_idl_value(idl_type, value, identifier, context, what)
+    if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "Promise":
+        return f"to_promise(vm, {value})"
     if isinstance(idl_type, IDLParameterizedType):
         raise UnsupportedByRustBindings(
             f"{what} has the type {idl_type}, which the Rust bindings do not convert to yet"
@@ -300,6 +302,10 @@ def rust_default_value(
     numeric_literal = rust_numeric_literal(default_value, name)
     if numeric_literal is not None:
         return numeric_literal
+    if member.type.nullable and default_value == "null":
+        return "None"
+    if isinstance(member.type, IDLParameterizedType) and name == "sequence" and default_value == "[]":
+        return "Vec::new()"
     dictionary = resolved_dictionary(member.type, context)
     if dictionary is not None and default_value == "{}":
         # NB: The C++ bindings do not run the conversion for a missing argument either, so the members of the default

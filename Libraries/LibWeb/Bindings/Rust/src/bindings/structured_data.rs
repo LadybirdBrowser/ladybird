@@ -39,6 +39,11 @@ unsafe extern "C" {
     fn web_bindings_deserialize_f64(serialized: *mut c_void, out_value: &mut f64) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_bool(serialized: *mut c_void, out_value: &mut bool) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_i64(serialized: *mut c_void, out_value: &mut i64) -> RawNativeFunctionResult;
+    fn web_bindings_deserialize_bytes(
+        serialized: *mut c_void,
+        bytes: *mut c_void,
+        append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+    ) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_utf16_string(
         serialized: *mut c_void,
         out_string: &mut usize,
@@ -171,6 +176,18 @@ impl SerializationReader<'_> {
         // SAFETY: The reader is lent for the steps.
         unsafe { web_bindings_deserialize_i64(self.raw.as_ptr(), &mut value) }.into_completion()?;
         Ok(value)
+    }
+
+    pub(crate) fn read_bytes(&mut self) -> WebIdlResult<Vec<u8>> {
+        unsafe extern "C" fn append(bytes: *mut c_void, data: *const u8, length: usize) {
+            // SAFETY: The bytes are the Vec that read_bytes() lends, and LibWeb passes that many bytes.
+            unsafe { (*bytes.cast::<Vec<u8>>()).extend_from_slice(ak::slice_from_raw_parts(data, length)) };
+        }
+        let mut bytes = Vec::new();
+        // SAFETY: The reader and the bytes are lent for the steps.
+        unsafe { web_bindings_deserialize_bytes(self.raw.as_ptr(), (&raw mut bytes).cast(), append) }
+            .into_completion()?;
+        Ok(bytes)
     }
 
     pub(crate) fn read_utf16_string(&mut self) -> WebIdlResult<Utf16String> {

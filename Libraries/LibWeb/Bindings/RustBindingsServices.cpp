@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -91,6 +92,8 @@ JSObject* web_bindings_rust_wrapper_for(void* realm, void* cell);
 void web_bindings_set_rust_wrapper(void* realm, void* cell, JSObject* wrapper);
 JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value, JSValue reason);
 void web_bindings_queue_a_microtask(void* realm, JSObject* function);
+void web_bindings_run_in_parallel(void* realm, void* cell, void (*steps)(JSVM*, void*));
+void web_bindings_queue_a_task(void* realm, u8 task_source, void* cell, void (*steps)(JSVM*, void*));
 void* web_bindings_create_callback_function(JSObject* callable, bool returns_promise);
 JSCompletion web_bindings_invoke_callback_function(void* callback, bool has_this_value, JSValue this_value, ReadonlySpan<JSValue> arguments);
 void* web_bindings_invoke_promise_callback_function(void* callback, bool has_this_value, JSValue this_value, ReadonlySpan<JSValue> arguments);
@@ -111,6 +114,7 @@ JSCompletion web_bindings_deserialize_u32(RustSerializationReader*, u32* out_val
 JSCompletion web_bindings_deserialize_f64(RustSerializationReader*, double* out_value);
 JSCompletion web_bindings_deserialize_bool(RustSerializationReader*, bool* out_value);
 JSCompletion web_bindings_deserialize_i64(RustSerializationReader*, i64* out_value);
+JSCompletion web_bindings_deserialize_bytes(RustSerializationReader*, void* bytes, void (*append)(void*, u8 const*, size_t));
 JSCompletion web_bindings_deserialize_utf16_string(RustSerializationReader*, FlatPtr* out_string);
 void web_bindings_serialize_inline_object_header(RustSerializationWriter*, u16 interface_name);
 JSCompletion web_bindings_deserialize_inline_object_header(RustSerializationReader*, u16 interface_name);
@@ -247,6 +251,15 @@ JSCompletion web_bindings_deserialize_i64(RustSerializationReader* reader, i64* 
     return deserialize_plain_value(reader, out_value);
 }
 
+JSCompletion web_bindings_deserialize_bytes(RustSerializationReader* reader, void* bytes, void (*append)(void*, u8 const*, size_t))
+{
+    ByteBuffer buffer;
+    auto result = deserialize_plain_value(reader, &buffer);
+    if (!buffer.is_empty())
+        append(bytes, buffer.data(), buffer.size());
+    return result;
+}
+
 JSCompletion web_bindings_deserialize_utf16_string(RustSerializationReader* reader, FlatPtr* out_string)
 {
     Utf16String string;
@@ -302,6 +315,30 @@ void web_bindings_queue_a_microtask(void* realm, JSObject* function)
     HTML::queue_a_microtask(nullptr, GC::create_function(GC::Heap::the(), [js_realm, steps] {
         HTML::TemporaryExecutionContext execution_context { js_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         MUST(JS::call(steps->vm(), *steps, JS::js_undefined()));
+    }));
+}
+
+void web_bindings_run_in_parallel(void* realm, void* cell, void (*steps)(JSVM*, void*))
+{
+    GC::Ref<JS::Realm> js_realm = *static_cast<JS::Realm*>(realm);
+    // NB: The function's captures, which the collector scans, keep the cell alive until the steps run.
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [js_realm, cell, steps] {
+        HTML::TemporaryExecutionContext execution_context { js_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        steps(JS::HostABI::vm_to_abi(js_realm->vm()), cell);
+    }));
+}
+
+// NB: The task sources of the Rust bindings' TaskSource.
+static_assert(to_underlying(HTML::Task::Source::Unspecified) == 0);
+static_assert(to_underlying(HTML::Task::Source::Networking) == 3);
+
+void web_bindings_queue_a_task(void* realm, u8 task_source, void* cell, void (*steps)(JSVM*, void*))
+{
+    GC::Ref<JS::Realm> js_realm = *static_cast<JS::Realm*>(realm);
+    // NB: The task's captures, which the collector scans, keep the cell alive until the steps run.
+    HTML::queue_a_task(static_cast<HTML::Task::Source>(task_source), nullptr, nullptr, GC::create_function(GC::Heap::the(), [js_realm, cell, steps] {
+        HTML::TemporaryExecutionContext execution_context { js_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        steps(JS::HostABI::vm_to_abi(js_realm->vm()), cell);
     }));
 }
 

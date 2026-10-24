@@ -7,7 +7,7 @@
 //! Promises as implementations hold them, https://webidl.spec.whatwg.org/#idl-promise: the PromiseCapability records
 //! that LibWeb's C++ code calls WebIDL::Promise.
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
@@ -26,6 +26,37 @@ unsafe extern "C" {
     /// Queues a microtask that calls the function, a native function with no arguments, while an execution context of
     /// the realm is on the stack, as HTML::queue_a_microtask() queues one without a document.
     fn web_bindings_queue_a_microtask(realm: *mut c_void, function: *mut c_void);
+
+    /// Calls the steps with the VM and the cell in parallel: later, outside of any task, while an execution context of
+    /// the realm is on the stack. The cell lives until then.
+    fn web_bindings_run_in_parallel(
+        realm: *mut c_void,
+        cell: *mut c_void,
+        steps: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    );
+
+    /// Queues a task on the task source, an HTML::Task::Source, that calls the steps with the VM and the cell while an
+    /// execution context of the realm is on the stack, as HTML::queue_a_task() queues one without a document. The
+    /// cell lives until then.
+    fn web_bindings_queue_a_task(
+        realm: *mut c_void,
+        task_source: u8,
+        cell: *mut c_void,
+        steps: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    );
+}
+
+/// The task sources of HTML::Task::Source that the bindings queue tasks on.
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub(crate) enum TaskSource {
+    Unspecified = 0,
+    Networking = 3,
+}
+
+// SAFETY: A task source holds no cells.
+unsafe impl Trace for TaskSource {
+    fn trace(&self, _: &mut Visitor) {}
 }
 
 /// The promise that LibWeb's C++ code returns, a WebIDL::Promise.
@@ -454,6 +485,93 @@ pub(crate) fn queue_a_microtask<C: Trace + Copy + 'static>(vm: &Vm, realm: Gc<Re
     );
     // SAFETY: The realm and the function are live.
     unsafe { web_bindings_queue_a_microtask(realm.as_ptr().cast(), function.as_ptr().cast()) };
+}
+
+/// Steps with what they capture, which run once, later, from a task or in parallel. They run as C++ code would, with
+/// no function of their own on the stack.
+trait DeferredSteps: Trace {
+    fn run(&self, vm: &Vm);
+}
+
+struct CapturedSteps<C> {
+    captures: C,
+    steps: fn(&Vm, C),
+}
+
+// SAFETY: The steps are a plain function, which holds no cells.
+unsafe impl<C: Trace> Trace for CapturedSteps<C> {
+    fn trace(&self, visitor: &mut Visitor) {
+        self.captures.trace(visitor);
+    }
+}
+
+impl<C: Trace + Copy + 'static> DeferredSteps for CapturedSteps<C> {
+    fn run(&self, vm: &Vm) {
+        (self.steps)(vm, self.captures);
+    }
+}
+
+/// The cell that keeps deferred steps and what they capture alive until they run.
+struct PendingSteps(RefCell<Option<Box<dyn DeferredSteps>>>);
+
+// SAFETY: The steps that have not run are all the cells this reaches.
+unsafe impl Trace for PendingSteps {
+    fn trace(&self, visitor: &mut Visitor) {
+        if let Some(steps) = &*self.0.borrow() {
+            steps.trace(visitor);
+        }
+    }
+}
+
+static PENDING_STEPS_CLASS: EmbedderClass<PendingSteps> = EmbedderClass::new("PendingSteps");
+
+impl EmbedderValue for PendingSteps {
+    const CLASS: &'static EmbedderClass<Self> = &PENDING_STEPS_CLASS;
+}
+
+fn pending_steps<C: Trace + Copy + 'static>(vm: &Vm, captures: C, steps: fn(&Vm, C)) -> *mut c_void {
+    PENDING_STEPS_CLASS
+        .allocate(vm, |_| {
+            let steps: Box<dyn DeferredSteps> = Box::new(CapturedSteps { captures, steps });
+            PendingSteps(RefCell::new(Some(steps)))
+        })
+        .as_ptr()
+        .cast()
+}
+
+unsafe extern "C" fn run_pending_steps(vm: *mut c_void, cell: *mut c_void) {
+    // SAFETY: LibWeb passes the VM and the cell that pending_steps() made, which it kept alive.
+    let (vm, cell) = unsafe {
+        (
+            &*vm.cast::<Vm>(),
+            Gc::from_non_null(NonNull::new_unchecked(cell.cast::<EmbedderCell<PendingSteps>>())),
+        )
+    };
+    // NB: The cell keeps what the steps capture alive while they run, and lets go of it once they have.
+    cell.0.borrow().as_ref().expect("deferred steps run once").run(vm);
+    cell.0.take();
+}
+
+/// Performs the steps with the captures in parallel, https://html.spec.whatwg.org/multipage/infrastructure.html#in-parallel,
+/// with an execution context of the realm on the stack.
+pub(crate) fn in_parallel<C: Trace + Copy + 'static>(vm: &Vm, realm: Gc<Realm>, captures: C, steps: fn(&Vm, C)) {
+    let cell = pending_steps(vm, captures, steps);
+    // SAFETY: The realm and the cell are live.
+    unsafe { web_bindings_run_in_parallel(realm.as_ptr().cast(), cell, run_pending_steps) };
+}
+
+/// Queues a task on the task source that performs the steps with the captures,
+/// https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-task
+pub(crate) fn queue_a_task<C: Trace + Copy + 'static>(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    task_source: TaskSource,
+    captures: C,
+    steps: fn(&Vm, C),
+) {
+    let cell = pending_steps(vm, captures, steps);
+    // SAFETY: The realm and the cell are live.
+    unsafe { web_bindings_queue_a_task(realm.as_ptr().cast(), task_source as u8, cell, run_pending_steps) };
 }
 
 /// The [[Promise]] of a promise capability that LibWeb created, which is a Promise.

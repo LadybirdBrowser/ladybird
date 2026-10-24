@@ -32,8 +32,16 @@ from Utils.webidl_parser import OperationParameter
 RUST_METHOD_NAME = re.compile(r"[a-z][a-z0-9_]*")
 
 # The extended attributes of the members of an interface that the Rust bindings handle.
-SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {"CachedAccessor", "FIXME", "ImplementedAs", "NewObject", "SameObject"}
-# NB: The context of an operation that is [NeedsCallerRealm] has the current realm, not the realm of the object.
+# NB: The context of an attribute or an operation that is [NeedsCallerRealm] has the current realm, not the realm of
+#     the object.
+SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {
+    "CachedAccessor",
+    "FIXME",
+    "ImplementedAs",
+    "NeedsCallerRealm",
+    "NewObject",
+    "SameObject",
+}
 SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {
     "Default",
     "Exposed",
@@ -404,8 +412,8 @@ def rust_members(interface: Interface) -> RustMembers:
                         f"its operation {name} is overloaded, and not all of the overloads name their Rust method with "
                         "[ImplementedAs]"
                     )
-                if any(operation.return_type_is_promise() for operation in operations):
-                    fail(f"its operation {name} is overloaded and returns a promise type")
+                if len({operation.return_type_is_promise() for operation in operations}) > 1:
+                    fail(f"some overloads of its operation {name} return a promise type and others do not")
                 if len({operation.extended_attributes.get("Exposed") for operation in operations}) > 1:
                     fail(f"the overloads of its operation {name} are exposed differently")
             overloads = [

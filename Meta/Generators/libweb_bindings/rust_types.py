@@ -382,7 +382,7 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
             if is_result and holds_cells(element_type, context):
                 return f"MarkedVec<'_, {element}>"
             return f"Vec<{element}>"
-        if name == "Promise" and is_result:
+        if name == "Promise":
             return "WebIdlPromise"
         if name == "record":
             key_type, value_type = idl_type.parameters
@@ -398,6 +398,8 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
         return "Gc<Object>"
     if name in TYPED_ARRAY_NAMES:
         return "Gc<TypedArrayBase>"
+    if name == "ArrayBuffer" and is_result:
+        return "Gc<ArrayBuffer>"
     callback_function = context.callback_function(idl_type)
     if callback_function is not None:
         # NB: A callback function value that the implementation receives keeps its callback context, and one that it
