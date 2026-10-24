@@ -1,0 +1,3 @@
+stroke-dasharray: calc(-20.000005% + 12px), 10px
+isPointInStroke(5, 50): false
+isPointInStroke(50, 50): false

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="100" height="100">
+    <line id="line" x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="4" style="stroke-dasharray: 100% 10"></line>
+</svg>
+<script>
+    test(() => {
+        const line = document.getElementById("line");
+        // NB: The easing makes the interpolation progress 1.2 halfway through, so the first dash is
+        //     calc(-20% + 12px), which resolves to -8px before clamping.
+        const animation = line.animate([{ strokeDasharray: "100% 10" }, { strokeDasharray: "10px 10" }], {
+            duration: 1000,
+            easing: "linear(0, 1.2 50%, 1)",
+        });
+        animation.pause();
+        animation.currentTime = 500;
+        println(`stroke-dasharray: ${getComputedStyle(line).strokeDasharray}`);
+        // A zero-length dash followed by a gap paints nothing, so no point is in the stroke.
+        println(`isPointInStroke(5, 50): ${line.isPointInStroke({ x: 5, y: 50 })}`);
+        println(`isPointInStroke(50, 50): ${line.isPointInStroke({ x: 50, y: 50 })}`);
+    });
+</script>

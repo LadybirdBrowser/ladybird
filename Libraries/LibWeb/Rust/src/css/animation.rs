@@ -99,6 +99,27 @@ const NONNEGATIVE_LENGTH_RANGE: &[NumericRangeOverride] = &[NumericRangeOverride
     max: f32::MAX as f64,
 }];
 
+// https://svgwg.org/svg2-draft/painting.html#StrokeDashing
+// If any value in the list is negative, the <dasharray> value is invalid.
+// NB: So the values that interpolating dash lists produces are clamped to be non-negative.
+const STROKE_DASHARRAY_RANGES: &[NumericRangeOverride] = &[
+    NumericRangeOverride {
+        value_type: VALUE_TYPE_LENGTH,
+        min: 0.0,
+        max: f32::MAX as f64,
+    },
+    NumericRangeOverride {
+        value_type: VALUE_TYPE_PERCENTAGE,
+        min: 0.0,
+        max: f32::MAX as f64,
+    },
+    NumericRangeOverride {
+        value_type: VALUE_TYPE_NUMBER,
+        min: 0.0,
+        max: f32::MAX as f64,
+    },
+];
+
 #[repr(C)]
 pub struct FfiAnimationValueResult {
     pub value: *const StyleValueData,
@@ -1395,18 +1416,37 @@ fn retained_calculation(
 fn retained_length_percentage_calculation(
     calculation: Arc<crate::css::calc::CalcNode>,
     resolved_type: crate::css::calc::FfiNumericType,
+    range_overrides: &[NumericRangeOverride],
 ) -> RetainedStyleValueData {
+    let range = |value_type: u8| {
+        range_overrides
+            .iter()
+            .find(|range| range.value_type == value_type)
+            .map(|range| (range.min, range.max))
+    };
     let value = match &*calculation {
         crate::css::calc::CalcNode::Numeric(crate::css::calc::CalcNumericValue::Length { value, unit }) => {
             StyleValueData::Length {
-                value: *value,
+                value: clamp_to_range(*value, range(VALUE_TYPE_LENGTH)),
                 unit: *unit,
             }
         }
         crate::css::calc::CalcNode::Numeric(crate::css::calc::CalcNumericValue::Percentage(value)) => {
-            StyleValueData::Percentage { value: *value }
+            StyleValueData::Percentage {
+                value: clamp_to_range(*value, range(VALUE_TYPE_PERCENTAGE)),
+            }
         }
-        _ => crate::css::calc::length_percentage_calculated_style_value(calculation, resolved_type),
+        _ => {
+            let mut value = crate::css::calc::length_percentage_calculated_style_value(calculation, resolved_type);
+            if let StyleValueData::Calculated { accepted_ranges, .. } = &mut value {
+                *accepted_ranges = crate::css::style_value::RetainedNumericRangeList::from_numeric_ranges(
+                    [VALUE_TYPE_LENGTH, VALUE_TYPE_PERCENTAGE]
+                        .into_iter()
+                        .filter_map(|value_type| range(value_type).map(|(min, max)| (value_type, min, max))),
+                );
+            }
+            value
+        }
     };
     RetainedStyleValueData::from_arc(Arc::new(value))
 }
@@ -1445,7 +1485,7 @@ fn interpolate_translate_component(
     let from = length_percentage_calculation_node(from)?;
     let to = length_percentage_calculation_node(to)?;
     let (calculation, resolved_type) = crate::css::calc::interpolate_length_percentage_calculations(from, to, delta)?;
-    Some(retained_length_percentage_calculation(calculation, resolved_type))
+    Some(retained_length_percentage_calculation(calculation, resolved_type, &[]))
 }
 
 fn decode_translate_components(value: &StyleValueData) -> Option<Vec<RetainedStyleValueData>> {
@@ -1889,7 +1929,7 @@ fn composite_grid_component(
     {
         // https://drafts.csswg.org/css-values-4/#combine-mixed
         // Addition of <percentage> is defined the same as interpolation except by adding each component rather than interpolating it.
-        return retained_length_percentage_calculation(calculation, resolved_type);
+        return retained_length_percentage_calculation(calculation, resolved_type, &[]);
     }
 
     animated.clone_retained()
@@ -3509,7 +3549,7 @@ fn composite_scalar_value(
     {
         // https://drafts.csswg.org/css-values-4/#combine-mixed
         // Addition of <percentage> is defined the same as interpolation except by adding each component rather than interpolating it.
-        return handled_retained_value(retained_length_percentage_calculation(calculation, resolved_type));
+        return handled_retained_value(retained_length_percentage_calculation(calculation, resolved_type, &[]));
     }
 
     match (underlying, animated) {
@@ -4178,7 +4218,11 @@ fn interpolate_scalar_value(
         && let Some((calculation, resolved_type)) =
             crate::css::calc::interpolate_length_percentage_calculations(from, to, delta)
     {
-        return handled_retained_value(retained_length_percentage_calculation(calculation, resolved_type));
+        return handled_retained_value(retained_length_percentage_calculation(
+            calculation,
+            resolved_type,
+            range_overrides,
+        ));
     }
 
     match (from, to) {
@@ -7614,7 +7658,12 @@ pub(crate) fn interpolate_value(
         for index in 0..list_size {
             let from_value = from_list.map_or(from, |(values, _, _)| values[index % from_length].data());
             let to_value = to_list.map_or(to, |(values, _, _)| values[index % to_length].data());
-            let result = interpolate_scalar_value(property_id, from_value, to_value, delta, &[]);
+            let ranges = if is_stroke_dasharray {
+                STROKE_DASHARRAY_RANGES
+            } else {
+                &[]
+            };
+            let result = interpolate_scalar_value(property_id, from_value, to_value, delta, ranges);
             let Some(result_value) = result.into_value() else {
                 return discrete_value(context, from, to, delta);
             };
@@ -7867,6 +7916,10 @@ fn composite_batch_value<'a>(
             composite_scalar_value(underlying, animated, operation)
         })
         .unwrap_or_else(handled_without_value)
+    } else if property_id == crate::css::property_metadata::property_id::STROKE_DASHARRAY {
+        // https://svgwg.org/svg2-draft/painting.html#StrokeDashing
+        // stroke-dasharray values are not additive.
+        handled_without_value()
     } else if property_id == crate::css::property_metadata::property_id::OFFSET_PATH {
         composite_offset_path(underlying, animated, operation).map_or_else(handled_without_value, owned)
     } else if property_id == crate::css::property_metadata::property_id::OFFSET_ROTATE {
