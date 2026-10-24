@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // zlib, raw deflate and gzip compressions of the empty string.
+    const compressedEmptyInput = {
+        "deflate": [0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01],
+        "deflate-raw": [0x03, 0x00],
+        "gzip": [0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+    };
+
+    async function decompress(format, chunks) {
+        const decompressor = new DecompressionStream(format);
+        const writer = decompressor.writable.getWriter();
+        for (const chunk of chunks)
+            writer.write(new Uint8Array(chunk)).catch(() => {});
+        writer.close().catch(() => {});
+        try {
+            const output = await new Response(decompressor.readable).arrayBuffer();
+            return `${output.byteLength} bytes`;
+        } catch (error) {
+            return error.name;
+        }
+    }
+
+    asyncTest(async done => {
+        for (const [format, compressed] of Object.entries(compressedEmptyInput)) {
+            println(`${format}, no padding: ${await decompress(format, [compressed])}`);
+            println(`${format}, padding in the same chunk: ${await decompress(format, [[...compressed, 0]])}`);
+            println(`${format}, padding in another chunk: ${await decompress(format, [compressed, [0]])}`);
+        }
+        done();
+    });
+</script>

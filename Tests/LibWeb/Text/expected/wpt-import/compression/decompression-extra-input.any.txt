@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	decompressing deflate input with extra pad should still give the output
+Pass	decompressing gzip input with extra pad should still give the output
+Pass	decompressing deflate-raw input with extra pad should still give the output
+Pass	decompressing brotli input with extra pad should still give the output

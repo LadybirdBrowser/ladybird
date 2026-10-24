@@ -1,0 +1,9 @@
+deflate, no padding: 0 bytes
+deflate, padding in the same chunk: TypeError
+deflate, padding in another chunk: TypeError
+deflate-raw, no padding: 0 bytes
+deflate-raw, padding in the same chunk: TypeError
+deflate-raw, padding in another chunk: TypeError
+gzip, no padding: 0 bytes
+gzip, padding in the same chunk: TypeError
+gzip, padding in another chunk: TypeError

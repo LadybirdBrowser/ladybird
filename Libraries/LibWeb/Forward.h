@@ -156,13 +156,6 @@ class ClipboardItem;
 
 }
 
-namespace Web::Compression {
-
-class CompressionStream;
-class DecompressionStream;
-
-}
-
 namespace Web::ContentSecurityPolicy {
 
 class Policy;

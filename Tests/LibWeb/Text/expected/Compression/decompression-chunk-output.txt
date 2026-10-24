@@ -1,0 +1,8 @@
+deflate repetitive: 100000 of 100000
+deflate random: 50000 of 50000
+deflate-raw repetitive: 100000 of 100000
+deflate-raw random: 50000 of 50000
+gzip repetitive: 100000 of 100000
+gzip random: 50000 of 50000
+brotli repetitive: 100000 of 100000
+brotli random: 50000 of 50000
