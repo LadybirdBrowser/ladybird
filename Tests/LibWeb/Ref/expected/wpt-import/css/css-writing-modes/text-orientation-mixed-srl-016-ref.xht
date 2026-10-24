@@ -1,0 +1,40 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Reftest Reference</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+
+  <style type="text/css"><![CDATA[
+  @font-face
+    {
+      font-family: "mplus-1p-regular";
+      src: url("../../fonts/mplus-1p-regular.woff") format("woff");
+      /* filesize: 803300 bytes (784.5 KBytes) */
+    }
+
+  div
+    {
+      border: gray solid 1px;
+      font: bold 26px/32px "mplus-1p-regular";
+      margin-bottom: 4px;
+      text-orientation: sideways;
+      writing-mode: vertical-rl;
+    }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if the glyphs in both rectangles have the <strong>same order</strong>, the <strong>same orientation</strong> and the <strong>same layout</strong>.</p>
+
+  <div>月火水Abc<br />def木金土</div>
+
+  <div>月火水Abc<br />def木金土</div>
+
+ </body>
+</html>

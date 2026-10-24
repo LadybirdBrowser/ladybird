@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Writing Modes Level 3: parsing text-orientation with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-writing-modes-3/#propdef-text-orientation">
+<meta name="assert" content="text-orientation supports only the grammar 'mixed | upright | sideways'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("text-orientation", "auto");
+test_invalid_value("text-orientation", "mixed upright");
+</script>
+</body>
+</html>

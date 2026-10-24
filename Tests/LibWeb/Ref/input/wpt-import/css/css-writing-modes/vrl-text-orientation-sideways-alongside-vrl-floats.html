@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <title>CSS Writing Modes Test: positioning of a text-orientation:sideways block alongside vertical-rl floats</title>
+
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-writing-modes/#block-flow" title="3.2. Block Flow Direction: the writing-mode property">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/vrl-text-orientation-sideways-alongside-vrl-floats-ref.html">
+
+  <!-- This test is adapted from Gérard Talbot's "ortho-htb-alongside-vrl-floats-014.xht" -->
+
+  <meta content="This test verifies that the orange block box, which should not create a new block formatting context, should flow next to the first float." name="assert">
+
+  <style>
+  html {
+    writing-mode: vertical-rl;
+  }
+
+  div {
+    block-size: 100px;
+  }
+
+  div#first-olive-float {
+    background-color: olive;
+    float: left;
+    inline-size: 50%;
+  }
+
+  div#second-blue-float-with-clear {
+    background-color: blue;
+    clear: left;
+    float: left;
+    inline-size: 25%;
+  }
+
+  div#orange-bfc {
+    background-color: orange;
+    inline-size: 75%;
+    writing-mode: vertical-rl;
+    text-orientation: sideways; /* Should not create block formatting context */
+  }
+  </style>
+
+  <body>
+    <div id="first-olive-float">&nbsp;</div>
+    <div id="second-blue-float-with-clear">&nbsp;</div>
+    <div id="orange-bfc">&nbsp;</div>
+  </body>
+</html>
