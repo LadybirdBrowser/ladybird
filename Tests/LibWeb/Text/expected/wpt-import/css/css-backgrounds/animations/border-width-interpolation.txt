@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 256 tests
 
-252 Pass
-4 Fail
+256 Pass
 Pass	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (-0.3) should be [17px 37px 57px 77px]
 Pass	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0) should be [20px 40px 60px 80px]
 Pass	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0.3) should be [23px 43px 63px 83px]
@@ -177,28 +176,28 @@ Pass	Web Animations: property <border-bottom-width> from [thick] to [15px] at (0
 Pass	Web Animations: property <border-bottom-width> from [thick] to [15px] at (1) should be [15px]
 Pass	Web Animations: property <border-bottom-width> from [thick] to [15px] at (1.5) should be [20px]
 Pass	CSS Transitions: property <border-left-width> from [medium] to [13px] at (-2) should be [0px]
-Fail	CSS Transitions: property <border-left-width> from [medium] to [13px] at (-0.25) should be [0.5px]
+Pass	CSS Transitions: property <border-left-width> from [medium] to [13px] at (-0.25) should be [0.5px]
 Pass	CSS Transitions: property <border-left-width> from [medium] to [13px] at (0) should be [3px]
 Pass	CSS Transitions: property <border-left-width> from [medium] to [13px] at (0.3) should be [6px]
 Pass	CSS Transitions: property <border-left-width> from [medium] to [13px] at (0.6) should be [9px]
 Pass	CSS Transitions: property <border-left-width> from [medium] to [13px] at (1) should be [13px]
 Pass	CSS Transitions: property <border-left-width> from [medium] to [13px] at (1.5) should be [18px]
 Pass	CSS Transitions with transition: all: property <border-left-width> from [medium] to [13px] at (-2) should be [0px]
-Fail	CSS Transitions with transition: all: property <border-left-width> from [medium] to [13px] at (-0.25) should be [0.5px]
+Pass	CSS Transitions with transition: all: property <border-left-width> from [medium] to [13px] at (-0.25) should be [0.5px]
 Pass	CSS Transitions with transition: all: property <border-left-width> from [medium] to [13px] at (0) should be [3px]
 Pass	CSS Transitions with transition: all: property <border-left-width> from [medium] to [13px] at (0.3) should be [6px]
 Pass	CSS Transitions with transition: all: property <border-left-width> from [medium] to [13px] at (0.6) should be [9px]
 Pass	CSS Transitions with transition: all: property <border-left-width> from [medium] to [13px] at (1) should be [13px]
 Pass	CSS Transitions with transition: all: property <border-left-width> from [medium] to [13px] at (1.5) should be [18px]
 Pass	CSS Animations: property <border-left-width> from [medium] to [13px] at (-2) should be [0px]
-Fail	CSS Animations: property <border-left-width> from [medium] to [13px] at (-0.25) should be [0.5px]
+Pass	CSS Animations: property <border-left-width> from [medium] to [13px] at (-0.25) should be [0.5px]
 Pass	CSS Animations: property <border-left-width> from [medium] to [13px] at (0) should be [3px]
 Pass	CSS Animations: property <border-left-width> from [medium] to [13px] at (0.3) should be [6px]
 Pass	CSS Animations: property <border-left-width> from [medium] to [13px] at (0.6) should be [9px]
 Pass	CSS Animations: property <border-left-width> from [medium] to [13px] at (1) should be [13px]
 Pass	CSS Animations: property <border-left-width> from [medium] to [13px] at (1.5) should be [18px]
 Pass	Web Animations: property <border-left-width> from [medium] to [13px] at (-2) should be [0px]
-Fail	Web Animations: property <border-left-width> from [medium] to [13px] at (-0.25) should be [0.5px]
+Pass	Web Animations: property <border-left-width> from [medium] to [13px] at (-0.25) should be [0.5px]
 Pass	Web Animations: property <border-left-width> from [medium] to [13px] at (0) should be [3px]
 Pass	Web Animations: property <border-left-width> from [medium] to [13px] at (0.3) should be [6px]
 Pass	Web Animations: property <border-left-width> from [medium] to [13px] at (0.6) should be [9px]
