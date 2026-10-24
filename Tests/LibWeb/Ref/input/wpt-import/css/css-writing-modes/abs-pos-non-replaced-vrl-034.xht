@@ -1,0 +1,84 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: absolutely positioned non-replaced element - 'direction: rtl' and 'left' and 'right' are 'auto' and 'width' is not 'auto'</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css-writing-modes-3/#vertical-layout" title="7.1 Principles of Layout in Vertical Writing Modes" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width" title="10.3.7 Absolutely positioned, non-replaced elements" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/abs-pos-non-replaced-vlr-009-ref.xht" />
+
+  <meta name="flags" content="ahem image" />
+  <meta name="assert" content="When 'direction' is 'rtl' and 'left' and 'right' are 'auto' and 'width' is not 'auto', then set 'right' to the static position and then solve for 'left'." />
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div#containing-block
+    {
+      background: red url("support/bg-red-2col-2row-320x320.png");
+      color: transparent;
+      direction: rtl;
+      font: 80px/1 Ahem;
+      height: 320px;
+      position: relative;
+      width: 320px;
+    }
+
+  div#containing-block > span
+    {
+      background-color: red;
+      color: green;
+      left: auto;
+      position: absolute;
+      right: auto;
+      width: 1em;
+      writing-mode: vertical-rl;
+    }
+
+/*
+"
+2. 'left' and 'right' are 'auto' and 'width' is not 'auto', then if the 'direction' property of the element establishing the static-position containing block is 'ltr' set 'left' to the static position, otherwise set 'right' to the static position. Then solve for 'left' (if 'direction is 'rtl') or 'right' (if 'direction' is 'ltr').
+"
+
+'left' + 'margin-left' + 'border-left-width' + 'padding-left' + 'width' + 'padding-right' + 'border-right-width' + 'margin-right' + 'right' = width of containing block
+
+So:
+
+  (solve) : left: auto
+  +
+      0px : margin-left
+  +
+      0px : border-left-width
+  +
+      0px : padding-left
+  +
+     80px : width
+  +
+      0px : padding-right
+  +
+      0px : border-right-width
+  +
+      0px : margin-right
+  +
+    160px : right: auto: set to static position
+    =====================
+    320px : width of containing block
+
+And so computed left value must be 80px .
+*/
+
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p><img src="support/pass-cdts-abs-pos-non-replaced.png" width="246" height="36" alt="Image download support must be enabled" /></p>
+
+  <div id="containing-block">1 2 34<span>X</span></div>
+
+ </body>
+</html>
