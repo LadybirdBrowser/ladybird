@@ -21,6 +21,8 @@ namespace Gfx {
 // interleaved in the second. Returns the bit depth of a surface in one of these formats.
 Optional<u8> biplanar_bit_depth_for_pixel_format(u32 pixel_format);
 
+ErrorOr<void> validate_biplanar_video_surface(Core::IOSurfaceHandle const&);
+
 // Reads a decoder's surface back into RGBA pixels, for the paths that need them in memory rather than on the GPU.
 ErrorOr<NonnullRefPtr<Bitmap>> bitmap_from_video_surface(Core::IOSurfaceHandle const&, Media::CodingIndependentCodePoints);
 

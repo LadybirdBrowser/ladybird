@@ -131,6 +131,11 @@ ErrorOr<IOSurfaceHandle> IOSurfaceHandle::from_mach_port(MachPort const& port)
     return IOSurfaceHandle(make<IOSurfaceRefWrapper>(ref));
 }
 
+size_t IOSurfaceHandle::alloc_size() const
+{
+    return IOSurfaceGetAllocSize(m_ref_wrapper->ref);
+}
+
 size_t IOSurfaceHandle::width() const
 {
     return IOSurfaceGetWidth(m_ref_wrapper->ref);

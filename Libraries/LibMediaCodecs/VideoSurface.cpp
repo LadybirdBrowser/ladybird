@@ -17,6 +17,17 @@ namespace Media {
 
 VideoSurface::~VideoSurface() = default;
 
+Gfx::IntSize VideoSurface::size() const
+{
+#if defined(AK_OS_MACOS)
+    return { static_cast<int>(m_io_surface.plane_width(0)), static_cast<int>(m_io_surface.plane_height(0)) };
+#elif defined(AK_OS_LINUX)
+    return m_dma_buf.size;
+#else
+    return {};
+#endif
+}
+
 ErrorOr<NonnullRefPtr<Gfx::Bitmap>> VideoSurface::read_back_bitmap([[maybe_unused]] CodingIndependentCodePoints const& cicp) const
 {
 #ifdef AK_OS_MACOS
@@ -36,7 +47,9 @@ ErrorOr<NonnullRefPtr<VideoSurface>> VideoSurface::create(Core::IOSurfaceHandle 
 
 ErrorOr<NonnullRefPtr<VideoSurface>> VideoSurface::create_from_mach_port(Core::MachPort const& port)
 {
-    return create(TRY(Core::IOSurfaceHandle::from_mach_port(port)));
+    auto io_surface = TRY(Core::IOSurfaceHandle::from_mach_port(port));
+    TRY(Gfx::validate_biplanar_video_surface(io_surface));
+    return create(move(io_surface));
 }
 
 #endif

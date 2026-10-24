@@ -39,6 +39,7 @@ public:
     // The four character code the surface was allocated with, such as '420v' for biplanar 8-bit YCbCr.
     u32 pixel_format() const;
     size_t plane_count() const;
+    size_t alloc_size() const;
     size_t plane_width(size_t plane) const;
     size_t plane_height(size_t plane) const;
     size_t bytes_per_element() const;

@@ -298,3 +298,80 @@ TEST_CASE(refuses_to_read_back_a_surface_that_holds_no_video_planes)
     auto surface = Core::IOSurfaceHandle::create(16, 16);
     EXPECT(Gfx::bitmap_from_video_surface(surface, {}).is_error());
 }
+
+namespace {
+
+// A '420v' surface described plane by plane, so a test can give it the geometry another process could.
+Optional<Core::IOSurfaceHandle> create_surface_with_chroma_height(int width, int height, int chroma_height)
+{
+    auto set_number = [](CFMutableDictionaryRef dictionary, CFStringRef key, long value) {
+        auto* number = CFNumberCreate(kCFAllocatorDefault, kCFNumberLongType, &value);
+        CFDictionarySetValue(dictionary, key, number);
+        CFRelease(number);
+    };
+    auto create_dictionary = [] {
+        return CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    };
+    auto create_plane = [&](long plane_width, long plane_height, long bytes_per_element, long offset) {
+        auto* plane = create_dictionary();
+        set_number(plane, kIOSurfacePlaneWidth, plane_width);
+        set_number(plane, kIOSurfacePlaneHeight, plane_height);
+        set_number(plane, kIOSurfacePlaneBytesPerElement, bytes_per_element);
+        set_number(plane, kIOSurfacePlaneBytesPerRow, plane_width * bytes_per_element);
+        set_number(plane, kIOSurfacePlaneOffset, offset);
+        set_number(plane, kIOSurfacePlaneSize, plane_width * bytes_per_element * plane_height);
+        return plane;
+    };
+
+    long luma_size = static_cast<long>(width) * height;
+    CFTypeRef planes[] = { create_plane(width, height, 1, 0), create_plane(width / 2, chroma_height, 2, luma_size) };
+    auto* plane_array = CFArrayCreate(kCFAllocatorDefault, planes, 2, &kCFTypeArrayCallBacks);
+    CFRelease(planes[0]);
+    CFRelease(planes[1]);
+
+    auto* properties = create_dictionary();
+    set_number(properties, kIOSurfaceWidth, width);
+    set_number(properties, kIOSurfaceHeight, height);
+    set_number(properties, kIOSurfacePixelFormat, kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange);
+    set_number(properties, kIOSurfaceAllocSize, luma_size + (static_cast<long>(width) * chroma_height));
+    CFDictionarySetValue(properties, kIOSurfacePlaneInfo, plane_array);
+    CFRelease(plane_array);
+
+    auto* io_surface = IOSurfaceCreate(properties);
+    CFRelease(properties);
+    if (io_surface == nullptr)
+        return {};
+    auto handle = Core::IOSurfaceHandle::from_ref(io_surface);
+    CFRelease(io_surface);
+    return handle;
+}
+
+}
+
+TEST_CASE(accepts_surfaces_laid_out_like_a_decoders)
+{
+    EXPECT(!Gfx::validate_biplanar_video_surface(create_decoder_shaped_surface(63, 47, kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange).release_value()).is_error());
+    EXPECT(!Gfx::validate_biplanar_video_surface(create_decoder_shaped_surface(64, 48, kCVPixelFormatType_420YpCbCr10BiPlanarFullRange).release_value()).is_error());
+    EXPECT(!Gfx::validate_biplanar_video_surface(create_surface_with_chroma_height(64, 48, 24).release_value()).is_error());
+}
+
+// Surfaces arrive from the decoder's process, so their planes must hold what their format says before anything reads
+// them, or the readers walk past the chroma plane.
+TEST_CASE(refuses_surfaces_whose_planes_do_not_hold_their_format)
+{
+    EXPECT(Gfx::validate_biplanar_video_surface(Core::IOSurfaceHandle::create(16, 16)).is_error());
+
+    auto short_chroma = create_surface_with_chroma_height(64, 48, 1);
+    VERIFY(short_chroma.has_value());
+    EXPECT(Gfx::validate_biplanar_video_surface(*short_chroma).is_error());
+}
+
+TEST_CASE(biplanar_conversion_refuses_planes_shorter_than_the_size)
+{
+    auto luma = MUST(ByteBuffer::create_zeroed(64 * 48));
+    auto chroma = MUST(ByteBuffer::create_zeroed(64 * 24));
+    Gfx::BiplanarYUVPlane luma_plane { .data = luma.bytes(), .stride = 64 };
+    EXPECT(!Gfx::biplanar_yuv_to_bitmap({ 64, 48 }, 8, {}, luma_plane, { .data = chroma.bytes(), .stride = 64 }).is_error());
+    EXPECT(Gfx::biplanar_yuv_to_bitmap({ 64, 48 }, 8, {}, luma_plane, { .data = chroma.bytes().slice(0, 64), .stride = 64 }).is_error());
+    EXPECT(Gfx::biplanar_yuv_to_bitmap({ 64, 48 }, 8, {}, luma_plane, { .data = chroma.bytes(), .stride = 16 }).is_error());
+}
