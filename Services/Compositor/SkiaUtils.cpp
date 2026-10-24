@@ -9,6 +9,7 @@
 #include <AK/MemoryStream.h>
 #include <Compositor/SkiaUtils.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/ColorFilterType.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
