@@ -20,6 +20,7 @@
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <openssl/x509v3.h>
 
 namespace TLS {
 
@@ -250,6 +251,7 @@ ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect_internal(NonnullOwnPtr<Core::TCPS
     OPENSSL_TRY(SSL_set_tlsext_host_name(ssl, host.characters()));
 
     // Ensure we check that the server has supplied a certificate for the hostname that we were expecting.
+    SSL_set_hostflags(ssl, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS | X509_CHECK_FLAG_NEVER_CHECK_SUBJECT);
     OPENSSL_TRY(SSL_set1_host(ssl, host.characters()));
 
     auto* bio = OPENSSL_TRY_PTR(BIO_new_socket(socket->fd(), 0));
