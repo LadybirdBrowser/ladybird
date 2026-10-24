@@ -1922,7 +1922,7 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             }
         }
         StyleValueData::Edge { .. } => absolutize_edge(value, context),
-        StyleValueData::Anchor { .. } => {
+        StyleValueData::Anchor { .. } | StyleValueData::AnchorSize { .. } => {
             let mut tracked = false;
             let mut calc_length_context = *context.length;
             calc_length_context.resolved_viewport_relative_length = &raw mut tracked;

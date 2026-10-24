@@ -7685,7 +7685,7 @@ mod tests {
         }
         assert!(matches!(
             parse(property_id::WIDTH, "calc(anchor-size(width) + 1px)"),
-            ParseOutcome::Invalid
+            ParseOutcome::Parsed(_)
         ));
     }
 

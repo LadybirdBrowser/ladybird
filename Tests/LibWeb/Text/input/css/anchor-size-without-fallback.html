@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+#cb {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    font-size: 10px;
+    container-type: size;
+}
+#anchor {
+    anchor-name: --a;
+    position: absolute;
+    width: 50px;
+    height: 40px;
+}
+</style>
+<div id="cb"><div id="anchor"></div><div id="main"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const style of [
+            "width: anchor-size(--a width)",
+            "max-width: anchor-size(--a width)",
+            "position: relative; width: anchor-size(--a width)",
+            "width: anchor-size(--a width, 33px)",
+            "position: absolute; width: anchor-size(--missing width, 2em)",
+            "position: absolute; width: calc(anchor-size(--missing width, 3em) + 1px)",
+            "position: absolute; width: anchor-size(--missing width, 10cqw)",
+            "position: absolute; position-anchor: --a; width: anchor-size(width, 2em)",
+        ]) {
+            const target = document.createElement("div");
+            target.style = style;
+            main.append(target);
+            println(`${style}: ${target.getBoundingClientRect().width}`);
+            target.remove();
+        }
+    });
+</script>

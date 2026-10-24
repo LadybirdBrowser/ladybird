@@ -65,6 +65,7 @@ pub(crate) struct AbsposLayoutInputs {
     pub(crate) static_position_rect: StaticPositionRect,
     pub(crate) containing_block_info: AbsposContainingBlockInfo,
     pub(crate) resolved_anchor_insets: Option<super::formatting_context::ResolvedAnchorInsets>,
+    pub(crate) resolved_anchor_sizes: super::style_values::ResolvedAnchorSizes,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
