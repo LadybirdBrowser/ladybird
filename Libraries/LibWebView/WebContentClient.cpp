@@ -858,9 +858,13 @@ void WebContentClient::update_audio_capture_permission()
 
 bool WebContentClient::audio_capture_permitted() const
 {
+    // A tab's grant reaches only the documents whose permissions policy allows them the microphone. The process may
+    // capture if it hosts one, as it can act for any document it hosts.
     for (auto const& it : m_pages) {
         auto const& page = it.value;
-        if (page->is_open() && m_audio_capture_grants.contains(audio_capture_permission_key(page->view().url())))
+        if (!page->is_open() || !m_audio_capture_grants.contains(audio_capture_permission_key(page->view().url())))
+            continue;
+        if (page->hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature::Microphone))
             return true;
     }
     return false;
