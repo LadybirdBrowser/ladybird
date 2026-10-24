@@ -1305,19 +1305,16 @@ pub(crate) unsafe fn selector_parse(
     .map_or(std::ptr::null_mut(), |selectors| Box::into_raw(Box::new(selectors)))
 }
 
-/// # Safety
-/// Input and the optional immutable namespace context must be readable for this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_parse_with_namespace_context(
+pub extern "C" fn rust_selector_parse_with_namespace_context(
     input: FfiUtf16View,
-    namespaces: *const std::ffi::c_void,
+    namespaces: Option<&crate::css::rule::NativeNamespaceContext>,
     is_relative: bool,
     is_forgiving: bool,
 ) -> *mut RustParsedSelectorList {
     let Some(input) = input.units() else {
         return std::ptr::null_mut();
     };
-    let namespaces = unsafe { namespaces.cast::<crate::css::rule::NativeNamespaceContext>().as_ref() };
     let namespaces: Vec<_> = namespaces
         .into_iter()
         .flat_map(|namespaces| namespaces.prefixes.iter())

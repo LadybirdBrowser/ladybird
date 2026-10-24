@@ -4541,16 +4541,11 @@ pub extern "C" fn rust_style_value_contains_anchor_function(value: &crate::css::
 /// The value of a computed `<length-percentage>` whose anchor() and anchor-size() functions are unresolvable: one
 /// strong reference to it with the functions replaced by their fallback values, or null when it holds no anchor
 /// functions or when one of them has no fallback value, which `is_invalid` tells apart.
-///
-/// # Safety
-/// `value` must point at live style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_with_unresolvable_anchor_functions(
-    value: *const std::ffi::c_void,
+pub extern "C" fn rust_style_value_with_unresolvable_anchor_functions(
+    value: &crate::css::style_value::StyleValueData,
     is_invalid: &mut bool,
 ) -> *const crate::css::style_value::StyleValueData {
-    // SAFETY: Guaranteed by the caller.
-    let value = unsafe { &*value.cast::<crate::css::style_value::StyleValueData>() };
     let substituted = substitute_unresolvable_anchor_functions(value);
     *is_invalid = substituted.is_none();
     substituted

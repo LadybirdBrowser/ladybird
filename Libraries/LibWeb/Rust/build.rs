@@ -2446,6 +2446,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             .rename
             .insert(rust_name.to_string(), cxx_name.to_string());
     }
+    // A selector parses against a namespace context as the value parser header declares it.
+    selector_config.export.rename.insert(
+        "NativeNamespaceContext".to_string(),
+        "Web::CSS::Parser::ValueParserFFI::NativeNamespaceContext".to_string(),
+    );
+    selector_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::CSS::Parser::ValueParserFFI { struct NativeNamespaceContext; }");
 
     generate_ffi_header(
         selector_config,
@@ -2554,6 +2563,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .after_includes
         .get_or_insert_with(String::new)
         .push_str("\nnamespace Web::CSS::ComputedValuesFFI { struct FfiLengthResolutionContext; }");
+    // A counter style's system is read as the style value header declares it.
+    value_parser_config.export.rename.insert(
+        "StyleValueData".to_string(),
+        "Web::CSS::StyleValueFFI::StyleValueData".to_string(),
+    );
+    value_parser_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::CSS::StyleValueFFI { union StyleValueData; }");
 
     generate_ffi_header(
         value_parser_config,
@@ -2655,6 +2673,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         .after_includes
         .get_or_insert_with(String::new)
         .push_str("\nnamespace Web::DOM { class Element; }\nnamespace Web::CSS { struct StyleReactionApplication; }");
+    // The native sheets, rules and declaration blocks the host publishes are named as the value parser header declares
+    // them.
+    for name in ["DeclarationBlock", "NativeRule", "NativeStyleSheet"] {
+        style_engine_config
+            .export
+            .rename
+            .insert(name.to_string(), format!("Web::CSS::Parser::ValueParserFFI::{name}"));
+    }
+    style_engine_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str(
+            "\nnamespace Web::CSS::Parser::ValueParserFFI { struct DeclarationBlock; struct NativeRule; struct NativeStyleSheet; }",
+        );
 
     generate_ffi_header(
         style_engine_config,

@@ -501,17 +501,14 @@ pub(crate) fn parse_descriptor(
 }
 
 /// Parses one descriptor value and returns retained Rust style-value data.
-///
-/// # Safety
-/// Every view and `context` must remain readable for this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_css_descriptor(
-    context: *const ParseContext,
+pub extern "C" fn rust_parse_css_descriptor(
+    context: Option<&ParseContext>,
     at_rule: u8,
     name: FfiUtf16View,
     source: FfiUtf16View,
 ) -> *const c_void {
-    let Some(context) = (unsafe { context.as_ref() }) else {
+    let Some(context) = context else {
         return std::ptr::null();
     };
     let Some(name) = name.units() else {

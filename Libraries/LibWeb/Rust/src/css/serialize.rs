@@ -10,8 +10,6 @@
 //! The output stays ASCII until the first non-ASCII code unit forces UTF-16 storage, matching
 //! AK::Utf16String's ASCII-or-UTF16 representation, then moves a native string owner to C++.
 
-use std::ffi::c_void;
-
 mod shorthand;
 
 use crate::css::css_enums::keyword;
@@ -3503,12 +3501,8 @@ pub(crate) fn sink_into_raw(sink: TextSink) -> usize {
 }
 
 /// Serializes a style value into native ASCII-or-UTF-16 storage.
-///
-/// # Safety
-/// `value` must point at live style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_serialize(value: *const c_void, mode: u8) -> usize {
-    let value = unsafe { &*value.cast::<StyleValueData>() };
+pub extern "C" fn rust_style_value_serialize(value: &StyleValueData, mode: u8) -> usize {
     let mut sink = TextSink::new();
     serialize_style_value(&mut sink, value, SerializationMode::from_ffi(mode));
     sink_into_raw(sink)

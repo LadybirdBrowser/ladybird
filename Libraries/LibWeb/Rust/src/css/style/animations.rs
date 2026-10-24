@@ -88,8 +88,16 @@ impl FfiAppliedAnimationDefinition {
                 (self.range_end_calculated, published.range_end_calculated),
             ]
             .into_iter()
-            .all(|(value, published_value)| unsafe {
-                crate::css::style_value::rust_style_value_equals(value.cast(), published_value.cast())
+            .all(|(value, published_value)| {
+                use crate::css::style_value::StyleValueData;
+                // SAFETY: Each is null or a value the host holds live.
+                let (value, published_value) = unsafe {
+                    (
+                        value.cast::<StyleValueData>().as_ref(),
+                        published_value.cast::<StyleValueData>().as_ref(),
+                    )
+                };
+                crate::css::style_value::optional_style_values_equal(value, published_value)
             })
     }
 }

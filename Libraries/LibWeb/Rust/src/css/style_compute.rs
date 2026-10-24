@@ -4940,13 +4940,8 @@ fn calculated_offset(value: &StyleValueData) -> *const c_void {
 }
 
 /// The pixels of a computed length-percentage, resolving its percentages against `basis`.
-///
-/// # Safety
-/// `value` must point at live style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_length_percentage_px(value: *const c_void, basis: f64) -> f64 {
-    // SAFETY: The caller passes a live style value.
-    let value = unsafe { &*value.cast::<StyleValueData>() };
+pub extern "C" fn rust_length_percentage_px(value: &StyleValueData, basis: f64) -> f64 {
     crate::css::computed_value_views::LengthPercentageRef::over(value)
         .to_px(CssPixels::nearest_value_for(basis))
         .to_double()
@@ -4995,13 +4990,8 @@ fn view_timeline_inset(value: Option<&StyleValueData>) -> FfiViewTimelineInset {
 }
 
 /// The insets a computed `view-timeline-inset` item describes, for a timeline the host builds from script.
-///
-/// # Safety
-/// `value` must point at live style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_view_timeline_inset(value: *const c_void) -> FfiViewTimelineInset {
-    // SAFETY: Guaranteed by the caller.
-    let value = unsafe { &*value.cast::<StyleValueData>() };
+pub extern "C" fn rust_view_timeline_inset(value: &StyleValueData) -> FfiViewTimelineInset {
     let value = match value {
         StyleValueData::ValueList { values, separator, .. } if *separator == 1 => values.as_slice()[0].data(),
         value => value,
@@ -5161,11 +5151,8 @@ pub extern "C" fn rust_animation_values_declare_timelines(
 }
 
 /// Whether a parsed `view-timeline-inset` value has a length in a unit that is not absolute.
-///
-/// # Safety
-/// `value` must point at live style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_view_timeline_inset_has_relative_length(value: *const c_void) -> bool {
+pub extern "C" fn rust_view_timeline_inset_has_relative_length(value: &StyleValueData) -> bool {
     let is_absolute = |unit: u8| {
         matches!(
             length_unit_kinds().get(unit as usize),
@@ -5185,8 +5172,7 @@ pub unsafe extern "C" fn rust_view_timeline_inset_has_relative_length(value: *co
             _ => false,
         }
     }
-    // SAFETY: Guaranteed by the caller.
-    has_relative_length(unsafe { &*value.cast::<StyleValueData>() }, &is_absolute)
+    has_relative_length(value, &is_absolute)
 }
 
 /// The timeline a computed `animation-timeline` item asks for.
@@ -5309,17 +5295,12 @@ pub struct FfiAnimationRangeEdge {
 
 /// The edge a computed `animation-range-start` or `animation-range-end` value with a single item describes, for a range
 /// script sets. Answers false where the value has more than one item.
-///
-/// # Safety
-/// `value` must point at live style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animation_range_edge(
-    value: *const c_void,
+pub extern "C" fn rust_animation_range_edge(
+    value: &StyleValueData,
     is_end: bool,
     out: &mut FfiAnimationRangeEdge,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let value = unsafe { &*value.cast::<StyleValueData>() };
     let item = match value {
         StyleValueData::ValueList { values, separator, .. } if *separator == 1 => match values.as_slice() {
             [item] => item.data(),

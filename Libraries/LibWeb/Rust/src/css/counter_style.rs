@@ -544,36 +544,21 @@ pub unsafe extern "C" fn rust_counter_styles_resolve(
 /// Whether a rule whose `system` is `system`, null when it has none, still defines a counter style
 /// once its `symbols` descriptor, or its `additive-symbols` one when `additive`, lists `count`
 /// entries.
-///
-/// # Safety
-///
-/// `system` must be null or point to a live style value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_counter_style_system_accepts_symbols(
-    system: *const c_void,
+pub extern "C" fn rust_counter_style_system_accepts_symbols(
+    system: Option<&StyleValueData>,
     additive: bool,
     count: usize,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let system = unsafe { system.cast::<StyleValueData>().as_ref() };
     symbol_counts_needed(system)
         .is_some_and(|(symbols, additive_symbols)| count >= if additive { additive_symbols } else { symbols })
 }
 
 /// Whether setting a rule's `system` from `current` to `new` changes the algorithm it uses: the
 /// system itself, the first symbol of a fixed one or the style an extending one extends.
-///
-/// # Safety
-///
-/// `current` and `new` must point to live style values.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_counter_style_system_changes_algorithm(
-    current: *const c_void,
-    new: *const c_void,
-) -> bool {
+pub extern "C" fn rust_counter_style_system_changes_algorithm(current: &StyleValueData, new: &StyleValueData) -> bool {
     use StyleValueData::CounterStyleSystem;
-    // SAFETY: Guaranteed by the caller.
-    let (current, new) = unsafe { (&*current.cast::<StyleValueData>(), &*new.cast::<StyleValueData>()) };
     match (current, new) {
         (
             CounterStyleSystem { kind: 0, system, .. },

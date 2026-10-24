@@ -419,7 +419,7 @@ fn value_graphs_are_shared_and_destroyed_without_worker_callbacks() {
             for value in values {
                 for _ in 0..100 {
                     let copy = value.clone();
-                    assert!(unsafe { rust_style_value_equals(Arc::as_ptr(&value), Arc::as_ptr(&copy)) });
+                    assert!(rust_style_value_equals(Some(&value), Some(&copy)));
                     assert!(!serialize_style_value_to_utf16(&copy).is_empty());
                 }
             }
@@ -447,7 +447,7 @@ fn value_graphs_are_shared_and_destroyed_without_worker_callbacks() {
     );
     assert!(second.declarations.is_empty());
     let other = &first_rule_block(&second).properties[0].value;
-    assert!(unsafe { rust_style_value_equals(Arc::as_ptr(&value), Arc::as_ptr(other)) });
+    assert!(rust_style_value_equals(Some(&value), Some(other)));
 }
 
 #[test]

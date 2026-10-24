@@ -3528,13 +3528,10 @@ pub unsafe extern "C" fn rust_style_value_release(value: *const StyleValueData) 
 ///
 /// The addresses are compared first because a shared allocation is the common case, and the values
 /// otherwise: two allocations built from the same declaration are equal, and a caller holding a
-/// freshly computed one has no way to know that from the pointer alone.
-///
-/// # Safety
-/// `first` and `second` must be null or point at live `StyleValueData` allocated by this module.
+/// freshly computed one has no way to know that from the pointer alone. Null stands for no value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_equals(first: *const StyleValueData, second: *const StyleValueData) -> bool {
-    optional_style_values_equal(unsafe { first.as_ref() }, unsafe { second.as_ref() })
+pub extern "C" fn rust_style_value_equals(first: Option<&StyleValueData>, second: Option<&StyleValueData>) -> bool {
+    optional_style_values_equal(first, second)
 }
 
 /// `rust_style_value_equals` for two handles.
