@@ -1138,6 +1138,28 @@ TEST_CASE(color_element_overrides_the_codec_private_configuration_record)
     EXPECT(track.video_data().cicp.transfer_characteristics() == Media::TransferCharacteristics::BT709);
 }
 
+TEST_CASE(simple_block_extending_past_the_representable_size_is_corrupted)
+{
+    // A SimpleBlock placed as high as a cursor can be seeked, whose declared size reaches past that.
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(NumericLimits<u64>::max());
+    auto block_position = static_cast<u64>(NumericLimits<i64>::max()) - 8;
+    Array<u8, 8> simple_block { 0x88, 0x81, 0x00, 0x00, 0x80, 0x11, 0x22, 0x33 };
+    stream->add_chunk_at(block_position, simple_block);
+
+    auto cursor = stream->create_cursor();
+    cursor->set_is_blocking(false);
+    Media::Matroska::Streamer streamer { cursor };
+    MUST(streamer.seek_to_position(block_position));
+
+    auto result = Media::Matroska::Reader::parse_simple_block(streamer, AK::Duration::zero(), 1'000'000, {});
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::Corrupted);
+
+    // Nothing in the stream lies past what a cursor can address.
+    EXPECT(streamer.seek_to_position(NumericLimits<u64>::max() - 8).is_error());
+}
+
 TEST_CASE(unknown_track_type_values_are_invalid)
 {
     EXPECT_EQ(Media::Matroska::TrackEntry::track_type_from_element_value(33), Media::Matroska::TrackEntry::TrackType::Metadata);

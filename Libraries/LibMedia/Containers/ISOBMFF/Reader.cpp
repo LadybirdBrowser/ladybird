@@ -770,7 +770,7 @@ DecoderErrorOr<FixedArray<u8>> Reader::parse_elementary_stream_descriptor_box(St
     if (streamer.position() >= end || TRY(streamer.read<u8>()) != DECODER_SPECIFIC_INFO_TAG)
         return FixedArray<u8> {};
     auto size = TRY(read_descriptor_size(streamer));
-    if (streamer.position() + size > end)
+    if (streamer.position() > end || size > end - streamer.position())
         return DecoderError::corrupted("DecoderSpecificInfo extends past the end of its box"sv);
     return streamer.read_bytes(size);
 }

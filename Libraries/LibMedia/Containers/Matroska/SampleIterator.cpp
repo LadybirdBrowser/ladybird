@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/Debug.h>
 #include <LibMedia/Containers/Matroska/ElementIDs.h>
 #include <LibMedia/Containers/Matroska/Reader.h>
@@ -177,7 +178,11 @@ DecoderErrorOr<void> SampleIterator::seek_to_cue_point(TrackCuePoint const& cue_
         m_position = streamer.position();
         m_last_timestamp = m_current_cluster->timestamp();
     } else {
-        m_position = streamer.position() + cue_position.block_offset();
+        Checked<size_t> block_position = streamer.position();
+        block_position += cue_position.block_offset();
+        if (block_position.has_overflow())
+            return DecoderError::corrupted("Cue point's block offset extends past the representable size"sv);
+        m_position = block_position.value();
         m_last_timestamp = cue_point.timestamp;
     }
     return {};

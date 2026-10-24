@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/Debug.h>
 #include <AK/Function.h>
 #include <AK/GenericShorthands.h>
@@ -853,7 +854,11 @@ DecoderErrorOr<Block> Reader::parse_simple_block(Streamer& streamer, AK::Duratio
     Block block;
 
     auto content_size = TRY(streamer.read_variable_size_integer());
-    auto content_end = streamer.position() + content_size;
+    Checked<size_t> checked_content_end = streamer.position();
+    checked_content_end += content_size;
+    if (checked_content_end.has_overflow())
+        return DecoderError::corrupted("SimpleBlock extends past the representable size"sv);
+    auto content_end = checked_content_end.value();
 
     block.set_track_number(TRY(streamer.read_variable_size_integer()));
 
@@ -897,7 +902,11 @@ DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration
                 return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Block group contained multiple blocks"sv);
 
             auto content_size = TRY(streamer.read_variable_size_integer());
-            auto content_end = streamer.position() + content_size;
+            Checked<size_t> checked_content_end = streamer.position();
+            checked_content_end += content_size;
+            if (checked_content_end.has_overflow())
+                return DecoderError::corrupted("Block extends past the representable size"sv);
+            auto content_end = checked_content_end.value();
 
             block.set_track_number(TRY(streamer.read_variable_size_integer()));
             timestamp_offset = TRY(streamer.read_i16());
