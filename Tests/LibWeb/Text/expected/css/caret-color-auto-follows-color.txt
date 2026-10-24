@@ -1,0 +1,4 @@
+initial: outer rgb(0, 0, 0), inherits rgb(0, 0, 0), own rgb(255, 0, 0), declared rgb(0, 128, 0)
+outer color set: outer rgb(0, 0, 255), inherits rgb(0, 0, 255), own rgb(255, 0, 0), declared rgb(0, 128, 0)
+own color removed: outer rgb(0, 0, 255), inherits rgb(0, 0, 255), own rgb(0, 0, 255), declared rgb(0, 128, 0)
+declared color changed: outer rgb(0, 0, 255), inherits rgb(0, 0, 255), own rgb(0, 0, 255), declared rgb(128, 0, 128)

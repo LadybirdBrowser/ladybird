@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+    div { font: 20px/1.5 sans-serif; color: blue; }
+</style>
+<div id="editable" contenteditable>Some text</div>
+<script>
+    const editable = document.getElementById("editable");
+    editable.focus();
+    getSelection().collapse(editable.firstChild, 9);
+</script>
