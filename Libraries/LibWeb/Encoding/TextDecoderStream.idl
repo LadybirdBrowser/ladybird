@@ -1,5 +1,5 @@
 // https://encoding.spec.whatwg.org/#textdecoderstream
-[Exposed=*]
+[Exposed=*, ImplementedIn=Rust]
 interface TextDecoderStream {
     constructor(optional DOMString label = "utf-8", optional TextDecoderOptions options = {});
 };

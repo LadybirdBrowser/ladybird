@@ -9,5 +9,9 @@
 #[cfg(not(test))]
 pub(crate) mod text_decoder;
 #[cfg(not(test))]
+pub(crate) mod text_decoder_stream;
+#[cfg(not(test))]
 pub(crate) mod text_encoder;
+#[cfg(not(test))]
+pub(crate) mod text_encoder_stream;
 pub(crate) mod utf8;

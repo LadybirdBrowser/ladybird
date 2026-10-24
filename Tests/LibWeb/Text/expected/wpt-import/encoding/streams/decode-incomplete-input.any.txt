@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	incomplete input with error mode "replacement" should end with a replacement character
+Pass	incomplete input with error mode "fatal" should error the stream

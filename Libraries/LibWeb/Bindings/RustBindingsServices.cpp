@@ -14,6 +14,7 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -87,6 +88,7 @@ JSObject* web_bindings_rust_wrapper_for(void* realm, void* cell);
 void web_bindings_set_rust_wrapper(void* realm, void* cell, JSObject* wrapper);
 JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value, JSValue reason);
 bool web_bindings_realm_is_window(void* realm);
+void web_bindings_with_temporary_execution_context(void* realm, void* context, void (*steps)(void*));
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
 bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
@@ -129,6 +131,12 @@ void web_bindings_set_rust_wrapper(void* realm, void* cell, JSObject* wrapper)
 bool web_bindings_realm_is_window(void* realm)
 {
     return HTML::window_from_global_object(static_cast<JS::Realm*>(realm)->global_object());
+}
+
+void web_bindings_with_temporary_execution_context(void* realm, void* context, void (*steps)(void*))
+{
+    HTML::TemporaryExecutionContext execution_context { *static_cast<JS::Realm*>(realm) };
+    steps(context);
 }
 
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name)

@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	a code point split between chunks should not be emitted until all bytes are available; split point = 2
+Pass	a code point split between chunks should not be emitted until all bytes are available; split point = 3
+Pass	a code point split between chunks should not be emitted until all bytes are available; split point = 4
+Pass	a code point split between chunks should not be emitted until all bytes are available; split point = 5
+Pass	a code point should be emitted as soon as all bytes are available
+Pass	an empty chunk inside a code point split between chunks should not change the output; split point = 1
+Pass	an empty chunk inside a code point split between chunks should not change the output; split point = 2
+Pass	an empty chunk inside a code point split between chunks should not change the output; split point = 3
+Pass	an empty chunk inside a code point split between chunks should not change the output; split point = 4
+Pass	an empty chunk inside a code point split between chunks should not change the output; split point = 5
+Pass	an empty chunk inside a code point split between chunks should not change the output; split point = 6

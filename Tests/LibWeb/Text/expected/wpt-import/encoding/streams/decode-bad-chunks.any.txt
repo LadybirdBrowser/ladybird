@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	chunk of type undefined should error the stream
+Pass	chunk of type null should error the stream
+Pass	chunk of type numeric should error the stream
+Pass	chunk of type object, not BufferSource should error the stream
+Pass	chunk of type array should error the stream

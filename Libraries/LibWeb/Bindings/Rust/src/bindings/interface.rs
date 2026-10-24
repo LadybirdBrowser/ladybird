@@ -33,6 +33,7 @@ use crate::bindings::realm_data::wrapper_world_of;
 use crate::bindings::services::{
     web_bindings_ensure_web_constructor, web_bindings_ensure_web_prototype, web_bindings_realm_is_window,
     web_bindings_rejected_promise, web_bindings_rust_wrapper_for, web_bindings_set_rust_wrapper,
+    web_bindings_with_temporary_execution_context,
 };
 
 /// What an implementation can tell the bindings about its objects, as a C++ implementation object does by overriding
@@ -315,6 +316,27 @@ pub(crate) unsafe fn cell_if_abi<T: Interface>(cell: *mut c_void) -> Option<Ref<
 pub(crate) fn realm_is_window(realm: Gc<Realm>) -> bool {
     // SAFETY: The realm is live.
     unsafe { web_bindings_realm_is_window(realm.as_ptr().cast()) }
+}
+
+/// Runs the steps while an execution context of the realm is on the stack, for steps that can run script but that do not
+/// run on behalf of script, as an HTML::TemporaryExecutionContext does for C++.
+pub(crate) fn with_temporary_execution_context<F: FnOnce() -> R, R>(realm: Gc<Realm>, steps: F) -> R {
+    unsafe extern "C" fn run_steps<F: FnOnce() -> R, R>(context: *mut c_void) {
+        // SAFETY: The context is the steps and the slot for their result, which outlive the call.
+        let (steps, result) = unsafe { &mut *context.cast::<(Option<F>, Option<R>)>() };
+        *result = Some(steps.take().expect("LibWeb runs the steps once")());
+    }
+
+    let mut context = (Some(steps), None);
+    // SAFETY: The realm is live, and the context outlives the call, which runs the steps once.
+    unsafe {
+        web_bindings_with_temporary_execution_context(
+            realm.as_ptr().cast(),
+            (&raw mut context).cast(),
+            run_steps::<F, R>,
+        );
+    }
+    context.1.expect("LibWeb runs the steps")
 }
 
 /// What an operation that returns a promise type returns in place of throwing: a promise rejected with what its

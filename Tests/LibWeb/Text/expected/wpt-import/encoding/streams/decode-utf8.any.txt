@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	decoding one UTF-8 chunk should give one output string - ArrayBuffer
+Pass	decoding an empty chunk should give no output chunks - ArrayBuffer
+Pass	an initial empty chunk should be ignored - ArrayBuffer
+Pass	a trailing empty chunk should be ignored - ArrayBuffer
+Pass	UTF-8 EOF handling - ArrayBuffer
+Pass	decoding one UTF-8 chunk should give one output string - SharedArrayBuffer
+Pass	decoding an empty chunk should give no output chunks - SharedArrayBuffer
+Pass	an initial empty chunk should be ignored - SharedArrayBuffer
+Pass	a trailing empty chunk should be ignored - SharedArrayBuffer
+Pass	UTF-8 EOF handling - SharedArrayBuffer
+Pass	decoding a transferred Uint8Array chunk should give no output
+Pass	decoding a transferred ArrayBuffer chunk should give no output
