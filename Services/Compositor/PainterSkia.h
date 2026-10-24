@@ -20,6 +20,7 @@
 
 class SkColorSpace;
 class SkFont;
+class SkImage;
 class SkImageFilter;
 template<typename T>
 class sk_sp;
@@ -41,6 +42,7 @@ public:
     void clear_rect(Gfx::FloatRect const&, Color);
     void fill_rect(Gfx::FloatRect const&, Color);
     void draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame const& source, Gfx::IntRect const& src_rect, Gfx::ScalingMode, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
+    void draw_image(SkImage const&, Gfx::FloatRect const& dst_rect, Gfx::IntRect const& src_rect, Gfx::ScalingMode, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
     void stroke_path(Gfx::Path const&, Gfx::Color, float thickness, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle, Gfx::Path::JoinStyle, float miter_limit, Vector<float> const& dash_array, float dash_offset);
     void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, sk_sp<SkImageFilter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const&, Gfx::Path::JoinStyle const&, float miter_limit, Vector<float> const&, float dash_offset);
     void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
