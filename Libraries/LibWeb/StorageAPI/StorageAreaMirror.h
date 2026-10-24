@@ -73,6 +73,9 @@ public:
     static NonnullRefPtr<StorageAreaMirror> obtain(StorageEndpointType, Optional<PageId> session_page, StorageKey const&, Optional<u64> quota);
     ~StorageAreaMirror();
 
+    // Loads the map now rather than on first access, so changes other processes make start arriving.
+    void connect(Requester const& requester) { ensure_primed(requester); }
+
     size_t size(Requester const&);
     Vector<Utf16String> keys(Requester const&);
     Optional<Utf16String> get(Requester const&, Utf16View key);

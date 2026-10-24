@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Every file: document keeps its storage in one shared bottle (its storage key is the file: origin, whatever the
+    // path), so a change one of them makes has to fire the storage event in the others — in this process and in any
+    // other — the same as for two documents of one http origin.
+    //
+    // That one bottle is shared with every other file: test running at the same time, too. So this test writes a key
+    // of its own, the iframe reports only the events for that key, and nothing here clears the bottle. The iframe
+    // acknowledges the key before the parent writes: the message and the storage event come from different task
+    // sources, so nothing else orders them.
+    asyncTest(done => {
+        const key = "storage-events-reach-another-file-document-" + Date.now() + "-" + Math.random();
+        window.addEventListener("message", event => {
+            if (event.data === "ready") {
+                localStorage.setItem(key, "between-file-documents");
+                return;
+            }
+            println("iframe got storage event: " + event.data);
+            localStorage.removeItem(key);
+            done();
+        });
+        const iframe = document.createElement("iframe");
+        iframe.src = "../../data/storage-event-file-document-iframe.html";
+        iframe.onload = () => iframe.contentWindow.postMessage(key, "*");
+        document.body.appendChild(iframe);
+    });
+</script>

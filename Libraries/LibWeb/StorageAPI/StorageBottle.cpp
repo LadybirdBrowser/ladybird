@@ -7,6 +7,7 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
@@ -101,6 +102,16 @@ StorageBottle::StorageBottle(GC::Ref<Page> page, StorageEndpointType endpoint_ty
     // a session bottle's mirror is found by its page as well as its storage key.
     , m_mirror(StorageAreaMirror::obtain(endpoint_type, endpoint_type == StorageEndpointType::SessionStorage ? Optional<PageId> { page->client().id() } : Optional<PageId> {}, key, quota))
 {
+    // A change another process made calls for the storage events the spec's broadcast fires, on every Storage object
+    // here that shares the map. The mirror is shared, so the first bottle for it hooks this up for all of them.
+    if (!m_mirror->on_remote_change) {
+        m_mirror->on_remote_change = [mirror = m_mirror->make_weak_ptr()](Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, String const& url) {
+            if (!mirror)
+                return;
+            auto type = mirror->endpoint_type() == StorageEndpointType::SessionStorage ? HTML::Storage::Type::Session : HTML::Storage::Type::Local;
+            HTML::Storage::dispatch_storage_events_for_remote_change(type, mirror->storage_key(), mirror->session_page(), key, old_value, new_value, url, nullptr);
+        };
+    }
 }
 
 void StorageBottle::visit_edges(GC::Cell::Visitor& visitor)
@@ -112,6 +123,11 @@ void StorageBottle::visit_edges(GC::Cell::Visitor& visitor)
 StorageAreaMirror::Requester StorageBottle::requester() const
 {
     return { m_page->client().id(), m_environment_id };
+}
+
+void StorageBottle::connect() const
+{
+    m_mirror->connect(requester());
 }
 
 size_t StorageBottle::size() const

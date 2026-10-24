@@ -40,6 +40,9 @@ public:
     // A storage bottle also has a proxy map reference set, which is initially an empty set
     GC::Ref<StorageBottle> proxy() { return *this; }
 
+    // Connects the mirror now rather than on first access, so changes other processes make start arriving.
+    void connect() const;
+
     size_t size() const;
     Vector<Utf16String> keys() const;
     Optional<Utf16String> get(Utf16View) const;
