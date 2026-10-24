@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset="utf-8">
+<title>CSS Writing-Modes test: text-orientation on text</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/css-writing-modes-3/#text-orientation">
+<link rel="help" href="https://drafts.csswg.org/css-lists-3/#marker-properties">
+<link rel=match href="../../../../expected/wpt-import/css/css-writing-modes/reference/text-orientation-021-ref.html">
+<meta name="assert" content="text-orientation applies to text, and thus works even if there is no parent box with that same value">
+<style>
+body > div {
+  border: solid 1px black;
+  padding: 10px;
+  margin:  10px;
+  float: left;
+}
+</style>
+
+<p>Test passes if the two boxes below are identical.
+
+<div style="writing-mode: vertical-rl; text-orientation: upright">
+  AB
+</div>
+
+<div style="writing-mode: vertical-rl">
+  <div style="display: contents; text-orientation: upright">AB</div>
+</div>

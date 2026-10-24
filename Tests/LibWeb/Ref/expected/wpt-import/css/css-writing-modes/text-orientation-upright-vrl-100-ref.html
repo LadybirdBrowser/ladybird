@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Writing Modes Test: writing-mode: vertical-rl; text-orientation: upright.</title>
+<link rel="author" title="Koji Ishii" href="mailto:kojiishi@gmail.com">
+<style>
+@font-face {
+    font-family: "orientation";
+    src: url("../../fonts/adobe-fonts/CSSHWOrientationTest.otf");
+}
+html {
+    writing-mode: vertical-rl;
+}
+.test {
+    font: 20px/1 "orientation";
+    height: 17em;
+    text-orientation: upright;
+}
+.line {
+    white-space: pre;
+}
+</style>
+<body>
+<div id="container">
+<div>U+0020-007E<div class="test">
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+</div></div>
+<div>U+3000-30FF<div class="test">
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+<div class="line">国国国国国国国国国国国国国国国国国国国国国</div>
+</div></div>
+<div>U+4E00-4E1F<div class="test">
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+</div></div>
+<div>U+FF01-FF60<div class="test">
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+<div class="line">国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国国</div>
+</div></div>
+</div>
+</body>

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	6: Shrink-to-fit inline-block with a child of orthogonal inline in inline-block

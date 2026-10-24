@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Writing Modes Test: Shrink-to-fit with an orthogonal atomic inline child</title>
+<link rel="help" href="https://drafts.csswg.org/css-writing-modes-4/#orthogonal-flows" title="7.3. Orthogonal Flows">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#intrinsic-contribution">
+<meta name="assert" content="A shrink-to-fit box sized to an orthogonal atomic inline child uses that child's block-axis size as the child's intrinsic inline-size contribution.">
+<meta name="flags" content="ahem dom combo">
+<link rel="author" title="Karl Dubost" href="https://github.com/karlcow">
+<!-- Companion to orthogonal-parent-shrink-to-fit-001.html, which covers orthogonal
+     block and orthogonal inline children. This file covers the remaining case: an
+     orthogonal ATOMIC INLINE child (display:inline-block), which reaches a separate
+     intrinsic-width code path in some implementations.
+     See https://bugs.webkit.org/show_bug.cgi?id=187454 -->
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style>
+.test {
+    border:thin solid;
+    font:20px/1 Ahem;
+}
+.target {
+    color:blue;
+    height:3em; /* height: 3em is not required. It keeps the test focused
+    exclusively on the shrink-to-fit algorithm. */
+    writing-mode:vertical-rl;
+}
+.border {
+    border-right:blue solid .5em;
+}
+.next {
+    color:orange;
+}
+.inline-block {
+    display:inline-block;
+}
+.float {
+    float:left;
+}
+h3 {
+    clear:both;
+}
+h3.fail {
+    color:red;
+}
+table {
+    border-spacing:0px;
+}
+td {
+    padding:0px;
+}
+</style>
+<div id="log"></div>
+<div id="container">
+<p>Test passes if the X-position of the <b>left</b> edge of the orange box and the <b>right</b> edge of the blue box are the same.
+<p>If script is enabled, there should be one or more PASS and no FAIL.
+<h3>1: Shrink-to-fit inline-block with a child of orthogonal atomic inline</h3>
+<div class="test">
+    <div class="inline-block"><span class="target inline-block">HH</span></div><span class="next">ZZ</span>
+</div>
+<h3>2: Shrink-to-fit inline-block with a child of orthogonal atomic inline with borders</h3>
+<div class="test">
+    <div class="inline-block"><span class="target inline-block border">HHH</span></div><span class="next">ZZ</span>
+</div>
+<h3>3: Shrink-to-fit inline-block with a child of orthogonal atomic inline in inline-block</h3>
+<div class="test">
+    <div class="inline-block"><div class="inline-block"><span class="target inline-block">HH</span></div></div><span class="next">ZZ</span>
+</div>
+<h3>4: Shrink-to-fit inline-block with a child of orthogonal atomic inline with borders in inline-block</h3>
+<div class="test">
+    <div class="inline-block"><div class="inline-block"><span class="target inline-block border">HHH</span></div></div><span class="next">ZZ</span>
+</div>
+<h3>5: Shrink-to-fit float with a child of orthogonal atomic inline</h3>
+<div class="test">
+    <div class="float"><span class="target inline-block">HH</span></div><span class="next">ZZ</span>
+</div>
+<h3>6: Shrink-to-fit float with a child of orthogonal atomic inline with borders</h3>
+<div class="test">
+    <div class="float"><span class="target inline-block border">HHH</span></div><span class="next">ZZ</span>
+</div>
+<h3>7: Shrink-to-fit float with a child of orthogonal atomic inline in inline-block</h3>
+<div class="test">
+    <div class="float"><div class="inline-block"><span class="target inline-block">HH</span></div></div><span class="next">ZZ</span>
+</div>
+<h3>8: Shrink-to-fit float with a child of orthogonal atomic inline with borders in inline-block</h3>
+<div class="test">
+    <div class="float"><div class="inline-block"><span class="target inline-block border">HHH</span></div></div><span class="next">ZZ</span>
+</div>
+<h3>9: Shrink-to-fit table-cell with a child of orthogonal atomic inline</h3>
+<div class="test">
+    <table><tr><td><span class="target inline-block">HH</span></td><td class="next">ZZ</td></tr></table>
+</div>
+<h3>10: Shrink-to-fit table-cell with a child of orthogonal atomic inline with borders</h3>
+<div class="test">
+    <table><tr><td><span class="target inline-block border">HHH</span></td><td class="next">ZZ</td></tr></table>
+</div>
+<h3>11: Shrink-to-fit table-cell with a child of orthogonal atomic inline in inline-block</h3>
+<div class="test">
+    <table><tr><td><div class="inline-block"><span class="target inline-block">HH</span></div></td><td class="next">ZZ</td></tr></table>
+</div>
+<h3>12: Shrink-to-fit table-cell with a child of orthogonal atomic inline with borders in inline-block</h3>
+<div class="test">
+    <table><tr><td><div class="inline-block"><span class="target inline-block border">HHH</span></div></td><td class="next">ZZ</td></tr></table>
+</div>
+</div>
+<script>
+run();
+
+function run() {
+    Array.prototype.forEach.call(document.querySelectorAll(".test"), function (node) {
+        var title = node.previousElementSibling.textContent;
+        test(function () {
+            try {
+                var targetNode = node.querySelector(".target");
+                var fontSize = parseFloat(getComputedStyle(targetNode).fontSize);
+                var targetBounds = targetNode.getBoundingClientRect();
+                assert_less_than_equal(targetBounds.width, fontSize * 2.01, "writing-mode is vertical")
+                var nextNode = node.querySelector(".next");
+                var nextBounds = nextNode.getBoundingClientRect();
+                assert_equals(nextBounds.left - targetBounds.right, 0, "the left edge of the orange box touches the right edge of the blue box");
+            } catch (e) {
+                node.previousElementSibling.classList.add("fail");
+                throw e;
+            }
+        }, title);
+    });
+    done();
+}
+</script>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset="utf-8">
+<title>CSS test reference</title>
+<style>
+.ref ol {
+  text-orientation: upright;
+}
+.ref span {
+  text-orientation: mixed;
+}
+figure {
+  writing-mode: vertical-rl;
+  border: solid 1px black;
+  padding: 1em 0 1ch;
+  margin: 0 1ch;
+  float: left;
+}
+</style>
+
+<p>Test passes if the two boxes below are identical.
+
+<figure class=ref>
+    <ol><li><span>hello世界</span></ol>
+</figure>
+<figure class=ref>
+    <ol><li><span>hello世界</span></ol>
+</figure>

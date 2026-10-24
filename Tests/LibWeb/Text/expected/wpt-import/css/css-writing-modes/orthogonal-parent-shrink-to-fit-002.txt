@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	1: Shrink-to-fit inline-block with a child of orthogonal atomic inline
+Pass	2: Shrink-to-fit inline-block with a child of orthogonal atomic inline with borders
+Pass	3: Shrink-to-fit inline-block with a child of orthogonal atomic inline in inline-block
+Pass	4: Shrink-to-fit inline-block with a child of orthogonal atomic inline with borders in inline-block
+Pass	5: Shrink-to-fit float with a child of orthogonal atomic inline
+Pass	6: Shrink-to-fit float with a child of orthogonal atomic inline with borders
+Pass	7: Shrink-to-fit float with a child of orthogonal atomic inline in inline-block
+Pass	8: Shrink-to-fit float with a child of orthogonal atomic inline with borders in inline-block
+Pass	9: Shrink-to-fit table-cell with a child of orthogonal atomic inline
+Pass	10: Shrink-to-fit table-cell with a child of orthogonal atomic inline with borders
+Pass	11: Shrink-to-fit table-cell with a child of orthogonal atomic inline in inline-block
+Pass	12: Shrink-to-fit table-cell with a child of orthogonal atomic inline with borders in inline-block

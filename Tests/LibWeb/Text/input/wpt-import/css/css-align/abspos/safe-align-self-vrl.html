@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#align-abspos">
+<style>
+body {
+  margin: 0;
+}
+
+.container {
+  writing-mode: vertical-rl;
+  direction: ltr;
+  display: inline-block;
+  position: relative;
+  margin: 20px;
+  border: solid 4px;
+  width: 40px;
+  height: 40px;
+}
+
+.item {
+  position: absolute;
+  background: green;
+  inset: 5px;
+  margin: 10px;
+  width: 30px;
+  height: 30px;
+}
+
+.safe {
+  align-self: safe end;
+}
+.unsafe {
+  align-self: unsafe end;
+}
+
+.rtl {
+  direction: rtl;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.item')">
+
+<div class="container">
+  <div class="item safe" style="writing-mode: horizontal-tb; direction: ltr;" data-offset-x="-5"></div>
+</div>
+
+<div class="container">
+  <div class="item safe" style="writing-mode: horizontal-tb; direction: rtl;" data-offset-x="-5"></div>
+</div>
+
+<div class="container">
+  <div class="item safe" style="writing-mode: veritcal-rl; direction: ltr;" data-offset-x="-5"></div>
+</div>
+
+<div class="container">
+  <div class="item safe" style="writing-mode: vertical-rl; direction: rtl;" data-offset-x="-5"></div>
+</div>
+
+<div class="container">
+  <div class="item safe" style="writing-mode: vertical-lr; direction: ltr;" data-offset-x="-5"></div>
+</div>
+
+<div class="container">
+  <div class="item safe" style="writing-mode: vertical-lr; direction: rtl;" data-offset-x="-5"></div>
+</div>
+
+<!-- UNSAFE -->
+<br>
+
+<div class="container">
+  <div class="item unsafe" style="writing-mode: horizontal-tb; direction: ltr;" data-offset-x="15"></div>
+</div>
+
+<div class="container">
+  <div class="item unsafe" style="writing-mode: horizontal-tb; direction: rtl;" data-offset-x="15"></div>
+</div>
+
+<div class="container">
+  <div class="item unsafe" style="writing-mode: veritcal-rl; direction: ltr;" data-offset-x="15"></div>
+</div>
+
+<div class="container">
+  <div class="item unsafe" style="writing-mode: vertical-rl; direction: rtl;" data-offset-x="15"></div>
+</div>
+
+<div class="container">
+  <div class="item unsafe" style="writing-mode: vertical-lr; direction: ltr;" data-offset-x="15"></div>
+</div>
+
+<div class="container">
+  <div class="item unsafe" style="writing-mode: vertical-lr; direction: rtl;" data-offset-x="15"></div>
+</div>
+
+<!-- RTL -->
+<br>
+
+<div class="container rtl">
+  <div class="item safe" style="writing-mode: horizontal-tb; direction: ltr;" data-offset-x="-5"></div>
+</div>
+
+<div class="container rtl">
+  <div class="item safe" style="writing-mode: horizontal-tb; direction: rtl;" data-offset-x="-5"></div>
+</div>
+
+<div class="container rtl">
+  <div class="item safe" style="writing-mode: veritcal-rl; direction: ltr;" data-offset-x="-5"></div>
+</div>
+
+<div class="container rtl">
+  <div class="item safe" style="writing-mode: vertical-rl; direction: rtl;" data-offset-x="-5"></div>
+</div>
+
+<div class="container rtl">
+  <div class="item safe" style="writing-mode: vertical-lr; direction: ltr;" data-offset-x="-5"></div>
+</div>
+
+<div class="container rtl">
+  <div class="item safe" style="writing-mode: vertical-lr; direction: rtl;" data-offset-x="-5"></div>
+</div>
+
+<!-- UNSAFE RTL -->
+<br>
+
+<div class="container rtl">
+  <div class="item unsafe" style="writing-mode: horizontal-tb; direction: ltr;" data-offset-x="15"></div>
+</div>
+
+<div class="container rtl">
+  <div class="item unsafe" style="writing-mode: horizontal-tb; direction: rtl;" data-offset-x="15"></div>
+</div>
+
+<div class="container rtl">
+  <div class="item unsafe" style="writing-mode: veritcal-rl; direction: ltr;" data-offset-x="15"></div>
+</div>
+
+<div class="container rtl">
+  <div class="item unsafe" style="writing-mode: vertical-rl; direction: rtl;" data-offset-x="15"></div>
+</div>
+
+<div class="container rtl">
+  <div class="item unsafe" style="writing-mode: vertical-lr; direction: ltr;" data-offset-x="15"></div>
+</div>
+
+<div class="container rtl">
+  <div class="item unsafe" style="writing-mode: vertical-lr; direction: rtl;" data-offset-x="15"></div>
+</div>
+

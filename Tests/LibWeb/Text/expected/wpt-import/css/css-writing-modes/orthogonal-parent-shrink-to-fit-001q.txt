@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	17: Shrink-to-fit table-cell with a child of orthogonal block

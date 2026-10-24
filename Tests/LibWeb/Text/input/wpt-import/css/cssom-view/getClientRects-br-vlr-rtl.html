@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/cssom-view-1/#dom-element-getclientrects">
+<div style="position:absolute; top:0; left:0; width:200px; height:100px; writing-mode:vertical-lr; direction:rtl;">
+  <br id="child">
+</div>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  test(()=>{
+      let r = document.getElementById("child").getClientRects()[0];
+      assert_greater_than_equal(r.left, 0);
+      assert_less_than(r.left, 50);
+      assert_equals(r.top, 100);
+  }, "Position of the BR element");
+</script>

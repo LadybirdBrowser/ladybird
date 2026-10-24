@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#align-abspos">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#justify-abspos">
+<style>
+body {
+  margin: 0;
+}
+
+.container {
+  writing-mode: vertical-rl;
+  display: inline-block;
+  position: relative;
+  margin: 20px;
+  border: solid 4px;
+  width: 60px;
+  height: 60px;
+}
+
+.item {
+  writing-mode: horizontal-tb;
+  position: absolute;
+  background: green;
+  inset: 5px 10px 5px 10px;
+}
+
+.item::before {
+  aspect-ratio: 1/1;
+  min-width: 20px;
+  min-height: 20px;
+  width: 100%;
+  height: 100%;
+  content: '';
+  display: block;
+}
+
+.ar {
+  aspect-ratio: 1/1;
+  min-width: 20px;
+  min-height: 20px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.item')">
+
+<body>
+
+<div class="container">
+  <div class="item" style="justify-self: start; align-self: start;" data-expected-width="20" data-expected-height="20"></div>
+</div>
+
+<div class="container">
+  <div class="item" style="justify-self: stretch; align-self: start;" data-expected-width="50" data-expected-height="50"></div>
+</div>
+
+<div class="container">
+  <div class="item" style="justify-self: start; align-self: stretch;" data-expected-width="40" data-expected-height="40"></div>
+</div>
+
+<div class="container">
+  <div class="item" style="justify-self: stretch; align-self: stretch;" data-expected-width="40" data-expected-height="50"></div>
+</div>
+
+<br>
+
+<div class="container">
+  <div class="item ar" style="justify-self: start; align-self: start;" data-expected-width="20" data-expected-height="20"></div>
+</div>
+
+<div class="container">
+  <div class="item ar" style="justify-self: stretch; align-self: start;" data-expected-width="50" data-expected-height="50"></div>
+</div>
+
+<div class="container">
+  <div class="item ar" style="justify-self: start; align-self: stretch;" data-expected-width="40" data-expected-height="40"></div>
+</div>
+
+<div class="container">
+  <div class="item ar" style="justify-self: stretch; align-self: stretch;" data-expected-width="40" data-expected-height="50"></div>
+</div>
+
+<br>
+
+<div class="container">
+  <canvas width="10" height="10" class="item" style="justify-self: start; align-self: start;" data-expected-width="10" data-expected-height="10"></canvas>
+</div>
+
+<div class="container">
+  <canvas width="10" height="10" class="item" style="justify-self: stretch; align-self: start;" data-expected-width="50" data-expected-height="50"></canvas>
+</div>
+
+<div class="container">
+  <canvas width="10" height="10" class="item" style="justify-self: start; align-self: stretch;" data-expected-width="40" data-expected-height="40"></canvas>
+</div>
+
+<div class="container">
+  <canvas width="10" height="10" class="item" style="justify-self: stretch; align-self: stretch;" data-expected-width="40" data-expected-height="50"></canvas>
+</div>

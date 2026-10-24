@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 24 tests
+
+18 Pass
+6 Fail
+Pass	1: Shrink-to-fit inline-block with a child of orthogonal block
+Pass	2: Shrink-to-fit inline-block with a child of orthogonal inline
+Pass	3: Shrink-to-fit inline-block with a child of orthogonal block with borders
+Fail	4: Shrink-to-fit inline-block with a child of orthogonal inline with borders
+Pass	5: Shrink-to-fit inline-block with a child of orthogonal block in inline-block
+Pass	6: Shrink-to-fit inline-block with a child of orthogonal inline in inline-block
+Pass	7: Shrink-to-fit inline-block with a child of orthogonal block with borders in inline-block
+Fail	8: Shrink-to-fit inline-block with a child of orthogonal inline with borders in inline-block
+Pass	9: Shrink-to-fit float with a child of orthogonal block
+Pass	10: Shrink-to-fit float with a child of orthogonal inline
+Pass	11: Shrink-to-fit float with a child of orthogonal block with borders
+Fail	12: Shrink-to-fit float with a child of orthogonal inline with borders
+Pass	13: Shrink-to-fit float with a child of orthogonal block in inline-block
+Pass	14: Shrink-to-fit float with a child of orthogonal inline in inline-block
+Pass	15: Shrink-to-fit float with a child of orthogonal block with borders in inline-block
+Fail	16: Shrink-to-fit float with a child of orthogonal inline with borders in inline-block
+Pass	17: Shrink-to-fit table-cell with a child of orthogonal block
+Pass	18: Shrink-to-fit table-cell with a child of orthogonal inline
+Pass	19: Shrink-to-fit table-cell with a child of orthogonal block with borders
+Fail	20: Shrink-to-fit table-cell with a child of orthogonal inline with borders
+Pass	21: Shrink-to-fit table-cell with a child of orthogonal block in inline-block
+Pass	22: Shrink-to-fit table-cell with a child of orthogonal inline in inline-block
+Pass	23: Shrink-to-fit table-cell with a child of orthogonal block with borders in inline-block
+Fail	24: Shrink-to-fit table-cell with a child of orthogonal inline with borders in inline-block

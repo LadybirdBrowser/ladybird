@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>CSSOM View - 6.1 - getBoundingClientRect tests</title>
+<link rel="help" href="http://www.w3.org/TR/cssom-view/#dom-element-getboundingclientrect">
+<link rel=match href="../../../../expected/wpt-import/css/cssom-view/cssom-getBoundingClientRect-vertical-rl-ref.html">
+<meta name="flags" content="dom">
+<body style="writing-mode: vertical-rl; overflow: hidden">
+  <div id="target" style="position: absolute; top: 50px; left: 50px; width: 200px; height: 200px; background: red"></div>
+  <div id="overlay" style="position: absolute; background: green"></div>
+  <script>
+    var r = document.getElementById('target').getBoundingClientRect();
+    var overlay = document.getElementById('overlay');
+    overlay.style.top = r.top + 'px';
+    overlay.style.left = r.left + 'px';
+    overlay.style.width = r.width + 'px';
+    overlay.style.height = r.height + 'px';
+  </script>
+</body>

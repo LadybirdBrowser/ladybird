@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset="utf-8">
+<title>CSS Writing-Modes test: text-orientation on list markers</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/css-writing-modes-3/#text-orientation">
+<link rel="help" href="https://drafts.csswg.org/css-lists-3/#marker-properties">
+<link rel=match href="../../../../expected/wpt-import/css/css-writing-modes/reference/text-orientation-020-ref.html">
+<meta name="assert" content="text-orientation applies to text, and thus to the text in ::marker pseudos">
+<style>
+.test ol {
+  text-orientation: mixed; /*the default*/
+}
+.test ol li::marker {
+  text-orientation: upright;
+}
+.ref ol {
+  text-orientation: upright;
+}
+.ref span {
+  text-orientation: mixed;
+}
+figure {
+  writing-mode: vertical-rl;
+  border: solid 1px black;
+  padding: 1em 0 1ch;
+  margin: 0 1ch;
+  float: left;
+}
+</style>
+
+<p>Test passes if the two boxes below are identical.
+
+<figure class=test>
+    <ol><li>hello世界</ol>
+</figure>
+<figure class=ref>
+    <ol><li><span>hello世界</span></ol>
+</figure>
