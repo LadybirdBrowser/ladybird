@@ -2024,7 +2024,14 @@ impl AbsposEngine<'_> {
         } else if computed_left.is_auto() && inline_size.is_some() && !computed_right.is_auto() {
             left = solve_for_left(inline_size, margin_left, margin_right, right);
         } else if inline_size.is_none() && !computed_left.is_auto() && !computed_right.is_auto() {
-            inline_size = Some(solve_for_inline_size(left, margin_left, margin_right, right));
+            // https://drafts.csswg.org/css-position-3/#abspos-auto-size
+            // NB: A box aligned within its inset-modified containing block takes its fit-content size there, while
+            //     normal and stretch alignment fill it.
+            inline_size = Some(if self.self_alignment_sizes_to_fit_content(node, true) {
+                shrink_to_fit(left, margin_left, margin_right, right)
+            } else {
+                solve_for_inline_size(left, margin_left, margin_right, right)
+            });
         } else if computed_right.is_auto() && !computed_left.is_auto() && inline_size.is_some() {
             right = solve_for_right(left, inline_size, margin_left, margin_right);
         }
@@ -2452,6 +2459,21 @@ impl AbsposEngine<'_> {
                 solution.bottom = Some(solve_for(solution.bottom, false, solution));
             } else if solution.top.is_none() && solution.block_size.is_some() && solution.bottom.is_some() {
                 solution.top = Some(solve_for(solution.top, false, solution));
+            } else if solution.block_size.is_none()
+                && solution.top.is_some()
+                && solution.bottom.is_some()
+                && self.self_alignment_sizes_to_fit_content(node, false)
+            {
+                let Some(automatic) = self.automatic_block_size(
+                    node,
+                    available_space,
+                    constraints,
+                    pass,
+                    solve_for(solution.block_size, true, solution),
+                ) else {
+                    return solution;
+                };
+                solution.block_size = Some(automatic);
             } else if solution.block_size.is_none() && solution.top.is_some() && solution.bottom.is_some() {
                 solution.block_size = Some(solve_for(solution.block_size, true, solution));
             } else if solution.bottom.is_none() && solution.top.is_some() && solution.block_size.is_some() {
@@ -2867,6 +2889,96 @@ impl<'pass> AbsposEngine<'pass> {
                     None
                 }
             };
+            // https://drafts.csswg.org/css-position-3/#abspos-alignment
+            // Otherwise, the box is aligned as specified by its self-alignment property in the relevant axis (as
+            // defined by the writing mode of the containing block), using its margin box as the alignment subject and
+            // the inset-modified containing block as the alignment container. However, if an explicit overflow
+            // alignment is not specified and its margin box overflows the inset-modified containing block, its
+            // alignment is adjusted to minimize overflow as specified in [[css-align-3#auto-safety-position]].
+            let align_within_insets = |alignment: AbsposAlignment,
+                                       overflow: u8,
+                                       start_inset: CssPixels,
+                                       end_inset: CssPixels,
+                                       containing_block_size: CssPixels,
+                                       margin_box_size: CssPixels,
+                                       start_is_low_side: bool| {
+                let available = containing_block_size - start_inset - end_inset - margin_box_size;
+                let offset = match alignment {
+                    AbsposAlignment::Center => start_inset + available / 2,
+                    AbsposAlignment::End => start_inset + available,
+                    _ => start_inset,
+                };
+                if available >= CssPixels::default()
+                    || overflow == crate::css::computed_value_types::OVERFLOW_ALIGNMENT_UNSAFE
+                {
+                    return offset;
+                }
+                // https://drafts.csswg.org/css-align-3/#overflow-values
+                // safe: If the size of the alignment subject overflows the alignment container, the alignment subject
+                // is instead aligned as if the alignment mode were start.
+                if overflow == crate::css::computed_value_types::OVERFLOW_ALIGNMENT_SAFE {
+                    return if start_is_low_side {
+                        start_inset
+                    } else {
+                        start_inset + available
+                    };
+                }
+                // NB: Where the box overflows its inset-modified containing block, it stays within the union of that
+                //     and its containing block if it fits, and aligns with the start of the union otherwise.
+                let region_start = start_inset.min(CssPixels::default());
+                let region_end = (containing_block_size - end_inset).max(containing_block_size);
+                if margin_box_size > region_end - region_start {
+                    return if start_is_low_side {
+                        region_start
+                    } else {
+                        region_end - margin_box_size
+                    };
+                }
+                offset.max(region_start).min(region_end - margin_box_size)
+            };
+            let containing_block = inputs.containing_block;
+            let inline_start_is_low_side =
+                containing_block.is_invalid() || !self.style(containing_block).inline_axis_is_reverse();
+            if inputs.containing_block_info.inline_alignment.is_none()
+                && !style.inset_left().is_auto()
+                && !style.inset_right().is_auto()
+                && self.self_alignment_sizes_to_fit_content(node, true)
+                && let Some(alignment) = self.self_alignment(node, containing_block, true)
+            {
+                let inline_size = containing_block_size.inline_size;
+                let margin_box_size = used.margin_box_inline_size(collapsed);
+                let inset = align_within_insets(
+                    alignment,
+                    style.justify_self_overflow(),
+                    style.inset_left().to_px(inline_size),
+                    style.inset_right().to_px(inline_size),
+                    inline_size,
+                    margin_box_size,
+                    inline_start_is_low_side,
+                );
+                used.inset_left.set(inset);
+                used.inset_right.set(inline_size - inset - margin_box_size);
+            }
+            if inputs.containing_block_info.block_alignment.is_none()
+                && !style.inset_top().is_auto()
+                && !style.inset_bottom().is_auto()
+                && self.self_alignment_sizes_to_fit_content(node, false)
+                && let Some(alignment) = self.self_alignment(node, containing_block, false)
+            {
+                let block_size = containing_block_size.block_size;
+                let margin_box_size = used.margin_box_block_size(collapsed);
+                let inset = align_within_insets(
+                    alignment,
+                    style.align_self_overflow(),
+                    style.inset_top().to_px(block_size),
+                    style.inset_bottom().to_px(block_size),
+                    block_size,
+                    margin_box_size,
+                    true,
+                );
+                used.inset_top.set(inset);
+                used.inset_bottom.set(block_size - inset - margin_box_size);
+            }
             if let Some(inline_alignment) = inputs.containing_block_info.inline_alignment
                 && let Some((start_inset, end_inset)) = alignment_insets(
                     style.inset_left(),
@@ -2926,6 +3038,70 @@ impl<'pass> AbsposEngine<'pass> {
                 }
             }
         }
+    }
+
+    /// The self-alignment of a box in an axis of its containing block's frame, as the side of the axis it aligns to,
+    /// or None where it stretches to fill its inset-modified containing block or keeps its normal behavior.
+    /// https://drafts.csswg.org/css-align-3/#justify-abspos
+    /// https://drafts.csswg.org/css-align-3/#align-abspos
+    fn self_alignment(&self, node: Node, containing_block: Node, inline_axis: bool) -> Option<AbsposAlignment> {
+        let style = self.style(node);
+        let value = if inline_axis {
+            style.justify_self()
+        } else {
+            justify_self_value_for_align_self(style.align_self())
+        };
+        let start_is_low_side = if inline_axis {
+            containing_block.is_invalid() || !self.style(containing_block).inline_axis_is_reverse()
+        } else {
+            true
+        };
+        let towards = |low_side: bool| {
+            if low_side {
+                AbsposAlignment::Start
+            } else {
+                AbsposAlignment::End
+            }
+        };
+        let own_start_is_low_side = || {
+            geometry::start_is_low_side_in_frame(
+                self.callbacks.frame,
+                style.writing_mode(),
+                style.direction(),
+                inline_axis,
+            )
+        };
+        match value {
+            justify_self::CENTER => Some(AbsposAlignment::Center),
+            justify_self::START | justify_self::FLEX_START | justify_self::BASELINE => Some(towards(start_is_low_side)),
+            justify_self::END | justify_self::FLEX_END => Some(towards(!start_is_low_side)),
+            justify_self::SELF_START => Some(towards(own_start_is_low_side())),
+            justify_self::SELF_END => Some(towards(!own_start_is_low_side())),
+            // NB: Along the inline axis of a frame, line-left is its left side.
+            justify_self::LEFT if inline_axis => Some(AbsposAlignment::Start),
+            justify_self::RIGHT if inline_axis => Some(AbsposAlignment::End),
+            _ => None,
+        }
+    }
+
+    /// Whether the box's self-alignment in an axis of its containing block's frame makes it take its fit-content size
+    /// within its inset-modified containing block, rather than fill it.
+    fn self_alignment_sizes_to_fit_content(&self, node: Node, inline_axis: bool) -> bool {
+        let style = self.style(node);
+        let (value, margin_start, margin_end) = if inline_axis {
+            (style.justify_self(), style.margin_left(), style.margin_right())
+        } else {
+            (
+                justify_self_value_for_align_self(style.align_self()),
+                style.margin_top(),
+                style.margin_bottom(),
+            )
+        };
+        !matches!(
+            value,
+            justify_self::AUTO | justify_self::NORMAL | justify_self::STRETCH | justify_self::ANCHOR_CENTER
+        ) && !margin_start.is_auto()
+            && !margin_end.is_auto()
     }
 
     fn layout_element(&self, run: &FormattingContextRun<'pass>, node: Node, inputs: abspos_inputs::AbsposLayoutInputs) {

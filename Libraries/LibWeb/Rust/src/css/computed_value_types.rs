@@ -83,9 +83,19 @@ pub struct AlignmentValues {
     pub justify_content: u8,
     pub justify_items: u8,
     pub justify_self: u8,
+    /// The explicit overflow alignment of 'align-self' and 'justify-self': one of the OVERFLOW_ALIGNMENT_* values.
+    pub align_self_overflow: u8,
+    pub justify_self_overflow: u8,
     pub column_gap: ComputedGap,
     pub row_gap: ComputedGap,
 }
+
+/// No explicit overflow alignment.
+pub const OVERFLOW_ALIGNMENT_DEFAULT: u8 = 0;
+/// The 'safe' overflow alignment.
+pub const OVERFLOW_ALIGNMENT_SAFE: u8 = 1;
+/// The 'unsafe' overflow alignment.
+pub const OVERFLOW_ALIGNMENT_UNSAFE: u8 = 2;
 
 /// A computed length-percentage-or-auto value.
 #[repr(C)]
