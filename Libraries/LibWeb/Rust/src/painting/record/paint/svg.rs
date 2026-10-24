@@ -127,9 +127,17 @@ pub(crate) fn svg_stroke_style(
     paintable: NodeSlotId,
     style: &ComputedValuesView<'_>,
 ) -> SvgStrokeStyle {
+    let basis = crate::painting::paintable_geometry::committed_svg_viewport_percentage_basis(layout_arena, paintable);
+    svg_stroke_style_for_percentage_basis(style, basis)
+}
+
+/// The stroke properties of an SVG shape, with percentages resolved against the given basis.
+pub(crate) fn svg_stroke_style_for_percentage_basis(
+    style: &ComputedValuesView<'_>,
+    basis: crate::layout::CssPixels,
+) -> SvgStrokeStyle {
     use crate::css::css_enums::{stroke_linecap, stroke_linejoin, vector_effect};
     let svg = style.inherited_svg();
-    let basis = crate::painting::paintable_geometry::committed_svg_viewport_percentage_basis(layout_arena, paintable);
     let resolve = |handle: &crate::css::computed_value_types::ComputedStyleValueHandle, default: f32| {
         handle
             .length_percentage()

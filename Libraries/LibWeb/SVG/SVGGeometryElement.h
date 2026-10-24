@@ -23,6 +23,7 @@ public:
     Gfx::Path computed_path();
 
     WebIDL::ExceptionOr<bool> is_point_in_fill(Bindings::DOMPointInit const&);
+    WebIDL::ExceptionOr<bool> is_point_in_stroke(Bindings::DOMPointInit const&);
     WebIDL::ExceptionOr<float> get_total_length();
     WebIDL::ExceptionOr<GC::Ref<Geometry::DOMPoint>> get_point_at_length(float distance);
 
