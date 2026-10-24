@@ -38,7 +38,6 @@ ALLOWED_REALM_MENTIONS = {
     "Animations": (5, 14, "animation callbacks/events and CSS value materialization still pass spec-selected realms"),
     "CSS": (7, 19, "CSS Typed OM, parser-facing reification, and style-value JS materialization"),
     "Clipboard": (4, 16, "clipboard item/data callbacks still materialize JS values in caller-selected realms"),
-    "Compression": (4, 8, "compression streams still use realms for stream/chunk conversion plumbing"),
     "ContentSecurityPolicy": (4, 14, "CSP violation/report objects and callbacks still materialize JS-facing values"),
     "CookieStore": (2, 19, "cookie-store async callbacks and promise/value materialization still thread realms"),
     "Crypto": (8, 383, "WebCrypto algorithms still use realms for buffer/key/promise materialization"),
@@ -68,9 +67,10 @@ ALLOWED_REALM_MENTIONS = {
         "service worker jobs, caches, and container promises still materialize results in selected realms",
     ),
     "Streams": (
-        34,
-        212,
-        "Streams algorithms still use realms for controller/read/write operations and chunk conversion",
+        35,
+        219,
+        "Streams algorithms still use realms for controller/read/write operations and chunk conversion, and the "
+        "TransformStreams that Rust implementations set up take the realm of their algorithms",
     ),
     "TrustedTypes": (2, 9, "Trusted Types policy factory operations still use selected realms"),
     "WebAssembly": (

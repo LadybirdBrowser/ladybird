@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    async function compress(format, bytes) {
+        const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream(format));
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+
+    async function decompressedBytesBeforeClose(format, compressed) {
+        const decompressor = new DecompressionStream(format);
+        const reader = decompressor.readable.getReader();
+        const writer = decompressor.writable.getWriter();
+
+        const notQueued = Symbol();
+        const firstRead = reader.read();
+        await writer.write(compressed);
+
+        let total = (await firstRead).value.byteLength;
+        while (true) {
+            const result = await Promise.race([reader.read(), Promise.resolve(notQueued)]);
+            if (result === notQueued)
+                return total;
+            total += result.value.byteLength;
+        }
+    }
+
+    asyncTest(async done => {
+        const repetitive = new TextEncoder().encode("a".repeat(100000));
+
+        let seed = 1;
+        const random = new Uint8Array(50000).map(() => {
+            seed = (seed * 1103515245 + 12345) % 2147483648;
+            return seed >> 16;
+        });
+
+        for (const format of ["deflate", "deflate-raw", "gzip", "brotli"]) {
+            for (const [name, input] of [["repetitive", repetitive], ["random", random]]) {
+                const compressed = await compress(format, input);
+                const available = await decompressedBytesBeforeClose(format, compressed);
+                println(`${format} ${name}: ${available} of ${input.byteLength}`);
+            }
+        }
+        done();
+    });
+</script>

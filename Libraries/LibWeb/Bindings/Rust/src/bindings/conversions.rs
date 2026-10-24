@@ -13,17 +13,18 @@ use std::borrow::Cow;
 
 use ak::{Utf16String, Utf16StringUnits, convert_valid_utf16_to_utf8, utf8_length_from_valid_utf16};
 use libjs_rust::api::{
-    Array, ArrayBuffer, ArrayBufferOrder, DataView, ErrorKind, ErrorType, FunctionObject, Gc, MarkedVec, Must, Object,
-    PrimitiveString, PropertyKey, Root, ThrowCompletionOr, Trace, TypedArrayBase, TypedArrayKind, Value, Vm,
-    get_iterator_from_method_impl, get_view_byte_length, is_typed_array_out_of_bounds, is_view_out_of_bounds,
-    iterator_step_value, make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record,
-    to_well_formed, typed_array_byte_length,
+    Array, ArrayBuffer, ArrayBufferOrder, ArrayBufferShared, DataView, ErrorKind, ErrorType, FunctionObject, Gc,
+    MarkedVec, Must, Object, PrimitiveString, PropertyKey, Root, ThrowCompletionOr, Trace, TypedArrayBase,
+    TypedArrayKind, Value, Vm, create_typed_array_on_buffer, get_iterator_from_method_impl, get_view_byte_length,
+    is_typed_array_out_of_bounds, is_view_out_of_bounds, iterator_step_value,
+    make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record, to_well_formed,
+    typed_array_byte_length,
 };
 
 use crate::ak_format::ak_formatted;
-use crate::bindings::CallContext;
 use crate::bindings::interface::{Interface, Ref, create_dictionary_object, wrap};
 use crate::bindings::services::web_bindings_object_implements_interface;
+use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 /// A USVString, a string without lone surrogates. Its UTF-16 code units are always well-formed.
 #[derive(Clone, Eq, PartialEq)]
@@ -644,6 +645,20 @@ unsafe fn borrowed_or_copied_bytes_of_buffer(buffer: &ArrayBuffer, bytes: Range<
     // SAFETY: The buffer is not detached and has the bytes, which nothing writes while they are borrowed, as the
     //         buffer is not shared and the caller keeps script from running.
     Some(Cow::Borrowed(unsafe { ak::slice_from_raw_parts(data, bytes.len()) }))
+}
+
+/// https://webidl.spec.whatwg.org/#arraybufferview-create, for a Uint8Array in the realm of the call context.
+pub(crate) fn create_uint8_array(cx: &CallContext, bytes: &[u8]) -> WebIdlResult<Gc<Object>> {
+    let length = u32::try_from(bytes.len())
+        .map_err(|_| Exception::RangeError(ErrorType::InvalidLength.message(&[&"typed array"])))?;
+    let buffer =
+        ArrayBuffer::try_create_written_by(cx.vm(), cx.realm(), bytes.len(), ArrayBufferShared::No, |output| {
+            for (byte, value) in output.iter_mut().zip(bytes) {
+                byte.write(*value);
+            }
+            bytes.len()
+        })?;
+    Ok(create_typed_array_on_buffer(cx.vm(), cx.realm(), TypedArrayKind::Uint8Array, length, buffer).upcast())
 }
 
 impl ArrayBufferView {

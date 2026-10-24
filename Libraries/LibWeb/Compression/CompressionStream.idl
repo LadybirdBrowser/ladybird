@@ -7,7 +7,7 @@ enum CompressionFormat {
 };
 
 // https://compression.spec.whatwg.org/#compressionstream
-[Exposed=*]
+[Exposed=*, ImplementedIn=Rust]
 interface CompressionStream {
     constructor(CompressionFormat format);
 };

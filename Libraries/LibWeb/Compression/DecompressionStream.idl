@@ -1,5 +1,5 @@
 // https://compression.spec.whatwg.org/#decompressionstream
-[Exposed=*]
+[Exposed=*, ImplementedIn=Rust]
 interface DecompressionStream {
     constructor(CompressionFormat format);
 };

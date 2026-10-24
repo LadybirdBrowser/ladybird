@@ -917,6 +917,7 @@ dependencies = [
  "encoding_rs",
  "ladybird_allocator",
  "libcompositing_rust",
+ "libcompress_rust",
  "libgfx_rust",
  "libjs_rust",
  "libtextcodec_rust",
