@@ -364,6 +364,7 @@ All properties associated with getComputedStyle(document.body):
     "view-timeline-axis",
     "view-timeline-inset",
     "view-timeline-name",
+    "view-transition-class",
     "view-transition-name",
     "white-space-trim",
     "width",

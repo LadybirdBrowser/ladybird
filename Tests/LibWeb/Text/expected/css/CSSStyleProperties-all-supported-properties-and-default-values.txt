@@ -1019,6 +1019,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'view-timeline-inset': 'auto'
 'viewTimelineName': 'none'
 'view-timeline-name': 'none'
+'viewTransitionClass': 'none'
+'view-transition-class': 'none'
 'viewTransitionName': 'none'
 'view-transition-name': 'none'
 'visibility': 'visible'

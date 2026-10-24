@@ -281,6 +281,7 @@ fn property_uses_special_keyword_parser(property: u16) -> bool {
             | property_id::TRANSFORM_ORIGIN
             | property_id::TRANSITION_PROPERTY
             | property_id::TRANSLATE
+            | property_id::VIEW_TRANSITION_CLASS
             | property_id::WHITE_SPACE
             | property_id::WHITE_SPACE_TRIM
             | property_id::WILL_CHANGE
@@ -2766,6 +2767,23 @@ fn parse_comma_separated_dashed_ident_list(
     Some(value_list(values, 1, true))
 }
 
+fn parse_custom_ident_list(
+    context: &ParseContext,
+    values: &[ComponentValue],
+    blacklist: &[&str],
+) -> Option<StyleValueData> {
+    let names = values
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .map(|value| parse_custom_ident_value(context, value, blacklist))
+        .collect::<Option<Vec<_>>>()?;
+    match names.as_slice() {
+        [] => None,
+        [_] => names.into_iter().next(),
+        _ => Some(value_list(names, 0, false)),
+    }
+}
+
 fn parse_special_text_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
     if !matches!(
         property,
@@ -2776,6 +2794,7 @@ fn parse_special_text_property(context: &ParseContext, property: u16, values: &[
             | property_id::POSITION_ANCHOR
             | property_id::TIMELINE_SCOPE
             | property_id::TRANSITION_PROPERTY
+            | property_id::VIEW_TRANSITION_CLASS
             | property_id::WILL_CHANGE
     ) {
         return ParseOutcome::NotHandled;
@@ -2798,18 +2817,13 @@ fn parse_special_text_property(context: &ParseContext, property: u16, values: &[
         }),
         property_id::CONTAINER_NAME => single_value
             .and_then(|value| parse_specific_keyword(value, &[keyword::NONE]))
-            .or_else(|| {
-                let names = values
-                    .iter()
-                    .filter(|value| !value.is_whitespace())
-                    .map(|value| parse_custom_ident_value(context, value, &["none", "and", "not", "or"]))
-                    .collect::<Option<Vec<_>>>()?;
-                match names.as_slice() {
-                    [] => None,
-                    [_] => names.into_iter().next(),
-                    _ => Some(value_list(names, 0, false)),
-                }
-            }),
+            .or_else(|| parse_custom_ident_list(context, values, &["none", "and", "not", "or"])),
+        // https://drafts.csswg.org/css-view-transitions-2/#view-transition-class-prop
+        // none | <custom-ident>+
+        // none is an invalid <custom-ident> for view-transition-class, even when combined with another <custom-ident>.
+        property_id::VIEW_TRANSITION_CLASS => single_value
+            .and_then(|value| parse_specific_keyword(value, &[keyword::NONE]))
+            .or_else(|| parse_custom_ident_list(context, values, &["none"])),
         property_id::FONT_LANGUAGE_OVERRIDE => single_value.and_then(|value| {
             if let Some(normal) = parse_specific_keyword(value, &[keyword::NORMAL]) {
                 return Some(normal);

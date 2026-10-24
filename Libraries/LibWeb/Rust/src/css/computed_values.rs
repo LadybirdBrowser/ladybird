@@ -2124,6 +2124,7 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             COLUMN_RULE_WIDTH @ column_rule_width => CssPixelsNonNegative,
             USER_SELECT @ user_select => EnumKeyword(enums::keyword_to_user_select),
             OBJECT_POSITION => RequireInitialValue,
+            VIEW_TRANSITION_CLASS => RequireKeyword(k::NONE),
             VIEW_TRANSITION_NAME => RequireKeyword(k::NONE),
             TOUCH_ACTION => RequireInitialValue,
             SCROLL_BEHAVIOR @ scroll_behavior => EnumKeyword(enums::keyword_to_scroll_behavior),

@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-6 Fail
-Fail	e.style['view-transition-class'] = "none" should set the property value
-Fail	e.style['view-transition-class'] = "foo" should set the property value
-Fail	e.style['view-transition-class'] = "bar" should set the property value
-Fail	e.style['view-transition-class'] = "baz" should set the property value
-Fail	e.style['view-transition-class'] = "foo bar" should set the property value
-Fail	e.style['view-transition-class'] = "foo bar baz" should set the property value
+6 Pass
+Pass	e.style['view-transition-class'] = "none" should set the property value
+Pass	e.style['view-transition-class'] = "foo" should set the property value
+Pass	e.style['view-transition-class'] = "bar" should set the property value
+Pass	e.style['view-transition-class'] = "baz" should set the property value
+Pass	e.style['view-transition-class'] = "foo bar" should set the property value
+Pass	e.style['view-transition-class'] = "foo bar baz" should set the property value
