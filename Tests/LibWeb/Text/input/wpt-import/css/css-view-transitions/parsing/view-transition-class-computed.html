@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS View Transitions: view-transition-class with computed values</title>
+<link rel="author" title="Vladimir Levin" href="mailto:vmpstr@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-view-transitions-1/">
+<meta name="assert" content="view-transition-class supports custom keywords.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id=target></div>
+<script>
+test_computed_value("view-transition-class", "none");
+test_computed_value("view-transition-class", "foo");
+test_computed_value("view-transition-class", "bar");
+test_computed_value("view-transition-class", "baz");
+test_computed_value("view-transition-class", "foo bar");
+test_computed_value("view-transition-class", "foo bar baz");
+test_computed_value("view-transition-class", "unset", "none");
+test_computed_value("view-transition-class", "initial", "none");
+test_computed_value("view-transition-class", "inherit", "none");
+test_computed_value("view-transition-class", "revert", "none");
+test_computed_value("view-transition-class", "revert-layer", "none");
+</script>
+</body>
+</html>

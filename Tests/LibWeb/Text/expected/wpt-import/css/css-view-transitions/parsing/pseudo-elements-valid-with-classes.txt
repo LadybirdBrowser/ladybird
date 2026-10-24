@@ -1,0 +1,234 @@
+Harness status: OK
+
+Found 228 tests
+
+4 Pass
+224 Fail
+Pass	"::view-transition" should be a valid selector
+Pass	":root::view-transition" should be a valid selector
+Pass	".a::view-transition" should be a valid selector
+Pass	"div ::view-transition" should be a valid selector
+Fail	"::view-transition-group(*.class)" should be a valid selector
+Fail	":root::view-transition-group(*.class)" should be a valid selector
+Fail	".a::view-transition-group(*.class)" should be a valid selector
+Fail	"div ::view-transition-group(*.class)" should be a valid selector
+Fail	"::view-transition-group(*.class):only-child" should be a valid selector
+Fail	":root::view-transition-group(*.class):only-child" should be a valid selector
+Fail	".a::view-transition-group(*.class):only-child" should be a valid selector
+Fail	"div ::view-transition-group(*.class):only-child" should be a valid selector
+Fail	"::view-transition-group(\\*.class)" should be a valid selector
+Fail	":root::view-transition-group(\\*.class)" should be a valid selector
+Fail	".a::view-transition-group(\\*.class)" should be a valid selector
+Fail	"div ::view-transition-group(\\*.class)" should be a valid selector
+Fail	"::view-transition-group(\\*.class):only-child" should be a valid selector
+Fail	":root::view-transition-group(\\*.class):only-child" should be a valid selector
+Fail	".a::view-transition-group(\\*.class):only-child" should be a valid selector
+Fail	"div ::view-transition-group(\\*.class):only-child" should be a valid selector
+Fail	"::view-transition-group(*.class.class)" should be a valid selector
+Fail	":root::view-transition-group(*.class.class)" should be a valid selector
+Fail	".a::view-transition-group(*.class.class)" should be a valid selector
+Fail	"div ::view-transition-group(*.class.class)" should be a valid selector
+Fail	"::view-transition-group(*.class.class):only-child" should be a valid selector
+Fail	":root::view-transition-group(*.class.class):only-child" should be a valid selector
+Fail	".a::view-transition-group(*.class.class):only-child" should be a valid selector
+Fail	"div ::view-transition-group(*.class.class):only-child" should be a valid selector
+Fail	"::view-transition-group(\\*.class.class)" should be a valid selector
+Fail	":root::view-transition-group(\\*.class.class)" should be a valid selector
+Fail	".a::view-transition-group(\\*.class.class)" should be a valid selector
+Fail	"div ::view-transition-group(\\*.class.class)" should be a valid selector
+Fail	"::view-transition-group(\\*.class.class):only-child" should be a valid selector
+Fail	":root::view-transition-group(\\*.class.class):only-child" should be a valid selector
+Fail	".a::view-transition-group(\\*.class.class):only-child" should be a valid selector
+Fail	"div ::view-transition-group(\\*.class.class):only-child" should be a valid selector
+Fail	"::view-transition-group(dashed-ident.someclass)" should be a valid selector
+Fail	":root::view-transition-group(dashed-ident.someclass)" should be a valid selector
+Fail	".a::view-transition-group(dashed-ident.someclass)" should be a valid selector
+Fail	"div ::view-transition-group(dashed-ident.someclass)" should be a valid selector
+Fail	"::view-transition-group(dashed-ident.someclass):only-child" should be a valid selector
+Fail	":root::view-transition-group(dashed-ident.someclass):only-child" should be a valid selector
+Fail	".a::view-transition-group(dashed-ident.someclass):only-child" should be a valid selector
+Fail	"div ::view-transition-group(dashed-ident.someclass):only-child" should be a valid selector
+Fail	"::view-transition-group(dash-id.dash-id)" should be a valid selector
+Fail	":root::view-transition-group(dash-id.dash-id)" should be a valid selector
+Fail	".a::view-transition-group(dash-id.dash-id)" should be a valid selector
+Fail	"div ::view-transition-group(dash-id.dash-id)" should be a valid selector
+Fail	"::view-transition-group(dash-id.dash-id):only-child" should be a valid selector
+Fail	":root::view-transition-group(dash-id.dash-id):only-child" should be a valid selector
+Fail	".a::view-transition-group(dash-id.dash-id):only-child" should be a valid selector
+Fail	"div ::view-transition-group(dash-id.dash-id):only-child" should be a valid selector
+Fail	"::view-transition-group(foo.bar.baz)" should be a valid selector
+Fail	":root::view-transition-group(foo.bar.baz)" should be a valid selector
+Fail	".a::view-transition-group(foo.bar.baz)" should be a valid selector
+Fail	"div ::view-transition-group(foo.bar.baz)" should be a valid selector
+Fail	"::view-transition-group(foo.bar.baz):only-child" should be a valid selector
+Fail	":root::view-transition-group(foo.bar.baz):only-child" should be a valid selector
+Fail	".a::view-transition-group(foo.bar.baz):only-child" should be a valid selector
+Fail	"div ::view-transition-group(foo.bar.baz):only-child" should be a valid selector
+Fail	"::view-transition-image-pair(*.class)" should be a valid selector
+Fail	":root::view-transition-image-pair(*.class)" should be a valid selector
+Fail	".a::view-transition-image-pair(*.class)" should be a valid selector
+Fail	"div ::view-transition-image-pair(*.class)" should be a valid selector
+Fail	"::view-transition-image-pair(*.class):only-child" should be a valid selector
+Fail	":root::view-transition-image-pair(*.class):only-child" should be a valid selector
+Fail	".a::view-transition-image-pair(*.class):only-child" should be a valid selector
+Fail	"div ::view-transition-image-pair(*.class):only-child" should be a valid selector
+Fail	"::view-transition-image-pair(\\*.class)" should be a valid selector
+Fail	":root::view-transition-image-pair(\\*.class)" should be a valid selector
+Fail	".a::view-transition-image-pair(\\*.class)" should be a valid selector
+Fail	"div ::view-transition-image-pair(\\*.class)" should be a valid selector
+Fail	"::view-transition-image-pair(\\*.class):only-child" should be a valid selector
+Fail	":root::view-transition-image-pair(\\*.class):only-child" should be a valid selector
+Fail	".a::view-transition-image-pair(\\*.class):only-child" should be a valid selector
+Fail	"div ::view-transition-image-pair(\\*.class):only-child" should be a valid selector
+Fail	"::view-transition-image-pair(*.class.class)" should be a valid selector
+Fail	":root::view-transition-image-pair(*.class.class)" should be a valid selector
+Fail	".a::view-transition-image-pair(*.class.class)" should be a valid selector
+Fail	"div ::view-transition-image-pair(*.class.class)" should be a valid selector
+Fail	"::view-transition-image-pair(*.class.class):only-child" should be a valid selector
+Fail	":root::view-transition-image-pair(*.class.class):only-child" should be a valid selector
+Fail	".a::view-transition-image-pair(*.class.class):only-child" should be a valid selector
+Fail	"div ::view-transition-image-pair(*.class.class):only-child" should be a valid selector
+Fail	"::view-transition-image-pair(\\*.class.class)" should be a valid selector
+Fail	":root::view-transition-image-pair(\\*.class.class)" should be a valid selector
+Fail	".a::view-transition-image-pair(\\*.class.class)" should be a valid selector
+Fail	"div ::view-transition-image-pair(\\*.class.class)" should be a valid selector
+Fail	"::view-transition-image-pair(\\*.class.class):only-child" should be a valid selector
+Fail	":root::view-transition-image-pair(\\*.class.class):only-child" should be a valid selector
+Fail	".a::view-transition-image-pair(\\*.class.class):only-child" should be a valid selector
+Fail	"div ::view-transition-image-pair(\\*.class.class):only-child" should be a valid selector
+Fail	"::view-transition-image-pair(dashed-ident.someclass)" should be a valid selector
+Fail	":root::view-transition-image-pair(dashed-ident.someclass)" should be a valid selector
+Fail	".a::view-transition-image-pair(dashed-ident.someclass)" should be a valid selector
+Fail	"div ::view-transition-image-pair(dashed-ident.someclass)" should be a valid selector
+Fail	"::view-transition-image-pair(dashed-ident.someclass):only-child" should be a valid selector
+Fail	":root::view-transition-image-pair(dashed-ident.someclass):only-child" should be a valid selector
+Fail	".a::view-transition-image-pair(dashed-ident.someclass):only-child" should be a valid selector
+Fail	"div ::view-transition-image-pair(dashed-ident.someclass):only-child" should be a valid selector
+Fail	"::view-transition-image-pair(dash-id.dash-id)" should be a valid selector
+Fail	":root::view-transition-image-pair(dash-id.dash-id)" should be a valid selector
+Fail	".a::view-transition-image-pair(dash-id.dash-id)" should be a valid selector
+Fail	"div ::view-transition-image-pair(dash-id.dash-id)" should be a valid selector
+Fail	"::view-transition-image-pair(dash-id.dash-id):only-child" should be a valid selector
+Fail	":root::view-transition-image-pair(dash-id.dash-id):only-child" should be a valid selector
+Fail	".a::view-transition-image-pair(dash-id.dash-id):only-child" should be a valid selector
+Fail	"div ::view-transition-image-pair(dash-id.dash-id):only-child" should be a valid selector
+Fail	"::view-transition-image-pair(foo.bar.baz)" should be a valid selector
+Fail	":root::view-transition-image-pair(foo.bar.baz)" should be a valid selector
+Fail	".a::view-transition-image-pair(foo.bar.baz)" should be a valid selector
+Fail	"div ::view-transition-image-pair(foo.bar.baz)" should be a valid selector
+Fail	"::view-transition-image-pair(foo.bar.baz):only-child" should be a valid selector
+Fail	":root::view-transition-image-pair(foo.bar.baz):only-child" should be a valid selector
+Fail	".a::view-transition-image-pair(foo.bar.baz):only-child" should be a valid selector
+Fail	"div ::view-transition-image-pair(foo.bar.baz):only-child" should be a valid selector
+Fail	"::view-transition-old(*.class)" should be a valid selector
+Fail	":root::view-transition-old(*.class)" should be a valid selector
+Fail	".a::view-transition-old(*.class)" should be a valid selector
+Fail	"div ::view-transition-old(*.class)" should be a valid selector
+Fail	"::view-transition-old(*.class):only-child" should be a valid selector
+Fail	":root::view-transition-old(*.class):only-child" should be a valid selector
+Fail	".a::view-transition-old(*.class):only-child" should be a valid selector
+Fail	"div ::view-transition-old(*.class):only-child" should be a valid selector
+Fail	"::view-transition-old(\\*.class)" should be a valid selector
+Fail	":root::view-transition-old(\\*.class)" should be a valid selector
+Fail	".a::view-transition-old(\\*.class)" should be a valid selector
+Fail	"div ::view-transition-old(\\*.class)" should be a valid selector
+Fail	"::view-transition-old(\\*.class):only-child" should be a valid selector
+Fail	":root::view-transition-old(\\*.class):only-child" should be a valid selector
+Fail	".a::view-transition-old(\\*.class):only-child" should be a valid selector
+Fail	"div ::view-transition-old(\\*.class):only-child" should be a valid selector
+Fail	"::view-transition-old(*.class.class)" should be a valid selector
+Fail	":root::view-transition-old(*.class.class)" should be a valid selector
+Fail	".a::view-transition-old(*.class.class)" should be a valid selector
+Fail	"div ::view-transition-old(*.class.class)" should be a valid selector
+Fail	"::view-transition-old(*.class.class):only-child" should be a valid selector
+Fail	":root::view-transition-old(*.class.class):only-child" should be a valid selector
+Fail	".a::view-transition-old(*.class.class):only-child" should be a valid selector
+Fail	"div ::view-transition-old(*.class.class):only-child" should be a valid selector
+Fail	"::view-transition-old(\\*.class.class)" should be a valid selector
+Fail	":root::view-transition-old(\\*.class.class)" should be a valid selector
+Fail	".a::view-transition-old(\\*.class.class)" should be a valid selector
+Fail	"div ::view-transition-old(\\*.class.class)" should be a valid selector
+Fail	"::view-transition-old(\\*.class.class):only-child" should be a valid selector
+Fail	":root::view-transition-old(\\*.class.class):only-child" should be a valid selector
+Fail	".a::view-transition-old(\\*.class.class):only-child" should be a valid selector
+Fail	"div ::view-transition-old(\\*.class.class):only-child" should be a valid selector
+Fail	"::view-transition-old(dashed-ident.someclass)" should be a valid selector
+Fail	":root::view-transition-old(dashed-ident.someclass)" should be a valid selector
+Fail	".a::view-transition-old(dashed-ident.someclass)" should be a valid selector
+Fail	"div ::view-transition-old(dashed-ident.someclass)" should be a valid selector
+Fail	"::view-transition-old(dashed-ident.someclass):only-child" should be a valid selector
+Fail	":root::view-transition-old(dashed-ident.someclass):only-child" should be a valid selector
+Fail	".a::view-transition-old(dashed-ident.someclass):only-child" should be a valid selector
+Fail	"div ::view-transition-old(dashed-ident.someclass):only-child" should be a valid selector
+Fail	"::view-transition-old(dash-id.dash-id)" should be a valid selector
+Fail	":root::view-transition-old(dash-id.dash-id)" should be a valid selector
+Fail	".a::view-transition-old(dash-id.dash-id)" should be a valid selector
+Fail	"div ::view-transition-old(dash-id.dash-id)" should be a valid selector
+Fail	"::view-transition-old(dash-id.dash-id):only-child" should be a valid selector
+Fail	":root::view-transition-old(dash-id.dash-id):only-child" should be a valid selector
+Fail	".a::view-transition-old(dash-id.dash-id):only-child" should be a valid selector
+Fail	"div ::view-transition-old(dash-id.dash-id):only-child" should be a valid selector
+Fail	"::view-transition-old(foo.bar.baz)" should be a valid selector
+Fail	":root::view-transition-old(foo.bar.baz)" should be a valid selector
+Fail	".a::view-transition-old(foo.bar.baz)" should be a valid selector
+Fail	"div ::view-transition-old(foo.bar.baz)" should be a valid selector
+Fail	"::view-transition-old(foo.bar.baz):only-child" should be a valid selector
+Fail	":root::view-transition-old(foo.bar.baz):only-child" should be a valid selector
+Fail	".a::view-transition-old(foo.bar.baz):only-child" should be a valid selector
+Fail	"div ::view-transition-old(foo.bar.baz):only-child" should be a valid selector
+Fail	"::view-transition-new(*.class)" should be a valid selector
+Fail	":root::view-transition-new(*.class)" should be a valid selector
+Fail	".a::view-transition-new(*.class)" should be a valid selector
+Fail	"div ::view-transition-new(*.class)" should be a valid selector
+Fail	"::view-transition-new(*.class):only-child" should be a valid selector
+Fail	":root::view-transition-new(*.class):only-child" should be a valid selector
+Fail	".a::view-transition-new(*.class):only-child" should be a valid selector
+Fail	"div ::view-transition-new(*.class):only-child" should be a valid selector
+Fail	"::view-transition-new(\\*.class)" should be a valid selector
+Fail	":root::view-transition-new(\\*.class)" should be a valid selector
+Fail	".a::view-transition-new(\\*.class)" should be a valid selector
+Fail	"div ::view-transition-new(\\*.class)" should be a valid selector
+Fail	"::view-transition-new(\\*.class):only-child" should be a valid selector
+Fail	":root::view-transition-new(\\*.class):only-child" should be a valid selector
+Fail	".a::view-transition-new(\\*.class):only-child" should be a valid selector
+Fail	"div ::view-transition-new(\\*.class):only-child" should be a valid selector
+Fail	"::view-transition-new(*.class.class)" should be a valid selector
+Fail	":root::view-transition-new(*.class.class)" should be a valid selector
+Fail	".a::view-transition-new(*.class.class)" should be a valid selector
+Fail	"div ::view-transition-new(*.class.class)" should be a valid selector
+Fail	"::view-transition-new(*.class.class):only-child" should be a valid selector
+Fail	":root::view-transition-new(*.class.class):only-child" should be a valid selector
+Fail	".a::view-transition-new(*.class.class):only-child" should be a valid selector
+Fail	"div ::view-transition-new(*.class.class):only-child" should be a valid selector
+Fail	"::view-transition-new(\\*.class.class)" should be a valid selector
+Fail	":root::view-transition-new(\\*.class.class)" should be a valid selector
+Fail	".a::view-transition-new(\\*.class.class)" should be a valid selector
+Fail	"div ::view-transition-new(\\*.class.class)" should be a valid selector
+Fail	"::view-transition-new(\\*.class.class):only-child" should be a valid selector
+Fail	":root::view-transition-new(\\*.class.class):only-child" should be a valid selector
+Fail	".a::view-transition-new(\\*.class.class):only-child" should be a valid selector
+Fail	"div ::view-transition-new(\\*.class.class):only-child" should be a valid selector
+Fail	"::view-transition-new(dashed-ident.someclass)" should be a valid selector
+Fail	":root::view-transition-new(dashed-ident.someclass)" should be a valid selector
+Fail	".a::view-transition-new(dashed-ident.someclass)" should be a valid selector
+Fail	"div ::view-transition-new(dashed-ident.someclass)" should be a valid selector
+Fail	"::view-transition-new(dashed-ident.someclass):only-child" should be a valid selector
+Fail	":root::view-transition-new(dashed-ident.someclass):only-child" should be a valid selector
+Fail	".a::view-transition-new(dashed-ident.someclass):only-child" should be a valid selector
+Fail	"div ::view-transition-new(dashed-ident.someclass):only-child" should be a valid selector
+Fail	"::view-transition-new(dash-id.dash-id)" should be a valid selector
+Fail	":root::view-transition-new(dash-id.dash-id)" should be a valid selector
+Fail	".a::view-transition-new(dash-id.dash-id)" should be a valid selector
+Fail	"div ::view-transition-new(dash-id.dash-id)" should be a valid selector
+Fail	"::view-transition-new(dash-id.dash-id):only-child" should be a valid selector
+Fail	":root::view-transition-new(dash-id.dash-id):only-child" should be a valid selector
+Fail	".a::view-transition-new(dash-id.dash-id):only-child" should be a valid selector
+Fail	"div ::view-transition-new(dash-id.dash-id):only-child" should be a valid selector
+Fail	"::view-transition-new(foo.bar.baz)" should be a valid selector
+Fail	":root::view-transition-new(foo.bar.baz)" should be a valid selector
+Fail	".a::view-transition-new(foo.bar.baz)" should be a valid selector
+Fail	"div ::view-transition-new(foo.bar.baz)" should be a valid selector
+Fail	"::view-transition-new(foo.bar.baz):only-child" should be a valid selector
+Fail	":root::view-transition-new(foo.bar.baz):only-child" should be a valid selector
+Fail	".a::view-transition-new(foo.bar.baz):only-child" should be a valid selector
+Fail	"div ::view-transition-new(foo.bar.baz):only-child" should be a valid selector

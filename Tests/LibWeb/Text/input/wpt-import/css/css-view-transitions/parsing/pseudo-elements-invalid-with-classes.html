@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Test pseudo elements parsing of invalid selectors with classes</title>
+<link rel="author" href="https://github.com/noamr">
+<link rel="help" href="https://drafts.csswg.org/css-view-transitions-1/">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+const functionPseudoElements = [
+    "::view-transition-group",
+    "::view-transition-image-pair",
+    "::view-transition-old",
+    "::view-transition-new",
+];
+
+function test_invalid_selector_combinations(pseudo) {
+    test_invalid_selector(`${pseudo}.a`);
+    test_invalid_selector(`${pseudo} div`);
+    test_invalid_selector(`${pseudo}:hover`);
+    test_invalid_selector(`:not(${pseudo})`);
+    test_invalid_selector(`:has(${pseudo})`);
+}
+
+for (const fn of functionPseudoElements) {
+  test_invalid_selector(`${fn}(*.*)`);
+  test_invalid_selector(`${fn}(*. cls)`);
+  test_invalid_selector(`${fn}(*.cls. c)`);
+  test_invalid_selector(`${fn}(*.cls>cls)`);
+  test_invalid_selector(`${fn}(*.cls.foo.*)`);
+}
+</script>
