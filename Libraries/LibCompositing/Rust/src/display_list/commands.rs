@@ -68,10 +68,11 @@ pub enum DisplayListCommandType {
     Canvas2DClipPath,
     Canvas2DReset,
     Canvas2DClearCanvas,
+    Canvas2DPutImageFrame,
 }
 ffi_enum_bytes!(DisplayListCommandType as u8);
 
-pub const DISPLAY_LIST_COMMAND_TYPE_COUNT: usize = DisplayListCommandType::Canvas2DClearCanvas as usize + 1;
+pub const DISPLAY_LIST_COMMAND_TYPE_COUNT: usize = DisplayListCommandType::Canvas2DPutImageFrame as usize + 1;
 
 impl DisplayListCommandType {
     pub fn from_u8(value: u8) -> Option<Self> {
@@ -119,6 +120,7 @@ impl DisplayListCommandType {
                 | Self::Canvas2DClipPath
                 | Self::Canvas2DReset
                 | Self::Canvas2DClearCanvas
+                | Self::Canvas2DPutImageFrame
         )
     }
 
@@ -176,6 +178,7 @@ impl DisplayListCommandType {
             Self::Canvas2DClipPath => "Canvas2DClipPath",
             Self::Canvas2DReset => "Canvas2DReset",
             Self::Canvas2DClearCanvas => "Canvas2DClearCanvas",
+            Self::Canvas2DPutImageFrame => "Canvas2DPutImageFrame",
         }
     }
 }
@@ -2056,6 +2059,20 @@ ffi_bytes_fields!(Canvas2DClearCanvas { color });
 
 impl DisplayListCommand for Canvas2DClearCanvas {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::Canvas2DClearCanvas;
+}
+
+// Sets the pixels of the canvas at the position to those of the frame, regardless of the transform, the clip and the
+// compositing of the context, as putImageData() does.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct Canvas2DPutImageFrame {
+    pub frame_id: ImageFrameResourceId,
+    pub position: IntPoint,
+}
+ffi_bytes_fields!(Canvas2DPutImageFrame { frame_id, position });
+
+impl DisplayListCommand for Canvas2DPutImageFrame {
+    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::Canvas2DPutImageFrame;
 }
 
 pub fn int_rect_from_two_points(a: IntPoint, b: IntPoint) -> IntRect {

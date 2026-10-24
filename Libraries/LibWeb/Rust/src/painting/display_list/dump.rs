@@ -690,7 +690,8 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
         | DisplayListCommandType::Canvas2DRestore
         | DisplayListCommandType::Canvas2DClipPath
         | DisplayListCommandType::Canvas2DReset
-        | DisplayListCommandType::Canvas2DClearCanvas => {}
+        | DisplayListCommandType::Canvas2DClearCanvas
+        | DisplayListCommandType::Canvas2DPutImageFrame => {}
     }
 }
 

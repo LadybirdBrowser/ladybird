@@ -12,8 +12,8 @@ use super::commands::*;
 use super::ffi_bytes::FfiBytes;
 use super::validate::validate_canvas_2d_tape;
 use libgfx_rust::{
-    AffineTransform, CapStyle, Color, CompositingAndBlendingOperator, FloatPoint, FloatRect, IntRect, JoinStyle,
-    ScalingMode, WindingRule,
+    AffineTransform, CapStyle, Color, CompositingAndBlendingOperator, FloatPoint, FloatRect, IntPoint, IntRect,
+    JoinStyle, ScalingMode, WindingRule,
 };
 use std::ffi::c_void;
 
@@ -376,6 +376,10 @@ impl TapeWriter {
 
     pub fn clear_canvas(&mut self, color: Color) {
         self.append_plain(&Canvas2DClearCanvas { color });
+    }
+
+    pub fn put_image_frame(&mut self, frame_id: ImageFrameResourceId, position: IntPoint) {
+        self.append_plain(&Canvas2DPutImageFrame { frame_id, position });
     }
 }
 

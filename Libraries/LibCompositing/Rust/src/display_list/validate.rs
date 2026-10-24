@@ -345,6 +345,7 @@ fn command_struct_size(command_type: DisplayListCommandType) -> usize {
         T::Canvas2DClipPath => size_of::<Canvas2DClipPath>(),
         T::Canvas2DReset => size_of::<Canvas2DReset>(),
         T::Canvas2DClearCanvas => size_of::<Canvas2DClearCanvas>(),
+        T::Canvas2DPutImageFrame => size_of::<Canvas2DPutImageFrame>(),
     }
 }
 
@@ -584,7 +585,8 @@ fn validate_command_fields(
         | T::Canvas2DSave
         | T::Canvas2DRestore
         | T::Canvas2DReset
-        | T::Canvas2DClearCanvas => {}
+        | T::Canvas2DClearCanvas
+        | T::Canvas2DPutImageFrame => {}
     }
     Ok(())
 }

@@ -13,9 +13,8 @@
 use core::ptr::NonNull;
 
 use ak::Utf16String;
-use libcompositing_rust::display_list::canvas_2d::Compositing;
 use libcompositing_rust::display_list::canvas_2d_recorder::AlphaType;
-use libgfx_rust::{AffineTransform, CompositingAndBlendingOperator, FloatRect, IntRect, ScalingMode};
+use libgfx_rust::{IntPoint, IntRect};
 use libjs_rust::api::{ErrorKind, ErrorType};
 
 use super::image_data::{ImageData, ImageDataSettings};
@@ -181,40 +180,15 @@ impl ContextState {
                 .into());
         };
 
-        #[allow(
-            clippy::cast_precision_loss,
-            reason = "the rectangle is in floats, as the C++ had it"
-        )]
-        let destination = FloatRect::new(
-            destination_rect.x as f32,
-            destination_rect.y as f32,
-            destination_rect.width as f32,
-            destination_rect.height as f32,
-        );
-        let frame_rect = IntRect {
-            x: 0,
-            y: 0,
-            width: destination_rect.width,
-            height: destination_rect.height,
-        };
         let lent_frame = LentImageFrame(NonNull::new(frame.as_raw().cast_mut()).expect("an image frame has a frame"));
         self.record(|recorder| {
-            recorder.save();
-            recorder.set_transform(AffineTransform::identity());
-            // NB: Step 7 sets each destination pixel to the source pixel: putImageData replaces the pixels (including
-            //     their alpha), rather than compositing them. The copy operator makes a transparent source pixel
-            //     overwrite an opaque destination pixel, rather than leave it unchanged.
-            recorder.draw_image_frame(
+            recorder.put_image_frame(
                 &lent_frame,
-                destination,
-                frame_rect,
-                ScalingMode::NearestNeighbor,
-                &Compositing {
-                    compositing_and_blending_operator: CompositingAndBlendingOperator::Copy,
-                    ..Compositing::default()
+                IntPoint {
+                    x: destination_rect.x,
+                    y: destination_rect.y,
                 },
             );
-            recorder.restore();
         });
 
         self.did_draw();
