@@ -1,0 +1,7 @@
+follower before the move: 200
+nested follower before the move: 300
+follower after moving the anchor into the shadow tree: 100
+nested follower after moving its host into the shadow tree: 300
+follower after removing the earlier anchor: 7
+follower after moving the anchor back: 200
+follower after removing the anchor: 7

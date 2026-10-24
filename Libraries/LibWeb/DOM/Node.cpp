@@ -2065,6 +2065,16 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     auto& old_parent_root = old_parent->root();
     auto descendant_slots = descendant_slots_before_removal(old_parent_root);
 
+    // A move into another tree scope keeps the style of the elements it takes along, so nothing unregisters the anchor
+    // names they registered in the old scope. The elements of shadow trees inside the moved subtree stay in their own
+    // scope. The moving steps register the names in the new scope.
+    if (is_connected() && &old_parent_root != &new_parent.root()) {
+        for_each_in_inclusive_subtree_of_type<Element>([&](Element& element) {
+            element.unregister_anchor_names_before_leaving_tree_scope({}, old_parent_root);
+            return TraversalDecision::Continue;
+        });
+    }
+
     // 13. Remove node from oldParent’s children.
     old_parent->remove_child_impl(*this);
 

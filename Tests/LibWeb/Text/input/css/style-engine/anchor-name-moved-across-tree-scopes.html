@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    .anchor { position: absolute; top: 0; width: 10px; height: 10px; anchor-name: --moved; }
+    #follower { position: absolute; position-anchor: --moved; left: anchor(left, 7px); top: 50px; width: 5px; height: 5px; }
+</style>
+<div id="earlier" class="anchor" style="left: 100px"></div>
+<div id="container">
+    <div id="anchor" class="anchor" style="left: 200px"></div>
+    <div id="nested"></div>
+</div>
+<div id="host"></div>
+<div id="follower"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<style>.anchor { position: absolute; top: 0; width: 10px; height: 10px; anchor-name: --moved; }</style><div id="inner"></div>`;
+        const inner = shadow.getElementById("inner");
+        const left = () => follower.getBoundingClientRect().left;
+
+        // A shadow tree inside the moved subtree keeps its own tree scope, and its anchor names with it.
+        const nestedShadow = nested.attachShadow({ mode: "open" });
+        nestedShadow.innerHTML = `<style>
+            #nested-anchor { position: absolute; left: 300px; top: 0; width: 10px; height: 10px; anchor-name: --nested; }
+            #nested-follower { position: absolute; position-anchor: --nested; left: anchor(left, 7px); top: 60px; width: 5px; height: 5px; }
+        </style><div id="nested-anchor"></div><div id="nested-follower"></div>`;
+        const nestedLeft = () => nestedShadow.getElementById("nested-follower").getBoundingClientRect().left;
+
+        println(`follower before the move: ${left()}`);
+        println(`nested follower before the move: ${nestedLeft()}`);
+
+        // The moved anchor leaves the document's tree scope, so the follower in it falls back to the earlier anchor.
+        inner.moveBefore(anchor, null);
+        println(`follower after moving the anchor into the shadow tree: ${left()}`);
+
+        inner.moveBefore(nested, null);
+        println(`nested follower after moving its host into the shadow tree: ${nestedLeft()}`);
+
+        earlier.remove();
+        println(`follower after removing the earlier anchor: ${left()}`);
+
+        // Moving it back registers it in the document's tree scope again.
+        container.moveBefore(anchor, null);
+        println(`follower after moving the anchor back: ${left()}`);
+
+        anchor.remove();
+        println(`follower after removing the anchor: ${left()}`);
+    });
+</script>

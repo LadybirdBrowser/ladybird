@@ -937,6 +937,9 @@ public:
 
     void prepare_for_style_computation(Badge<CSS::StyleComputer>) { prepare_for_style_computation(); }
 
+    // Unregisters the anchor names this element registered in the tree scope `tree_root` is the root of.
+    void unregister_anchor_names_before_leaving_tree_scope(Badge<Node>, Node& tree_root);
+
 protected:
     Element(Document&, DOM::QualifiedName);
 

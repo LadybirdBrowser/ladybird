@@ -3339,9 +3339,29 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
     });
 }
 
+void Element::unregister_anchor_names_before_leaving_tree_scope(Badge<Node>, Node& tree_root)
+{
+    // Positioned boxes in the scope left behind may hold geometry resolved against these names, which the partial
+    // relayout planner's subtree check can no longer see.
+    if (unregister_current_anchor_names(*this, tree_root))
+        document().record_partial_relayout_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByElementRemoval);
+}
+
 void Element::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancestor)
 {
     Base::moved_from(is_subtree_root, old_ancestor);
+
+    // The anchor names an element registers are kept in tree order, which a move changes without changing its style.
+    // A move into another tree scope has already unregistered them from the old one.
+    if (is_connected()) {
+        if (auto const* anchor_values = style_group<CSS::ComputedValues::AnchorValues>(); anchor_values && !anchor_values->anchor_names_span().is_empty()) {
+            auto scope = anchor_name_scope_of(*this, root());
+            for (auto const& name : anchor_values->anchor_names_span()) {
+                scope.names.unregister_name(name, *this, scope.host);
+                scope.names.register_name(name, *this, scope.host);
+            }
+        }
+    }
 
     if (is_subtree_root == IsSubtreeRoot::Yes)
         HTML::FormAssociatedElement::reposition_associated_elements_after_move({}, *this);
