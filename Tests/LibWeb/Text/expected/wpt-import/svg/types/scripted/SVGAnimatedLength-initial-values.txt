@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 130 tests
 
-128 Pass
-2 Fail
+130 Pass
 Pass	SVGAnimatedLength, initial values, SVGCircleElement.prototype.cx (remove)
 Pass	SVGAnimatedLength, initial values, SVGCircleElement.prototype.cx (invalid value)
 Pass	SVGAnimatedLength, initial values, SVGCircleElement.prototype.cy (remove)
@@ -122,8 +121,8 @@ Pass	SVGAnimatedLength, initial values, SVGSVGElement.prototype.width (remove)
 Pass	SVGAnimatedLength, initial values, SVGSVGElement.prototype.width (invalid value)
 Pass	SVGAnimatedLength, initial values, SVGSVGElement.prototype.height (remove)
 Pass	SVGAnimatedLength, initial values, SVGSVGElement.prototype.height (invalid value)
-Fail	SVGAnimatedLength, initial values, SVGTextContentElement.prototype.textLength (remove)
-Fail	SVGAnimatedLength, initial values, SVGTextContentElement.prototype.textLength (invalid value)
+Pass	SVGAnimatedLength, initial values, SVGTextContentElement.prototype.textLength (remove)
+Pass	SVGAnimatedLength, initial values, SVGTextContentElement.prototype.textLength (invalid value)
 Pass	SVGAnimatedLength, initial values, SVGTextPathElement.prototype.startOffset (remove)
 Pass	SVGAnimatedLength, initial values, SVGTextPathElement.prototype.startOffset (invalid value)
 Pass	SVGAnimatedLength, initial values, SVGUseElement.prototype.x (remove)
