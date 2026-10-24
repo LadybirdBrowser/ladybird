@@ -167,6 +167,8 @@ public:
     QMenu& hamburger_menu() const { return *m_hamburger_menu; }
     static bool has_chrome_in_titlebar();
 
+    void show_window_context_menu(QPoint global_position);
+
     template<typename Callback>
     void for_each_tab(Callback&& callback)
     {
@@ -194,6 +196,7 @@ public slots:
     void tab_favicon_changed(int index, QIcon const& icon);
     void tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState);
     Tab& new_tab_from_url(URL::URL const&, Web::HTML::ActivateTab, TabLocation);
+    void open_new_tab();
     void activate_tab(int index);
     bool definitely_close_tab(int index);
     void move_tab(int old_index, int new_index);
@@ -240,6 +243,7 @@ private:
     void initialize_application_actions();
     void initialize_application_menu();
     void initialize_hamburger_menu();
+    void initialize_window_context_menu();
 
     QAction* create_hamburger_zoom_actions();
     void update_hamburger_zoom_label();
@@ -255,6 +259,7 @@ private:
     static bool uses_client_side_decorations();
     void toggle_window_maximized();
     bool start_window_move();
+    void set_always_on_top(bool);
 
     QIcon icon_for_page_mute_state(Tab&) const;
     QString tool_tip_for_page_mute_state(Tab&) const;
@@ -274,6 +279,11 @@ private:
     QToolButton* m_menu_bar_close_window_button { nullptr };
 
     QMenu* m_hamburger_menu { nullptr };
+
+    QMenu* m_window_context_menu { nullptr };
+    QAction* m_reopen_closed_tab_action { nullptr };
+    QAction* m_always_on_top_action { nullptr };
+    QAction* m_toggle_vertical_tabs_action { nullptr };
     QPushButton* m_zoom_level { nullptr };
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };

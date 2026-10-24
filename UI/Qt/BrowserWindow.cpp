@@ -21,6 +21,7 @@
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/DevToolsBanner.h>
 #include <UI/Qt/Icon.h>
+#include <UI/Qt/Menu.h>
 #include <UI/Qt/StringUtils.h>
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
@@ -31,6 +32,7 @@
 
 #include <QAbstractButton>
 #include <QApplication>
+#include <QContextMenuEvent>
 #include <QCursor>
 #include <QGuiApplication>
 #include <QHBoxLayout>
@@ -62,6 +64,11 @@ static constexpr int WINDOW_RESIZE_CORNER_WIDTH = WINDOW_RESIZE_BORDER_WIDTH * 2
 static constexpr int NATIVE_WINDOW_CONTROL_X_OFFSET = 6;
 static constexpr int NATIVE_WINDOW_CONTROL_Y_OFFSET = 4;
 #endif
+
+static bool is_empty_window_drag_region(QWidget const& widget, QPoint position)
+{
+    return widget.property(WINDOW_DRAG_REGION_PROPERTY).toBool() && widget.childAt(position) == nullptr;
+}
 
 static int visible_browser_window_count()
 {
@@ -229,6 +236,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     initialize_application_actions();
     initialize_application_menu();
     initialize_hamburger_menu();
+    initialize_window_context_menu();
     update_chrome_style();
 
     m_exit_button = new ExitFullscreenButton { this };
@@ -427,6 +435,45 @@ QAction* BrowserWindow::create_hamburger_zoom_actions()
     return action;
 }
 
+void BrowserWindow::initialize_window_context_menu()
+{
+    m_window_context_menu = new QMenu(this);
+
+    auto* new_tab_action = m_window_context_menu->addAction("New &Tab");
+    QObject::connect(new_tab_action, &QAction::triggered, this, &BrowserWindow::open_new_tab);
+
+    m_reopen_closed_tab_action = m_window_context_menu->addAction("&Reopen Closed Tab");
+    QObject::connect(m_reopen_closed_tab_action, &QAction::triggered, this, [this] {
+        Application::the().reopen_recently_closed_tab(this);
+    });
+
+    m_window_context_menu->addSeparator();
+
+    m_always_on_top_action = m_window_context_menu->addAction("Always on T&op");
+    m_always_on_top_action->setCheckable(true);
+    QObject::connect(m_always_on_top_action, &QAction::triggered, this, &BrowserWindow::set_always_on_top);
+
+    m_window_context_menu->addSeparator();
+
+    m_toggle_vertical_tabs_action = m_window_context_menu->addAction(QString {});
+    QObject::connect(m_toggle_vertical_tabs_action, &QAction::triggered, this, [] {
+        auto tab_settings = Application::settings().tab_settings();
+        tab_settings.vertical_tabs_enabled = !tab_settings.vertical_tabs_enabled;
+        Application::settings().set_tab_settings(tab_settings);
+    });
+}
+
+void BrowserWindow::show_window_context_menu(QPoint global_position)
+{
+    auto vertical_tabs_enabled = Application::settings().tab_settings().vertical_tabs_enabled;
+
+    m_reopen_closed_tab_action->setEnabled(m_session->session_store->has_closed_units());
+    m_always_on_top_action->setChecked(windowFlags().testFlag(Qt::WindowStaysOnTopHint));
+    m_toggle_vertical_tabs_action->setText(vertical_tabs_enabled ? "Switch to &Horizontal Tabs" : "Switch to &Vertical Tabs");
+
+    execute_context_menu(*m_window_context_menu, global_position);
+}
+
 void BrowserWindow::update_hamburger_zoom_label()
 {
     auto zoom_level = round_to<int>(m_current_tab->view().zoom_level() * 100);
@@ -465,6 +512,13 @@ Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab
     auto& tab = create_new_tab(activate_tab, location);
     tab.navigate(url);
     return tab;
+}
+
+void BrowserWindow::open_new_tab()
+{
+    auto& tab = new_tab_from_url(WebView::Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes, TabLocation::end());
+    tab.set_url_is_hidden(true);
+    tab.focus_location_editor();
 }
 
 void BrowserWindow::duplicate_tab(Tab& source_tab)
@@ -1001,6 +1055,17 @@ bool BrowserWindow::start_window_move()
     return handle->startSystemMove();
 }
 
+void BrowserWindow::set_always_on_top(bool always_on_top)
+{
+    auto flags = windowFlags();
+    flags.setFlag(Qt::WindowStaysOnTopHint, always_on_top);
+
+    // NB: setWindowFlags() hides the window, so update the flags of the existing native window instead.
+    overrideWindowFlags(flags);
+    if (auto* handle = windowHandle())
+        handle->setFlags(flags);
+}
+
 void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState play_state)
 {
     auto* tab = m_tabs_container->tab(index);
@@ -1195,6 +1260,17 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
     if (!has_chrome_in_titlebar())
         return QMainWindow::eventFilter(object, event);
 
+    if (event->type() == QEvent::ContextMenu) {
+        auto* context_menu_event = static_cast<QContextMenuEvent*>(event);
+        auto position = context_menu_event->pos();
+        auto is_empty_menu_bar_area = widget == menuBar() && menuBar()->actionAt(position) == nullptr;
+        if (!is_empty_window_drag_region(*widget, position) && !is_empty_menu_bar_area)
+            return QMainWindow::eventFilter(object, event);
+
+        show_window_context_menu(context_menu_event->globalPos());
+        return true;
+    }
+
     auto const is_button = qobject_cast<QAbstractButton*>(object) != nullptr;
 
     if (is_button && (event->type() == QEvent::Enter || event->type() == QEvent::MouseMove || event->type() == QEvent::Leave)) {
@@ -1234,9 +1310,7 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
         }
     }
 
-    auto is_empty_window_drag_region = widget->property(WINDOW_DRAG_REGION_PROPERTY).toBool()
-        && widget->childAt(mouse_event->position().toPoint()) == nullptr;
-    if (is_empty_window_drag_region && !isFullScreen()) {
+    if (is_empty_window_drag_region(*widget, mouse_event->position().toPoint()) && !isFullScreen()) {
         if (event->type() == QEvent::MouseButtonDblClick) {
             toggle_window_maximized();
             return true;

@@ -130,6 +130,12 @@ static QPointer<Tab> s_active_tab_dragged_tab;
 static QPointer<TabWidget> s_pending_tab_drop_target;
 static int s_pending_tab_drop_index { -1 };
 
+static void show_window_context_menu(QWidget& widget, QPoint global_position)
+{
+    if (auto* top_level_window = as_if<BrowserWindow>(widget.window()))
+        top_level_window->show_window_context_menu(global_position);
+}
+
 static bool window_has_chrome_in_titlebar(QWidget& widget)
 {
     auto* top_level_window = qobject_cast<BrowserWindow*>(widget.window());
@@ -974,8 +980,10 @@ void TabBar::contextMenuEvent(QContextMenuEvent* event)
         return;
 
     auto tab_index = tab_index_at(event->pos());
-    if (tab_index < 0)
+    if (tab_index < 0) {
+        show_window_context_menu(*this, event->globalPos());
         return;
+    }
 
     m_pressed_tab = nullptr;
     if (auto* tab = m_tab_widget->tab(tab_index))
@@ -2393,18 +2401,18 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
     }
 
     if ((watched == m_tab_bar_row || watched == m_vertical_tab_bar_column) && window_has_chrome_in_titlebar(*this)) {
-        auto is_empty_chrome_area = [this, watched](QMouseEvent const& mouse_event) {
+        auto is_empty_chrome_area = [this, watched](QPoint position) {
             if (watched == m_vertical_tab_bar_column) {
-                auto* child = m_vertical_tab_bar_column->childAt(mouse_event.pos());
+                auto* child = m_vertical_tab_bar_column->childAt(position);
                 return child == nullptr;
             }
 
-            return m_tab_bar_row->childAt(mouse_event.pos()) == nullptr;
+            return m_tab_bar_row->childAt(position) == nullptr;
         };
 
         if (event->type() == QEvent::MouseButtonDblClick) {
             auto* mouse_event = static_cast<QMouseEvent*>(event);
-            if (mouse_event->button() == Qt::LeftButton && is_empty_chrome_area(*mouse_event)) {
+            if (mouse_event->button() == Qt::LeftButton && is_empty_chrome_area(mouse_event->pos())) {
                 toggle_window_maximized();
                 return true;
             }
@@ -2412,8 +2420,16 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
 
         if (event->type() == QEvent::MouseButtonPress) {
             auto* mouse_event = static_cast<QMouseEvent*>(event);
-            if (mouse_event->button() == Qt::LeftButton && is_empty_chrome_area(*mouse_event) && start_window_move())
+            if (mouse_event->button() == Qt::LeftButton && is_empty_chrome_area(mouse_event->pos()) && start_window_move())
                 return true;
+        }
+
+        if (event->type() == QEvent::ContextMenu) {
+            auto* context_menu_event = static_cast<QContextMenuEvent*>(event);
+            if (is_empty_chrome_area(context_menu_event->pos())) {
+                show_window_context_menu(*this, context_menu_event->globalPos());
+                return true;
+            }
         }
     }
 

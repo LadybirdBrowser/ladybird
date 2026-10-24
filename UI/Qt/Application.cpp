@@ -313,7 +313,7 @@ public:
 
         m_reopen_recently_closed_tab_action = make_action("&Reopen Recently Closed Tab");
         m_reopen_recently_closed_tab_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T));
-        QObject::connect(m_reopen_recently_closed_tab_action, &QAction::triggered, this, []() { Application::the().reopen_recently_closed_tab(); });
+        QObject::connect(m_reopen_recently_closed_tab_action, &QAction::triggered, this, []() { Application::the().reopen_recently_closed_tab(Application::the().active_window_if_any()); });
         update_reopen_recently_closed_action();
 
         m_close_current_tab_action = make_action("&Close Current Tab");
@@ -739,9 +739,7 @@ void Application::open_new_tab()
         return;
     }
 
-    auto& tab = m_active_window->new_tab_from_url(WebView::Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::end());
-    tab.set_url_is_hidden(true);
-    tab.focus_location_editor();
+    m_active_window->open_new_tab();
 }
 
 void Application::open_new_window(WebView::IsPrivate is_private)
@@ -842,10 +840,10 @@ void Application::focus_location_editor()
         tab->focus_location_editor();
 }
 
-void Application::reopen_recently_closed_tab()
+void Application::reopen_recently_closed_tab(BrowserWindow* target_window)
 {
-    auto is_private = m_active_window ? m_active_window->is_private() : WebView::IsPrivate::No;
-    auto& session = m_active_window ? m_active_window->session() : WebView::Application::default_session();
+    auto is_private = target_window ? target_window->is_private() : WebView::IsPrivate::No;
+    auto& session = target_window ? target_window->session() : WebView::Application::default_session();
     auto closed_unit = session.session_store->take_most_recently_closed();
     if (closed_unit.is_error()) {
         dbgln("Unable to reopen the most recently closed session unit: {}", closed_unit.error());
@@ -856,7 +854,7 @@ void Application::reopen_recently_closed_tab()
 
     auto unit = closed_unit.value().release_value();
 
-    auto* window = m_active_window;
+    auto* window = target_window;
     bool restoring_to_source_window = false;
     if (!unit.was_window && unit.source_window_id.has_value()) {
         for (auto* widget : QApplication::topLevelWidgets()) {
