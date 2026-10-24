@@ -1,0 +1,508 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<meta name="variant" content="?white-space=normal">
+<meta name="variant" content="?white-space=pre">
+<meta name="variant" content="?white-space=pre-line">
+<meta name="variant" content="?white-space=pre-wrap">
+<meta name="variant" content="?white-space=normal&contenteditable=true">
+<meta name="variant" content="?white-space=pre&contenteditable=true">
+<meta name="variant" content="?white-space=pre-line&contenteditable=true">
+<meta name="variant" content="?white-space=pre-wrap&contenteditable=true">
+<meta name="variant" content="?white-space=normal&contenteditable=plaintext-only">
+<meta name="variant" content="?white-space=pre&contenteditable=plaintext-only">
+<meta name="variant" content="?white-space=pre-line&contenteditable=plaintext-only">
+<meta name="variant" content="?white-space=pre-wrap&contenteditable=plaintext-only">
+<title>Test invisible white-spaces do not appear in the result of `.innerText`</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/dom.html#the-innertext-idl-attribute">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/dom.html#rendered-text-collection-steps"><!-- Especially, this tests the step 4 -->
+<link rel="help" href="https://drafts.csswg.org/css-text/#white-space-processing">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+"use strict";
+
+const searchParams = new URLSearchParams(document.location.search);
+const whiteSpace = searchParams.get("white-space");
+const isWhiteSpacesCollapsible = whiteSpace == "normal" || whiteSpace == "pre-line";
+const isNewLineCollapsible = whiteSpace == "normal";
+const contenteditable = searchParams.get("contenteditable");
+
+addEventListener("DOMContentLoaded", () => {
+  const div = document.querySelector("div");
+  div.style.whiteSpace = whiteSpace;
+  if (contenteditable) {
+    div.setAttribute("contenteditable", contenteditable);
+  }
+  for (const data of [
+    // Leading white-spaces are invisible if they are collapsible.
+    {
+      desc: "Leading white-space should not appear if white-spaces are collapsible",
+      innerHTML: " abc",
+      expected: isWhiteSpacesCollapsible ? "abc" : " abc",
+    },
+    {
+      desc: "Leading white-spaces should not appear if white-spaces are collapsible",
+      innerHTML: "  abc",
+      expected: isWhiteSpacesCollapsible ? "abc" : "  abc",
+    },
+    {
+      desc: "Leading tab should not appear if white-spaces are collapsible",
+      innerHTML: "\tabc",
+      expected: isWhiteSpacesCollapsible ? "abc" : "\tabc",
+    },
+    {
+      desc: "Leading tabs should not appear if white-spaces are collapsible",
+      innerHTML: "\t\tabc",
+      expected: isWhiteSpacesCollapsible ? "abc" : "\t\tabc",
+    },
+    {
+      desc: "Leading linefeed should not appear if it's collapsible",
+      innerHTML: "\nabc",
+      expected: isNewLineCollapsible ? "abc" : "\nabc",
+    },
+    {
+      desc: "Leading linefeeds should not appear if they are collapsible",
+      innerHTML: "\n\nabc",
+      expected: isNewLineCollapsible ? "abc" : "\n\nabc",
+    },
+    {
+      desc: "Leading mixed white-spaces should not appear if they are collapsible",
+      innerHTML: " \n\t abc",
+      expected: isNewLineCollapsible
+        ? "abc"
+        : (isWhiteSpacesCollapsible
+          // Surrounding collapsible white-spaces of preformatted line break should be invisible.
+          ? "\nabc"
+          : " \n\t abc"),
+    },
+    {
+      desc: "Leading CR should be normalized to LF and should not appear if linefeeds are collapsible",
+      innerHTML: "\rabc",
+      expected: isNewLineCollapsible ? "abc" : "\nabc",
+    },
+    {
+      desc: "Leading CRs should be normalized to LFs and should not appear if linefeeds are collapsible",
+      innerHTML: "\r\rabc",
+      expected: isNewLineCollapsible ? "abc" : "\n\nabc",
+    },
+    // Trailing white-spaces are invisible if they are collapsible.
+    {
+      desc: "Trailing white-space should not appear if white-spaces are collapsible",
+      innerHTML: "abc ",
+      expected: isWhiteSpacesCollapsible ? "abc" : "abc ",
+    },
+    {
+      desc: "Trailing white-spaces should not appear if white-spaces are collapsible",
+      innerHTML: "abc  ",
+      expected: isWhiteSpacesCollapsible ? "abc" : "abc  ",
+    },
+    {
+      desc: "Trailing tab should not appear if white-spaces are collapsible",
+      innerHTML: "abc\t",
+      expected: isWhiteSpacesCollapsible ? "abc" : "abc\t",
+    },
+    {
+      desc: "Trailing tabs should not appear if white-spaces are collapsible",
+      innerHTML: "abc\t\t",
+      expected: isWhiteSpacesCollapsible ? "abc" : "abc\t\t",
+    },
+    {
+      desc: "Trailing linefeed should not appear if it's collapsible",
+      innerHTML: "abc\n",
+      expected: isNewLineCollapsible ? "abc" : "abc\n",
+    },
+    {
+      desc: "Trailing linefeeds should not appear if they are collapsible",
+      innerHTML: "abc\n\n",
+      expected: isNewLineCollapsible ? "abc" : "abc\n\n",
+    },
+    {
+      desc: "Trailing mixed white-spaces should not appear if they are collapsible",
+      innerHTML: "abc\t \n ",
+      expected: isNewLineCollapsible
+        ? "abc"
+        : (isWhiteSpacesCollapsible
+          // Surrounding collapsible white-spaces of preformatted line break should be invisible.
+          ? "abc\n"
+          : "abc\t \n "),
+    },
+    {
+      desc: "Trailing CR should be normalized to LF and should not appear if linefeeds are collapsible",
+      innerHTML: "abc\r",
+      expected: isNewLineCollapsible ? "abc" : "abc\n",
+    },
+    {
+      desc: "Trailing CRs should be normalized to LFs and should not appear if linefeeds are collapsible",
+      innerHTML: "abc\r\r",
+      expected: isNewLineCollapsible ? "abc" : "abc\n\n",
+    },
+    // Only white-spaces.
+    {
+      desc: "Only single collapsible space should be invisible",
+      innerHTML: " ",
+      expected: isWhiteSpacesCollapsible ? "" : " ",
+    },
+    {
+      desc: "Only single collapsible tab should be invisible",
+      innerHTML: "\t",
+      expected: isWhiteSpacesCollapsible ? "" : "\t",
+    },
+    {
+      desc: "Only single collapsible linefeed should be invisible",
+      innerHTML: "\n",
+      expected: isNewLineCollapsible ? "" : "\n",
+    },
+    {
+      desc: "Only single collapsible CR should be invisible",
+      innerHTML: "\r",
+      expected: isNewLineCollapsible ? "" : "\n",
+    },
+    {
+      desc: "Only multiple collapsible spaces should be invisible",
+      innerHTML: "   ",
+      expected: isWhiteSpacesCollapsible ? "" : "   ",
+    },
+    {
+      desc: "Only multiple collapsible tabs should be invisible",
+      innerHTML: "\t\t\t",
+      expected: isWhiteSpacesCollapsible ? "" : "\t\t\t",
+    },
+    {
+      desc: "Only multiple collapsible linefeeds should be invisible",
+      innerHTML: "\n\n\n",
+      expected: isNewLineCollapsible ? "" : "\n\n\n",
+    },
+    {
+      desc: "Only multiple collapsible CRs should be invisible",
+      innerHTML: "\r\r\r",
+      expected: isNewLineCollapsible ? "" : "\n\n\n",
+    },
+    // Between words.
+    {
+      desc: "Single collapsible tab should be converted to an ASCII space",
+      innerHTML: "abc\tdef",
+      expected: isWhiteSpacesCollapsible ? "abc def" : "abc\tdef",
+    },
+    {
+      desc: "Single collapsible linefeed should be converted to an ASCII space",
+      innerHTML: "abc\ndef",
+      expected: isNewLineCollapsible ? "abc def" : "abc\ndef",
+    },
+    {
+      desc: "Single collapsible CR should be converted to an ASCII space, or otherwise, a linefeed",
+      innerHTML: "abc\rdef",
+      expected: isNewLineCollapsible ? "abc def" : "abc\ndef",
+    },
+    {
+      desc: "Multiple white-spaces between words may be invisible if they are collapsible",
+      innerHTML: "abc   def",
+      expected: isWhiteSpacesCollapsible ? "abc def" : "abc   def",
+    },
+    {
+      desc: "Multiple mixed white-spaces between words may be invisible if they are collapsible #1",
+      innerHTML: "abc\t def",
+      expected: isWhiteSpacesCollapsible ? "abc def" : "abc\t def",
+    },
+    {
+      desc: "Multiple mixed white-spaces between words may be invisible if they are collapsible #2",
+      innerHTML: "abc \tdef",
+      expected: isWhiteSpacesCollapsible ? "abc def" : "abc \tdef",
+    },
+    {
+      desc: "Multiple mixed white-spaces between words may be invisible if they are collapsible #3",
+      innerHTML: "abc\n def",
+      expected: isNewLineCollapsible
+        ? "abc def"
+        : (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n def"),
+    },
+    {
+      desc: "Multiple mixed white-spaces between words may be invisible if they are collapsible #4",
+      innerHTML: "abc \ndef",
+      expected: isNewLineCollapsible
+        ? "abc def"
+        : (isWhiteSpacesCollapsible ? "abc\ndef" : "abc \ndef"),
+    },
+    // Before <br>
+    {
+      desc: "white-space before <br> should be invisible if it's collapsible",
+      innerHTML: "abc <br>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc \ndef",
+    },
+    {
+      desc: "white-spaces before <br> should be invisible if they are collapsible",
+      innerHTML: "abc  <br>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc  \ndef",
+    },
+    {
+      desc: "tab before <br> should be invisible if it's collapsible",
+      innerHTML: "abc\t<br>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\t\ndef",
+    },
+    {
+      desc: "linefeed before <br> should be invisible if it's collapsible",
+      innerHTML: "abc\n<br>def",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\ndef")
+        : "abc\n\ndef",
+    },
+    {
+      desc: "CR before <br> should be invisible if it's collapsible",
+      innerHTML: "abc\r<br>def",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\ndef")
+        : "abc\n\ndef",
+    },
+    // After <br>
+    {
+      desc: "white-space after <br> should be invisible if it's collapsible",
+      innerHTML: "abc<br> def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n def",
+    },
+    {
+      desc: "white-spaces after <br> should be invisible if they are collapsible",
+      innerHTML: "abc<br>  def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n  def",
+    },
+    {
+      desc: "tab after <br> should be invisible if it's collapsible",
+      innerHTML: "abc<br>\tdef",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\tdef",
+    },
+    {
+      desc: "linefeed after <br> should be invisible if it's collapsible",
+      innerHTML: "abc<br>\ndef",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\ndef")
+        : "abc\n\ndef",
+    },
+    {
+      desc: "CR after <br> should be invisible if it's collapsible",
+      innerHTML: "abc<br>\rdef",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\ndef")
+        : "abc\n\ndef",
+    },
+    // Between <br>s
+    {
+      desc: "white-space between <br>s should be invisible if it's collapsible",
+      innerHTML: "abc<br> <br>def",
+      expected: isWhiteSpacesCollapsible ? "abc\n\ndef" : "abc\n \ndef",
+    },
+    {
+      desc: "white-spaces between <br>s should be invisible if they are collapsible",
+      innerHTML: "abc<br>  <br>def",
+      expected: isWhiteSpacesCollapsible ? "abc\n\ndef" : "abc\n  \ndef",
+    },
+    {
+      desc: "tab between <br>s should be invisible if it's collapsible",
+      innerHTML: "abc<br>\t<br>def",
+      expected: isWhiteSpacesCollapsible ? "abc\n\ndef" : "abc\n\t\ndef",
+    },
+    {
+      desc: "linefeed between <br>s should be invisible if it's collapsible",
+      innerHTML: "abc<br>\n<br>def",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\n\ndef" : "abc\n\n\ndef")
+        : "abc\n\n\ndef",
+    },
+    {
+      desc: "CR between <br>s should be invisible if it's collapsible",
+      innerHTML: "abc<br>\r<br>def",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\n\ndef" : "abc\n\n\ndef")
+        : "abc\n\n\ndef",
+    },
+    // Before <hr>
+    {
+      desc: "white-space before <hr> should be invisible if it's collapsible",
+      innerHTML: "abc <hr>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc \ndef",
+    },
+    {
+      desc: "white-spaces before <hr> should be invisible if they are collapsible",
+      innerHTML: "abc  <hr>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc  \ndef",
+    },
+    {
+      desc: "tab before <hr> should be invisible if it's collapsible",
+      innerHTML: "abc\t<hr>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\t\ndef",
+    },
+    {
+      desc: "linefeed before <hr> should be invisible if it's collapsible",
+      innerHTML: "abc\n<hr>def",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\ndef")
+        : "abc\n\ndef",
+    },
+    {
+      desc: "CR before <hr> should be invisible if it's collapsible",
+      innerHTML: "abc\r<hr>def",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\ndef")
+        : "abc\n\ndef",
+    },
+    // After <hr>
+    {
+      desc: "white-space after <hr> should be invisible if it's collapsible",
+      innerHTML: "abc<hr> def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n def",
+    },
+    {
+      desc: "white-spaces after <hr> should be invisible if they are collapsible",
+      innerHTML: "abc<hr>  def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n  def",
+    },
+    {
+      desc: "tab after <hr> should be invisible if it's collapsible",
+      innerHTML: "abc<hr>\tdef",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\tdef",
+    },
+    {
+      desc: "linefeed after <hr> should be invisible if it's collapsible",
+      innerHTML: "abc<hr>\ndef",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\ndef")
+        : "abc\n\ndef",
+    },
+    {
+      desc: "CR after <hr> should be invisible if it's collapsible",
+      innerHTML: "abc<hr>\rdef",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\ndef")
+        : "abc\n\ndef",
+    },
+    // Between <hr>s
+    {
+      desc: "white-space between <hr>s should be invisible if it's collapsible",
+      innerHTML: "abc<hr> <hr>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n \ndef",
+    },
+    {
+      desc: "white-spaces between <hr>s should be invisible if they are collapsible",
+      innerHTML: "abc<hr>  <hr>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n  \ndef",
+    },
+    {
+      desc: "tab between <hr>s should be invisible if it's collapsible",
+      innerHTML: "abc<hr>\t<hr>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\t\ndef",
+    },
+    {
+      desc: "linefeed between <hr>s should be invisible if it's collapsible",
+      innerHTML: "abc<hr>\n<hr>def",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\n\ndef")
+        : "abc\n\n\ndef",
+    },
+    {
+      desc: "CR between <hr>s should be invisible if it's collapsible",
+      innerHTML: "abc<hr>\r<hr>def",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\n\ndef")
+        : "abc\n\n\ndef",
+    },
+    // Before <div>
+    {
+      desc: "white-space before <div> should be invisible if it's collapsible",
+      innerHTML: "abc <div></div>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc \ndef",
+    },
+    {
+      desc: "white-spaces before <div> should be invisible if they are collapsible",
+      innerHTML: "abc  <div></div>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc  \ndef",
+    },
+    {
+      desc: "tab before <div> should be invisible if it's collapsible",
+      innerHTML: "abc\t<div></div>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\t\ndef",
+    },
+    {
+      desc: "linefeed before <div> should be invisible if it's collapsible",
+      innerHTML: "abc\n<div></div>def",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\ndef")
+        : "abc\n\ndef",
+    },
+    {
+      desc: "CR before <div> should be invisible if it's collapsible",
+      innerHTML: "abc\r<div></div>def",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\ndef")
+        : "abc\n\ndef",
+    },
+    // After <div>
+    {
+      desc: "white-space after <div> should be invisible if it's collapsible",
+      innerHTML: "abc<div></div> def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n def",
+    },
+    {
+      desc: "white-spaces after <div> should be invisible if they are collapsible",
+      innerHTML: "abc<div></div>  def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n  def",
+    },
+    {
+      desc: "tab after <div> should be invisible if it's collapsible",
+      innerHTML: "abc<div></div>\tdef",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\tdef",
+    },
+    {
+      desc: "linefeed after <div> should be invisible if it's collapsible",
+      innerHTML: "abc<div></div>\ndef",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\ndef")
+        : "abc\n\ndef",
+    },
+    {
+      desc: "CR after <div> should be invisible if it's collapsible",
+      innerHTML: "abc<div></div>\rdef",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\ndef")
+        : "abc\n\ndef",
+    },
+    // Between <div>s
+    {
+      desc: "white-space between <div>s should be invisible if it's collapsible",
+      innerHTML: "abc<div></div> <div></div>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n \ndef",
+    },
+    {
+      desc: "white-spaces between <div>s should be invisible if they are collapsible",
+      innerHTML: "abc<div></div>  <div></div>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n  \ndef",
+    },
+    {
+      desc: "tab between <div>s should be invisible if it's collapsible",
+      innerHTML: "abc<div></div>\t<div></div>def",
+      expected: isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\t\ndef",
+    },
+    {
+      desc: "linefeed between <div>s should be invisible if it's collapsible",
+      innerHTML: "abc<div></div>\n<div></div>def",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\n\ndef")
+        : "abc\n\n\ndef",
+    },
+    {
+      desc: "CR between <div>s should be invisible if it's collapsible",
+      innerHTML: "abc<div></div>\r<div></div>def",
+      expected: isNewLineCollapsible
+        ? (isWhiteSpacesCollapsible ? "abc\ndef" : "abc\n\n\ndef")
+        : "abc\n\n\ndef",
+    },
+  ]) {
+    test(() => {
+      div.innerHTML = data.innerHTML;
+      assert_equals(div.innerText, data.expected);
+    }, data.desc);
+  }
+}, {once: true});
+</script>
+</head>
+<body>
+  <div></div>
+</body>
+</html>

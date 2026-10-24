@@ -1,0 +1,85 @@
+Harness status: OK
+
+Found 79 tests
+
+8 Pass
+71 Fail
+Fail	Leading white-space should not appear if white-spaces are collapsible
+Fail	Leading white-spaces should not appear if white-spaces are collapsible
+Fail	Leading tab should not appear if white-spaces are collapsible
+Fail	Leading tabs should not appear if white-spaces are collapsible
+Fail	Leading linefeed should not appear if it's collapsible
+Fail	Leading linefeeds should not appear if they are collapsible
+Fail	Leading mixed white-spaces should not appear if they are collapsible
+Fail	Leading CR should be normalized to LF and should not appear if linefeeds are collapsible
+Fail	Leading CRs should be normalized to LFs and should not appear if linefeeds are collapsible
+Fail	Trailing white-space should not appear if white-spaces are collapsible
+Fail	Trailing white-spaces should not appear if white-spaces are collapsible
+Fail	Trailing tab should not appear if white-spaces are collapsible
+Fail	Trailing tabs should not appear if white-spaces are collapsible
+Fail	Trailing linefeed should not appear if it's collapsible
+Fail	Trailing linefeeds should not appear if they are collapsible
+Fail	Trailing mixed white-spaces should not appear if they are collapsible
+Fail	Trailing CR should be normalized to LF and should not appear if linefeeds are collapsible
+Fail	Trailing CRs should be normalized to LFs and should not appear if linefeeds are collapsible
+Fail	Only single collapsible space should be invisible
+Fail	Only single collapsible tab should be invisible
+Fail	Only single collapsible linefeed should be invisible
+Fail	Only single collapsible CR should be invisible
+Fail	Only multiple collapsible spaces should be invisible
+Fail	Only multiple collapsible tabs should be invisible
+Fail	Only multiple collapsible linefeeds should be invisible
+Fail	Only multiple collapsible CRs should be invisible
+Pass	Single collapsible tab should be converted to an ASCII space
+Pass	Single collapsible linefeed should be converted to an ASCII space
+Pass	Single collapsible CR should be converted to an ASCII space, or otherwise, a linefeed
+Pass	Multiple white-spaces between words may be invisible if they are collapsible
+Pass	Multiple mixed white-spaces between words may be invisible if they are collapsible #1
+Pass	Multiple mixed white-spaces between words may be invisible if they are collapsible #2
+Pass	Multiple mixed white-spaces between words may be invisible if they are collapsible #3
+Pass	Multiple mixed white-spaces between words may be invisible if they are collapsible #4
+Fail	white-space before <br> should be invisible if it's collapsible
+Fail	white-spaces before <br> should be invisible if they are collapsible
+Fail	tab before <br> should be invisible if it's collapsible
+Fail	linefeed before <br> should be invisible if it's collapsible
+Fail	CR before <br> should be invisible if it's collapsible
+Fail	white-space after <br> should be invisible if it's collapsible
+Fail	white-spaces after <br> should be invisible if they are collapsible
+Fail	tab after <br> should be invisible if it's collapsible
+Fail	linefeed after <br> should be invisible if it's collapsible
+Fail	CR after <br> should be invisible if it's collapsible
+Fail	white-space between <br>s should be invisible if it's collapsible
+Fail	white-spaces between <br>s should be invisible if they are collapsible
+Fail	tab between <br>s should be invisible if it's collapsible
+Fail	linefeed between <br>s should be invisible if it's collapsible
+Fail	CR between <br>s should be invisible if it's collapsible
+Fail	white-space before <hr> should be invisible if it's collapsible
+Fail	white-spaces before <hr> should be invisible if they are collapsible
+Fail	tab before <hr> should be invisible if it's collapsible
+Fail	linefeed before <hr> should be invisible if it's collapsible
+Fail	CR before <hr> should be invisible if it's collapsible
+Fail	white-space after <hr> should be invisible if it's collapsible
+Fail	white-spaces after <hr> should be invisible if they are collapsible
+Fail	tab after <hr> should be invisible if it's collapsible
+Fail	linefeed after <hr> should be invisible if it's collapsible
+Fail	CR after <hr> should be invisible if it's collapsible
+Fail	white-space between <hr>s should be invisible if it's collapsible
+Fail	white-spaces between <hr>s should be invisible if they are collapsible
+Fail	tab between <hr>s should be invisible if it's collapsible
+Fail	linefeed between <hr>s should be invisible if it's collapsible
+Fail	CR between <hr>s should be invisible if it's collapsible
+Fail	white-space before <div> should be invisible if it's collapsible
+Fail	white-spaces before <div> should be invisible if they are collapsible
+Fail	tab before <div> should be invisible if it's collapsible
+Fail	linefeed before <div> should be invisible if it's collapsible
+Fail	CR before <div> should be invisible if it's collapsible
+Fail	white-space after <div> should be invisible if it's collapsible
+Fail	white-spaces after <div> should be invisible if they are collapsible
+Fail	tab after <div> should be invisible if it's collapsible
+Fail	linefeed after <div> should be invisible if it's collapsible
+Fail	CR after <div> should be invisible if it's collapsible
+Fail	white-space between <div>s should be invisible if it's collapsible
+Fail	white-spaces between <div>s should be invisible if they are collapsible
+Fail	tab between <div>s should be invisible if it's collapsible
+Fail	linefeed between <div>s should be invisible if it's collapsible
+Fail	CR between <div>s should be invisible if it's collapsible
