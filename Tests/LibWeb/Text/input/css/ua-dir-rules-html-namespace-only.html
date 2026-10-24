@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="html" dir="rtl"></div>
+<math><mrow id="mathml" dir="rtl"></mrow></math>
+<svg><g id="svg" dir="rtl"></g></svg>
+<script>
+    test(() => {
+        for (const id of ["html", "mathml", "svg"]) {
+            const style = getComputedStyle(document.getElementById(id));
+            println(`${id}: direction=${style.direction} unicode-bidi=${style.unicodeBidi}`);
+        }
+    });
+</script>

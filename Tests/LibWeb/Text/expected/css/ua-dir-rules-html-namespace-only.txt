@@ -1,0 +1,3 @@
+html: direction=rtl unicode-bidi=isolate
+mathml: direction=rtl unicode-bidi=normal
+svg: direction=ltr unicode-bidi=normal
