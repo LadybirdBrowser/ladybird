@@ -22,6 +22,7 @@
 #include <core/SkFont.h>
 #include <core/SkImage.h>
 #include <core/SkPath.h>
+#include <core/SkPathBuilder.h>
 #include <core/SkSurface.h>
 #include <effects/SkBlurMaskFilter.h>
 #include <effects/SkDashPathEffect.h>
@@ -179,6 +180,68 @@ static void draw_with_compositing_and_blending_operator(SkCanvas& canvas, SkPain
     canvas.restore();
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#trace-a-path
+static SkPath prune_path_for_stroking(SkPath const& path)
+{
+    // 2. Prune all zero-length line segments from path.
+    // 3. Remove from path any subpaths containing no lines (i.e. subpaths with just one point).
+    // NB: Skia strokes a zero-length segment with caps, so such segments and the subpaths that are left with no
+    //     lines are removed before the path is stroked.
+    auto is_zero_length = [](SkSpan<SkPoint const> points) {
+        for (size_t i = 1; i < points.size(); ++i) {
+            if (points[i] != points[0])
+                return false;
+        }
+        return true;
+    };
+
+    SkPathBuilder builder(path.getFillType());
+    bool subpath_has_lines = false;
+    auto iterator = path.iter();
+    while (auto record = iterator.next()) {
+        auto points = record->fPoints;
+        switch (record->fVerb) {
+        case SkPathVerb::kMove:
+            subpath_has_lines = false;
+            continue;
+        case SkPathVerb::kClose:
+            if (subpath_has_lines)
+                builder.close();
+            subpath_has_lines = false;
+            continue;
+        case SkPathVerb::kLine:
+        case SkPathVerb::kQuad:
+        case SkPathVerb::kConic:
+        case SkPathVerb::kCubic:
+            break;
+        }
+
+        if (is_zero_length(points))
+            continue;
+        if (!subpath_has_lines) {
+            builder.moveTo(points[0]);
+            subpath_has_lines = true;
+        }
+        switch (record->fVerb) {
+        case SkPathVerb::kLine:
+            builder.lineTo(points[1]);
+            break;
+        case SkPathVerb::kQuad:
+            builder.quadTo(points[1], points[2]);
+            break;
+        case SkPathVerb::kConic:
+            builder.conicTo(points[1], points[2], record->conicWeight());
+            break;
+        case SkPathVerb::kCubic:
+            builder.cubicTo(points[1], points[2], points[3]);
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+    return builder.detach();
+}
+
 PainterSkia::PainterSkia(NonnullRefPtr<Gfx::PaintingSurface> painting_surface)
     : m_painting_surface(move(painting_surface))
 {
@@ -264,7 +327,7 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thi
     paint.setStrokeJoin(to_skia_join(join_style));
     paint.setStrokeMiter(miter_limit);
     paint.setPathEffect(SkDashPathEffect::Make({ dash_array.data(), dash_array.size() }, dash_offset));
-    auto sk_path = to_skia_path(path);
+    auto sk_path = prune_path_for_stroking(to_skia_path(path));
     draw_with_compositing_and_blending_operator(m_painting_surface->canvas(), paint, compositing_and_blending_operator, [&](SkCanvas& canvas, SkPaint const& paint) {
         canvas.drawPath(sk_path, paint);
     });
@@ -276,7 +339,7 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& pain
     if (thickness <= 0)
         return;
 
-    auto sk_path = to_skia_path(path);
+    auto sk_path = prune_path_for_stroking(to_skia_path(path));
     auto paint = to_skia_paint(paint_style, move(image_filter), color_space());
     paint.setAntiAlias(true);
     float alpha = paint.getAlphaf();

@@ -52,7 +52,31 @@ impl<K: CanvasKind> RenderingContext2D<K> {
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-strokerect
     pub(crate) fn stroke_rect(&self, _: &mut CallContext, x: f64, y: f64, w: f64, h: f64) -> WebIdlResult<()> {
-        self.stroke_internal(&rect_path(float(x), float(y), float(w), float(h)));
+        let (x, y, w, h) = (float(x), float(y), float(w), float(h));
+
+        // 1. If any of the arguments are infinite or NaN, then return.
+        if !x.is_finite() || !y.is_finite() || !w.is_finite() || !h.is_finite() {
+            return Ok(());
+        }
+
+        // 2. Take the result of tracing the path described below, using the CanvasPathDrawingStyles interface's line
+        //    styles, and fill it with this's stroke style.
+
+        // If both w and h are zero, the path has a single subpath with just one point (x, y), and no lines, and this
+        // method thus has no effect (the trace a path algorithm returns an empty path in that case).
+
+        // If just one of either w or h is zero, then the path has a single subpath consisting of two points, with
+        // coordinates (x, y) and (x+w, y+h), in that order, connected by a single straight line.
+
+        // Otherwise, the path has a single subpath consisting of four points, with coordinates (x, y), (x+w, y),
+        // (x+w, y+h), and (x, y+h), connected to each other in that order by straight lines.
+
+        // INTEROP: The path is the closed outline of the rectangle in every case. Tracing it prunes zero-length
+        //          lines, so a rectangle with just one of w and h zero strokes as a closed line, with joins and no
+        //          caps, and a rectangle with both zero strokes nothing.
+        let mut path = rect_path(x, y, w, h);
+        path.close();
+        self.stroke_internal(&path);
         Ok(())
     }
 }

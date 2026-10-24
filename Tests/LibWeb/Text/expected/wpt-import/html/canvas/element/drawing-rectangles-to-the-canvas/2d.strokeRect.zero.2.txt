@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	strokeRect of 0x0 pixels draws nothing, including caps and joins
+1 Pass
+Pass	strokeRect of 0x0 pixels draws nothing, including caps and joins
