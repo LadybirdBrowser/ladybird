@@ -1,0 +1,2 @@
+other getter in an own property: true
+other getter in a prototype: true

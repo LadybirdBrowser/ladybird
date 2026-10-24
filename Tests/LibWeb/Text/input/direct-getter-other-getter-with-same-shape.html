@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const firstChildGetter = Object.getOwnPropertyDescriptor(Node.prototype, "firstChild").get;
+        const targetGetter = Object.getOwnPropertyDescriptor(IntersectionObserverEntry.prototype, "target").get;
+
+        function alwaysThrowsTypeError(read) {
+            for (let i = 0; i < 1000; ++i) {
+                try {
+                    read();
+                    return false;
+                } catch (e) {
+                    if (!(e instanceof TypeError))
+                        return false;
+                }
+            }
+            return true;
+        }
+
+        function readOwnProperty(object) {
+            return object.x;
+        }
+        const parent = document.createElement("div");
+        parent.appendChild(document.createElement("span"));
+        const other = document.createElement("div");
+        Object.defineProperty(parent, "x", { get: firstChildGetter, configurable: true });
+        Object.defineProperty(other, "x", { get: targetGetter, configurable: true });
+        for (let i = 0; i < 3; ++i)
+            readOwnProperty(parent);
+        println(`other getter in an own property: ${alwaysThrowsTypeError(() => readOwnProperty(other))}`);
+
+        function readInheritedProperty(object) {
+            return object.x;
+        }
+        const prototype = Object.create(HTMLDivElement.prototype);
+        Object.defineProperty(prototype, "x", { get: firstChildGetter, configurable: true });
+        const element = document.createElement("div");
+        element.appendChild(document.createElement("span"));
+        Object.setPrototypeOf(element, prototype);
+        for (let i = 0; i < 3; ++i)
+            readInheritedProperty(element);
+        Object.defineProperty(prototype, "x", { get: targetGetter, configurable: true });
+        println(`other getter in a prototype: ${alwaysThrowsTypeError(() => readInheritedProperty(element))}`);
+    });
+</script>

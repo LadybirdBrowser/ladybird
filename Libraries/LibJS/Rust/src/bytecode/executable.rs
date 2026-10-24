@@ -34,6 +34,7 @@ use crate::layout::buffer::InterpreterBuffer;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::executable::ExecutableHead;
 use crate::layout::feedback::ExecutableFeedbackHead;
+use crate::layout::function_object::FunctionObject;
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::KeyedPropertyLookupCacheEntryLayout;
 pub use crate::layout::property_lookup_cache::{
@@ -64,7 +65,6 @@ pub struct PropertyLookupCacheEntryData {
     pub entry_type: PropertyLookupCacheEntryType,
     pub property_offset: u32,
     pub shape_dictionary_generation: u32,
-    pub direct_getter_validated: bool,
     pub writes_data_property: bool,
     pub from_shape: Option<Gc<Shape>>,
     pub shape: Option<Gc<Shape>>,
@@ -72,6 +72,7 @@ pub struct PropertyLookupCacheEntryData {
     pub prototype_chain_validity: Option<Gc<WatchpointSet>>,
     /// See PropertyLookupCacheEntry::key.
     pub key: u64,
+    pub getter: Option<Gc<FunctionObject>>,
 }
 
 impl Default for PropertyLookupCacheEntryData {
@@ -80,13 +81,13 @@ impl Default for PropertyLookupCacheEntryData {
             entry_type: PropertyLookupCacheEntryType::Empty,
             property_offset: 0,
             shape_dictionary_generation: 0,
-            direct_getter_validated: false,
             writes_data_property: false,
             from_shape: None,
             shape: None,
             prototype: None,
             prototype_chain_validity: None,
             key: 0,
+            getter: None,
         }
     }
 }
@@ -146,14 +147,13 @@ impl PropertyLookupCacheEntry {
             entry_type: Cell::new(data.entry_type),
             property_offset: Cell::new(data.property_offset),
             shape_dictionary_generation: Cell::new(data.shape_dictionary_generation),
-            direct_getter_validated: Cell::new(data.direct_getter_validated),
             writes_data_property: Cell::new(data.writes_data_property),
             from_shape: Cell::new(data.from_shape),
             shape: Cell::new(data.shape),
             prototype: Cell::new(data.prototype),
             prototype_chain_validity: Cell::new(data.prototype_chain_validity),
             key: Cell::new(data.key),
-            accessor: Cell::new(None),
+            getter: Cell::new(data.getter),
         }
     }
 
@@ -162,28 +162,27 @@ impl PropertyLookupCacheEntry {
             entry_type: self.entry_type.get(),
             property_offset: self.property_offset.get(),
             shape_dictionary_generation: self.shape_dictionary_generation.get(),
-            direct_getter_validated: self.direct_getter_validated.get(),
             writes_data_property: self.writes_data_property.get(),
             from_shape: self.from_shape.get(),
             shape: self.shape.get(),
             prototype: self.prototype.get(),
             prototype_chain_validity: self.prototype_chain_validity.get(),
             key: self.key.get(),
+            getter: self.getter.get(),
         }
     }
 
     pub fn set(&self, data: PropertyLookupCacheEntryData) {
-        self.accessor.set(None);
         self.entry_type.set(data.entry_type);
         self.property_offset.set(data.property_offset);
         self.shape_dictionary_generation.set(data.shape_dictionary_generation);
-        self.direct_getter_validated.set(data.direct_getter_validated);
         self.writes_data_property.set(data.writes_data_property);
         self.from_shape.set(data.from_shape);
         self.shape.set(data.shape);
         self.prototype.set(data.prototype);
         self.prototype_chain_validity.set(data.prototype_chain_validity);
         self.key.set(data.key);
+        self.getter.set(data.getter);
     }
 
     /// Forgets the whole entry if one of its cells died in this collection, as clear_cache_entry_if_dead does.
@@ -191,8 +190,8 @@ impl PropertyLookupCacheEntry {
         if self.get().has_dead_cell() {
             self.set(PropertyLookupCacheEntryData::default());
         }
-        if self.accessor.get().is_some_and(cell_is_dead) {
-            self.accessor.set(None);
+        if self.getter.get().is_some_and(cell_is_dead) {
+            self.getter.set(None);
         }
     }
 }

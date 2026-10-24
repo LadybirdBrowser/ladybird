@@ -5136,7 +5136,7 @@ asm_handler_PutByValue:
     mov w10, #65532
     cmp x9, x10
     b.eq .Lasm_PutByValue.ssa_block_3
-    ldrb w9, [x0, #13]
+    ldrb w9, [x0, #12]
     cbz w9, .Lasm_PutByValue.ssa_block_3
     ldr w0, [x21, #12]
     ldr x0, [x27, x0, lsl #3]
@@ -5280,7 +5280,7 @@ asm_handler_PutById:
     mov w10, #65532
     cmp x9, x10
     b.eq .Lasm_PutById.ssa_block_2
-    ldrb w9, [x0, #13]
+    ldrb w9, [x0, #12]
     cbz w9, .Lasm_PutById.ssa_block_2
     ldr w0, [x21, #12]
     ldr x0, [x27, x0, lsl #3]
@@ -13902,8 +13902,9 @@ asm_handler_PutByValue_cold_end:
 asm_handler_GetById_cold:
 // Cold paths for GetById
 .Lasm_GetById.ssa_block_24:
-    ldrb w9, [x2, #12]
-    cbz w9, .Lasm_GetById.ssa_block_3
+    ldr x9, [x2, #56]
+    cmp x9, x1
+    b.ne .Lasm_GetById.ssa_block_3
     ldrh w0, [x3, #12]
     tbnz x0, #9, 1f
     b .Lasm_GetById.ssa_block_3
