@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 34 tests
 
-32 Pass
-2 Fail
+34 Pass
 Pass	Can set 'scrollbar-gutter' to CSS-wide keywords: initial
 Pass	Can set 'scrollbar-gutter' to CSS-wide keywords: inherit
 Pass	Can set 'scrollbar-gutter' to CSS-wide keywords: unset
 Pass	Can set 'scrollbar-gutter' to CSS-wide keywords: revert
 Pass	Can set 'scrollbar-gutter' to var() references:  var(--A)
-Fail	Can set 'scrollbar-gutter' to the 'auto' keyword: auto
-Fail	Can set 'scrollbar-gutter' to the 'stable' keyword: stable
+Pass	Can set 'scrollbar-gutter' to the 'auto' keyword: auto
+Pass	Can set 'scrollbar-gutter' to the 'stable' keyword: stable
 Pass	Setting 'scrollbar-gutter' to a length: 0px throws TypeError
 Pass	Setting 'scrollbar-gutter' to a length: -3.14em throws TypeError
 Pass	Setting 'scrollbar-gutter' to a length: 3.14cm throws TypeError

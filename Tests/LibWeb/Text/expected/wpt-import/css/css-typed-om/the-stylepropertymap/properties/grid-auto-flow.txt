@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 34 tests
 
-32 Pass
-2 Fail
+34 Pass
 Pass	Can set 'grid-auto-flow' to CSS-wide keywords: initial
 Pass	Can set 'grid-auto-flow' to CSS-wide keywords: inherit
 Pass	Can set 'grid-auto-flow' to CSS-wide keywords: unset
 Pass	Can set 'grid-auto-flow' to CSS-wide keywords: revert
 Pass	Can set 'grid-auto-flow' to var() references:  var(--A)
-Fail	Can set 'grid-auto-flow' to the 'row' keyword: row
-Fail	Can set 'grid-auto-flow' to the 'column' keyword: column
+Pass	Can set 'grid-auto-flow' to the 'row' keyword: row
+Pass	Can set 'grid-auto-flow' to the 'column' keyword: column
 Pass	Setting 'grid-auto-flow' to a length: 0px throws TypeError
 Pass	Setting 'grid-auto-flow' to a length: -3.14em throws TypeError
 Pass	Setting 'grid-auto-flow' to a length: 3.14cm throws TypeError

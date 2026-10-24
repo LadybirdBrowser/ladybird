@@ -2,23 +2,22 @@ Harness status: OK
 
 Found 43 tests
 
-34 Pass
-9 Fail
+43 Pass
 Pass	Can set 'font-variant-east-asian' to CSS-wide keywords: initial
 Pass	Can set 'font-variant-east-asian' to CSS-wide keywords: inherit
 Pass	Can set 'font-variant-east-asian' to CSS-wide keywords: unset
 Pass	Can set 'font-variant-east-asian' to CSS-wide keywords: revert
 Pass	Can set 'font-variant-east-asian' to var() references:  var(--A)
 Pass	Can set 'font-variant-east-asian' to the 'normal' keyword: normal
-Fail	Can set 'font-variant-east-asian' to the 'jis78' keyword: jis78
-Fail	Can set 'font-variant-east-asian' to the 'jis83' keyword: jis83
-Fail	Can set 'font-variant-east-asian' to the 'jis90' keyword: jis90
-Fail	Can set 'font-variant-east-asian' to the 'jis04' keyword: jis04
-Fail	Can set 'font-variant-east-asian' to the 'simplified' keyword: simplified
-Fail	Can set 'font-variant-east-asian' to the 'traditional' keyword: traditional
-Fail	Can set 'font-variant-east-asian' to the 'full-width' keyword: full-width
-Fail	Can set 'font-variant-east-asian' to the 'proportional-width' keyword: proportional-width
-Fail	Can set 'font-variant-east-asian' to the 'ruby' keyword: ruby
+Pass	Can set 'font-variant-east-asian' to the 'jis78' keyword: jis78
+Pass	Can set 'font-variant-east-asian' to the 'jis83' keyword: jis83
+Pass	Can set 'font-variant-east-asian' to the 'jis90' keyword: jis90
+Pass	Can set 'font-variant-east-asian' to the 'jis04' keyword: jis04
+Pass	Can set 'font-variant-east-asian' to the 'simplified' keyword: simplified
+Pass	Can set 'font-variant-east-asian' to the 'traditional' keyword: traditional
+Pass	Can set 'font-variant-east-asian' to the 'full-width' keyword: full-width
+Pass	Can set 'font-variant-east-asian' to the 'proportional-width' keyword: proportional-width
+Pass	Can set 'font-variant-east-asian' to the 'ruby' keyword: ruby
 Pass	Setting 'font-variant-east-asian' to a length: 0px throws TypeError
 Pass	Setting 'font-variant-east-asian' to a length: -3.14em throws TypeError
 Pass	Setting 'font-variant-east-asian' to a length: 3.14cm throws TypeError
