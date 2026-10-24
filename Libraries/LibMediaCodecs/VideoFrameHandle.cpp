@@ -8,6 +8,7 @@
 #include <LibGfx/YUVData.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibMediaCodecs/Limits.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoFramePool.h>
 
@@ -36,6 +37,21 @@ ErrorOr<FramePlaneLayout> frame_plane_layout(Gfx::IntSize size, u8 bit_depth, Su
         .v_size = plane_sizes.v,
         .total_byte_count = checked_total_byte_count.value(),
     };
+}
+
+bool VideoFrameHandle::is_valid() const
+{
+    if (duration.value().is_negative())
+        return false;
+    if (bit_depth != 8 && bit_depth != 10 && bit_depth != 12)
+        return false;
+    if (size.width() < 1 || size.height() < 1)
+        return false;
+    if (static_cast<u32>(size.width()) > MAX_VIDEO_FRAME_DIMENSION || static_cast<u32>(size.height()) > MAX_VIDEO_FRAME_DIMENSION)
+        return false;
+    if (static_cast<u64>(size.width()) * static_cast<u64>(size.height()) > MAX_VIDEO_FRAME_AREA)
+        return false;
+    return cicp.is_valid_or_unspecified();
 }
 
 VideoFrameHandle VideoFrameHandle::for_frame(VideoFrame const& frame)
@@ -79,12 +95,12 @@ ErrorOr<void> encode(Encoder& encoder, Media::VideoFrameHandle const& handle)
     TRY(encoder.encode(handle.pool_id));
     TRY(encoder.encode(handle.slot_index));
     TRY(encoder.encode(handle.slot_acquisition_id));
-    TRY(encoder.encode(handle.timestamp));
-    TRY(encoder.encode(handle.duration));
+    TRY(encoder.encode(handle.timestamp.value()));
+    TRY(encoder.encode(handle.duration.value()));
     TRY(encoder.encode(handle.size));
     TRY(encoder.encode(handle.bit_depth));
-    TRY(encoder.encode(handle.subsampling.x()));
-    TRY(encoder.encode(handle.subsampling.y()));
+    TRY(encoder.encode(handle.subsampling.value().x()));
+    TRY(encoder.encode(handle.subsampling.value().y()));
     TRY(encoder.encode(handle.cicp));
     return {};
 }
@@ -105,6 +121,8 @@ ErrorOr<Media::VideoFrameHandle> decode(Decoder& decoder)
         TRY(decoder.decode<bool>()),
     };
     handle.cicp = TRY(decoder.decode<Media::CodingIndependentCodePoints>());
+    if (!handle.is_valid())
+        return Error::from_string_literal("Video frame handle describes a frame that could not have been decoded");
     return handle;
 }
 

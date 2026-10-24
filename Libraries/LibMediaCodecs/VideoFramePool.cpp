@@ -468,6 +468,8 @@ ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot(Core::AnonymousBuffer
 {
     if (!slot_buffer.is_valid() || slot_buffer.size() < slot_data_offset())
         return Error::from_string_literal("Invalid video frame slot buffer");
+    if (!handle.is_valid())
+        return Error::from_string_literal("Video frame handle describes a frame that could not have been decoded");
 
     // A surface holds the pixels itself, so only an inline framebuffer has a plane layout to validate.
     if (surface == nullptr)
