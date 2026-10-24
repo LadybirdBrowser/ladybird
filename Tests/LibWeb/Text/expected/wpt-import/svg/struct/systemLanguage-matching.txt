@@ -2,19 +2,18 @@ Harness status: OK
 
 Found 14 tests
 
-8 Pass
-6 Fail
+14 Pass
 Pass	Exact match with navigator.language renders the element
 Pass	Case-insensitive exact match renders the element
-Fail	Non-matching language tag does not render
-Fail	Empty systemLanguage evaluates to false
+Pass	Non-matching language tag does not render
+Pass	Empty systemLanguage evaluates to false
 Pass	Absent systemLanguage evaluates to true
 Pass	Comma-separated list with matching tag first renders
 Pass	Comma-separated list with matching tag second renders
 Pass	Comma-separated list with matching tag in the middle renders
-Fail	Comma-separated list with no matching tag does not render
+Pass	Comma-separated list with no matching tag does not render
 Pass	BCP 47 prefix matching: user language prefix matches listed tag with extra subtag
 Pass	switch element: first matching child renders, others do not
-Fail	switch element: skips non-matching, renders first match
-Fail	switch element: fallback child without systemLanguage renders when no match
-Fail	switch element: nothing renders when no child matches and no fallback
+Pass	switch element: skips non-matching, renders first match
+Pass	switch element: fallback child without systemLanguage renders when no match
+Pass	switch element: nothing renders when no child matches and no fallback

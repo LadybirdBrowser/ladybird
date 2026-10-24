@@ -52,6 +52,9 @@ public:
     GC::Ref<SVGStringList> required_extensions_for_bindings();
     GC::Ref<SVGStringList> system_language_for_bindings();
 
+    // https://svgwg.org/svg2-draft/struct.html#ConditionalProcessing
+    bool conditional_processing_attributes_evaluate_to_true() const;
+
 protected:
     SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
 

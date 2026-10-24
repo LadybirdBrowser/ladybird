@@ -7,8 +7,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
 #include <LibWeb/Bindings/SVGGraphicsElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
@@ -16,6 +18,8 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -50,12 +54,78 @@ void SVGGraphicsElement::attribute_changed(Utf16FlyString const& name, Optional<
     // immediately after the value changed.
     if (namespace_.has_value())
         return;
-    if (name == AttributeNames::requiredExtensions && m_required_extensions)
-        m_required_extensions->synchronize();
-    else if (name == AttributeNames::systemLanguage && m_system_language)
-        m_system_language->synchronize();
-    else if (name == AttributeNames::transform && m_transform)
+    if (name == AttributeNames::requiredExtensions || name == AttributeNames::systemLanguage) {
+        if (name == AttributeNames::requiredExtensions && m_required_extensions)
+            m_required_extensions->synchronize();
+        else if (name == AttributeNames::systemLanguage && m_system_language)
+            m_system_language->synchronize();
+
+        // NB: Whether the conditional processing attributes evaluate to true decides whether the element has a box.
+        CSS::record_element_box_kind(*this);
+        set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::StyleChange);
+        return;
+    }
+    if (name == AttributeNames::transform && m_transform)
         m_transform->synchronize();
+}
+
+// https://svgwg.org/svg2-draft/struct.html#ConditionalProcessingRequiredExtensionsAttribute
+static bool required_extensions_evaluate_to_true(Utf16View value)
+{
+    // The value is a list of URL references which identify the required extensions, with the individual values
+    // separated by white space. Determines whether all of the named extensions are supported by the user agent. If all
+    // of the given extensions are supported, then the attribute evaluates to true; otherwise, the current element and
+    // its children are skipped and thus will not be rendered.
+    // If a null string or empty string value is given to attribute ‘requiredExtensions’, the attribute evaluates to
+    // "false".
+    auto extensions = SVGStringList::parse(value, SVGStringList::Separator::Whitespace);
+    if (extensions.is_empty())
+        return false;
+
+    // INTEROP: Other browsers treat the HTML and MathML namespaces as supported extensions, since their content can be
+    //          embedded with foreignObject.
+    return all_of(extensions, [](auto const& extension) {
+        return extension == Namespace::HTML || extension == Namespace::MathML;
+    });
+}
+
+// https://svgwg.org/svg2-draft/struct.html#ConditionalProcessingSystemLanguageAttribute
+static bool system_language_evaluates_to_true(Utf16View value)
+{
+    // If a null string or empty string value is given to attribute ‘systemLanguage’, the attribute evaluates to
+    // "false".
+    if (value.is_empty())
+        return false;
+
+    // Evaluates to "true" if one of the language tags indicated by user preferences is a case-insensitive match of one
+    // of the language tags given in the value of this parameter, or if one of the language tags indicated by user
+    // preferences is a case-insensitive prefix of one of the language tags given in the value of this parameter such
+    // that the first tag character following the prefix is "-".
+    auto language_tags = SVGStringList::parse(value, SVGStringList::Separator::Comma);
+    for (auto const& preferred_language : ResourceLoader::the().preferred_languages()) {
+        auto preferred_tag = Utf16String::from_utf8(preferred_language);
+        for (auto const& language_tag : language_tags) {
+            if (language_tag.equals_ignoring_ascii_case(preferred_tag))
+                return true;
+            if (language_tag.length_in_code_units() > preferred_tag.length_in_code_units()
+                && language_tag.code_unit_at(preferred_tag.length_in_code_units()) == '-'
+                && language_tag.utf16_view().substring_view(0, preferred_tag.length_in_code_units()).equals_ignoring_ascii_case(preferred_tag))
+                return true;
+        }
+    }
+
+    // Evaluates to "false" otherwise.
+    return false;
+}
+
+bool SVGGraphicsElement::conditional_processing_attributes_evaluate_to_true() const
+{
+    // If the attribute is not present, then it implicitly evaluates to "true".
+    if (auto required_extensions = attribute(AttributeNames::requiredExtensions); required_extensions.has_value() && !required_extensions_evaluate_to_true(*required_extensions))
+        return false;
+    if (auto system_language = attribute(AttributeNames::systemLanguage); system_language.has_value() && !system_language_evaluates_to_true(*system_language))
+        return false;
+    return true;
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGTests__requiredExtensions
