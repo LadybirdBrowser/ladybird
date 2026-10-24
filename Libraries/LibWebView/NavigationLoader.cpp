@@ -204,9 +204,11 @@ void NavigationLoader::obtain_the_response_policies(CanonicalNavigable const& na
     auto const& top_level_creation_url = navigable.is_top_level_traversable() ? response_url : navigable.top_level_traversable().active_document().creation_url();
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#secure-context
-    // 2. If the result of Is url potentially trustworthy? given environment's top-level creation URL is "Potentially
+    // 2. If environment's top-level creation URL's scheme is "data", then return false.
+    // 3. If the result of Is url potentially trustworthy? given environment's top-level creation URL is "Potentially
     //    Trustworthy", then return true.
-    auto reserved_environment_is_a_non_secure_context = Web::SecureContexts::is_url_potentially_trustworthy(top_level_creation_url) == Web::SecureContexts::Trustworthiness::NotTrustworthy;
+    auto reserved_environment_is_a_non_secure_context = top_level_creation_url.scheme() == "data"sv
+        || Web::SecureContexts::is_url_potentially_trustworthy(top_level_creation_url) == Web::SecureContexts::Trustworthiness::NotTrustworthy;
 
     //     9. Set responsePolicyContainer to the result of creating a policy container from a fetch response given
     //        response and request's reserved client.

@@ -685,11 +685,15 @@ bool is_secure_context(Environment const& environment)
             return true;
     }
 
-    // 2. If the result of Is url potentially trustworthy? given environment's top-level creation URL is "Potentially Trustworthy", then return true.
+    // 2. If environment's top-level creation URL's scheme is "data", then return false.
+    if (environment.top_level_creation_url.value().scheme() == "data"sv)
+        return false;
+
+    // 3. If the result of Is url potentially trustworthy? given environment's top-level creation URL is "Potentially Trustworthy", then return true.
     if (SecureContexts::is_url_potentially_trustworthy(environment.top_level_creation_url.value()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy)
         return true;
 
-    // 3. Return false.
+    // 4. Return false.
     return false;
 }
 
