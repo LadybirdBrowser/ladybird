@@ -18,6 +18,7 @@ void* web_dom_matrix_create(JSVM*, Array<double, 16> const* elements, bool is_2d
 void* web_dom_matrix_create_from_read_only(JSVM*, void const* matrix);
 void web_dom_matrix_multiply_self(void* matrix, void const* other);
 void web_dom_matrix_rotate_axis_angle_self(void* matrix, double x, double y, double z, double angle);
+void web_dom_matrix_set_elements(void* matrix, Array<double, 16> const* elements, bool is_2d);
 }
 
 GC::Ref<DOMMatrix> DOMMatrix::create()
@@ -59,6 +60,11 @@ void DOMMatrix::multiply_self(DOMMatrixReadOnly const& other)
 void DOMMatrix::rotate_axis_angle_self(double x, double y, double z, double angle)
 {
     web_dom_matrix_rotate_axis_angle_self(this, x, y, z, angle);
+}
+
+void DOMMatrix::set_elements(Array<double, 16> const& elements, bool is_2d)
+{
+    web_dom_matrix_set_elements(this, &elements, is_2d);
 }
 
 }

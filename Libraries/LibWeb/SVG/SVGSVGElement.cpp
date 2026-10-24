@@ -361,7 +361,24 @@ GC::Ref<Geometry::DOMRect> SVGSVGElement::create_svg_rect() const
 
 GC::Ref<SVGTransform> SVGSVGElement::create_svg_transform() const
 {
+    // A new, detached SVGTransform object whose value is matrix(1, 0, 0, 1, 0, 0).
     return SVGTransform::create();
+}
+
+// https://svgwg.org/svg2-draft/struct.html#__svg__SVGSVGElement__createSVGTransformFromMatrix
+WebIDL::ExceptionOr<GC::Ref<SVGTransform>> SVGSVGElement::create_svg_transform_from_matrix(Bindings::DOMMatrix2DInit const& matrix) const
+{
+    // Its behavior is the same as the createSVGTransformFromMatrix method on SVGTransformList.
+    // https://svgwg.org/svg2-draft/coords.html#__svg__SVGTransformList__createSVGTransformFromMatrix
+    // 1. Let transform be a newly created SVGTransform object that is detached.
+    auto transform = SVGTransform::create();
+
+    // 2. Follow the steps that would be run if the setMatrix method on transform were called, passing matrix as its
+    //    argument.
+    TRY(transform->set_matrix(matrix));
+
+    // 3. Return transform.
+    return transform;
 }
 
 // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS

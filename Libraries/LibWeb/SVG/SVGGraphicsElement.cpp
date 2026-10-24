@@ -38,6 +38,7 @@ void SVGGraphicsElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_required_extensions);
     visitor.visit(m_system_language);
+    visitor.visit(m_transform);
 }
 
 void SVGGraphicsElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
@@ -53,6 +54,8 @@ void SVGGraphicsElement::attribute_changed(Utf16FlyString const& name, Optional<
         m_required_extensions->synchronize();
     else if (name == AttributeNames::systemLanguage && m_system_language)
         m_system_language->synchronize();
+    else if (name == AttributeNames::transform && m_transform)
+        m_transform->synchronize();
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGTests__requiredExtensions
@@ -219,12 +222,15 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
     return Geometry::DOMRect::create(rect);
 }
 
-GC::Ref<SVGAnimatedTransformList> SVGGraphicsElement::transform() const
+// https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__transform
+GC::Ref<SVGAnimatedTransformList> SVGGraphicsElement::transform()
 {
-    dbgln("(STUBBED) SVGGraphicsElement::transform(). Called on: {}", debug_description());
-    auto base_val = SVGTransformList::create(ReadOnlyList::Yes);
-    auto anim_val = SVGTransformList::create(ReadOnlyList::Yes);
-    return SVGAnimatedTransformList::create(base_val, anim_val);
+    // The transform IDL attribute reflects the computed value of the transform property and its corresponding
+    // ‘transform’ presentation attribute.
+    // FIXME: Reflect the computed value of the transform property rather than only the presentation attribute.
+    if (!m_transform)
+        m_transform = SVGAnimatedTransformList::create(*this, AttributeNames::transform);
+    return *m_transform;
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getScreenCTM

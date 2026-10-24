@@ -13,6 +13,7 @@
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
+#include <LibWeb/SVG/SVGAnimatedTransformList.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGUnitTypes.h>
@@ -36,6 +37,18 @@ void SVGPatternElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
     SVGFitToViewBox::visit_edges(visitor);
+    visitor.visit(m_pattern_transform_for_bindings);
+}
+
+// https://svgwg.org/svg2-draft/pservers.html#__svg__SVGPatternElement__patternTransform
+GC::Ref<SVGAnimatedTransformList> SVGPatternElement::pattern_transform_for_bindings()
+{
+    // The patternTransform IDL attribute reflects the computed value of the transform property and the
+    // ‘patternTransform’ presentation attribute.
+    // FIXME: Reflect the computed value of the transform property rather than only the presentation attribute.
+    if (!m_pattern_transform_for_bindings)
+        m_pattern_transform_for_bindings = SVGAnimatedTransformList::create(*this, AttributeNames::patternTransform);
+    return *m_pattern_transform_for_bindings;
 }
 
 void SVGPatternElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
@@ -53,6 +66,8 @@ void SVGPatternElement::attribute_changed(Utf16FlyString const& name, Optional<U
         } else {
             m_pattern_transform = {};
         }
+        if (m_pattern_transform_for_bindings)
+            m_pattern_transform_for_bindings->synchronize();
     } else if (name == AttributeNames::x) {
         m_x = parse_number_percentage(value.value_or({}));
     } else if (name == AttributeNames::y) {

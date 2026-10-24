@@ -3,7 +3,7 @@
 interface SVGPatternElement : SVGElement {
     [SameObject, ImplementedAs=pattern_units_for_bindings] readonly attribute SVGAnimatedEnumeration patternUnits;
     [SameObject, ImplementedAs=pattern_content_units_for_bindings] readonly attribute SVGAnimatedEnumeration patternContentUnits;
-    [FIXME, SameObject] readonly attribute SVGAnimatedTransformList patternTransform;
+    [SameObject, ImplementedAs=pattern_transform_for_bindings] readonly attribute SVGAnimatedTransformList patternTransform;
     [SameObject] readonly attribute SVGAnimatedLength x;
     [SameObject] readonly attribute SVGAnimatedLength y;
     [SameObject] readonly attribute SVGAnimatedLength width;

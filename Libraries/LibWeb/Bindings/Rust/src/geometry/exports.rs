@@ -208,6 +208,19 @@ pub unsafe extern "C" fn web_dom_matrix_read_only_to_string(matrix: *mut c_void,
     true
 }
 
+/// Sets the elements m11, m12, m13, m14, m21, ..., m44 of the matrix, in that order, and whether it is 2D.
+///
+/// # Safety
+///
+/// `matrix` must be the live cell of a DOMMatrix.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_dom_matrix_set_elements(matrix: *mut c_void, elements: &[f64; 16], is_2d: bool) {
+    // SAFETY: The caller passes a live cell.
+    let matrix = unsafe { object_from_abi::<DOMMatrix>(matrix) }.parent();
+    matrix.set_matrix(Matrix4::from_column_major(*elements));
+    matrix.set_is_2d(is_2d);
+}
+
 /// Post-multiplies the other matrix to the matrix, as multiplySelf() does with the DOMMatrix of a dictionary.
 ///
 /// # Safety

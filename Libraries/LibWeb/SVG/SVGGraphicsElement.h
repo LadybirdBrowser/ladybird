@@ -41,7 +41,7 @@ public:
     }
 
     WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_b_box(Bindings::SVGBoundingBoxOptions const&);
-    GC::Ref<SVGAnimatedTransformList> transform() const;
+    GC::Ref<SVGAnimatedTransformList> transform();
 
     GC::Ptr<Geometry::DOMMatrix> get_ctm();
     GC::Ptr<Geometry::DOMMatrix> get_screen_ctm();
@@ -64,6 +64,7 @@ private:
 
     GC::Ptr<SVGStringList> m_required_extensions;
     GC::Ptr<SVGStringList> m_system_language;
+    GC::Ptr<SVGAnimatedTransformList> m_transform;
 };
 
 Gfx::AffineTransform transform_from_transform_list(ReadonlySpan<Transform> transform_list);
