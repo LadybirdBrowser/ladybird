@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BitCast.h>
+#include <AK/SharedMemoryValue.h>
 #include <AK/Vector.h>
 #include <LibCompositing/Video/VideoFrameHold.h>
 #include <LibCompositing/Video/VideoFramePresentationPage.h>
@@ -102,4 +104,28 @@ TEST_CASE(an_unsent_hold_on_a_replaced_generation_is_released_through_the_compos
         EXPECT_EQ(pages.compositor->replace_generation(2).hold_count, 1u);
     }
     EXPECT_EQ(released_through_compositor, (Vector<u64> { 1 }));
+}
+
+// The Compositor writes the presented frame record that WebContent reads, so WebContent must not believe a time that
+// is not a Duration or dimensions no decoded frame could have.
+TEST_CASE(forged_presented_frames_are_not_believed)
+{
+    auto pages = create_page_pair();
+
+    VideoFramePresentationPage::PresentedFrame presented_frame;
+    presented_frame.presented_frame_count = 1;
+    presented_frame.width = 1920;
+    presented_frame.height = 1080;
+    SharedMemoryCodec<AK::Duration>::Representation forged_time { 3, 2'000'000'000 };
+    presented_frame.media_time = bit_cast<SharedMemoryValue<AK::Duration>>(forged_time);
+    pages.compositor->publish_presented_frame(presented_frame);
+
+    auto read_back = pages.web_content->presented_frame();
+    EXPECT(read_back.has_value());
+    EXPECT_EQ(static_cast<AK::Duration>(read_back->media_time), AK::Duration::zero());
+    EXPECT_EQ(read_back->width, 1920u);
+
+    presented_frame.width = 1u << 20;
+    pages.compositor->publish_presented_frame(presented_frame);
+    EXPECT(!pages.web_content->presented_frame().has_value());
 }
