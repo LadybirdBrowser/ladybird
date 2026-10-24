@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 339 tests
+Found 342 tests
 
-329 Pass
+332 Pass
 10 Fail
 Pass	Setup
 Pass	isolation (type: discrete) has testAccumulation function
@@ -235,6 +235,9 @@ Pass	table-layout: "auto" onto "fixed"
 Pass	text-align (type: discrete) has testAccumulation function
 Pass	text-align: "end" onto "start"
 Pass	text-align: "start" onto "end"
+Pass	text-align-last (type: discrete) has testAccumulation function
+Pass	text-align-last: "end" onto "start"
+Pass	text-align-last: "start" onto "end"
 Pass	text-anchor (type: discrete) has testAccumulation function
 Pass	text-anchor: "end" onto "middle"
 Pass	text-anchor: "middle" onto "end"

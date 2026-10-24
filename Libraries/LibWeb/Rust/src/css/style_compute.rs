@@ -4530,14 +4530,14 @@ pub(crate) unsafe fn drive_property_computation(
                     clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_Y);
                 }
             }
-        } else if property_id == prop::TEXT_ALIGN
+        } else if matches!(property_id, prop::TEXT_ALIGN | prop::TEXT_ALIGN_LAST)
             && let StyleValueData::Keyword { keyword: text_align } = value_data
         {
             let (has_parent_with_computed_values, parent_text_align, parent_direction_is_ltr) =
                 if let Some(snapshot) = snapshot {
-                    let parent_text_align = match snapshot.value(prop::TEXT_ALIGN) {
+                    let parent_text_align = match snapshot.value(property_id) {
                         Some(StyleValueData::Keyword { keyword }) => *keyword,
-                        _ => unreachable!("parent text-align must be a keyword"),
+                        _ => unreachable!("parent text-align and text-align-last must be keywords"),
                     };
                     let parent_direction_is_ltr = match snapshot.value(prop::DIRECTION) {
                         Some(StyleValueData::Keyword {
@@ -4549,9 +4549,11 @@ pub(crate) unsafe fn drive_property_computation(
                 } else {
                     (false, 0, true)
                 };
+            // https://drafts.csswg.org/css-text-4/#propdef-text-align-last
+            // Computed value: keyword as specified, except for match-parent which computes as defined above
             let adjustment = compute_text_align_adjustment(
                 *text_align,
-                is_th_element,
+                is_th_element && property_id == prop::TEXT_ALIGN,
                 has_parent_with_computed_values,
                 parent_text_align,
                 parent_direction_is_ltr,
@@ -4566,11 +4568,13 @@ pub(crate) unsafe fn drive_property_computation(
                     set_longhand_bit(&mut inherited_words, property_id);
                 }
             }
-            computed_text_align = Some(if adjustment.changed {
-                adjustment.keyword
-            } else {
-                *text_align
-            });
+            if property_id == prop::TEXT_ALIGN {
+                computed_text_align = Some(if adjustment.changed {
+                    adjustment.keyword
+                } else {
+                    *text_align
+                });
+            }
         } else if property_id == prop::COLOR_SCHEME
             && let StyleValueData::ColorScheme { scheme_codes, .. } = value_data
         {

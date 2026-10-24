@@ -2,12 +2,13 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	Property text-align-last value 'auto'
-Fail	Property text-align-last value 'start'
-Fail	Property text-align-last value 'end'
-Fail	Property text-align-last value 'left'
-Fail	Property text-align-last value 'right'
-Fail	Property text-align-last value 'center'
-Fail	Property text-align-last value 'justify'
+7 Pass
+1 Fail
+Pass	Property text-align-last value 'auto'
+Pass	Property text-align-last value 'start'
+Pass	Property text-align-last value 'end'
+Pass	Property text-align-last value 'left'
+Pass	Property text-align-last value 'right'
+Pass	Property text-align-last value 'center'
+Pass	Property text-align-last value 'justify'
 Fail	Property text-align-last value 'match-parent'

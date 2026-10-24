@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	e.style['text-align-last'] = "auto" should set the property value
-Fail	e.style['text-align-last'] = "start" should set the property value
-Fail	e.style['text-align-last'] = "end" should set the property value
-Fail	e.style['text-align-last'] = "left" should set the property value
-Fail	e.style['text-align-last'] = "right" should set the property value
-Fail	e.style['text-align-last'] = "center" should set the property value
-Fail	e.style['text-align-last'] = "justify" should set the property value
-Fail	e.style['text-align-last'] = "match-parent" should set the property value
+8 Pass
+Pass	e.style['text-align-last'] = "auto" should set the property value
+Pass	e.style['text-align-last'] = "start" should set the property value
+Pass	e.style['text-align-last'] = "end" should set the property value
+Pass	e.style['text-align-last'] = "left" should set the property value
+Pass	e.style['text-align-last'] = "right" should set the property value
+Pass	e.style['text-align-last'] = "center" should set the property value
+Pass	e.style['text-align-last'] = "justify" should set the property value
+Pass	e.style['text-align-last'] = "match-parent" should set the property value
