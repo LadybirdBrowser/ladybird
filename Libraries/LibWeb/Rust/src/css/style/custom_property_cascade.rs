@@ -340,7 +340,7 @@ pub(super) struct PreparedCustomFunctions<'a> {
 /// What a registered custom property's value computes against: the element's lengths as its style
 /// computes them after line-height, and the color scheme its colors resolve with (a
 /// PreferredColorScheme code). The length context lends no output flag.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub(super) struct RegisteredValueContext {
     pub length: crate::css::style_compute::FfiLengthResolutionContext,
     pub color_scheme: u8,
@@ -1257,8 +1257,8 @@ impl RetainedState {
     }
 
     /// Whether the custom declarations of a node, or of one of its pseudo-elements, name a
-    /// registered custom property: its drive then waits for the font it settles before resolving
-    /// them, as `FullDrive::AwaitsRegisteredContext` says.
+    /// registered custom property: its drive may need to resolve them again against the font it
+    /// settles, as `FullDrive::AwaitsRegisteredContext` says.
     pub(super) fn declares_registered_custom_property(
         &self,
         node: StyleNodeID,

@@ -1,0 +1,4 @@
+input initial: font-size 20px, letter-spacing 20px
+textarea initial: font-size 20px, letter-spacing 20px
+input after rule changed: font-size 20px, letter-spacing 21px
+textarea after rule changed: font-size 20px, letter-spacing 21px

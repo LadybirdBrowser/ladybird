@@ -44,7 +44,7 @@ include!(concat!(env!("OUT_DIR"), "/length_units_generated.rs"));
 /// The font metrics needed for font-relative length resolution, as unrounded
 /// CSS pixel values.
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct FfiFontMetrics {
     pub font_size: f64,
     pub x_height: f64,
@@ -55,7 +55,7 @@ pub struct FfiFontMetrics {
 
 /// Mirror of the length resolution parts of Length::ResolutionContext.
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct FfiLengthResolutionContext {
     pub viewport_width: f64,
     pub viewport_height: f64,

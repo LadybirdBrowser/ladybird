@@ -1,5 +1,5 @@
 environment refusals: 0
-environments the engine resolved: 4
+environments the engine resolved: 2
 --drawn in range: true
 --drawn shared between elements: true
 opacity reads --drawn: true

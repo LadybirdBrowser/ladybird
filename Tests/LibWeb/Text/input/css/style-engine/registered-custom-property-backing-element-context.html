@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --length { syntax: "<length>"; inherits: false; initial-value: 0px; }
+    input, textarea { font-size: 40px; }
+    ::placeholder { font-size: 20px; --length: 1em; letter-spacing: var(--length); }
+</style>
+<input id="input" placeholder="p">
+<textarea id="textarea" placeholder="p"></textarea>
+<script>
+    // The backing element keeps its font while its originating element has a different font.
+    // Recomputing a longhand must still resolve the registered length against the backing font.
+    test(() => {
+        function report(label) {
+            internals.updateStyle();
+            for (const host of [input, textarea]) {
+                const style = getComputedStyle(host, "::placeholder");
+                println(`${host.localName} ${label}: font-size ${style.fontSize}, letter-spacing ${style.letterSpacing}`);
+            }
+        }
+        report("initial");
+        document.styleSheets[0].cssRules[2].style.letterSpacing = "calc(var(--length) + 1px)";
+        report("after rule changed");
+    });
+</script>
