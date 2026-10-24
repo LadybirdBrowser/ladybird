@@ -347,6 +347,8 @@ pub(crate) struct AnimationPreparationInputs {
 
 pub(crate) struct ComputedAnimationBatch<'a> {
     pub(crate) context: FfiAnimationContext<'a>,
+    /// The device pixel ratio that animated border widths are snapped to.
+    pub(crate) device_pixels_per_css_pixel: f64,
     pub(crate) sampled_effects: &'a [FfiSampledAnimationEffect],
     /// The identities of the custom-property environments of the element and of the one it
     /// inherits from, which a preparation that substituted keyframe values against the element was
@@ -8584,6 +8586,41 @@ pub(crate) fn animation_preparation_matches(
         .is_some_and(|preparation| preparation.key.matches(sampled, custom_property_environments))
 }
 
+fn snap_animated_border_width(
+    property_id: u16,
+    value: RetainedStyleValueData,
+    device_pixels_per_css_pixel: f64,
+) -> RetainedStyleValueData {
+    use crate::css::property_metadata::property_id as prop;
+    // https://drafts.csswg.org/css-backgrounds/#border-width
+    // Computed value: absolute length, snapped as a border width
+    // NB: An animated value is a computed value too, so it is snapped like one.
+    if !matches!(
+        property_id,
+        prop::BORDER_BOTTOM_WIDTH
+            | prop::BORDER_LEFT_WIDTH
+            | prop::BORDER_RIGHT_WIDTH
+            | prop::BORDER_TOP_WIDTH
+            | prop::COLUMN_RULE_WIDTH
+            | prop::OUTLINE_WIDTH
+    ) || device_pixels_per_css_pixel <= 0.0
+    {
+        return value;
+    }
+    let Some(StyleValueData::Length { value: length, unit }) = value.optional_data() else {
+        return value;
+    };
+    if *unit != crate::css::style_compute::px_length_unit() || *length < 0.0 {
+        return value;
+    }
+    let snapped = crate::css::style_compute::snap_a_length_as_a_border_width(
+        device_pixels_per_css_pixel,
+        crate::css::css_pixels::CssPixels::nearest_value_for(*length),
+    )
+    .to_double();
+    retained_length(snapped, *unit)
+}
+
 /// Complete the Rust-owned animation plan and compose every interval without
 /// consulting C++ or the DOM. On the first sample this consumes the declarations and keyframe
 /// values the batch carries. Later samples can reuse that preparation from the animated overlay.
@@ -8593,6 +8630,7 @@ pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32
     crate::css::ffi_stats::note_animation_evaluation();
     let ComputedAnimationBatch {
         context: sample_context,
+        device_pixels_per_css_pixel,
         sampled_effects: sampled,
         custom_property_environments,
         cache_preparation,
@@ -8714,6 +8752,7 @@ pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32
         }
         if let Some(value) = result.value {
             previous_values.push((input.property_id, input.custom_name_id, value.clone()));
+            let value = snap_animated_border_width(input.property_id, value, device_pixels_per_css_pixel);
             overlay.set_owned(input.property_id, value, false, input.result_of_transition);
         } else {
             let value = RetainedStyleValueData::from_owned(StyleValueData::Keyword {

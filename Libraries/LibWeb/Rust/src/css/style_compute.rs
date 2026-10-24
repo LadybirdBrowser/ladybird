@@ -2115,7 +2115,7 @@ fn compute_border_or_outline_width(
 }
 
 // https://drafts.csswg.org/css-backgrounds/#compute-a-border-width
-fn snap_a_length_as_a_border_width(device_pixels_per_css_pixel: f64, length: CssPixels) -> CssPixels {
+pub(crate) fn snap_a_length_as_a_border_width(device_pixels_per_css_pixel: f64, length: CssPixels) -> CssPixels {
     // 1. Assert: len is non-negative.
     // NB: The caller guarantees this; negative widths are invalid at parse time.
 
@@ -6596,6 +6596,7 @@ fn begin_animation_sample(
     if anim::animation_preparation_matches(Some(mutated_overlay), &composed, input.custom_property_environments) {
         anim::evaluate_animations(anim::ComputedAnimationBatch {
             context: input.animation_context(None, reference_box),
+            device_pixels_per_css_pixel: input.environment.device_pixels_per_css_pixel,
             sampled_effects: &composed,
             custom_property_environments: input.custom_property_environments,
             cache_preparation: true,
@@ -6763,6 +6764,7 @@ fn finish_animation_sample(
         && resolved.unfixed_random_sharings.is_empty();
     let custom_results = anim::evaluate_animations(anim::ComputedAnimationBatch {
         context: input.animation_context(Some(&length_contexts.remaining), reference_box),
+        device_pixels_per_css_pixel: input.environment.device_pixels_per_css_pixel,
         sampled_effects: &composed,
         custom_property_environments: input.custom_property_environments,
         cache_preparation,
