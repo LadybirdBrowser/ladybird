@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>text-shadow composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-3/#text-shadow-property">
+<meta name="assert" content="text-shadow supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.target {
+  width: 40px;
+  height: 40px;
+  background-color: black;
+}
+.expected {
+  background-color: green;
+}
+</style>
+
+<body>
+<script>
+test_composition({
+  property: 'text-shadow',
+  replaceFrom: 'rgb(100, 100, 100) 10px 20px 30px',
+  addTo: 'rgb(200, 200, 200) 20px 40px 60px',
+}, [
+  {at: -0.3, expect: 'rgb(70, 70, 70 ) 7px 14px 21px'},
+  {at: 0, expect: 'rgb(100, 100, 100) 10px 20px 30px'},
+  {at: 0.5, expect: 'rgb(150, 150, 150) 15px 30px 45px'},
+  {at: 1, expect: 'rgb(200, 200, 200) 20px 40px 60px'},
+  {at: 1.5, expect: 'rgb(250, 250, 250) 25px 50px 75px'},
+]);
+
+test_composition({
+  property: 'text-shadow',
+  underlying: 'rgb(10, 20, 30) 1px 2px 3px',
+  addFrom: 'rgb(100, 100, 100) 10px 20px 30px',
+  addTo: 'rgb(200, 200, 200) 20px 40px 60px',
+}, [
+  {at: -0.3, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(70, 70, 70) 7px 14px 21px'},
+  {at: 0, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(100, 100, 100) 10px 20px 30px'},
+  {at: 0.5, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(150, 150, 150) 15px 30px 45px'},
+  {at: 1, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(200, 200, 200) 20px 40px 60px'},
+  {at: 1.5, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(250, 250, 250) 25px 50px 75px'},
+]);
+
+test_composition({
+  property: 'text-shadow',
+  underlying: 'rgb(10, 20, 30) 1px 2px 3px, rgb(20, 40, 60) 2px 4px 6px',
+  addFrom: 'rgb(100, 100, 100) 10px 20px 30px',
+  addTo: 'rgb(200, 200, 200) 20px 40px 60px',
+}, [
+  {at: -0.3, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(20, 40, 60) 2px 4px 6px, rgb(70, 70, 70) 7px 14px 21px'},
+  {at: 0, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(20, 40, 60) 2px 4px 6px, rgb(100, 100, 100) 10px 20px 30px'},
+  {at: 0.5, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(20, 40, 60) 2px 4px 6px, rgb(150, 150, 150) 15px 30px 45px'},
+  {at: 1, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(20, 40, 60) 2px 4px 6px, rgb(200, 200, 200) 20px 40px 60px'},
+  {at: 1.5, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(20, 40, 60) 2px 4px 6px, rgb(250, 250, 250) 25px 50px 75px'},
+]);
+
+test_composition({
+  property: 'text-shadow',
+  underlying: 'rgb(10, 20, 30) 1px 2px 3px, rgb(20, 40, 60) 2px 4px 6px',
+  addFrom: 'rgb(100, 100, 100) 10px 20px 30px',
+  replaceTo: 'rgb(200, 200, 200) 20px 40px 60px',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) -4.7px -9.4px 0px, rgb(26, 52, 78) 2.6px 5.2px 7.8px, rgb(130, 130, 130) 13px 26px 39px'},
+  {at: 0, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(20, 40, 60) 2px 4px 6px, rgb(100, 100, 100) 10px 20px 30px'},
+  {at: 0.5, expect: 'rgb(105, 110, 115) 10.5px 21px 31.5px, rgba(20, 40, 60, 0.5) 1px 2px 3px, rgba(100, 100, 100, 0.5) 5px 10px 15px'},
+  {at: 1, expect: 'rgb(200, 200, 200) 20px 40px 60px, rgba(0, 0, 0, 0) 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px'},
+  {at: 1.5, expect: 'rgb(255, 255, 255) 29.5px 59px 88.5px, rgba(0, 0, 0, 0) -1px -2px 0px, rgba(0, 0, 0, 0) -5px -10px 0px'},
+]);
+
+test_composition({
+  property: 'text-shadow',
+  underlying: 'rgb(10, 20, 30) 1px 2px 3px, rgb(20, 40, 60) 2px 4px 6px',
+  replaceFrom: 'rgb(100, 100, 100) 10px 20px 30px',
+  addTo: 'rgb(200, 200, 200) 20px 40px 60px',
+}, [
+  {at: -0.3, expect: 'rgb(127, 124, 121) 12.7px 25.4px 38.1px, rgba(0, 0, 0, 0) -0.6px -1.2px 0px, rgba(0, 0, 0, 0) -6px -12px 0px'},
+  {at: 0, expect: 'rgb(100, 100, 100) 10px 20px 30px, rgba(0, 0, 0, 0) 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px'},
+  {at: 0.5, expect: 'rgb(55, 60, 65) 5.5px 11px 16.5px, rgba(20, 40, 60, 0.5) 1px 2px 3px, rgba(200, 200, 200, 0.5) 10px 20px 30px'},
+  {at: 1, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(20, 40, 60) 2px 4px 6px, rgb(200, 200, 200) 20px 40px 60px'},
+  {at: 1.5, expect: 'rgb(0, 0, 0) -3.5px -7px 0px, rgb(30, 60, 90) 3px 6px 9px, rgb(255, 255, 255) 30px 60px 90px'},
+]);
+
+test_composition({
+  property: 'text-shadow',
+  underlying: 'rgb(10, 20, 30) 1px 2px 3px, rgb(20, 40, 60) 2px 4px 6px, rgb(40, 80, 120) 4px 8px 12px',
+  addFrom: 'rgb(100, 100, 100) 10px 20px 30px, rgb(200, 200, 200) 20px 40px 60px',
+  replaceTo: 'rgb(200, 200, 200) 20px 40px 60px',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) -4.7px -9.4px 0px, rgb(26, 52, 78) 2.6px 5.2px 7.8px, rgb(52, 104, 156) 5.2px 10.4px 15.6px, rgb(130, 130, 130) 13px 26px 39px, rgb(255, 255, 255) 26px 52px 78px'},
+  {at: 0, expect: 'rgb(10, 20, 30) 1px 2px 3px, rgb(20, 40, 60) 2px 4px 6px, rgb(40, 80, 120) 4px 8px 12px, rgb(100, 100, 100) 10px 20px 30px, rgb(200, 200, 200) 20px 40px 60px'},
+  {at: 0.5, expect: 'rgb(105, 110, 115) 10.5px 21px 31.5px, rgba(20, 40, 60, 0.5) 1px 2px 3px, rgba(40, 80, 120, 0.5) 2px 4px 6px, rgba(100, 100, 100, 0.5) 5px 10px 15px, rgba(200, 200, 200, 0.5) 10px 20px 30px'},
+  {at: 1, expect: 'rgb(200, 200, 200) 20px 40px 60px, rgba(0, 0, 0, 0) 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px'},
+  {at: 1.5, expect: 'rgb(255, 255, 255) 29.5px 59px 88.5px, rgba(0, 0, 0, 0) -1px -2px 0px, rgba(0, 0, 0, 0) -2px -4px 0px, rgba(0, 0, 0, 0) -5px -10px 0px, rgba(0, 0, 0, 0) -10px -20px 0px'},
+]);
+</script>
+</body>

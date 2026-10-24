@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>height interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-height">
+<meta name="assert" content="height supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  height: 200px;
+}
+.target {
+  width: 100px;
+  height: 100px;
+  background-color: black;
+  display: inline-block;
+  margin-right: 5px;
+  height: 10px;
+}
+.expected {
+  background-color: green;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'height',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -0.3, expect: '7px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+
+test_no_interpolation({
+  property: 'height',
+  from: 'initial',
+  to: '20px',
+});
+
+test_interpolation({
+  property: 'height',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '254px'},
+  {at: 0, expect: '200px'},
+  {at: 0.3, expect: '146px'},
+  {at: 0.6, expect: '92px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '0px'},
+]);
+
+test_no_interpolation({
+  property: 'height',
+  from: 'unset',
+  to: '20px',
+});
+
+test_no_interpolation({
+  property: 'height',
+  from: 'auto',
+  to: '20px',
+});
+
+test_interpolation({
+  property: 'height',
+  from: '0px',
+  to: '100px',
+}, [
+  {at: -0.3, expect: '0px'}, // CSS height can't be negative.
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '30px'},
+  {at: 0.6, expect: '60px'},
+  {at: 1, expect: '100px'},
+  {at: 1.5, expect: '150px'}
+]);
+
+test_no_interpolation({
+  property: 'height',
+  from: 'auto',
+  to: 'min-content',
+});
+
+test_no_interpolation({
+  property: 'height',
+  from: 'fit-content',
+  to: '20px',
+});
+
+test_no_interpolation({
+  property: 'height',
+  from: 'max-content',
+  to: 'fit-content',
+});
+
+test_no_interpolation({
+  property: 'height',
+  from: 'max-content',
+  to: 'stretch',
+});
+
+test_no_interpolation({
+  property: 'height',
+  from: 'max-content',
+  to: neutralKeyframe,
+});
+
+test_no_interpolation({
+  property: 'height',
+  from: neutralKeyframe,
+  to: 'fit-content',
+});
+
+let new_style_text = `
+  .target {
+    height: auto;
+  }
+`;
+let new_style = document.createElement("style");
+new_style.append(new_style_text);
+document.head.append(new_style);
+test_no_interpolation({
+  property: 'height',
+  from: neutralKeyframe,
+  to: '100px',
+});
+new_style.remove();
+
+</script>

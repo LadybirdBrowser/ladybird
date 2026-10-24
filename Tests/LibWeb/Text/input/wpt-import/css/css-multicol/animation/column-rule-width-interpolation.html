@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>column-rule-width interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol-1/#crw">
+<meta name="assert" content="column-rule-width supports animation by computed value type">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  column-rule-width: 30px;
+}
+.target {
+  column-rule-width: 10px;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'column-rule-width',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -0.3, expect: '7px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+
+test_interpolation({
+  property: 'column-rule-width',
+  from: 'initial',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '3px'},
+  {at: 0.3, expect: '8.1px'},
+  {at: 0.6, expect: '13.2px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '28.5px'},
+]);
+
+// column-rule-width: inherit on .target means 30px (from .parent)
+// so we are interpolating from 30px to 20px here. column-rule-width is
+// now independent of column-rule-style, so we won't be interpolating
+// from 0px to 20px as before.
+test_interpolation({
+  property: 'column-rule-width',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '33px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '15px'},
+]);
+
+test_interpolation({
+  property: 'column-rule-width',
+  from: 'unset',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '3px'},
+  {at: 0.3, expect: '8.1px'},
+  {at: 0.6, expect: '13.2px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '28.5px'},
+]);
+
+test_interpolation({
+  property: 'column-rule-width',
+  from: '0px',
+  to: '10px'
+}, [
+  {at: -0.3, expect: '0px'}, // CSS column-rule-width can't be negative.
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '3px'},
+  {at: 0.6, expect: '6px'},
+  {at: 1, expect: '10px'},
+  {at: 1.5, expect: '15px'}
+]);
+
+test_interpolation({
+  property: 'column-rule-width',
+  from: '15px',
+  to: 'thick'
+}, [
+  {at: -2, expect: '35px'},
+  {at: -0.3, expect: '18px'},
+  {at: 0, expect: '15px'},
+  {at: 0.3, expect: '12px'},
+  {at: 0.6, expect: '9px'},
+  {at: 1, expect: '5px'},
+  {at: 1.5, expect: '0px'}
+]);
+</script>

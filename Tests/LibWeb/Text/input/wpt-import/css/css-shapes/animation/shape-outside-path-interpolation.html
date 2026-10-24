@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>shape-outside: path() interpolation</title>
+<link rel="author" title="Jason Leo" href="mailto:cgqaq@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-shapes-2/#shape-outside-property">
+<link rel="help" href="https://drafts.csswg.org/css-shapes-1/#typedef-basic-shape">
+<meta name="assert" content="shape-outside: path() interpolates segment-by-segment when the two paths share the same command structure, and falls back to discrete animation otherwise.">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+  .parent {
+    shape-outside: path("M 50 60 H 70");
+  }
+  .target {
+    shape-outside: path("M 10 10 L 20 20 Z");
+  }
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'shape-outside',
+  from: neutralKeyframe,
+  to: 'path("M 50 50 L 60 60 Z")',
+}, [
+  {at: -0.3, expect: 'path("M -2 -2 L 8 8 Z")'},
+  {at: 0, expect: 'path("M 10 10 L 20 20 Z")'},
+  {at: 0.5, expect: 'path("M 30 30 L 40 40 Z")'},
+  {at: 1, expect: 'path("M 50 50 L 60 60 Z")'},
+  {at: 1.5, expect: 'path("M 70 70 L 80 80 Z")'},
+]);
+
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'initial',
+  to: 'path("M 50 50 L 60 60 Z")',
+});
+
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'unset',
+  to: 'path("M 50 50 L 60 60 Z")',
+});
+
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'none',
+  to: 'path("M 50 50 L 60 60 Z")',
+});
+
+test_interpolation({
+  property: 'shape-outside',
+  from: 'inherit',
+  to: 'path("M 10 140 H 270")',
+}, [
+  {at: -1, expect: 'path("M 90 -20 H -130")'},
+  {at: 0, expect: 'path("M 50 60 H 70")'},
+  {at: 0.5, expect: 'path("M 30 100 H 170")'},
+  {at: 1, expect: 'path("M 10 140 H 270")'},
+  {at: 2, expect: 'path("M -30 220 H 470")'},
+]);
+
+// Different command counts: discrete.
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 10 10 L 20 20")',
+  to: 'path("M 10 10 L 20 20 Z")',
+});
+
+// Different command types at the same index: discrete.
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 10 10 L 20 20")',
+  to: 'path("M 10 10 H 20")',
+});
+
+test_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 50 60 H 70")',
+  to: 'path("M 10 140 H 270")',
+}, [
+  {at: -1, expect: 'path("M 90 -20 H -130")'},
+  {at: 0, expect: 'path("M 50 60 H 70")'},
+  {at: 0.125, expect: 'path("M 45 70 H 95")'},
+  {at: 0.875, expect: 'path("M 15 130 H 245")'},
+  {at: 1, expect: 'path("M 10 140 H 270")'},
+  {at: 2, expect: 'path("M -30 220 H 470")'},
+]);
+
+test_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 50 60 V 70")',
+  to: 'path("M 10 140 V 270")',
+}, [
+  {at: 0, expect: 'path("M 50 60 V 70")'},
+  {at: 0.5, expect: 'path("M 30 100 V 170")'},
+  {at: 1, expect: 'path("M 10 140 V 270")'},
+]);
+
+test_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 12 34 C 5 5 45 67 89 123")',
+  to: 'path("M 20 26 C 13 13 61 51 113 99")',
+}, [
+  {at: 0, expect: 'path("M 12 34 C 5 5 45 67 89 123")'},
+  {at: 0.5, expect: 'path("M 16 30 C 9 9 53 59 101 111")'},
+  {at: 1, expect: 'path("M 20 26 C 13 13 61 51 113 99")'},
+]);
+
+test_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 12 34 S 45 67 89 123")',
+  to: 'path("M 20 26 S 61 51 113 99")',
+}, [
+  {at: 0, expect: 'path("M 12 34 S 45 67 89 123")'},
+  {at: 0.5, expect: 'path("M 16 30 S 53 59 101 111")'},
+  {at: 1, expect: 'path("M 20 26 S 61 51 113 99")'},
+]);
+
+test_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 12 34 Q 45 67 89 123")',
+  to: 'path("M 20 26 Q 61 51 113 99")',
+}, [
+  {at: 0, expect: 'path("M 12 34 Q 45 67 89 123")'},
+  {at: 0.5, expect: 'path("M 16 30 Q 53 59 101 111")'},
+  {at: 1, expect: 'path("M 20 26 Q 61 51 113 99")'},
+]);
+
+test_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 12 34 T 45 67")',
+  to: 'path("M 20 26 T 61 51")',
+}, [
+  {at: 0, expect: 'path("M 12 34 T 45 67")'},
+  {at: 0.5, expect: 'path("M 16 30 T 53 59")'},
+  {at: 1, expect: 'path("M 20 26 T 61 51")'},
+]);
+
+test_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 5 5 A 10 20 0 0 0 15 -15")',
+  to: 'path("M 15 15 A 20 30 0 0 0 5 -25")',
+}, [
+  {at: 0, expect: 'path("M 5 5 A 10 20 0 0 0 15 -15")'},
+  {at: 0.5, expect: 'path("M 10 10 A 15 25 0 0 0 10 -20")'},
+  {at: 1, expect: 'path("M 15 15 A 20 30 0 0 0 5 -25")'},
+]);
+
+// Relative commands are normalized to absolute before interpolation.
+test_interpolation({
+  property: 'shape-outside',
+  from: 'path("m 50 60 h 20")',
+  to: 'path("m 10 140 h 260")',
+}, [
+  {at: 0, expect: 'path("M 50 60 H 70")'},
+  {at: 0.5, expect: 'path("M 30 100 H 170")'},
+  {at: 1, expect: 'path("M 10 140 H 270")'},
+]);
+
+// Same explicit <shape-box> on both sides interpolates segment-by-segment;
+// the trailing <shape-box> is preserved through the interpolated keyframes.
+test_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 50 60 H 70") padding-box',
+  to: 'path("M 10 140 H 270") padding-box',
+}, [
+  {at: 0, expect: 'path("M 50 60 H 70") padding-box'},
+  {at: 0.5, expect: 'path("M 30 100 H 170") padding-box'},
+  {at: 1, expect: 'path("M 10 140 H 270") padding-box'},
+]);
+
+// Implicit and explicit margin-box are equivalent (margin-box is the spec
+// default), so they interpolate segment-by-segment.
+test_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 50 60 H 70")',
+  to: 'path("M 10 140 H 270") margin-box',
+}, [
+  {at: 0, expect: 'path("M 50 60 H 70")'},
+  {at: 0.5, expect: 'path("M 30 100 H 170")'},
+  {at: 1, expect: 'path("M 10 140 H 270")'},
+]);
+
+test_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 50 60 H 70") border-box',
+  to: 'path("M 10 140 H 270") border-box',
+}, [
+  {at: 0, expect: 'path("M 50 60 H 70") border-box'},
+  {at: 0.5, expect: 'path("M 30 100 H 170") border-box'},
+  {at: 1, expect: 'path("M 10 140 H 270") border-box'},
+]);
+
+// Mismatched <shape-box> falls back to discrete animation.
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 10 10 L 20 20 Z") border-box',
+  to: 'path("M 50 50 L 60 60 Z") padding-box',
+});
+
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 10 10 L 20 20 Z") content-box',
+  to: 'path("M 50 50 L 60 60 Z") margin-box',
+});
+</script>

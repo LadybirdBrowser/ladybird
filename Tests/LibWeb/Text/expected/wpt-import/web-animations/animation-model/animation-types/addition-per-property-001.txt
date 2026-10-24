@@ -1,0 +1,362 @@
+Harness status: OK
+
+Found 356 tests
+
+336 Pass
+20 Fail
+Pass	Setup
+Pass	align-content (type: discrete) has testAddition function
+Fail	align-content: "flex-end" onto "flex-start"
+Fail	align-content: "flex-start" onto "flex-end"
+Pass	align-items (type: discrete) has testAddition function
+Fail	align-items: "flex-end" onto "flex-start"
+Fail	align-items: "flex-start" onto "flex-end"
+Pass	align-self (type: discrete) has testAddition function
+Fail	align-self: "flex-end" onto "flex-start"
+Fail	align-self: "flex-start" onto "flex-end"
+Pass	anchor-name (type: discrete) has testAddition function
+Pass	anchor-name: "--anchor" onto "none"
+Pass	anchor-name: "none" onto "--anchor"
+Pass	anchor-scope (type: discrete) has testAddition function
+Pass	anchor-scope: "all" onto "none"
+Pass	anchor-scope: "none" onto "all"
+Pass	appearance (type: discrete) has testAddition function
+Pass	appearance: "none" onto "auto"
+Pass	appearance: "auto" onto "none"
+Pass	backface-visibility (type: discrete) has testAddition function
+Pass	backface-visibility: "hidden" onto "visible"
+Pass	backface-visibility: "visible" onto "hidden"
+Pass	background-attachment (type: discrete) has testAddition function
+Pass	background-attachment: "local" onto "fixed"
+Pass	background-attachment: "fixed" onto "local"
+Pass	background-color (type: color) has testAddition function
+Fail	background-color supports animating as color of rgb() with overflowed  from and to values
+Pass	background-color supports animating as color of #RGB
+Pass	background-color supports animating as color of hsl()
+Pass	background-color supports animating as color of #RGBa
+Pass	background-color supports animating as color of rgba()
+Pass	background-color supports animating as color of hsla()
+Pass	background-blend-mode (type: discrete) has testAddition function
+Pass	background-blend-mode: "screen" onto "multiply"
+Pass	background-blend-mode: "multiply" onto "screen"
+Pass	background-clip (type: discrete) has testAddition function
+Pass	background-clip: "content-box" onto "padding-box"
+Pass	background-clip: "padding-box" onto "content-box"
+Pass	background-image (type: discrete) has testAddition function
+Pass	background-image: "url("http://localhost/test-2")" onto "url("http://localhost/test-1")"
+Pass	background-image: "url("http://localhost/test-1")" onto "url("http://localhost/test-2")"
+Pass	background-origin (type: discrete) has testAddition function
+Pass	background-origin: "content-box" onto "padding-box"
+Pass	background-origin: "padding-box" onto "content-box"
+Pass	background-repeat (type: discrete) has testAddition function
+Pass	background-repeat: "round" onto "space"
+Pass	background-repeat: "space" onto "round"
+Pass	border-bottom-color (type: color) has testAddition function
+Fail	border-bottom-color supports animating as color of rgb() with overflowed  from and to values
+Pass	border-bottom-color supports animating as color of #RGB
+Pass	border-bottom-color supports animating as color of hsl()
+Pass	border-bottom-color supports animating as color of #RGBa
+Pass	border-bottom-color supports animating as color of rgba()
+Pass	border-bottom-color supports animating as color of hsla()
+Pass	border-bottom-style (type: discrete) has testAddition function
+Pass	border-bottom-style: "solid" onto "dotted"
+Pass	border-bottom-style: "dotted" onto "solid"
+Pass	border-bottom-width (type: length) has testAddition function
+Pass	border-bottom-width: length
+Pass	border-bottom-width: length of rem
+Pass	border-collapse (type: discrete) has testAddition function
+Pass	border-collapse: "separate" onto "collapse"
+Pass	border-collapse: "collapse" onto "separate"
+Pass	border-image-repeat (type: discrete) has testAddition function
+Pass	border-image-repeat: "round space" onto "stretch repeat"
+Pass	border-image-repeat: "stretch repeat" onto "round space"
+Pass	border-image-source (type: discrete) has testAddition function
+Pass	border-image-source: "url("http://localhost/test-2")" onto "url("http://localhost/test-1")"
+Pass	border-image-source: "url("http://localhost/test-1")" onto "url("http://localhost/test-2")"
+Pass	border-left-color (type: color) has testAddition function
+Fail	border-left-color supports animating as color of rgb() with overflowed  from and to values
+Pass	border-left-color supports animating as color of #RGB
+Pass	border-left-color supports animating as color of hsl()
+Pass	border-left-color supports animating as color of #RGBa
+Pass	border-left-color supports animating as color of rgba()
+Pass	border-left-color supports animating as color of hsla()
+Pass	border-left-style (type: discrete) has testAddition function
+Pass	border-left-style: "solid" onto "dotted"
+Pass	border-left-style: "dotted" onto "solid"
+Pass	border-left-width (type: length) has testAddition function
+Pass	border-left-width: length
+Pass	border-left-width: length of rem
+Pass	border-right-color (type: color) has testAddition function
+Fail	border-right-color supports animating as color of rgb() with overflowed  from and to values
+Pass	border-right-color supports animating as color of #RGB
+Pass	border-right-color supports animating as color of hsl()
+Pass	border-right-color supports animating as color of #RGBa
+Pass	border-right-color supports animating as color of rgba()
+Pass	border-right-color supports animating as color of hsla()
+Pass	border-right-style (type: discrete) has testAddition function
+Pass	border-right-style: "solid" onto "dotted"
+Pass	border-right-style: "dotted" onto "solid"
+Pass	border-right-width (type: length) has testAddition function
+Pass	border-right-width: length
+Pass	border-right-width: length of rem
+Pass	border-spacing (type: lengthPair) has testAddition function
+Pass	border-spacing: length pair
+Pass	border-spacing: length pair of rem
+Pass	border-top-color (type: color) has testAddition function
+Fail	border-top-color supports animating as color of rgb() with overflowed  from and to values
+Pass	border-top-color supports animating as color of #RGB
+Pass	border-top-color supports animating as color of hsl()
+Pass	border-top-color supports animating as color of #RGBa
+Pass	border-top-color supports animating as color of rgba()
+Pass	border-top-color supports animating as color of hsla()
+Pass	border-top-style (type: discrete) has testAddition function
+Pass	border-top-style: "solid" onto "dotted"
+Pass	border-top-style: "dotted" onto "solid"
+Pass	border-top-width (type: length) has testAddition function
+Pass	border-top-width: length
+Pass	border-top-width: length of rem
+Pass	box-decoration-break (type: discrete) has testAddition function
+Pass	box-decoration-break: "clone" onto "slice"
+Pass	box-decoration-break: "slice" onto "clone"
+Pass	box-shadow (type: boxShadowList) has testAddition function
+Fail	box-shadow: shadow
+Pass	box-sizing (type: discrete) has testAddition function
+Pass	box-sizing: "border-box" onto "content-box"
+Pass	box-sizing: "content-box" onto "border-box"
+Pass	caption-side (type: discrete) has testAddition function
+Pass	caption-side: "bottom" onto "top"
+Pass	caption-side: "top" onto "bottom"
+Pass	caret-color (type: color) has testAddition function
+Fail	caret-color supports animating as color of rgb() with overflowed  from and to values
+Pass	caret-color supports animating as color of #RGB
+Pass	caret-color supports animating as color of hsl()
+Pass	caret-color supports animating as color of #RGBa
+Pass	caret-color supports animating as color of rgba()
+Pass	caret-color supports animating as color of hsla()
+Pass	clear (type: discrete) has testAddition function
+Pass	clear: "right" onto "left"
+Pass	clear: "left" onto "right"
+Pass	clip (type: rect) has testAddition function
+Pass	clip: rect
+Pass	clip (type: discrete) has testAddition function
+Pass	clip: "auto" onto "rect(10px, 10px, 10px, 10px)"
+Pass	clip: "rect(10px, 10px, 10px, 10px)" onto "auto"
+Pass	clip: "rect(10px, 10px, 10px, auto)" onto "rect(10px, 10px, 10px, 10px)"
+Pass	clip: "rect(10px, 10px, 10px, 10px)" onto "rect(10px, 10px, 10px, auto)"
+Pass	clip-rule (type: discrete) has testAddition function
+Pass	clip-rule: "nonzero" onto "evenodd"
+Pass	clip-rule: "evenodd" onto "nonzero"
+Pass	color (type: color) has testAddition function
+Fail	color supports animating as color of rgb() with overflowed  from and to values
+Pass	color supports animating as color of #RGB
+Pass	color supports animating as color of hsl()
+Pass	color supports animating as color of #RGBa
+Pass	color supports animating as color of rgba()
+Pass	color supports animating as color of hsla()
+Pass	color-interpolation (type: discrete) has testAddition function
+Pass	color-interpolation: "auto" onto "linearrgb"
+Pass	color-interpolation: "linearrgb" onto "auto"
+Pass	color-interpolation-filters (type: discrete) has testAddition function
+Pass	color-interpolation-filters: "linearrgb" onto "srgb"
+Pass	color-interpolation-filters: "srgb" onto "linearrgb"
+Pass	columns (type: positiveInteger) has testAddition function
+Pass	columns: positive integer
+Pass	columns (type: length) has testAddition function
+Pass	columns: length
+Pass	columns: length of rem
+Pass	column-count (type: positiveInteger) has testAddition function
+Pass	column-count: positive integer
+Pass	column-count (type: discrete) has testAddition function
+Pass	column-count: "10" onto "auto"
+Pass	column-count: "auto" onto "10"
+Pass	column-gap (type: length) has testAddition function
+Pass	column-gap: length
+Pass	column-gap: length of rem
+Pass	column-gap (type: discrete) has testAddition function
+Pass	column-gap: "200px" onto "normal"
+Pass	column-gap: "normal" onto "200px"
+Pass	column-rule-color (type: color) has testAddition function
+Fail	column-rule-color supports animating as color of rgb() with overflowed  from and to values
+Pass	column-rule-color supports animating as color of #RGB
+Pass	column-rule-color supports animating as color of hsl()
+Pass	column-rule-color supports animating as color of #RGBa
+Pass	column-rule-color supports animating as color of rgba()
+Pass	column-rule-color supports animating as color of hsla()
+Pass	column-fill (type: discrete) has testAddition function
+Pass	column-fill: "balance" onto "auto"
+Pass	column-fill: "auto" onto "balance"
+Pass	column-rule-style (type: discrete) has testAddition function
+Pass	column-rule-style: "dotted" onto "none"
+Pass	column-rule-style: "none" onto "dotted"
+Pass	column-rule-width (type: length) has testAddition function
+Pass	column-rule-width: length
+Pass	column-rule-width: length of rem
+Pass	column-width (type: length) has testAddition function
+Pass	column-width: length
+Pass	column-width: length of rem
+Pass	column-width (type: discrete) has testAddition function
+Pass	column-width: "1px" onto "auto"
+Pass	column-width: "auto" onto "1px"
+Pass	column-height (type: length) has testAddition function
+Pass	column-height: length
+Pass	column-height: length of rem
+Pass	column-height (type: discrete) has testAddition function
+Pass	column-height: "1px" onto "auto"
+Pass	column-height: "auto" onto "1px"
+Pass	counter-increment (type: discrete) has testAddition function
+Pass	counter-increment: "ident-2 2" onto "ident-1 1"
+Pass	counter-increment: "ident-1 1" onto "ident-2 2"
+Pass	counter-reset (type: discrete) has testAddition function
+Pass	counter-reset: "ident-2 2" onto "ident-1 1"
+Pass	counter-reset: "ident-1 1" onto "ident-2 2"
+Pass	cursor (type: discrete) has testAddition function
+Pass	cursor: "wait" onto "pointer"
+Pass	cursor: "pointer" onto "wait"
+Pass	dominant-baseline (type: discrete) has testAddition function
+Pass	dominant-baseline: "alphabetic" onto "ideographic"
+Pass	dominant-baseline: "ideographic" onto "alphabetic"
+Pass	empty-cells (type: discrete) has testAddition function
+Pass	empty-cells: "hide" onto "show"
+Pass	empty-cells: "show" onto "hide"
+Pass	field-sizing (type: discrete) has testAddition function
+Pass	field-sizing: "content" onto "fixed"
+Pass	field-sizing: "fixed" onto "content"
+Pass	fill-opacity (type: opacity) has testAddition function
+Pass	fill-opacity: [0, 1] number
+Pass	fill-opacity: [0, 1] number (clamped)
+Pass	fill-rule (type: discrete) has testAddition function
+Pass	fill-rule: "nonzero" onto "evenodd"
+Pass	fill-rule: "evenodd" onto "nonzero"
+Pass	filter (type: filterList) has testAddition function
+Pass	filter: blur on blur
+Pass	filter: different filter functions
+Pass	flex-basis (type: lengthPercentageOrCalc) has testAddition function
+Pass	flex-basis: length
+Pass	flex-basis: length of rem
+Pass	flex-basis: percentage
+Pass	flex-basis: units "%" onto "px"
+Pass	flex-basis: units "px" onto "%"
+Pass	flex-basis: units "rem" onto "%"
+Pass	flex-basis: units "%" onto "rem"
+Pass	flex-basis: units "rem" onto "em"
+Pass	flex-basis: units "em" onto "rem"
+Pass	flex-basis: units "calc" onto "px"
+Pass	flex-basis: calc
+Pass	flex-basis (type: discrete) has testAddition function
+Pass	flex-basis: "10px" onto "auto"
+Pass	flex-basis: "auto" onto "10px"
+Pass	flex-direction (type: discrete) has testAddition function
+Pass	flex-direction: "row-reverse" onto "row"
+Pass	flex-direction: "row" onto "row-reverse"
+Pass	flex-flow (type: discrete) has testAddition function
+Pass	flex-flow: "row-reverse wrap" onto "row"
+Pass	flex-flow: "row" onto "row-reverse wrap"
+Pass	flex-grow (type: positiveNumber) has testAddition function
+Pass	flex-grow: positive number
+Pass	flex-shrink (type: positiveNumber) has testAddition function
+Pass	flex-shrink: positive number
+Pass	flex-wrap (type: discrete) has testAddition function
+Pass	flex-wrap: "wrap" onto "nowrap"
+Pass	flex-wrap: "nowrap" onto "wrap"
+Pass	flood-color (type: color) has testAddition function
+Fail	flood-color supports animating as color of rgb() with overflowed  from and to values
+Pass	flood-color supports animating as color of #RGB
+Pass	flood-color supports animating as color of hsl()
+Pass	flood-color supports animating as color of #RGBa
+Pass	flood-color supports animating as color of rgba()
+Pass	flood-color supports animating as color of hsla()
+Pass	flood-opacity (type: opacity) has testAddition function
+Pass	flood-opacity: [0, 1] number
+Pass	flood-opacity: [0, 1] number (clamped)
+Pass	font-stretch (type: percentage) has testAddition function
+Pass	font-stretch: percentage
+Pass	font-style (type: discrete) has testAddition function
+Pass	font-style: "oblique" onto "italic"
+Pass	font-style: "italic" onto "oblique"
+Pass	font-width (type: percentage) has testAddition function
+Pass	font-width: percentage
+Pass	float (type: discrete) has testAddition function
+Pass	float: "right" onto "left"
+Pass	float: "left" onto "right"
+Pass	font-family (type: discrete) has testAddition function
+Pass	font-family: "verdana" onto "helvetica"
+Pass	font-family: "helvetica" onto "verdana"
+Pass	font-feature-settings (type: discrete) has testAddition function
+Pass	font-feature-settings: "normal" onto ""liga" 5"
+Pass	font-feature-settings: ""liga" 5" onto "normal"
+Pass	font-kerning (type: discrete) has testAddition function
+Pass	font-kerning: "normal" onto "auto"
+Pass	font-kerning: "auto" onto "normal"
+Pass	font-language-override (type: discrete) has testAddition function
+Pass	font-language-override: "normal" onto ""eng""
+Pass	font-language-override: ""eng"" onto "normal"
+Pass	font-variant-alternates (type: discrete) has testAddition function
+Pass	font-variant-alternates: "stylistic(unknown)" onto "swash(unknown)"
+Pass	font-variant-alternates: "swash(unknown)" onto "stylistic(unknown)"
+Pass	font-variant-caps (type: discrete) has testAddition function
+Pass	font-variant-caps: "unicase" onto "small-caps"
+Pass	font-variant-caps: "small-caps" onto "unicase"
+Pass	font-variant-east-asian (type: discrete) has testAddition function
+Pass	font-variant-east-asian: "proportional-width" onto "full-width"
+Pass	font-variant-east-asian: "full-width" onto "proportional-width"
+Pass	font-variant-emoji (type: discrete) has testAddition function
+Pass	font-variant-emoji: "emoji" onto "text"
+Pass	font-variant-emoji: "text" onto "emoji"
+Pass	font-variant-ligatures (type: discrete) has testAddition function
+Pass	font-variant-ligatures: "no-common-ligatures" onto "common-ligatures"
+Pass	font-variant-ligatures: "common-ligatures" onto "no-common-ligatures"
+Pass	font-variant-numeric (type: discrete) has testAddition function
+Pass	font-variant-numeric: "oldstyle-nums" onto "lining-nums"
+Pass	font-variant-numeric: "lining-nums" onto "oldstyle-nums"
+Pass	font-variant-position (type: discrete) has testAddition function
+Pass	font-variant-position: "super" onto "sub"
+Pass	font-variant-position: "sub" onto "super"
+Pass	font-variation-settings (type: fontVariationSettings) has testAddition function
+Pass	font-variation-settings with composite type add
+Pass	font-variation-settings (type: discrete) has testAddition function
+Pass	font-variation-settings: ""wdth" 5" onto ""wdth" 1, "wght" 1.1"
+Pass	font-variation-settings: ""wdth" 1, "wght" 1.1" onto ""wdth" 5"
+Pass	font-variation-settings: "normal" onto ""wdth" 5"
+Pass	font-variation-settings: ""wdth" 5" onto "normal"
+Pass	gap (type: length) has testAddition function
+Pass	gap: length
+Pass	gap: length of rem
+Pass	gap (type: discrete) has testAddition function
+Pass	gap: "200px" onto "normal"
+Pass	gap: "normal" onto "200px"
+Pass	grid-area (type: discrete) has testAddition function
+Pass	grid-area: "5" onto "1"
+Pass	grid-area: "1" onto "5"
+Pass	grid-auto-columns (type: discrete) has testAddition function
+Fail	grid-auto-columns: "5px" onto "1px"
+Fail	grid-auto-columns: "1px" onto "5px"
+Pass	grid-auto-flow (type: discrete) has testAddition function
+Pass	grid-auto-flow: "column" onto "row"
+Pass	grid-auto-flow: "row" onto "column"
+Pass	grid-auto-rows (type: discrete) has testAddition function
+Fail	grid-auto-rows: "5px" onto "1px"
+Fail	grid-auto-rows: "1px" onto "5px"
+Pass	grid-column (type: discrete) has testAddition function
+Pass	grid-column: "5" onto "1"
+Pass	grid-column: "1" onto "5"
+Pass	grid-column-end (type: discrete) has testAddition function
+Pass	grid-column-end: "5" onto "1"
+Pass	grid-column-end: "1" onto "5"
+Pass	grid-column-start (type: discrete) has testAddition function
+Pass	grid-column-start: "5" onto "1"
+Pass	grid-column-start: "1" onto "5"
+Pass	grid-row (type: discrete) has testAddition function
+Pass	grid-row: "5" onto "1"
+Pass	grid-row: "1" onto "5"
+Pass	grid-row-end (type: discrete) has testAddition function
+Pass	grid-row-end: "5" onto "1"
+Pass	grid-row-end: "1" onto "5"
+Pass	grid-row-start (type: discrete) has testAddition function
+Pass	grid-row-start: "5" onto "1"
+Pass	grid-row-start: "1" onto "5"
+Pass	grid-template (type: discrete) has testAddition function
+Pass	grid-template: "none" onto "". . a b" ". . a b""
+Pass	grid-template: "". . a b" ". . a b"" onto "none"
+Pass	grid-template-areas (type: discrete) has testAddition function
+Pass	grid-template-areas: "none" onto "". . a b" ". . a b""
+Pass	grid-template-areas: "". . a b" ". . a b"" onto "none"

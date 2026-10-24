@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>max-width interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-max-width">
+<meta name="assert" content="max-width supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  max-width: 100px;
+}
+.target {
+  width: 200px;
+  height: 10px;
+  background-color: black;
+  max-width: 10px;
+}
+.expected {
+  background-color: green;
+  margin-bottom: 10px;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'max-width',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -0.5, expect: '5px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+
+test_no_interpolation({
+  property: 'max-width',
+  from: 'initial',
+  to: '20px',
+});
+
+test_interpolation({
+  property: 'max-width',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -0.5, expect: '140px'},
+  {at: 0, expect: '100px'},
+  {at: 0.3, expect: '76px'},
+  {at: 0.6, expect: '52px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '0px'},
+]);
+
+test_no_interpolation({
+  property: 'max-width',
+  from: 'unset',
+  to: '20px',
+});
+
+test_no_interpolation({
+  property: 'max-width',
+  from: 'none',
+  to: '20px',
+});
+
+test_interpolation({
+  property: 'max-width',
+  from: '0px',
+  to: '100px',
+}, [
+  {at: -0.5, expect: '0'}, // CSS max-width can't be negative.
+  {at: 0, expect: '0'},
+  {at: 0.3, expect: '30px'},
+  {at: 0.6, expect: '60px'},
+  {at: 1, expect: '100px'},
+  {at: 1.5, expect: '150px'}
+]);
+
+test_no_interpolation({
+  property: 'max-width',
+  from: 'stretch',
+  to: 'none',
+});
+
+test_no_interpolation({
+  property: 'max-width',
+  from: 'fit-content',
+  to: '20px',
+});
+
+test_no_interpolation({
+  property: 'max-width',
+  from: 'max-content',
+  to: 'min-content',
+});
+
+test_no_interpolation({
+  property: 'max-width',
+  from: 'min-content',
+  to: neutralKeyframe,
+});
+
+test_no_interpolation({
+  property: 'max-width',
+  from: neutralKeyframe,
+  to: 'fit-content',
+});
+
+</script>

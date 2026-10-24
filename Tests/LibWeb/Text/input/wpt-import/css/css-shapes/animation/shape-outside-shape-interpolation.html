@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>shape-outside: shape() interpolation</title>
+<link rel="author" title="Jason Leo" href="mailto:cgqaq@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-shapes-2/#shape-outside-property">
+<link rel="help" href="https://drafts.csswg.org/css-shapes-1/#typedef-basic-shape">
+<meta name="assert" content="shape-outside: shape() interpolates command-by-command when the two shapes share the same command structure, including when interpolating with an equivalent path().">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+  .parent {
+    shape-outside: shape(from -5px 5px, move to 5% 1px);
+  }
+  .target {
+    shape-outside: shape(from 5px 5px, line to 10px 10%);
+  }
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'shape-outside',
+  from: neutralKeyframe,
+  to: 'shape(from -5px 5px, line to 20px 20%)',
+}, [
+  {at: -0.3, expect: 'shape(from 8px 5px, line to 7px 7%)'},
+  {at: 0, expect: 'shape(from 5px 5px, line to 10px 10%)'},
+  {at: 0.6, expect: 'shape(from -1px 5px, line to 16px 16%)'},
+  {at: 1, expect: 'shape(from -5px 5px, line to 20px 20%)'},
+  {at: 1.5, expect: 'shape(from -10px 5px, line to 25px 25%)'},
+]);
+
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'initial',
+  to: 'shape(from 5px 5px, line to 10px 10%)',
+});
+
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'unset',
+  to: 'shape(from 10px 10px, close)',
+});
+
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'none',
+  to: 'shape(from 10px 10px, close)',
+});
+
+test_interpolation({
+  property: 'shape-outside',
+  from: 'inherit',
+  to: 'shape(from 15% 15px, move to 20% -10px)',
+}, [
+  {at: -0.3, expect: 'shape(from calc(-4.5% - 6.5px) 2px, move to 0.5% 4.3px)'},
+  {at: 0, expect: 'shape(from calc(0% - 5px) 5px, move to 5% 1px)'},
+  {at: 0.5, expect: 'shape(from calc(7.5% - 2.5px) 10px, move to 12.5% -4.5px)'},
+  {at: 1, expect: 'shape(from 15% 15px, move to 20% -10px)'},
+  {at: 1.5, expect: 'shape(from calc(22.5% + 2.5px) 20px, move to 27.5% -15.5px)'},
+]);
+
+// Same structure but different command types: discrete.
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 10px 10px, move to 10% 10%)',
+  to: 'shape(from 10px 10px, close)',
+});
+
+// hline / vline / line / close — all absolute.
+test_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 5% 5px, hline to 5%, vline to -5px, close)',
+  to: 'shape(from 15% 15px, hline to 25%, vline to -15px, close)',
+}, [
+  {at: -0.3, expect: 'shape(from 2% 2px, hline to -1%, vline to -2px, close)'},
+  {at: 0, expect: 'shape(from 5% 5px, hline to 5%, vline to -5px, close)'},
+  {at: 0.5, expect: 'shape(from 10% 10px, hline to 15%, vline to -10px, close)'},
+  {at: 1, expect: 'shape(from 15% 15px, hline to 25%, vline to -15px, close)'},
+  {at: 1.5, expect: 'shape(from 20% 20px, hline to 35%, vline to -20px, close)'},
+]);
+
+// Cubic curves: `curve to` with two control points.
+test_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 5% 5px, curve to 10% 10px with 0% 80px, curve to 30% 20px with 20% 50px / 25% 70px)',
+  to: 'shape(from 15% 15px, curve to 20% 0px with 10% 60px, curve to 20% 30px with 30% 40px / -5% 100px)',
+}, [
+  {at: 0, expect: 'shape(from 5% 5px, curve to 10% 10px with 0% 80px, curve to 30% 20px with 20% 50px / 25% 70px)'},
+  {at: 0.5, expect: 'shape(from 10% 10px, curve to 15% 5px with 5% 70px, curve to 25% 25px with 25% 45px / 10% 85px)'},
+  {at: 1, expect: 'shape(from 15% 15px, curve to 20% 0px with 10% 60px, curve to 20% 30px with 30% 40px / -5% 100px)'},
+]);
+
+// Smooth curves (T/S equivalents).
+test_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 5% 5px, smooth to 10% 10px with 0% 80px, smooth to 30% 20px)',
+  to: 'shape(from 15% 15px, smooth to 20% 0px with 10% 60px, smooth to 20% 30px)',
+}, [
+  {at: 0, expect: 'shape(from 5% 5px, smooth to 10% 10px with 0% 80px, smooth to 30% 20px)'},
+  {at: 0.5, expect: 'shape(from 10% 10px, smooth to 15% 5px with 5% 70px, smooth to 25% 25px)'},
+  {at: 1, expect: 'shape(from 15% 15px, smooth to 20% 0px with 10% 60px, smooth to 20% 30px)'},
+]);
+
+// Arc with matching direction/size flags interpolates the numeric params;
+// mismatched flags still produce a valid interpolated arc per the spec.
+test_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 5% 5px, arc to 15% -15px of 10px 20px, arc by 15% -5px of 30px 30px cw rotate 30deg large, arc to 25% 20px of 10px 5px small)',
+  to: 'shape(from 15% 15px, arc to 5% -25px of 20px 30px, arc by 25% -15px of 20px 20px cw rotate 270deg small, arc to 25% 20px of 10px 5px small cw)',
+}, [
+  {at: 0, expect: 'shape(from 5% 5px, arc to 15% -15px of 10px 20px, arc by 15% -5px of 30px 30px cw rotate 30deg large, arc to 25% 20px of 10px 5px small)'},
+  {at: 0.5, expect: 'shape(from 10% 10px, arc to 10% -20px of 15px 25px ccw small, arc by 20% -10px of 25px 25px rotate 150deg cw large, arc to 25% 20px of 10px 5px cw small)'},
+  {at: 1, expect: 'shape(from 15% 15px, arc to 5% -25px of 20px 30px, arc by 25% -15px of 20px 20px rotate 270deg cw small, arc to 25% 20px of 10px 5px cw small)'},
+]);
+
+// `by` (relative) commands interpolate independently of `to` (absolute).
+test_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 5% 5px, curve by 10% 10px with 0% 80px, curve by 30% 20px with 20% 50px / 25% 70px)',
+  to: 'shape(from 15% 15px, curve by 20% 0px with 10% 60px, curve by 20% 30px with 30% 40px / -5% 100px)',
+}, [
+  {at: 0, expect: 'shape(from 5% 5px, curve by 10% 10px with 0% 80px, curve by 30% 20px with 20% 50px / 25% 70px)'},
+  {at: 0.5, expect: 'shape(from 10% 10px, curve by 15% 5px with 5% 70px, curve by 25% 25px with 25% 45px / 10% 85px)'},
+  {at: 1, expect: 'shape(from 15% 15px, curve by 20% 0px with 10% 60px, curve by 20% 30px with 30% 40px / -5% 100px)'},
+]);
+
+// `to` vs `by` for the same command shape are not equivalent: discrete.
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 5px 5px, line to 10px 10px)',
+  to: 'shape(from 5px 5px, line by 10px 10px)',
+});
+
+// Mixed shape() <-> path() interpolation where the command lists match.
+test_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 5px 5px, hline to 5px, vline to -5px, close)',
+  to: 'path("M 15 15 H 25 V -15 Z")',
+}, [
+  {at: 0, expect: 'shape(from 5px 5px, hline to 5px, vline to -5px, close)'},
+  {at: 0.5, expect: 'shape(from 10px 10px, hline to 15px, vline to -10px, close)'},
+  {at: 1, expect: 'shape(from 15px 15px, hline to 25px, vline to -15px, close)'},
+]);
+
+test_interpolation({
+  property: 'shape-outside',
+  from: 'path("M 5 5 s 0 80 10 10 t 30 20")',
+  to: 'shape(from 15px 15px, smooth by 20px 0px with 10px 60px, smooth by 20px 30px)',
+}, [
+  {at: 0, expect: 'shape(from 5px 5px, smooth by 10px 10px with 0px 80px, smooth by 30px 20px)'},
+  {at: 0.5, expect: 'shape(from 10px 10px, smooth by 15px 5px with 5px 70px, smooth by 25px 25px)'},
+  {at: 1, expect: 'shape(from 15px 15px, smooth by 20px 0px with 10px 60px, smooth by 20px 30px)'},
+]);
+
+// Mismatched structure between path() and shape(): discrete.
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 10px 10px, move to 10% 10%)',
+  to: 'path("M10 10 z")',
+});
+
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'path("M10 10 M10 10")',
+  to: 'shape(from 10px 10px, close)',
+});
+
+// Same explicit <shape-box> on both sides interpolates command-by-command;
+// the trailing <shape-box> is preserved through the interpolated keyframes.
+test_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 5px 5px, line to 10px 10%) padding-box',
+  to: 'shape(from -5px 5px, line to 20px 20%) padding-box',
+}, [
+  {at: 0, expect: 'shape(from 5px 5px, line to 10px 10%) padding-box'},
+  {at: 0.5, expect: 'shape(from 0px 5px, line to 15px 15%) padding-box'},
+  {at: 1, expect: 'shape(from -5px 5px, line to 20px 20%) padding-box'},
+]);
+
+test_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 5px 5px, hline to 5px, vline to -5px, close) border-box',
+  to: 'shape(from 15px 15px, hline to 25px, vline to -15px, close) border-box',
+}, [
+  {at: 0, expect: 'shape(from 5px 5px, hline to 5px, vline to -5px, close) border-box'},
+  {at: 0.5, expect: 'shape(from 10px 10px, hline to 15px, vline to -10px, close) border-box'},
+  {at: 1, expect: 'shape(from 15px 15px, hline to 25px, vline to -15px, close) border-box'},
+]);
+
+// shape() and path() with the same <shape-box> still interpolate together.
+test_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 5px 5px, hline to 5px, vline to -5px, close) margin-box',
+  to: 'path("M 15 15 H 25 V -15 Z") margin-box',
+}, [
+  {at: 0, expect: 'shape(from 5px 5px, hline to 5px, vline to -5px, close) margin-box'},
+  {at: 0.5, expect: 'shape(from 10px 10px, hline to 15px, vline to -10px, close) margin-box'},
+  {at: 1, expect: 'shape(from 15px 15px, hline to 25px, vline to -15px, close) margin-box'},
+]);
+
+// Mismatched <shape-box> falls back to discrete animation.
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 5px 5px, line to 10px 10%) border-box',
+  to: 'shape(from -5px 5px, line to 20px 20%) padding-box',
+});
+
+test_no_interpolation({
+  property: 'shape-outside',
+  from: 'shape(from 5px 5px, line to 10px 10%) content-box',
+  to: 'path("M 5 5 L 10 10") margin-box',
+});
+</script>

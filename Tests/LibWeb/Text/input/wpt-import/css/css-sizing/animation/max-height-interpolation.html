@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>max-height interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-max-height">
+<meta name="assert" content="max-height supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  max-height: 30px;
+}
+.target {
+  width: 100px;
+  height: 100px;
+  background-color: black;
+  display: inline-block;
+  max-height: 10px;
+}
+.expected {
+  background-color: green;
+}
+
+</style>
+
+<body>
+<template id="target-template">
+  <div>
+    <div class="target"></div>
+  </div>
+</template>
+</body>
+
+<script>
+test_interpolation({
+  property: 'max-height',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -0.5, expect: '5px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+
+test_no_interpolation({
+  property: 'max-height',
+  from: 'initial',
+  to: '20px',
+});
+
+test_interpolation({
+  property: 'max-height',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -0.5, expect: '35px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '15px'},
+]);
+
+test_no_interpolation({
+  property: 'max-height',
+  from: 'unset',
+  to: '20px',
+});
+
+test_no_interpolation({
+  property: 'max-height',
+  from: 'none',
+  to: '20px',
+});
+
+test_interpolation({
+  property: 'max-height',
+  from: '0px',
+  to: '100px',
+}, [
+  {at: -0.5, expect: '0'}, // CSS max-height can't be negative.
+  {at: 0, expect: '0'},
+  {at: 0.3, expect: '30px'},
+  {at: 0.6, expect: '60px'},
+  {at: 1, expect: '100px'},
+  {at: 1.5, expect: '150px'}
+]);
+
+test_no_interpolation({
+  property: 'max-height',
+  from: 'none',
+  to: 'max-content',
+});
+
+test_no_interpolation({
+  property: 'max-height',
+  from: 'stretch',
+  to: 'fit-content',
+});
+
+test_no_interpolation({
+  property: 'max-height',
+  from: '20px',
+  to: 'min-content',
+});
+
+test_no_interpolation({
+  property: 'max-height',
+  from: 'min-content',
+  to: neutralKeyframe,
+});
+
+test_no_interpolation({
+  property: 'max-height',
+  from: neutralKeyframe,
+  to: 'max-content',
+});
+
+</script>
