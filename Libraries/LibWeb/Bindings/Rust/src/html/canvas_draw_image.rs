@@ -11,7 +11,7 @@ use core::ptr::NonNull;
 use ak::Utf16String;
 use libcompositing_rust::display_list::commands::CanvasId;
 use libgfx_rust::image_frame::ImageFrameHandle;
-use libgfx_rust::{FloatRect, IntRect, ScalingMode};
+use libgfx_rust::{FloatRect, ScalingMode};
 
 use super::image_bitmap::ImageBitmap;
 use crate::bindings::conversions::CppInterface;
@@ -117,28 +117,6 @@ impl CanvasImageSource {
     }
 }
 
-/// The source rectangle of a draw in whole pixels, each of its numbers rounded as Gfx::Rect<float>::to_rounded<int>()
-/// rounds them: to the nearest integer, ties to even, and to the smallest int for a number that no int is.
-#[allow(
-    clippy::cast_possible_truncation,
-    reason = "the number is rounded and in the range of an int"
-)]
-fn rounded_rect(rect: FloatRect) -> IntRect {
-    let round = |value: f32| {
-        let rounded = value.round_ties_even();
-        if rounded.is_nan() || !(-2_147_483_648.0..2_147_483_648.0).contains(&rounded) {
-            return i32::MIN;
-        }
-        rounded as i32
-    };
-    IntRect {
-        x: round(rect.x),
-        y: round(rect.y),
-        width: round(rect.width),
-        height: round(rect.height),
-    }
-}
-
 impl ContextState {
     /// 4.12.5.1.15 Drawing images, https://html.spec.whatwg.org/multipage/canvas.html#drawing-images
     #[allow(clippy::too_many_arguments, reason = "the arguments of drawImage()")]
@@ -225,7 +203,6 @@ impl ContextState {
         } else {
             ScalingMode::NearestNeighbor
         };
-        let source_rect = rounded_rect(source_rect);
 
         // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
         let update_origin_clean = || {

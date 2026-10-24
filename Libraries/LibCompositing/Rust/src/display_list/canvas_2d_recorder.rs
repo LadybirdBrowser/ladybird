@@ -161,7 +161,7 @@ impl<T: Transport> Recorder<T> {
         &mut self,
         frame: &T::ImageFrame,
         dst_rect: FloatRect,
-        src_rect: IntRect,
+        src_rect: FloatRect,
         scaling_mode: ScalingMode,
         compositing: &Compositing,
     ) {
@@ -179,7 +179,7 @@ impl<T: Transport> Recorder<T> {
         &mut self,
         source_canvas_id: CanvasId,
         dst_rect: FloatRect,
-        src_rect: IntRect,
+        src_rect: FloatRect,
         scaling_mode: ScalingMode,
         compositing: &Compositing,
     ) {
@@ -197,7 +197,7 @@ impl<T: Transport> Recorder<T> {
         video_sink_handle: u64,
         generation: u64,
         dst_rect: FloatRect,
-        src_rect: IntRect,
+        src_rect: FloatRect,
         scaling_mode: ScalingMode,
         compositing: &Compositing,
     ) {
@@ -365,7 +365,7 @@ mod tests {
     fn an_image_and_a_video_frame_travel_beside_the_records_that_draw_them() {
         let mut recorder = Recorder::new(FakeTransport::default());
         let dst_rect = FloatRect::new(0.0, 0.0, 8.0, 8.0);
-        let src_rect = IntRect::new(0, 0, 4, 4);
+        let src_rect = FloatRect::new(0.0, 0.0, 4.0, 4.0);
         recorder.draw_image_frame(
             &9,
             dst_rect,
