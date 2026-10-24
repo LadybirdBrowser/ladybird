@@ -1109,7 +1109,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     #[inline]
-    fn sizing(&self) -> sizing_context::SizingContext<'pass> {
+    fn sizing(&self) -> sizing_context::SizingContext<'pass, 'static> {
         sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
     }
 

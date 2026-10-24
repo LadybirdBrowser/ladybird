@@ -36,7 +36,9 @@ impl RunInputsTheStoredRunNeverObserved {
                 .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
             percentage_inline_basis: outputs
                 .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above
-                .is_some(),
+                .is_some()
+                || outputs.result.percentage_inline_basis_observation
+                    == formatting_context::PercentageInlineBasisObservation::Unobserved,
             own_block_size: outputs.result.own_block_size_observation,
         }
     }
@@ -1528,6 +1530,37 @@ mod tests {
             .root_cells
             .has_definite_block_size_only_for_button_content_alignment = true;
         assert!(!item_key(40, false).matches(&button_aligned, unobserved));
+    }
+
+    #[test]
+    fn an_item_run_whose_root_never_observed_its_percentage_inline_basis_matches_at_another_basis() {
+        let at_percentage_inline_basis = |basis: i64| {
+            let mut key = item_key(40, false);
+            key.input.containing_block_constraints.percentage_basis_inline_size = Some(px(basis));
+            key
+        };
+        let mut outputs = entry(item_key(40, false), 1, None, 0).outputs;
+        assert!(!at_percentage_inline_basis(400).matches(
+            &at_percentage_inline_basis(300),
+            RunInputsTheStoredRunNeverObserved::proven_by_stored_run(&outputs)
+        ));
+        outputs.result.percentage_inline_basis_observation =
+            formatting_context::PercentageInlineBasisObservation::Unobserved;
+        let unobserved = RunInputsTheStoredRunNeverObserved::proven_by_stored_run(&outputs);
+        assert!(at_percentage_inline_basis(400).matches(&at_percentage_inline_basis(300), unobserved));
+        let mut wider = at_percentage_inline_basis(300);
+        wider.root_cells.content_inline_size = px(320);
+        wider.input.available_space.inline_size = AvailableSize::definite(px(320));
+        assert!(
+            !at_percentage_inline_basis(400).matches(&wider, unobserved),
+            "only the percentage inline basis is unobserved"
+        );
+        assert!(!at_percentage_inline_basis(400).matches(
+            &at_percentage_inline_basis(300),
+            RunInputsTheStoredRunNeverObserved::accepted_when_reusing_stale_line_data_after_structural_inline_damage(
+                &outputs
+            )
+        ));
     }
 
     #[test]

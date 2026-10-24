@@ -245,7 +245,7 @@ impl<'pass> AbsposEngine<'pass> {
     }
 
     #[inline]
-    fn sizing(&self) -> sizing_context::SizingContext<'pass> {
+    fn sizing(&self) -> sizing_context::SizingContext<'pass, 'static> {
         sizing_context::SizingContext::new(self.records, self.callbacks)
     }
 

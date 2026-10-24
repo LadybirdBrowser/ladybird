@@ -1,0 +1,18 @@
+<!DOCTYPE quirks>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px SerenitySans; }
+    .column { display: flex; flex-direction: column; height: 300px; width: 400px; }
+    .row { display: flex; height: 300px; width: 400px; }
+    .line { height: 20px; }
+</style>
+<div class="column"><div id="columnItem"><div id="columnItemChild" style="min-height: 50%"><div class="line"></div></div></div></div>
+<div class="row"><div id="stretchedItem"><div id="stretchedItemChild" style="min-height: 50%"><div class="line"></div></div></div></div>
+<script>
+    test(() => {
+        const rect = id => document.getElementById(id).getBoundingClientRect();
+        println(`quirks mode: ${document.compatMode === "BackCompat"}`);
+        println(`column flex item and its min-height: 50% child: ${rect("columnItem").height} ${rect("columnItemChild").height}`);
+        println(`stretched row flex item and its min-height: 50% child: ${rect("stretchedItem").height} ${rect("stretchedItemChild").height}`);
+    });
+</script>
