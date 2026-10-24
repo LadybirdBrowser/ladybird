@@ -45,7 +45,8 @@ list(REMOVE_ITEM all_required_lagom_libraries ladybird)
 
 if (APPLE)
     # Fixup the app bundle and copy:
-    #   - Libraries from lib/ to Ladybird.app/Contents/lib
+    #   - Shared libraries from lib/ to Ladybird.app/Contents/lib
+    # Static libraries are linked into the executables, so nothing loads them from the bundle.
     # Remove the symlink we created at build time for the lib directory first
     install(CODE "
     file(REMOVE \${CMAKE_INSTALL_PREFIX}/bundle/Ladybird.app/Contents/lib)
@@ -55,7 +56,10 @@ if (APPLE)
     endif()
 
     set(contents_dir \${CMAKE_INSTALL_PREFIX}/bundle/Ladybird.app/Contents)
-    file(COPY \${lib_dir} DESTINATION \${contents_dir})
+    file(GLOB shared_libraries \${lib_dir}/*.dylib)
+    if (shared_libraries)
+      file(COPY \${shared_libraries} DESTINATION \${contents_dir}/lib)
+    endif()
   "
             COMPONENT ladybird_Runtime)
 endif()
