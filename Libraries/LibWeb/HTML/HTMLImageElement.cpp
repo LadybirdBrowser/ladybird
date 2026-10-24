@@ -886,6 +886,12 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
     // 6. Set the element's last selected source to selected source.
     m_last_selected_source = selected_source;
 
+    // INTEROP: When the element has no source, its image stops being available right away, rather than only when the
+    //          microtask below breaks the current request. So, for example, a canvas does not draw the old image in
+    //          the meantime.
+    if (!selected_source.has_value() && !uses_srcset_or_picture() && m_current_request->state() == ImageRequest::State::CompletelyAvailable)
+        m_current_request->set_state(ImageRequest::State::Unavailable);
+
     // 7. If selected source is not null, then:
     if (selected_source.has_value()) {
         // 1. Let urlString be the result of encoding-parsing-and-serializing a URL given selected source, relative to the element's node document.
