@@ -1,0 +1,7 @@
+left: anchor(--missing left, 2em): 20px
+left: calc(anchor(--missing left, 2em) + 1px): 21px
+left: anchor(--missing left, calc(1em + 10%)): 30px
+left: anchor(--missing left, anchor(--also-missing left, 3em)): 30px
+left: anchor(--missing left, 10cqw): 20px
+left: calc(anchor(--missing left, 10cqw) + 1px): 21px
+left: anchor(--missing left, calc(10cqh + 1em)): 30px

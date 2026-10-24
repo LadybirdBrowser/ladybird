@@ -4186,6 +4186,63 @@ pub(crate) enum AbsolutizedCalculation {
     Value(crate::css::style_value::StyleValueData),
 }
 
+/// Absolutizes the fallback value of an anchor() function, which keeps its anchor query
+/// until style and layout interleaving resolves it. Returns the rebuilt function, none when
+/// nothing changed, or None when the fallback value cannot absolutize.
+pub(crate) fn absolutize_anchor_function(
+    value: &crate::css::style_value::StyleValueData,
+    length_context: &crate::css::style_compute::FfiLengthResolutionContext,
+    tree_counting: Option<(u64, u64)>,
+    random_base_values: &[crate::css::style_compute::FfiRandomBaseValue],
+) -> Option<Option<crate::css::style_value::StyleValueData>> {
+    use crate::css::style_value::StyleValueData;
+    let StyleValueData::Anchor {
+        has_anchor_name,
+        anchor_name,
+        anchor_side,
+        fallback_value,
+    } = value
+    else {
+        return None;
+    };
+    let absolutized_fallback = match fallback_value.optional_data() {
+        None => return Some(None),
+        Some(StyleValueData::Length { value, unit }) => {
+            let result = crate::css::style_compute::absolutize_length_for_calc(*value, *unit as usize, length_context);
+            if !result.handled {
+                return None;
+            }
+            if !result.changed {
+                return Some(None);
+            }
+            StyleValueData::Length {
+                value: result.px,
+                unit: crate::css::style_compute::px_length_unit(),
+            }
+        }
+        Some(fallback @ StyleValueData::Calculated { .. }) => {
+            match absolutize_calculation_value(fallback, length_context, tree_counting, random_base_values)? {
+                AbsolutizedCalculation::Unchanged => return Some(None),
+                AbsolutizedCalculation::Percentage(value) => StyleValueData::Percentage { value },
+                AbsolutizedCalculation::Value(value) => value,
+            }
+        }
+        Some(fallback @ StyleValueData::Anchor { .. }) => {
+            match absolutize_anchor_function(fallback, length_context, tree_counting, random_base_values)? {
+                Some(value) => value,
+                None => return Some(None),
+            }
+        }
+        Some(_) => return Some(None),
+    };
+    Some(Some(StyleValueData::Anchor {
+        has_anchor_name: *has_anchor_name,
+        anchor_name: anchor_name.clone(),
+        anchor_side: anchor_side.clone_retained(),
+        fallback_value: RetainedStyleValueData::from_arc(Arc::new(absolutized_fallback)),
+    }))
+}
+
 /// Absolutizes a Calculated style value against a length resolution context, with no
 /// percentage basis. Tree-counting functions resolve from the supplied sibling facts, lengths
 /// resolve from the immutable context, and fixed random sharing resolves without external state.
@@ -4275,6 +4332,16 @@ pub(crate) fn absolutize_calculation_value(
             if matches!(source, StyleValueData::Anchor { .. }) {
                 // anchor() stays unresolved until style and layout interleaving supplies
                 // an anchor resolver, matching the context-free computed-value pass.
+                if let Some(absolutized) =
+                    absolutize_anchor_function(source, length_context, tree_counting, random_base_values)?
+                {
+                    let mut length_type = CalcNumericType::default();
+                    length_type.exponents[BASE_TYPE_LENGTH] = Some(1);
+                    external.resolved_node = Some(Arc::new(CalcNode::NonMathFunction {
+                        value: RetainedStyleValueData::from_arc(Arc::new(absolutized)),
+                        numeric_type: length_type,
+                    }));
+                }
                 continue;
             }
             return None;
