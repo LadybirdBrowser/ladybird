@@ -43,6 +43,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/SVG/TagNames.h>
 #include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::CSS {
@@ -1070,6 +1071,16 @@ static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& styl
     return ColorStyleValue::create_from_color(computed_color, ColorSyntax::Modern);
 }
 
+// https://svgwg.org/svg2-draft/geometry.html#Sizing
+// The CSS width and height properties are used for sizing some SVG elements. Specifically, they are used to size
+// ‘rect’, ‘svg’, ‘image’ and ‘foreignObject’.
+static bool svg_sizing_properties_apply(DOM::Element const& element)
+{
+    if (!element.is_svg_element())
+        return true;
+    return element.local_name().is_one_of(SVG::TagNames::rect, SVG::TagNames::svg, SVG::TagNames::image, SVG::TagNames::foreignObject);
+}
+
 RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(Layout::NodeWithStyle const& layout_node, PropertyID property_id) const
 {
     if (!owner_node().has_value()) {
@@ -1269,6 +1280,8 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // display property is not none or contents, then the resolved value is the used value.
         // Otherwise the resolved value is the computed value.
     case PropertyID::Height: {
+        if (!svg_sizing_properties_apply(element))
+            return get_computed_value(property_id);
         auto maybe_used_height = used_size_for_property(
             [](auto const& box_layout_node) { return Painting::content_height(box_layout_node); },
             [](auto const& box_layout_node) { return Painting::unbroken_border_box_size(box_layout_node).height(); });
@@ -1309,6 +1322,8 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
         return style_value_for_length_percentage_or_auto(layout_node.padding().top());
     case PropertyID::Width: {
+        if (!svg_sizing_properties_apply(element))
+            return get_computed_value(property_id);
         auto maybe_used_width = used_size_for_property(
             [](auto const& box_layout_node) { return Painting::content_width(box_layout_node); },
             [](auto const& box_layout_node) { return Painting::unbroken_border_box_size(box_layout_node).width(); });

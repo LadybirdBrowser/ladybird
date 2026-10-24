@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 34 tests
 
-20 Pass
-14 Fail
+30 Pass
+4 Fail
 Pass	SVG Geometry Properties: getComputedStyle().height, <rect> initial
 Pass	SVG Geometry Properties: getComputedStyle().height, <rect> presentation attribute
 Pass	SVG Geometry Properties: getComputedStyle().height, <rect> inline style (auto)
@@ -28,13 +28,13 @@ Fail	SVG Geometry Properties: getComputedStyle().height, <svg> inline style (aut
 Pass	SVG Geometry Properties: getComputedStyle().height, <svg> inline style (pixels)
 Fail	SVG Geometry Properties: getComputedStyle().height, <svg> inline style (percentage)
 Pass	SVG Geometry Properties: getComputedStyle().height, <svg> inline style but "display: none"
-Fail	SVG Geometry Properties: getComputedStyle().height, <g> initial
-Fail	SVG Geometry Properties: getComputedStyle().height, <g> initial (with dummy attribute)
-Fail	SVG Geometry Properties: getComputedStyle().height, <g> inline style (auto)
-Fail	SVG Geometry Properties: getComputedStyle().height, <g> inline style (pixels)
-Fail	SVG Geometry Properties: getComputedStyle().height, <g> inline style (percentage)
-Fail	SVG Geometry Properties: getComputedStyle().height, <text> initial
-Fail	SVG Geometry Properties: getComputedStyle().height, <text> initial (with dummy attribute)
-Fail	SVG Geometry Properties: getComputedStyle().height, <text> inline style (auto)
-Fail	SVG Geometry Properties: getComputedStyle().height, <text> inline style (pixels)
-Fail	SVG Geometry Properties: getComputedStyle().height, <text> inline style (percentage)
+Pass	SVG Geometry Properties: getComputedStyle().height, <g> initial
+Pass	SVG Geometry Properties: getComputedStyle().height, <g> initial (with dummy attribute)
+Pass	SVG Geometry Properties: getComputedStyle().height, <g> inline style (auto)
+Pass	SVG Geometry Properties: getComputedStyle().height, <g> inline style (pixels)
+Pass	SVG Geometry Properties: getComputedStyle().height, <g> inline style (percentage)
+Pass	SVG Geometry Properties: getComputedStyle().height, <text> initial
+Pass	SVG Geometry Properties: getComputedStyle().height, <text> initial (with dummy attribute)
+Pass	SVG Geometry Properties: getComputedStyle().height, <text> inline style (auto)
+Pass	SVG Geometry Properties: getComputedStyle().height, <text> inline style (pixels)
+Pass	SVG Geometry Properties: getComputedStyle().height, <text> inline style (percentage)
