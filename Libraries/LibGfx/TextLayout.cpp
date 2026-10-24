@@ -24,30 +24,6 @@
 
 namespace Gfx {
 
-GlyphRun::GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, TextType text_type, float width)
-    : m_glyphs(move(glyphs))
-    , m_font(move(font))
-    , m_text_type(text_type)
-    , m_width(width)
-{
-}
-
-GlyphRun::~GlyphRun() = default;
-
-NonnullRefPtr<GlyphRun> GlyphRun::slice(size_t start, size_t length) const
-{
-    Vector<DrawGlyph> sliced_glyphs;
-    sliced_glyphs.ensure_capacity(length);
-
-    float width = 0;
-    for (size_t i = start; i < start + length; ++i) {
-        sliced_glyphs.unchecked_append(m_glyphs[i]);
-        width += m_glyphs[i].glyph_width;
-    }
-
-    return adopt_ref(*new GlyphRun(move(sliced_glyphs), m_font, m_text_type, width));
-}
-
 FloatRect glyph_run_bounding_box(Font const& font, ReadonlySpan<DrawGlyph> glyphs, float scale)
 {
     auto font_ascent = font.pixel_metrics().ascent;
@@ -397,46 +373,7 @@ Vector<float> glyph_run_glyph_intercepts(Font const& font, ReadonlySpan<DrawGlyp
     return intervals;
 }
 
-Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const& string, FontCascadeList const& font_cascade_list, float letter_spacing)
-{
-    if (string.is_empty())
-        return {};
-
-    Vector<NonnullRefPtr<GlyphRun>> runs;
-
-    auto it = string.begin();
-    auto substring_begin_offset = string.iterator_offset(it);
-    Font const* last_font = &font_cascade_list.font_for_code_point(*it);
-    FloatPoint last_position = baseline_start;
-
-    auto add_run = [&runs, &last_position, letter_spacing](Utf16View const& string, Font const& font) {
-        auto run = shape_text(last_position, letter_spacing, 0.f, string, font, GlyphRun::TextType::Common);
-        last_position.translate_by(run->width(), 0);
-        runs.append(*run);
-    };
-
-    while (it != string.end()) {
-        auto code_point = *it;
-        auto const* font = &font_cascade_list.font_for_code_point(code_point);
-        if (font != last_font) {
-            auto substring = string.substring_view(substring_begin_offset, string.iterator_offset(it) - substring_begin_offset);
-            add_run(substring, *last_font);
-            last_font = font;
-            substring_begin_offset = string.iterator_offset(it);
-        }
-        ++it;
-    }
-
-    auto end_offset = string.iterator_offset(it);
-    if (substring_begin_offset < end_offset) {
-        auto substring = string.substring_view(substring_begin_offset, end_offset - substring_begin_offset);
-        add_run(substring, *last_font);
-    }
-
-    return runs;
-}
-
-static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, GlyphRun::TextType text_type)
+static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, FFI::TextType text_type)
 {
     hb_buffer_t* buffer = hb_buffer_create();
 
@@ -448,10 +385,10 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
     } else {
         hb_buffer_add_utf16(buffer, reinterpret_cast<u16 const*>(string.utf16_span().data()), string.length_in_code_units(), 0, -1);
         // For non-ASCII, set direction from text_type if known, otherwise guess.
-        if (text_type == GlyphRun::TextType::Ltr) {
+        if (text_type == FFI::TextType::Ltr) {
             hb_buffer_set_direction(buffer, HB_DIRECTION_LTR);
             hb_buffer_guess_segment_properties(buffer);
-        } else if (text_type == GlyphRun::TextType::Rtl) {
+        } else if (text_type == FFI::TextType::Rtl) {
             hb_buffer_set_direction(buffer, HB_DIRECTION_RTL);
             hb_buffer_guess_segment_properties(buffer);
         } else {
@@ -500,13 +437,18 @@ static size_t length_of_trailing_whitespace_run(Utf16View const& string)
     return length;
 }
 
+struct TrailingWhitespace {
+    size_t length_in_code_units { 0 };
+    float advance { 0 };
+};
+
 struct ShapedGlyphs {
     Vector<DrawGlyph> glyphs;
     float width { 0 };
     TrailingWhitespace trailing_whitespace;
 };
 
-static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font const& font, GlyphRun::TextType text_type, float letter_spacing, float word_spacing)
+static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font const& font, FFI::TextType text_type, float letter_spacing, float word_spacing)
 {
     auto const& metrics = font.pixel_metrics();
     auto* buffer = setup_text_shaping(string, font, text_type);
@@ -590,33 +532,9 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
     return ShapedGlyphs { move(glyphs), point.x(), trailing_whitespace };
 }
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, float word_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type, TrailingWhitespace* out_trailing_whitespace)
-{
-    Vector<u16, 64> code_units;
-    code_units.ensure_capacity(string.length_in_code_units());
-    for (size_t i = 0; i < string.length_in_code_units(); ++i)
-        code_units.unchecked_append(string.code_unit_at(i));
-
-    ShapedGlyphs shape;
-    FFI::ladybird_gfx_shape_text_cached(&font, code_units.data(), code_units.size(), static_cast<FFI::TextType>(text_type), letter_spacing, word_spacing, &shape,
-        [](void* sink, FFI::DrawGlyph const* glyphs, size_t count, float width, size_t trailing_length, float trailing_advance) {
-            auto& shape = *static_cast<ShapedGlyphs*>(sink);
-            shape.glyphs.append(reinterpret_cast<DrawGlyph const*>(glyphs), count);
-            shape.width = width;
-            shape.trailing_whitespace = { trailing_length, trailing_advance };
-        });
-    if (out_trailing_whitespace)
-        *out_trailing_whitespace = shape.trailing_whitespace;
-    if (!baseline_start.is_zero()) {
-        for (auto& glyph : shape.glyphs)
-            glyph.position.translate_by(baseline_start);
-    }
-    return adopt_ref(*new GlyphRun(move(shape.glyphs), font, text_type, shape.width));
-}
-
 float measure_text_width(Utf16View const& string, Font const& font, float letter_spacing)
 {
-    auto* buffer = setup_text_shaping(string, font, GlyphRun::TextType::Common);
+    auto* buffer = setup_text_shaping(string, font, FFI::TextType::Common);
 
     u32 glyph_count;
     auto const* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
@@ -631,11 +549,6 @@ float measure_text_width(Utf16View const& string, Font const& font, float letter
 
 }
 
-static_assert(to_underlying(Gfx::FFI::TextType::Common) == to_underlying(Gfx::GlyphRun::TextType::Common));
-static_assert(to_underlying(Gfx::FFI::TextType::ContextDependent) == to_underlying(Gfx::GlyphRun::TextType::ContextDependent));
-static_assert(to_underlying(Gfx::FFI::TextType::EndPadding) == to_underlying(Gfx::GlyphRun::TextType::EndPadding));
-static_assert(to_underlying(Gfx::FFI::TextType::Ltr) == to_underlying(Gfx::GlyphRun::TextType::Ltr));
-static_assert(to_underlying(Gfx::FFI::TextType::Rtl) == to_underlying(Gfx::GlyphRun::TextType::Rtl));
 static_assert(sizeof(Gfx::FFI::DrawGlyph) == sizeof(Gfx::DrawGlyph));
 static_assert(alignof(Gfx::FFI::DrawGlyph) == alignof(Gfx::DrawGlyph));
 static_assert(IsTriviallyCopyable<Gfx::FFI::DrawGlyph>);
@@ -674,7 +587,7 @@ extern "C" void ladybird_gfx_shape_text_uncached(
     auto shape = Gfx::build_origin_relative_shape(
         text,
         *static_cast<Gfx::Font const*>(font),
-        static_cast<Gfx::GlyphRun::TextType>(text_type),
+        text_type,
         letter_spacing,
         word_spacing);
     emit(

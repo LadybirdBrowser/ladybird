@@ -435,21 +435,32 @@ private:
 
 }
 
-void Path::glyph_run(GlyphRun const& glyph_run)
+static Font const& font_of(FFI::FfiGlyphRun const& glyph_run)
 {
-    if (glyph_run.font().is_invisible())
+    return *static_cast<Font const*>(glyph_run.font);
+}
+
+static ReadonlySpan<DrawGlyph> glyphs_of(FFI::FfiGlyphRun const& glyph_run)
+{
+    return { reinterpret_cast<DrawGlyph const*>(glyph_run.glyphs), glyph_run.glyph_count };
+}
+
+void Path::glyph_run(FFI::FfiGlyphRun const& glyph_run)
+{
+    auto const& font = font_of(glyph_run);
+    if (font.is_invisible())
         return;
     FFI::path_geometry_set_fill_rule(m_geometry, to_underlying(WindingRule::Nonzero));
-    auto font_ascent = glyph_run.font().pixel_metrics().ascent;
-    GlyphOutliner outliner { glyph_run.font() };
-    for (auto const& glyph : glyph_run.glyphs())
+    auto font_ascent = font.pixel_metrics().ascent;
+    GlyphOutliner outliner { font };
+    for (auto const& glyph : glyphs_of(glyph_run))
         outliner.append_outline(glyph.glyph_id, m_geometry, { 1, 0, 0, 1, glyph.position.x(), glyph.position.y() + font_ascent });
     FFI::path_geometry_update_state_from_contours(m_geometry);
 }
 
 // Lays each glyph along the first subpath that has length, with its origin at the distance of its x position plus the
 // offset and its baseline along the direction of the path there, until a glyph's middle would go past the end.
-Path Path::place_glyph_runs_along(ReadonlySpan<NonnullRefPtr<GlyphRun>> glyph_runs, float offset) const
+Path Path::place_glyph_runs_along(ReadonlySpan<FFI::FfiGlyphRun> glyph_runs, float offset) const
 {
     Path output;
     auto* measure = FFI::path_geometry_measure_first_contour(m_geometry);
@@ -460,10 +471,11 @@ Path Path::place_glyph_runs_along(ReadonlySpan<NonnullRefPtr<GlyphRun>> glyph_ru
 
     auto append_glyph_outlines = [&] {
         for (auto const& glyph_run : glyph_runs) {
-            if (glyph_run->font().is_invisible())
+            auto const& font = font_of(glyph_run);
+            if (font.is_invisible())
                 continue;
-            GlyphOutliner outliner { glyph_run->font() };
-            for (auto const& glyph : glyph_run->glyphs()) {
+            GlyphOutliner outliner { font };
+            for (auto const& glyph : glyphs_of(glyph_run)) {
                 auto glyph_distance = offset + glyph.position.x();
                 if (glyph_distance + (glyph.glyph_width / 2.0f) > path_length)
                     return;
@@ -643,31 +655,17 @@ extern "C" void* ladybird_gfx_path_clone(void const* path)
     return new Gfx::Path(static_cast<Gfx::Path const*>(path)->clone());
 }
 
-static Vector<NonnullRefPtr<Gfx::GlyphRun>> adopt_glyph_runs(Gfx::FFI::FfiGlyphRun const* runs, size_t run_count)
-{
-    Vector<NonnullRefPtr<Gfx::GlyphRun>> glyph_runs;
-    glyph_runs.ensure_capacity(run_count);
-    for (size_t i = 0; i < run_count; ++i) {
-        Vector<Gfx::DrawGlyph> glyphs;
-        glyphs.append(reinterpret_cast<Gfx::DrawGlyph const*>(runs[i].glyphs), runs[i].glyph_count);
-        // The text type and width only matter to a caller that slices or measures the run, which neither of the two
-        // path operations below does.
-        glyph_runs.unchecked_append(adopt_ref(*new Gfx::GlyphRun(move(glyphs), *static_cast<Gfx::Font const*>(runs[i].font), Gfx::GlyphRun::TextType::Common, 0)));
-    }
-    return glyph_runs;
-}
-
 extern "C" void* ladybird_gfx_path_create_from_glyph_runs(Gfx::FFI::FfiGlyphRun const* runs, size_t run_count)
 {
     auto* path = new Gfx::Path;
-    for (auto const& glyph_run : adopt_glyph_runs(runs, run_count))
+    for (auto const& glyph_run : ReadonlySpan<Gfx::FFI::FfiGlyphRun> { runs, run_count })
         path->glyph_run(glyph_run);
     return path;
 }
 
 extern "C" void* ladybird_gfx_path_place_glyph_runs_along(void const* path, Gfx::FFI::FfiGlyphRun const* runs, size_t run_count, float offset)
 {
-    return new Gfx::Path(static_cast<Gfx::Path const*>(path)->place_glyph_runs_along(adopt_glyph_runs(runs, run_count), offset));
+    return new Gfx::Path(static_cast<Gfx::Path const*>(path)->place_glyph_runs_along({ runs, run_count }, offset));
 }
 
 extern "C" void* ladybird_gfx_path_create_from_serialized_bytes(u8 const* bytes, size_t count)

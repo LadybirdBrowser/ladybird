@@ -24,6 +24,7 @@ namespace Gfx {
 
 namespace FFI {
 
+struct FfiGlyphRun;
 struct PathGeometry;
 
 }
@@ -105,7 +106,7 @@ public:
     void arc_to(FloatPoint point, float radius, bool large_arc, bool sweep);
     void quadratic_bezier_curve_to(FloatPoint through, FloatPoint point);
     void cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2);
-    void glyph_run(GlyphRun const&);
+    void glyph_run(FFI::FfiGlyphRun const&);
 
     void append_path(Gfx::Path const&);
 
@@ -123,7 +124,7 @@ public:
 
     Gfx::Path clone() const { return *this; }
     Gfx::Path copy_transformed(Gfx::AffineTransform const&) const;
-    Gfx::Path place_glyph_runs_along(ReadonlySpan<NonnullRefPtr<GlyphRun>>, float offset = 0) const;
+    Gfx::Path place_glyph_runs_along(ReadonlySpan<FFI::FfiGlyphRun>, float offset = 0) const;
 
     String to_svg_string() const;
 
