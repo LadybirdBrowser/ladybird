@@ -7722,12 +7722,7 @@ fn generate_for_of_statement_inner(
 
     generator.switch_to_basic_block(return_block);
     if let Some(outer_index) = generator.current_finally_context {
-        let outer_ct = generator.finally_contexts[outer_index].completion_type.clone();
-        let outer_cv = generator.finally_contexts[outer_index].completion_value.clone();
-        let outer_fb = generator.finally_contexts[outer_index].finally_body;
-        generator.emit_mov(&outer_ct, &close_completion_type);
-        generator.emit_mov(&outer_cv, &close_completion_value);
-        generator.emit(Instruction::Jump { target: outer_fb });
+        generator.forward_completion_to_outer_finally(outer_index, &close_completion_type, &close_completion_value);
     } else if generator.is_in_generator_function() {
         generator.emit(Instruction::Yield {
             continuation_label: None,
@@ -8368,12 +8363,7 @@ fn generate_array_binding_pattern(
 
     generator.switch_to_basic_block(return_block);
     if let Some(outer_index) = generator.current_finally_context {
-        let outer_ct = generator.finally_contexts[outer_index].completion_type.clone();
-        let outer_cv = generator.finally_contexts[outer_index].completion_value.clone();
-        let outer_fb = generator.finally_contexts[outer_index].finally_body;
-        generator.emit_mov(&outer_ct, &close_completion_type);
-        generator.emit_mov(&outer_cv, &close_completion_value);
-        generator.emit(Instruction::Jump { target: outer_fb });
+        generator.forward_completion_to_outer_finally(outer_index, &close_completion_type, &close_completion_value);
     } else if generator.is_in_generator_function() {
         generator.emit(Instruction::Yield {
             continuation_label: None,
@@ -8887,12 +8877,7 @@ fn generate_try_statement(
             generator.switch_to_basic_block(return_block);
             if let Some(outer_index) = generator.current_finally_context {
                 // Nested finally: copy completion record to outer and jump to outer finally.
-                let outer_ct = generator.finally_contexts[outer_index].completion_type.clone();
-                let outer_cv = generator.finally_contexts[outer_index].completion_value.clone();
-                let outer_fb = generator.finally_contexts[outer_index].finally_body;
-                generator.emit_mov(&outer_ct, &ctx_ct);
-                generator.emit_mov(&outer_cv, &ctx_cv);
-                generator.emit(Instruction::Jump { target: outer_fb });
+                generator.forward_completion_to_outer_finally(outer_index, &ctx_ct, &ctx_cv);
             } else if generator.is_in_generator_function() {
                 generator.emit(Instruction::Yield {
                     continuation_label: None,
