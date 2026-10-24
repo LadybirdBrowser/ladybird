@@ -5,7 +5,10 @@
  */
 
 #include <AK/AnyOf.h>
+#include <AK/Checked.h>
+#include <AK/Math.h>
 #include <AK/RefPtr.h>
+#include <AK/SaturatingMath.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 
@@ -62,7 +65,14 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
 
     MutexLocker locker { m_mutex };
 
-    if (m_closed && offset + data.size() > m_expected_size.value()) {
+    Checked<u64> checked_new_chunk_end = offset;
+    checked_new_chunk_end += data.size();
+    if (checked_new_chunk_end.has_overflow()) {
+        dbgln("IncrementallyPopulatedStream: Ignoring {} bytes at {} that would end past the representable size", data.size(), offset);
+        return;
+    }
+
+    if (m_closed && checked_new_chunk_end.value() > m_expected_size.value()) {
         auto stream_end = m_expected_size.value();
         auto dropped_start = max(offset, stream_end);
         dbgln("IncrementallyPopulatedStream: Ignoring {} bytes at {} appended past the end of the closed stream at {}", offset + data.size() - dropped_start, dropped_start, stream_end);
@@ -301,7 +311,7 @@ bool IncrementallyPopulatedStream::check_if_data_is_available_or_begin_request_w
     auto data_is_available = m_closed;
     if (chunk) {
         VERIFY(position >= chunk->offset());
-        u64 end = position + length;
+        u64 end = saturating_add(position, length);
         if (m_closed && end > m_expected_size.value())
             end = m_expected_size.value();
         data_is_available = end <= chunk->end();
@@ -337,7 +347,7 @@ size_t IncrementallyPopulatedStream::read_from_chunks_while_locked(u64 position,
         return 0;
 
     VERIFY(position >= chunk.offset());
-    auto end = position + bytes.size();
+    auto end = saturating_add(position, static_cast<u64>(bytes.size()));
     auto copy_size = bytes.size();
     if (end > chunk.end()) {
         end = chunk.end();
@@ -420,20 +430,26 @@ void IncrementallyPopulatedStream::Cursor::set_blocked_change_handler(ReadBlocke
 
 DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(i64 offset, AK::SeekMode mode)
 {
+    Checked<i64> position;
     switch (mode) {
     case AK::SeekMode::SetPosition:
-        m_position = offset;
+        position = offset;
         break;
     case AK::SeekMode::FromCurrentPosition:
-        m_position += offset;
+        position = static_cast<i64>(m_position);
+        position += offset;
         break;
     case AK::SeekMode::FromEndPosition:
-        m_position = this->blocking_size() + offset;
+        position = AK::clamp_to<i64>(this->blocking_size());
+        position += offset;
         break;
     default:
         VERIFY_NOT_REACHED();
     }
+    if (position.has_overflow() || position.value() < 0)
+        return DecoderError::corrupted("Seek target lies outside the stream"sv);
 
+    m_position = static_cast<size_t>(position.value());
     return {};
 }
 

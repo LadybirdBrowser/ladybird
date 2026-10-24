@@ -1071,3 +1071,35 @@ TEST_CASE(a_read_after_idle_is_withdrawn_asks_for_data_when_none_has_arrived)
     stream->add_chunk_at(0, data.bytes());
     MUST(thread->join());
 }
+
+TEST_CASE(chunk_ending_past_the_representable_size_is_ignored)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(NumericLimits<u64>::max());
+    auto data = make_test_data(2);
+
+    stream->add_chunk_at(NumericLimits<u64>::max() - 1, data.bytes());
+    EXPECT(stream->availability().byte_ranges.is_empty());
+
+    stream->add_chunk_at(NumericLimits<u64>::max() - 2, data.bytes());
+    auto byte_ranges = stream->availability().byte_ranges;
+    EXPECT_EQ(byte_ranges.size(), 1u);
+    EXPECT_EQ(byte_ranges[0].start, NumericLimits<u64>::max() - 2);
+    EXPECT_EQ(byte_ranges[0].end, NumericLimits<u64>::max());
+}
+
+TEST_CASE(cursor_rejects_seeks_outside_the_stream)
+{
+    auto data = make_test_data(10);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_data(data.bytes());
+    auto cursor = stream->create_cursor();
+
+    EXPECT(cursor->seek(-1, AK::SeekMode::SetPosition).is_error());
+    EXPECT(cursor->seek(-1, AK::SeekMode::FromCurrentPosition).is_error());
+    EXPECT(cursor->seek(NumericLimits<i64>::max(), AK::SeekMode::FromEndPosition).is_error());
+    EXPECT_EQ(cursor->position(), 0u);
+
+    EXPECT(!cursor->seek(5, AK::SeekMode::SetPosition).is_error());
+    EXPECT(!cursor->seek(-2, AK::SeekMode::FromEndPosition).is_error());
+    EXPECT_EQ(cursor->position(), 8u);
+}

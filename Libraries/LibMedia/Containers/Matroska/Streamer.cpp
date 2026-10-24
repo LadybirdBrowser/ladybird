@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/IntegralMath.h>
 #include <AK/String.h>
 #include <AK/Utf8View.h>
@@ -187,8 +188,11 @@ DecoderErrorOr<void> Streamer::read_unknown_element()
     if (!element_size.has_value())
         return DecoderError::corrupted("Cannot skip past an element with an unknown size"sv);
     dbgln_if(MATROSKA_TRACE_DEBUG, "Skipping unknown element of size {}.", element_size.value());
-    TRY(m_stream_cursor->seek(element_size.value(), AK::SeekMode::FromCurrentPosition));
-    return {};
+    Checked<size_t> element_end = position();
+    element_end += element_size.value();
+    if (element_end.has_overflow())
+        return DecoderError::corrupted("Element extends past the representable size"sv);
+    return seek_to_position(element_end.value());
 }
 
 size_t Streamer::position() const
@@ -198,7 +202,7 @@ size_t Streamer::position() const
 
 DecoderErrorOr<void> Streamer::seek_to_position(size_t position)
 {
-    return m_stream_cursor->seek(position, AK::SeekMode::SetPosition);
+    return m_stream_cursor->seek_to_position(position);
 }
 
 }
