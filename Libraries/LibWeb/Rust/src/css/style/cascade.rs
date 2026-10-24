@@ -1313,8 +1313,8 @@ const STATE_SUMMARY_DECIDED: u64 = 1 << 63;
 /// A state's summary holds a winner written with a substitution.
 const STATE_SUMMARY_HAS_SUBSTITUTIONS: u64 = 1 << 32;
 
-/// What the engine asks of a state's winners' written values for each element it computes a record for, which depends
-/// on the winners alone.
+/// What the engine asks of a state's winners' written values for each element it computes a record for.
+/// A complete summary depends on the winners alone.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct StateSummary {
     /// The style groups of each non-inherited property the state declares `inherit` for, and every group for a value
@@ -1322,6 +1322,8 @@ pub(super) struct StateSummary {
     pub(super) explicitly_inherited_groups: u32,
     /// Whether a longhand winner is written with a substitution.
     pub(super) has_substitutions: bool,
+    /// Whether any winner's written value could not be inspected. Such summaries are not cached.
+    pub(super) has_unknown_values: bool,
 }
 
 /// Interned per-node winning declarations.
@@ -1916,10 +1918,12 @@ impl WinnerGroups {
         (packed & STATE_SUMMARY_DECIDED != 0).then_some(StateSummary {
             explicitly_inherited_groups: packed as u32,
             has_substitutions: packed & STATE_SUMMARY_HAS_SUBSTITUTIONS != 0,
+            has_unknown_values: false,
         })
     }
 
     pub(super) fn note_state_summary(&self, state: CascadeStateID, summary: StateSummary) {
+        debug_assert!(!summary.has_unknown_values);
         if let Some(slot) = self.state_summaries.get(state.0 as usize) {
             let substitutions = if summary.has_substitutions {
                 STATE_SUMMARY_HAS_SUBSTITUTIONS
