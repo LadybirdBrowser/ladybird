@@ -190,7 +190,7 @@ private:
     virtual void request_navigation_start(Web::HTML::LocalNavigable&, Web::NavigationTarget, URL::URL const& url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest>) override;
     virtual void request_navigation_of_navigable(Web::HTML::Navigable&, Web::HTML::Navigable& source_navigable, Web::DOM::Document const& source_document, Web::HTML::PreparedNavigationDescriptor) override;
     virtual void request_post_message_to_remote_navigable(Web::HTML::RemoteNavigable&, Web::HTML::PostedMessageDescriptor) override;
-    virtual void request_close_of_remote_traversable(Web::HTML::RemoteNavigable&, Web::HTML::LocalNavigable const& source) override;
+    virtual void request_close_of_remote_traversable(Web::HTML::RemoteNavigable&, Web::HTML::LocalNavigable const& source, Web::HTML::NavigationSourceSnapshot) override;
     virtual void request_focusing_steps_for_remote_navigable(Web::HTML::RemoteNavigable&, Web::HTML::FocusTrigger) override;
     virtual void request_window_focus_of_remote_navigable(Web::HTML::RemoteNavigable&) override;
     virtual void request_set_opener_of_remote_navigable(Web::HTML::RemoteNavigable&, Web::HTML::Navigable const& opener) override;

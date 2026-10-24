@@ -1785,7 +1785,7 @@ void WebContentPage::nonchanging_navigable_history_state_updated(Web::HTML::Cros
     traversable().did_receive_nonchanging_navigable_history_state_updated(*this, operation_id, navigable_id);
 }
 
-void WebContentPage::did_request_close_of_traversable(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id)
+void WebContentPage::did_request_close_of_traversable(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id, Web::HTML::NavigationSourceSnapshot source_snapshot)
 {
     // window.close() from a document another process hosts: the process hosting the traversable's document runs the
     // rest of its steps.
@@ -1794,13 +1794,27 @@ void WebContentPage::did_request_close_of_traversable(Web::HTML::CrossProcessId 
 
     // The process closing it must host the navigable it closes from. The request comes through the page holding the
     // traversable's tab, which is not the source's when the two are different tabs.
-    if (!client().hosted_navigable(source_navigable_id).has_value())
+    auto source = client().hosted_navigable(source_navigable_id);
+    if (!source.has_value())
+        return;
+
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-close
+    // 6. If all the following are true:
+    //    - thisTraversable is script-closable;
+    //    - the incumbent global object's navigable is allowed by sandboxing to navigate thisTraversable, given sourceSnapshotParams,
+    // NB: The requesting process found these true. The UI process checks them again with the state it holds, including
+    //     the sandboxing flags of the incumbent global object's associated Document.
+    Web::InitiatorSourceSnapshot source_snapshot_params {
+        .sandboxing_flags = source_snapshot.sandboxing_flags | source->active_document().active_sandboxing_flag_set(),
+        .has_transient_activation = source_snapshot.has_transient_activation,
+    };
+    if (!traversable().is_script_closable() || !source->allowed_by_sandboxing_to_navigate(traversable(), source_snapshot_params))
         return;
 
     auto endpoint = endpoint_hosting_navigable_represented_by(navigable_id);
     if (!endpoint)
         return;
-    endpoint->async_close_traversable_from_script(navigable_id, source_navigable_id);
+    endpoint->async_close_traversable_from_script(navigable_id);
 }
 
 void WebContentPage::did_inspect_dom_tree(String dom_tree)

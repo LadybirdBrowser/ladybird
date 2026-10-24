@@ -1,4 +1,5 @@
 arrived
 popup.closed before close(): false
+popup.closed once close() returns: true
 unloading
 popup.closed after close(): true
