@@ -53,7 +53,6 @@ private:
 
     Type type_from_attribute() const;
 
-    GC::Ptr<SVGAnimatedEnumeration> m_type;
     GC::Ptr<SVGAnimatedNumberList> m_table_values;
     GC::Ptr<SVGAnimatedNumber> m_slope;
     GC::Ptr<SVGAnimatedNumber> m_intercept;

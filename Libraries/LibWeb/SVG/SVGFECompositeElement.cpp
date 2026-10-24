@@ -118,9 +118,20 @@ SVGFECompositeElement::CompositingOperator SVGFECompositeElement::operator_() co
 }
 
 // https://drafts.fxtf.org/filter-effects/#element-attrdef-fecomposite-operator
-GC::Ref<SVGAnimatedEnumeration> SVGFECompositeElement::operator_for_bindings() const
+GC::Ref<SVGAnimatedEnumeration> SVGFECompositeElement::operator_for_bindings()
 {
-    return SVGAnimatedEnumeration::create(to_underlying(m_operator.value_or(CompositingOperator::Over)));
+    static constexpr Array keywords {
+        SVGAnimatedEnumeration::Keyword { "over"sv, to_underlying(CompositingOperator::Over) },
+        SVGAnimatedEnumeration::Keyword { "in"sv, to_underlying(CompositingOperator::In) },
+        SVGAnimatedEnumeration::Keyword { "out"sv, to_underlying(CompositingOperator::Out) },
+        SVGAnimatedEnumeration::Keyword { "atop"sv, to_underlying(CompositingOperator::Atop) },
+        SVGAnimatedEnumeration::Keyword { "xor"sv, to_underlying(CompositingOperator::Xor) },
+        SVGAnimatedEnumeration::Keyword { "arithmetic"sv, to_underlying(CompositingOperator::Arithmetic) },
+        // NB: "lighter" is a valid value that has no constant in the IDL, so its numeric type value is
+        //     SVG_FECOMPOSITE_OPERATOR_UNKNOWN.
+        SVGAnimatedEnumeration::Keyword { "lighter"sv, to_underlying(CompositingOperator::Unknown) },
+    };
+    return svg_animated_enumeration_for_attribute(AttributeNames::operator_, keywords, to_underlying(CompositingOperator::Over));
 }
 
 }

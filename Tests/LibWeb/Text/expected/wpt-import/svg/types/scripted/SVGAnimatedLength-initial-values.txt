@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 130 tests
 
-112 Pass
-18 Fail
+120 Pass
+10 Fail
 Pass	SVGAnimatedLength, initial values, SVGCircleElement.prototype.cx (remove)
 Pass	SVGAnimatedLength, initial values, SVGCircleElement.prototype.cx (invalid value)
 Pass	SVGAnimatedLength, initial values, SVGCircleElement.prototype.cy (remove)
@@ -74,14 +74,14 @@ Fail	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.markerWidth (
 Fail	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.markerWidth (invalid value)
 Fail	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.markerHeight (remove)
 Fail	SVGAnimatedLength, initial values, SVGMarkerElement.prototype.markerHeight (invalid value)
-Fail	SVGAnimatedLength, initial values, SVGMaskElement.prototype.x (remove)
-Fail	SVGAnimatedLength, initial values, SVGMaskElement.prototype.x (invalid value)
-Fail	SVGAnimatedLength, initial values, SVGMaskElement.prototype.y (remove)
-Fail	SVGAnimatedLength, initial values, SVGMaskElement.prototype.y (invalid value)
-Fail	SVGAnimatedLength, initial values, SVGMaskElement.prototype.width (remove)
-Fail	SVGAnimatedLength, initial values, SVGMaskElement.prototype.width (invalid value)
-Fail	SVGAnimatedLength, initial values, SVGMaskElement.prototype.height (remove)
-Fail	SVGAnimatedLength, initial values, SVGMaskElement.prototype.height (invalid value)
+Pass	SVGAnimatedLength, initial values, SVGMaskElement.prototype.x (remove)
+Pass	SVGAnimatedLength, initial values, SVGMaskElement.prototype.x (invalid value)
+Pass	SVGAnimatedLength, initial values, SVGMaskElement.prototype.y (remove)
+Pass	SVGAnimatedLength, initial values, SVGMaskElement.prototype.y (invalid value)
+Pass	SVGAnimatedLength, initial values, SVGMaskElement.prototype.width (remove)
+Pass	SVGAnimatedLength, initial values, SVGMaskElement.prototype.width (invalid value)
+Pass	SVGAnimatedLength, initial values, SVGMaskElement.prototype.height (remove)
+Pass	SVGAnimatedLength, initial values, SVGMaskElement.prototype.height (invalid value)
 Pass	SVGAnimatedLength, initial values, SVGPatternElement.prototype.x (remove)
 Pass	SVGAnimatedLength, initial values, SVGPatternElement.prototype.x (invalid value)
 Pass	SVGAnimatedLength, initial values, SVGPatternElement.prototype.y (remove)

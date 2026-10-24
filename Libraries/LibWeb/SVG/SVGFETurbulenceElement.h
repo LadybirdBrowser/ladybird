@@ -53,8 +53,6 @@ private:
     GC::Ptr<SVGAnimatedNumber> m_base_frequency_y;
     GC::Ptr<SVGAnimatedInteger> m_num_octaves;
     GC::Ptr<SVGAnimatedNumber> m_seed;
-    GC::Ptr<SVGAnimatedEnumeration> m_stitch_tiles;
-    GC::Ptr<SVGAnimatedEnumeration> m_type;
 };
 
 }

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1181 Pass
-599 Fail
+1203 Pass
+577 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -288,10 +288,10 @@ Pass	SVGAnimatedEnumeration interface: existence and properties of interface pro
 Pass	SVGAnimatedEnumeration interface: existence and properties of interface prototype object's @@unscopables property
 Pass	SVGAnimatedEnumeration interface: attribute baseVal
 Pass	SVGAnimatedEnumeration interface: attribute animVal
-Fail	SVGAnimatedEnumeration must be primary interface of objects.text.lengthAdjust
-Fail	Stringification of objects.text.lengthAdjust
-Fail	SVGAnimatedEnumeration interface: objects.text.lengthAdjust must inherit property "baseVal" with the proper type
-Fail	SVGAnimatedEnumeration interface: objects.text.lengthAdjust must inherit property "animVal" with the proper type
+Pass	SVGAnimatedEnumeration must be primary interface of objects.text.lengthAdjust
+Pass	Stringification of objects.text.lengthAdjust
+Pass	SVGAnimatedEnumeration interface: objects.text.lengthAdjust must inherit property "baseVal" with the proper type
+Pass	SVGAnimatedEnumeration interface: objects.text.lengthAdjust must inherit property "animVal" with the proper type
 Pass	SVGAnimatedInteger interface: existence and properties of interface object
 Pass	SVGAnimatedInteger interface object length
 Pass	SVGAnimatedInteger interface object name
@@ -1105,7 +1105,7 @@ Pass	SVGTextContentElement interface: constant LENGTHADJUST_SPACING on interface
 Pass	SVGTextContentElement interface: constant LENGTHADJUST_SPACINGANDGLYPHS on interface object
 Pass	SVGTextContentElement interface: constant LENGTHADJUST_SPACINGANDGLYPHS on interface prototype object
 Fail	SVGTextContentElement interface: attribute textLength
-Fail	SVGTextContentElement interface: attribute lengthAdjust
+Pass	SVGTextContentElement interface: attribute lengthAdjust
 Pass	SVGTextContentElement interface: operation getNumberOfChars()
 Pass	SVGTextContentElement interface: operation getComputedTextLength()
 Pass	SVGTextContentElement interface: operation getSubStringLength(unsigned long, unsigned long)
@@ -1143,7 +1143,7 @@ Pass	SVGTextContentElement interface: objects.text must inherit property "LENGTH
 Pass	SVGTextContentElement interface: objects.text must inherit property "LENGTHADJUST_SPACING" with the proper type
 Pass	SVGTextContentElement interface: objects.text must inherit property "LENGTHADJUST_SPACINGANDGLYPHS" with the proper type
 Fail	SVGTextContentElement interface: objects.text must inherit property "textLength" with the proper type
-Fail	SVGTextContentElement interface: objects.text must inherit property "lengthAdjust" with the proper type
+Pass	SVGTextContentElement interface: objects.text must inherit property "lengthAdjust" with the proper type
 Pass	SVGTextContentElement interface: objects.text must inherit property "getNumberOfChars()" with the proper type
 Pass	SVGTextContentElement interface: objects.text must inherit property "getComputedTextLength()" with the proper type
 Pass	SVGTextContentElement interface: objects.text must inherit property "getSubStringLength(unsigned long, unsigned long)" with the proper type
@@ -1189,7 +1189,7 @@ Pass	SVGTextContentElement interface: objects.tspan must inherit property "LENGT
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "LENGTHADJUST_SPACING" with the proper type
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "LENGTHADJUST_SPACINGANDGLYPHS" with the proper type
 Fail	SVGTextContentElement interface: objects.tspan must inherit property "textLength" with the proper type
-Fail	SVGTextContentElement interface: objects.tspan must inherit property "lengthAdjust" with the proper type
+Pass	SVGTextContentElement interface: objects.tspan must inherit property "lengthAdjust" with the proper type
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "getNumberOfChars()" with the proper type
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "getComputedTextLength()" with the proper type
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "getSubStringLength(unsigned long, unsigned long)" with the proper type
@@ -1237,8 +1237,8 @@ Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_AUTO on interfa
 Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_EXACT on interface object
 Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_EXACT on interface prototype object
 Pass	SVGTextPathElement interface: attribute startOffset
-Fail	SVGTextPathElement interface: attribute method
-Fail	SVGTextPathElement interface: attribute spacing
+Pass	SVGTextPathElement interface: attribute method
+Pass	SVGTextPathElement interface: attribute spacing
 Pass	SVGTextPathElement interface: attribute href
 Pass	SVGTextPathElement must be primary interface of objects.textPath
 Pass	Stringification of objects.textPath
@@ -1249,14 +1249,14 @@ Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTP
 Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTPATH_SPACINGTYPE_AUTO" with the proper type
 Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTPATH_SPACINGTYPE_EXACT" with the proper type
 Pass	SVGTextPathElement interface: objects.textPath must inherit property "startOffset" with the proper type
-Fail	SVGTextPathElement interface: objects.textPath must inherit property "method" with the proper type
-Fail	SVGTextPathElement interface: objects.textPath must inherit property "spacing" with the proper type
+Pass	SVGTextPathElement interface: objects.textPath must inherit property "method" with the proper type
+Pass	SVGTextPathElement interface: objects.textPath must inherit property "spacing" with the proper type
 Pass	SVGTextPathElement interface: objects.textPath must inherit property "href" with the proper type
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "LENGTHADJUST_UNKNOWN" with the proper type
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "LENGTHADJUST_SPACING" with the proper type
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "LENGTHADJUST_SPACINGANDGLYPHS" with the proper type
 Fail	SVGTextContentElement interface: objects.textPath must inherit property "textLength" with the proper type
-Fail	SVGTextContentElement interface: objects.textPath must inherit property "lengthAdjust" with the proper type
+Pass	SVGTextContentElement interface: objects.textPath must inherit property "lengthAdjust" with the proper type
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "getNumberOfChars()" with the proper type
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "getComputedTextLength()" with the proper type
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "getSubStringLength(unsigned long, unsigned long)" with the proper type
@@ -1420,9 +1420,9 @@ Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_REFLECT on interfac
 Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_REFLECT on interface prototype object
 Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_REPEAT on interface object
 Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_REPEAT on interface prototype object
-Fail	SVGGradientElement interface: attribute gradientUnits
+Pass	SVGGradientElement interface: attribute gradientUnits
 Fail	SVGGradientElement interface: attribute gradientTransform
-Fail	SVGGradientElement interface: attribute spreadMethod
+Pass	SVGGradientElement interface: attribute spreadMethod
 Pass	SVGGradientElement interface: attribute href
 Pass	SVGLinearGradientElement interface: existence and properties of interface object
 Pass	SVGLinearGradientElement interface object length
@@ -1444,9 +1444,9 @@ Pass	SVGGradientElement interface: objects.linearGradient must inherit property 
 Pass	SVGGradientElement interface: objects.linearGradient must inherit property "SVG_SPREADMETHOD_PAD" with the proper type
 Pass	SVGGradientElement interface: objects.linearGradient must inherit property "SVG_SPREADMETHOD_REFLECT" with the proper type
 Pass	SVGGradientElement interface: objects.linearGradient must inherit property "SVG_SPREADMETHOD_REPEAT" with the proper type
-Fail	SVGGradientElement interface: objects.linearGradient must inherit property "gradientUnits" with the proper type
+Pass	SVGGradientElement interface: objects.linearGradient must inherit property "gradientUnits" with the proper type
 Fail	SVGGradientElement interface: objects.linearGradient must inherit property "gradientTransform" with the proper type
-Fail	SVGGradientElement interface: objects.linearGradient must inherit property "spreadMethod" with the proper type
+Pass	SVGGradientElement interface: objects.linearGradient must inherit property "spreadMethod" with the proper type
 Pass	SVGGradientElement interface: objects.linearGradient must inherit property "href" with the proper type
 Pass	SVGElement interface: objects.linearGradient must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.linearGradient must inherit property "ownerSVGElement" with the proper type
@@ -1477,9 +1477,9 @@ Pass	SVGGradientElement interface: objects.radialGradient must inherit property 
 Pass	SVGGradientElement interface: objects.radialGradient must inherit property "SVG_SPREADMETHOD_PAD" with the proper type
 Pass	SVGGradientElement interface: objects.radialGradient must inherit property "SVG_SPREADMETHOD_REFLECT" with the proper type
 Pass	SVGGradientElement interface: objects.radialGradient must inherit property "SVG_SPREADMETHOD_REPEAT" with the proper type
-Fail	SVGGradientElement interface: objects.radialGradient must inherit property "gradientUnits" with the proper type
+Pass	SVGGradientElement interface: objects.radialGradient must inherit property "gradientUnits" with the proper type
 Fail	SVGGradientElement interface: objects.radialGradient must inherit property "gradientTransform" with the proper type
-Fail	SVGGradientElement interface: objects.radialGradient must inherit property "spreadMethod" with the proper type
+Pass	SVGGradientElement interface: objects.radialGradient must inherit property "spreadMethod" with the proper type
 Pass	SVGGradientElement interface: objects.radialGradient must inherit property "href" with the proper type
 Pass	SVGElement interface: objects.radialGradient must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.radialGradient must inherit property "ownerSVGElement" with the proper type
@@ -1507,8 +1507,8 @@ Pass	SVGPatternElement interface object name
 Pass	SVGPatternElement interface: existence and properties of interface prototype object
 Pass	SVGPatternElement interface: existence and properties of interface prototype object's "constructor" property
 Pass	SVGPatternElement interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGPatternElement interface: attribute patternUnits
-Fail	SVGPatternElement interface: attribute patternContentUnits
+Pass	SVGPatternElement interface: attribute patternUnits
+Pass	SVGPatternElement interface: attribute patternContentUnits
 Fail	SVGPatternElement interface: attribute patternTransform
 Pass	SVGPatternElement interface: attribute x
 Pass	SVGPatternElement interface: attribute y
@@ -1519,8 +1519,8 @@ Fail	SVGPatternElement interface: attribute preserveAspectRatio
 Pass	SVGPatternElement interface: attribute href
 Pass	SVGPatternElement must be primary interface of objects.pattern
 Pass	Stringification of objects.pattern
-Fail	SVGPatternElement interface: objects.pattern must inherit property "patternUnits" with the proper type
-Fail	SVGPatternElement interface: objects.pattern must inherit property "patternContentUnits" with the proper type
+Pass	SVGPatternElement interface: objects.pattern must inherit property "patternUnits" with the proper type
+Pass	SVGPatternElement interface: objects.pattern must inherit property "patternContentUnits" with the proper type
 Fail	SVGPatternElement interface: objects.pattern must inherit property "patternTransform" with the proper type
 Pass	SVGPatternElement interface: objects.pattern must inherit property "x" with the proper type
 Pass	SVGPatternElement interface: objects.pattern must inherit property "y" with the proper type

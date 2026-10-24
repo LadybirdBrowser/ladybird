@@ -6,7 +6,11 @@
 
 #pragma once
 
+#include <AK/Span.h>
+#include <AK/StringView.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::SVG {
@@ -17,7 +21,13 @@ class SVGAnimatedEnumeration final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(SVGAnimatedEnumeration);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGAnimatedEnumeration> create(u16 value);
+    // A keyword of the reflected attribute, and the numeric type value it maps to.
+    struct Keyword {
+        StringView keyword;
+        u16 value;
+    };
+
+    [[nodiscard]] static GC::Ref<SVGAnimatedEnumeration> create(GC::Ref<SVGElement>, Utf16FlyString reflected_attribute, ReadonlySpan<Keyword> keywords, u16 initial_value);
     virtual ~SVGAnimatedEnumeration() override;
 
     u16 base_val() const { return base_or_anim_value(); }
@@ -26,11 +36,16 @@ public:
     u16 anim_val() const { return base_or_anim_value(); }
 
 private:
-    SVGAnimatedEnumeration(u16 value);
+    SVGAnimatedEnumeration(GC::Ref<SVGElement>, Utf16FlyString reflected_attribute, ReadonlySpan<Keyword> keywords, u16 initial_value);
+
+    virtual void visit_edges(Cell::Visitor&) override;
 
     u16 base_or_anim_value() const;
 
-    u16 m_value;
+    GC::Ref<SVGElement> m_element;
+    Utf16FlyString m_reflected_attribute;
+    ReadonlySpan<Keyword> m_keywords;
+    u16 m_initial_value { 0 };
 };
 
 }

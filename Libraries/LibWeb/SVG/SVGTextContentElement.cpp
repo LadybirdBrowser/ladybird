@@ -180,4 +180,14 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGTextContentElement::get_exten
     return Geometry::DOMRect::create(rect);
 }
 
+// https://svgwg.org/svg2-draft/text.html#__svg__SVGTextContentElement__lengthAdjust
+GC::Ref<SVGAnimatedEnumeration> SVGTextContentElement::length_adjust()
+{
+    static constexpr Array keywords {
+        SVGAnimatedEnumeration::Keyword { "spacing"sv, LENGTHADJUST_SPACING },
+        SVGAnimatedEnumeration::Keyword { "spacingAndGlyphs"sv, LENGTHADJUST_SPACINGANDGLYPHS },
+    };
+    return svg_animated_enumeration_for_attribute(AttributeNames::lengthAdjust, keywords, LENGTHADJUST_SPACING);
+}
+
 }

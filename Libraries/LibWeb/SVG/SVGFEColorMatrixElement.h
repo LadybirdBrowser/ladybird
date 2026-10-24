@@ -30,7 +30,7 @@ public:
 
     // IDL attributes
     GC::Ref<SVGAnimatedString> in1();
-    GC::Ref<SVGAnimatedEnumeration> type() const;
+    GC::Ref<SVGAnimatedEnumeration> type();
     GC::Ref<SVGAnimatedNumberList> values();
 
 private:

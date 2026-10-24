@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
+#include <LibWeb/SVG/SVGUnitTypes.h>
 
 namespace Web::SVG {
 
@@ -103,6 +104,18 @@ NumberPercentage SVGMaskElement::mask_height() const
     // the effect is as if a value of '120%' were specified.
     // AD-HOC: See mask_x().
     return m_height.value_or(NumberPercentage::create_percentage(120));
+}
+
+// https://drafts.fxtf.org/css-masking/#dom-svgmaskelement-maskunits
+GC::Ref<SVGAnimatedEnumeration> SVGMaskElement::mask_units_for_bindings()
+{
+    return svg_animated_enumeration_for_attribute(AttributeNames::maskUnits, svg_unit_type_keywords, to_underlying(SVGUnitType::ObjectBoundingBox));
+}
+
+// https://drafts.fxtf.org/css-masking/#dom-svgmaskelement-maskcontentunits
+GC::Ref<SVGAnimatedEnumeration> SVGMaskElement::mask_content_units_for_bindings()
+{
+    return svg_animated_enumeration_for_attribute(AttributeNames::maskContentUnits, svg_unit_type_keywords, to_underlying(SVGUnitType::UserSpaceOnUse));
 }
 
 }

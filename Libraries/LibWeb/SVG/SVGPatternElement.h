@@ -51,6 +51,9 @@ public:
     NumberPercentage pattern_width() const;
     NumberPercentage pattern_height() const;
 
+    GC::Ref<SVGAnimatedEnumeration> pattern_units_for_bindings();
+    GC::Ref<SVGAnimatedEnumeration> pattern_content_units_for_bindings();
+
     // https://w3c.github.io/svgwg/svg2-draft/pservers.html#__svg__SVGPatternElement__x
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, SVGLengthValue::number(0));
 

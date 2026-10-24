@@ -11,6 +11,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/HTMLOrSVGOrMathMLElement.h>
+#include <LibWeb/SVG/SVGAnimatedEnumeration.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGAnimatedString.h>
 #include <LibWeb/SVG/SVGLength.h>
@@ -58,6 +59,7 @@ public:
     bool is_referenceable_in_display_none_subtree() const;
 
     GC::Ref<SVGAnimatedLength> svg_animated_length_for_attribute(Utf16FlyString const&, SVGLength::Directionality, SVGLengthValue default_value);
+    GC::Ref<SVGAnimatedEnumeration> svg_animated_enumeration_for_attribute(Utf16FlyString const&, ReadonlySpan<SVGAnimatedEnumeration::Keyword>, u16 initial_value);
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const final override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const final override;
@@ -104,6 +106,7 @@ private:
 
     // Many reflecting attributes are marked as SameObject so we cache the objects we create here.
     HashMap<Utf16FlyString, GC::Ref<SVGAnimatedLength>> m_reflected_attribute_cache;
+    HashMap<Utf16FlyString, GC::Ref<SVGAnimatedEnumeration>> m_reflected_enumeration_cache;
 
     // Elements whose layout subtrees contain a <mask>, <clipPath>, or <pattern> resource box built
     // from this element. Their subtrees must be rebuilt when this element is removed, since resource

@@ -25,8 +25,6 @@ void SVGFEDisplacementMapElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_in1);
     visitor.visit(m_in2);
     visitor.visit(m_scale);
-    visitor.visit(m_x_channel_selector);
-    visitor.visit(m_y_channel_selector);
 }
 
 // https://drafts.csswg.org/filter-effects/#dom-svgfedisplacementmapelement-in1
@@ -56,38 +54,23 @@ GC::Ref<SVGAnimatedNumber> SVGFEDisplacementMapElement::scale()
     return *m_scale;
 }
 
-// https://drafts.csswg.org/filter-effects/#element-attrdef-fedisplacementmap-xchannelselector
-static SVGFEDisplacementMapElement::ChannelSelector parse_channel_selector(Utf16View value)
-{
-    if (value == "R"sv)
-        return SVGFEDisplacementMapElement::ChannelSelector::Red;
-
-    if (value == "G"sv)
-        return SVGFEDisplacementMapElement::ChannelSelector::Green;
-
-    if (value == "B"sv)
-        return SVGFEDisplacementMapElement::ChannelSelector::Blue;
-
-    if (value == "A"sv)
-        return SVGFEDisplacementMapElement::ChannelSelector::Alpha;
-
-    return SVGFEDisplacementMapElement::ChannelSelector::Alpha;
-}
-
 // https://drafts.csswg.org/filter-effects/#dom-svgfedisplacementmapelement-xchannelselector
-GC::Ref<SVGAnimatedEnumeration> SVGFEDisplacementMapElement::x_channel_selector() const
+static constexpr Array channel_selector_keywords {
+    SVGAnimatedEnumeration::Keyword { "R"sv, to_underlying(SVGFEDisplacementMapElement::ChannelSelector::Red) },
+    SVGAnimatedEnumeration::Keyword { "G"sv, to_underlying(SVGFEDisplacementMapElement::ChannelSelector::Green) },
+    SVGAnimatedEnumeration::Keyword { "B"sv, to_underlying(SVGFEDisplacementMapElement::ChannelSelector::Blue) },
+    SVGAnimatedEnumeration::Keyword { "A"sv, to_underlying(SVGFEDisplacementMapElement::ChannelSelector::Alpha) },
+};
+
+GC::Ref<SVGAnimatedEnumeration> SVGFEDisplacementMapElement::x_channel_selector()
 {
-    // FIXME: Support reflection, don't return a new object every time.
-    auto x_channel_selector = parse_channel_selector(get_attribute_value(AttributeNames::xChannelSelector));
-    return SVGAnimatedEnumeration::create(to_underlying(x_channel_selector));
+    return svg_animated_enumeration_for_attribute(AttributeNames::xChannelSelector, channel_selector_keywords, to_underlying(ChannelSelector::Alpha));
 }
 
 // https://drafts.csswg.org/filter-effects/#dom-svgfedisplacementmapelement-ychannelselector
-GC::Ref<SVGAnimatedEnumeration> SVGFEDisplacementMapElement::y_channel_selector() const
+GC::Ref<SVGAnimatedEnumeration> SVGFEDisplacementMapElement::y_channel_selector()
 {
-    // FIXME: Support reflection, don't return a new object every time.
-    auto y_channel_selector = parse_channel_selector(get_attribute_value(AttributeNames::yChannelSelector));
-    return SVGAnimatedEnumeration::create(to_underlying(y_channel_selector));
+    return svg_animated_enumeration_for_attribute(AttributeNames::yChannelSelector, channel_selector_keywords, to_underlying(ChannelSelector::Alpha));
 }
 
 }

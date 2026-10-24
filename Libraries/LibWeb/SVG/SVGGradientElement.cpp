@@ -10,6 +10,7 @@
 #include <LibWeb/SVG/FragmentIdentifier.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
+#include <LibWeb/SVG/SVGUnitTypes.h>
 
 namespace Web::SVG {
 
@@ -154,6 +155,23 @@ void SVGGradientElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
+}
+
+// https://svgwg.org/svg2-draft/pservers.html#__svg__SVGGradientElement__gradientUnits
+GC::Ref<SVGAnimatedEnumeration> SVGGradientElement::gradient_units_for_bindings()
+{
+    return svg_animated_enumeration_for_attribute(AttributeNames::gradientUnits, svg_unit_type_keywords, to_underlying(SVGUnitType::ObjectBoundingBox));
+}
+
+// https://svgwg.org/svg2-draft/pservers.html#__svg__SVGGradientElement__spreadMethod
+GC::Ref<SVGAnimatedEnumeration> SVGGradientElement::spread_method_for_bindings()
+{
+    static constexpr Array keywords {
+        SVGAnimatedEnumeration::Keyword { "pad"sv, SVG_SPREADMETHOD_PAD },
+        SVGAnimatedEnumeration::Keyword { "reflect"sv, SVG_SPREADMETHOD_REFLECT },
+        SVGAnimatedEnumeration::Keyword { "repeat"sv, SVG_SPREADMETHOD_REPEAT },
+    };
+    return svg_animated_enumeration_for_attribute(AttributeNames::spreadMethod, keywords, SVG_SPREADMETHOD_PAD);
 }
 
 }

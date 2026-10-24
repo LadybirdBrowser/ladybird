@@ -100,9 +100,29 @@ Gfx::CompositingAndBlendingOperator SVGFEBlendElement::mode() const
     return Painting::mix_blend_mode_to_compositing_and_blending_operator(m_mode.value_or(CSS::MixBlendMode::Normal));
 }
 
-GC::Ref<SVGAnimatedEnumeration> SVGFEBlendElement::mode_for_bindings() const
+// https://drafts.fxtf.org/filter-effects/#dom-svgfeblendelement-mode
+GC::Ref<SVGAnimatedEnumeration> SVGFEBlendElement::mode_for_bindings()
 {
-    return SVGAnimatedEnumeration::create(to_underlying(mode()));
+    // NB: The mode attribute takes a <blend-mode>, which does not include plus-darker and plus-lighter.
+    static constexpr Array keywords {
+        SVGAnimatedEnumeration::Keyword { "normal"sv, SVG_FEBLEND_MODE_NORMAL },
+        SVGAnimatedEnumeration::Keyword { "multiply"sv, SVG_FEBLEND_MODE_MULTIPLY },
+        SVGAnimatedEnumeration::Keyword { "screen"sv, SVG_FEBLEND_MODE_SCREEN },
+        SVGAnimatedEnumeration::Keyword { "darken"sv, SVG_FEBLEND_MODE_DARKEN },
+        SVGAnimatedEnumeration::Keyword { "lighten"sv, SVG_FEBLEND_MODE_LIGHTEN },
+        SVGAnimatedEnumeration::Keyword { "overlay"sv, SVG_FEBLEND_MODE_OVERLAY },
+        SVGAnimatedEnumeration::Keyword { "color-dodge"sv, SVG_FEBLEND_MODE_COLOR_DODGE },
+        SVGAnimatedEnumeration::Keyword { "color-burn"sv, SVG_FEBLEND_MODE_COLOR_BURN },
+        SVGAnimatedEnumeration::Keyword { "hard-light"sv, SVG_FEBLEND_MODE_HARD_LIGHT },
+        SVGAnimatedEnumeration::Keyword { "soft-light"sv, SVG_FEBLEND_MODE_SOFT_LIGHT },
+        SVGAnimatedEnumeration::Keyword { "difference"sv, SVG_FEBLEND_MODE_DIFFERENCE },
+        SVGAnimatedEnumeration::Keyword { "exclusion"sv, SVG_FEBLEND_MODE_EXCLUSION },
+        SVGAnimatedEnumeration::Keyword { "hue"sv, SVG_FEBLEND_MODE_HUE },
+        SVGAnimatedEnumeration::Keyword { "saturation"sv, SVG_FEBLEND_MODE_SATURATION },
+        SVGAnimatedEnumeration::Keyword { "color"sv, SVG_FEBLEND_MODE_COLOR },
+        SVGAnimatedEnumeration::Keyword { "luminosity"sv, SVG_FEBLEND_MODE_LUMINOSITY },
+    };
+    return svg_animated_enumeration_for_attribute(AttributeNames::mode, keywords, SVG_FEBLEND_MODE_NORMAL);
 }
 
 }

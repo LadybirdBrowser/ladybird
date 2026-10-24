@@ -52,9 +52,14 @@ GC::Ref<SVGAnimatedString> SVGFEMorphologyElement::in1()
     return *m_in1;
 }
 
+// https://drafts.fxtf.org/filter-effects/#dom-svgfemorphologyelement-operator
 GC::Ref<SVGAnimatedEnumeration> SVGFEMorphologyElement::operator_for_bindings()
 {
-    return SVGAnimatedEnumeration::create(to_underlying(m_morphology_operator));
+    static constexpr Array keywords {
+        SVGAnimatedEnumeration::Keyword { "erode"sv, SVG_MORPHOLOGY_OPERATOR_ERODE },
+        SVGAnimatedEnumeration::Keyword { "dilate"sv, SVG_MORPHOLOGY_OPERATOR_DILATE },
+    };
+    return svg_animated_enumeration_for_attribute(AttributeNames::operator_, keywords, SVG_MORPHOLOGY_OPERATOR_ERODE);
 }
 
 GC::Ref<SVGAnimatedNumber> SVGFEMorphologyElement::radius_x()

@@ -62,6 +62,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(markerWidth, "markerWidth")                               \
     __ENUMERATE_SVG_ATTRIBUTE(maskContentUnits, "maskContentUnits")                     \
     __ENUMERATE_SVG_ATTRIBUTE(maskUnits, "maskUnits")                                   \
+    __ENUMERATE_SVG_ATTRIBUTE(method, "method")                                         \
     __ENUMERATE_SVG_ATTRIBUTE(mode, "mode")                                             \
     __ENUMERATE_SVG_ATTRIBUTE(numOctaves, "numOctaves")                                 \
     __ENUMERATE_SVG_ATTRIBUTE(offset, "offset")                                         \
@@ -96,6 +97,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(slope, "slope")                                           \
     __ENUMERATE_SVG_ATTRIBUTE(specularConstant, "specularConstant")                     \
     __ENUMERATE_SVG_ATTRIBUTE(specularExponent, "specularExponent")                     \
+    __ENUMERATE_SVG_ATTRIBUTE(spacing, "spacing")                                       \
     __ENUMERATE_SVG_ATTRIBUTE(spreadMethod, "spreadMethod")                             \
     __ENUMERATE_SVG_ATTRIBUTE(startOffset, "startOffset")                               \
     __ENUMERATE_SVG_ATTRIBUTE(stdDeviation, "stdDeviation")                             \

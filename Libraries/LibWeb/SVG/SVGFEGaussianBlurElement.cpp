@@ -55,10 +55,15 @@ GC::Ref<SVGAnimatedNumber> SVGFEGaussianBlurElement::std_deviation_y()
     return *m_std_deviation_y;
 }
 
-GC::Ref<SVGAnimatedEnumeration> SVGFEGaussianBlurElement::edge_mode() const
+// https://drafts.fxtf.org/filter-effects/#dom-svgfegaussianblurelement-edgemode
+GC::Ref<SVGAnimatedEnumeration> SVGFEGaussianBlurElement::edge_mode()
 {
-    // FIXME: Resolve the actual value from AttributeNames::edgeMode.
-    return SVGAnimatedEnumeration::create(0);
+    static constexpr Array keywords {
+        SVGAnimatedEnumeration::Keyword { "duplicate"sv, SVG_EDGEMODE_DUPLICATE },
+        SVGAnimatedEnumeration::Keyword { "wrap"sv, SVG_EDGEMODE_WRAP },
+        SVGAnimatedEnumeration::Keyword { "none"sv, SVG_EDGEMODE_NONE },
+    };
+    return svg_animated_enumeration_for_attribute(AttributeNames::edgeMode, keywords, SVG_EDGEMODE_NONE);
 }
 
 }

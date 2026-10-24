@@ -21,6 +21,12 @@ class SVGTextContentElement : public SVGGraphicsElement {
     WEB_WRAPPABLE(SVGTextContentElement, SVGGraphicsElement);
 
 public:
+    static constexpr u16 LENGTHADJUST_UNKNOWN = 0;
+    static constexpr u16 LENGTHADJUST_SPACING = 1;
+    static constexpr u16 LENGTHADJUST_SPACINGANDGLYPHS = 2;
+
+    GC::Ref<SVGAnimatedEnumeration> length_adjust();
+
     WebIDL::ExceptionOr<WebIDL::Long> get_number_of_chars();
     WebIDL::ExceptionOr<float> get_computed_text_length();
     WebIDL::ExceptionOr<float> get_sub_string_length(WebIDL::UnsignedLong charnum, WebIDL::UnsignedLong nchars);

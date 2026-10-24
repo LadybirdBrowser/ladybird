@@ -36,6 +36,8 @@ public:
 
     virtual CSS::ElementBoxKind box_kind() const override;
 
+    GC::Ref<SVGAnimatedEnumeration> clip_path_units_for_bindings();
+
 private:
     SVGClipPathElement(DOM::Document&, DOM::QualifiedName);
 

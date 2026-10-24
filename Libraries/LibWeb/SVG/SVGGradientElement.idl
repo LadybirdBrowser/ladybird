@@ -8,9 +8,9 @@ interface SVGGradientElement : SVGElement {
     const unsigned short SVG_SPREADMETHOD_REFLECT = 2;
     const unsigned short SVG_SPREADMETHOD_REPEAT = 3;
 
-    [FIXME, SameObject] readonly attribute SVGAnimatedEnumeration gradientUnits;
+    [SameObject, ImplementedAs=gradient_units_for_bindings] readonly attribute SVGAnimatedEnumeration gradientUnits;
     [FIXME, SameObject] readonly attribute SVGAnimatedTransformList gradientTransform;
-    [FIXME, SameObject] readonly attribute SVGAnimatedEnumeration spreadMethod;
+    [SameObject, ImplementedAs=spread_method_for_bindings] readonly attribute SVGAnimatedEnumeration spreadMethod;
 
 };
 

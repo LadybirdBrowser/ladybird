@@ -45,4 +45,24 @@ CSS::ElementBoxKind SVGTextPathElement::box_kind() const
     return CSS::ElementBoxKind::SvgTextPath;
 }
 
-};
+// https://svgwg.org/svg2-draft/text.html#__svg__SVGTextPathElement__method
+GC::Ref<SVGAnimatedEnumeration> SVGTextPathElement::method()
+{
+    static constexpr Array keywords {
+        SVGAnimatedEnumeration::Keyword { "align"sv, TEXTPATH_METHODTYPE_ALIGN },
+        SVGAnimatedEnumeration::Keyword { "stretch"sv, TEXTPATH_METHODTYPE_STRETCH },
+    };
+    return svg_animated_enumeration_for_attribute(AttributeNames::method, keywords, TEXTPATH_METHODTYPE_ALIGN);
+}
+
+// https://svgwg.org/svg2-draft/text.html#__svg__SVGTextPathElement__spacing
+GC::Ref<SVGAnimatedEnumeration> SVGTextPathElement::spacing()
+{
+    static constexpr Array keywords {
+        SVGAnimatedEnumeration::Keyword { "auto"sv, TEXTPATH_SPACINGTYPE_AUTO },
+        SVGAnimatedEnumeration::Keyword { "exact"sv, TEXTPATH_SPACINGTYPE_EXACT },
+    };
+    return svg_animated_enumeration_for_attribute(AttributeNames::spacing, keywords, TEXTPATH_SPACINGTYPE_EXACT);
+}
+
+}

@@ -42,6 +42,21 @@ public:
     NumberPercentage mask_width() const;
     NumberPercentage mask_height() const;
 
+    GC::Ref<SVGAnimatedEnumeration> mask_units_for_bindings();
+    GC::Ref<SVGAnimatedEnumeration> mask_content_units_for_bindings();
+
+    // https://drafts.fxtf.org/css-masking/#dom-svgmaskelement-x
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, SVGLengthValue::percentage(-10));
+
+    // https://drafts.fxtf.org/css-masking/#dom-svgmaskelement-y
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, Vertical, SVGLengthValue::percentage(-10));
+
+    // https://drafts.fxtf.org/css-masking/#dom-svgmaskelement-width
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, Horizontal, SVGLengthValue::percentage(120));
+
+    // https://drafts.fxtf.org/css-masking/#dom-svgmaskelement-height
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, SVGLengthValue::percentage(120));
+
 private:
     SVGMaskElement(DOM::Document&, DOM::QualifiedName);
 

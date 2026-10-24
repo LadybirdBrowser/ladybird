@@ -30,6 +30,17 @@ public:
     // https://w3c.github.io/svgwg/svg2-draft/text.html#__svg__SVGTextPathElement__startOffset
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE_WITH_GETTER(startOffset, start_offset, Horizontal, SVGLengthValue::number(0));
 
+    static constexpr u16 TEXTPATH_METHODTYPE_UNKNOWN = 0;
+    static constexpr u16 TEXTPATH_METHODTYPE_ALIGN = 1;
+    static constexpr u16 TEXTPATH_METHODTYPE_STRETCH = 2;
+
+    static constexpr u16 TEXTPATH_SPACINGTYPE_UNKNOWN = 0;
+    static constexpr u16 TEXTPATH_SPACINGTYPE_AUTO = 1;
+    static constexpr u16 TEXTPATH_SPACINGTYPE_EXACT = 2;
+
+    GC::Ref<SVGAnimatedEnumeration> method();
+    GC::Ref<SVGAnimatedEnumeration> spacing();
+
 protected:
     SVGTextPathElement(DOM::Document&, DOM::QualifiedName);
     virtual void visit_edges(Cell::Visitor&) override;
