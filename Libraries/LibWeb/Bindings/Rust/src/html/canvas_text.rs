@@ -19,7 +19,9 @@ use crate::bindings::{CallContext, WebIdlResult};
 use crate::canvas_2d::context::{CanvasKind, ContextState, RenderingContext2D, paint_of};
 use crate::canvas_2d::float;
 use crate::canvas_2d::host::LentFont;
-use crate::canvas_2d::text::{baseline_offset, path_of_runs, replace_ascii_whitespace, shape_text, text_transform};
+use crate::canvas_2d::text::{
+    baseline_offset, horizontal_alignment_offset, path_of_runs, replace_ascii_whitespace, shape_text, text_transform,
+};
 use crate::html::canvas_rendering_context2d::CanvasTextBaseline;
 
 impl ContextState {
@@ -35,7 +37,15 @@ impl ContextState {
         let runs = shape_text(&font.cascade, text, FloatPoint { x, y }, letter_spacing, word_spacing);
         let path = path_of_runs(&runs);
         let text_width: f32 = runs.iter().map(|run| run.width).sum();
-        let transform = text_transform(&self.drawing_state(), &font.cascade.first(), x, text_width, max_width);
+        let is_rtl = self.direction_is_rtl();
+        let transform = text_transform(
+            &self.drawing_state(),
+            is_rtl,
+            &font.cascade.first(),
+            x,
+            text_width,
+            max_width,
+        );
         path.copy_transformed(transform.values)
     }
 }
@@ -115,7 +125,8 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             .collect();
         let first_font = font.cascade.first();
         let state = self.drawing_state();
-        let translation = text_transform(&state, &first_font, x, run.width, None).map_point(FloatPoint { x, y });
+        let translation = text_transform(&state, self.direction_is_rtl(), &first_font, x, run.width, None)
+            .map_point(FloatPoint { x, y });
         let lent_font = LentFont(NonNull::new(run.font.as_raw().cast_mut()).expect("a font has a font"));
         self.record(|recorder| {
             let paint = paint_of(recorder, &state.fill_style, self.context_attributes.color_space);
@@ -178,7 +189,8 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         // FIXME: 4. Let language be the target's language.
         // FIXME: 5. If language is "inherit": ...
         // FIXME: 6. If language is the empty string, then set language to explicitly unknown.
-        // FIXME: 7. Apply the appropriate step from the following list to determine the value of direction: ...
+        // 7. Apply the appropriate step from the following list to determine the value of direction: ...
+        let is_rtl = self.direction_is_rtl();
 
         // 8. Form a hypothetical infinitely-wide CSS line box containing a single inline box containing the text text,
         //    with the CSS content language set to language, and with its CSS properties set as follows: ...
@@ -193,14 +205,17 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         //    greater than maxWidth CSS pixels, then change font to have a more condensed font (if one is available or
         //    if a reasonably readable one can be synthesized by applying a horizontal scale factor to the font) or a
         //    smaller font, and return to the previous step.
-        // FIXME: 10. The anchor point is a point on the inline box, and the physical alignment is one of the values
-        //            left, right, and center. These variables are determined by the textAlign and textBaseline values.
+        // 10. The anchor point is a point on the inline box, and the physical alignment is one of the values left,
+        //     right, and center. These variables are determined by the textAlign and textBaseline values.
+        // NB: The horizontal position of the anchor point places the inline box below, and its vertical position is
+        //     the baseline offset below.
+        let alignment_offset = horizontal_alignment_offset(self.drawing_state().text_align, is_rtl, width);
         // 11. Let result be an array constructed by iterating over each glyph in the inline box from left to right (if
         //     any), adding to the array, for each glyph, the shape of the glyph as it is in the inline box, positioned
         //     on a coordinate space using CSS pixels with its origin at the anchor point.
         // 12. Return result, physical alignment, and the inline box.
-        // NB: The inline box is at the origin, as wide as the text.
-        let (box_left, box_right) = (0.0_f32, width);
+        // NB: The inline box is as wide as the text, with the anchor point at the origin.
+        let (box_left, box_right) = (alignment_offset, alignment_offset + width);
 
         // FIXME: Use the font that was used to create the glyphs of the runs.
         let first_font = font.cascade.first();

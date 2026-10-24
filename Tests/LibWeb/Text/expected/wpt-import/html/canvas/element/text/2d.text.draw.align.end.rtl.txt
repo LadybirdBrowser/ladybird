@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	textAlign end with rtl is the left edge
+1 Pass
+Pass	textAlign end with rtl is the left edge

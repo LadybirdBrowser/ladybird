@@ -161,6 +161,7 @@ void* web_canvas_2d_canvas_create_transport(void* canvas_host);
 void* web_canvas_2d_canvas_wrapper(void* canvas, bool canvas_is_offscreen, void* realm);
 void* web_canvas_2d_canvas_relevant_realm(void* canvas_host);
 u64 web_canvas_2d_canvas_font_environment_generation(void* canvas_host);
+bool web_canvas_2d_canvas_directionality_is_rtl(void* canvas, bool canvas_is_offscreen);
 bool web_canvas_2d_canvas_resolve_font(void* canvas, bool canvas_is_offscreen, FlatPtr font, CanvasFontSelection, ResolvedFont* out_font);
 void web_canvas_2d_canvas_resolve_color(void* canvas_host, CSS::StyleValue const* color, FontMetricsSource, u8 color_space, Gfx::Color* out_color, Gfx::Color* out_color_in_color_space);
 float web_canvas_2d_canvas_resolve_length(void* canvas_host, CSS::StyleValue const* length, FontMetricsSource);
@@ -367,6 +368,16 @@ void* web_canvas_2d_canvas_relevant_realm(void* canvas_host)
 u64 web_canvas_2d_canvas_font_environment_generation(void* canvas_host)
 {
     return host_from(canvas_host).canvas_font_computer().environment_generation();
+}
+
+bool web_canvas_2d_canvas_directionality_is_rtl(void* canvas, bool canvas_is_offscreen)
+{
+    // FIXME: Return the inherited direction of an OffscreenCanvas, which OffscreenCanvas does not keep yet. It is
+    //        'ltr' unless transferControlToOffscreen() or a transfer set it.
+    if (canvas_is_offscreen)
+        return false;
+    auto& canvas_element = *static_cast<HTMLCanvasElement*>(static_cast<GC::Cell*>(canvas));
+    return canvas_element.directionality() == DOM::Element::Directionality::Rtl;
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-font

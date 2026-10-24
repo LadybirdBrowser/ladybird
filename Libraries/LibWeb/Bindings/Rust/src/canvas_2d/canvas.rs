@@ -34,6 +34,7 @@ unsafe extern "C" {
     fn web_canvas_2d_canvas_wrapper(canvas: *mut c_void, canvas_is_offscreen: bool, realm: *mut c_void) -> *mut c_void;
     fn web_canvas_2d_canvas_relevant_realm(canvas_host: *mut c_void) -> *mut c_void;
     fn web_canvas_2d_canvas_font_environment_generation(canvas_host: *mut c_void) -> u64;
+    fn web_canvas_2d_canvas_directionality_is_rtl(canvas: *mut c_void, canvas_is_offscreen: bool) -> bool;
     fn web_canvas_2d_canvas_resolve_font(
         canvas: *mut c_void,
         canvas_is_offscreen: bool,
@@ -293,6 +294,11 @@ impl Canvas {
     /// The generation of the fonts that the canvas can use, which changes when a font loads.
     pub(crate) fn font_environment_generation(self) -> u64 {
         unsafe { web_canvas_2d_canvas_font_environment_generation(self.host.as_ptr()) }
+    }
+
+    /// Whether the directionality of a canvas element, or the inherited direction of an OffscreenCanvas, is 'rtl'.
+    pub(crate) fn directionality_is_rtl(self) -> bool {
+        unsafe { web_canvas_2d_canvas_directionality_is_rtl(self.cell.as_ptr(), self.is_offscreen) }
     }
 
     /// The font that a value of the font attribute describes, resolved against the canvas, unless the value is not a
