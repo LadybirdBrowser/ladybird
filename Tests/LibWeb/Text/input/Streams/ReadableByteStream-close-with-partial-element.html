@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const reader = new Blob(["a"]).stream().getReader({ mode: "byob" });
+        try {
+            await reader.read(new Uint16Array(1));
+            println("FAIL: read resolved");
+        } catch (error) {
+            println(`read rejected: ${error.name}`);
+        }
+        done();
+    });
+</script>
