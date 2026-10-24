@@ -754,6 +754,15 @@ audio {
     width: 300px;
 }
 
+/* 15.4.2 Images
+ * https://html.spec.whatwg.org/multipage/rendering.html#img-contain-size
+ */
+
+img:is([sizes="auto" i], [sizes^="auto," i]) {
+    contain: size !important;
+    contain-intrinsic-size: 300px 150px;
+}
+
 /* 15.4.3 Attributes for embedded content and images
  * https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images
  */

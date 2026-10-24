@@ -109,6 +109,12 @@ public:
     // https://html.spec.whatwg.org/multipage/embedded-content.html#allows-auto-sizes
     bool allows_auto_sizes() const;
 
+    Optional<CSSPixels> concrete_object_size_width_if_rendered() const;
+
+    // https://html.spec.whatwg.org/multipage/images.html#last-auto-sizes-width
+    Optional<CSSPixels> last_auto_sizes_width() const { return m_last_auto_sizes_width; }
+    void set_last_auto_sizes_width(CSSPixels width) const { m_last_auto_sizes_width = width; }
+
     // ^Layout::ImageProvider
     virtual bool is_image_pending() const override;
 
@@ -167,6 +173,10 @@ private:
     GC::Ptr<DOM::DocumentObserver> m_document_observer;
 
     CORSSettingAttribute m_cors_setting { CORSSettingAttribute::NoCORS };
+
+    // https://html.spec.whatwg.org/multipage/images.html#last-auto-sizes-width
+    // NB: Parsing a sizes attribute records this through a const img, so it is mutable.
+    mutable Optional<CSSPixels> m_last_auto_sizes_width;
 
     // https://html.spec.whatwg.org/multipage/images.html#last-selected-source
     // Each img element has a last selected source, which must initially be null.

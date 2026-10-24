@@ -13,7 +13,6 @@
  */
 
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -99,18 +98,23 @@ RefPtr<StyleValue const> Parser::parse_as_css_value(Utf16View source, PropertyID
 // https://html.spec.whatwg.org/multipage/images.html#parsing-a-sizes-attribute
 static Optional<double> sizes_attribute_auto_width(HTML::HTMLImageElement const* img)
 {
-    // FIXME: "img is being rendered" - we just see if it has image data for now.
-    if (!img || !img->is_image_available() || !img->allows_auto_sizes())
+    // If size is auto, and img is not null, and img allows auto-sizes:
+    if (!img || !img->allows_auto_sizes())
         return {};
 
-    // FIXME: The spec doesn't seem to tell us how to determine the concrete size of an <img>, so use the default sizing algorithm.
-    //        Should this use some of the methods from FormattingContext?
-    auto concrete_size = run_default_sizing_algorithm(
-        img->width(), img->height(),
-        { img->natural_width(), img->natural_height(), img->intrinsic_aspect_ratio() },
-        // NOTE: https://html.spec.whatwg.org/multipage/rendering.html#img-contain-size
-        CSSPixelSize { 300, 150 });
-    return concrete_size.width().to_double();
+    // 1. If img is being rendered, then set size to the concrete object size width of img, in CSS pixels, and set img's
+    //    last auto-sizes width to size.
+    // NB: A bare auto must come first for img to allow auto-sizes, so the parser always reaches it.
+    if (auto concrete_object_size_width = img->concrete_object_size_width_if_rendered(); concrete_object_size_width.has_value()) {
+        img->set_last_auto_sizes_width(*concrete_object_size_width);
+        return concrete_object_size_width->to_double();
+    }
+
+    // 2. Otherwise, if img's last auto-sizes width is not null, then set size to img's last auto-sizes width.
+    if (auto last_auto_sizes_width = img->last_auto_sizes_width(); last_auto_sizes_width.has_value())
+        return last_auto_sizes_width->to_double();
+
+    return {};
 }
 
 // AD-HOC: If the sizes are empty, this algorithm always logs a parse error and then returns 100vw.
