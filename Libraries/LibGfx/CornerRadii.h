@@ -12,11 +12,6 @@
 
 namespace Gfx {
 
-enum class CornerClip {
-    Outside,
-    Inside
-};
-
 struct CornerRadius {
     int horizontal_radius { 0 };
     int vertical_radius { 0 };
