@@ -1,0 +1,6 @@
+auto: 1 inline misses answered from grid tracks, 0 block measurements, 0 runs outside them, width 153
+flexible: 1 inline misses answered from grid tracks, 0 block measurements, 0 runs outside them, width 300
+intrinsic-bounds: 1 inline misses answered from grid tracks, 0 block measurements, 0 runs outside them, width 150
+spanning: 1 inline misses answered from grid tracks, 0 block measurements, 0 runs outside them, width 160
+subgrid: 1 inline misses answered from grid tracks, 0 block measurements, 0 runs outside them, width 150
+row-dependent: 1 inline misses answered from grid tracks, 1 block measurements, 0 runs outside them, width 50

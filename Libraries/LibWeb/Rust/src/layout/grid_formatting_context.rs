@@ -4485,6 +4485,28 @@ impl<'pass> GridFormattingContext<'pass> {
         self.container_used().rare_data_mut().grid_layout_data = Some(std::sync::Arc::new(data));
     }
 
+    pub(crate) fn content_inline_size(&mut self, input: LayoutInput) -> CssPixels {
+        self.reset_for_run(input);
+        let grid_style = self.grid_style(self.run.box_);
+        self.cache_subgrid_axes(grid_style);
+        let (columns, rows) = self.initialize_lines(grid_style);
+        self.place_items();
+        self.initialize_tracks(grid_style, &columns, &rows);
+        self.resolve_item_metrics(Axis::Column);
+        self.run_track_sizing(Axis::Column);
+        if !self.items_with_column_contributions_depending_on_row_sizes().is_empty() {
+            self.resolve_item_metrics(Axis::Column);
+            self.resolve_item_sizes(Axis::Column);
+            self.resolve_item_metrics(Axis::Row);
+            self.run_track_sizing(Axis::Row);
+            self.resolve_item_metrics(Axis::Row);
+            self.resolve_item_sizes(Axis::Row);
+            self.re_resolve_columns_with_row_sizes();
+        }
+        self.resolve_track_spacing(Axis::Column);
+        self.track_sum(Axis::Column)
+    }
+
     pub(crate) fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         let available = input.available_space;
         // OPTIMIZATION: If we're in intrinsic sizing layout, but the grid container is not the

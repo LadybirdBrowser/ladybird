@@ -146,6 +146,20 @@
             ["column flex with an aspect ratio item", "", '<div style="display: flex; flex-direction: column"><div style="aspect-ratio: 2; height: 20px"></div><div>alpha</div></div>'],
             ["nested flex", "", '<div style="display: flex"><div style="display: flex; flex-direction: column"><div>alpha beta</div><div style="display: flex"><span>x</span><span>yyyy</span></div></div><div>gamma</div></div>'],
             ["row flex with a stretched aspect ratio item", "", '<div style="display: flex"><div style="aspect-ratio: 1"></div><div style="width: 10px; height: 60px"></div></div>'],
+            ["grid with fixed and flexible columns", "", '<div style="display: grid; grid-template-columns: 1fr 30px 2fr; column-gap: 5px"><div>alpha beta</div><div>x</div><div>gamma</div></div>'],
+            ["grid with intrinsic track bounds", "", '<div style="display: grid; grid-template-columns: minmax(min-content, max-content) minmax(20px, 1fr) fit-content(40px)"><div>alpha beta</div><div>gamma</div><div>delta epsilon</div></div>'],
+            ["grid with flexible intrinsic minimums", "", '<div style="display: grid; grid-template-columns: minmax(max-content, 1fr) minmax(min-content, 2fr)"><div>alpha beta</div><div>gamma delta</div></div>'],
+            ["grid with spanning items", "", '<div style="display: grid; grid-template-columns: auto 1fr auto; gap: 4px"><div style="grid-column: span 2">alpha beta gamma delta</div><div>x</div><div style="grid-column: 2 / span 2">epsilon</div></div>'],
+            ["grid with item constraints", "", '<div style="display: grid; grid-template-columns: auto auto auto"><div style="min-width: 120px">alpha</div><div style="max-width: 30px">gamma delta</div><div style="width: 50%; padding: 0 3px; margin-left: 4px">beta</div></div>'],
+            ["grid with a scroll container item", "", '<div style="display: grid; grid-template-columns: auto auto"><div style="overflow: auto">alphabeta</div><div>gamma</div></div>'],
+            ["auto-fill grid with a percentage minimum", "", '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); min-width: 50%"><div>alpha</div><div>beta</div><div>gamma</div></div>'],
+            ["auto-fit grid with a percentage gap", "", '<div style="display: grid; grid-template-columns: repeat(auto-fit, 40px) auto; column-gap: 10%"><div>alpha</div><div>beta gamma</div></div>'],
+            ["column flow grid with dense placement", "", '<div style="display: grid; grid-auto-flow: column dense; grid-template-rows: auto auto"><div>alpha</div><div style="grid-row: span 2">beta gamma</div><div>delta</div></div>'],
+            ["subgrid", "", '<div style="display: grid; grid-template-columns: auto auto; column-gap: 6px"><div style="display: grid; grid-column: span 2; grid-template-columns: subgrid; column-gap: 2px"><div>alpha beta</div><div>gamma</div></div><div>delta epsilon</div></div>'],
+            ["grid with an orthogonal item", "", '<div style="display: grid; grid-template-columns: auto auto"><div style="writing-mode: vertical-rl; height: 60px">alpha beta gamma</div><div>delta</div></div>'],
+            ["grid with an aspect ratio item sized by its row", "height: 80px", '<div style="display: grid; height: 100%; grid-template-columns: auto auto"><div style="aspect-ratio: 2; height: 50%"></div><div>alpha</div></div>'],
+            ["empty grid with fixed columns", "", '<div style="display: grid; grid-template-columns: 20px 1fr 30px; column-gap: 7px"></div>'],
+            ["row flex with a grid item distributing its columns", "", '<div style="display: flex"><div style="display: grid; width: 100px; grid-template-columns: 20px 20px; justify-content: space-between"><div>alpha</div><div>beta</div></div><div>gamma</div></div>'],
         ];
         for (const [name, declarations, content] of cases) {
             const container = document.createElement("div");
