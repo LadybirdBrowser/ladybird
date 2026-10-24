@@ -1,0 +1,18 @@
+At launch, Ladybird re-adopts the session rows of the windows the last
+run left open, and reads a tab’s history only once the tab is selected.
+Its PinnedOnly policy splits each window’s pinned tabs from the rest, as
+Firefox’s #prepDataForDeferredRestore() does: Firefox restores the
+pinned tabs (browser.sessionstore.restore_pinned_tabs_on_demand is
+false) and puts the rest on its closed-window list. Chromium’s
+PinnedTabCodec::WritePinnedTabs() instead flattens every normal window’s
+pinned tabs into prefs::kPinnedTabs as plain URLs.
+
+When the last window closes, Ladybird counts it as left open, as
+Chromium’s SessionService::WindowClosing() does by parking the
+last trackable window in pending_window_close_ids_ rather than
+committing its close. Ladybird’s crash guard matches Firefox’s
+#needsRestorePage(), which stops restoring automatically once recent
+crashes exceed browser.sessionstore.max_resumed_crashes (1); it
+leaves out Firefox’s six-hour session-age rule. And Chromium’s
+StartupBrowserCreatorImpl::RestoreOrCreateBrowser() never restores
+automatically after a crash at all.
