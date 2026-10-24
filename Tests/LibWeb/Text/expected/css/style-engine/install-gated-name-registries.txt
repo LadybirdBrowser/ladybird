@@ -4,7 +4,7 @@ first after an unrelated change: 100
 first follows b: 200
 second follows b: 200
 second follows a: 100
-shared after moving d before c: 400
+shared after moving d before c: 300
 shared after moving c before d: 400
 animations: one
 animations after a name change: two
