@@ -226,18 +226,7 @@ void Canvas2DCommandPlayer::play_command(Canvas2DDrawVideoFrame const& command)
 
 void Canvas2DCommandPlayer::draw_image(SkImage const& image, Gfx::FloatRect const& dst_rect, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, Canvas2DCompositing const& compositing)
 {
-    SkPaint paint;
-    paint.setImageFilter(image_filter_from(compositing));
-    paint.setAlpha(static_cast<u8>(compositing.global_alpha * 255));
-    paint.setBlender(Gfx::to_skia_blender(compositing.compositing_and_blending_operator));
-
-    m_surface->canvas().drawImageRect(
-        &image,
-        Gfx::to_skia_rect(src_rect),
-        Gfx::to_skia_rect(dst_rect),
-        Gfx::to_skia_sampling_options(scaling_mode),
-        &paint,
-        SkCanvas::kStrict_SrcRectConstraint);
+    m_painter->draw_image(image, dst_rect, src_rect, scaling_mode, image_filter_from(compositing), compositing.global_alpha, compositing.compositing_and_blending_operator);
 }
 
 void Canvas2DCommandPlayer::play_command(Canvas2DSetTransform const& command)
