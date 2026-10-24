@@ -71,6 +71,9 @@ ladybird_lib(LibCompositing compositing EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibCompositing PUBLIC LibWebCommon)
 target_link_libraries(LibCompositing PRIVATE LibCore LibGfx LibIPC LibMedia LibThreading libcompositing_rust)
 
+# The generated WebGLCommands.h includes the generated GLFunctions.h, whose implementation the Compositor compiles.
+add_dependencies(LibCompositing generate_GLFunctions.cpp)
+
 # The WebGL command stream headers include ANGLE's GLES headers for the GL constants and types,
 # but the GL entry points live in the Compositor. Hand out only ANGLE's compile interface, to this
 # library and to whatever includes its headers, so nothing that links LibCompositing pulls ANGLE in.
