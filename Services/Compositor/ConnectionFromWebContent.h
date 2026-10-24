@@ -55,10 +55,10 @@ private:
     virtual void update_scroll_state(Web::CompositorContextId, Compositing::ScrollStateSnapshot, Compositing::KeyboardScrollState) override;
     virtual void update_display_list_resources(Web::CompositorContextId, Compositing::DisplayListResourceTransaction) override;
     virtual Messages::CompositorWebContentServer::ReserveCanvasIdsResponse reserve_canvas_ids() override;
-    virtual void create_canvas_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha, bool will_read_frequently) override;
+    virtual void create_canvas_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace) override;
     virtual void update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment>, Vector<Compositing::FontResourceId>, Vector<Compositing::DisplayListFontResource>, Vector<Compositing::DisplayListImageFrameResource>) override;
     virtual void destroy_canvas_context(Compositing::CanvasId) override;
-    virtual Messages::CompositorWebContentServer::GetCanvasPixelsResponse get_canvas_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType) override;
+    virtual Messages::CompositorWebContentServer::GetCanvasPixelsResponse get_canvas_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType, Gfx::ColorSpace) override;
     virtual Messages::CompositorWebContentServer::AllocatePlaceholderCanvasResponse allocate_placeholder_canvas() override;
     virtual void release_placeholder_canvas(Compositing::CanvasId) override;
     virtual void commit_placeholder_canvas(Compositing::CanvasId, u64 secret, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean) override;

@@ -10,7 +10,7 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, Transport};
+use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpace, Transport};
 use libcompositing_rust::display_list::commands::{CanvasId, FontResourceId, ImageFrameResourceId};
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{IntRect, IntSize};
@@ -23,6 +23,7 @@ unsafe extern "C" {
         height: i32,
         alpha: bool,
         will_read_frequently: bool,
+        color_space: ColorSpace,
     ) -> bool;
     fn web_canvas_2d_transport_canvas_id(transport: *const c_void, out_canvas_id: *mut u64) -> bool;
     fn web_canvas_2d_transport_destroy_context(transport: *mut c_void);
@@ -40,6 +41,7 @@ unsafe extern "C" {
         width: i32,
         height: i32,
         alpha_type: AlphaType,
+        color_space: ColorSpace,
     ) -> *mut c_void;
     fn web_canvas_2d_bitmap_ref(bitmap: *mut c_void);
     fn web_canvas_2d_bitmap_unref(bitmap: *mut c_void);
@@ -163,9 +165,16 @@ impl Transport for CppTransport {
     type VideoFrameHold = LentVideoFrameHold;
     type Bitmap = Bitmap;
 
-    fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool) -> bool {
+    fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool, color_space: ColorSpace) -> bool {
         unsafe {
-            web_canvas_2d_transport_create_context(self.as_ptr(), size.width, size.height, alpha, will_read_frequently)
+            web_canvas_2d_transport_create_context(
+                self.as_ptr(),
+                size.width,
+                size.height,
+                alpha,
+                will_read_frequently,
+                color_space,
+            )
         }
     }
 
@@ -206,9 +215,17 @@ impl Transport for CppTransport {
         unsafe { web_canvas_2d_transport_flush(self.as_ptr()) };
     }
 
-    fn read_back_pixels(&self, rect: IntRect, alpha_type: AlphaType) -> Option<Bitmap> {
+    fn read_back_pixels(&self, rect: IntRect, alpha_type: AlphaType, color_space: ColorSpace) -> Option<Bitmap> {
         let bitmap = unsafe {
-            web_canvas_2d_transport_read_back_pixels(self.as_ptr(), rect.x, rect.y, rect.width, rect.height, alpha_type)
+            web_canvas_2d_transport_read_back_pixels(
+                self.as_ptr(),
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+                alpha_type,
+                color_space,
+            )
         };
         NonNull::new(bitmap).map(Bitmap)
     }

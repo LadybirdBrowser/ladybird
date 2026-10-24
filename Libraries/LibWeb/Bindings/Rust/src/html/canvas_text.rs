@@ -110,7 +110,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         let translation = text_transform(&state, &first_font, x, run.width, None).map_point(FloatPoint { x, y });
         let lent_font = LentFont(NonNull::new(run.font.as_raw().cast_mut()).expect("a font has a font"));
         self.record(|recorder| {
-            let paint = paint_of(recorder, &state.fill_style);
+            let paint = paint_of(recorder, &state.fill_style, self.context_attributes.color_space);
             recorder.draw_glyph_run(
                 &lent_font,
                 &glyphs,

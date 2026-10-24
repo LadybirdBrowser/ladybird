@@ -438,6 +438,7 @@ set(SOURCES
     HTML/Canvas/Canvas2DContextBase.cpp
     HTML/Canvas/CanvasHost.cpp
     HTML/Canvas/CanvasDrawImage.cpp
+    HTML/Canvas/PredefinedColorSpace.cpp
     HTML/Canvas/RemoteCanvas2DTransportFFI.cpp
     HTML/Canvas/SerializeBitmap.cpp
     HTML/CanvasRenderingContext2D.cpp

@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-2 Pass
-6 Fail
-Fail	Source srgb, destination display-p3, color 255,0,0,255
-Fail	Source srgb, destination display-p3, color 255,0,0,204
-Fail	Source srgb, destination display-p3, color 187,0,0,255
-Fail	Source srgb, destination display-p3, color 187,0,0,204
+8 Pass
+Pass	Source srgb, destination display-p3, color 255,0,0,255
+Pass	Source srgb, destination display-p3, color 255,0,0,204
+Pass	Source srgb, destination display-p3, color 187,0,0,255
+Pass	Source srgb, destination display-p3, color 187,0,0,204
 Pass	Source display-p3, destination srgb, color 255,0,0,255
 Pass	Source display-p3, destination srgb, color 255,0,0,204
-Fail	Source display-p3, destination srgb, color 187,0,0,255
-Fail	Source display-p3, destination srgb, color 187,0,0,204
+Pass	Source display-p3, destination srgb, color 187,0,0,255
+Pass	Source display-p3, destination srgb, color 187,0,0,204

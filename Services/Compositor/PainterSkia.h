@@ -18,6 +18,7 @@
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/WindingRule.h>
 
+class SkColorSpace;
 class SkFont;
 class SkImageFilter;
 template<typename T>
@@ -52,6 +53,9 @@ public:
     void reset();
 
 private:
+    // NB: The colors that the painter is given are in the color space of the surface.
+    SkColorSpace* color_space() const;
+
     NonnullRefPtr<PaintingSurface> m_painting_surface;
     u32 m_initial_save_count { 0 };
 };

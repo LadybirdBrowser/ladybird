@@ -270,10 +270,10 @@ public:
     }
 
 private:
-    virtual bool create_context(Gfx::IntSize size, bool alpha, bool will_read_frequently) override
+    virtual bool create_context(Gfx::IntSize size, bool alpha, bool will_read_frequently, Gfx::ColorSpace const& color_space) override
     {
         VERIFY(!m_canvas_id.has_value());
-        auto canvas_id = m_connection->create_canvas_2d_context(size, alpha, will_read_frequently);
+        auto canvas_id = m_connection->create_canvas_2d_context(size, alpha, will_read_frequently, color_space);
         if (!canvas_id.has_value())
             return false;
         m_canvas_id = *canvas_id;
@@ -330,11 +330,11 @@ private:
         m_connection->update_canvas_2d_stream(*m_stream);
     }
 
-    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type) override
+    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space) override
     {
         if (!m_canvas_id.has_value())
             return nullptr;
-        auto shareable_bitmap = m_connection->get_canvas_pixels(*m_canvas_id, rect, alpha_type);
+        auto shareable_bitmap = m_connection->get_canvas_pixels(*m_canvas_id, rect, alpha_type, color_space);
         if (!shareable_bitmap.is_valid())
             return nullptr;
         return shareable_bitmap.bitmap();

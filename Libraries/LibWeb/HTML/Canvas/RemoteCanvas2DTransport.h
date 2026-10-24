@@ -13,6 +13,7 @@
 #include <AK/Span.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/Video/VideoFrameHold.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -26,7 +27,8 @@ class WEB_API RemoteCanvas2DTransport : public RefCounted<RemoteCanvas2DTranspor
 public:
     virtual ~RemoteCanvas2DTransport() = default;
 
-    virtual bool create_context(Gfx::IntSize, bool alpha, bool will_read_frequently) = 0;
+    // The pixels of the context, and the colors of the records, are in the color space.
+    virtual bool create_context(Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace const&) = 0;
     virtual Optional<Compositing::CanvasId> canvas_id() const = 0;
     virtual void destroy_context() = 0;
 
@@ -42,8 +44,8 @@ public:
     virtual size_t pending_command_count() const = 0;
     virtual void flush() = 0;
 
-    // Unpremultiplied pixels come back as RGBA8888 and premultiplied pixels as BGRA8888.
-    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const&, Gfx::AlphaType) = 0;
+    // Unpremultiplied pixels come back as RGBA8888 and premultiplied pixels as BGRA8888, in the color space.
+    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const&, Gfx::AlphaType, Gfx::ColorSpace const&) = 0;
 };
 
 }

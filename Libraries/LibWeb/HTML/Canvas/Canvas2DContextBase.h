@@ -19,6 +19,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Canvas/CanvasSettings.h>
+#include <LibWebCommon/Bindings/PredefinedColorSpace.h>
 
 namespace Web::HTML {
 
@@ -44,7 +45,11 @@ public:
 
     Optional<Compositing::CanvasId> canvas_id() const;
 
-    RefPtr<Gfx::Bitmap> read_pixels(Gfx::IntRect const&, Gfx::AlphaType = Gfx::AlphaType::Premultiplied);
+    // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-color-space
+    Bindings::PredefinedColorSpace color_space() const;
+
+    // The pixels of the rectangle of the output bitmap, converted to the color space.
+    RefPtr<Gfx::Bitmap> read_pixels(Gfx::IntRect const&, Gfx::AlphaType = Gfx::AlphaType::Premultiplied, Bindings::PredefinedColorSpace = Bindings::PredefinedColorSpace::Srgb);
 
     // Draws the ImageBitmap at the point as drawImage() does, and returns whether that threw nothing.
     bool draw_image(ImageBitmap&, float x, float y);

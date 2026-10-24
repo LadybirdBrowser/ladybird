@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
 #include <LibJS/Forward.h>
@@ -37,7 +39,10 @@ public:
     virtual CSS::ColorResolutionStyle canvas_color_resolution_style() = 0;
     virtual CSSPixelRect canvas_viewport_rect() const = 0;
 
+    // The bitmap of the canvas, converted to sRGB.
     virtual RefPtr<Gfx::Bitmap> get_bitmap_from_surface();
+    // The bitmap of the canvas in the color space of its context, with that color space.
+    Optional<Gfx::DecodedImageFrame> get_frame_from_surface();
     virtual bool is_origin_clean() const;
 
 protected:

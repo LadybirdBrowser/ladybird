@@ -60,7 +60,7 @@ public:
     CanvasHost(RefPtr<Gfx::SkiaBackendContext>, CanvasSurfaceRegistry&, VideoFrameHolds const&);
     ~CanvasHost();
 
-    bool create_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha, bool will_read_frequently);
+    bool create_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace const&);
     CreateWebGLContextResult create_webgl_context(Compositing::WebGL::WebGLVersion, Gfx::IntSize, bool depth, bool stencil, bool antialias);
     void destroy_context(Compositing::CanvasId);
 
@@ -76,12 +76,13 @@ public:
 
     void present_webgl_canvas(Compositing::CanvasId, bool preserve_drawing_buffer);
     void clear_webgl_drawing_buffer(Compositing::CanvasId);
-    Gfx::ShareableBitmap read_back_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType);
+    // The pixels come back in the color space.
+    Gfx::ShareableBitmap read_back_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType, Gfx::ColorSpace const& = {});
     RefPtr<Gfx::PaintingSurface> presented_surface(Compositing::CanvasId);
 
     void forget_video_sink(Media::VideoSinkHandle);
 
-    static Gfx::ShareableBitmap read_back_surface(Gfx::PaintingSurface&, Gfx::IntRect, Gfx::AlphaType = Gfx::AlphaType::Premultiplied);
+    static Gfx::ShareableBitmap read_back_surface(Gfx::PaintingSurface&, Gfx::IntRect, Gfx::AlphaType = Gfx::AlphaType::Premultiplied, Gfx::ColorSpace const& = {});
 
 private:
     struct Canvas2DContext {
@@ -93,7 +94,7 @@ private:
     using Context = Variant<Canvas2DContext, WebGLContext>;
 
     Context* context(Compositing::CanvasId);
-    OwnPtr<Canvas2DCommandPlayer> create_2d_command_player(Gfx::IntSize, bool alpha, bool will_read_frequently);
+    OwnPtr<Canvas2DCommandPlayer> create_2d_command_player(Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace const&);
     static HostWebGLContext& as_webgl(Context&);
     void present_canvas_2d_context(Compositing::CanvasId, Canvas2DContext&);
     sk_sp<SkImage> held_video_frame_image(Media::VideoSinkHandle, u64 generation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context_of_canvas);

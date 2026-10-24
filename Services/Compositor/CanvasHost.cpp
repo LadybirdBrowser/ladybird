@@ -49,7 +49,7 @@ CanvasHost::~CanvasHost()
         m_canvas_surface_registry.remove_canvas_surface(canvas_id);
 }
 
-OwnPtr<Canvas2DCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize size, bool alpha, bool will_read_frequently)
+OwnPtr<Canvas2DCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize size, bool alpha, bool will_read_frequently, Gfx::ColorSpace const& color_space)
 {
     if (!Compositing::is_valid_canvas_2d_size(size))
         return nullptr;
@@ -87,7 +87,7 @@ OwnPtr<Canvas2DCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize 
     auto video_frame_image_resolver = [this, skia_backend_context_of_canvas](u64 video_sink_handle, u64 generation) {
         return held_video_frame_image(Media::VideoSinkHandle { video_sink_handle }, generation, skia_backend_context_of_canvas);
     };
-    auto player = make<Canvas2DCommandPlayer>(skia_backend_context_of_canvas, size, format, Gfx::AlphaType::Premultiplied,
+    auto player = make<Canvas2DCommandPlayer>(skia_backend_context_of_canvas, size, format, Gfx::AlphaType::Premultiplied, color_space,
         Canvas2DCommandPlayer::Resolvers {
             .canvas_surface = move(canvas_surface_resolver),
             .font = move(font_resolver),
@@ -127,9 +127,9 @@ HostWebGLContext& CanvasHost::as_webgl(Context& context)
     return **webgl_context;
 }
 
-bool CanvasHost::create_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently)
+bool CanvasHost::create_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently, Gfx::ColorSpace const& color_space)
 {
-    auto command_player = create_2d_command_player(size, alpha, will_read_frequently);
+    auto command_player = create_2d_command_player(size, alpha, will_read_frequently, color_space);
     if (!command_player)
         return false;
 
@@ -343,7 +343,7 @@ void CanvasHost::clear_webgl_drawing_buffer(Compositing::CanvasId canvas_id)
     as_webgl(*context).clear_drawing_buffer();
 }
 
-Gfx::ShareableBitmap CanvasHost::read_back_surface(Gfx::PaintingSurface& surface, Gfx::IntRect rect, Gfx::AlphaType alpha_type)
+Gfx::ShareableBitmap CanvasHost::read_back_surface(Gfx::PaintingSurface& surface, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space)
 {
     auto clipped_rect = rect.intersected(surface.rect());
     if (clipped_rect.is_empty())
@@ -358,7 +358,7 @@ Gfx::ShareableBitmap CanvasHost::read_back_surface(Gfx::PaintingSurface& surface
 
     auto bitmap = bitmap_or_error.release_value();
     surface.flush();
-    surface.read_into_bitmap(*bitmap, clipped_rect.location());
+    surface.read_into_bitmap(*bitmap, clipped_rect.location(), color_space);
     return Gfx::ShareableBitmap { move(bitmap), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
 }
 
@@ -377,18 +377,19 @@ RefPtr<Gfx::PaintingSurface> CanvasHost::presented_surface(Compositing::CanvasId
         });
 }
 
-Gfx::ShareableBitmap CanvasHost::read_back_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type)
+Gfx::ShareableBitmap CanvasHost::read_back_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space)
 {
     auto* context = this->context(canvas_id);
     if (!context)
         return {};
 
     return context->visit(
-        [rect, alpha_type](Canvas2DContext& canvas_context) {
-            return read_back_surface(canvas_context.command_player->surface(), rect, alpha_type);
+        [rect, alpha_type, &color_space](Canvas2DContext& canvas_context) {
+            return read_back_surface(canvas_context.command_player->surface(), rect, alpha_type, color_space);
         },
-        [rect, alpha_type](WebGLContext& webgl_context) -> Gfx::ShareableBitmap {
-            if (alpha_type != Gfx::AlphaType::Premultiplied)
+        [rect, alpha_type, &color_space](WebGLContext& webgl_context) -> Gfx::ShareableBitmap {
+            // NB: The drawing buffer of a WebGL context is sRGB.
+            if (alpha_type != Gfx::AlphaType::Premultiplied || !color_space.data().has<Empty>())
                 return {};
             return webgl_context->read_back_drawing_buffer(rect);
         });

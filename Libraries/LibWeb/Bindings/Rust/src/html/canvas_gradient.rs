@@ -14,13 +14,15 @@ use libgfx_rust::{Color, FloatPoint};
 use libjs_rust::api::{Trace, Vm};
 
 use super::color_stops::ColorStopList;
+use super::predefined_color_space::PredefinedColorSpace;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 unsafe extern "C" {
     /// Parses the color as the CSS color value of a canvas without an element to resolve it against, which LibWeb's
-    /// C++ does, and returns whether it is one. The string is a borrowed AK::Utf16String.
-    fn web_canvas_gradient_parse_color(color: usize, out_color: *mut Color) -> bool;
+    /// C++ does, and returns whether it is one. The color is given in each predefined color space, in the order of
+    /// PredefinedColorSpace. The string is a borrowed AK::Utf16String.
+    fn web_canvas_gradient_parse_color(color: usize, out_colors: *mut [Color; 4]) -> bool;
 }
 
 /// Where the colors of a gradient go, which the method of the context that created it decides. The points and the
@@ -122,23 +124,35 @@ impl CanvasGradient {
 
     /// Whether a draw with the gradient can change a pixel: whether one of its stops is not transparent.
     pub(crate) fn is_visible(&self) -> bool {
-        self.color_stops.borrow().colors().iter().any(|color| color.alpha() > 0)
+        self.color_stops
+            .borrow()
+            .colors(PredefinedColorSpace::Srgb)
+            .iter()
+            .any(|color| color.alpha() > 0)
     }
 
-    /// The paint of a draw with the gradient, which borrows the stops until the gradient changes.
+    /// The paint of a draw with the gradient in a context of the color space, which borrows the stops until the
+    /// gradient changes.
     ///
     /// # Safety
     ///
     /// Nothing may add a stop to the gradient while the paint is in use.
-    pub(crate) unsafe fn paint_unguarded(&self) -> Paint<'_> {
+    pub(crate) unsafe fn paint_unguarded(&self, color_space: PredefinedColorSpace) -> Paint<'_> {
         // SAFETY: The caller keeps the stops from changing while the paint borrows them.
         let color_stops = unsafe { self.color_stops.try_borrow_unguarded() }.expect("nothing adds a stop meanwhile");
-        self.paint_with_color_stops(color_stops)
+        self.paint_with_color_stops(color_stops, color_space)
     }
 
-    fn paint_with_color_stops<'a>(&self, color_stops: &'a ColorStopList) -> Paint<'a> {
+    /// https://html.spec.whatwg.org/multipage/canvas.html#interpolation
+    /// The color of the gradient at each stop is the color specified for that stop, converted to the context's color
+    /// space.
+    fn paint_with_color_stops<'a>(
+        &self,
+        color_stops: &'a ColorStopList,
+        color_space: PredefinedColorSpace,
+    ) -> Paint<'a> {
         let color_stops = ColorStops {
-            colors: color_stops.colors(),
+            colors: color_stops.colors(color_space),
             positions: color_stops.positions(),
         };
         match self.geometry {
@@ -178,8 +192,8 @@ impl CanvasGradient {
 
         // 2. Let parsed color be the result of parsing color.
         // https://drafts.csswg.org/css-color/#parse-a-css-color-value
-        let mut parsed_color = Color(0);
-        // SAFETY: The string is live for the call, and the color is a local.
+        let mut parsed_color = [Color(0); 4];
+        // SAFETY: The string is live for the call, and the colors are a local.
         let is_color = unsafe { web_canvas_gradient_parse_color(color.raw_identity(), &raw mut parsed_color) };
 
         // 3. If parsed color is failure, throw a "SyntaxError" DOMException.

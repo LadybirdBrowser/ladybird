@@ -166,7 +166,13 @@ impl ContextState {
         // SAFETY: The rows of the source rectangle are inside the pixels of the ImageData, and nothing runs script
         //         while they are copied.
         let Some(frame) = (unsafe {
-            image_frame_from_pixels(first_row, source_pitch, destination_rect.width, destination_rect.height)
+            image_frame_from_pixels(
+                first_row,
+                source_pitch,
+                destination_rect.width,
+                destination_rect.height,
+                image_data.predefined_color_space().into(),
+            )
         }) else {
             return Err(cx
                 .vm()
@@ -325,7 +331,12 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         // NOTE: Internally we must use premultiplied alpha, but ImageData should hold unpremultiplied alpha. This
         //       conversion might result in a loss of precision, but is according to spec.
         //       See: https://html.spec.whatwg.org/multipage/canvas.html#premultiplied-alpha-and-the-2d-rendering-context
-        let Some(readback) = self.read_pixels(readback_rect, AlphaType::Unpremultiplied) else {
+        // NB: The readback converts the pixels to the color space of imageData, which step 6 does below.
+        let Some(readback) = self.read_pixels(
+            readback_rect,
+            AlphaType::Unpremultiplied,
+            image_data.predefined_color_space().into(),
+        ) else {
             return Ok(image_data);
         };
 

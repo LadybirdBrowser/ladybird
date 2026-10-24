@@ -12,6 +12,7 @@
 #include <AK/RefPtr.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Size.h>
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
@@ -52,7 +53,8 @@ public:
 
     Function<void(PaintingSurface&)> on_flush;
 
-    static NonnullRefPtr<PaintingSurface> create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> = {});
+    // A surface whose pixels are in the color space, which is sRGB unless one is given.
+    static NonnullRefPtr<PaintingSurface> create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> = {}, ColorSpace const& = {});
     static NonnullRefPtr<PaintingSurface> wrap_bitmap(Bitmap&);
 
 #ifdef AK_OS_MACOS
@@ -67,8 +69,10 @@ public:
     static ErrorOr<NonnullRefPtr<PaintingSurface>> create_from_d3d_texture(NonnullRefPtr<SkiaBackendContext>, NonnullRefPtr<D3DSharedTexture>, Origin = Origin::TopLeft);
 #endif
 
-    void read_into_bitmap(Bitmap&, IntPoint source_position = {}) const;
-    void write_from_bitmap(Bitmap const&, IntPoint destination_position = {});
+    // The pixels of the bitmap are in the color space, which is sRGB unless one is given. The surface converts them
+    // from or to the color space of its own pixels.
+    void read_into_bitmap(Bitmap&, IntPoint source_position = {}, ColorSpace const& = {}) const;
+    void write_from_bitmap(Bitmap const&, IntPoint destination_position = {}, ColorSpace const& = {});
     void copy_from_surface(PaintingSurface&);
 
     void notify_content_will_change();

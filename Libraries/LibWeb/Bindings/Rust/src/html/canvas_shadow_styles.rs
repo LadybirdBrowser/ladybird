@@ -58,7 +58,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowcolor
     pub(crate) fn shadow_color(&self, _: &mut CallContext) -> WebIdlResult<Utf16String> {
-        Ok(serialize_color(self.drawing_state().shadow_color))
+        Ok(serialize_color(self.drawing_state().shadow_color.srgb))
     }
 
     pub(crate) fn set_shadow_color(&self, _: &mut CallContext, color: Utf16String) -> WebIdlResult<()> {

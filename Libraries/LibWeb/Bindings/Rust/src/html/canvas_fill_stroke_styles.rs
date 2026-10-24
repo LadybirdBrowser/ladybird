@@ -27,7 +27,7 @@ pub(crate) enum DOMStringOrCanvasGradientOrCanvasPattern {
 impl From<FillOrStrokeStyle> for DOMStringOrCanvasGradientOrCanvasPattern {
     fn from(style: FillOrStrokeStyle) -> Self {
         match style {
-            FillOrStrokeStyle::Color(color) => Self::DOMString(serialize_color(color)),
+            FillOrStrokeStyle::Color(color) => Self::DOMString(serialize_color(color.srgb)),
             FillOrStrokeStyle::Gradient(gradient) => Self::CanvasGradient(gradient),
             FillOrStrokeStyle::Pattern(pattern) => Self::CanvasPattern(pattern),
         }

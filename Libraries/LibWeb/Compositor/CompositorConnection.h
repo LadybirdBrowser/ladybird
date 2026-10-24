@@ -55,10 +55,10 @@ public:
     void remove_video_sink(Media::VideoSinkHandle);
     void release_video_frame_hold(Media::VideoSinkHandle, u64 generation);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
-    Optional<Compositing::CanvasId> create_canvas_2d_context(Gfx::IntSize, bool alpha, bool will_read_frequently);
+    Optional<Compositing::CanvasId> create_canvas_2d_context(Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace const&);
     void update_canvas_2d_stream(Compositing::Canvas2DCommandStream&);
     void destroy_canvas_context(Compositing::CanvasId);
-    Gfx::ShareableBitmap get_canvas_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType = Gfx::AlphaType::Premultiplied);
+    Gfx::ShareableBitmap get_canvas_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType = Gfx::AlphaType::Premultiplied, Gfx::ColorSpace const& = {});
     Optional<Web::Compositor::PlaceholderCanvasLink> allocate_placeholder_canvas();
     void release_placeholder_canvas(Compositing::CanvasId);
     void commit_placeholder_canvas(Web::Compositor::PlaceholderCanvasLink, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean);

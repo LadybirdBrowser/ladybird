@@ -6,6 +6,8 @@
 
 //! https://html.spec.whatwg.org/multipage/canvas.html#predefinedcolorspace
 
+use libcompositing_rust::display_list::canvas_2d_recorder::ColorSpace;
+
 /// In the order of Web::Bindings::PredefinedColorSpace, which C++ passes as its underlying value.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
@@ -26,6 +28,17 @@ impl PredefinedColorSpace {
             2 => Some(Self::DisplayP3),
             3 => Some(Self::DisplayP3Linear),
             _ => None,
+        }
+    }
+}
+
+impl From<PredefinedColorSpace> for ColorSpace {
+    fn from(color_space: PredefinedColorSpace) -> Self {
+        match color_space {
+            PredefinedColorSpace::Srgb => Self::Srgb,
+            PredefinedColorSpace::SrgbLinear => Self::SrgbLinear,
+            PredefinedColorSpace::DisplayP3 => Self::DisplayP3,
+            PredefinedColorSpace::DisplayP3Linear => Self::DisplayP3Linear,
         }
     }
 }

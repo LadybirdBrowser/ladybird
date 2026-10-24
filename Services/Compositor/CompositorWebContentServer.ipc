@@ -11,6 +11,7 @@
 #include <LibCompositing/WebGL/ImageSourceFrame.h>
 #include <LibCompositing/WebGL/Types.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
@@ -39,12 +40,14 @@ endpoint CompositorWebContentServer
 
     // Hands WebContent a range of canvas IDs it may name its own 2D contexts with, so creating one needs no round trip.
     reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)
-    create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently) =|
+    // The pixels of the context, and the colors of its commands, are in the color space.
+    create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently, Gfx::ColorSpace color_space) =|
     // The segments draw with the fonts of the previous batch named in kept_font_ids, and with added_fonts. The other
     // fonts of the previous batch are released. The image frames are those that the segments draw.
     update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::FontResourceId> kept_font_ids, Vector<Compositing::DisplayListFontResource> added_fonts, Vector<Compositing::DisplayListImageFrameResource> image_frames) =|
     destroy_canvas_context(Compositing::CanvasId canvas_id) =|
-    get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type) => (Gfx::ShareableBitmap pixels)
+    // The pixels come back in the color space.
+    get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace color_space) => (Gfx::ShareableBitmap pixels)
 
     allocate_placeholder_canvas() => (Compositing::CanvasId canvas_id, u64 secret)
     release_placeholder_canvas(Compositing::CanvasId canvas_id) =|
