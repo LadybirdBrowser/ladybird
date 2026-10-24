@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A video whose media data came from a CORS-cross-origin response must not be readable through a canvas: drawing
+    // it, or a pattern of it, taints a 2D canvas, and uploading it to WebGL throws. The same video served same-origin
+    // stays readable.
+    async function loadVideo(url) {
+        const video = document.createElement("video");
+        video.src = url;
+        document.body.append(video);
+        if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+            await new Promise((resolve, reject) => {
+                video.addEventListener("loadeddata", resolve, { once: true });
+                video.addEventListener("error", () => reject(new Error(`load failed with code ${video.error?.code}`)), { once: true });
+            });
+        }
+        return video;
+    }
+
+    function outcome(action) {
+        try {
+            action();
+            return "allowed";
+        } catch (error) {
+            return error.name;
+        }
+    }
+
+    function check(label, video) {
+        const context = document.createElement("canvas").getContext("2d");
+        context.drawImage(video, 0, 0);
+        println(`${label} drawImage, then getImageData: ${outcome(() => context.getImageData(0, 0, 1, 1))}`);
+
+        const patternContext = document.createElement("canvas").getContext("2d");
+        patternContext.fillStyle = patternContext.createPattern(video, "no-repeat");
+        patternContext.fillRect(0, 0, 1, 1);
+        println(`${label} createPattern, then getImageData: ${outcome(() => patternContext.getImageData(0, 0, 1, 1))}`);
+
+        const gl = document.createElement("canvas").getContext("webgl");
+        gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+        println(`${label} texImage2D: ${outcome(() => gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video))}`);
+    }
+
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const sameOriginURL = server.getStaticURL("Assets/solid-blue-160x120.webm");
+        const crossOriginURL = new URL(sameOriginURL);
+        crossOriginURL.hostname = uniqueLocalhostHostname("cross-origin-video");
+
+        check("same-origin", await loadVideo(sameOriginURL));
+        check("cross-origin", await loadVideo(crossOriginURL.href));
+    });
+</script>

@@ -108,9 +108,9 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
             return image_data && image_data->is_cors_cross_origin();
         },
         // HTMLVideoElement
-        [](GC::Ref<HTMLVideoElement>) {
-            // FIXME: image's media data is CORS-cross-origin.
-            return false;
+        [](GC::Ref<HTMLVideoElement> video) {
+            // image's media data is CORS-cross-origin.
+            return video->media_data_is_cors_cross_origin();
         },
         // HTMLCanvasElement
         // OffscreenCanvas
