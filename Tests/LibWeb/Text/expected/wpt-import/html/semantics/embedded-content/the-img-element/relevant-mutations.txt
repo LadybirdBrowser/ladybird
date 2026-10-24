@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 113 tests
 
-83 Pass
-30 Fail
+108 Pass
+5 Fail
 Pass	src set
 Pass	src changed
 Pass	src removed
@@ -25,17 +25,17 @@ Pass	crossorigin use-credentials to absent, src absent
 Pass	crossorigin use-credentials to empty, src absent
 Pass	crossorigin use-credentials to anonymous, src absent
 Pass	crossorigin use-credentials to invalid, src absent
-Fail	crossorigin absent to empty, src already set
-Fail	crossorigin absent to anonymous, src already set
-Fail	crossorigin absent to use-credentials, src already set
-Fail	crossorigin empty to absent, src already set
-Fail	crossorigin empty to use-credentials, src already set
-Fail	crossorigin anonymous to absent, src already set
-Fail	crossorigin anonymous to use-credentials, src already set
-Fail	crossorigin use-credentials to absent, src already set
-Fail	crossorigin use-credentials to empty, src already set
-Fail	crossorigin use-credentials to anonymous, src already set
-Fail	crossorigin use-credentials to invalid, src already set
+Pass	crossorigin absent to empty, src already set
+Pass	crossorigin absent to anonymous, src already set
+Pass	crossorigin absent to use-credentials, src already set
+Pass	crossorigin empty to absent, src already set
+Pass	crossorigin empty to use-credentials, src already set
+Pass	crossorigin anonymous to absent, src already set
+Pass	crossorigin anonymous to use-credentials, src already set
+Pass	crossorigin use-credentials to absent, src already set
+Pass	crossorigin use-credentials to empty, src already set
+Pass	crossorigin use-credentials to anonymous, src already set
+Pass	crossorigin use-credentials to invalid, src already set
 Pass	referrerpolicy absent to no-referrer-when-downgrade, src absent
 Pass	referrerpolicy absent to no-referrer, src absent
 Pass	referrerpolicy empty to no-referrer-when-downgrade, src absent
@@ -48,20 +48,20 @@ Pass	referrerpolicy no-referrer to absent, src absent
 Pass	referrerpolicy no-referrer to empty, src absent
 Pass	referrerpolicy no-referrer to no-referrer-when-downgrade, src absent
 Pass	referrerpolicy no-referrer to invalid, src absent
-Fail	referrerpolicy absent to no-referrer-when-downgrade, src already set
-Fail	referrerpolicy absent to no-referrer, src already set
-Fail	referrerpolicy empty to no-referrer-when-downgrade, src already set
-Fail	referrerpolicy empty to no-referrer, src already set
-Fail	referrerpolicy no-referrer-when-downgrade to absent, src already set
-Fail	referrerpolicy no-referrer-when-downgrade to empty, src already set
-Fail	referrerpolicy no-referrer-when-downgrade to no-referrer, src already set
-Fail	referrerpolicy no-referrer-when-downgrade to invalid, src already set
-Fail	referrerpolicy no-referrer to absent, src already set
-Fail	referrerpolicy no-referrer to empty, src already set
-Fail	referrerpolicy no-referrer to no-referrer-when-downgrade, src already set
-Fail	referrerpolicy no-referrer to invalid, src already set
+Pass	referrerpolicy absent to no-referrer-when-downgrade, src already set
+Pass	referrerpolicy absent to no-referrer, src already set
+Pass	referrerpolicy empty to no-referrer-when-downgrade, src already set
+Pass	referrerpolicy empty to no-referrer, src already set
+Pass	referrerpolicy no-referrer-when-downgrade to absent, src already set
+Pass	referrerpolicy no-referrer-when-downgrade to empty, src already set
+Pass	referrerpolicy no-referrer-when-downgrade to no-referrer, src already set
+Pass	referrerpolicy no-referrer-when-downgrade to invalid, src already set
+Pass	referrerpolicy no-referrer to absent, src already set
+Pass	referrerpolicy no-referrer to empty, src already set
+Pass	referrerpolicy no-referrer to no-referrer-when-downgrade, src already set
+Pass	referrerpolicy no-referrer to invalid, src already set
 Fail	inserted into picture
-Fail	removed from picture
+Pass	removed from picture
 Pass	parent is picture, previous source inserted
 Pass	parent is picture, previous source removed
 Pass	parent is picture, previous source has srcset set
@@ -77,7 +77,7 @@ Pass	parent is picture, previous source has type set
 Pass	parent is picture, previous source has type changed
 Pass	parent is picture, previous source has type removed
 Pass	srcset is set to same value
-Fail	sizes is set to same value
+Pass	sizes is set to same value
 Pass	crossorigin state not changed: absent, removeAttribute
 Pass	crossorigin state not changed: empty to anonymous
 Pass	crossorigin state not changed: anonymous to foobar
