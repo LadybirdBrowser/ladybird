@@ -290,4 +290,15 @@ void Canvas2DCommandPlayer::play_command(Canvas2DClearCanvas const& command)
         m_surface->write_from_bitmap(*strip, { 0, y }, m_color_space);
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-putimagedata
+void Canvas2DCommandPlayer::play_command(Canvas2DPutImageFrame const& command)
+{
+    // NB: putImageData() sets the pixels of the output bitmap, so they are written to the surface directly, without
+    //     the current transformation matrix, the clipping region, or compositing.
+    auto const* frame = m_resolvers.image_frame(command.frame_id.value());
+    if (!frame)
+        return;
+    m_surface->write_from_bitmap(frame->bitmap(), command.position, frame->color_space());
+}
+
 }

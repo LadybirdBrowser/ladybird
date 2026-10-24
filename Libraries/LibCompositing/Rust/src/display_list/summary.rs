@@ -151,7 +151,8 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
         | T::Canvas2DRestore
         | T::Canvas2DClipPath
         | T::Canvas2DReset
-        | T::Canvas2DClearCanvas => {}
+        | T::Canvas2DClearCanvas
+        | T::Canvas2DPutImageFrame => {}
     }
 }
 
@@ -304,7 +305,8 @@ fn command_blend(
         | T::Canvas2DRestore
         | T::Canvas2DClipPath
         | T::Canvas2DReset
-        | T::Canvas2DClearCanvas => None,
+        | T::Canvas2DClearCanvas
+        | T::Canvas2DPutImageFrame => None,
     }
 }
 

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	putImageData() is not affected by clipping regions
+1 Pass
+Pass	putImageData() is not affected by clipping regions

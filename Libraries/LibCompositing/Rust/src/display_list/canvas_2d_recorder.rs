@@ -9,7 +9,9 @@
 
 use super::canvas_2d::{Compositing, Paint, Stroke, TapeWriter};
 use super::commands::*;
-use libgfx_rust::{AffineTransform, Color, FloatPoint, FloatRect, IntRect, IntSize, ScalingMode, WindingRule};
+use libgfx_rust::{
+    AffineTransform, Color, FloatPoint, FloatRect, IntPoint, IntRect, IntSize, ScalingMode, WindingRule,
+};
 
 /// The number of commands that the shared stream carries to the Compositor at most in one batch. A batch holds the
 /// image frames of its commands, each a bitmap that an IPC attachment carries, so it has to stay small.
@@ -179,6 +181,12 @@ impl<T: Transport> Recorder<T> {
     ) {
         let frame_id = self.transport.add_image_frame(frame);
         self.record(|tape| tape.draw_image_frame(frame_id, dst_rect, src_rect, scaling_mode, compositing));
+    }
+
+    /// Sets the pixels of the canvas at the position to those of the frame, as putImageData() does.
+    pub fn put_image_frame(&mut self, frame: &T::ImageFrame, position: IntPoint) {
+        let frame_id = self.transport.add_image_frame(frame);
+        self.record(|tape| tape.put_image_frame(frame_id, position));
     }
 
     pub fn draw_canvas(
