@@ -192,6 +192,7 @@ public:
     bool active_document_has_cross_site_ancestor() const;
     // Whether the navigable's active session history entry is among its session history entries.
     bool has_session_history_entry_and_ready_for_navigation() const;
+    bool is_script_closable() const;
     void document_completely_finished_loading(CanonicalDocument&);
     void update_container_state(Web::HTML::ReplicatedContainerState);
 

@@ -194,6 +194,19 @@ ReplicatedContainerState RemoteNavigable::container_state() const
     return m_replicated_state.container;
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-closable
+bool RemoteNavigable::is_script_closable() const
+{
+    // A navigable is script-closable if it is a top-level traversable, and any of the following are true:
+    // - its is created by web content is true; or
+    // - its session history entries's size is 1.
+    if (!is_top_level_traversable())
+        return false;
+
+    return m_replicated_state.top_level_is_created_by_web_content
+        || m_replicated_state.top_level_session_history_entry_count == 1;
+}
+
 bool RemoteNavigable::has_session_history_entry_and_ready_for_navigation() const
 {
     return m_replicated_state.has_session_history_entry_and_ready_for_navigation;

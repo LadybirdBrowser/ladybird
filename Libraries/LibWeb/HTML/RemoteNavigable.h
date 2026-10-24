@@ -47,7 +47,9 @@ public:
     void set_window_proxy(GC::Ref<WindowProxy> window_proxy) { m_window_proxy = window_proxy; }
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#is-closing
-    bool is_closing() const { return m_replicated_state.is_closing; }
+    bool is_closing() const { return m_closing || m_replicated_state.is_closing; }
+    void set_closing(bool value) { m_closing = value; }
+    bool is_script_closable() const;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#document-tree-child-navigable
     Vector<GC::Root<Navigable>> document_tree_child_navigables();
@@ -98,6 +100,9 @@ private:
     GC::Ptr<RemoteWindow> m_active_window;
 
     GC::Ptr<LocalNavigable> m_provisional_navigable;
+
+    // Set by window.close() here, before the process hosting the navigable replicates its own.
+    bool m_closing { false };
 
     bool m_has_been_destroyed { false };
 };

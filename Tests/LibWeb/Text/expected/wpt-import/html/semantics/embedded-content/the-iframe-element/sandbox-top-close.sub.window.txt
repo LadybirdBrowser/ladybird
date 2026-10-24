@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Sandboxed iframe without allow-top-navigation cannot close top window
+Pass	Sandboxed iframe with allow-top-navigation can close top window
+Pass	Cross-origin sandboxed iframe without allow-top-navigation cannot close top window

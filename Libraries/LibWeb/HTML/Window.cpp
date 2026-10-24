@@ -1227,10 +1227,12 @@ void Window::close()
     // 4. Let browsingContext be thisTraversable's active browsing context.
     // NB: Familiarity is checked on the navigables whose active browsing contexts these are.
 
-    // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
-    auto source_snapshot_params = snapshot_source_snapshot_params(traversable->active_document());
-
     auto& incumbent_global_object = HTML::incumbent_window();
+
+    // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given the incumbent global object's
+    //    associated Document.
+    auto source_snapshot_params = snapshot_source_snapshot_params(incumbent_global_object.associated_document());
+
     auto incumbent_navigable = incumbent_global_object.navigable();
     if (!incumbent_navigable)
         return;

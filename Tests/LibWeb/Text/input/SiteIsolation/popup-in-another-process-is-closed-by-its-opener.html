@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    // A popup in another process than its opener is closed by it, and the opener sees it closed by the time the popup's
-    // document is unloaded.
+    // A popup in another process than its opener is closed by it, and the opener sees it closed as soon as close()
+    // returns.
     promiseTest(async () => {
         const httpServer = httpTestServer();
         const runId = crypto.randomUUID();
@@ -30,6 +30,7 @@
         println(`popup.closed before close(): ${popup.closed}`);
         const unloading = nextMessage();
         popup.close();
+        println(`popup.closed once close() returns: ${popup.closed}`);
         println(await unloading);
         println(`popup.closed after close(): ${popup.closed}`);
     });

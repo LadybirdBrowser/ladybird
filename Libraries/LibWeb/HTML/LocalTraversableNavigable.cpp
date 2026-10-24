@@ -212,11 +212,8 @@ void LocalTraversableNavigable::reset_session_history_for_testing()
     active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, active_entry);
 }
 
-// https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-close
-// AD-HOC: Step 6 of window.close(), requested through the UI process by a document another process hosts, whose
-//         navigable found itself familiar with this traversable there. source is the incumbent global object's navigable.
-void LocalTraversableNavigable::close_top_level_traversable_from_script(Navigable const& source)
+void LocalTraversableNavigable::close_top_level_traversable_from_script()
 {
     // 1. Let thisTraversable be this's navigable.
     auto& this_traversable = *this;
@@ -229,16 +226,15 @@ void LocalTraversableNavigable::close_top_level_traversable_from_script(Navigabl
     if (this_traversable.is_closing())
         return;
 
-    // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
-    auto source_snapshot_params = snapshot_source_snapshot_params(this_traversable.active_document());
+    // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given the incumbent global object's
+    //    associated Document.
+    // NB: The requesting process snapshotted it.
 
     // 6. If all the following are true:
     //    - thisTraversable is script-closable;
     //    - the incumbent global object's browsing context is familiar with browsingContext; and
     //    - the incumbent global object's navigable is allowed by sandboxing to navigate thisTraversable, given sourceSnapshotParams,
-    if (!this_traversable.is_script_closable() || !source.allowed_by_sandboxing_to_navigate(this_traversable, source_snapshot_params))
-        return;
-
+    // NB: The requesting process found these true, and the UI process checked again the ones it holds the state for.
     // then:
     // 1. Set thisTraversable's is closing to true.
     this_traversable.set_closing(true);

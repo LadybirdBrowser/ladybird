@@ -1170,6 +1170,20 @@ bool CanonicalNavigable::has_session_history_entry_and_ready_for_navigation() co
     return is_top_level_traversable() || top_level_traversable().session_history().get_session_history_entries(*this).has_value();
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-closable
+bool CanonicalNavigable::is_script_closable() const
+{
+    // A navigable is script-closable if it is a top-level traversable, and any of the following are true:
+    // - its is created by web content is true; or
+    // - its session history entries's size is 1.
+    if (!is_top_level_traversable())
+        return false;
+
+    auto const& traversable = top_level_traversable();
+    return traversable.is_created_by_web_content()
+        || traversable.session_history().size() == 1;
+}
+
 void CanonicalNavigable::document_completely_finished_loading(CanonicalDocument& document)
 {
     document.set_completely_loaded();

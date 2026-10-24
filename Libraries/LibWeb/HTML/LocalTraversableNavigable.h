@@ -54,7 +54,7 @@ public:
     void request_close_preflight(GC::Ref<GC::Function<void(bool)>> callback);
     GC::Ptr<CheckUnloadingCanceledState> active_beforeunload_check(Badge<CheckUnloadingCanceledState>) const { return m_active_beforeunload_check; }
     void set_active_beforeunload_check(Badge<CheckUnloadingCanceledState>, GC::Ptr<CheckUnloadingCanceledState> check) { m_active_beforeunload_check = check; }
-    void close_top_level_traversable_from_script(Navigable const& source);
+    void close_top_level_traversable_from_script();
     void definitely_close_top_level_traversable(PromptToUnload = PromptToUnload::Yes);
     void run_ui_traversable_close_unload_task();
     void destroy_top_level_traversable();

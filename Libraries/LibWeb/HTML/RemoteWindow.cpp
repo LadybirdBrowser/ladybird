@@ -7,9 +7,11 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Location.h>
+#include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/RemoteWindow.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWebCommon/HTML/PostedMessageDescriptor.h>
@@ -164,20 +166,35 @@ void RemoteWindow::close()
     // 4. Let browsingContext be thisTraversable's active browsing context.
     // NB: Familiarity is checked on the navigables whose active browsing contexts these are.
 
-    // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
-    // NB: That document is in the process hosting the traversable, which runs the steps needing it.
+    auto& incumbent_global_object = incumbent_window();
 
-    auto incumbent_navigable = incumbent_window().navigable();
+    // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given the incumbent global object's
+    //    associated Document.
+    auto source_snapshot_params = snapshot_source_snapshot_params(incumbent_global_object.associated_document());
+
+    auto incumbent_navigable = incumbent_global_object.navigable();
+    if (!incumbent_navigable)
+        return;
 
     // 6. If all the following are true:
-    //    - thisTraversable is script-closable;
-    //    - the incumbent global object's browsing context is familiar with browsingContext; and
-    //    - the incumbent global object's navigable is allowed by sandboxing to navigate thisTraversable, given sourceSnapshotParams,
-    //    then set thisTraversable's is closing to true, and queue a task on the DOM manipulation task source to definitely close thisTraversable.
-    // NB: Familiarity is checked here; the process hosting the traversable's document checks the rest and closes it.
-    if (!incumbent_navigable || !incumbent_navigable->is_familiar_with(*traversable))
-        return;
-    m_navigable->page().client().request_close_of_remote_traversable(*traversable, *incumbent_navigable);
+    if (
+        // thisTraversable is script-closable;
+        traversable->is_script_closable()
+
+        // the incumbent global object's browsing context is familiar with browsingContext; and
+        && incumbent_navigable->is_familiar_with(*traversable)
+
+        // the incumbent global object's navigable is allowed by sandboxing to navigate thisTraversable, given sourceSnapshotParams,
+        && incumbent_navigable->allowed_by_sandboxing_to_navigate(*traversable, source_snapshot_params))
+    // then:
+    {
+        // 1. Set thisTraversable's is closing to true.
+        traversable->set_closing(true);
+
+        // 2. Queue a task on the DOM manipulation task source to definitely close thisTraversable.
+        // NB: The process hosting thisTraversable queues it once the UI process has checked the request.
+        m_navigable->page().client().request_close_of_remote_traversable(*traversable, *incumbent_navigable, create_navigation_source_snapshot(source_snapshot_params));
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-window-focus
