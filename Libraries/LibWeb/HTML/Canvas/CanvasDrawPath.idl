@@ -13,6 +13,6 @@ interface mixin CanvasDrawPath {
     [ImplementedAs=clip_path2d] undefined clip(Path2D path, optional CanvasFillRule fillRule = "nonzero");
     [ImplementedAs=is_point_in_path] boolean isPointInPath(unrestricted double x, unrestricted double y, optional CanvasFillRule fillRule = "nonzero");
     [ImplementedAs=is_point_in_path2d] boolean isPointInPath(Path2D path, unrestricted double x, unrestricted double y, optional CanvasFillRule fillRule = "nonzero");
-    [FIXME] boolean isPointInStroke(unrestricted double x, unrestricted double y);
-    [FIXME] boolean isPointInStroke(Path2D path, unrestricted double x, unrestricted double y);
+    [ImplementedAs=is_point_in_stroke] boolean isPointInStroke(unrestricted double x, unrestricted double y);
+    [ImplementedAs=is_point_in_stroke_path2d] boolean isPointInStroke(Path2D path, unrestricted double x, unrestricted double y);
 };

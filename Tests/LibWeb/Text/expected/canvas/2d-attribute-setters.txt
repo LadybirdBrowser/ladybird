@@ -84,7 +84,7 @@ A canvas, after reset():
   letterSpacing: 0px
   getLineDash(): []
   getTransform(): 1,0,0,1,0,0
-isPointInStroke: undefined, drawFocusIfNeeded: undefined
+isPointInStroke: function, drawFocusIfNeeded: undefined
 canvas: true
 An OffscreenCanvas, the initial state:
   globalAlpha: 1
@@ -172,5 +172,5 @@ An OffscreenCanvas, after reset():
   letterSpacing: 0px
   getLineDash(): []
   getTransform(): 1,0,0,1,0,0
-isPointInStroke: undefined, drawFocusIfNeeded: undefined
+isPointInStroke: function, drawFocusIfNeeded: undefined
 canvas: true
