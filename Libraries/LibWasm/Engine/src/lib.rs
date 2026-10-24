@@ -23,6 +23,7 @@ mod rust_panic;
 #[path = "../../../LibJS/Rust/src/futex.rs"]
 mod futex;
 
+#[cfg(feature = "capi")]
 pub mod capi;
 pub mod runtime;
 pub mod wasi;

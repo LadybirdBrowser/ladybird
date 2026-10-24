@@ -19,6 +19,9 @@ rustc-demangle = "0.1"
 [features]
 default = []
 allocator = ["dep:ladybird_allocator"]
+# The C ABI of src/capi.rs, for LibWasm's C++ embedders. A Rust embedder uses the runtime's API instead, and leaves it out
+# so that only one copy of the engine in a process exports its C symbols.
+capi = []
 
 [build-dependencies]
 cbindgen = "0.29"
