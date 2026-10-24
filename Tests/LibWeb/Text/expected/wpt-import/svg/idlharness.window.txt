@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1400 Pass
-380 Fail
+1470 Pass
+310 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -74,8 +74,8 @@ Pass	SVGGraphicsElement interface: attribute transform
 Pass	SVGGraphicsElement interface: operation getBBox(optional SVGBoundingBoxOptions)
 Pass	SVGGraphicsElement interface: operation getCTM()
 Pass	SVGGraphicsElement interface: operation getScreenCTM()
-Fail	SVGGraphicsElement interface: attribute requiredExtensions
-Fail	SVGGraphicsElement interface: attribute systemLanguage
+Pass	SVGGraphicsElement interface: attribute requiredExtensions
+Pass	SVGGraphicsElement interface: attribute systemLanguage
 Pass	SVGGeometryElement interface: existence and properties of interface object
 Pass	SVGGeometryElement interface object length
 Pass	SVGGeometryElement interface object name
@@ -236,38 +236,38 @@ Pass	SVGLengthList interface: operation insertItemBefore(SVGLength, unsigned lon
 Pass	SVGLengthList interface: operation replaceItem(SVGLength, unsigned long)
 Pass	SVGLengthList interface: operation removeItem(unsigned long)
 Pass	SVGLengthList interface: operation appendItem(SVGLength)
-Fail	SVGStringList interface: existence and properties of interface object
-Fail	SVGStringList interface object length
-Fail	SVGStringList interface object name
-Fail	SVGStringList interface: existence and properties of interface prototype object
-Fail	SVGStringList interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGStringList interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGStringList interface: attribute length
-Fail	SVGStringList interface: attribute numberOfItems
-Fail	SVGStringList interface: operation clear()
-Fail	SVGStringList interface: operation initialize(DOMString)
-Fail	SVGStringList interface: operation getItem(unsigned long)
-Fail	SVGStringList interface: operation insertItemBefore(DOMString, unsigned long)
-Fail	SVGStringList interface: operation replaceItem(DOMString, unsigned long)
-Fail	SVGStringList interface: operation removeItem(unsigned long)
-Fail	SVGStringList interface: operation appendItem(DOMString)
-Fail	SVGStringList must be primary interface of objects.a.requiredExtensions
-Fail	Stringification of objects.a.requiredExtensions
-Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "length" with the proper type
-Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "numberOfItems" with the proper type
-Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "clear()" with the proper type
-Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "initialize(DOMString)" with the proper type
-Fail	SVGStringList interface: calling initialize(DOMString) on objects.a.requiredExtensions with too few arguments must throw TypeError
-Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "getItem(unsigned long)" with the proper type
-Fail	SVGStringList interface: calling getItem(unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
-Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "insertItemBefore(DOMString, unsigned long)" with the proper type
-Fail	SVGStringList interface: calling insertItemBefore(DOMString, unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
-Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "replaceItem(DOMString, unsigned long)" with the proper type
-Fail	SVGStringList interface: calling replaceItem(DOMString, unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
-Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "removeItem(unsigned long)" with the proper type
-Fail	SVGStringList interface: calling removeItem(unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
-Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "appendItem(DOMString)" with the proper type
-Fail	SVGStringList interface: calling appendItem(DOMString) on objects.a.requiredExtensions with too few arguments must throw TypeError
+Pass	SVGStringList interface: existence and properties of interface object
+Pass	SVGStringList interface object length
+Pass	SVGStringList interface object name
+Pass	SVGStringList interface: existence and properties of interface prototype object
+Pass	SVGStringList interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGStringList interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGStringList interface: attribute length
+Pass	SVGStringList interface: attribute numberOfItems
+Pass	SVGStringList interface: operation clear()
+Pass	SVGStringList interface: operation initialize(DOMString)
+Pass	SVGStringList interface: operation getItem(unsigned long)
+Pass	SVGStringList interface: operation insertItemBefore(DOMString, unsigned long)
+Pass	SVGStringList interface: operation replaceItem(DOMString, unsigned long)
+Pass	SVGStringList interface: operation removeItem(unsigned long)
+Pass	SVGStringList interface: operation appendItem(DOMString)
+Pass	SVGStringList must be primary interface of objects.a.requiredExtensions
+Pass	Stringification of objects.a.requiredExtensions
+Pass	SVGStringList interface: objects.a.requiredExtensions must inherit property "length" with the proper type
+Pass	SVGStringList interface: objects.a.requiredExtensions must inherit property "numberOfItems" with the proper type
+Pass	SVGStringList interface: objects.a.requiredExtensions must inherit property "clear()" with the proper type
+Pass	SVGStringList interface: objects.a.requiredExtensions must inherit property "initialize(DOMString)" with the proper type
+Pass	SVGStringList interface: calling initialize(DOMString) on objects.a.requiredExtensions with too few arguments must throw TypeError
+Pass	SVGStringList interface: objects.a.requiredExtensions must inherit property "getItem(unsigned long)" with the proper type
+Pass	SVGStringList interface: calling getItem(unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
+Pass	SVGStringList interface: objects.a.requiredExtensions must inherit property "insertItemBefore(DOMString, unsigned long)" with the proper type
+Pass	SVGStringList interface: calling insertItemBefore(DOMString, unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
+Pass	SVGStringList interface: objects.a.requiredExtensions must inherit property "replaceItem(DOMString, unsigned long)" with the proper type
+Pass	SVGStringList interface: calling replaceItem(DOMString, unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
+Pass	SVGStringList interface: objects.a.requiredExtensions must inherit property "removeItem(unsigned long)" with the proper type
+Pass	SVGStringList interface: calling removeItem(unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
+Pass	SVGStringList interface: objects.a.requiredExtensions must inherit property "appendItem(DOMString)" with the proper type
+Pass	SVGStringList interface: calling appendItem(DOMString) on objects.a.requiredExtensions with too few arguments must throw TypeError
 Pass	SVGAnimatedBoolean interface: existence and properties of interface object
 Pass	SVGAnimatedBoolean interface object length
 Pass	SVGAnimatedBoolean interface object name
@@ -484,8 +484,8 @@ Pass	SVGGraphicsElement interface: objects.svg must inherit property "getBBox(op
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.svg with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.svg must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.svg must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.svg must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.svg must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.svg must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.svg must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.svg must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.svg must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.svg must inherit property "viewportElement" with the proper type
@@ -504,8 +504,8 @@ Pass	SVGGraphicsElement interface: objects.g must inherit property "getBBox(opti
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.g with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.g must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.g must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.g must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.g must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.g must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.g must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.g must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.g must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.g must inherit property "viewportElement" with the proper type
@@ -524,8 +524,8 @@ Pass	SVGGraphicsElement interface: objects.defs must inherit property "getBBox(o
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.defs with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.defs must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.defs must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.defs must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.defs must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.defs must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.defs must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.defs must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.defs must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.defs must inherit property "viewportElement" with the proper type
@@ -587,8 +587,8 @@ Pass	SVGGraphicsElement interface: objects.symbol must inherit property "getBBox
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.symbol with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.symbol must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.symbol must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.symbol must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.symbol must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.symbol must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.symbol must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.symbol must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.symbol must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.symbol must inherit property "viewportElement" with the proper type
@@ -621,8 +621,8 @@ Pass	SVGGraphicsElement interface: objects.use must inherit property "getBBox(op
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.use with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.use must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.use must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.use must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.use must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.use must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.use must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.use must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.use must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.use must inherit property "viewportElement" with the proper type
@@ -654,8 +654,8 @@ Pass	SVGGraphicsElement interface: objects.switch must inherit property "getBBox
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.switch with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.switch must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.switch must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.switch must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.switch must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.switch must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.switch must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.switch must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.switch must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.switch must inherit property "viewportElement" with the proper type
@@ -883,8 +883,8 @@ Pass	SVGGraphicsElement interface: objects.rect must inherit property "getBBox(o
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.rect with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.rect must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.rect must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.rect must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.rect must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.rect must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.rect must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.rect must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.rect must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.rect must inherit property "viewportElement" with the proper type
@@ -917,8 +917,8 @@ Pass	SVGGraphicsElement interface: objects.circle must inherit property "getBBox
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.circle with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.circle must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.circle must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.circle must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.circle must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.circle must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.circle must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.circle must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.circle must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.circle must inherit property "viewportElement" with the proper type
@@ -953,8 +953,8 @@ Pass	SVGGraphicsElement interface: objects.ellipse must inherit property "getBBo
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.ellipse with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.ellipse must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.ellipse must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.ellipse must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.ellipse must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.ellipse must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.ellipse must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.ellipse must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.ellipse must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.ellipse must inherit property "viewportElement" with the proper type
@@ -989,8 +989,8 @@ Pass	SVGGraphicsElement interface: objects.line must inherit property "getBBox(o
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.line with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.line must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.line must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.line must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.line must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.line must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.line must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.line must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.line must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.line must inherit property "viewportElement" with the proper type
@@ -1053,8 +1053,8 @@ Pass	SVGGraphicsElement interface: objects.polyline must inherit property "getBB
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.polyline with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.polyline must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.polyline must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.polyline must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.polyline must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.polyline must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.polyline must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.polyline must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.polyline must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.polyline must inherit property "viewportElement" with the proper type
@@ -1085,8 +1085,8 @@ Pass	SVGGraphicsElement interface: objects.polygon must inherit property "getBBo
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.polygon with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.polygon must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.polygon must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.polygon must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.polygon must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.polygon must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.polygon must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.polygon must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.polygon must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.polygon must inherit property "viewportElement" with the proper type
@@ -1165,8 +1165,8 @@ Pass	SVGGraphicsElement interface: objects.text must inherit property "getBBox(o
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.text with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.text must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.text must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.text must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.text must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.text must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.text must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.text must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.text must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.text must inherit property "viewportElement" with the proper type
@@ -1211,8 +1211,8 @@ Pass	SVGGraphicsElement interface: objects.tspan must inherit property "getBBox(
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.tspan with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.tspan must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.tspan must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.tspan must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.tspan must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.tspan must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.tspan must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.tspan must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.tspan must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.tspan must inherit property "viewportElement" with the proper type
@@ -1278,8 +1278,8 @@ Pass	SVGGraphicsElement interface: objects.textPath must inherit property "getBB
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.textPath with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.textPath must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.textPath must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.textPath must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.textPath must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.textPath must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.textPath must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.textPath must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.textPath must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.textPath must inherit property "viewportElement" with the proper type
@@ -1312,8 +1312,8 @@ Pass	SVGGraphicsElement interface: objects.image must inherit property "getBBox(
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.image with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.image must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.image must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.image must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.image must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.image must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.image must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.image must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.image must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.image must inherit property "viewportElement" with the proper type
@@ -1340,8 +1340,8 @@ Pass	SVGGraphicsElement interface: objects.foreignObject must inherit property "
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.foreignObject with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.foreignObject must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.foreignObject must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.foreignObject must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.foreignObject must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.foreignObject must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.foreignObject must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.foreignObject must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.foreignObject must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.foreignObject must inherit property "viewportElement" with the proper type
@@ -1604,8 +1604,8 @@ Pass	SVGGraphicsElement interface: objects.a must inherit property "getBBox(opti
 Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.a with too few arguments must throw TypeError
 Pass	SVGGraphicsElement interface: objects.a must inherit property "getCTM()" with the proper type
 Pass	SVGGraphicsElement interface: objects.a must inherit property "getScreenCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.a must inherit property "requiredExtensions" with the proper type
-Fail	SVGGraphicsElement interface: objects.a must inherit property "systemLanguage" with the proper type
+Pass	SVGGraphicsElement interface: objects.a must inherit property "requiredExtensions" with the proper type
+Pass	SVGGraphicsElement interface: objects.a must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.a must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.a must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.a must inherit property "viewportElement" with the proper type

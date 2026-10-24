@@ -16,6 +16,7 @@
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGFitToViewBox.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
+#include <LibWeb/SVG/SVGStringList.h>
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -47,12 +48,22 @@ public:
 
     GC::Ptr<DOM::Element> resolve_url_to_element(CSS::URL const& url) const;
 
+    // https://svgwg.org/svg2-draft/types.html#InterfaceSVGTests
+    GC::Ref<SVGStringList> required_extensions_for_bindings();
+    GC::Ref<SVGStringList> system_language_for_bindings();
+
 protected:
     SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
+
+    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
 private:
     virtual bool is_svg_graphics_element() const final { return true; }
     GC::Ptr<DOM::Element> resolve_fragment_identifier_to_element(Utf16String const& fragment) const;
+
+    GC::Ptr<SVGStringList> m_required_extensions;
+    GC::Ptr<SVGStringList> m_system_language;
 };
 
 Gfx::AffineTransform transform_from_transform_list(ReadonlySpan<Transform> transform_list);

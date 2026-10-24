@@ -933,6 +933,7 @@ set(SOURCES
     SVG/SVGScriptElement.cpp
     SVG/SVGSetElement.cpp
     SVG/SVGStopElement.cpp
+    SVG/SVGStringList.cpp
     SVG/SVGStyleElement.cpp
     SVG/SVGSVGElement.cpp
     SVG/SVGSwitchElement.cpp
