@@ -29,7 +29,10 @@ struct CanvasHost::VideoFrameImage {
     u64 generation { 0 };
     // Kept until replaced, since the GPU samples the image after the commands are played.
     RefPtr<Media::VideoFrame> frame;
-    sk_sp<SkImage> image;
+    sk_sp<SkImage> image_on_gpu;
+    // NB: A canvas that draws in memory does not read back image_on_gpu instead: Skia caches readbacks by image ID,
+    //     and the image of a video surface keeps its ID while the surface shows new frames.
+    sk_sp<SkImage> image_in_memory;
 };
 
 CanvasHost::CanvasHost(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, CanvasSurfaceRegistry& canvas_surface_registry, VideoFrameHolds const& video_frame_holds)
@@ -46,10 +49,16 @@ CanvasHost::~CanvasHost()
         m_canvas_surface_registry.remove_canvas_surface(canvas_id);
 }
 
-OwnPtr<Canvas2DCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize size, bool alpha)
+OwnPtr<Canvas2DCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize size, bool alpha, bool will_read_frequently)
 {
     if (!Compositing::is_valid_canvas_2d_size(size))
         return nullptr;
+
+    // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently
+    // "When a CanvasSettings object's will read frequently is true, the user agent may optimize the canvas for
+    //  readback operations."
+    // NB: The canvas then draws in memory, where a readback copies its pixels instead of waiting for the GPU.
+    auto skia_backend_context_of_canvas = will_read_frequently ? nullptr : m_skia_backend_context;
 
     auto format = alpha ? Gfx::BitmapFormat::BGRA8888 : Gfx::BitmapFormat::BGRx8888;
     auto canvas_surface_resolver = [this](u64 canvas_id) -> Gfx::PaintingSurface const* {
@@ -75,10 +84,10 @@ OwnPtr<Canvas2DCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize 
             return nullptr;
         return &it->value;
     };
-    auto video_frame_image_resolver = [this](u64 video_sink_handle, u64 generation) {
-        return held_video_frame_image(Media::VideoSinkHandle { video_sink_handle }, generation);
+    auto video_frame_image_resolver = [this, skia_backend_context_of_canvas](u64 video_sink_handle, u64 generation) {
+        return held_video_frame_image(Media::VideoSinkHandle { video_sink_handle }, generation, skia_backend_context_of_canvas);
     };
-    auto player = make<Canvas2DCommandPlayer>(m_skia_backend_context, size, format, Gfx::AlphaType::Premultiplied,
+    auto player = make<Canvas2DCommandPlayer>(skia_backend_context_of_canvas, size, format, Gfx::AlphaType::Premultiplied,
         Canvas2DCommandPlayer::Resolvers {
             .canvas_surface = move(canvas_surface_resolver),
             .font = move(font_resolver),
@@ -100,13 +109,13 @@ static void copy_surface_contents(Gfx::PaintingSurface& source, Gfx::PaintingSur
     destination.copy_from_surface(source);
 }
 
-static NonnullRefPtr<Gfx::PaintingSurface> create_presented_canvas_surface(Gfx::PaintingSurface& source)
+static NonnullRefPtr<Gfx::PaintingSurface> create_presented_canvas_surface(Gfx::PaintingSurface& source, RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
 {
     auto surface = Gfx::PaintingSurface::create_with_size(
         source.size(),
         Gfx::BitmapFormat::BGRA8888,
         Gfx::AlphaType::Premultiplied,
-        source.skia_backend_context());
+        move(skia_backend_context));
     copy_surface_contents(source, *surface);
     return surface;
 }
@@ -118,13 +127,15 @@ HostWebGLContext& CanvasHost::as_webgl(Context& context)
     return **webgl_context;
 }
 
-bool CanvasHost::create_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha)
+bool CanvasHost::create_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently)
 {
-    auto command_player = create_2d_command_player(size, alpha);
+    auto command_player = create_2d_command_player(size, alpha, will_read_frequently);
     if (!command_player)
         return false;
 
-    auto presented_surface = create_presented_canvas_surface(command_player->surface());
+    // NB: A canvas that draws in memory still presents onto the GPU, if there is one. A present then uploads it once,
+    //     instead of every composited frame uploading a fresh snapshot of it.
+    auto presented_surface = create_presented_canvas_surface(command_player->surface(), m_skia_backend_context);
     m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, presented_surface);
     Canvas2DContext context {
         .command_player = command_player.release_nonnull(),
@@ -211,20 +222,30 @@ void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStr
     }
 }
 
-sk_sp<SkImage> CanvasHost::held_video_frame_image(Media::VideoSinkHandle handle, u64 generation)
+sk_sp<SkImage> CanvasHost::held_video_frame_image(Media::VideoSinkHandle handle, u64 generation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context_of_canvas)
 {
-    if (auto cached = m_video_frame_images.get(handle); cached.has_value() && (*cached)->generation == generation)
-        return (*cached)->image;
+    auto* video_frame_image = m_video_frame_images.get(handle).value_or(nullptr);
+    if (!video_frame_image || video_frame_image->generation != generation) {
+        auto frame = m_video_frame_holds.held_frame(handle, generation);
+        if (!frame)
+            return nullptr;
+        auto new_video_frame_image = make<VideoFrameImage>(generation, move(frame), sk_sp<SkImage> {}, sk_sp<SkImage> {});
+        video_frame_image = new_video_frame_image.ptr();
+        m_video_frame_images.set(handle, move(new_video_frame_image));
+    }
 
-    m_drew_video_frame_in_segment = true;
-    auto frame = m_video_frame_holds.held_frame(handle, generation);
-    if (!frame)
-        return nullptr;
-    auto image = sk_image_from_video_frame(*frame, m_skia_backend_context);
-    if (!image)
-        return nullptr;
-    m_video_frame_images.set(handle, make<VideoFrameImage>(generation, move(frame), image));
-    return image;
+    if (!skia_backend_context_of_canvas) {
+        if (!video_frame_image->image_in_memory)
+            video_frame_image->image_in_memory = sk_image_in_memory_from_video_frame(*video_frame_image->frame, m_skia_backend_context);
+        return video_frame_image->image_in_memory;
+    }
+
+    if (!video_frame_image->image_on_gpu) {
+        video_frame_image->image_on_gpu = sk_image_from_video_frame(*video_frame_image->frame, skia_backend_context_of_canvas);
+        if (video_frame_image->image_on_gpu)
+            m_drew_video_frame_in_segment = true;
+    }
+    return video_frame_image->image_on_gpu;
 }
 
 void CanvasHost::forget_video_sink(Media::VideoSinkHandle handle)

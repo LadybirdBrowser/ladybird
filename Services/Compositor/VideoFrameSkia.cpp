@@ -218,6 +218,14 @@ static sk_sp<SkImage> image_for_video_surface(Media::VideoFrame const& frame, Me
     return cached_image->image;
 }
 
+static Gfx::ColorSpace color_space_of(Media::VideoFrame const& frame)
+{
+    auto color_space_result = Gfx::ColorSpace::from_cicp(frame.cicp());
+    if (color_space_result.is_error())
+        return {};
+    return color_space_result.release_value();
+}
+
 sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     sk_sp<SkImage> image;
@@ -231,9 +239,7 @@ sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const& frame, RefPtr<
     if (!image && !yuv_data.has_value() && surface == nullptr)
         return nullptr;
 
-    auto color_space = Gfx::ColorSpace {};
-    if (auto color_space_result = Gfx::ColorSpace::from_cicp(frame.cicp()); !color_space_result.is_error())
-        color_space = color_space_result.release_value();
+    auto color_space = color_space_of(frame);
 
     if (!image && gr_context && yuv_data.has_value()) {
         image = SkImages::TextureFromYUVAPixmaps(
@@ -261,27 +267,49 @@ sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const& frame, RefPtr<
     return image;
 }
 
+// Draws the frame's surface on the GPU into a fresh surface and reads its pixels back from there, in sRGB.
+static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> read_back_video_surface_through_gpu(Media::VideoFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    auto image = sk_image_from_video_frame(frame, skia_backend_context);
+    if (!image)
+        return Error::from_string_literal("Could not make an image of the video frame's surface");
+    auto size = frame.size().to_type<int>();
+    auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context);
+    auto rect = SkRect::MakeIWH(size.width(), size.height());
+    surface->canvas().drawImageRect(image.get(), rect, rect, Gfx::to_skia_sampling_options(Gfx::ScalingMode::NearestNeighbor), nullptr, SkCanvas::kStrict_SrcRectConstraint);
+    auto bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size));
+    surface->read_into_bitmap(*bitmap);
+    return bitmap;
+}
+
+sk_sp<SkImage> sk_image_in_memory_from_video_frame(Media::VideoFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    auto bitmap_or_error = frame.to_bitmap();
+    if (!bitmap_or_error.is_error())
+        return Gfx::sk_image_adopting_bitmap(bitmap_or_error.release_value(), color_space_of(frame));
+
+    // NB: Only macOS reads a video surface on the CPU. Elsewhere the GPU reads it, into a surface of its own: a readback
+    //     of the image of the video surface could be one Skia cached for an earlier frame that the surface showed.
+    if (frame.surface() != nullptr && skia_backend_context) {
+        bitmap_or_error = read_back_video_surface_through_gpu(frame, skia_backend_context);
+        if (!bitmap_or_error.is_error())
+            return Gfx::sk_image_adopting_bitmap(bitmap_or_error.release_value(), {});
+    }
+
+    dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
+    return nullptr;
+}
+
 ErrorOr<Gfx::DecodedImageFrame> decoded_image_frame_from_video_frame(Media::VideoFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     if (frame.surface() != nullptr && skia_backend_context) {
-        auto image = sk_image_from_video_frame(frame, skia_backend_context);
-        if (!image)
-            return Error::from_string_literal("Could not make an image of the video frame's surface");
-        auto size = frame.size().to_type<int>();
-        auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context);
-        auto rect = SkRect::MakeIWH(size.width(), size.height());
-        surface->canvas().drawImageRect(image.get(), rect, rect, Gfx::to_skia_sampling_options(Gfx::ScalingMode::NearestNeighbor), nullptr, SkCanvas::kStrict_SrcRectConstraint);
-        auto bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size));
+        auto bitmap = TRY(read_back_video_surface_through_gpu(frame, skia_backend_context));
         // The pixels are read back in sRGB.
-        surface->read_into_bitmap(*bitmap);
         return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { move(bitmap) } };
     }
 
     auto bitmap = TRY(frame.to_bitmap());
-    auto color_space = Gfx::ColorSpace {};
-    if (auto color_space_result = Gfx::ColorSpace::from_cicp(frame.cicp()); !color_space_result.is_error())
-        color_space = color_space_result.release_value();
-    return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { move(bitmap) }, move(color_space) };
+    return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { move(bitmap) }, color_space_of(frame) };
 }
 
 }
