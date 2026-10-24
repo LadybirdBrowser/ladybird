@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 336 tests
+Found 339 tests
 
-326 Pass
+329 Pass
 10 Fail
 Pass	Setup
 Pass	isolation (type: discrete) has testAccumulation function
@@ -313,6 +313,9 @@ Pass	scale
 Pass	vector-effect (type: discrete) has testAccumulation function
 Pass	vector-effect: "non-scaling-stroke" onto "none"
 Pass	vector-effect: "none" onto "non-scaling-stroke"
+Pass	view-transition-class (type: discrete) has testAccumulation function
+Pass	view-transition-class: "card scale-animation" onto "none"
+Pass	view-transition-class: "none" onto "card scale-animation"
 Pass	view-transition-name (type: discrete) has testAccumulation function
 Pass	view-transition-name: "header" onto "none"
 Pass	view-transition-name: "none" onto "header"
