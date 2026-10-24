@@ -784,7 +784,6 @@ struct AnimationKeyframePlan {
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq)]
-#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiCompositeOperation {
     Replace,
     Add,
@@ -6588,7 +6587,11 @@ fn interpolate_shadow(
     else {
         return None;
     };
-    if from_shadow_type != to_shadow_type {
+    // https://drafts.csswg.org/web-animations-1/#animating-shadow-lists
+    // However, if both input shadows are inset or both input shadows are not inset, then the interpolated shadow must
+    // match the input shadows in that regard. If any pair of input shadows has one inset and the other not inset, the
+    // entire shadow-list uses discrete animation.
+    if from_shadow_type != to_shadow_type || from_placement != to_placement {
         return None;
     }
 
@@ -6651,7 +6654,175 @@ fn interpolate_shadow(
         offset_y,
         blur_radius,
         spread_distance,
-        placement: if delta >= 0.5 { *to_placement } else { *from_placement },
+        placement: *from_placement,
+    })
+}
+
+fn shadow_list_entries(value: &StyleValueData) -> Option<(Vec<RetainedStyleValueData>, u8, bool)> {
+    // https://drafts.csswg.org/web-animations-1/#animating-shadow-lists
+    // Each shadow in the list (treating none as a 0-length list) is interpolated component-wise as with by computed
+    // value behavior.
+    match value {
+        StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
+            Some((Vec::new(), 0, false))
+        }
+        StyleValueData::ValueList {
+            values,
+            separator,
+            collapsible,
+        } => Some((
+            values
+                .as_slice()
+                .iter()
+                .map(RetainedStyleValueData::clone_retained)
+                .collect(),
+            *separator,
+            *collapsible,
+        )),
+        _ => None,
+    }
+}
+
+fn pad_shadow_lists(first: &mut Vec<RetainedStyleValueData>, second: &mut Vec<RetainedStyleValueData>) -> bool {
+    // https://drafts.csswg.org/web-animations-1/#animating-shadow-lists
+    // If the lists of shadows have different lengths, then the shorter list is padded at the end with shadows whose
+    // color is transparent, whose lengths are all 0, and whose inset (or not) matches the longer list.
+    while first.len() < second.len() {
+        let Some(shadow) = blank_shadow(second[first.len()].data()) else {
+            return false;
+        };
+        first.push(shadow);
+    }
+    while second.len() < first.len() {
+        let Some(shadow) = blank_shadow(first[second.len()].data()) else {
+            return false;
+        };
+        second.push(shadow);
+    }
+    true
+}
+
+fn accumulate_shadow(
+    context: &FfiAnimationContext,
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
+) -> Option<StyleValueData> {
+    let (
+        StyleValueData::Shadow {
+            shadow_type: underlying_shadow_type,
+            color: underlying_color,
+            offset_x: underlying_offset_x,
+            offset_y: underlying_offset_y,
+            blur_radius: underlying_blur_radius,
+            spread_distance: underlying_spread_distance,
+            placement: underlying_placement,
+        },
+        StyleValueData::Shadow {
+            shadow_type: animated_shadow_type,
+            color: animated_color,
+            offset_x: animated_offset_x,
+            offset_y: animated_offset_y,
+            blur_radius: animated_blur_radius,
+            spread_distance: animated_spread_distance,
+            placement: animated_placement,
+        },
+    ) = (underlying, animated)
+    else {
+        return None;
+    };
+    if underlying_shadow_type != animated_shadow_type || underlying_placement != animated_placement {
+        return None;
+    }
+
+    let resolve_length = |value: &RetainedStyleValueData| match value.optional_data() {
+        Some(value) => resolve_animation_length(Some(context), value),
+        None => Some(0.0),
+    };
+    let add_lengths = |underlying: &RetainedStyleValueData, animated: &RetainedStyleValueData| {
+        Some(retained_length(
+            resolve_length(underlying)? + resolve_length(animated)?,
+            crate::css::style_compute::px_length_unit(),
+        ))
+    };
+    let underlying_color = resolve_animation_color(Some(context), underlying_color)?;
+    let animated_color = resolve_animation_color(Some(context), animated_color)?;
+    let color = composite_scalar_value(
+        underlying_color.data(),
+        animated_color.data(),
+        FfiCompositeOperation::Accumulate,
+    )
+    .into_value()?;
+
+    Some(StyleValueData::Shadow {
+        shadow_type: *underlying_shadow_type,
+        color,
+        offset_x: add_lengths(underlying_offset_x, animated_offset_x)?,
+        offset_y: add_lengths(underlying_offset_y, animated_offset_y)?,
+        blur_radius: add_lengths(underlying_blur_radius, animated_blur_radius)?,
+        spread_distance: if underlying_spread_distance.optional_data().is_some()
+            || animated_spread_distance.optional_data().is_some()
+        {
+            add_lengths(underlying_spread_distance, animated_spread_distance)?
+        } else {
+            empty_retained_style_value()
+        },
+        placement: *underlying_placement,
+    })
+}
+
+fn composite_shadow_list(
+    context: &FfiAnimationContext,
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
+    operation: FfiCompositeOperation,
+) -> AnimationValueResult {
+    let (
+        Some((mut underlying_shadows, underlying_separator, underlying_collapsible)),
+        Some((mut animated_shadows, animated_separator, animated_collapsible)),
+    ) = (shadow_list_entries(underlying), shadow_list_entries(animated))
+    else {
+        return handled_without_value();
+    };
+    let (separator, collapsible) = if underlying_shadows.is_empty() {
+        (animated_separator, animated_collapsible)
+    } else {
+        (underlying_separator, underlying_collapsible)
+    };
+
+    let shadows = match operation {
+        FfiCompositeOperation::Replace => return handled_without_value(),
+        FfiCompositeOperation::Add => {
+            // https://drafts.csswg.org/web-animations-1/#animating-shadow-lists
+            // Addition of two shadow lists Va and Vb is defined as list concatenation such that Vresult is equal to Va
+            // extended with Vb.
+            underlying_shadows.extend(animated_shadows);
+            underlying_shadows
+        }
+        FfiCompositeOperation::Accumulate => {
+            // https://drafts.csswg.org/web-animations-1/#animating-shadow-lists
+            // Accumulation of shadow lists follows the matching rules for interpolation above, performing addition on
+            // each component according to its type, or falling back to discrete animation if the inset values do not
+            // match.
+            if !pad_shadow_lists(&mut underlying_shadows, &mut animated_shadows) {
+                return handled_without_value();
+            }
+            let mut shadows = Vec::with_capacity(underlying_shadows.len());
+            for (underlying_shadow, animated_shadow) in underlying_shadows.iter().zip(&animated_shadows) {
+                let Some(shadow) = accumulate_shadow(context, underlying_shadow.data(), animated_shadow.data()) else {
+                    return handled_without_value();
+                };
+                shadows.push(RetainedStyleValueData::from_arc(Arc::new(shadow)));
+            }
+            shadows
+        }
+    };
+    if shadows.is_empty() {
+        return handled_retained_value(retained_none_keyword());
+    }
+    owned(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(shadows),
+        separator,
+        collapsible,
     })
 }
 
@@ -6666,46 +6837,16 @@ fn interpolate_shadow_list(
     // Animation type: by computed value, treating none as a zero-item list and appending blank shadows
     //                 (transparent 0 0 0 0) with a corresponding inset keyword as needed to match the longer list if
     //                 the shorter list is otherwise compatible with the longer one
-    let list = |value: &StyleValueData| -> Option<(Vec<RetainedStyleValueData>, u8, bool)> {
-        match value {
-            StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
-                Some((Vec::new(), 0, false))
-            }
-            StyleValueData::ValueList {
-                values,
-                separator,
-                collapsible,
-            } => Some((
-                values
-                    .as_slice()
-                    .iter()
-                    .map(RetainedStyleValueData::clone_retained)
-                    .collect(),
-                *separator,
-                *collapsible,
-            )),
-            _ => None,
-        }
-    };
-    let Some((mut from_shadows, from_separator, from_collapsible)) = list(from) else {
+    let Some((mut from_shadows, from_separator, from_collapsible)) = shadow_list_entries(from) else {
         return not_handled();
     };
-    let Some((mut to_shadows, to_separator, to_collapsible)) = list(to) else {
+    let Some((mut to_shadows, to_separator, to_collapsible)) = shadow_list_entries(to) else {
         return not_handled();
     };
     let from_was_empty = from_shadows.is_empty();
 
-    while from_shadows.len() < to_shadows.len() {
-        let Some(shadow) = blank_shadow(to_shadows[from_shadows.len()].data()) else {
-            return not_handled();
-        };
-        from_shadows.push(shadow);
-    }
-    while to_shadows.len() < from_shadows.len() {
-        let Some(shadow) = blank_shadow(from_shadows[to_shadows.len()].data()) else {
-            return not_handled();
-        };
-        to_shadows.push(shadow);
+    if !pad_shadow_lists(&mut from_shadows, &mut to_shadows) {
+        return not_handled();
     }
 
     let mut shadows = Vec::with_capacity(from_shadows.len());
@@ -7576,6 +7717,12 @@ fn composite_batch_value<'a>(
         composite_filter_list(context, underlying, animated, operation)
     } else if matches!(operation, FfiCompositeOperation::Replace) {
         handled_without_value()
+    } else if matches!(
+        property_id,
+        crate::css::property_metadata::property_id::BOX_SHADOW
+            | crate::css::property_metadata::property_id::TEXT_SHADOW
+    ) {
+        composite_shadow_list(context, underlying, animated, operation)
     } else if property_id == crate::css::property_metadata::property_id::OFFSET_PATH {
         composite_offset_path(underlying, animated, operation).map_or_else(handled_without_value, owned)
     } else if property_id == crate::css::property_metadata::property_id::OFFSET_ROTATE {

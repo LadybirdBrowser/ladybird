@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 356 tests
 
-336 Pass
-20 Fail
+337 Pass
+19 Fail
 Pass	Setup
 Pass	align-content (type: discrete) has testAccumulation function
 Fail	align-content: "flex-end" onto "flex-start"
@@ -119,7 +119,7 @@ Pass	box-decoration-break (type: discrete) has testAccumulation function
 Pass	box-decoration-break: "clone" onto "slice"
 Pass	box-decoration-break: "slice" onto "clone"
 Pass	box-shadow (type: boxShadowList) has testAccumulation function
-Fail	box-shadow: shadow
+Pass	box-shadow: shadow
 Pass	box-sizing (type: discrete) has testAccumulation function
 Pass	box-sizing: "border-box" onto "content-box"
 Pass	box-sizing: "content-box" onto "border-box"
