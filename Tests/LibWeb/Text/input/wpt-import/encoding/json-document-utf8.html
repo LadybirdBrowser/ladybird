@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="windows-1251">
+<title>JSON documents are decoded as UTF-8 by default</title>
+<link rel="help" href="https://datatracker.ietf.org/doc/html/rfc8259#section-8.1">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+const utf8 = '{"text":"\u2603\u00e9"}';
+
+function loadJSON(query) {
+  return new Promise((resolve, reject) => {
+    const frame = document.createElement("iframe");
+    frame.onload = () => {
+      const text = frame.contentDocument.body.textContent;
+      frame.remove();
+      resolve(text);
+    };
+    frame.onerror = () => { frame.remove(); reject(new Error("load failed")); };
+    frame.src = "resources/json-charset.py" + query;
+    document.body.appendChild(frame);
+  });
+}
+
+promise_test(async () => {
+  assert_equals(await loadJSON(""), utf8);
+}, "application/json with no charset is decoded as UTF-8 under a windows-1251 parent frame");
+
+promise_test(async () => {
+  assert_equals(await loadJSON("?charset=utf-8"), utf8);
+}, "application/json;charset=utf-8 is decoded as UTF-8");
+
+promise_test(async () => {
+  assert_equals(await loadJSON("?type=text/json"), utf8);
+}, "text/json with no charset is decoded as UTF-8");
+
+promise_test(async () => {
+  assert_not_equals(await loadJSON("?charset=windows-1251"), utf8);
+}, "application/json;charset=windows-1251 honors the explicit charset");
+</script>
+</body>
