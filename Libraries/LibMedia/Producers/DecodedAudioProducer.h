@@ -147,7 +147,6 @@ private:
         AudioDecoderSelection m_decoder_that_failed_due_to_missing_features;
         Optional<CodedFrame> m_frame_awaiting_decoder_replacement;
         OwnPtr<AudioDecoder> m_decoder;
-        bool m_decoder_needs_codec_configuration_next_seek { true };
         NonnullOwnPtr<Audio::AudioConverter> m_converter;
         i64 m_last_output_frame { NumericLimits<i64>::min() };
 
@@ -158,9 +157,15 @@ private:
         ReadBlockedChangeHandler m_read_blocked_change_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
 
+        enum class SeekReason : u8 {
+            Normal,
+            DecoderResetNeeded,
+        };
+
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };
         AK::Duration m_seek_timestamp;
+        SeekReason m_seek_reason { SeekReason::Normal };
 
         SynchronizedWakeHandler m_wake_handler;
         mutable bool m_downstream_needs_wake { true };
