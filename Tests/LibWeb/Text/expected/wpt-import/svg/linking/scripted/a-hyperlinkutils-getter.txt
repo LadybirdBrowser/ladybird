@@ -2,34 +2,34 @@ Harness status: OK
 
 Found 30 tests
 
-30 Fail
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: href] (0): origin
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: href] (1): protocol
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: href] (2): username
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: href] (3): password
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: href] (4): host
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: href] (5): hostname
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: href] (6): port
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: href] (7): pathname
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: href] (8): search
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: href] (9): hash
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (0): origin
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (1): protocol
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (2): username
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (3): password
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (4): host
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (5): hostname
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (6): port
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (7): pathname
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (8): search
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (9): hash
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: both] (0): origin
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: both] (1): protocol
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: both] (2): username
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: both] (3): password
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: both] (4): host
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: both] (5): hostname
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: both] (6): port
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: both] (7): pathname
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: both] (8): search
-Fail	SVGAElement HyperlinkElementUtils getter [Mode: both] (9): hash
+30 Pass
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: href] (0): origin
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: href] (1): protocol
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: href] (2): username
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: href] (3): password
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: href] (4): host
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: href] (5): hostname
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: href] (6): port
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: href] (7): pathname
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: href] (8): search
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: href] (9): hash
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (0): origin
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (1): protocol
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (2): username
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (3): password
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (4): host
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (5): hostname
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (6): port
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (7): pathname
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (8): search
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: xlink] (9): hash
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: both] (0): origin
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: both] (1): protocol
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: both] (2): username
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: both] (3): password
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: both] (4): host
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: both] (5): hostname
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: both] (6): port
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: both] (7): pathname
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: both] (8): search
+Pass	SVGAElement HyperlinkElementUtils getter [Mode: both] (9): hash

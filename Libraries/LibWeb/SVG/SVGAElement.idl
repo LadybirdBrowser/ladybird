@@ -7,12 +7,14 @@ interface SVGAElement : SVGGraphicsElement {
     [Reflect] attribute USVString ping;
     [Reflect] attribute DOMString rel;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
-    [Reflect] attribute DOMString hreflang;
-    [Reflect] attribute DOMString type;
+    // NB: hreflang and type come from HyperlinkElementUtils.
 
     [Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
 
 };
 
 SVGAElement includes SVGURIReference;
-// FIXME: SVGAElement includes HTMLHyperlinkElementUtils;
+// NB: The spec includes HTMLHyperlinkElementUtils here, from before HTML split the URL decomposition attributes out
+//     into HyperlinkElementUtils. The href and target attributes of HTMLHyperlinkElementUtils would conflict with
+//     SVGURIReference's href and SVGAElement's target.
+SVGAElement includes HyperlinkElementUtils;
