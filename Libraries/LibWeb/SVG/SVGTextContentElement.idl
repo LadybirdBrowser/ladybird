@@ -17,7 +17,7 @@ interface SVGTextContentElement : SVGGraphicsElement {
     [FIXME] DOMPoint getEndPositionOfChar(unsigned long charnum);
     DOMRect getExtentOfChar(unsigned long charnum);
     [FIXME] float getRotationOfChar(unsigned long charnum);
-    [FIXME] long getCharNumAtPosition(optional DOMPointInit point = {});
+    long getCharNumAtPosition(optional DOMPointInit point = {});
     [FIXME] undefined selectSubString(unsigned long charnum, unsigned long nchars);
 
 };

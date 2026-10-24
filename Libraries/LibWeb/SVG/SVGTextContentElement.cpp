@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Bindings/DOMPointReadOnly.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/Geometry/DOMRect.h>
@@ -188,6 +189,40 @@ GC::Ref<SVGAnimatedEnumeration> SVGTextContentElement::length_adjust()
         SVGAnimatedEnumeration::Keyword { "spacingAndGlyphs"sv, LENGTHADJUST_SPACINGANDGLYPHS },
     };
     return svg_animated_enumeration_for_attribute(AttributeNames::lengthAdjust, keywords, LENGTHADJUST_SPACING);
+}
+
+// https://svgwg.org/svg2-draft/text.html#__svg__SVGTextContentElement__getCharNumAtPosition
+WebIDL::Long SVGTextContentElement::get_char_num_at_position(Bindings::DOMPointInit const& point)
+{
+    // The getCharNumAtPosition method is used to find which character caused a text glyph to be rendered at a given
+    // position in the coordinate system. Because the relationship between characters and glyphs is not one-to-one, only
+    // the first character of the relevant typographic character is returned. When getCharNumAtPosition(point) is
+    // called, the following steps are run:
+    // 1. Assign an index to each character in the DOM within this element, where the first character has index 0.
+    // NB: Each addressable character has a cell, in order.
+    auto cells = character_cells();
+
+    // 2. Let last be the highest index assigned to a character.
+    // 3. Let charnum be 0.
+    // 4. Let result be -1.
+    WebIDL::Long result = -1;
+
+    // 5. While charnum < last:
+    // NB: The steps never advance charnum, so this visits every character, including the one at index last.
+    for (size_t charnum = 0; charnum < cells.size(); ++charnum) {
+        // 1. If the character at index charnum corresponds to a typographic character and it is the first character in
+        //    document order to correspond to that typographic character, and point in this element's coordinate system
+        //    is within the glyph cell for the typographic character, then set result to charnum.
+        auto const& cell = cells[charnum];
+        if (!cell.starts_typographic_character)
+            continue;
+        Gfx::FloatRect glyph_cell { cell.x, cell.y, cell.width, cell.height };
+        if (glyph_cell.contains(static_cast<float>(point.x), static_cast<float>(point.y)))
+            result = static_cast<WebIDL::Long>(charnum);
+    }
+
+    // 6. Return result.
+    return result;
 }
 
 }
