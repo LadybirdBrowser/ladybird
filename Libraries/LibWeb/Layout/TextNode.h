@@ -36,7 +36,7 @@ public:
 
     virtual Utf16String const& text() const { return dom_node().data(); }
 
-    Utf16String rendered_text_for_dom(bool collapse_whitespace) const;
+    Utf16String rendered_text_for_dom() const;
     RenderedTextForDOM rendered_text_for_dom_with_offset_mapping() const;
     RustFFI::FfiTextSourceRange word_range_at(size_t dom_offset) const;
 

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        target.textContent = "\r a\r\r b \r";
+        println(JSON.stringify(target.innerText));
+    });
+</script>

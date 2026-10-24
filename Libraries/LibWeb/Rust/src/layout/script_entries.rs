@@ -495,8 +495,7 @@ pub struct FfiRenderedTextWithOffsetsView {
     pub offset_mapping_length: usize,
 }
 
-/// The text the rows of the text node whose primary row is `primary` render, with whitespace collapsed where their
-/// style collapses it if `collapse_whitespace`, handed to `append`.
+/// The text the rows of the text node whose primary row is `primary` render, handed to `append`.
 ///
 /// # Safety
 ///
@@ -506,7 +505,6 @@ pub struct FfiRenderedTextWithOffsetsView {
 pub unsafe extern "C" fn layout_script_rendered_text(
     host: &DocumentHost,
     primary: NodeSlotId,
-    collapse_whitespace: bool,
     context: *mut c_void,
     append: unsafe extern "C" fn(*mut c_void, FfiRenderedTextView),
 ) {
@@ -514,15 +512,11 @@ pub unsafe extern "C" fn layout_script_rendered_text(
     // the render state does.
     let from_rows = host.read_rows_with_rendered_text(
         ScriptForcedRead::at_script_entry(&SCRIPT_ENTRY),
-        |rows, awaiting_render| {
-            crate::layout::text_queries::rendered_text_of_rows(rows, awaiting_render, primary, collapse_whitespace)
-        },
+        |rows, awaiting_render| crate::layout::text_queries::rendered_text_of_rows(rows, awaiting_render, primary),
     );
     let text = match from_rows {
         Some(text) => text,
-        None => read_arena(host, |arena| {
-            crate::layout::text_queries::rendered_text(arena, primary, collapse_whitespace)
-        }),
+        None => read_arena(host, |arena| crate::layout::text_queries::rendered_text(arena, primary)),
     };
     let view = FfiRenderedTextView {
         text: text.as_ptr(),
