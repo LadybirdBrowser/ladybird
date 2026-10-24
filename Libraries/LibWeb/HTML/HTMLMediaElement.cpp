@@ -1749,7 +1749,13 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
             weak_self->queue_interrupted_fetch_steps();
         });
 
-        VERIFY(response->body());
+        // AD-HOC: A response with a null body status (204, 205, 304) has nothing to read, so treat the resource as
+        //         complete with no content, so that it fails to parse metadata.
+        if (!response->body()) {
+            process_end_of_media->function()();
+            return;
+        }
+
         response->body()->incrementally_read(HTML::relevant_realm(*self), update_media, process_end_of_media, process_body_error, GC::Ref { global });
     };
 
