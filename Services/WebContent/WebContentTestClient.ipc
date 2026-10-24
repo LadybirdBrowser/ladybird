@@ -5,6 +5,7 @@
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/Page/PageId.h>
+#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 
 endpoint WebContentTestClient routed by Web::PageId page_id
 {
@@ -14,6 +15,7 @@ endpoint WebContentTestClient routed by Web::PageId page_id
 
     did_expire_cookies_with_time_offset(AK::Duration offset) => ()
     did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy policy) => ()
+    [NotRouted] did_request_clear_storage_for_testing(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id) => ()
     did_simulate_worker_request_server_connection_loss(Web::PageId page_id) => ()
     [NotRouted] did_spoof_document_origin_for_testing(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, URL::Origin origin) => ()
 

@@ -298,6 +298,7 @@ private:
     virtual void page_did_lose_request_server_connection() override;
     virtual void page_did_simulate_worker_request_server_connection_loss() override;
     virtual void page_did_store_hsts_policy_for_testing(String const&, HTTP::HSTS::ParsedHSTSPolicy const&) override;
+    virtual void page_did_request_clear_storage_for_testing(Web::StorageAPI::StorageEndpointType, Web::HTML::EnvironmentSettingsObject const&) override;
     virtual bool page_did_is_known_hsts_host(String const&) override;
     virtual u64 page_did_request_storage_usage(Web::HTML::EnvironmentId const& environment_id) override;
     virtual void page_did_update_indexed_database(String const& url, Web::IndexedDB::TransactionChanges const&) override;

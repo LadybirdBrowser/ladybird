@@ -143,6 +143,8 @@ interface Internals {
     undefined simulateDrop(double x, double y);
 
     undefined expireCookiesWithTimeOffset(long long seconds);
+    // Clears this document's local ("local") or session ("session") storage the way the browser does, through its jar.
+    undefined clearStorageForTesting(DOMString type);
     Promise<undefined> deleteAllCookies();
     boolean hasCookieForURL(DOMString url, ByteString name, ByteString value);
 

@@ -1533,6 +1533,14 @@ void PageClient::page_did_store_hsts_policy_for_testing(String const& domain, HT
         test_connection->did_store_hsts_policy_for_testing(domain, policy);
 }
 
+void PageClient::page_did_request_clear_storage_for_testing(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentSettingsObject const& environment)
+{
+    // Synchronous, so the browser has relayed the change before the page reads again; the mirror applies it once this
+    // task yields, like any other change made elsewhere.
+    if (auto* test_connection = client().test_connection())
+        test_connection->did_request_clear_storage_for_testing(m_id, storage_endpoint, environment.id);
+}
+
 bool PageClient::page_did_is_known_hsts_host(String const& domain)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidIsKnownHstsHost>(domain);

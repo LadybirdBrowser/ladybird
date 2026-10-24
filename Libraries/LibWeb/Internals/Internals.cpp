@@ -113,6 +113,7 @@
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/Page/DragEvent.h>
 #include <LibWebCommon/Page/InputEvent.h>
+#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 
 namespace Web::Internals {
 
@@ -1147,6 +1148,12 @@ void Internals::simulate_drop(double x, double y)
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_drag_and_drop_event(DragEvent::Type::Drop, position, position, UIEvents::MouseButton::Primary, 0, 0, {});
+}
+
+void Internals::clear_storage_for_testing(Utf16String const& type)
+{
+    auto storage_endpoint = type == "session"_utf16 ? StorageAPI::StorageEndpointType::SessionStorage : StorageAPI::StorageEndpointType::LocalStorage;
+    page().client().page_did_request_clear_storage_for_testing(storage_endpoint, window().associated_document().relevant_settings_object());
 }
 
 void Internals::expire_cookies_with_time_offset(WebIDL::LongLong seconds)
