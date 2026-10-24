@@ -509,65 +509,48 @@ impl AbsposEngine<'_> {
         is_from_end: bool,
         is_horizontal_axis: bool,
     ) -> Option<CssPixels> {
-        let containing_block_direction = self.style(containing_block).direction();
-        let box_direction = self.style(positioned_box).direction();
+        let (axis_start, axis_end) = if is_horizontal_axis {
+            (rect.left(), rect.right())
+        } else {
+            (rect.top(), rect.bottom())
+        };
+        // https://drafts.csswg.org/css-anchor-position-1/#valdef-anchor-start
+        // Refers to one of the sides of the anchor box in the same axis as the inset property it's used in, by
+        // resolving the keyword against the writing mode of either the positioned box (for self-start and self-end)
+        // or the positioned box's containing block (for start and end).
+        let start_and_end_sides = |writing_mode_box: Node| {
+            let style = self.style(writing_mode_box);
+            if geometry::start_is_left_or_top(style.writing_mode(), style.direction(), is_horizontal_axis) {
+                (axis_start, axis_end)
+            } else {
+                (axis_end, axis_start)
+            }
+        };
+        // https://drafts.csswg.org/css-anchor-position-1/#valdef-anchor-percentage
+        // Refers to a position a corresponding percentage between the start and end sides, with 0% being equivalent
+        // to start and 100% being equivalent to end.
+        let between_start_and_end = |fraction: f64| {
+            let (start, end) = start_and_end_sides(containing_block);
+            start + CssPixels::nearest_value_for((end - start).to_double() * fraction)
+        };
         match side {
             AnchorSide::Invalid => None,
             AnchorSide::Top => (!is_horizontal_axis).then_some(rect.top()),
             AnchorSide::Bottom => (!is_horizontal_axis).then_some(rect.bottom()),
             AnchorSide::Left => is_horizontal_axis.then_some(rect.left()),
             AnchorSide::Right => is_horizontal_axis.then_some(rect.right()),
-            AnchorSide::Center => Some(if is_horizontal_axis {
-                rect.left() + rect.width / 2
-            } else {
-                rect.top() + rect.height / 2
-            }),
-            AnchorSide::Start | AnchorSide::End => {
-                let is_start = side == AnchorSide::Start;
-                if is_horizontal_axis {
-                    let use_left = (containing_block_direction == direction::LTR) == is_start;
-                    Some(if use_left { rect.left() } else { rect.right() })
-                } else {
-                    Some(if is_start { rect.top() } else { rect.bottom() })
-                }
-            }
-            AnchorSide::SelfStart | AnchorSide::SelfEnd => {
-                let is_start = side == AnchorSide::SelfStart;
-                if is_horizontal_axis {
-                    let use_left = (box_direction == direction::LTR) == is_start;
-                    Some(if use_left { rect.left() } else { rect.right() })
-                } else {
-                    Some(if is_start { rect.top() } else { rect.bottom() })
-                }
-            }
+            // https://drafts.csswg.org/css-anchor-position-1/#valdef-anchor-center
+            // center is equivalent to 50%.
+            AnchorSide::Center => Some(between_start_and_end(0.5)),
+            AnchorSide::Start => Some(start_and_end_sides(containing_block).0),
+            AnchorSide::End => Some(start_and_end_sides(containing_block).1),
+            AnchorSide::SelfStart => Some(start_and_end_sides(positioned_box).0),
+            AnchorSide::SelfEnd => Some(start_and_end_sides(positioned_box).1),
             AnchorSide::Inside | AnchorSide::Outside => {
                 let same_side = side == AnchorSide::Inside;
-                if is_horizontal_axis {
-                    Some(if is_from_end == same_side {
-                        rect.right()
-                    } else {
-                        rect.left()
-                    })
-                } else {
-                    Some(if is_from_end == same_side {
-                        rect.bottom()
-                    } else {
-                        rect.top()
-                    })
-                }
+                Some(if is_from_end == same_side { axis_end } else { axis_start })
             }
-            AnchorSide::Percentage(fraction) => {
-                if is_horizontal_axis {
-                    let (start, end) = if containing_block_direction == direction::LTR {
-                        (rect.left(), rect.right())
-                    } else {
-                        (rect.right(), rect.left())
-                    };
-                    Some(start + CssPixels::nearest_value_for((end - start).to_double() * fraction))
-                } else {
-                    Some(rect.top() + CssPixels::nearest_value_for(rect.height.to_double() * fraction))
-                }
-            }
+            AnchorSide::Percentage(fraction) => Some(between_start_and_end(fraction)),
         }
     }
 
