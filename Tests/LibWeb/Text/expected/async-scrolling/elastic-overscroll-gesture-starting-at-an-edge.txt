@@ -1,5 +1,5 @@
 pulled past the top of the page: viewport stretch=0,-20 window.scrollY=0 nested stretch=0 nested.scrollTop=0
 sprung back: viewport stretch=0,0 window.scrollY=0 nested stretch=0 nested.scrollTop=0
 pulled over the nested scroller: viewport stretch=0,-20 window.scrollY=0 nested stretch=0 nested.scrollTop=0
-moved back into the scroll range: viewport stretch=0,0 window.scrollY=100 nested stretch=0 nested.scrollTop=0
+moved back into the scroll range: viewport stretch=0,0 window.scrollY=480 nested stretch=0 nested.scrollTop=0
 pulled sideways: viewport stretch=0,0 window.scrollY=0 nested stretch=0 nested.scrollTop=0

@@ -2,5 +2,5 @@ inside the scroll range: nested.scrollTop=150 nested stretch=0 window.scrollY=0 
 reaching the edge: nested.scrollTop=200 nested stretch=5 window.scrollY=0 viewport stretch=0
 pulling at the edge: nested.scrollTop=200 nested stretch=10 window.scrollY=0 viewport stretch=0
 horizontal stretch: 0
-moving back: nested.scrollTop=200 nested stretch=5 window.scrollY=0 viewport stretch=0
-moving back into the scroll range: nested.scrollTop=150 nested stretch=0 window.scrollY=0 viewport stretch=0
+moving back: nested.scrollTop=110 nested stretch=0 window.scrollY=0 viewport stretch=0
+moving back into the scroll range: nested.scrollTop=0 nested stretch=-2 window.scrollY=0 viewport stretch=0

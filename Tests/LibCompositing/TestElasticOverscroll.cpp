@@ -37,18 +37,19 @@ TEST_CASE(pull_never_stretches_past_the_scrollport_length)
     EXPECT_EQ(overscroll.stretch(), Gfx::FloatPoint(800, 600));
 }
 
-TEST_CASE(delta_back_to_the_scroll_range_relaxes_the_stretch_before_it_scrolls)
+TEST_CASE(delta_back_to_the_scroll_range_relaxes_the_stretch_one_to_one_before_it_scrolls)
 {
     ElasticOverscroll overscroll { scrollport_size };
     overscroll.pull_by({ 0, -400 });
+    EXPECT_EQ(overscroll.stretch(), Gfx::FloatPoint(0, -20));
 
-    EXPECT_EQ(overscroll.relax_by({ 7, 100 }), Gfx::FloatPoint(7, 0));
+    EXPECT_EQ(overscroll.relax_by({ 7, 5 }), Gfx::FloatPoint(7, 0));
     EXPECT_EQ(overscroll.stretch(), Gfx::FloatPoint(0, -15));
 
     EXPECT_EQ(overscroll.relax_by({ 0, -50 }), Gfx::FloatPoint(0, -50));
     EXPECT_EQ(overscroll.stretch(), Gfx::FloatPoint(0, -15));
 
-    EXPECT_EQ(overscroll.relax_by({ 0, 350 }), Gfx::FloatPoint(0, 50));
+    EXPECT_EQ(overscroll.relax_by({ 0, 65 }), Gfx::FloatPoint(0, 50));
     EXPECT(overscroll.is_at_rest());
 }
 
