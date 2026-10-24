@@ -1,0 +1,4 @@
+limited-srgb: color(display-p3 calc(infinity) 0 0) -> color(srgb 0 0 0)
+limited-srgb: color(srgb calc(infinity) calc(-infinity) 0) -> color(srgb 1 0 0)
+display-p3: color(display-p3 calc(infinity) 0 0) -> color(display-p3 340282346638528859811704183484516925440 0 0)
+display-p3: color(srgb calc(infinity) calc(-infinity) 0) -> color(display-p3 0 0 0)

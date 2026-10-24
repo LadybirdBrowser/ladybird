@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const colorSpace of ["limited-srgb", "display-p3"]) {
+            const input = document.createElement("input");
+            input.type = "color";
+            input.alpha = true;
+            input.colorSpace = colorSpace;
+            for (const value of ["color(display-p3 calc(infinity) 0 0)", "color(srgb calc(infinity) calc(-infinity) 0)"]) {
+                input.value = value;
+                println(`${colorSpace}: ${value} -> ${input.value}`);
+            }
+        }
+    });
+</script>
