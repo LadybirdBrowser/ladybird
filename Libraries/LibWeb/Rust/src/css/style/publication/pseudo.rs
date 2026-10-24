@@ -41,6 +41,25 @@ impl PseudoSettlement {
 }
 
 impl RetainedState {
+    /// Remove backdrop and marker kinds from the candidate pseudo-element bitmask `kinds`
+    /// when they cannot generate a box, regardless of their matching rules.
+    /// `marker_is_live` includes any originating or pseudo-element list item the caller must consider.
+    pub(super) fn filter_non_generating_pseudo_kinds(
+        &self,
+        node: StyleNodeID,
+        mut kinds: u64,
+        marker_is_live: bool,
+    ) -> u64 {
+        if self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER == 0
+        {
+            kinds &= !(1 << pseudo_kind::BACKDROP);
+        }
+        if !marker_is_live {
+            kinds &= !(1 << pseudo_kind::MARKER);
+        }
+        kinds
+    }
+
     /// The pseudo winner rows a settlement reads, republished from the node's answer wherever one
     /// predates it, is missing, or predates the rules that flipped for its kind: settling then
     /// reads a current row for every kind it settles. The kinds are those the answer has rules for
@@ -57,7 +76,7 @@ impl RetainedState {
         flipped_pseudo_rules: u64,
         republication: Option<WinnerRepublication>,
     ) -> Drive<()> {
-        use pseudo_kind::{AFTER, BACKDROP, BEFORE, MARKER};
+        use pseudo_kind::{AFTER, BACKDROP, BEFORE};
 
         let mut required = self.pseudo_kinds_with_rules(node, settlement)?
             & settlement
@@ -66,11 +85,6 @@ impl RetainedState {
                 .filter(|&&kind| settlement.selects(kind, self.deferred_pseudo_elements))
                 .fold(0_u64, |kinds, &kind| kinds | (1 << kind));
         if settlement == PseudoSettlement::Generated {
-            if self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER
-                == 0
-            {
-                required &= !(1_u64 << BACKDROP);
-            }
             let marker_is_live = new_is_list_item
                 || old_is_list_item
                 || [BEFORE, AFTER, BACKDROP]
@@ -79,9 +93,7 @@ impl RetainedState {
                     .filter_map(|record| self.computed_group_sets.style_record_view(record.raw()))
                     .filter_map(|view| view.longhand_table)
                     .any(|table| table.display_is_list_item());
-            if !marker_is_live {
-                required &= !(1_u64 << MARKER);
-            }
+            required = self.filter_non_generating_pseudo_kinds(node, required, marker_is_live);
         }
         let program_version = self.program.version();
         for (pseudo, version, _, priority_current) in self.current_winner_groups().pseudo_states(node) {
