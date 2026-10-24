@@ -1,0 +1,6 @@
+same-origin drawImage, then getImageData: allowed
+same-origin createPattern, then getImageData: allowed
+same-origin texImage2D: allowed
+cross-origin drawImage, then getImageData: SecurityError
+cross-origin createPattern, then getImageData: SecurityError
+cross-origin texImage2D: SecurityError
