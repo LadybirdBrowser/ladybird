@@ -72,9 +72,10 @@ ALLOWED_REALM_MENTIONS = {
     "Streams": (5, 14, "the C++ facade of the Rust streams creates streams and promises in caller-selected realms"),
     "TrustedTypes": (2, 9, "Trusted Types policy factory operations still use selected realms"),
     "WebAssembly": (
-        15,
-        89,
-        "WebAssembly constructors/exports instantiate JS objects/functions in spec-selected realms",
+        2,
+        8,
+        "the C++ glue of the Rust WebAssembly JS API creates errors and module records in a given realm, and reads "
+        "the agent cluster of one",
     ),
     "WebAudio": (
         8,

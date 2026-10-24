@@ -10,7 +10,7 @@ crate-type = ["staticlib", "rlib"]
 # The features of the LibJS runtime, which this crate builds for LibWeb's library. The JIT is a default feature, as it
 # is of the runtime's crate, so that cargo builds and lints the crate the way LibWeb's library does unless told otherwise.
 default = ["jit"]
-allocator = ["dep:ladybird_allocator", "libjs_rust/allocator", "libweb_rust/allocator"]
+allocator = ["dep:ladybird_allocator", "libjs_rust/allocator", "libwasm_engine/allocator", "libweb_rust/allocator"]
 jit = ["libjs_rust/jit"]
 address-sanitizer = ["libjs_rust/address-sanitizer"]
 thread-sanitizer = ["libjs_rust/thread-sanitizer", "libweb_rust/thread-sanitizer"]
@@ -27,6 +27,7 @@ libgfx_rust = { path = "../../../LibGfx/Rust", default-features = false }
 libjs_rust = { path = "../../../LibJS/Rust", default-features = false }
 libtextcodec_rust = { path = "../../../LibTextCodec/Rust" }
 liburl_rust = { path = "../../../LibURL/Rust", default-features = false }
+libwasm_engine = { path = "../../../LibWasm/Engine" }
 libweb_rust = { path = "../../Rust" }
 libwebcommon_rust = { path = "../../../LibWebCommon/Rust" }
 rustc-demangle = "0.1"

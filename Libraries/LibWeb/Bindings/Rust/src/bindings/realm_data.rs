@@ -12,9 +12,12 @@ use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, FunctionObject, Gc, Realm, Trace, Vm};
+use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, FunctionObject, Gc, Object, Realm, Trace, Vm};
+
+use crate::bindings::interface::Ref;
 
 use crate::bindings::services::web_bindings_wrapper_world;
+use crate::web_assembly::tag::Tag;
 
 /// The wrapper world of a realm, Web::Bindings::WrapperWorld, which the realm keeps alive.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -38,6 +41,12 @@ pub(crate) struct RealmData {
     pub(crate) count_queuing_strategy_size_function: Cell<Option<Gc<FunctionObject>>>,
     /// https://streams.spec.whatwg.org/#byte-length-queuing-strategy-size-function
     pub(crate) byte_length_queuing_strategy_size_function: Cell<Option<Gc<FunctionObject>>>,
+    /// The NativeError prototypes and constructors of WebAssembly.CompileError, LinkError and RuntimeError,
+    /// https://webassembly.github.io/spec/js-api/#error-objects
+    pub(crate) webassembly_error_prototypes: [Cell<Option<Gc<Object>>>; 3],
+    pub(crate) webassembly_error_constructors: [Cell<Option<Gc<Object>>>; 3],
+    /// The Tag object of the JavaScript exception tag, https://webassembly.github.io/spec/js-api/#javascript-exception-tag
+    pub(crate) webassembly_js_tag: Cell<Option<Ref<Tag>>>,
 }
 
 static REALM_DATA_CLASS: EmbedderClass<RealmData> = EmbedderClass::new("RealmData");

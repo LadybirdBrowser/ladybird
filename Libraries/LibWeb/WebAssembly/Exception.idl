@@ -4,10 +4,10 @@ dictionary ExceptionOptions {
 };
 
 // https://webassembly.github.io/spec/js-api/#exception
-[LegacyNamespace=WebAssembly, Exposed=*]
+[LegacyNamespace=WebAssembly, Exposed=*, ImplementedIn=Rust]
 interface Exception {
-    [ImplementedInBindings] constructor(Tag exceptionTag, sequence<any> payload, optional ExceptionOptions options = {});
-    [ImplementedInBindings] any getArg(Tag exceptionTag, [EnforceRange] unsigned long index);
+    constructor(Tag exceptionTag, sequence<any> payload, optional ExceptionOptions options = {});
+    any getArg(Tag exceptionTag, [EnforceRange] unsigned long index);
     boolean is(Tag exceptionTag);
     readonly attribute (DOMString or undefined) stack;
 };

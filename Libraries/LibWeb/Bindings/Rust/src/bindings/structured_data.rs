@@ -32,6 +32,7 @@ unsafe extern "C" {
     fn web_bindings_serialize_f64(serialized: *mut c_void, value: f64);
     fn web_bindings_serialize_bool(serialized: *mut c_void, value: bool);
     fn web_bindings_serialize_i64(serialized: *mut c_void, value: i64);
+    fn web_bindings_serialize_optional_u64(serialized: *mut c_void, has_value: bool, value: u64);
     fn web_bindings_serialize_utf16_string(serialized: *mut c_void, string: usize);
     fn web_bindings_serialize_bytes(serialized: *mut c_void, bytes: ak::Span<'_, u8>);
     fn web_bindings_deserialize_value(serialized: *mut c_void) -> RawNativeFunctionResult;
@@ -39,6 +40,11 @@ unsafe extern "C" {
     fn web_bindings_deserialize_f64(serialized: *mut c_void, out_value: &mut f64) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_bool(serialized: *mut c_void, out_value: &mut bool) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_i64(serialized: *mut c_void, out_value: &mut i64) -> RawNativeFunctionResult;
+    fn web_bindings_deserialize_optional_u64(
+        serialized: *mut c_void,
+        out_has_value: &mut bool,
+        out_value: &mut u64,
+    ) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_bytes(
         serialized: *mut c_void,
         bytes: *mut c_void,
@@ -94,6 +100,11 @@ impl SerializationWriter<'_> {
     pub(crate) fn write_i64(&mut self, value: i64) {
         // SAFETY: The writer is lent for the steps.
         unsafe { web_bindings_serialize_i64(self.raw.as_ptr(), value) };
+    }
+
+    pub(crate) fn write_optional_u64(&mut self, value: Option<u64>) {
+        // SAFETY: The writer is lent for the steps.
+        unsafe { web_bindings_serialize_optional_u64(self.raw.as_ptr(), value.is_some(), value.unwrap_or(0)) };
     }
 
     pub(crate) fn write_utf16_string(&mut self, string: &Utf16String) {
@@ -176,6 +187,15 @@ impl SerializationReader<'_> {
         // SAFETY: The reader is lent for the steps.
         unsafe { web_bindings_deserialize_i64(self.raw.as_ptr(), &mut value) }.into_completion()?;
         Ok(value)
+    }
+
+    pub(crate) fn read_optional_u64(&mut self) -> WebIdlResult<Option<u64>> {
+        let mut has_value = false;
+        let mut value = 0;
+        // SAFETY: The reader is lent for the steps.
+        unsafe { web_bindings_deserialize_optional_u64(self.raw.as_ptr(), &mut has_value, &mut value) }
+            .into_completion()?;
+        Ok(has_value.then_some(value))
     }
 
     pub(crate) fn read_bytes(&mut self) -> WebIdlResult<Vec<u8>> {

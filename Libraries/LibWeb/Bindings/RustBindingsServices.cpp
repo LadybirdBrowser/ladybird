@@ -107,6 +107,7 @@ void web_bindings_serialize_u32(RustSerializationWriter*, u32);
 void web_bindings_serialize_f64(RustSerializationWriter*, double);
 void web_bindings_serialize_bool(RustSerializationWriter*, bool);
 void web_bindings_serialize_i64(RustSerializationWriter*, i64);
+void web_bindings_serialize_optional_u64(RustSerializationWriter*, bool has_value, u64);
 void web_bindings_serialize_utf16_string(RustSerializationWriter*, FlatPtr string);
 void web_bindings_serialize_bytes(RustSerializationWriter*, ReadonlyBytes);
 JSCompletion web_bindings_deserialize_value(RustSerializationReader*);
@@ -114,6 +115,7 @@ JSCompletion web_bindings_deserialize_u32(RustSerializationReader*, u32* out_val
 JSCompletion web_bindings_deserialize_f64(RustSerializationReader*, double* out_value);
 JSCompletion web_bindings_deserialize_bool(RustSerializationReader*, bool* out_value);
 JSCompletion web_bindings_deserialize_i64(RustSerializationReader*, i64* out_value);
+JSCompletion web_bindings_deserialize_optional_u64(RustSerializationReader*, bool* out_has_value, u64* out_value);
 JSCompletion web_bindings_deserialize_bytes(RustSerializationReader*, void* bytes, void (*append)(void*, u8 const*, size_t));
 JSCompletion web_bindings_deserialize_utf16_string(RustSerializationReader*, FlatPtr* out_string);
 void web_bindings_serialize_inline_object_header(RustSerializationWriter*, u16 interface_name);
@@ -215,6 +217,11 @@ void web_bindings_serialize_i64(RustSerializationWriter* writer, i64 value)
     writer->serialized.encode(value);
 }
 
+void web_bindings_serialize_optional_u64(RustSerializationWriter* writer, bool has_value, u64 value)
+{
+    writer->serialized.encode(has_value ? Optional<u64> { value } : Optional<u64> {});
+}
+
 void web_bindings_serialize_utf16_string(RustSerializationWriter* writer, FlatPtr string)
 {
     writer->serialized.encode(Utf16String::from_raw(string));
@@ -249,6 +256,15 @@ JSCompletion web_bindings_deserialize_bool(RustSerializationReader* reader, bool
 JSCompletion web_bindings_deserialize_i64(RustSerializationReader* reader, i64* out_value)
 {
     return deserialize_plain_value(reader, out_value);
+}
+
+JSCompletion web_bindings_deserialize_optional_u64(RustSerializationReader* reader, bool* out_has_value, u64* out_value)
+{
+    Optional<u64> value;
+    auto result = deserialize_plain_value(reader, &value);
+    *out_has_value = value.has_value();
+    *out_value = value.value_or(0);
+    return result;
 }
 
 JSCompletion web_bindings_deserialize_bytes(RustSerializationReader* reader, void* bytes, void (*append)(void*, u8 const*, size_t))

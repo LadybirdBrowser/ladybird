@@ -30,14 +30,13 @@
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
-#include <LibWeb/WebAssembly/BindingsGlue.h>
-#include <LibWeb/WebAssembly/Instance.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace {
@@ -1048,7 +1047,7 @@ TEST_CASE(relevant_global_main_world_wrapper_ignores_preferred_realm)
     s_main_thread_vm_was_initialized_by_an_earlier_wrapper_test = true;
 }
 
-TEST_CASE(wasm_instance_exports_are_not_shared_with_another_world)
+TEST_CASE(wasm_instance_exports_belong_to_the_realm_of_the_instance)
 {
     ensure_font_plugin_installed();
 
@@ -1068,15 +1067,21 @@ TEST_CASE(wasm_instance_exports_are_not_shared_with_another_world)
     auto& extension_realm = *extension_execution_context->realm;
     install_test_host_defined(extension_realm, Web::Bindings::WrapperWorld::Type::Extension, window_realm);
 
-    static constexpr u8 empty_module_bytes[] = { 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00 };
-    auto bytes = JS::ArrayBuffer::create(window_realm, MUST(ByteBuffer::copy(empty_module_bytes, sizeof(empty_module_bytes))));
-    auto& module_constructor = Web::Bindings::ensure_web_constructor<Web::Bindings::ModulePrototype>(window_realm, "WebAssembly.Module"_utf16_fly_string);
-    auto module_wrapper = MUST(JS::construct(vm, module_constructor, bytes.ptr()));
-    auto instance = MUST(Web::Bindings::construct_instance(window_realm, *Web::Bindings::module_from_value(module_wrapper.ptr()), nullptr));
+    // An Instance made in the window realm, whose exports object belongs to that realm.
+    GC::Ptr<JS::Object> instance_wrapper;
+    {
+        Web::HTML::TemporaryExecutionContext execution_context { window_realm };
+        static constexpr u8 empty_module_bytes[] = { 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00 };
+        auto bytes = JS::ArrayBuffer::create(window_realm, MUST(ByteBuffer::copy(empty_module_bytes, sizeof(empty_module_bytes))));
+        auto& web_assembly = MUST(window_realm.global_object().get("WebAssembly"_utf16_fly_string)).as_object();
+        auto module = MUST(JS::construct(vm, MUST(web_assembly.get("Module"_utf16_fly_string)).as_function(), bytes.ptr()));
+        instance_wrapper = MUST(JS::construct(vm, MUST(web_assembly.get("Instance"_utf16_fly_string)).as_function(), module.ptr()));
+    }
 
-    auto exports = Web::Bindings::exports(window_realm, instance);
-    EXPECT(&exports->shape().realm() == &window_realm);
-    EXPECT_DEATH("Reading a WebAssembly instance's exports from another world", Web::Bindings::exports(extension_realm, instance));
+    // Read through the window realm's wrapper while the extension realm is the current realm.
+    EXPECT(vm.current_realm() == &extension_realm);
+    auto exports = MUST(instance_wrapper->get("exports"_utf16_fly_string));
+    EXPECT(&exports.as_object().shape().realm() == &window_realm);
 
     vm.pop_execution_context();
     vm.pop_execution_context();
