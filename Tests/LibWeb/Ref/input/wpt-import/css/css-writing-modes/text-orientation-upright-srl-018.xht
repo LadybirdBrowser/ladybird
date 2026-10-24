@@ -1,0 +1,54 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Writing Modes Test: 'writing-mode: sideways-rl' - 'text-orientation: upright' has no effect</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" title="5.1. Orienting Text: the 'text-orientation' property" href="http://www.w3.org/TR/css-writing-modes-4/#text-orientation" />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/text-orientation-mixed-srl-016-ref.xht" />
+
+  <meta name="assert" content="This test checks that when 'writing-mode' is set to 'sideways-rl', then a 'text-orientation: upright' declaration has no effect: the alphabetical baseline is used as the dominant baseline and all the glyphs remain rotated 90 degrees clockwise. The typographic mode for 'sideways-rl' is horizontal and 'text-orientation' has no effect on boxes in horizontal typographic modes." />
+
+  <style type="text/css"><![CDATA[
+  @font-face
+    {
+      font-family: "mplus-1p-regular";
+      src: url("../../fonts/mplus-1p-regular.woff") format("woff");
+      /* filesize: 803300 bytes (784.5 KBytes) */
+    }
+
+  div
+    {
+      border: gray solid 1px;
+      font: bold 26px/32px "mplus-1p-regular";
+      margin-bottom: 4px;
+    }
+
+  div#test-srl
+    {
+      writing-mode: sideways-rl;
+      text-orientation: upright;
+    }
+
+  div#ref-vrl-sideways
+    {
+      text-orientation: sideways;
+      writing-mode: vertical-rl;
+    }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if the glyphs in both rectangles have the <strong>same order</strong>, the <strong>same orientation</strong> and the <strong>same layout</strong>.</p>
+
+  <div id="test-srl">月火水Abc<br />def木金土</div>
+
+  <div id="ref-vrl-sideways">月火水Abc<br />def木金土</div>
+
+ </body>
+</html>

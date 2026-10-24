@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Property text-orientation value 'mixed'
+Fail	Property text-orientation value 'upright'
+Fail	Property text-orientation value 'sideways'

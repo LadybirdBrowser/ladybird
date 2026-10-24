@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <title>CSS Writing Modes Test Reference: positioning of a text-orientation:sideways block alongside vertical-lr floats</title>
+
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+
+  <style>
+  html {
+    writing-mode: vertical-lr;
+  }
+
+  div {
+    block-size: 100px;
+  }
+
+  div#first-olive-float {
+    background-color: olive;
+    float: left;
+    inline-size: 50%;
+  }
+
+  div#second-blue-float-with-clear {
+    background-color: blue;
+    clear: left;
+    float: left;
+    inline-size: 25%;
+  }
+
+  div#orange-bfc {
+    background-color: orange;
+    inline-size: 75%;
+    writing-mode: vertical-lr;
+  }
+  </style>
+
+  <body>
+    <div id="first-olive-float">&nbsp;</div>
+    <div id="second-blue-float-with-clear">&nbsp;</div>
+    <div id="orange-bfc">&nbsp;</div>
+  </body>
+</html>

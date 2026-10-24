@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	e.style['text-orientation'] = "mixed" should set the property value
+Fail	e.style['text-orientation'] = "upright" should set the property value
+Fail	e.style['text-orientation'] = "sideways" should set the property value
