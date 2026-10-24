@@ -1,0 +1,10 @@
+isTypeSupported: true
+SourceBuffer updatestart
+SourceBuffer update
+SourceBuffer updateend
+appending the media segment
+SourceBuffer updatestart
+SourceBuffer error
+SourceBuffer updateend
+MediaSource sourceended
+settled: updating false, readyState ended, buffered 0, sentinel error none

@@ -1137,3 +1137,14 @@ TEST_CASE(color_element_overrides_the_codec_private_configuration_record)
     EXPECT(track.video_data().cicp.color_primaries() == Media::ColorPrimaries::BT709);
     EXPECT(track.video_data().cicp.transfer_characteristics() == Media::TransferCharacteristics::BT709);
 }
+
+TEST_CASE(unknown_track_type_values_are_invalid)
+{
+    EXPECT_EQ(Media::Matroska::TrackEntry::track_type_from_element_value(33), Media::Matroska::TrackEntry::TrackType::Metadata);
+    EXPECT_EQ(Media::Matroska::TrackEntry::track_type_from_element_value(5), Media::Matroska::TrackEntry::TrackType::Invalid);
+    EXPECT_EQ(Media::Matroska::TrackEntry::track_type_from_element_value(NumericLimits<u64>::max()), Media::Matroska::TrackEntry::TrackType::Invalid);
+
+    // Every value the element can carry maps to a track type without trapping.
+    EXPECT_EQ(Media::Matroska::track_type_from_matroska_track_type(Media::Matroska::TrackEntry::TrackType::Metadata), Media::TrackType::Subtitles);
+    EXPECT_EQ(Media::Matroska::track_type_from_matroska_track_type(Media::Matroska::TrackEntry::TrackType::Control), Media::TrackType::Unknown);
+}

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<!-- A healthy element on the same media server: if the bad append crashes the server, every session reports an error,
+     this one included. -->
+<audio id="sentinel" src="../../../Assets/tone.mp3" preload="metadata"></audio>
+<script src="../include.js"></script>
+<script>
+    // A WebM media segment whose SimpleBlock names a track that the initialization segment did not describe must
+    // fail the append through the append error algorithm, never crash the parser.
+    asyncTest(async done => {
+        const video = document.getElementById("video");
+        const sentinel = document.getElementById("sentinel");
+        if (sentinel.readyState < HTMLMediaElement.HAVE_METADATA)
+            await new Promise(resolve => sentinel.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        // An EBML header, a Segment of unknown size, Segment Information, and a Tracks element with one 2x2 VP8
+        // video track numbered 1.
+        const vp8InitSegment = new Uint8Array([
+            0x1a, 0x45, 0xdf, 0xa3, 0x8b, 0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d,
+            0x42, 0x87, 0x81, 0x04, 0x18, 0x53, 0x80, 0x67, 0xff, 0x15, 0x49, 0xa9,
+            0x66, 0x92, 0x2a, 0xd7, 0xb1, 0x83, 0x0f, 0x42, 0x40, 0x4d, 0x80, 0x88,
+            0x4c, 0x61, 0x64, 0x79, 0x62, 0x69, 0x72, 0x64, 0x16, 0x54, 0xae, 0x6b,
+            0x9b, 0xae, 0x99, 0xd7, 0x81, 0x01, 0x73, 0xc5, 0x81, 0x01, 0x83, 0x81,
+            0x01, 0x86, 0x85, 0x56, 0x5f, 0x56, 0x50, 0x38, 0xe0, 0x86, 0xb0, 0x81,
+            0x02, 0xba, 0x81, 0x02,
+        ]);
+
+        // A Cluster with Timestamp 0 and one SimpleBlock whose track number is 2.
+        const mediaSegmentForUnknownTrack = new Uint8Array([
+            0x1f, 0x43, 0xb6, 0x75, 0x8a, 0xe7, 0x81, 0x00, 0xa3, 0x85, 0x82, 0x00,
+            0x00, 0x80, 0x00,
+        ]);
+
+        mediaSource.addEventListener("sourceopen", () => {
+            println(`isTypeSupported: ${MediaSource.isTypeSupported('video/webm; codecs="vp8"')}`);
+
+            const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp8"');
+
+            for (const eventName of ["updatestart", "update", "error", "abort", "updateend"])
+                sourceBuffer.addEventListener(eventName, () => println(`SourceBuffer ${eventName}`));
+            mediaSource.addEventListener("sourceended", () => println("MediaSource sourceended"));
+
+            sourceBuffer.addEventListener("updateend", () => {
+                println("appending the media segment");
+                sourceBuffer.appendBuffer(mediaSegmentForUnknownTrack);
+
+                sourceBuffer.addEventListener("updateend", () => {
+                    setTimeout(() => setTimeout(() => {
+                        println(`settled: updating ${sourceBuffer.updating}, readyState ${mediaSource.readyState}, ` +
+                            `buffered ${sourceBuffer.buffered.length}, sentinel error ${sentinel.error?.code ?? "none"}`);
+                        done();
+                    }));
+                }, { once: true });
+            }, { once: true });
+
+            sourceBuffer.appendBuffer(vp8InitSegment);
+        }, { once: true });
+    });
+</script>

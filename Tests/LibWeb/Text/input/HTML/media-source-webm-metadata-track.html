@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    // A WebM initialization segment whose only track has the Matroska Metadata TrackType (33) must be handled as a
+    // text track or rejected as an append error, never crash the parser.
+    asyncTest(done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        // An EBML header, a Segment of unknown size, Segment Information, and a Tracks element with one TrackEntry:
+        // TrackNumber 1, TrackUID 1, TrackType 33 (Metadata), CodecID "D_WEBVTT/metadata".
+        const metadataTrackInitSegment = new Uint8Array([
+            0x1a, 0x45, 0xdf, 0xa3, 0x8b, 0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d,
+            0x42, 0x87, 0x81, 0x04, 0x18, 0x53, 0x80, 0x67, 0xff, 0x15, 0x49, 0xa9,
+            0x66, 0x92, 0x2a, 0xd7, 0xb1, 0x83, 0x0f, 0x42, 0x40, 0x4d, 0x80, 0x88,
+            0x4c, 0x61, 0x64, 0x79, 0x62, 0x69, 0x72, 0x64, 0x16, 0x54, 0xae, 0x6b,
+            0x9f, 0xae, 0x9d, 0xd7, 0x81, 0x01, 0x73, 0xc5, 0x81, 0x01, 0x83, 0x81,
+            0x21, 0x86, 0x91, 0x44, 0x5f, 0x57, 0x45, 0x42, 0x56, 0x54, 0x54, 0x2f,
+            0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61,
+        ]);
+
+        mediaSource.addEventListener("sourceopen", () => {
+            println(`isTypeSupported: ${MediaSource.isTypeSupported('video/webm; codecs="vp8"')}`);
+
+            const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp8"');
+
+            for (const eventName of ["updatestart", "update", "error", "abort", "updateend"])
+                sourceBuffer.addEventListener(eventName, () => println(`SourceBuffer ${eventName}`));
+            mediaSource.addEventListener("sourceended", () => println("MediaSource sourceended"));
+
+            sourceBuffer.appendBuffer(metadataTrackInitSegment);
+
+            sourceBuffer.addEventListener("updateend", () => {
+                setTimeout(() => setTimeout(() => {
+                    println(`settled: updating ${sourceBuffer.updating}, readyState ${mediaSource.readyState}, ` +
+                        `text tracks ${video.textTracks.length}`);
+                    done();
+                }));
+            }, { once: true });
+        }, { once: true });
+    });
+</script>

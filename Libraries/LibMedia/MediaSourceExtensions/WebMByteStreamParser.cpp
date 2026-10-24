@@ -171,6 +171,7 @@ Media::DecoderErrorOr<void> WebMByteStreamParser::parse_initialization_segment(M
     m_video_tracks.clear();
     m_audio_tracks.clear();
     m_text_tracks.clear();
+    m_track_block_contexts.clear();
 
     for (auto const& [track_number, track_entry] : m_track_entries) {
         auto* maybe_tracks_for_type = [&] -> Vector<Media::Track>* {
@@ -251,7 +252,10 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
                     return Reader::parse_block_group(streamer, timecode, m_segment_information->timestamp_scale(), m_track_block_contexts);
                 }());
 
-                VERIFY(block.timestamp().has_value());
+                // NB: The parser calculates the timestamp from the context selected by the block's track identifier.
+                //     Produce an error if one is not found.
+                if (!block.timestamp().has_value())
+                    return Media::DecoderError::corrupted("Block belongs to an unknown track"sv);
 
                 // - Block & SimpleBlock elements are in time increasing order consistent with [WEBM].
                 if (block.timestamp().value() < last_block_timestamp)
