@@ -288,7 +288,15 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
     // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
     auto container_document = navigation_params.navigable ? navigation_params.navigable->container_document() : nullptr;
     auto process_body = GC::create_function(GC::Heap::the(), [document, container_document, url = navigation_params.response->url().value(), response_header_list = navigation_params.response->header_list(), mime = type](ByteBuffer data) {
-        auto [encoding, confidence] = HTML::run_encoding_sniffing_algorithm(document, data, mime, container_document);
+        // The rules for how to convert the bytes of the plain text document into actual characters, and the rules for
+        // actually rendering the text to the user, are defined by the specifications for the computed MIME type of the
+        // resource (i.e., type).
+        // NB: JSON text is UTF-8 [RFC8259]. Like other browsers, honor a BOM or an explicit charset parameter.
+        ByteString encoding;
+        if (mime.is_json())
+            encoding = HTML::run_bom_sniff(data).value_or(Fetch::Infrastructure::legacy_extract_an_encoding(mime, "UTF-8"sv));
+        else
+            encoding = HTML::run_encoding_sniffing_algorithm(document, data, mime, container_document).encoding;
         dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
 
         auto run_text_parser = [document, data = move(data), url, response_header_list, encoding = move(encoding)] {
