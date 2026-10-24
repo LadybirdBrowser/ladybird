@@ -8,6 +8,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/StdLibExtras.h>
 #include <LibDatabase/Database.h>
+#include <LibWebView/StorageAreaRegistry.h>
 #include <LibWebView/StorageJar.h>
 
 using Web::StorageAPI::quota_for;
@@ -69,10 +70,15 @@ StorageJar::StorageJar(Optional<PersistedStorage> persisted_storage)
 {
 }
 
-StorageJar::~StorageJar() = default;
+StorageJar::~StorageJar()
+{
+    StorageAreaRegistry::the().remove_areas_of({}, *this);
+}
 
 void StorageJar::notify(StorageChange const& change)
 {
+    // The registry hears of every change to every jar, by construction: nothing installed and nothing to forget.
+    StorageAreaRegistry::the().did_change({}, *this, change);
     if (on_change)
         on_change(change);
 }

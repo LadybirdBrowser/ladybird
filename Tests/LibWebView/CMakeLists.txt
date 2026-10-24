@@ -23,6 +23,7 @@ set(TEST_SOURCES
     TestSessionStore.cpp
     TestSiteCompatibilityDataLoading.cpp
     TestStartupSettings.cpp
+    TestStorageAreaRegistry.cpp
     TestStorageJar.cpp
     TestTabPerformanceStats.cpp
     TestWebViewURL.cpp

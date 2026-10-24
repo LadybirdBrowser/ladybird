@@ -1601,11 +1601,6 @@ void PageClient::page_did_clear_storage(Web::StorageAPI::StorageEndpointType sto
     }
 }
 
-void PageClient::page_did_broadcast_storage_change(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& url, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value)
-{
-    client().async_did_change_storage_item(m_id, storage_endpoint, url, key, old_value, new_value);
-}
-
 void PageClient::page_did_update_indexed_database(String const& url, Web::IndexedDB::TransactionChanges const& changes)
 {
     if (!has_devtools_client())

@@ -1246,65 +1246,20 @@ void ConnectionFromClient::inspect_storage(Web::PageId page_id, Web::StorageAPI:
     async_did_inspect_storage(page_id, request_id, storage_items.serialized());
 }
 
-static Optional<GC::Ref<Web::HTML::Storage>> active_session_storage_for_page(PageClient& page)
+void ConnectionFromClient::storage_area_changed(Web::StorageAPI::StorageAreaId, Optional<Utf16String>, Optional<Utf16String>, Optional<Utf16String>, String)
 {
-    auto document = page.page().local_traversable()->active_document();
-    if (!document || !document->window())
-        return {};
-
-    auto storage_or_error = document->window()->session_storage();
-    if (storage_or_error.is_exception())
-        return {};
-
-    return storage_or_error.release_value();
 }
 
-Messages::WebContentServer::SetSessionStorageItemResponse ConnectionFromClient::set_session_storage_item(Web::PageId page_id, Utf16String key, Utf16String value)
+void ConnectionFromClient::storage_area_write_acknowledged(Web::StorageAPI::StorageAreaId)
 {
-    auto page = this->page(page_id);
-    if (!page.has_value())
-        return Optional<WebView::StorageSetResult> {};
-
-    auto storage = active_session_storage_for_page(*page);
-    if (!storage.has_value())
-        return Optional<WebView::StorageSetResult> {};
-
-    auto old_value = (*storage)->get_item(key);
-    auto result = (*storage)->set_item(key, value);
-    if (result.is_exception())
-        return WebView::StorageSetResult { WebView::StorageOperationError::QuotaExceededError };
-
-    return WebView::StorageSetResult { move(old_value) };
 }
 
-Messages::WebContentServer::RemoveSessionStorageItemResponse ConnectionFromClient::remove_session_storage_item(Web::PageId page_id, Utf16String key)
+void ConnectionFromClient::storage_area_write_refused(Web::StorageAPI::StorageAreaId, Vector<Utf16String>, Vector<Utf16String>)
 {
-    auto page = this->page(page_id);
-    if (!page.has_value())
-        return Optional<Utf16String> {};
-
-    auto storage = active_session_storage_for_page(*page);
-    if (!storage.has_value())
-        return Optional<Utf16String> {};
-
-    auto old_value = (*storage)->get_item(key);
-    if (old_value.has_value())
-        (*storage)->remove_item(key);
-    return old_value;
 }
 
-Messages::WebContentServer::ClearSessionStorageResponse ConnectionFromClient::clear_session_storage(Web::PageId page_id)
+void ConnectionFromClient::storage_area_reset(Web::StorageAPI::StorageAreaId, Vector<Utf16String>, Vector<Utf16String>)
 {
-    auto page = this->page(page_id);
-    if (!page.has_value())
-        return false;
-
-    auto storage = active_session_storage_for_page(*page);
-    if (!storage.has_value() || (*storage)->length() == 0)
-        return false;
-
-    (*storage)->clear();
-    return true;
 }
 
 void ConnectionFromClient::inspect_dom_node(Web::PageId page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options_value)
