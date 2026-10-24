@@ -448,7 +448,9 @@ def implementation_method_signatures(
     signatures = []
     for constructor in members.constructors:
         parameters = parameter_list(constructor_description(interface), constructor.constructor.parameters)
-        signatures.append(f"fn {constructor.method}(cx: &mut CallContext{parameters}) -> WebIdlResult<Self>")
+        signatures.append(
+            f"fn {constructor.method}(cx: &mut CallContext{parameters}) -> WebIdlResult<impl ConstructedObject<Self>>"
+        )
     for attribute in members.attributes:
         what = f"{interface.name}.{attribute.attribute.name}"
         attribute_type = rust_type(attribute.attribute.type, context, what)
@@ -1300,7 +1302,7 @@ def write_rust_constructor(
         f"""        let mut cx = CallContext::new(vm, realm);
         let implementation =
             Implementation::{constructor.method}(&mut cx{arguments}).map_err(|exception| exception.throw(&cx))?;
-        Ok(Value::from_object(construct_wrapper(vm, realm, prototype, implementation)))
+        Ok(Value::from_object(construct_wrapper::<Implementation>(vm, realm, prototype, implementation)))
     }}
 """
     )

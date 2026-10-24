@@ -145,6 +145,25 @@ pub(crate) fn allocate<T: Interface>(vm: &Vm, implementation: T) -> Ref<T> {
     )
 }
 
+/// What the constructor steps or the transfer-receiving steps of an interface create: the implementation of the new
+/// object, which the bindings allocate, or the new object itself, for steps that hand the object to something else
+/// before they finish, as the constructor of ReadableStream gives it to its controller.
+pub(crate) trait ConstructedObject<T: Interface> {
+    fn into_object(self, vm: &Vm) -> Ref<T>;
+}
+
+impl<T: Interface> ConstructedObject<T> for T {
+    fn into_object(self, vm: &Vm) -> Ref<T> {
+        allocate(vm, self)
+    }
+}
+
+impl<T: Interface> ConstructedObject<T> for Ref<T> {
+    fn into_object(self, _: &Vm) -> Ref<T> {
+        self
+    }
+}
+
 /// The object an attribute or an operation of an interface runs on, if it is a wrapper of the interface or of an
 /// interface that inherits from it, with the object's realm. A nullish this value stands for the global object of
 /// the current realm.
@@ -248,9 +267,13 @@ pub(crate) fn construct_wrapper<T: Interface>(
     vm: &Vm,
     realm: Gc<Realm>,
     prototype: Gc<Object>,
-    implementation: T,
+    object: impl ConstructedObject<T>,
 ) -> Gc<HostObject> {
-    let object = allocate(vm, implementation);
+    let object = object.into_object(vm);
+    assert!(
+        object.main_world_wrapper.get().is_none(),
+        "the constructor steps create no wrapper of the new object"
+    );
     let wrapper = create_wrapper(vm, realm, prototype, object);
     if wrapper_world_of(vm, realm).is_main_world() {
         object.main_world_wrapper.set(Some(wrapper));

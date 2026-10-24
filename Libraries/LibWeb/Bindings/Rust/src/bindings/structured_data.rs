@@ -23,7 +23,7 @@ use core::ptr::NonNull;
 use ak::Utf16String;
 use libjs_rust::api::{RawNativeFunctionResult, ThrowCompletionOr, Value};
 
-use crate::bindings::interface::{Interface, allocate, cell_from_abi, realm_arguments, wrap};
+use crate::bindings::interface::{ConstructedObject, Interface, Ref, cell_from_abi, realm_arguments, wrap};
 use crate::bindings::{CallContext, WebIdlResult};
 
 unsafe extern "C" {
@@ -230,10 +230,11 @@ pub(crate) trait Transferable: Interface {
     fn detached(&self) -> &Cell<bool>;
 
     /// https://html.spec.whatwg.org/multipage/structured-data.html#transfer-steps
-    fn transfer_steps(&self, cx: &mut CallContext, data_holder: &mut TransferDataWriter) -> WebIdlResult<()>;
+    fn transfer_steps(this: &Ref<Self>, cx: &mut CallContext, data_holder: &mut TransferDataWriter)
+    -> WebIdlResult<()>;
 
     /// https://html.spec.whatwg.org/multipage/structured-data.html#transfer-receiving-steps, which create the object.
-    fn transfer_receiving_steps(cx: &mut CallContext, data_holder: &mut TransferDataReader) -> WebIdlResult<Self>;
+    fn transfer_receiving_steps(cx: &mut CallContext, data_holder: &mut TransferDataReader) -> WebIdlResult<Ref<Self>>;
 }
 
 /// The completion of steps, as the entry points return it to C++.
@@ -243,8 +244,8 @@ fn completion(cx: &CallContext, result: WebIdlResult<Value>) -> RawNativeFunctio
 }
 
 /// The wrapper in the realm of the call context of the object that steps created.
-fn wrap_new_object<T: Interface>(cx: &CallContext, implementation: T) -> Value {
-    Value::from_object(wrap(cx, allocate(cx.vm(), implementation)))
+fn wrap_new_object<T: Interface>(cx: &CallContext, object: impl ConstructedObject<T>) -> Value {
+    Value::from_object(wrap(cx, object.into_object(cx.vm())))
 }
 
 /// The entry point of the serialization steps of `T`.
@@ -331,7 +332,7 @@ pub(crate) unsafe fn transfer_steps<T: Transferable>(
         raw: NonNull::new(data_holder).expect("C++ lends a data holder"),
         _lent: PhantomData,
     };
-    let result = object.transfer_steps(&mut cx, &mut data_holder);
+    let result = T::transfer_steps(&object, &mut cx, &mut data_holder);
     completion(&cx, result.map(|()| Value::UNDEFINED))
 }
 

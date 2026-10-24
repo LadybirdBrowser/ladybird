@@ -225,9 +225,9 @@ impl Transferable for ImageBitmap {
     }
 
     /// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:transfer-steps
-    fn transfer_steps(&self, _: &mut CallContext, data_holder: &mut TransferDataWriter) -> WebIdlResult<()> {
+    fn transfer_steps(this: &Ref<Self>, _: &mut CallContext, data_holder: &mut TransferDataWriter) -> WebIdlResult<()> {
         // 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
-        if !self.origin_clean.get() {
+        if !this.origin_clean.get() {
             return Err(Exception::Dom(
                 "DataCloneError",
                 Utf16String::from_ascii(b"Cannot transfer an ImageBitmap that is not origin-clean"),
@@ -237,21 +237,24 @@ impl Transferable for ImageBitmap {
         // 2. Set dataHolder.[[BitmapData]] to value's bitmap data.
         // NB: The pixels go to the shared memory of the transfer if there is room for them there, and inline otherwise.
         // SAFETY: The data holder is lent for the steps, and the frame lives while the bitmap data is set.
-        unsafe { web_image_bitmap_transfer_bitmap(data_holder.as_raw(), self.raw_frame()) }.into_completion()?;
+        unsafe { web_image_bitmap_transfer_bitmap(data_holder.as_raw(), this.raw_frame()) }.into_completion()?;
 
         // 3. Unset value's bitmap data.
-        self.bitmap.replace(None);
+        this.bitmap.replace(None);
 
         Ok(())
     }
 
     /// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:transfer-receiving-steps
-    fn transfer_receiving_steps(_: &mut CallContext, data_holder: &mut TransferDataReader) -> WebIdlResult<Self> {
+    fn transfer_receiving_steps(cx: &mut CallContext, data_holder: &mut TransferDataReader) -> WebIdlResult<Ref<Self>> {
         // 1. Set value's bitmap data to dataHolder.[[BitmapData]].
         let mut frame = core::ptr::null_mut();
         // SAFETY: The data holder is lent for the steps.
         unsafe { web_image_bitmap_receive_bitmap(data_holder.as_raw(), &mut frame) }.into_completion()?;
         // SAFETY: C++ hands over the frame it decoded, or null.
-        Ok(Self::new(unsafe { BitmapData::from_handed_over_frame(frame) }))
+        Ok(allocate(
+            cx.vm(),
+            Self::new(unsafe { BitmapData::from_handed_over_frame(frame) }),
+        ))
     }
 }
