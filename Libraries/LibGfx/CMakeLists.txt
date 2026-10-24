@@ -6,7 +6,6 @@ set(SOURCES
     Color.cpp
     ColorConversion.cpp
     ColorSpace.cpp
-    CornerRadii.cpp
     Cursor.cpp
     Font/FaceDescription.cpp
     Font/Font.cpp

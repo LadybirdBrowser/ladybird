@@ -9,7 +9,6 @@
 
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
-#include <LibIPC/Forward.h>
 
 namespace Gfx {
 
@@ -42,8 +41,6 @@ struct CornerRadii {
     }
 
     bool operator==(CornerRadii const&) const = default;
-
-    void adjust_corners_for_spread_distance(int spread_distance);
 
     template<typename T>
     bool contains(Point<T> point, Rect<T> const& rect) const
@@ -94,21 +91,5 @@ struct CornerRadii {
         return true;
     }
 };
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder&, Gfx::CornerRadius const&);
-
-template<>
-ErrorOr<Gfx::CornerRadius> decode(Decoder&);
-
-template<>
-ErrorOr<void> encode(Encoder&, Gfx::CornerRadii const&);
-
-template<>
-ErrorOr<Gfx::CornerRadii> decode(Decoder&);
 
 }
