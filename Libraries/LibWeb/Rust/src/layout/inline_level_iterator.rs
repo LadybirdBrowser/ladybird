@@ -416,7 +416,7 @@ struct TextNodeContext<'pass> {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AtomicInlineSizing {
     Layout,
-    InlineSize,
+    Contributions,
 }
 
 struct InlineLevelIteratorGenerator<'iterator, 'context> {
@@ -480,7 +480,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
 
     fn compute_is_unidirectional_left_to_right(&mut self) -> Option<bool> {
         let containing_block = self.context().containing_block;
-        let intrinsic_inline_sizing = self.atomic_sizing == AtomicInlineSizing::InlineSize;
+        let intrinsic_inline_sizing = self.atomic_sizing == AtomicInlineSizing::Contributions;
         let mut is_unidirectional_left_to_right = self.context().style(containing_block).direction() != direction::RTL;
         if !intrinsic_inline_sizing && !is_unidirectional_left_to_right {
             return Some(false);
@@ -927,29 +927,21 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
 
     fn generate_element_item(&mut self, node: Node) -> Item {
         let mut item = Item::new(ItemType::Element, node);
-        if self.atomic_sizing == AtomicInlineSizing::InlineSize
-            && self.context().sizing().atomic_inline_size_follows_from_style(node)
-        {
+        if self.atomic_sizing == AtomicInlineSizing::Contributions {
             let context = self.context();
-            let sizing = context.sizing();
-            let available_space = context.input.available_space;
-            let constraints = context.input.containing_block_constraints;
-            // NB: Content-box inline sizing does not read used geometry. Border-box sizing still needs
-            //     a record for the shared resolver's padding adjustment.
-            if context.style(node).box_sizing() == box_sizing::BORDER_BOX {
-                context.create_used_values(node, constraints);
-                sizing
-                    .resolve_box_model_metrics_against_inline_basis(node, available_space.inline_size.to_px_or_zero());
-            }
-            let contribution = sizing.atomic_inline_contribution(node, available_space, constraints);
-            item.inline_size = contribution.content_inline_size;
-            item.min_content_inline_size = contribution.min_content_inline_size;
-            item.padding_start = contribution.padding_start;
-            item.padding_end = contribution.padding_end;
-            item.border_start = contribution.border_start;
-            item.border_end = contribution.border_end;
-            item.margin_start = contribution.margin_start;
-            item.margin_end = contribution.margin_end;
+            let contributions = context.sizing().outer_inline_contributions(
+                node,
+                context.input.available_space.block_size,
+                context.input.containing_block_constraints,
+            );
+            item.inline_size = contributions.max_content_inline_size;
+            item.min_content_inline_size = Some(contributions.min_content_inline_size);
+            item.padding_start = contributions.padding_start;
+            item.padding_end = contributions.padding_end;
+            item.border_start = contributions.border_start;
+            item.border_end = contributions.border_end;
+            item.margin_start = contributions.margin_start;
+            item.margin_end = contributions.margin_end;
         } else {
             let used = if self.box_model_node_stack.last().copied() == Some(node) {
                 self.context().used(node)
@@ -1112,7 +1104,7 @@ impl InlineLevelIterator {
     pub(crate) fn for_intrinsic_inline_size(
         context: &mut inline_formatting_context::InlineFormattingContext<'_>,
     ) -> Option<Self> {
-        Self::reuse_or_generate(context, AtomicInlineSizing::InlineSize)
+        Self::reuse_or_generate(context, AtomicInlineSizing::Contributions)
     }
 
     fn reuse_or_generate(

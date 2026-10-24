@@ -173,31 +173,27 @@ fn compute_from_atomic_children(
             || !facts.is_atomic_inline()
             || facts.is_floating_or_absolutely_positioned()
             || facts.is_fragmented_inline()
-            || facts.node_has_size_containment()
-            || StyleValues::for_node(&callbacks, child).box_sizing() != box_sizing::CONTENT_BOX
-            || !sizing.atomic_inline_size_follows_from_style(child)
         {
             return None;
         }
     }
     let wraps = containing_style.text_wrap_mode() == text_wrap_mode::WRAP;
     let mut max_content_lines = inline_formatting_context::LinesWithoutLineBoxes::new(false);
-    let mut min_content_lines = Some(inline_formatting_context::LinesWithoutLineBoxes::new(true));
+    let mut min_content_lines = inline_formatting_context::LinesWithoutLineBoxes::new(true);
     for child in callbacks.children(run.box_) {
-        let contribution =
-            sizing.atomic_inline_contribution(child, input.available_space, input.containing_block_constraints);
-        max_content_lines.append_atomic_inline(contribution.inline_advance(contribution.content_inline_size), wraps);
-        min_content_lines = min_content_lines
-            .zip(contribution.min_content_inline_size)
-            .map(|(mut lines, content)| {
-                lines.append_atomic_inline(contribution.inline_advance(content), wraps);
-                lines
-            });
+        let contributions = sizing.outer_inline_contributions(
+            child,
+            input.available_space.block_size,
+            input.containing_block_constraints,
+        );
+        max_content_lines.append_atomic_inline(contributions.outer_max_content_contribution(), wraps);
+        min_content_lines.append_atomic_inline(contributions.outer_min_content_contribution(), wraps);
     }
     Some(IntrinsicInlineSizeMeasurement {
         automatic_content_inline_size: clamp_to_max_dimension_value(max_content_lines.finish_measurement()),
-        min_content_inline_size_from_max_content_layout: min_content_lines
-            .map(|lines| clamp_to_max_dimension_value(lines.finish_measurement())),
+        min_content_inline_size_from_max_content_layout: Some(clamp_to_max_dimension_value(
+            min_content_lines.finish_measurement(),
+        )),
         depends_on_percentage_block_size: sizing.resolve_percentage_block_size_dependency(run.box_),
         depends_on_percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(run.box_),
         depends_on_block_size,
