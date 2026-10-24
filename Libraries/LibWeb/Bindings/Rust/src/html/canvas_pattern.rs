@@ -10,7 +10,7 @@ use core::cell::Cell;
 
 use ak::Utf16String;
 use libcompositing_rust::display_list::canvas_2d::Compositing;
-use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, Recorder};
+use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpace, Recorder};
 use libcompositing_rust::display_list::commands::Canvas2DPatternRepetition;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{AffineTransform, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, ScalingMode};
@@ -52,7 +52,10 @@ fn read_back_current_video_frame(video: CppInterface) -> Option<ImageFrameHandle
     };
     // NB: The context only exists to be read back.
     let will_read_frequently = true;
-    if width <= 0 || height <= 0 || !recorder.create_context(IntSize { width, height }, true, will_read_frequently) {
+    if width <= 0
+        || height <= 0
+        || !recorder.create_context(IntSize { width, height }, true, will_read_frequently, ColorSpace::Srgb)
+    {
         return None;
     }
 
@@ -74,7 +77,7 @@ fn read_back_current_video_frame(video: CppInterface) -> Option<ImageFrameHandle
         },
     );
     recorder.flush();
-    let bitmap = recorder.read_back_pixels(frame_rect, AlphaType::Premultiplied);
+    let bitmap = recorder.read_back_pixels(frame_rect, AlphaType::Premultiplied, ColorSpace::Srgb);
     recorder.destroy_context();
     Some(bitmap?.into_image_frame())
 }

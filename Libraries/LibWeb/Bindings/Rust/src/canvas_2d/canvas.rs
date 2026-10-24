@@ -12,14 +12,17 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use ak::Utf16String;
+use libcompositing_rust::display_list::canvas_2d_recorder::ColorSpace;
 use libcompositing_rust::filter_bytes::FfiFilterFunction;
 use libgfx_rust::Color;
 use libgfx_rust::font::FontCascadeListHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libjs_rust::api::{Gc, Object, Realm};
 
+use super::drawing_state::CanvasColor;
 use super::host::CppTransport;
 use crate::bindings::conversions::CppInterface;
+use crate::html::predefined_color_space::PredefinedColorSpace;
 
 unsafe extern "C" {
     fn web_canvas_2d_canvas_did_change_content(canvas_host: *mut c_void);
@@ -38,7 +41,9 @@ unsafe extern "C" {
         canvas_host: *mut c_void,
         color: *const c_void,
         font: FontMetricsSource,
+        color_space: ColorSpace,
         out_color: *mut Color,
+        out_color_in_color_space: *mut Color,
     );
     fn web_canvas_2d_canvas_resolve_length(
         canvas_host: *mut c_void,
@@ -61,6 +66,7 @@ unsafe extern "C" {
         pitch: usize,
         width: i32,
         height: i32,
+        color_space: ColorSpace,
     ) -> *mut c_void;
 
     fn web_canvas_2d_check_usability_of_image(
@@ -293,11 +299,26 @@ impl Canvas {
         })
     }
 
-    /// The used color of a parsed CSS color, resolved against the canvas.
-    pub(crate) fn resolve_color(self, color: &StyleValue, font: FontMetricsSource) -> Color {
-        let mut resolved = Color::default();
-        unsafe { web_canvas_2d_canvas_resolve_color(self.host.as_ptr(), color.0.as_ptr(), font, &raw mut resolved) };
-        resolved
+    /// The used color of a parsed CSS color, resolved against the canvas, in sRGB and in the color space.
+    pub(crate) fn resolve_color(
+        self,
+        color: &StyleValue,
+        font: FontMetricsSource,
+        color_space: PredefinedColorSpace,
+    ) -> CanvasColor {
+        let mut srgb = Color::default();
+        let mut in_color_space = Color::default();
+        unsafe {
+            web_canvas_2d_canvas_resolve_color(
+                self.host.as_ptr(),
+                color.0.as_ptr(),
+                font,
+                color_space.into(),
+                &raw mut srgb,
+                &raw mut in_color_space,
+            );
+        };
+        CanvasColor { srgb, in_color_space }
     }
 
     /// A parsed CSS length in CSS pixels, resolved against the canvas.
@@ -343,8 +364,8 @@ pub(crate) fn parse_length(length: &Utf16String) -> Option<(StyleValue, Utf16Str
     Some((style_value, unsafe { Utf16String::from_raw_owned(serialized) }))
 }
 
-/// A frame of a copy of `height` rows of `width` RGBA8888 pixels that are unpremultiplied, `pitch` bytes apart, or
-/// None if there is no memory for it.
+/// A frame of a copy of `height` rows of `width` RGBA8888 pixels that are unpremultiplied, `pitch` bytes apart and in
+/// the color space, or None if there is no memory for it.
 ///
 /// # Safety
 ///
@@ -354,9 +375,10 @@ pub(crate) unsafe fn image_frame_from_pixels(
     pitch: usize,
     width: i32,
     height: i32,
+    color_space: ColorSpace,
 ) -> Option<ImageFrameHandle> {
     // SAFETY: The caller passes readable rows.
-    let frame = unsafe { web_canvas_2d_image_frame_from_pixels(first_row.as_ptr(), pitch, width, height) };
+    let frame = unsafe { web_canvas_2d_image_frame_from_pixels(first_row.as_ptr(), pitch, width, height, color_space) };
     // SAFETY: LibWeb hands over a frame that it allocated with new, or null.
     (!frame.is_null()).then(|| unsafe { ImageFrameHandle::adopt(frame) })
 }

@@ -41,6 +41,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/Canvas/Canvas2DContextBase.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
+#include <LibWeb/HTML/Canvas/PredefinedColorSpace.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -139,7 +140,8 @@ bool web_canvas_2d_context_is_lost(void const* context);
 void web_canvas_2d_context_set_lost(void* context, bool lost);
 void web_canvas_2d_context_prepare_for_compositing(void* context);
 bool web_canvas_2d_context_canvas_id(void const* context, u64* out_canvas_id);
-void* web_canvas_2d_context_read_pixels(void* context, Gfx::IntRect rect, u8 alpha_type);
+u8 web_canvas_2d_context_color_space(void const* context);
+void* web_canvas_2d_context_read_pixels(void* context, Gfx::IntRect rect, u8 alpha_type, u8 color_space);
 bool web_canvas_2d_context_draw_image_bitmap(void* context, void* image_bitmap, float x, float y);
 
 // What the Rust implementation asks of LibWeb, declared in Bindings/Rust/src/canvas_2d/canvas.rs.
@@ -150,14 +152,14 @@ void* web_canvas_2d_canvas_wrapper(void* canvas, bool canvas_is_offscreen, void*
 void* web_canvas_2d_canvas_relevant_realm(void* canvas_host);
 u64 web_canvas_2d_canvas_font_environment_generation(void* canvas_host);
 bool web_canvas_2d_canvas_resolve_font(void* canvas, bool canvas_is_offscreen, FlatPtr font, ResolvedFont* out_font);
-void web_canvas_2d_canvas_resolve_color(void* canvas_host, CSS::StyleValue const* color, FontMetricsSource, Gfx::Color* out_color);
+void web_canvas_2d_canvas_resolve_color(void* canvas_host, CSS::StyleValue const* color, FontMetricsSource, u8 color_space, Gfx::Color* out_color, Gfx::Color* out_color_in_color_space);
 float web_canvas_2d_canvas_resolve_length(void* canvas_host, CSS::StyleValue const* length, FontMetricsSource);
 bool web_canvas_2d_canvas_parse_filter(void* canvas_host, FlatPtr filter, FontMetricsSource, void* functions, void (*append_function)(void*, Compositing::RustFFI::FfiFilterFunction const*));
 CSS::StyleValue const* web_canvas_2d_parse_color(FlatPtr color);
 CSS::StyleValue const* web_canvas_2d_parse_length(FlatPtr length, FlatPtr* out_serialized);
 void web_canvas_2d_style_value_ref(CSS::StyleValue const*);
 void web_canvas_2d_style_value_unref(CSS::StyleValue const*);
-Gfx::DecodedImageFrame* web_canvas_2d_image_frame_from_pixels(u8 const* first_row, size_t pitch, i32 width, i32 height);
+Gfx::DecodedImageFrame* web_canvas_2d_image_frame_from_pixels(u8 const* first_row, size_t pitch, i32 width, i32 height, u8 color_space);
 u8 web_canvas_2d_check_usability_of_image(void* source_wrapper, CanvasImageSourceKind, FlatPtr* out_message);
 void web_canvas_2d_image_source_size(void* source_wrapper, CanvasImageSourceKind, i32* out_width, i32* out_height);
 bool web_canvas_2d_image_is_not_origin_clean(void* source_wrapper, CanvasImageSourceKind);
@@ -168,7 +170,7 @@ void* web_canvas_2d_video_transport(void* source_wrapper);
 void web_canvas_2d_video_frame_hold_unref(Compositing::VideoFrameHold*);
 
 // What Bindings/Rust/src/html/canvas_gradient.rs asks of LibWeb.
-bool web_canvas_gradient_parse_color(FlatPtr color, Gfx::Color* out_color);
+bool web_canvas_gradient_parse_color(FlatPtr color, Gfx::Color* out_colors);
 }
 
 static void* cell_of(Canvas2DContextBase const& context)
@@ -237,9 +239,14 @@ Optional<Compositing::CanvasId> Canvas2DContextBase::canvas_id() const
     return Compositing::CanvasId { canvas_id };
 }
 
-RefPtr<Gfx::Bitmap> Canvas2DContextBase::read_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type)
+Bindings::PredefinedColorSpace Canvas2DContextBase::color_space() const
 {
-    auto* bitmap = static_cast<Gfx::Bitmap*>(web_canvas_2d_context_read_pixels(this, rect, to_underlying(alpha_type)));
+    return predefined_color_space_from_underlying(web_canvas_2d_context_color_space(cell_of(*this)));
+}
+
+RefPtr<Gfx::Bitmap> Canvas2DContextBase::read_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type, Bindings::PredefinedColorSpace color_space)
+{
+    auto* bitmap = static_cast<Gfx::Bitmap*>(web_canvas_2d_context_read_pixels(this, rect, to_underlying(alpha_type), to_underlying(color_space)));
     if (!bitmap)
         return nullptr;
     return adopt_ref(*bitmap);
@@ -520,11 +527,33 @@ static CSS::ComputationContext computation_context_for(CanvasHost& canvas_host, 
     };
 }
 
-void web_canvas_2d_canvas_resolve_color(void* canvas_host, CSS::StyleValue const* color, FontMetricsSource font, Gfx::Color* out_color)
+// NB: A color is converted to the color space of a context, and clipped to its gamut, as the 'relative-colorimetric'
+//     rendering intent does, which the conversions of the pixels of a context also use.
+static Gfx::Color used_color_in_predefined_color_space(CSS::StyleValue const& color, CSS::ColorResolutionStyle const& style, Bindings::PredefinedColorSpace color_space, Gfx::Color srgb_color)
+{
+    if (color_space == Bindings::PredefinedColorSpace::Srgb)
+        return srgb_color;
+
+    auto ffi_style = style.to_ffi();
+    auto resolved = CSS::StyleValueFFI::rust_style_value_to_color_components(color.rust_style_value_data(), &ffi_style, to_underlying(css_color_type_for(color_space)));
+    if (!resolved.resolved)
+        return srgb_color;
+    auto quantize = [](float component) -> u8 {
+        if (isnan(component))
+            return 0;
+        return static_cast<u8>(clamp(roundf(component * 255.0f), 0.0f, 255.0f));
+    };
+    return Gfx::Color(quantize(resolved.components[0]), quantize(resolved.components[1]), quantize(resolved.components[2]), quantize(resolved.components[3]));
+}
+
+void web_canvas_2d_canvas_resolve_color(void* canvas_host, CSS::StyleValue const* color, FontMetricsSource font, u8 color_space, Gfx::Color* out_color, Gfx::Color* out_color_in_color_space)
 {
     auto& host = host_from(canvas_host);
     auto computation_context = computation_context_for(host, font);
-    *out_color = color->absolutized(computation_context)->to_color(host.canvas_color_resolution_style()).value();
+    auto absolutized_color = color->absolutized(computation_context);
+    auto style = host.canvas_color_resolution_style();
+    *out_color = absolutized_color->to_color(style).value();
+    *out_color_in_color_space = used_color_in_predefined_color_space(*absolutized_color, style, predefined_color_space_from_underlying(color_space), *out_color);
 }
 
 float web_canvas_2d_canvas_resolve_length(void* canvas_host, CSS::StyleValue const* length, FontMetricsSource font)
@@ -625,7 +654,7 @@ void web_canvas_2d_style_value_unref(CSS::StyleValue const* style_value)
     style_value->unref();
 }
 
-Gfx::DecodedImageFrame* web_canvas_2d_image_frame_from_pixels(u8 const* first_row, size_t pitch, i32 width, i32 height)
+Gfx::DecodedImageFrame* web_canvas_2d_image_frame_from_pixels(u8 const* first_row, size_t pitch, i32 width, i32 height, u8 color_space)
 {
     // NB: The bitmap is shareable, so that flushing to the Compositor passes the pixels by file descriptor instead of
     //     copying them again.
@@ -635,7 +664,7 @@ Gfx::DecodedImageFrame* web_canvas_2d_image_frame_from_pixels(u8 const* first_ro
     auto row_size = static_cast<size_t>(width) * sizeof(Gfx::RawPixel);
     for (int y = 0; y < height; ++y)
         __builtin_memcpy(bitmap.value()->scanline(y), first_row + static_cast<size_t>(y) * pitch, row_size);
-    return new Gfx::DecodedImageFrame { *bitmap.release_value(), Gfx::AlphaType::Unpremultiplied };
+    return new Gfx::DecodedImageFrame { *bitmap.release_value(), Gfx::AlphaType::Unpremultiplied, gfx_color_space_for(predefined_color_space_from_underlying(color_space)) };
 }
 
 static CanvasImageSource image_source_from(void* source_wrapper, CanvasImageSourceKind kind)
@@ -756,14 +785,7 @@ Gfx::DecodedImageFrame* web_canvas_2d_image_source_frame(void* source_wrapper, C
 
             return image_data->default_frame(size); }, [](GC::Ref<HTMLCanvasElement> const& canvas) -> Optional<Gfx::DecodedImageFrame> {
             canvas->prepare_for_compositing();
-            auto bitmap = canvas->get_bitmap_from_surface();
-            if (!bitmap)
-                return {};
-            return Gfx::DecodedImageFrame { *bitmap }; }, [](GC::Ref<OffscreenCanvas> const& source) -> Optional<Gfx::DecodedImageFrame> {
-            auto bitmap = source->get_bitmap_from_surface();
-            if (!bitmap)
-                return {};
-            return Gfx::DecodedImageFrame { *bitmap }; }, [](OneOf<GC::Ref<HTMLVideoElement>, GC::Ref<ImageBitmap>> auto const&) -> Optional<Gfx::DecodedImageFrame> { VERIFY_NOT_REACHED(); });
+            return canvas->get_frame_from_surface(); }, [](GC::Ref<OffscreenCanvas> const& source) -> Optional<Gfx::DecodedImageFrame> { return source->get_frame_from_surface(); }, [](OneOf<GC::Ref<HTMLVideoElement>, GC::Ref<ImageBitmap>> auto const&) -> Optional<Gfx::DecodedImageFrame> { VERIFY_NOT_REACHED(); });
     if (!frame.has_value())
         return nullptr;
     return new Gfx::DecodedImageFrame { frame.release_value() };
@@ -796,13 +818,17 @@ void web_canvas_2d_video_frame_hold_unref(Compositing::VideoFrameHold* hold)
 }
 
 // https://drafts.csswg.org/css-color/#parse-a-css-color-value
-bool web_canvas_gradient_parse_color(FlatPtr color, Gfx::Color* out_color)
+// NB: The color is written in each predefined color space, in the order of Bindings::PredefinedColorSpace.
+bool web_canvas_gradient_parse_color(FlatPtr color, Gfx::Color* out_colors)
 {
     auto color_string = Utf16String::from_raw(color);
     auto const maybe_color = parse_css_value(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, color_string.utf16_view(), CSS::PropertyID::Color);
     if (maybe_color.is_null() || !maybe_color->has_color())
         return false;
-    *out_color = maybe_color->to_color({}).value();
+    CSS::ColorResolutionStyle style;
+    auto srgb_color = maybe_color->to_color(style).value();
+    for (u8 color_space = 0; color_space <= to_underlying(Bindings::PredefinedColorSpace::DisplayP3Linear); ++color_space)
+        out_colors[color_space] = used_color_in_predefined_color_space(*maybe_color, style, predefined_color_space_from_underlying(color_space), srgb_color);
     return true;
 }
 

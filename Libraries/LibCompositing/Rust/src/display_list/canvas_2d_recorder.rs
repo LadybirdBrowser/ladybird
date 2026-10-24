@@ -23,6 +23,18 @@ pub enum AlphaType {
     Unpremultiplied,
 }
 
+/// The color space that the pixels of a context, and the colors of its commands, are in: the values of
+/// Web::Bindings::PredefinedColorSpace, https://html.spec.whatwg.org/multipage/canvas.html#predefinedcolorspace
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ColorSpace {
+    #[default]
+    Srgb,
+    SrgbLinear,
+    DisplayP3,
+    DisplayP3Linear,
+}
+
 /// The context of a canvas in the Compositor, and the stream that the commands of every canvas of WebContent share.
 /// In the product that is a RemoteCanvas2DTransport of LibWeb.
 pub trait Transport {
@@ -34,7 +46,7 @@ pub trait Transport {
     type VideoFrameHold: ?Sized;
     type Bitmap;
 
-    fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool) -> bool;
+    fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool, color_space: ColorSpace) -> bool;
     fn canvas_id(&self) -> Option<CanvasId>;
     fn destroy_context(&self);
 
@@ -49,8 +61,8 @@ pub trait Transport {
     fn pending_command_count(&self) -> usize;
     fn flush(&self);
 
-    /// Unpremultiplied pixels come back as RGBA8888, premultiplied pixels as BGRA8888.
-    fn read_back_pixels(&self, rect: IntRect, alpha_type: AlphaType) -> Option<Self::Bitmap>;
+    /// Unpremultiplied pixels come back as RGBA8888, premultiplied pixels as BGRA8888, in the color space.
+    fn read_back_pixels(&self, rect: IntRect, alpha_type: AlphaType, color_space: ColorSpace) -> Option<Self::Bitmap>;
 }
 
 pub struct Recorder<T: Transport> {
@@ -66,8 +78,15 @@ impl<T: Transport> Recorder<T> {
         }
     }
 
-    pub fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool) -> bool {
-        self.transport.create_context(size, alpha, will_read_frequently)
+    pub fn create_context(
+        &self,
+        size: IntSize,
+        alpha: bool,
+        will_read_frequently: bool,
+        color_space: ColorSpace,
+    ) -> bool {
+        self.transport
+            .create_context(size, alpha, will_read_frequently, color_space)
     }
 
     pub fn canvas_id(&self) -> Option<CanvasId> {
@@ -82,8 +101,8 @@ impl<T: Transport> Recorder<T> {
         self.transport.flush();
     }
 
-    pub fn read_back_pixels(&self, rect: IntRect, alpha_type: AlphaType) -> Option<T::Bitmap> {
-        self.transport.read_back_pixels(rect, alpha_type)
+    pub fn read_back_pixels(&self, rect: IntRect, alpha_type: AlphaType, color_space: ColorSpace) -> Option<T::Bitmap> {
+        self.transport.read_back_pixels(rect, alpha_type, color_space)
     }
 
     /// Makes what the canvas has drawn so far the content that the page shows.
@@ -259,7 +278,13 @@ mod tests {
         type VideoFrameHold = u32;
         type Bitmap = IntRect;
 
-        fn create_context(&self, size: IntSize, _alpha: bool, _will_read_frequently: bool) -> bool {
+        fn create_context(
+            &self,
+            size: IntSize,
+            _alpha: bool,
+            _will_read_frequently: bool,
+            _color_space: ColorSpace,
+        ) -> bool {
             size.width > 0 && size.height > 0
         }
 
@@ -306,7 +331,7 @@ mod tests {
             self.pending_command_count.set(0);
         }
 
-        fn read_back_pixels(&self, rect: IntRect, _alpha_type: AlphaType) -> Option<IntRect> {
+        fn read_back_pixels(&self, rect: IntRect, _alpha_type: AlphaType, _color_space: ColorSpace) -> Option<IntRect> {
             Some(rect)
         }
     }
@@ -398,12 +423,15 @@ mod tests {
     #[test]
     fn the_calls_of_the_context_reach_the_transport() {
         let recorder = Recorder::new(FakeTransport::default());
-        assert!(recorder.create_context(IntSize { width: 2, height: 2 }, true, false));
+        assert!(recorder.create_context(IntSize { width: 2, height: 2 }, true, false, ColorSpace::Srgb));
         assert_eq!(recorder.canvas_id(), Some(CanvasId(5)));
         recorder.present();
         recorder.flush();
         let rect = IntRect::new(1, 1, 1, 1);
-        assert_eq!(recorder.read_back_pixels(rect, AlphaType::Premultiplied), Some(rect));
+        assert_eq!(
+            recorder.read_back_pixels(rect, AlphaType::Premultiplied, ColorSpace::Srgb),
+            Some(rect)
+        );
         recorder.destroy_context();
         assert_eq!(*recorder.transport.events.borrow(), [Event::Present, Event::Flush]);
     }

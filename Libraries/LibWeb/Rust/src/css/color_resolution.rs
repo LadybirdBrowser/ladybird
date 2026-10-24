@@ -47,6 +47,26 @@ fn quantize(component: f32) -> u8 {
     (component * 255.0).round().clamp(0.0, 255.0) as u8
 }
 
+/// The color types of the predefined color spaces of a 2D canvas, in the order of Web::Bindings::PredefinedColorSpace.
+const PREDEFINED_COLOR_SPACE_COLOR_TYPES: [u8; 4] = [
+    color_conversion::SRGB,
+    color_conversion::SRGB_LINEAR,
+    color_conversion::DISPLAY_P3,
+    color_conversion::DISPLAY_P3_LINEAR,
+];
+
+/// An 8-bit sRGB color converted to the predefined color space of a 2D canvas, clipped to its gamut.
+pub(crate) fn srgb_color_in_predefined_color_space(color: [u8; 4], predefined_color_space: u8) -> [u8; 4] {
+    let color_type = PREDEFINED_COLOR_SPACE_COLOR_TYPES[usize::from(predefined_color_space)];
+    if color_type == color_conversion::SRGB {
+        return color;
+    }
+    let components = color.map(|component| f32::from(component) / 255.0);
+    color_conversion::convert(color_conversion::SRGB, color_type, components)
+        .expect("sRGB converts to every predefined color space")
+        .map(quantize)
+}
+
 /// The wide-gamut Gfx::Color::from_*() constructors funnel through color_from_linear_srgb().
 /// This reuses color_conversion::convert() instead of duplicating its matrices. Routing
 /// differences against the C++ code, all below u8 quantization error:

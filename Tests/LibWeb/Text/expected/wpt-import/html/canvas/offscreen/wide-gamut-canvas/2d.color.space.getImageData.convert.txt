@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	Test getImageData color conversions from a srgb canvas
-Fail	Test getImageData color conversions from a srgb-linear canvas
-Fail	Test getImageData color conversions from a display-p3 canvas
-Fail	Test getImageData color conversions from a display-p3-linear canvas
+4 Pass
+Pass	Test getImageData color conversions from a srgb canvas
+Pass	Test getImageData color conversions from a srgb-linear canvas
+Pass	Test getImageData color conversions from a display-p3 canvas
+Pass	Test getImageData color conversions from a display-p3-linear canvas

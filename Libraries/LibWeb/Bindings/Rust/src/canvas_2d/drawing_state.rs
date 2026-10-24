@@ -20,10 +20,32 @@ use crate::html::canvas_rendering_context2d::{
     CanvasDirection, CanvasLineCap, CanvasLineJoin, CanvasTextAlign, CanvasTextBaseline, ImageSmoothingQuality,
 };
 
+/// A CSS color that a context was given: the color in sRGB, which the attribute that was set to it serializes, and the
+/// color converted to the color space of the context, which the context paints with.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CanvasColor {
+    pub(crate) srgb: Color,
+    pub(crate) in_color_space: Color,
+}
+
+impl CanvasColor {
+    /// A color that is the same in every color space of a context.
+    pub(crate) const fn invariant(color: Color) -> Self {
+        Self {
+            srgb: color,
+            in_color_space: color,
+        }
+    }
+
+    pub(crate) fn alpha(self) -> u8 {
+        self.in_color_space.alpha()
+    }
+}
+
 /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-fillstyle
 #[derive(Clone, Copy)]
 pub(crate) enum FillOrStrokeStyle {
-    Color(Color),
+    Color(CanvasColor),
     Gradient(Ref<CanvasGradient>),
     Pattern(Ref<CanvasPattern>),
 }
@@ -43,7 +65,7 @@ impl FillOrStrokeStyle {
         matches!(self, Self::Pattern(pattern) if pattern.is_not_origin_clean())
     }
 
-    pub(crate) fn as_color(self) -> Option<Color> {
+    pub(crate) fn as_color(self) -> Option<CanvasColor> {
         match self {
             Self::Color(color) => Some(color),
             Self::Gradient(_) | Self::Pattern(_) => None,
@@ -78,7 +100,7 @@ pub(crate) struct DrawingState {
     pub(crate) shadow_offset_x: f32,
     pub(crate) shadow_offset_y: f32,
     pub(crate) shadow_blur: f32,
-    pub(crate) shadow_color: Color,
+    pub(crate) shadow_color: CanvasColor,
     /// The serialized filter graph of the current filter, which the states share.
     pub(crate) filter: Option<Rc<[u8]>>,
     /// The value of the filter attribute, unless it is "none".
@@ -106,12 +128,12 @@ impl Default for DrawingState {
     fn default() -> Self {
         Self {
             transform: AffineTransform::identity(),
-            fill_style: FillOrStrokeStyle::Color(Color::from_rgb(0, 0, 0)),
-            stroke_style: FillOrStrokeStyle::Color(Color::from_rgb(0, 0, 0)),
+            fill_style: FillOrStrokeStyle::Color(CanvasColor::invariant(Color::from_rgb(0, 0, 0))),
+            stroke_style: FillOrStrokeStyle::Color(CanvasColor::invariant(Color::from_rgb(0, 0, 0))),
             shadow_offset_x: 0.0,
             shadow_offset_y: 0.0,
             shadow_blur: 0.0,
-            shadow_color: Color::TRANSPARENT,
+            shadow_color: CanvasColor::invariant(Color::TRANSPARENT),
             filter: None,
             filter_string: None,
             line_width: 1.0,

@@ -15,6 +15,7 @@
 #include <AK/Span.h>
 #include <Compositor/Forward.h>
 #include <LibCompositing/DisplayList/DisplayListCommandsGenerated.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Rect.h>
@@ -47,7 +48,8 @@ public:
         VideoFrameImageResolver video_frame_image;
     };
 
-    Canvas2DCommandPlayer(RefPtr<Gfx::SkiaBackendContext>, Gfx::IntSize, Gfx::BitmapFormat, Gfx::AlphaType, Resolvers);
+    // The pixels of the surface, and the colors of the commands, are in the color space.
+    Canvas2DCommandPlayer(RefPtr<Gfx::SkiaBackendContext>, Gfx::IntSize, Gfx::BitmapFormat, Gfx::AlphaType, Gfx::ColorSpace const&, Resolvers);
     ~Canvas2DCommandPlayer();
 
     NonnullRefPtr<Gfx::PaintingSurface> surface() const;
@@ -70,6 +72,7 @@ private:
     sk_sp<SkImageFilter> image_filter_from(Compositing::Canvas2DCompositing const&) const;
     RefPtr<Gfx::PaintStyle> paint_style_from(Compositing::Canvas2DPaint const&) const;
 
+    Gfx::ColorSpace m_color_space;
     NonnullRefPtr<Gfx::PaintingSurface> m_surface;
     NonnullOwnPtr<Gfx::PainterSkia> m_painter;
     Resolvers m_resolvers;

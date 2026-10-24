@@ -309,7 +309,7 @@ void CompositorConnection::set_video_sink_ticking(Media::VideoSinkHandle video_s
     async_set_video_sink_ticking(video_sink_handle, should_tick);
 }
 
-Optional<Compositing::CanvasId> CompositorConnection::create_canvas_2d_context(Gfx::IntSize size, bool alpha, bool will_read_frequently)
+Optional<Compositing::CanvasId> CompositorConnection::create_canvas_2d_context(Gfx::IntSize size, bool alpha, bool will_read_frequently, Gfx::ColorSpace const& color_space)
 {
     if (!can_send_message_to_compositor())
         return {};
@@ -334,7 +334,7 @@ Optional<Compositing::CanvasId> CompositorConnection::create_canvas_2d_context(G
     auto canvas_id = Compositing::CanvasId { m_next_reserved_canvas_id++ };
     --m_reserved_canvas_ids_remaining;
 
-    async_create_canvas_2d_context(canvas_id, size, alpha, will_read_frequently);
+    async_create_canvas_2d_context(canvas_id, size, alpha, will_read_frequently, color_space);
     return canvas_id;
 }
 
@@ -387,12 +387,12 @@ void CompositorConnection::destroy_canvas_context(Compositing::CanvasId canvas_i
     async_destroy_canvas_context(canvas_id);
 }
 
-Gfx::ShareableBitmap CompositorConnection::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type)
+Gfx::ShareableBitmap CompositorConnection::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space)
 {
     if (!can_send_message_to_compositor())
         return {};
 
-    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::GetCanvasPixels>(canvas_id, rect, alpha_type);
+    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::GetCanvasPixels>(canvas_id, rect, alpha_type, color_space);
     if (!response) {
         did_lose_compositor();
         return {};

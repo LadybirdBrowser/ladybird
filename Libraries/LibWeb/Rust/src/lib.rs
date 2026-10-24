@@ -45,6 +45,13 @@ pub fn parse_simple_color_utf16(source: &[u16]) -> Option<[u8; 4]> {
     css::parser::color_parser::parse_simple_color(source.into())
 }
 
+/// The red, green, blue and alpha of an 8-bit sRGB color converted to the predefined color space of a 2D canvas (the
+/// underlying value of a Web::Bindings::PredefinedColorSpace), and clipped to its gamut, as the 'relative-colorimetric'
+/// rendering intent does. https://html.spec.whatwg.org/multipage/canvas.html#predefinedcolorspace
+pub fn srgb_color_in_predefined_color_space(color: [u8; 4], predefined_color_space: u8) -> [u8; 4] {
+    css::color_resolution::srgb_color_in_predefined_color_space(color, predefined_color_space)
+}
+
 // NB: Only C++ calls into the HTML tokenizer and parser, so nothing in this crate names them. Linking the crate keeps
 //     their extern "C" functions in the static library.
 extern crate libweb_html_tokenizer;

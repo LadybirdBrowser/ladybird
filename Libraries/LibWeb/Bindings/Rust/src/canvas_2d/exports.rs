@@ -11,7 +11,7 @@ use core::ffi::c_void;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use libcompositing_rust::display_list::canvas_2d_recorder::AlphaType;
+use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpace};
 use libgfx_rust::{IntRect, IntSize};
 
 use super::canvas::Canvas;
@@ -165,15 +165,22 @@ pub extern "C" fn web_canvas_2d_context_canvas_id(context: &ContextCell, out_can
     true
 }
 
+/// https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-color-space
+#[unsafe(no_mangle)]
+pub extern "C" fn web_canvas_2d_context_color_space(context: &ContextCell) -> ColorSpace {
+    with_context(context, |context| context.context_attributes.color_space.into())
+}
+
 /// A Gfx::Bitmap with a reference that the caller takes over, or null. Unpremultiplied pixels come back as RGBA8888,
-/// and premultiplied pixels as BGRA8888.
+/// and premultiplied pixels as BGRA8888, in the color space.
 #[unsafe(no_mangle)]
 pub extern "C" fn web_canvas_2d_context_read_pixels(
     context: &ContextCell,
     rect: IntRect,
     alpha_type: AlphaType,
+    color_space: ColorSpace,
 ) -> *mut c_void {
-    with_context(context, |context| context.read_pixels(rect, alpha_type))
+    with_context(context, |context| context.read_pixels(rect, alpha_type, color_space))
         .map_or(core::ptr::null_mut(), super::host::Bitmap::into_raw)
 }
 

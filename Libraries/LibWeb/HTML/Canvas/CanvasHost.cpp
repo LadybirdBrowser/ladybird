@@ -10,6 +10,7 @@
 #include <LibGfx/Rect.h>
 #include <LibWeb/HTML/Canvas/Canvas2DContextBase.h>
 #include <LibWeb/HTML/Canvas/CanvasHost.h>
+#include <LibWeb/HTML/Canvas/PredefinedColorSpace.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
 namespace Web::HTML {
@@ -60,6 +61,25 @@ RefPtr<Gfx::Bitmap> CanvasHost::get_bitmap_from_surface()
     }
 
     return create_transparent_canvas_bitmap(size);
+}
+
+Optional<Gfx::DecodedImageFrame> CanvasHost::get_frame_from_surface()
+{
+    if (auto* context = canvas_2d_context(); context && context->color_space() != Bindings::PredefinedColorSpace::Srgb) {
+        auto const size = bitmap_size_for_canvas();
+        if (size.is_empty())
+            return {};
+        context->ensure_backing_storage();
+        auto color_space = context->color_space();
+        if (auto pixels = context->read_pixels({ {}, size }, Gfx::AlphaType::Premultiplied, color_space); pixels && pixels->size() == size)
+            return Gfx::DecodedImageFrame { *pixels, gfx_color_space_for(color_space) };
+        return {};
+    }
+
+    auto bitmap = get_bitmap_from_surface();
+    if (!bitmap)
+        return {};
+    return Gfx::DecodedImageFrame { *bitmap };
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean

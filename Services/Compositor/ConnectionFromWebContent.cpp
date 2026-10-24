@@ -12,6 +12,7 @@
 #include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Environment.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibWebCommon/Page/InputEvent.h>
 
 namespace Compositor {
@@ -279,16 +280,35 @@ Messages::CompositorWebContentServer::ReserveCanvasIdsResponse ConnectionFromWeb
     return { first_canvas_id, reserved_canvas_id_count };
 }
 
-void ConnectionFromWebContent::create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently)
+// NB: The pixels of a 2D context are in one of the predefined color spaces of a canvas, which WebContent describes by
+//     coding-independent code points, or as sRGB without color space data. Nothing else can name one.
+//     https://html.spec.whatwg.org/multipage/canvas.html#predefinedcolorspace
+static bool is_predefined_canvas_color_space(Gfx::ColorSpace const& color_space)
+{
+    return color_space.data().visit(
+        [](Empty) { return true; },
+        [](Gfx::ColorSpace::CICP const& cicp) {
+            auto has_valid_primaries = cicp.color_primaries == Media::ColorPrimaries::BT709 || cicp.color_primaries == Media::ColorPrimaries::SMPTE432;
+            auto has_valid_transfer_characteristics = cicp.transfer_characteristics == Media::TransferCharacteristics::SRGB || cicp.transfer_characteristics == Media::TransferCharacteristics::Linear;
+            return has_valid_primaries && has_valid_transfer_characteristics;
+        },
+        [](NonnullRefPtr<Gfx::ColorSpace::ICCProfile const> const&) { return false; });
+}
+
+void ConnectionFromWebContent::create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently, Gfx::ColorSpace color_space)
 {
     // NB: WebContent names its contexts with the IDs of its range in order, so each ID names one context only.
     if (m_reserved_canvas_ids.is_used_up() || canvas_id.value() != m_reserved_canvas_ids.next) {
         did_misbehave("WebContent named a 2D canvas context with an ID other than the next one it reserved");
         return;
     }
+    if (!is_predefined_canvas_color_space(color_space)) {
+        did_misbehave("WebContent asked for a 2D canvas context in a color space that is not a predefined one");
+        return;
+    }
     ++m_reserved_canvas_ids.next;
     // NB: A context that cannot be created is not a protocol violation: commands recorded for it are dropped.
-    (void)m_canvas_host.create_2d_context(canvas_id, size, alpha, will_read_frequently);
+    (void)m_canvas_host.create_2d_context(canvas_id, size, alpha, will_read_frequently, color_space);
 }
 
 void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::FontResourceId> kept_font_ids, Vector<Compositing::DisplayListFontResource> added_fonts, Vector<Compositing::DisplayListImageFrameResource> image_frames)
@@ -307,13 +327,17 @@ void ConnectionFromWebContent::destroy_canvas_context(Compositing::CanvasId canv
     m_canvas_host.destroy_context(canvas_id);
 }
 
-Messages::CompositorWebContentServer::GetCanvasPixelsResponse ConnectionFromWebContent::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type)
+Messages::CompositorWebContentServer::GetCanvasPixelsResponse ConnectionFromWebContent::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace color_space)
 {
     if (!Gfx::is_valid_alpha_type(to_underlying(alpha_type))) {
         did_misbehave("WebContent asked for canvas pixels with an invalid alpha type");
         return Gfx::ShareableBitmap {};
     }
-    return m_canvas_host.read_back_pixels(canvas_id, rect, alpha_type);
+    if (!is_predefined_canvas_color_space(color_space)) {
+        did_misbehave("WebContent asked for canvas pixels in a color space that is not a predefined one");
+        return Gfx::ShareableBitmap {};
+    }
+    return m_canvas_host.read_back_pixels(canvas_id, rect, alpha_type, color_space);
 }
 
 Messages::CompositorWebContentServer::RasterizeDisplayListResponse ConnectionFromWebContent::rasterize_display_list(Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Gfx::ShareableBitmap target_bitmap)

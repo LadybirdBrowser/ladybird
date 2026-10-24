@@ -25,8 +25,9 @@ namespace Compositor {
 
 using namespace Compositing;
 
-Canvas2DCommandPlayer::Canvas2DCommandPlayer(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, Gfx::IntSize size, Gfx::BitmapFormat format, Gfx::AlphaType alpha_type, Resolvers resolvers)
-    : m_surface(Gfx::PaintingSurface::create_with_size(size, format, alpha_type, move(skia_backend_context)))
+Canvas2DCommandPlayer::Canvas2DCommandPlayer(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, Gfx::IntSize size, Gfx::BitmapFormat format, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space, Resolvers resolvers)
+    : m_color_space(color_space)
+    , m_surface(Gfx::PaintingSurface::create_with_size(size, format, alpha_type, move(skia_backend_context), m_color_space))
     , m_painter(make<Gfx::PainterSkia>(*m_surface))
     , m_resolvers(move(resolvers))
 {
@@ -286,7 +287,7 @@ void Canvas2DCommandPlayer::play_command(Canvas2DClearCanvas const& command)
     }
 
     for (int y = 0; y < size.height(); y += strip_height)
-        m_surface->write_from_bitmap(*strip, { 0, y });
+        m_surface->write_from_bitmap(*strip, { 0, y }, m_color_space);
 }
 
 }

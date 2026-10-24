@@ -130,11 +130,19 @@ ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::create_from_d3d_texture
 }
 #endif
 
-NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> context)
+// The Skia color space of pixels in the color space, where sRGB is explicit.
+static sk_sp<SkColorSpace> skia_color_space_of_pixels(ColorSpace const& color_space)
+{
+    if (auto skia_color_space = to_skia_color_space(color_space))
+        return skia_color_space;
+    return SkColorSpace::MakeSRGB();
+}
+
+NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> context, ColorSpace const& color_space)
 {
     auto sk_color_type = to_skia_color_type(color_type);
     auto sk_alpha_type = to_skia_alpha_type(color_type, alpha_type);
-    auto image_info = SkImageInfo::Make(size.width(), size.height(), sk_color_type, sk_alpha_type, SkColorSpace::MakeSRGB());
+    auto image_info = SkImageInfo::Make(size.width(), size.height(), sk_color_type, sk_alpha_type, skia_color_space_of_pixels(color_space));
 
     if (context) {
         // NB: Dynamic MSAA lets Skia render complex antialiased paths on the GPU instead of
@@ -188,20 +196,53 @@ PaintingSurface::~PaintingSurface()
     m_impl->surface = nullptr;
 }
 
-void PaintingSurface::read_into_bitmap(Bitmap& bitmap, IntPoint source_position) const
+void PaintingSurface::read_into_bitmap(Bitmap& bitmap, IntPoint source_position, ColorSpace const& color_space) const
 {
     auto color_type = to_skia_color_type(bitmap.format());
     auto alpha_type = to_skia_alpha_type(bitmap.format(), bitmap.alpha_type());
-    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
+    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, skia_color_space_of_pixels(color_space));
     SkPixmap const pixmap(image_info, bitmap.begin(), bitmap.pitch());
-    m_impl->surface->readPixels(pixmap, source_position.x(), source_position.y());
+
+    auto surface_color_space = m_impl->surface->imageInfo().refColorSpace();
+    if (SkColorSpace::Equals(surface_color_space.get(), image_info.colorSpace())) {
+        m_impl->surface->readPixels(pixmap, source_position.x(), source_position.y());
+        return;
+    }
+
+    // NB: Drawing clamps each premultiplied component to [0, 1], but not to the alpha, so a translucent color that a
+    //     draw converted from a wider gamut can have more color than its alpha allows. The pixels are unpremultiplied
+    //     in the color space of the surface first, and clamped to its gamut, which holds the color that they show, so
+    //     that the conversion to the other color space starts from that. They are unpremultiplied to floats, which
+    //     loses no precision before the conversion, a strip of rows at a time, so that a large readback needs no
+    //     large buffer of floats.
+    if (bitmap.width() <= 0 || bitmap.height() <= 0)
+        return;
+    static constexpr int max_strip_pixel_count = 1024 * 1024;
+    auto strip_height = clamp(max_strip_pixel_count / bitmap.width(), 1, bitmap.height());
+    auto strip_info = SkImageInfo::Make(bitmap.width(), strip_height, kRGBA_F32_SkColorType, kUnpremul_SkAlphaType, surface_color_space);
+    auto strip_pixels = ByteBuffer::create_uninitialized(strip_info.computeMinByteSize());
+    if (strip_pixels.is_error())
+        return;
+    for (int y = 0; y < bitmap.height(); y += strip_height) {
+        auto rows = min(strip_height, bitmap.height() - y);
+        SkPixmap const unpremultiplied_pixmap(strip_info.makeWH(bitmap.width(), rows), strip_pixels.value().data(), strip_info.minRowBytes());
+        if (!m_impl->surface->readPixels(unpremultiplied_pixmap, source_position.x(), source_position.y() + y))
+            return;
+        auto components = Span<float> { reinterpret_cast<float*>(strip_pixels.value().data()), unpremultiplied_pixmap.computeByteSize() / sizeof(float) };
+        for (auto& component : components)
+            component = clamp(component, 0.0f, 1.0f);
+        SkPixmap destination_rows;
+        if (!pixmap.extractSubset(&destination_rows, SkIRect::MakeXYWH(0, y, bitmap.width(), rows)))
+            return;
+        unpremultiplied_pixmap.readPixels(destination_rows);
+    }
 }
 
-void PaintingSurface::write_from_bitmap(Bitmap const& bitmap, IntPoint destination_position)
+void PaintingSurface::write_from_bitmap(Bitmap const& bitmap, IntPoint destination_position, ColorSpace const& color_space)
 {
     auto color_type = to_skia_color_type(bitmap.format());
     auto alpha_type = to_skia_alpha_type(bitmap.format(), bitmap.alpha_type());
-    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
+    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, skia_color_space_of_pixels(color_space));
     SkPixmap const pixmap(image_info, bitmap.begin(), bitmap.pitch());
     m_impl->surface->writePixels(pixmap, destination_position.x(), destination_position.y());
 }
