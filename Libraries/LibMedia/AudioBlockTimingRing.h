@@ -115,6 +115,8 @@ private:
             return {};
         if (record.sequence != expected_sequence)
             return {};
+        if (record.timing.frame_count() <= 0 || record.timing.media_time_duration().is_negative())
+            return {};
         return record;
     }
 

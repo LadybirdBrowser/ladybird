@@ -233,3 +233,41 @@ TEST_CASE(concurrent_writer_and_reader)
 
     EXPECT_EQ(reader.current_time(base), AK::Duration::from_microseconds(anchor_count));
 }
+
+// The clock's record and timings are written by another process, so ones that describe a clock that cannot run must
+// read as a clock stopped at its anchor rather than abort the reader.
+TEST_CASE(clocks_that_cannot_advance_read_as_stopped)
+{
+    auto buffer = MUST(Core::AnonymousBuffer::create_with_size(sizeof(Media::MediaTimeData)));
+    auto& data = *new (buffer.data<void>()) Media::MediaTimeData;
+    auto reader = MUST(Media::MediaTimeReader::create(buffer));
+    auto base = MonotonicTime::now();
+
+    auto write_record = [&](Media::MediaTimeMode mode, u32 sample_rate, float playback_rate) {
+        data.record.write([&](TearableAtomic<Media::MediaTimeRecord>& slot) {
+            auto record = slot.load_relaxed();
+            record.mode = mode;
+            record.progression = Media::MediaTimeProgression::Advancing;
+            record.anchor_monotonic_nanoseconds = base.nanoseconds();
+            record.anchor_media_time_nanoseconds = AK::Duration::from_seconds(5).to_nanoseconds();
+            record.sample_rate = sample_rate;
+            record.playback_rate = playback_rate;
+            slot.store_relaxed(record);
+        });
+    };
+
+    write_record(Media::MediaTimeMode::AudioDriven, 0, 1.0f);
+    auto state = reader.time_state(base + AK::Duration::from_seconds(1));
+    EXPECT_EQ(state.time, AK::Duration::from_seconds(5));
+    EXPECT(!state.is_advancing);
+    EXPECT_EQ(reader.output_frame_index(base + AK::Duration::from_seconds(1)), 0);
+
+    write_record(Media::MediaTimeMode::MonotonicDriven, 0, NAN);
+    EXPECT_EQ(reader.current_time(base + AK::Duration::from_seconds(1)), AK::Duration::from_seconds(5));
+
+    write_record(Media::MediaTimeMode::AudioDriven, 48000, 1.0f);
+    Media::AudioBlockTiming empty_block;
+    empty_block.initialize(static_cast<i64>(0), 48000, 0);
+    data.timing_ring.enqueue(empty_block);
+    EXPECT_EQ(reader.current_time(base), AK::Duration::from_seconds(5));
+}
