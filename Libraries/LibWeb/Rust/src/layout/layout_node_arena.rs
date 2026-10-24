@@ -123,6 +123,14 @@ pub(crate) struct IntrinsicMeasurementDependencies {
 }
 
 impl IntrinsicMeasurementDependencies {
+    pub(crate) fn union(self, other: Self) -> Self {
+        Self {
+            percentage_block_size: self.percentage_block_size || other.percentage_block_size,
+            percentage_inline_basis: self.percentage_inline_basis || other.percentage_inline_basis,
+            block_size: self.block_size || other.block_size,
+        }
+    }
+
     fn non_empty_subsets_of_all_parts() -> impl Iterator<Item = Self> {
         (1u8..8).map(|bits| Self {
             percentage_block_size: bits & 1 != 0,

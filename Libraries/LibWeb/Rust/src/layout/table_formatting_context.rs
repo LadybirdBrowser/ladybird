@@ -1629,10 +1629,11 @@ impl<'pass> TableFormattingContext<'pass> {
             let (min_content_inline, max_content_inline) = if fixed {
                 (inline_size, inline_size)
             } else {
-                (
-                    self.calculate_min_content_inline_size(cell.box_),
-                    self.calculate_max_content_inline_size(cell.box_),
-                )
+                let content_sizes = self
+                    .sizing()
+                    .content_inline_sizes(cell.box_, self.participant_constraints, None)
+                    .sizes;
+                (content_sizes.min, content_sizes.max)
             };
             // The outer min-content inline size of a table cell is its minimum inline size adjusted by the cell intrinsic offsets.
             self.cells[cell_index].outer_min_inline_size = min_inline.max(min_content_inline) + inline_offsets;

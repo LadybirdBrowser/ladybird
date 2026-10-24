@@ -2074,6 +2074,15 @@ fn reuse_committed_subtree_as_it_is(
     Some(entry.outputs.result)
 }
 
+pub(crate) fn explicit_intrinsic_inner_inline_size(facts: &NodeFacts<'_>) -> CssPixels {
+    let style = facts.style();
+    if style.contain_intrinsic_width_has_length() {
+        CssPixels::nearest_value_for(style.contain_intrinsic_width_px())
+    } else {
+        CssPixels::default()
+    }
+}
+
 #[expect(clippy::too_many_arguments)]
 fn execute_formatting_context_run(
     purpose: LayoutPurpose,
@@ -2262,11 +2271,7 @@ fn execute_formatting_context_run(
                 // effects:
                 // 1. The intrinsic sizes of the size containment box are determined as if the element had no content, following
                 //    the same logic as when sizing as if empty.
-                result.automatic_content_inline_size = if style.contain_intrinsic_width_has_length() {
-                    CssPixels::nearest_value_for(style.contain_intrinsic_width_px())
-                } else {
-                    CssPixels::default()
-                };
+                result.automatic_content_inline_size = explicit_intrinsic_inner_inline_size(&containment_facts);
                 result.automatic_content_block_size = if style.contain_intrinsic_height_has_length() {
                     CssPixels::nearest_value_for(style.contain_intrinsic_height_px())
                 } else {
@@ -2276,12 +2281,7 @@ fn execute_formatting_context_run(
                 // https://drafts.csswg.org/css-contain-2/#containment-inline-size
                 // "This means the inline-axis intrinsic sizes of the principal box are determined as if the element had
                 //  no content."
-                let style = containment_facts.style();
-                result.automatic_content_inline_size = if style.contain_intrinsic_width_has_length() {
-                    CssPixels::nearest_value_for(style.contain_intrinsic_width_px())
-                } else {
-                    CssPixels::default()
-                };
+                result.automatic_content_inline_size = explicit_intrinsic_inner_inline_size(&containment_facts);
             }
 
             if containment_facts.has_preferred_aspect_ratio() {
