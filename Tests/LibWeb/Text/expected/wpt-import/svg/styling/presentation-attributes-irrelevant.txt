@@ -1,8 +1,10 @@
 Harness status: OK
 
-Found 52 tests
+Found 54 tests
 
-52 Pass
+54 Pass
+Pass	alignment-baseline presentation attribute supported on an irrelevant element
+Pass	baseline-shift presentation attribute supported on an irrelevant element
 Pass	clip-path presentation attribute supported on an irrelevant element
 Pass	clip-rule presentation attribute supported on an irrelevant element
 Pass	color presentation attribute supported on an irrelevant element

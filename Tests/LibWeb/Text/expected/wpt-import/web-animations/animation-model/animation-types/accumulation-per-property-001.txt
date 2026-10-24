@@ -1,10 +1,13 @@
 Harness status: OK
 
-Found 356 tests
+Found 359 tests
 
-337 Pass
+340 Pass
 19 Fail
 Pass	Setup
+Pass	alignment-baseline (type: discrete) has testAccumulation function
+Pass	alignment-baseline: "middle" onto "baseline"
+Pass	alignment-baseline: "baseline" onto "middle"
 Pass	align-content (type: discrete) has testAccumulation function
 Fail	align-content: "flex-end" onto "flex-start"
 Fail	align-content: "flex-start" onto "flex-end"

@@ -2,21 +2,20 @@ Harness status: OK
 
 Found 39 tests
 
-26 Pass
-13 Fail
-Fail	Can set 'alignment-baseline' to CSS-wide keywords: initial
-Fail	Can set 'alignment-baseline' to CSS-wide keywords: inherit
-Fail	Can set 'alignment-baseline' to CSS-wide keywords: unset
-Fail	Can set 'alignment-baseline' to CSS-wide keywords: revert
-Fail	Can set 'alignment-baseline' to var() references:  var(--A)
-Fail	Can set 'alignment-baseline' to the 'baseline' keyword: baseline
-Fail	Can set 'alignment-baseline' to the 'text-bottom' keyword: text-bottom
-Fail	Can set 'alignment-baseline' to the 'alphabetic' keyword: alphabetic
-Fail	Can set 'alignment-baseline' to the 'ideographic' keyword: ideographic
-Fail	Can set 'alignment-baseline' to the 'middle' keyword: middle
-Fail	Can set 'alignment-baseline' to the 'central' keyword: central
-Fail	Can set 'alignment-baseline' to the 'mathematical' keyword: mathematical
-Fail	Can set 'alignment-baseline' to the 'text-top' keyword: text-top
+39 Pass
+Pass	Can set 'alignment-baseline' to CSS-wide keywords: initial
+Pass	Can set 'alignment-baseline' to CSS-wide keywords: inherit
+Pass	Can set 'alignment-baseline' to CSS-wide keywords: unset
+Pass	Can set 'alignment-baseline' to CSS-wide keywords: revert
+Pass	Can set 'alignment-baseline' to var() references:  var(--A)
+Pass	Can set 'alignment-baseline' to the 'baseline' keyword: baseline
+Pass	Can set 'alignment-baseline' to the 'text-bottom' keyword: text-bottom
+Pass	Can set 'alignment-baseline' to the 'alphabetic' keyword: alphabetic
+Pass	Can set 'alignment-baseline' to the 'ideographic' keyword: ideographic
+Pass	Can set 'alignment-baseline' to the 'middle' keyword: middle
+Pass	Can set 'alignment-baseline' to the 'central' keyword: central
+Pass	Can set 'alignment-baseline' to the 'mathematical' keyword: mathematical
+Pass	Can set 'alignment-baseline' to the 'text-top' keyword: text-top
 Pass	Setting 'alignment-baseline' to a length: 0px throws TypeError
 Pass	Setting 'alignment-baseline' to a length: -3.14em throws TypeError
 Pass	Setting 'alignment-baseline' to a length: 3.14cm throws TypeError

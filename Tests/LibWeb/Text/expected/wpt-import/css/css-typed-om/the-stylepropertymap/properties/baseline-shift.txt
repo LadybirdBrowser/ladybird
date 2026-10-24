@@ -2,26 +2,25 @@ Harness status: OK
 
 Found 36 tests
 
-18 Pass
-18 Fail
-Fail	Can set 'baseline-shift' to CSS-wide keywords: initial
-Fail	Can set 'baseline-shift' to CSS-wide keywords: inherit
-Fail	Can set 'baseline-shift' to CSS-wide keywords: unset
-Fail	Can set 'baseline-shift' to CSS-wide keywords: revert
-Fail	Can set 'baseline-shift' to var() references:  var(--A)
-Fail	Can set 'baseline-shift' to the 'bottom' keyword: bottom
-Fail	Can set 'baseline-shift' to the 'center' keyword: center
-Fail	Can set 'baseline-shift' to the 'top' keyword: top
-Fail	Can set 'baseline-shift' to the 'sub' keyword: sub
-Fail	Can set 'baseline-shift' to the 'super' keyword: super
-Fail	Can set 'baseline-shift' to a percent: 0%
-Fail	Can set 'baseline-shift' to a percent: -3.14%
-Fail	Can set 'baseline-shift' to a percent: 3.14%
-Fail	Can set 'baseline-shift' to a percent: calc(0% + 0%)
-Fail	Can set 'baseline-shift' to a length: 0px
-Fail	Can set 'baseline-shift' to a length: -3.14em
-Fail	Can set 'baseline-shift' to a length: 3.14cm
-Fail	Can set 'baseline-shift' to a length: calc(0px + 0em)
+36 Pass
+Pass	Can set 'baseline-shift' to CSS-wide keywords: initial
+Pass	Can set 'baseline-shift' to CSS-wide keywords: inherit
+Pass	Can set 'baseline-shift' to CSS-wide keywords: unset
+Pass	Can set 'baseline-shift' to CSS-wide keywords: revert
+Pass	Can set 'baseline-shift' to var() references:  var(--A)
+Pass	Can set 'baseline-shift' to the 'bottom' keyword: bottom
+Pass	Can set 'baseline-shift' to the 'center' keyword: center
+Pass	Can set 'baseline-shift' to the 'top' keyword: top
+Pass	Can set 'baseline-shift' to the 'sub' keyword: sub
+Pass	Can set 'baseline-shift' to the 'super' keyword: super
+Pass	Can set 'baseline-shift' to a percent: 0%
+Pass	Can set 'baseline-shift' to a percent: -3.14%
+Pass	Can set 'baseline-shift' to a percent: 3.14%
+Pass	Can set 'baseline-shift' to a percent: calc(0% + 0%)
+Pass	Can set 'baseline-shift' to a length: 0px
+Pass	Can set 'baseline-shift' to a length: -3.14em
+Pass	Can set 'baseline-shift' to a length: 3.14cm
+Pass	Can set 'baseline-shift' to a length: calc(0px + 0em)
 Pass	Setting 'baseline-shift' to a time: 0s throws TypeError
 Pass	Setting 'baseline-shift' to a time: -3.14ms throws TypeError
 Pass	Setting 'baseline-shift' to a time: 3.14s throws TypeError
