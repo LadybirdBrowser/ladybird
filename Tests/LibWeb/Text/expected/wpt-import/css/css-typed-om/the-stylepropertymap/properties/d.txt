@@ -2,14 +2,13 @@ Harness status: OK
 
 Found 33 tests
 
-32 Pass
-1 Fail
+33 Pass
 Pass	Can set 'd' to CSS-wide keywords: initial
 Pass	Can set 'd' to CSS-wide keywords: inherit
 Pass	Can set 'd' to CSS-wide keywords: unset
 Pass	Can set 'd' to CSS-wide keywords: revert
 Pass	Can set 'd' to var() references:  var(--A)
-Fail	Can set 'd' to the 'none' keyword: none
+Pass	Can set 'd' to the 'none' keyword: none
 Pass	Setting 'd' to a length: 0px throws TypeError
 Pass	Setting 'd' to a length: -3.14em throws TypeError
 Pass	Setting 'd' to a length: 3.14cm throws TypeError

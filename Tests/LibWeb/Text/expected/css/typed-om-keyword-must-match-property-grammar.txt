@@ -1,0 +1,5 @@
+text-indent: 'hanging' threw TypeError
+computed text-indent: 0px
+text-indent: 'each-line' threw TypeError
+computed text-indent: 0px
+computed font-style after setting font to caption: normal

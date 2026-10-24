@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'contain' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('container-name', [
+  { syntax: 'none' },
+  // FIXME: This should be <custom-ident>, but the test harness doesn't
+  // currently support it.
+  { syntax: 'my-container' },
+  // 'auto' is a keyword of other properties, but container-name has no such
+  // keyword, so here it is an ordinary <custom-ident>: <custom-ident> excludes
+  // only the CSS-wide keywords and 'default'.
+  { syntax: 'auto' },
+]);
+
+runUnsupportedPropertyTests('container-name', [
+  'name1 name2'
+]);
+
+// 'and', 'not' and 'or' are excluded from container-name's <custom-ident>
+// (https://drafts.csswg.org/css-conditional-5/#container-name), and 'default'
+// is excluded from every <custom-ident>. Note that 'none' is excluded as a
+// name too, but remains valid as the property's own keyword.
+runInvalidKeywordTests('container-name', [
+  'and',
+  'not',
+  'or',
+  'default',
+]);
+
+</script>

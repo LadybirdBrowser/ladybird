@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const keyword of ["hanging", "each-line"]) {
+            try {
+                foo.attributeStyleMap.set("text-indent", new CSSKeywordValue(keyword));
+                println(`FAIL! text-indent accepted '${keyword}' on its own`);
+            } catch (e) {
+                println(`text-indent: '${keyword}' threw ${e.name}`);
+            }
+            println(`computed text-indent: ${getComputedStyle(foo).textIndent}`);
+        }
+
+        foo.attributeStyleMap.set("font", new CSSKeywordValue("caption"));
+        println(`computed font-style after setting font to caption: ${getComputedStyle(foo).fontStyle}`);
+    });
+</script>

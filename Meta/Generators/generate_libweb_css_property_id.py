@@ -17,7 +17,6 @@ from typing import TextIO
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from Utils.utils import camel_casify
-from Utils.utils import snake_casify
 from Utils.utils import title_casify
 from Utils.utils import underlying_type_for_enum
 from Utils.utils import write_case_insensitive_ascii_string_to_enum_lookup
@@ -316,7 +315,6 @@ bool property_is_list_valued(PropertyID);
 
 bool property_accepts_type(PropertyID, ValueType);
 WEB_API NumericRangesByValueType property_accepted_ranges_by_value_type(PropertyID);
-bool property_accepts_keyword(PropertyID, Keyword);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);
 
 // These perform range-checking, but are also safe to call with properties that don't accept that type. (They'll just return false.)
@@ -718,55 +716,6 @@ NumericRangesByValueType property_accepted_ranges_by_value_type(PropertyID prope
     default: {
         return { };
     }
-    }
-}
-
-bool property_accepts_keyword(PropertyID property_id, Keyword keyword)
-{
-    switch (property_id) {
-""")
-
-    for name, value in properties.items():
-        if is_legacy_alias(value):
-            continue
-        out.write(f"    case PropertyID::{title_casify(name)}: {{\n")
-
-        valid_identifiers = value.get("valid-identifiers")
-        if valid_identifiers:
-            out.write("        switch (keyword) {\n")
-            for keyword_string in valid_identifiers:
-                if ">" in keyword_string:
-                    parts = keyword_string.split(">", 1)
-                    keyword_titlecase = title_casify(parts[0])
-                else:
-                    keyword_titlecase = title_casify(keyword_string)
-                out.write(f"        case Keyword::{keyword_titlecase}:\n")
-            out.write("""
-            return true;
-        default:
-            break;
-        }
-""")
-
-        valid_types = value.get("valid-types")
-        if valid_types:
-            for valid_type in valid_types:
-                type_name = valid_type.split(" ")[0]
-                if type_name not in enum_names:
-                    continue
-                out.write(f"""
-        if (keyword_to_{snake_casify(type_name)}(keyword).has_value())
-            return true;
-""")
-
-        out.write("""
-        return false;
-    }
-""")
-
-    out.write("""
-    default:
-        return false;
     }
 }
 

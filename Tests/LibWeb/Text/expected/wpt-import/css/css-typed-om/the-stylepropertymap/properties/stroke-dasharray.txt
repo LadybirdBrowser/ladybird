@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 33 tests
 
-20 Pass
-13 Fail
+21 Pass
+12 Fail
 Pass	Can set 'stroke-dasharray' to CSS-wide keywords: initial
 Pass	Can set 'stroke-dasharray' to CSS-wide keywords: inherit
 Pass	Can set 'stroke-dasharray' to CSS-wide keywords: unset
 Pass	Can set 'stroke-dasharray' to CSS-wide keywords: revert
 Pass	Can set 'stroke-dasharray' to var() references:  var(--A)
-Fail	Can set 'stroke-dasharray' to the 'none' keyword: none
+Pass	Can set 'stroke-dasharray' to the 'none' keyword: none
 Fail	Can set 'stroke-dasharray' to a length: 0px
 Fail	Can set 'stroke-dasharray' to a length: -3.14em
 Fail	Can set 'stroke-dasharray' to a length: 3.14cm

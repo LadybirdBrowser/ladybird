@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 33 tests
 
-32 Pass
-1 Fail
+33 Pass
 Pass	Can set 'animation-name' to CSS-wide keywords: initial
 Pass	Can set 'animation-name' to CSS-wide keywords: inherit
 Pass	Can set 'animation-name' to CSS-wide keywords: unset
 Pass	Can set 'animation-name' to CSS-wide keywords: revert
 Pass	Can set 'animation-name' to var() references:  var(--A)
 Pass	Can set 'animation-name' to the 'none' keyword: none
-Fail	Can set 'animation-name' to the 'custom-ident' keyword: custom-ident
+Pass	Can set 'animation-name' to the 'custom-ident' keyword: custom-ident
 Pass	Setting 'animation-name' to a length: 0px throws TypeError
 Pass	Setting 'animation-name' to a length: -3.14em throws TypeError
 Pass	Setting 'animation-name' to a length: 3.14cm throws TypeError

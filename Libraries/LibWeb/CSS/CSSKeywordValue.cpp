@@ -85,8 +85,10 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSKeywordValue::create_an_
             // FIXME: If this is a registered custom property, check if that allows the keyword.
             return true;
         }
-        auto keyword = keyword_from_string(m_value);
-        return keyword.has_value() && property_accepts_keyword(property.id(), keyword.value());
+        // NB: The keywords listed for a property are not all valid on their own, like `hanging` for text-indent,
+        //     and a property may accept identifiers that are not listed, like a <custom-ident> or the axis keywords
+        //     of scroll-snap-type. So we check if the property accepts the value, as an identifier, when parsed.
+        return parse_css_value(Parser::ParsingParams {}, serialize_an_identifier(m_value), property.id()) != nullptr;
     }();
     if (perform_type_check == PerformTypeCheck::Yes && !matches_grammar) {
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Property '{}' does not accept the keyword '{}'", property.name(), m_value) };
