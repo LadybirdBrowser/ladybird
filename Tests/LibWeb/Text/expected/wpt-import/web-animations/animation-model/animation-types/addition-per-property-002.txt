@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 332 tests
 
-316 Pass
-16 Fail
+317 Pass
+15 Fail
 Pass	Setup
 Pass	isolation (type: discrete) has testAddition function
 Pass	isolation: "isolate" onto "auto"
@@ -264,7 +264,7 @@ Pass	text-rendering (type: discrete) has testAddition function
 Pass	text-rendering: "optimizeLegibility" onto "optimizeSpeed"
 Pass	text-rendering: "optimizeSpeed" onto "optimizeLegibility"
 Pass	text-shadow (type: textShadowList) has testAddition function
-Fail	text-shadow: shadow
+Pass	text-shadow: shadow
 Pass	text-transform (type: discrete) has testAddition function
 Pass	text-transform: "uppercase" onto "capitalize"
 Pass	text-transform: "capitalize" onto "uppercase"
