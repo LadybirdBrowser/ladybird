@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+#cb {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    font-size: 10px;
+    container-type: size;
+}
+#target {
+    position: absolute;
+}
+</style>
+<div id="cb"><div id="target"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const style of [
+            "left: anchor(--missing left, 2em)",
+            "left: calc(anchor(--missing left, 2em) + 1px)",
+            "left: anchor(--missing left, calc(1em + 10%))",
+            "left: anchor(--missing left, anchor(--also-missing left, 3em))",
+            "left: anchor(--missing left, 10cqw)",
+            "left: calc(anchor(--missing left, 10cqw) + 1px)",
+            "left: anchor(--missing left, calc(10cqh + 1em))",
+        ]) {
+            target.style = style;
+            println(`${style}: ${getComputedStyle(target).left}`);
+        }
+    });
+</script>

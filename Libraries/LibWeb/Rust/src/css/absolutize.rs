@@ -1922,6 +1922,24 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             }
         }
         StyleValueData::Edge { .. } => absolutize_edge(value, context),
+        StyleValueData::Anchor { .. } => {
+            let mut tracked = false;
+            let mut calc_length_context = *context.length;
+            calc_length_context.resolved_viewport_relative_length = &raw mut tracked;
+            let outcome = crate::css::calc::absolutize_anchor_function(
+                value,
+                &calc_length_context,
+                context.tree_counting,
+                context.random_base_values,
+            );
+            if tracked {
+                context.resolved_viewport_relative_length.set(true);
+            }
+            match outcome? {
+                None => Some(Absolutized::Unchanged),
+                Some(absolutized) => Some(Absolutized::Changed(retain_new(absolutized))),
+            }
+        }
         StyleValueData::Position { edge_x, edge_y } => {
             let mut changed = false;
             let edge_x = absolutize_child(edge_x, context, &mut changed)?;

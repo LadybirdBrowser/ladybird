@@ -1531,6 +1531,7 @@ pub(crate) fn collect_external_value_dependencies(value: &StyleValueData) -> Ext
                 collect_values(&[numerator, denominator], dependencies);
             }
             StyleValueData::Edge { offset, .. } => collect_optional(offset, dependencies),
+            StyleValueData::Anchor { fallback_value, .. } => collect_optional(fallback_value, dependencies),
             StyleValueData::Ray { angle, position, .. } => {
                 collect_optional(angle, dependencies);
                 collect_optional(position, dependencies);
