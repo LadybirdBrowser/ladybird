@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<title>Tests logical `anchor` function for `writing-mode`/`direction`s</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#anchor-pos">
+<link rel="author" href="mailto:kojii@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+.htb-ltr { writing-mode: horizontal-tb; direction: ltr; }
+.htb-rtl { writing-mode: horizontal-tb; direction: rtl; }
+.vlr-ltr { writing-mode: vertical-lr; direction: ltr; }
+.vlr-rtl { writing-mode: vertical-lr; direction: rtl; }
+.vrl-ltr { writing-mode: vertical-rl; direction: ltr; }
+.vrl-rtl { writing-mode: vertical-rl; direction: rtl; }
+.relpos {
+  position: relative;
+  outline: blue 1px solid;
+}
+.spacer {
+  width: 10px;
+  height: 10px;
+  background: yellow;
+}
+.anchor {
+  anchor-name: --a1;
+  margin: 5px;
+  width: 30px;
+  height: 30px;
+  background: orange;
+}
+.target {
+  position: absolute;
+  outline: 5px solid lime;
+}
+</style>
+<body>
+  <template id="template">
+    <div class="relpos">
+      <div class="spacer"></div>
+      <div class="anchor"></div>
+    </div>
+  </template>
+<script>
+// Generate tests for all combinations.
+// The first two entries are the side `start` and `end` should match in x-axis.
+// The next two entries are the side `start` and `end` should match in y-axis.
+const writingDirs = {
+  'htb-ltr':['l', 'r', 't', 'b'],
+  'htb-rtl':['r', 'l', 't', 'b'],
+  'vrl-ltr':['r', 'l', 't', 'b'],
+  'vrl-rtl':['r', 'l', 'b', 't'],
+  'vlr-ltr':['l', 'r', 't', 'b'],
+  'vlr-rtl':['l', 'r', 'b', 't'],
+};
+const container = document.body;
+const cb_template = template.content.firstElementChild;
+for (const [writingDir, matches] of Object.entries(writingDirs)) {
+  const cb = cb_template.cloneNode(true);
+  cb.classList.add(writingDir);
+  createTarget(null, 'left: anchor(--a1 start)', matches[0], cb);
+  createTarget(null, 'left: anchor(--a1 end)', matches[1], cb);
+  createTarget(null, 'top: anchor(--a1 start)', matches[2], cb);
+  createTarget(null, 'top: anchor(--a1 end)', matches[3], cb);
+  createTarget(writingDir, 'left: anchor(--a1 self-start)', matches[0], cb);
+  createTarget(writingDir, 'left: anchor(--a1 self-end)', matches[1], cb);
+  createTarget(writingDir, 'top: anchor(--a1 self-start)', matches[2], cb);
+  createTarget(writingDir, 'top: anchor(--a1 self-end)', matches[3], cb);
+  container.appendChild(cb);
+}
+
+function createTarget(className, style, match, cb) {
+  const target = document.createElement('div');
+  target.classList.add('target');
+  if (className)
+    target.classList.add(className);
+  target.style = style;
+  target.dataset.name = style;
+  target.dataset.match = match;
+  cb.appendChild(target);
+}
+
+// Test all `.target`s.
+for (const target of document.querySelectorAll('.target')) {
+  const cb = target.parentElement;
+  const anchor = cb.querySelector('.anchor');
+  test(() => {
+    switch (target.dataset.match) {
+      case 'l':
+        assert_equals(anchor.offsetLeft, target.offsetLeft);
+        break;
+      case 'r':
+        assert_equals(anchor.offsetLeft + anchor.offsetWidth, target.offsetLeft);
+        break;
+      case 't':
+        assert_equals(anchor.offsetTop, target.offsetTop);
+        break;
+      case 'b':
+        assert_equals(anchor.offsetTop + anchor.offsetHeight, target.offsetTop);
+        break;
+    }
+  }, `${cb.classList}/${target.classList}/${target.dataset.name}`);
+}
+</script>
+</body>

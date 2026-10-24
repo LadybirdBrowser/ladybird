@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<title>The `anchor()` function with percentages</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#anchor-pos">
+<link rel="author" href="mailto:kojii@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+.relpos {
+  position: relative;
+  width: 200px;
+  outline: 1px solid;
+}
+.vrl-rtl {
+  writing-mode: vertical-rl;
+  direction: rtl;
+}
+.spacer {
+  background: yellow;
+  width: 10px;
+  height: 10px;
+}
+#anchor {
+  anchor-name: --a1;
+  margin: 20px;
+  width: 100px;
+  height: 200px;
+  background: orange;
+}
+.target {
+  position: absolute;
+}
+</style>
+<body onload="checkLayoutForAnchorPos('.target')">
+  <div class="relpos">
+    <div class="spacer"></div>
+    <div id="anchor"></div>
+
+    <div class="target" style="left: anchor(--a1 0%)"
+         data-offset-x="20"></div>
+    <div class="target" style="left: anchor(--a1 20%)"
+         data-offset-x="40"></div>
+    <div class="target" style="left: anchor(--a1 50%)"
+         data-offset-x="70"></div>
+    <div class="target" style="left: anchor(--a1 center)"
+         data-offset-x="70"></div>
+    <div class="target" style="left: anchor(--a1 80%)"
+         data-offset-x="100"></div>
+    <div class="target" style="left: anchor(--a1 100%)"
+         data-offset-x="120"></div>
+
+    <div class="target" style="right: anchor(--a1 0%)"
+         data-offset-x="20"></div>
+    <div class="target" style="right: anchor(--a1 20%)"
+         data-offset-x="40"></div>
+    <div class="target" style="right: anchor(--a1 50%)"
+         data-offset-x="70"></div>
+    <div class="target" style="right: anchor(--a1 center)"
+         data-offset-x="70"></div>
+    <div class="target" style="right: anchor(--a1 80%)"
+         data-offset-x="100"></div>
+    <div class="target" style="right: anchor(--a1 100%)"
+         data-offset-x="120"></div>
+
+    <div class="target" style="top: anchor(--a1 0%)"
+         data-offset-y="30"></div>
+    <div class="target" style="top: anchor(--a1 20%)"
+         data-offset-y="70"></div>
+    <div class="target" style="top: anchor(--a1 50%)"
+         data-offset-y="130"></div>
+    <div class="target" style="top: anchor(--a1 center)"
+         data-offset-y="130"></div>
+    <div class="target" style="top: anchor(--a1 80%)"
+         data-offset-y="190"></div>
+    <div class="target" style="top: anchor(--a1 100%)"
+         data-offset-y="230"></div>
+
+    <div class="target" style="bottom: anchor(--a1 0%)"
+         data-offset-y="30"></div>
+    <div class="target" style="bottom: anchor(--a1 20%)"
+         data-offset-y="70"></div>
+    <div class="target" style="bottom: anchor(--a1 50%)"
+         data-offset-y="130"></div>
+    <div class="target" style="bottom: anchor(--a1 center)"
+         data-offset-y="130"></div>
+    <div class="target" style="bottom: anchor(--a1 80%)"
+         data-offset-y="190"></div>
+    <div class="target" style="bottom: anchor(--a1 100%)"
+         data-offset-y="230"></div>
+  </div>
+
+  <div class="vrl-rtl relpos">
+    <div class="spacer"></div>
+    <div id="anchor"></div>
+
+    <div class="target" style="left: anchor(--a1 0%)"
+         data-offset-x="170"></div>
+    <div class="target" style="left: anchor(--a1 100%)"
+         data-offset-x="70"></div>
+
+    <div class="target" style="right: anchor(--a1 0%)"
+         data-offset-x="170"></div>
+    <div class="target" style="right: anchor(--a1 100%)"
+         data-offset-x="70"></div>
+
+    <div class="target" style="top: anchor(--a1 0%)"
+         data-offset-y="220"></div>
+    <div class="target" style="top: anchor(--a1 100%)"
+         data-offset-y="20"></div>
+
+    <div class="target" style="bottom: anchor(--a1 0%)"
+         data-offset-y="220"></div>
+    <div class="target" style="bottom: anchor(--a1 100%)"
+         data-offset-y="20"></div>
+  </div>
+</body>

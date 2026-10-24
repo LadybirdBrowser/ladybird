@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 32 tests
+
+24 Pass
+8 Fail
+Pass	.target 1
+Pass	.target 2
+Pass	.target 3
+Pass	.target 4
+Pass	.target 5
+Pass	.target 6
+Pass	.target 7
+Pass	.target 8
+Pass	.target 9
+Pass	.target 10
+Pass	.target 11
+Pass	.target 12
+Pass	.target 13
+Pass	.target 14
+Pass	.target 15
+Pass	.target 16
+Pass	.target 17
+Pass	.target 18
+Pass	.target 19
+Pass	.target 20
+Pass	.target 21
+Pass	.target 22
+Pass	.target 23
+Pass	.target 24
+Fail	.target 25
+Fail	.target 26
+Fail	.target 27
+Fail	.target 28
+Fail	.target 29
+Fail	.target 30
+Fail	.target 31
+Fail	.target 32
