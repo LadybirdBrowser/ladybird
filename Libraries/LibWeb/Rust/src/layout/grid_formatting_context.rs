@@ -4556,6 +4556,7 @@ impl<'pass> GridFormattingContext<'pass> {
             inline_alignment: Some(abspos_alignment(self.abspos_item_alignment(node, Axis::Column))),
             block_alignment: Some(abspos_alignment(self.abspos_item_alignment(node, Axis::Row))),
             derives_from_own_computed_values: true,
+            is_position_area: false,
         }
     }
 }

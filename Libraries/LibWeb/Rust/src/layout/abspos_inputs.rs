@@ -56,6 +56,23 @@ pub(crate) struct AbsposContainingBlockInfo {
     pub(crate) inline_alignment: Option<AbsposAlignment>,
     pub(crate) block_alignment: Option<AbsposAlignment>,
     pub(crate) derives_from_own_computed_values: bool,
+    /// Whether a position area made this the box's containing block.
+    pub(crate) is_position_area: bool,
+}
+
+impl AbsposContainingBlockInfo {
+    /// Whether a position area or anchor-center aligns the box in the inline and the block axis.
+    /// https://drafts.csswg.org/css-anchor-position-1/#position-area
+    /// https://drafts.csswg.org/css-anchor-position-1/#anchor-center
+    pub(crate) fn anchor_aligned_axes(&self) -> (bool, bool) {
+        if self.is_position_area {
+            return (true, true);
+        }
+        (
+            self.inline_alignment == Some(AbsposAlignment::AnchorCenter),
+            self.block_alignment == Some(AbsposAlignment::AnchorCenter),
+        )
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

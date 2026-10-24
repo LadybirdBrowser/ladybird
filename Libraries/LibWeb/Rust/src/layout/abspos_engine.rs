@@ -298,6 +298,7 @@ impl<'pass> AbsposEngine<'pass> {
                 inline_alignment: None,
                 block_alignment: None,
                 derives_from_own_computed_values: false,
+                is_position_area: false,
             };
         }
 
@@ -317,6 +318,7 @@ impl<'pass> AbsposEngine<'pass> {
             inline_alignment: None,
             block_alignment: None,
             derives_from_own_computed_values: false,
+            is_position_area: false,
         }
     }
 }
@@ -884,6 +886,37 @@ impl AbsposEngine<'_> {
         resolved
     }
 
+    /// Zeroes the auto margins of `node` in the axes a position area or anchor-center aligns it in.
+    fn zero_aligned_auto_margins(
+        &self,
+        node: Node,
+        resolved: &mut style_values::ResolvedAnchorSizes,
+        containing_block_info: &abspos_inputs::AbsposContainingBlockInfo,
+    ) {
+        // https://drafts.csswg.org/css-anchor-position-1/#position-area
+        // The used value of any auto inset properties and auto margin properties resolves to 0.
+        // https://drafts.csswg.org/css-anchor-position-1/#anchor-center
+        // The used value of any auto inset properties and auto margin properties resolves to 0.
+        let (aligns_inline, aligns_block) = containing_block_info.anchor_aligned_axes();
+        if !aligns_inline && !aligns_block {
+            return;
+        }
+        let style = self.style(node);
+        let zero_if_auto = |margin: &ComputedLengthPercentageOrAuto, current: &mut Option<CssPixels>| {
+            if current.is_none() && margin.is_auto() {
+                *current = Some(CssPixels::default());
+            }
+        };
+        if aligns_inline {
+            zero_if_auto(style.margin_left(), &mut resolved.margin_left);
+            zero_if_auto(style.margin_right(), &mut resolved.margin_right);
+        }
+        if aligns_block {
+            zero_if_auto(style.margin_top(), &mut resolved.margin_top);
+            zero_if_auto(style.margin_bottom(), &mut resolved.margin_bottom);
+        }
+    }
+
     /// Makes the resolved anchor sizes of `inputs` visible to the style reads of `node` in this run's records.
     fn install_resolved_anchor_sizes(&self, node: Node, inputs: &abspos_inputs::AbsposLayoutInputs) {
         if inputs.resolved_anchor_sizes.is_empty() {
@@ -915,12 +948,14 @@ impl AbsposEngine<'_> {
         containing_block_info: &mut abspos_inputs::AbsposContainingBlockInfo,
     ) {
         let style = self.style(positioned_box).with_resolved_insets(resolved_anchor_insets);
+        // FIXME: Center an axis with exactly one auto inset too, within an inset-modified containing block that
+        //        treats that inset as 0.
+        let insets_are_both_auto_or_both_not =
+            |start: style_values::InsetValue<'_>, end: style_values::InsetValue<'_>| start.is_auto() == end.is_auto();
         let centers_inline = style.justify_self() == justify_self::ANCHOR_CENTER
-            && style.inset_left().is_auto()
-            && style.inset_right().is_auto();
+            && insets_are_both_auto_or_both_not(style.inset_left(), style.inset_right());
         let centers_block = style.align_self() == align_self::ANCHOR_CENTER
-            && style.inset_top().is_auto()
-            && style.inset_bottom().is_auto();
+            && insets_are_both_auto_or_both_not(style.inset_top(), style.inset_bottom());
         if (!centers_inline && !centers_block)
             || !style.has_position_anchor()
             || !self.facts(positioned_box).is_absolutely_positioned()
@@ -1123,6 +1158,7 @@ impl AbsposEngine<'_> {
         containing_block_info.block_alignment = Some(block_alignment);
 
         containing_block_info.derives_from_own_computed_values = true;
+        containing_block_info.is_position_area = true;
 
         let position_area_geometry = ContainingBlockGeometry {
             content_origin_in_entry_space: formatting_context::point_add(
@@ -2681,11 +2717,15 @@ impl<'pass> AbsposEngine<'pass> {
                 let margin_box_size = used.margin_box_inline_size(collapsed);
                 let available = containing_block_size.inline_size - start_inset - end_inset - margin_box_size;
                 let inset = match inline_alignment {
-                    // NB: By default, an anchor-centered box shifts to stay within its containing block.
-                    AbsposAlignment::AnchorCenter => Some(shift_into_containing_block(
-                        self.static_offset(node, inputs.static_position_rect).inline_offset,
-                        containing_block_size.inline_size - margin_box_size,
-                    )),
+                    // NB: By default, an anchor-centered box shifts to stay within its inset-modified containing
+                    //     block.
+                    AbsposAlignment::AnchorCenter => Some(
+                        start_inset
+                            + shift_into_containing_block(
+                                self.static_offset(node, inputs.static_position_rect).inline_offset - start_inset,
+                                available,
+                            ),
+                    ),
                     AbsposAlignment::Center => Some(start_inset + available / 2),
                     AbsposAlignment::Start => Some(start_inset),
                     AbsposAlignment::End => Some(start_inset + available),
@@ -2707,10 +2747,13 @@ impl<'pass> AbsposEngine<'pass> {
                 let margin_box_size = used.margin_box_block_size(collapsed);
                 let available = containing_block_size.block_size - start_inset - end_inset - margin_box_size;
                 let inset = match block_alignment {
-                    AbsposAlignment::AnchorCenter => Some(shift_into_containing_block(
-                        self.static_offset(node, inputs.static_position_rect).block_offset,
-                        containing_block_size.block_size - margin_box_size,
-                    )),
+                    AbsposAlignment::AnchorCenter => Some(
+                        start_inset
+                            + shift_into_containing_block(
+                                self.static_offset(node, inputs.static_position_rect).block_offset - start_inset,
+                                available,
+                            ),
+                    ),
                     AbsposAlignment::Center => Some(start_inset + available / 2),
                     AbsposAlignment::Start | AbsposAlignment::SelfStart => Some(start_inset),
                     AbsposAlignment::End | AbsposAlignment::SelfEnd => Some(start_inset + available),
@@ -2769,6 +2812,31 @@ impl<'pass> AbsposEngine<'pass> {
         };
         used_offset.inline_offset += used.margin_left.get() + used.border_box_left(collapsed);
         used_offset.block_offset += used.margin_top.get() + used.border_box_top(collapsed);
+        // https://drafts.csswg.org/css-anchor-position-1/#position-area
+        // The used value of any auto inset properties and auto margin properties resolves to 0.
+        // https://drafts.csswg.org/css-anchor-position-1/#anchor-center
+        // The used value of any auto inset properties and auto margin properties resolves to 0.
+        // NB: The box is aligned within its inset-modified containing block through its insets above. Now that it is
+        //     placed, its used insets go back to the values of its inset properties.
+        let (aligns_inline, aligns_block) = inputs.containing_block_info.anchor_aligned_axes();
+        if aligns_inline || aligns_block {
+            let style = self
+                .style(node)
+                .with_resolved_insets(inputs.resolved_anchor_insets.as_ref());
+            let containing_block_size = inputs.containing_block_info.rect.size;
+            if aligns_inline {
+                used.inset_left
+                    .set(style.inset_left().to_px(containing_block_size.inline_size));
+                used.inset_right
+                    .set(style.inset_right().to_px(containing_block_size.inline_size));
+            }
+            if aligns_block {
+                used.inset_top
+                    .set(style.inset_top().to_px(containing_block_size.block_size));
+                used.inset_bottom
+                    .set(style.inset_bottom().to_px(containing_block_size.block_size));
+            }
+        }
         let is_measurement = self.purpose.is_measurement();
         if !is_measurement {
             self.used(node).rare_data_mut().abspos_layout_inputs = Some(inputs);
@@ -2834,11 +2902,16 @@ impl<'pass> AbsposEngine<'pass> {
         )) = position_area_inputs
         {
             child.static_position_rect = static_position_rect;
-            let resolved_anchor_sizes = self.resolve_anchor_sizes(
+            let mut resolved_anchor_sizes = self.resolve_anchor_sizes(
                 child_box,
                 child.containing_block(),
                 &position_area_geometry,
                 child.coordinate_space_box,
+            );
+            self.zero_aligned_auto_margins(
+                child_box,
+                &mut resolved_anchor_sizes,
+                &position_area_containing_block_info,
             );
             let resolved = self.resolve_anchor_insets(
                 child_box,
@@ -2850,7 +2923,7 @@ impl<'pass> AbsposEngine<'pass> {
             let resolved = self.position_area_stretch_insets(child_box, resolved, stretches_inline, stretches_block);
             (position_area_containing_block_info, resolved, resolved_anchor_sizes)
         } else {
-            let resolved_anchor_sizes = self.resolve_anchor_sizes(
+            let mut resolved_anchor_sizes = self.resolve_anchor_sizes(
                 child_box,
                 child.containing_block(),
                 &containing_block_geometry,
@@ -2880,6 +2953,7 @@ impl<'pass> AbsposEngine<'pass> {
                 &mut child.static_position_rect,
                 &mut containing_block_info,
             );
+            self.zero_aligned_auto_margins(child_box, &mut resolved_anchor_sizes, &containing_block_info);
             (containing_block_info, resolved, resolved_anchor_sizes)
         };
         let inputs = abspos_inputs::AbsposLayoutInputs {

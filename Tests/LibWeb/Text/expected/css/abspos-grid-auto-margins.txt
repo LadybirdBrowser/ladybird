@@ -1,0 +1,2 @@
+a: offset=75,75 margin-left=75px margin-right=75px
+b: offset=125,0 margin-left=15px margin-right=15px

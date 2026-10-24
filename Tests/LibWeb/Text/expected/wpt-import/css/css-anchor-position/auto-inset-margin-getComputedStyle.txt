@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-6 Pass
-6 Fail
-Fail	position-area with valid anchor sets insets to zero
-Fail	justify-self: anchor-center  with valid anchor sets insets to zero
-Fail	align-self: anchor-center  with valid anchor sets insets to zero
+12 Pass
+Pass	position-area with valid anchor sets insets to zero
+Pass	justify-self: anchor-center  with valid anchor sets insets to zero
+Pass	align-self: anchor-center  with valid anchor sets insets to zero
 Pass	position-area with invalid anchor does not set insets to zero
 Pass	justify-self: anchor-center with invalid anchor does not set insets to zero
 Pass	align-self: anchor-center with invalid anchor does not set insets to zero
-Fail	position-area with valid anchor sets margins to zero
-Fail	justify-self: anchor-center  with valid anchor sets margins to zero
-Fail	align-self: anchor-center  with valid anchor sets margins to zero
+Pass	position-area with valid anchor sets margins to zero
+Pass	justify-self: anchor-center  with valid anchor sets margins to zero
+Pass	align-self: anchor-center  with valid anchor sets margins to zero
 Pass	position-area with invalid anchor does not set margins to zero
 Pass	justify-self: anchor-center with invalid anchor does not set margins to zero
 Pass	align-self: anchor-center with invalid anchor does not set margins to zero

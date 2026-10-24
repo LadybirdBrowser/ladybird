@@ -7138,6 +7138,7 @@ mod tests {
                 inline_alignment: None,
                 block_alignment: None,
                 derives_from_own_computed_values: true,
+                is_position_area: false,
             },
             resolved_anchor_insets: None,
             resolved_anchor_sizes: Default::default(),
