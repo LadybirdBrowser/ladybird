@@ -126,6 +126,11 @@ impl<T> OwnedArc<T> {
     pub(crate) fn into_arc(mut self) -> std::sync::Arc<T> {
         self.take().expect("C++ hands over a live object")
     }
+
+    /// The reference, or none where C++ handed over null.
+    pub(crate) fn into_option(mut self) -> Option<std::sync::Arc<T>> {
+        self.take()
+    }
 }
 
 impl<T> Drop for OwnedArc<T> {
