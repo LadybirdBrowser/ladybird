@@ -39,6 +39,7 @@ public:
     WebIDL::ExceptionOr<float> get_sub_string_length(WebIDL::UnsignedLong charnum, WebIDL::UnsignedLong nchars);
     GC::Ref<Geometry::DOMPoint> get_start_position_of_char(WebIDL::UnsignedLong charnum);
     WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_extent_of_char(WebIDL::UnsignedLong charnum);
+    WebIDL::Long get_char_num_at_position(Bindings::DOMPointInit const&);
 
 protected:
     SVGTextContentElement(DOM::Document&, DOM::QualifiedName);
