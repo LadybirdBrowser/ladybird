@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	enumerate a localStorage object with the key and get the values
+Pass	enumerate a sessionStorage object with the key and get the values

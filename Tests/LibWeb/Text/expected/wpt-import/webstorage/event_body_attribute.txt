@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	sessionStorage mutations fire StorageEvents that are caught by the event listener specified as an attribute on the body.
+Pass	localStorage mutations fire StorageEvents that are caught by the event listener specified as an attribute on the body.

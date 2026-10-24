@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	localStorage.key
+Pass	localStorage.key(0) should return the right thing.
+Pass	localStorage.key(4294967296) should return the right thing.
+Pass	localStorage.key(1) should return the right thing.
+Pass	localStorage.key(4294967297) should return the right thing.
+Pass	localStorage.key(2) should return the right thing.
+Pass	localStorage.key(4294967298) should return the right thing.
+Pass	localStorage.key(3) should return the right thing.
+Pass	localStorage.key(4294967299) should return the right thing.
+Pass	localStorage.key() should return null for out-of-range arguments.
+Pass	localStorage.key with value changes
+Pass	sessionStorage.key
+Pass	sessionStorage.key(0) should return the right thing.
+Pass	sessionStorage.key(4294967296) should return the right thing.
+Pass	sessionStorage.key(1) should return the right thing.
+Pass	sessionStorage.key(4294967297) should return the right thing.
+Pass	sessionStorage.key(2) should return the right thing.
+Pass	sessionStorage.key(4294967298) should return the right thing.
+Pass	sessionStorage.key(3) should return the right thing.
+Pass	sessionStorage.key(4294967299) should return the right thing.
+Pass	sessionStorage.key() should return null for out-of-range arguments.
+Pass	sessionStorage.key with value changes

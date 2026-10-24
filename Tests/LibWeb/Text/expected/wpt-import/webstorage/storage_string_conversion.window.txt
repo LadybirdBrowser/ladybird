@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	localStorage only stores strings
+Pass	sessionStorage only stores strings

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	A new noopener window to make sure there is a not copy of the previous window's sessionStorage

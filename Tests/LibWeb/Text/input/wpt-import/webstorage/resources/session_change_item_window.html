@@ -1,0 +1,19 @@
+<!DOCTYPE HTML>
+<html>
+<body>
+<script>
+if (('sessionStorage' in window) && window.sessionStorage !== null) {
+    try {
+        sessionStorage.setItem("name", "user1");
+        sessionStorage.setItem("name", "user2");
+    } catch (e) {
+        window.opener.postMessage({error: "setItem method is failed."}, '*');
+    }
+    sessionStorage.clear();
+} else {
+    window.opener.postMessage({error: "sessionStorage is not supported."}, '*');
+}
+window.opener.postMessage({done: true}, '*');
+</script>
+</body>
+</html>

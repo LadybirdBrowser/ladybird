@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	ensure that re-opening a named window doesn't copy sessionStorage

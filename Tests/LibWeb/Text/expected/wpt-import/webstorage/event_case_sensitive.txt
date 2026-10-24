@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	sessionStorage storage events fire even when only the case of the value changes.
+Pass	localStorage storage events fire even when only the case of the value changes.

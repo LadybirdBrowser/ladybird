@@ -1,0 +1,34 @@
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <title>WebStorage Test: localStorage event - window open oldValue</title>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+ </head>
+ <body>
+    <h1>event_local_window_open_oldValue</h1>
+    <div id="log"></div>
+    <script>
+        async_test(function(t) {
+            localStorage.clear();
+            t.add_cleanup(function() { localStorage.clear(); });
+
+            // The opened window does setItem("name", "user1"), then
+            // setItem("name", "user2"), then clear(). The clear() event has
+            // oldValue == null, so the expected sequence is null -> user1 -> null.
+            var expected = [null, 'user1', null];
+            function onStorageEvent(event) {
+                assert_equals(event.oldValue, expected.shift());
+                if (!expected.length) {
+                    t.done();
+                }
+            }
+
+            window.addEventListener('storage', t.step_func(onStorageEvent), false);
+
+            var win = window.open("resources/local_change_item_window.html");
+            t.add_cleanup(function() { win.close(); });
+        }, "oldValue property test of local event from window.open() - Local event is fired due to an invocation of the setItem(), clear() methods.");
+    </script>
+ </body>
+</html>
