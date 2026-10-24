@@ -118,6 +118,7 @@ RENDER_STATE_ALLOWED = {
             "css/style/mod.rs:SELECTOR_TRUTH_DERIVATION",
             "css/style/mod.rs:STYLE_ANSWER_PATCH",
             "css/style/mod.rs:STYLE_PLAN_PROVENANCE",
+            "layout/run_repeatability.rs:ENABLED",
             "layout/run_repeatability.rs:VERIFICATION",
             "render_state/clock/hover.rs:LOGS",
         ],

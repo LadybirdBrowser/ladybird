@@ -251,47 +251,49 @@ impl<'a> PaintableCommit<'a> {
         let mut inline_content_unchanged = false;
         let mut inline_item_order_unchanged = false;
         let mut child_sequence_unchanged = false;
-        let (old_identity, old_content_size) = self.arena().with_committed_fragment_link(node, |old_link| {
-            old_link.map_or((0, used_values::FfiCssPixelSize::default()), |old_link| {
-                let previous = &old_link.fragment;
-                if reuses_committed_subtree || previous.identity == fragment.identity {
-                    root_box_unchanged =
-                        std::sync::Arc::ptr_eq(fragment, previous) || fragment.has_same_box_properties(previous);
-                    own_paint_unchanged = root_box_unchanged;
-                    child_placements_unchanged = true;
-                    inline_content_unchanged = true;
-                    inline_item_order_unchanged = true;
-                    child_sequence_unchanged = true;
-                } else {
-                    inline_content_unchanged = same_inline_content(fragment, previous);
-                    inline_item_order_unchanged = inline_content_unchanged
-                        || match (&fragment.line_data, &previous.line_data) {
-                            (Some(left), Some(right)) => left.has_same_item_order(right),
-                            _ => false,
-                        };
-                    own_paint_unchanged = inline_content_unchanged
-                        && fragment.has_same_box_properties(previous)
-                        && !has_descendant_dependent_paint(self.arena(), node);
-                    child_placements_unchanged = fragment.has_same_child_placements(previous);
-                    child_sequence_unchanged = fragment.has_same_child_sequence(previous);
-                }
-                own_paint_unchanged &= old_link.has_same_placement(link);
-                (
-                    old_link.fragment.identity,
-                    frame.size_to_physical(
-                        old_link.fragment.content_inline_size,
-                        old_link.fragment.content_block_size,
-                    ),
-                )
-            })
-        });
+        let (old_identity, old_content_size, old_content_inline_size) =
+            self.arena().with_committed_fragment_link(node, |old_link| {
+                old_link.map_or((0, used_values::FfiCssPixelSize::default(), None), |old_link| {
+                    let previous = &old_link.fragment;
+                    if reuses_committed_subtree || previous.identity == fragment.identity {
+                        root_box_unchanged =
+                            std::sync::Arc::ptr_eq(fragment, previous) || fragment.has_same_box_properties(previous);
+                        own_paint_unchanged = root_box_unchanged;
+                        child_placements_unchanged = true;
+                        inline_content_unchanged = true;
+                        inline_item_order_unchanged = true;
+                        child_sequence_unchanged = true;
+                    } else {
+                        inline_content_unchanged = same_inline_content(fragment, previous);
+                        inline_item_order_unchanged = inline_content_unchanged
+                            || match (&fragment.line_data, &previous.line_data) {
+                                (Some(left), Some(right)) => left.has_same_item_order(right),
+                                _ => false,
+                            };
+                        own_paint_unchanged = inline_content_unchanged
+                            && fragment.has_same_box_properties(previous)
+                            && !has_descendant_dependent_paint(self.arena(), node);
+                        child_placements_unchanged = fragment.has_same_child_placements(previous);
+                        child_sequence_unchanged = fragment.has_same_child_sequence(previous);
+                    }
+                    own_paint_unchanged &= old_link.has_same_placement(link);
+                    (
+                        old_link.fragment.identity,
+                        frame.size_to_physical(
+                            old_link.fragment.content_inline_size,
+                            old_link.fragment.content_block_size,
+                        ),
+                        Some(old_link.fragment.content_inline_size),
+                    )
+                })
+            });
         if old_content_size != new_content_size {
             if self.arena().data(node).kind.get() == NodeKind::Viewport {
                 self.arena().set_needs_full_scrollable_overflow_recalculation();
             }
             assert!(
-                !reuses_committed_subtree,
-                "a reused committed subtree changed its content size"
+                !reuses_committed_subtree || old_content_inline_size == Some(fragment.content_inline_size),
+                "a reused committed subtree changed its content inline size"
             );
             content_size_change = Some((old_content_size, new_content_size));
         }

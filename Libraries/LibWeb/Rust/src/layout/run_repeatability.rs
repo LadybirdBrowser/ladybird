@@ -8,6 +8,9 @@
 //! no memoized layout from before it, keeps none after it, and its result is discarded; the second is the run itself.
 //! Both have to agree on everything the run hands its parent, which shows that a run depends on nothing but its input
 //! and the state of the pass, and that what it reads from memoized layout is what it would have computed.
+//!
+//! With LIBWEB_VERIFY_UNOBSERVED_BLOCK_SIZE, every run that claims it never observed its own block size is laid out
+//! again the same way, at the other definiteness of that size and with extra space, and has to agree with the run too.
 
 use super::*;
 
@@ -56,77 +59,181 @@ pub(super) fn verify_repeated_run(
     discarded: &formatting_context::RunOutputs,
     used: &formatting_context::RunOutputs,
 ) {
-    assert_eq!(
-        used.result, discarded.result,
-        "the run of {box_:?} returned a result its discarded repetition does not"
-    );
-    assert_eq!(
-        used.root_outcome.cells, discarded.root_outcome.cells,
-        "the run of {box_:?} left a root record its discarded repetition does not"
-    );
-    assert_eq!(
-        used.root_outcome.own_metrics_sealed, discarded.root_outcome.own_metrics_sealed,
-        "the run of {box_:?} seals the root's metrics unlike its discarded repetition"
-    );
-    assert!(
-        used.root_outcome.line_data.as_deref() == discarded.root_outcome.line_data.as_deref(),
-        "the run of {box_:?} left line data its discarded repetition does not"
-    );
-    assert!(
-        rare_payloads_match(
-            used.root_outcome.rare.as_deref(),
-            discarded.root_outcome.rare.as_deref()
-        ),
-        "the run of {box_:?} left rare payloads its discarded repetition does not"
-    );
-    assert_eq!(
-        used.atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
-        discarded.atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
-        "the run of {box_:?} claims an available inline size threshold its discarded repetition does not"
-    );
-    assert!(
-        host_findings_match(used.host_findings.as_deref(), discarded.host_findings.as_deref()),
-        "the run of {box_:?} found out for the host what its discarded repetition does not"
-    );
-    let (used_root, discarded_root) = match (&used.root, &discarded.root) {
-        (None, None) => return,
-        (Some(used_root), Some(discarded_root)) => (used_root, discarded_root),
-        _ => panic!("the run of {box_:?} and its discarded repetition do not both build fragments"),
-    };
-    assert!(
-        discarded_root.reused_subtree_roots.is_empty(),
-        "the discarded repetition of the run of {box_:?} reused a subtree"
-    );
-    assert!(
-        same_elements_in_any_order(
-            &used_root.propagated_pending_abspos,
-            &discarded_root.propagated_pending_abspos
-        ) && same_elements_in_any_order(
-            &used_root.propagated_anchor_candidates,
-            &discarded_root.propagated_anchor_candidates
-        ) && same_elements_in_any_order(
-            &used_root.propagated_inline_containing_block_rects,
-            &discarded_root.propagated_inline_containing_block_rects
-        ) && same_elements_in_any_order(
-            &used_root.propagated_abspos_containing_block_info,
-            &discarded_root.propagated_abspos_containing_block_info
-        ),
-        "the run of {box_:?} propagates payloads its discarded repetition does not"
-    );
-    let mut nodes_laid_out_afresh = HashSet::default();
-    collect_nodes_of_fragment_subtrees(&discarded_root.scoped_descendants, &mut nodes_laid_out_afresh);
-    let comparison = FreshDescendantComparison {
-        callbacks,
-        reused_subtree_roots: &used_root.reused_subtree_roots,
-        nodes_laid_out_afresh,
-    };
-    if let Err(difference) = comparison.compare_children(
-        box_,
-        &used_root.scoped_descendants,
-        &discarded_root.scoped_descendants,
-        false,
+    ComparedLayouts {
+        checked: &format!("the run of {box_:?}"),
+        reference: "its discarded repetition",
+    }
+    .verify(callbacks, box_, used, discarded);
+}
+
+fn unobserved_own_block_size_verification_is_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("LIBWEB_VERIFY_UNOBSERVED_BLOCK_SIZE").is_some())
+}
+
+fn root_inputs_at_other_own_block_sizes(
+    root_cells: used_values::RootInputCells,
+    input: LayoutInput,
+    result: &formatting_context::ChildLayoutResult,
+) -> Vec<(used_values::RootInputCells, LayoutInput)> {
+    if result.own_block_size_observation == formatting_context::OwnBlockSizeObservation::Observed
+        || root_cells.has_content_offset
+        || input.available_space.block_size.is_intrinsic_sizing_constraint()
+    {
+        return Vec::new();
+    }
+    let mut other_definite_own_block_sizes = Vec::new();
+    if root_cells.has_definite_block_size {
+        other_definite_own_block_sizes.push(None);
+    }
+    let definite_block_size_with_extra_space_beyond_assigned_and_automatic_sizes =
+        root_cells.content_block_size.max(result.automatic_content_block_size) + CssPixels::from_integer(50);
+    if definite_block_size_with_extra_space_beyond_assigned_and_automatic_sizes.raw_value() != i32::MAX {
+        other_definite_own_block_sizes.push(Some(
+            definite_block_size_with_extra_space_beyond_assigned_and_automatic_sizes,
+        ));
+    }
+    other_definite_own_block_sizes
+        .into_iter()
+        .map(|definite_own_block_size| {
+            let cells = used_values::RootInputCells {
+                content_block_size: definite_own_block_size.unwrap_or_default(),
+                has_definite_block_size: definite_own_block_size.is_some(),
+                ..root_cells
+            };
+            let mut input = input;
+            input.available_space.block_size =
+                definite_own_block_size.map_or(AvailableSize::Indefinite, AvailableSize::definite);
+            (cells, input)
+        })
+        .collect()
+}
+
+pub(super) fn verify_run_ignores_its_unobserved_own_block_size(
+    callbacks: &LayoutPass<'_>,
+    box_: Node,
+    root_cells: used_values::RootInputCells,
+    input: LayoutInput,
+    outputs: &formatting_context::RunOutputs,
+    lay_out: impl Fn(used_values::RootInputCells, LayoutInput) -> formatting_context::RunOutputs,
+) {
+    if !unobserved_own_block_size_verification_is_enabled() || callbacks.scratch().reads_no_memoized_layout() {
+        return;
+    }
+    let checked = format!("the run of {box_:?}, which never observed its own block size,");
+    for (cells_at_other_own_block_size, input_at_other_own_block_size) in
+        root_inputs_at_other_own_block_sizes(root_cells, input, &outputs.result)
+    {
+        let outputs_at_other_own_block_size = callbacks.arena().layout_trace.without_events(|| {
+            callbacks
+                .scratch()
+                .lay_out_discarded_run(|| lay_out(cells_at_other_own_block_size, input_at_other_own_block_size))
+        });
+        let reference = if cells_at_other_own_block_size.has_definite_block_size {
+            format!(
+                "its layout at the definite block size {:?}",
+                cells_at_other_own_block_size.content_block_size
+            )
+        } else {
+            "its layout at an indefinite block size".to_owned()
+        };
+        ComparedLayouts {
+            checked: &checked,
+            reference: &reference,
+        }
+        .verify(callbacks, box_, outputs, &outputs_at_other_own_block_size);
+    }
+}
+
+struct ComparedLayouts<'a> {
+    checked: &'a str,
+    reference: &'a str,
+}
+
+impl ComparedLayouts<'_> {
+    fn verify(
+        &self,
+        callbacks: &LayoutPass<'_>,
+        box_: Node,
+        checked_outputs: &formatting_context::RunOutputs,
+        reference_outputs: &formatting_context::RunOutputs,
     ) {
-        panic!("the run of {box_:?} lays out descendants unlike its discarded repetition: {difference}");
+        let Self { checked, reference } = self;
+        assert_eq!(
+            checked_outputs.result, reference_outputs.result,
+            "{checked} returned a result {reference} does not"
+        );
+        assert_eq!(
+            checked_outputs.root_outcome.cells, reference_outputs.root_outcome.cells,
+            "{checked} left a root record {reference} does not"
+        );
+        assert_eq!(
+            checked_outputs.root_outcome.own_metrics_sealed, reference_outputs.root_outcome.own_metrics_sealed,
+            "{checked} seals the root's metrics unlike {reference}"
+        );
+        assert!(
+            checked_outputs.root_outcome.line_data.as_deref() == reference_outputs.root_outcome.line_data.as_deref(),
+            "{checked} left line data {reference} does not"
+        );
+        assert!(
+            rare_payloads_match(
+                checked_outputs.root_outcome.rare.as_deref(),
+                reference_outputs.root_outcome.rare.as_deref()
+            ),
+            "{checked} left rare payloads {reference} does not"
+        );
+        assert_eq!(
+            checked_outputs.atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+            reference_outputs.atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+            "{checked} claims an available inline size threshold {reference} does not"
+        );
+        assert!(
+            host_findings_match(
+                checked_outputs.host_findings.as_deref(),
+                reference_outputs.host_findings.as_deref()
+            ),
+            "{checked} found out for the host what {reference} does not"
+        );
+        let (checked_root, reference_root) = match (&checked_outputs.root, &reference_outputs.root) {
+            (None, None) => return,
+            (Some(checked_root), Some(reference_root)) => (checked_root, reference_root),
+            _ => panic!("{checked} and {reference} do not both build fragments"),
+        };
+        assert!(
+            reference_root.reused_subtree_roots.is_empty(),
+            "{checked}: {reference} reused a subtree"
+        );
+        assert!(
+            same_elements_in_any_order(
+                &checked_root.propagated_pending_abspos,
+                &reference_root.propagated_pending_abspos
+            ) && same_elements_in_any_order(
+                &checked_root.propagated_anchor_candidates,
+                &reference_root.propagated_anchor_candidates
+            ) && same_elements_in_any_order(
+                &checked_root.propagated_inline_containing_block_rects,
+                &reference_root.propagated_inline_containing_block_rects
+            ) && same_elements_in_any_order(
+                &checked_root.propagated_abspos_containing_block_info,
+                &reference_root.propagated_abspos_containing_block_info
+            ),
+            "{checked} propagates payloads {reference} does not"
+        );
+        let mut nodes_laid_out_afresh = HashSet::default();
+        collect_nodes_of_fragment_subtrees(&reference_root.scoped_descendants, &mut nodes_laid_out_afresh);
+        let comparison = FreshDescendantComparison {
+            callbacks,
+            reused_subtree_roots: &checked_root.reused_subtree_roots,
+            nodes_laid_out_afresh,
+        };
+        if let Err(difference) = comparison.compare_children(
+            box_,
+            &checked_root.scoped_descendants,
+            &reference_root.scoped_descendants,
+            false,
+        ) {
+            panic!("{checked} lays out descendants unlike {reference}: {difference}");
+        }
     }
 }
 
@@ -377,4 +484,101 @@ fn describe_placement(link: &fragment_tree::FragmentLink) -> String {
             "absent"
         }
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn px(value: i64) -> CssPixels {
+        CssPixels::from_integer(value)
+    }
+
+    fn item_root_inputs(
+        content_block_size: i64,
+        has_definite_block_size: bool,
+    ) -> (used_values::RootInputCells, LayoutInput) {
+        let record = UsedValues::default();
+        record.content_block_size.set(px(content_block_size));
+        record.has_definite_block_size.set(has_definite_block_size);
+        let input = LayoutInput::new(
+            AvailableSpace {
+                inline_size: AvailableSize::definite(px(300)),
+                block_size: if has_definite_block_size {
+                    AvailableSize::definite(px(content_block_size))
+                } else {
+                    AvailableSize::Indefinite
+                },
+            },
+            ContainingBlockConstraints::default(),
+            ParticipationInParentFormattingContext::Item,
+        );
+        (used_values::RootInputCells::capture(&record), input)
+    }
+
+    fn result_observing(
+        observation: formatting_context::OwnBlockSizeObservation,
+        automatic_content_block_size: i64,
+    ) -> formatting_context::ChildLayoutResult {
+        formatting_context::ChildLayoutResult {
+            automatic_content_block_size: px(automatic_content_block_size),
+            own_block_size_observation: observation,
+            ..formatting_context::ChildLayoutResult::default()
+        }
+    }
+
+    fn own_block_sizes_verified_from(
+        (root_cells, input): (used_values::RootInputCells, LayoutInput),
+        automatic_content_block_size: i64,
+    ) -> Vec<Option<CssPixels>> {
+        root_inputs_at_other_own_block_sizes(
+            root_cells,
+            input,
+            &result_observing(
+                formatting_context::OwnBlockSizeObservation::Unobserved,
+                automatic_content_block_size,
+            ),
+        )
+        .into_iter()
+        .map(|(cells, input)| {
+            assert_eq!(
+                cells.has_definite_block_size,
+                matches!(input.available_space.block_size, AvailableSize::Definite(_))
+            );
+            cells.has_definite_block_size.then_some(cells.content_block_size)
+        })
+        .collect()
+    }
+
+    #[test]
+    fn an_unobserved_own_block_size_is_verified_at_the_other_definiteness_and_with_extra_space() {
+        let (root_cells, input) = item_root_inputs(40, false);
+        assert!(
+            root_inputs_at_other_own_block_sizes(
+                root_cells,
+                input,
+                &result_observing(formatting_context::OwnBlockSizeObservation::Observed, 40)
+            )
+            .is_empty()
+        );
+        assert_eq!(
+            own_block_sizes_verified_from(item_root_inputs(40, false), 40),
+            [Some(px(90))]
+        );
+        assert_eq!(
+            own_block_sizes_verified_from(item_root_inputs(20, false), 40),
+            [Some(px(90))]
+        );
+        assert_eq!(
+            own_block_sizes_verified_from(item_root_inputs(40, true), 40),
+            [None, Some(px(90))],
+            "a stretched run whose content fills it exactly is also verified where extra space is left"
+        );
+        let (mut saturated_cells, saturated_input) = item_root_inputs(40, true);
+        saturated_cells.content_block_size = CssPixels::from_raw(i32::MAX);
+        assert_eq!(
+            own_block_sizes_verified_from((saturated_cells, saturated_input), 40),
+            [None]
+        );
+    }
 }

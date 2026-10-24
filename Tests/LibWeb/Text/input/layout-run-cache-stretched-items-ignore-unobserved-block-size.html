@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; }
+    #flex { display: flex; height: 40px; }
+    #grid { display: grid; grid-auto-flow: column; grid-auto-columns: 40px; height: 40px; }
+    .item { width: 40px; }
+    .box { width: 20px; height: 20px; }
+    .half { height: 50%; }
+    .vertical-lr { writing-mode: vertical-lr; }
+    .vertical-rl { writing-mode: vertical-rl; }
+    .vertical-flex { display: flex; width: 40px; height: 40px; }
+    .vertical-grid { display: grid; grid-auto-flow: column; grid-auto-columns: 40px; width: 40px; height: 40px; }
+    .vertical-item { height: 40px; }
+</style>
+<div id="flex"><div class="item" id="flexPlain"><div class="box"></div></div><div class="item" id="flexPercentage"><div class="half" id="flexHalf"></div></div></div>
+<div id="grid"><div class="item" id="gridPlain"><div class="box"></div></div><div class="item" id="gridPercentage"><div class="half" id="gridHalf"></div></div></div>
+<div class="vertical-flex vertical-lr" id="verticalLrFlex"><div class="vertical-item" id="verticalLrFlexItem"><div class="box"></div></div></div>
+<div class="vertical-flex vertical-rl" id="verticalRlFlex"><div class="vertical-item" id="verticalRlFlexItem"><div class="box" id="verticalRlFlexBox"></div></div></div>
+<div class="vertical-grid vertical-lr" id="verticalLrGrid"><div class="vertical-item" id="verticalLrGridItem"><div class="box"></div></div></div>
+<script>
+    layoutTest({
+        steps: [
+            {
+                name: "a taller flex line stretches its items again",
+                mutate: () => {
+                    flex.style.height = "80px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#flex/flex RUN (cache=miss)
+                            BlockContainer<DIV>#flexPlain.item/block REUSE SUBTREE
+                            BlockContainer<DIV>#flexPercentage.item/block RUN (cache=miss)
+                          Box<DIV>#grid/grid REUSE SUBTREE
+                          Box<DIV>#verticalLrFlex.vertical-flex.vertical-lr/flex REUSE SUBTREE
+                          Box<DIV>#verticalRlFlex.vertical-flex.vertical-rl/flex REUSE SUBTREE
+                          Box<DIV>#verticalLrGrid.vertical-grid.vertical-lr/grid REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(flexPlain.getBoundingClientRect().height, 80, "plain item height");
+                    equal(flexPercentage.getBoundingClientRect().height, 80, "percentage item height");
+                    equal(flexHalf.getBoundingClientRect().height, 40, "percentage child height");
+                },
+            },
+            {
+                name: "a flex line that grows again stretches its items once more",
+                mutate: () => {
+                    flex.style.height = "120px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#flex/flex RUN (cache=miss)
+                            BlockContainer<DIV>#flexPlain.item/block REUSE SUBTREE
+                            BlockContainer<DIV>#flexPercentage.item/block RUN (cache=miss)
+                          Box<DIV>#grid/grid REUSE SUBTREE
+                          Box<DIV>#verticalLrFlex.vertical-flex.vertical-lr/flex REUSE SUBTREE
+                          Box<DIV>#verticalRlFlex.vertical-flex.vertical-rl/flex REUSE SUBTREE
+                          Box<DIV>#verticalLrGrid.vertical-grid.vertical-lr/grid REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(flexPlain.getBoundingClientRect().height, 120, "plain item height");
+                    equal(flexPercentage.getBoundingClientRect().height, 120, "percentage item height");
+                    equal(flexHalf.getBoundingClientRect().height, 60, "percentage child height");
+                },
+            },
+            {
+                name: "a taller grid row stretches its items again",
+                mutate: () => {
+                    grid.style.height = "80px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#flex/flex REUSE SUBTREE
+                          Box<DIV>#grid/grid RUN (cache=miss)
+                            BlockContainer<DIV>#gridPlain.item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#gridPlain.item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#gridPlain.item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#gridPercentage.item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#gridPercentage.item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#gridPercentage.item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#gridPlain.item/block REUSE SUBTREE
+                            BlockContainer<DIV>#gridPercentage.item/block RUN (cache=miss)
+                          Box<DIV>#verticalLrFlex.vertical-flex.vertical-lr/flex REUSE SUBTREE
+                          Box<DIV>#verticalRlFlex.vertical-flex.vertical-rl/flex REUSE SUBTREE
+                          Box<DIV>#verticalLrGrid.vertical-grid.vertical-lr/grid REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(gridPlain.getBoundingClientRect().height, 80, "plain item height");
+                    equal(gridPercentage.getBoundingClientRect().height, 80, "percentage item height");
+                    equal(gridHalf.getBoundingClientRect().height, 40, "percentage child height");
+                },
+            },
+            {
+                name: "a grid row that grows again stretches its items once more",
+                mutate: () => {
+                    grid.style.height = "120px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#flex/flex REUSE SUBTREE
+                          Box<DIV>#grid/grid RUN (cache=miss)
+                            BlockContainer<DIV>#gridPlain.item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#gridPlain.item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#gridPlain.item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#gridPercentage.item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#gridPercentage.item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#gridPercentage.item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#gridPlain.item/block REUSE SUBTREE
+                            BlockContainer<DIV>#gridPercentage.item/block RUN (cache=miss)
+                          Box<DIV>#verticalLrFlex.vertical-flex.vertical-lr/flex REUSE SUBTREE
+                          Box<DIV>#verticalRlFlex.vertical-flex.vertical-rl/flex REUSE SUBTREE
+                          Box<DIV>#verticalLrGrid.vertical-grid.vertical-lr/grid REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(gridPlain.getBoundingClientRect().height, 120, "plain item height");
+                    equal(gridPercentage.getBoundingClientRect().height, 120, "percentage item height");
+                    equal(gridHalf.getBoundingClientRect().height, 60, "percentage child height");
+                },
+            },
+            {
+                name: "a wider vertical-lr flex line stretches its item again",
+                mutate: () => {
+                    verticalLrFlex.style.width = "80px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#flex/flex REUSE SUBTREE
+                          Box<DIV>#grid/grid REUSE SUBTREE
+                          Box<DIV>#verticalLrFlex.vertical-flex.vertical-lr/flex RUN (cache=miss)
+                            BlockContainer<DIV>#verticalLrFlexItem.vertical-item/block RUN (cache=miss)
+                          Box<DIV>#verticalRlFlex.vertical-flex.vertical-rl/flex REUSE SUBTREE
+                          Box<DIV>#verticalLrGrid.vertical-grid.vertical-lr/grid REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(verticalLrFlexItem.getBoundingClientRect().width, 80, "vertical-lr flex item width");
+                },
+            },
+            {
+                name: "a wider vertical-rl flex line stretches its item again and keeps its content at the block start",
+                mutate: () => {
+                    verticalRlFlex.style.width = "80px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#flex/flex REUSE SUBTREE
+                          Box<DIV>#grid/grid REUSE SUBTREE
+                          Box<DIV>#verticalLrFlex.vertical-flex.vertical-lr/flex REUSE SUBTREE
+                          Box<DIV>#verticalRlFlex.vertical-flex.vertical-rl/flex RUN (cache=miss)
+                            BlockContainer<DIV>#verticalRlFlexItem.vertical-item/block RUN (cache=miss)
+                          Box<DIV>#verticalLrGrid.vertical-grid.vertical-lr/grid REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(verticalRlFlexItem.getBoundingClientRect().width, 80, "vertical-rl flex item width");
+                    equal(verticalRlFlexBox.getBoundingClientRect().right, verticalRlFlexItem.getBoundingClientRect().right, "vertical-rl content right edge");
+                },
+            },
+            {
+                name: "a wider vertical-lr grid row stretches its item again",
+                mutate: () => {
+                    verticalLrGrid.style.width = "80px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#flex/flex REUSE SUBTREE
+                          Box<DIV>#grid/grid REUSE SUBTREE
+                          Box<DIV>#verticalLrFlex.vertical-flex.vertical-lr/flex REUSE SUBTREE
+                          Box<DIV>#verticalRlFlex.vertical-flex.vertical-rl/flex REUSE SUBTREE
+                          Box<DIV>#verticalLrGrid.vertical-grid.vertical-lr/grid RUN (cache=miss)
+                            BlockContainer<DIV>#verticalLrGridItem.vertical-item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#verticalLrGridItem.vertical-item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#verticalLrGridItem.vertical-item MEASURE max-content block (cache=hit)
+                            BlockContainer<DIV>#verticalLrGridItem.vertical-item/block RUN (cache=miss)
+                `,
+                check: equal => {
+                    equal(verticalLrGridItem.getBoundingClientRect().width, 80, "vertical-lr grid item width");
+                },
+            },
+        ],
+    });
+</script>

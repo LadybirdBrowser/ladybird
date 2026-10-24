@@ -172,6 +172,10 @@ impl<'pass> SizingContext<'pass> {
         }
     }
 
+    pub(super) fn callbacks(&self) -> &LayoutPass<'pass> {
+        &self.callbacks
+    }
+
     #[inline]
     pub(super) fn facts(&self, node: Node) -> NodeFacts<'_> {
         NodeFacts::new(&self.callbacks, node)

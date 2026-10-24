@@ -25,6 +25,7 @@ pub(super) struct RunInputsTheStoredRunNeverObserved {
     pub(super) percentage_block_basis_and_block_size_definiteness: bool,
     pub(super) definite_available_inline_sizes_at_or_above: Option<CssPixels>,
     pub(super) percentage_inline_basis: bool,
+    pub(super) own_block_size: formatting_context::OwnBlockSizeObservation,
 }
 
 impl RunInputsTheStoredRunNeverObserved {
@@ -36,6 +37,7 @@ impl RunInputsTheStoredRunNeverObserved {
             percentage_inline_basis: outputs
                 .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above
                 .is_some(),
+            own_block_size: outputs.result.own_block_size_observation,
         }
     }
 
@@ -45,6 +47,7 @@ impl RunInputsTheStoredRunNeverObserved {
         Self {
             definite_available_inline_sizes_at_or_above: None,
             percentage_inline_basis: false,
+            own_block_size: formatting_context::OwnBlockSizeObservation::Observed,
             ..Self::proven_by_stored_run(outputs)
         }
     }
@@ -54,10 +57,35 @@ impl RunInputsTheStoredRunNeverObserved {
             percentage_block_basis_and_block_size_definiteness,
             definite_available_inline_sizes_at_or_above,
             percentage_inline_basis,
+            own_block_size,
         } = self;
         percentage_block_basis_and_block_size_definiteness
             || definite_available_inline_sizes_at_or_above.is_some()
             || percentage_inline_basis
+            || own_block_size != formatting_context::OwnBlockSizeObservation::Observed
+    }
+
+    fn available_block_size_definiteness(self) -> bool {
+        self.percentage_block_basis_and_block_size_definiteness
+            || self.own_block_size != formatting_context::OwnBlockSizeObservation::Observed
+    }
+}
+
+fn root_input_cells_match_ignoring_unobserved_own_block_size(
+    stored: used_values::RootInputCells,
+    probe: used_values::RootInputCells,
+    own_block_size: formatting_context::OwnBlockSizeObservation,
+) -> bool {
+    match own_block_size {
+        formatting_context::OwnBlockSizeObservation::Observed => stored == probe,
+        formatting_context::OwnBlockSizeObservation::Unobserved => {
+            let without_own_block_size = |cells| used_values::RootInputCells {
+                content_block_size: CssPixels::default(),
+                has_definite_block_size: false,
+                ..cells
+            };
+            without_own_block_size(stored) == without_own_block_size(probe)
+        }
     }
 }
 
@@ -108,7 +136,11 @@ impl FcRunCacheKey {
         }
         self.fc_type == probe.fc_type
             && self.layout_mode == probe.layout_mode
-            && self.root_cells == probe.root_cells
+            && root_input_cells_match_ignoring_unobserved_own_block_size(
+                self.root_cells,
+                probe.root_cells,
+                unobserved.own_block_size,
+            )
             && layout_inputs_match_ignoring_unobserved(&self.input, &probe.input, unobserved)
     }
 }
@@ -159,14 +191,14 @@ fn layout_inputs_match_ignoring_unobserved(
         && available_block_sizes_match(
             available_space.block_size,
             b.available_space.block_size,
-            unobserved.percentage_block_basis_and_block_size_definiteness,
+            unobserved.available_block_size_definiteness(),
         )
         && inline_bases_match
         && block_bases_match
         && sizing_directives_match_ignoring_unobserved(
             &sizing,
             &b.sizing,
-            unobserved.percentage_block_basis_and_block_size_definiteness,
+            unobserved.available_block_size_definiteness(),
         )
 }
 
@@ -262,9 +294,9 @@ pub(super) struct FcRunCacheHit {
 
 impl FcRunCacheEntry {
     /// Whether the committed fragment of `box_` and every fragment committed in its subtree are the ones the stored run
-    /// produced: the root's fragment shows the stored line data at the stored content size, and each fragment the run
-    /// placed in its own scope is the box's committed fragment, placed as the run placed it. A fragment that was
-    /// committed holds the fragments committed below it.
+    /// produced: the root's fragment shows the stored line data at the stored content size, or at any block size where
+    /// the stored run never observed its own, and each fragment the run placed in its own scope is the box's committed
+    /// fragment, placed as the run placed it. A fragment that was committed holds the fragments committed below it.
     pub(super) fn describes_committed_subtree(&self, arena: &LayoutNodeArena, box_: Node) -> bool {
         let Some(root) = self.outputs.root.as_ref() else {
             return false;
@@ -282,7 +314,9 @@ impl FcRunCacheEntry {
                     fragment.line_data.as_ref(),
                     self.outputs.root_outcome.line_data.as_ref(),
                 ) && fragment.content_inline_size == content_inline_size
-                    && fragment.content_block_size == content_block_size
+                    && (fragment.content_block_size == content_block_size
+                        || self.outputs.result.own_block_size_observation
+                            == formatting_context::OwnBlockSizeObservation::Unobserved)
             })
             .unwrap_or(false);
         root_fragment_is_the_stored_one
@@ -765,6 +799,10 @@ pub(super) enum FcRunCacheAttempt {
 }
 
 impl FcRunCacheAttempt {
+    pub(super) fn stores_outputs(&self) -> bool {
+        !matches!(self, Self::Bypass)
+    }
+
     pub(super) fn trace_action(&self) -> &'static str {
         match self {
             Self::Bypass => "RUN (cache=bypass)",
@@ -1006,9 +1044,9 @@ mod tests {
 
     fn inline_inputs_unobserved_at_or_above(threshold: i64) -> RunInputsTheStoredRunNeverObserved {
         RunInputsTheStoredRunNeverObserved {
-            percentage_block_basis_and_block_size_definiteness: false,
             definite_available_inline_sizes_at_or_above: Some(px(threshold)),
             percentage_inline_basis: true,
+            ..RunInputsTheStoredRunNeverObserved::default()
         }
     }
 
@@ -1355,8 +1393,7 @@ mod tests {
             &probe,
             RunInputsTheStoredRunNeverObserved {
                 percentage_block_basis_and_block_size_definiteness: true,
-                definite_available_inline_sizes_at_or_above: None,
-                percentage_inline_basis: false,
+                ..RunInputsTheStoredRunNeverObserved::default()
             }
         ));
     }
@@ -1425,5 +1462,90 @@ mod tests {
             mutate(&mut probe);
             assert!(!stored.matches(&probe, inline_inputs_unobserved_at_or_above(0)));
         }
+    }
+
+    fn item_key(content_block_size: i64, has_definite_block_size: bool) -> FcRunCacheKey {
+        let record = UsedValues::default();
+        record.content_block_size.set(px(content_block_size));
+        record.has_definite_block_size.set(has_definite_block_size);
+        record.has_definite_inline_size.set(true);
+        record.content_inline_size.set(px(300));
+        FcRunCacheKey::new(
+            formatting_context::FormattingContextType::Block,
+            LayoutMode::Normal,
+            LayoutInput::new(
+                AvailableSpace {
+                    inline_size: AvailableSize::definite(px(300)),
+                    block_size: if has_definite_block_size {
+                        AvailableSize::definite(px(content_block_size))
+                    } else {
+                        AvailableSize::Indefinite
+                    },
+                },
+                ContainingBlockConstraints::default(),
+                ParticipationInParentFormattingContext::Item,
+            ),
+            used_values::RootInputCells::capture(&record),
+        )
+    }
+
+    fn own_block_size(observation: formatting_context::OwnBlockSizeObservation) -> RunInputsTheStoredRunNeverObserved {
+        RunInputsTheStoredRunNeverObserved {
+            percentage_block_basis_and_block_size_definiteness: true,
+            own_block_size: observation,
+            ..RunInputsTheStoredRunNeverObserved::default()
+        }
+    }
+
+    #[test]
+    fn an_item_run_that_observed_its_own_block_size_matches_only_the_block_size_it_was_assigned() {
+        let observed = own_block_size(formatting_context::OwnBlockSizeObservation::Observed);
+        let stored = item_key(40, false);
+        assert!(stored.matches(&item_key(40, false), observed));
+        assert!(!stored.matches(&item_key(40, true), observed));
+        assert!(!stored.matches(&item_key(60, false), observed));
+        assert!(!stored.matches(&item_key(60, true), observed));
+    }
+
+    #[test]
+    fn an_item_run_that_never_observed_its_own_block_size_matches_any_assigned_block_size_and_definiteness() {
+        let unobserved = own_block_size(formatting_context::OwnBlockSizeObservation::Unobserved);
+        for stored in [item_key(40, false), item_key(40, true)] {
+            for probe in [
+                item_key(40, false),
+                item_key(40, true),
+                item_key(60, true),
+                item_key(0, false),
+            ] {
+                assert!(stored.matches(&probe, unobserved));
+            }
+        }
+        let mut wider = item_key(60, true);
+        wider.root_cells.content_inline_size = px(320);
+        assert!(
+            !item_key(40, false).matches(&wider, unobserved),
+            "only the root's own block size is unobserved"
+        );
+        let mut button_aligned = item_key(60, true);
+        button_aligned
+            .root_cells
+            .has_definite_block_size_only_for_button_content_alignment = true;
+        assert!(!item_key(40, false).matches(&button_aligned, unobserved));
+    }
+
+    #[test]
+    fn stale_line_data_after_structural_inline_damage_is_taken_only_at_the_same_own_block_size() {
+        let mut outputs = entry(item_key(40, false), 1, None, 0).outputs;
+        outputs.result.own_block_size_observation = formatting_context::OwnBlockSizeObservation::Unobserved;
+        assert!(item_key(40, false).matches(
+            &item_key(60, true),
+            RunInputsTheStoredRunNeverObserved::proven_by_stored_run(&outputs)
+        ));
+        assert!(!item_key(40, false).matches(
+            &item_key(60, true),
+            RunInputsTheStoredRunNeverObserved::accepted_when_reusing_stale_line_data_after_structural_inline_damage(
+                &outputs
+            )
+        ));
     }
 }

@@ -1,0 +1,53 @@
+<!doctype html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/nested-flex-rows-relayout-at-new-block-size-ref.html">
+<style>
+    body {
+        margin: 0;
+    }
+
+    #rows {
+        display: flex;
+        height: 40px;
+        column-gap: 10px;
+    }
+
+    .row {
+        display: flex;
+        column-gap: 10px;
+    }
+
+    .bottom-aligned {
+        align-items: flex-end;
+    }
+
+    .item {
+        width: 40px;
+        background: lightgray;
+    }
+
+    .box {
+        width: 20px;
+        height: 20px;
+        background: green;
+    }
+
+    .half {
+        height: 50%;
+        background: green;
+    }
+</style>
+<div id="rows">
+    <div class="row"><div class="item"><div class="box"></div></div><div class="item"><div class="half"></div></div></div>
+    <div class="row bottom-aligned"><div class="item"><div class="box"></div></div></div>
+    <div class="row"><div class="row"><div class="item"><div class="half"></div></div><div class="item"><div class="box"></div></div></div></div>
+</div>
+<script>
+    // The rows are laid out stretched to the first height before the change stretches them again.
+    window.addEventListener("load", () => {
+        document.body.offsetWidth;
+        rows.style.height = "80px";
+        document.body.offsetWidth;
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>

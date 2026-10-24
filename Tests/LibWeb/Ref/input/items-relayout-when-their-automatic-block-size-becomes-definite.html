@@ -1,0 +1,94 @@
+<!doctype html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/items-relayout-when-their-automatic-block-size-becomes-definite-ref.html">
+<style>
+    body {
+        margin: 0;
+    }
+
+    #column {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 200px;
+    }
+
+    .column {
+        display: flex;
+        flex-direction: column;
+        width: 40px;
+        background: lightgray;
+    }
+
+    .row {
+        display: flex;
+        width: 100px;
+        background: lightgray;
+    }
+
+    .percentage-height {
+        height: 100%;
+        background: green;
+    }
+
+    .percentage-basis {
+        flex-basis: 50%;
+        min-height: 0;
+        background: green;
+    }
+
+    .square {
+        aspect-ratio: 1;
+        background: green;
+    }
+
+    .short {
+        width: 20px;
+        height: 10px;
+    }
+
+    .tall {
+        width: 20px;
+        height: 30px;
+    }
+
+    .taller {
+        width: 20px;
+        height: 50px;
+    }
+
+    .blue {
+        background: blue;
+    }
+
+    #grid-row {
+        display: flex;
+        align-items: flex-start;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-rows: 50% auto;
+        width: 40px;
+        background: lightgray;
+    }
+</style>
+<div id="column">
+    <div class="column"><div><div class="percentage-height"><div class="short"></div></div><div class="short blue"></div></div></div>
+    <div class="column"><div class="percentage-basis"><div class="tall"></div></div><div class="short blue"></div></div>
+    <div class="row"><div class="square"></div><div class="taller blue"></div></div>
+</div>
+<div id="grid-row">
+    <div class="grid"><div class="short" style="background: green"></div><div class="tall blue"></div></div>
+</div>
+<script>
+    // The items are first laid out at an indefinite block size equal to their automatic one, then at that same size
+    // made definite.
+    window.addEventListener("load", () => {
+        document.body.offsetWidth;
+        document.getElementById("column").style.height = "300px";
+        document.getElementById("grid-row").style.alignItems = "stretch";
+        document.body.offsetWidth;
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>

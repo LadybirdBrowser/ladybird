@@ -1,0 +1,7 @@
+PASS: a taller flex line stretches its items again (work + checks)
+PASS: a flex line that grows again stretches its items once more (work + checks)
+PASS: a taller grid row stretches its items again (work + checks)
+PASS: a grid row that grows again stretches its items once more (work + checks)
+PASS: a wider vertical-lr flex line stretches its item again (work + checks)
+PASS: a wider vertical-rl flex line stretches its item again and keeps its content at the block start (work + checks)
+PASS: a wider vertical-lr grid row stretches its item again (work + checks)
