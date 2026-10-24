@@ -37,8 +37,9 @@ fn parse_repetition(repetition: &Utf16String) -> Option<Canvas2DPatternRepetitio
     .map(|(_, repetition)| repetition)
 }
 
-/// A pattern outlives any one video frame, so it reads the frame back instead of holding it.
-fn read_back_current_video_frame(video: CppInterface) -> Option<ImageFrameHandle> {
+/// A copy of the frame of the video at its current playback position, in the color space, which it keeps. A pattern or
+/// an ImageBitmap outlives any one video frame, so it reads the frame back instead of holding it.
+pub(crate) fn read_back_current_video_frame(video: CppInterface, color_space: ColorSpace) -> Option<ImageFrameHandle> {
     let captured_frame = capture_video_frame(video)?;
     let transport = video_transport(video)?;
     let mut recorder = Recorder::new(transport);
@@ -54,7 +55,7 @@ fn read_back_current_video_frame(video: CppInterface) -> Option<ImageFrameHandle
     let will_read_frequently = true;
     if width <= 0
         || height <= 0
-        || !recorder.create_context(IntSize { width, height }, true, will_read_frequently, ColorSpace::Srgb)
+        || !recorder.create_context(IntSize { width, height }, true, will_read_frequently, color_space)
     {
         return None;
     }
@@ -77,9 +78,9 @@ fn read_back_current_video_frame(video: CppInterface) -> Option<ImageFrameHandle
         },
     );
     recorder.flush();
-    let bitmap = recorder.read_back_pixels(frame_rect, AlphaType::Premultiplied, ColorSpace::Srgb);
+    let bitmap = recorder.read_back_pixels(frame_rect, AlphaType::Premultiplied, color_space);
     recorder.destroy_context();
-    Some(bitmap?.into_image_frame())
+    Some(bitmap?.into_image_frame(color_space))
 }
 
 #[derive(Trace)]
@@ -119,6 +120,7 @@ impl CanvasPattern {
         vm: &Vm,
         image: &CanvasImageSource,
         repetition: &Utf16String,
+        color_space: ColorSpace,
     ) -> WebIdlResult<Option<Ref<Self>>> {
         // 1. Let usability be the result of checking the usability of image.
         // 2. If usability is bad, then return null.
@@ -144,7 +146,9 @@ impl CanvasPattern {
         // 6. Let pattern be a new CanvasPattern object with the image image and the repetition behavior given by
         //    repetition.
         let frame = match *image {
-            CanvasImageSource::HTMLVideoElement(video) => read_back_current_video_frame(video),
+            // NB: The frame of a video is read back in the color space of the context, which a draw with the pattern
+            //     converts it to anyway.
+            CanvasImageSource::HTMLVideoElement(video) => read_back_current_video_frame(video, color_space),
             _ => image.frame(),
         };
         let pattern = Self::create(vm, frame, repetition);

@@ -1,0 +1,5 @@
+ImageBitmap size: 300x200
+Cropped ImageBitmap size: 30x40
+Pixel in a srgb canvas is the color of the video: true
+Pixel in a display-p3 canvas is the color of the video: true
+A video without a media resource: InvalidStateError

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 93 tests
 
-90 Pass
-3 Fail
+92 Pass
+1 Fail
 Pass	createImageBitmap with an HTMLCanvasElement source and sw set to 0
 Pass	createImageBitmap with an HTMLCanvasElement source and sh set to 0
 Pass	createImageBitmap with an HTMLCanvasElement source and oversized (unallocatable) crop region
@@ -13,14 +13,14 @@ Pass	createImageBitmap with an HTMLCanvasElement source and a value between 0 an
 Pass	createImageBitmap with an HTMLCanvasElement source and a value between 0 and 1 in resizeHeight
 Pass	createImageBitmap with an HTMLVideoElement source and sw set to 0
 Pass	createImageBitmap with an HTMLVideoElement source and sh set to 0
-Fail	createImageBitmap with an HTMLVideoElement source and oversized (unallocatable) crop region
+Pass	createImageBitmap with an HTMLVideoElement source and oversized (unallocatable) crop region
 Pass	createImageBitmap with an HTMLVideoElement source and a value of 0 int resizeWidth
 Pass	createImageBitmap with an HTMLVideoElement source and a value of 0 in resizeHeight
 Pass	createImageBitmap with an HTMLVideoElement source and a value between 0 and 1 in resizeWidth
 Pass	createImageBitmap with an HTMLVideoElement source and a value between 0 and 1 in resizeHeight
 Pass	createImageBitmap with an HTMLVideoElement from a data URL source and sw set to 0
 Pass	createImageBitmap with an HTMLVideoElement from a data URL source and sh set to 0
-Fail	createImageBitmap with an HTMLVideoElement from a data URL source and oversized (unallocatable) crop region
+Pass	createImageBitmap with an HTMLVideoElement from a data URL source and oversized (unallocatable) crop region
 Pass	createImageBitmap with an HTMLVideoElement from a data URL source and a value of 0 int resizeWidth
 Pass	createImageBitmap with an HTMLVideoElement from a data URL source and a value of 0 in resizeHeight
 Pass	createImageBitmap with an HTMLVideoElement from a data URL source and a value between 0 and 1 in resizeWidth
