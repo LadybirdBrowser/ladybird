@@ -7,7 +7,7 @@ dictionary MemoryDescriptor {
 };
 
 // https://webassembly.github.io/spec/js-api/#memories
-[LegacyNamespace=WebAssembly, Exposed=*]
+[LegacyNamespace=WebAssembly, Exposed=*, ImplementedIn=Rust]
 interface Memory {
     constructor(MemoryDescriptor descriptor);
 

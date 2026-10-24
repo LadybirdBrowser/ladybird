@@ -338,6 +338,9 @@ s enumerable: true
 s value before: function s() { [native code] }
 s value after: replaced
 == WebAssembly property descriptors
+JSTag writable: undefined
+JSTag configurable: true
+JSTag enumerable: true
 validate writable: true
 validate configurable: true
 validate enumerable: true
@@ -378,9 +381,6 @@ RuntimeError configurable: true
 RuntimeError enumerable: false
 RuntimeError value before: function RuntimeError() { [native code] }
 RuntimeError value after: replaced
-JSTag writable: undefined
-JSTag configurable: true
-JSTag enumerable: true
 Exception writable: true
 Exception configurable: true
 Exception enumerable: false

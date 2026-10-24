@@ -922,6 +922,7 @@ dependencies = [
  "libjs_rust",
  "libtextcodec_rust",
  "liburl_rust",
+ "libwasm_engine",
  "libweb_rust",
  "libwebcommon_rust",
  "rustc-demangle",

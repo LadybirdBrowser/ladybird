@@ -16,9 +16,9 @@ dictionary GlobalDescriptor {
 };
 
 // https://webassembly.github.io/spec/js-api/#global
-[LegacyNamespace=WebAssembly, Exposed=*]
+[LegacyNamespace=WebAssembly, Exposed=*, ImplementedIn=Rust]
 interface Global {
-    [ImplementedInBindings] constructor(GlobalDescriptor descriptor, optional any v);
-    [ImplementedInBindings, NeedsCallerRealm] any valueOf();
-    [ImplementedInBindings, NeedsCallerRealm] attribute any value;
+    constructor(GlobalDescriptor descriptor, optional any v);
+    [NeedsCallerRealm] any valueOf();
+    [NeedsCallerRealm] attribute any value;
 };

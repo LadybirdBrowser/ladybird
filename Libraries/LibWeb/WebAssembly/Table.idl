@@ -18,14 +18,14 @@ dictionary TableDescriptor {
 };
 
 // https://webassembly.github.io/spec/js-api/#tables
-[LegacyNamespace=WebAssembly, Exposed=*]
+[LegacyNamespace=WebAssembly, Exposed=*, ImplementedIn=Rust]
 interface Table {
-    [ImplementedInBindings] constructor(TableDescriptor descriptor, optional any value);
+    constructor(TableDescriptor descriptor, optional any value);
 
-    [ImplementedInBindings, NeedsCallerRealm] AddressValue grow(AddressValue delta, optional any value);
+    [NeedsCallerRealm] AddressValue grow(AddressValue delta, optional any value);
 
-    [ImplementedInBindings, NeedsCallerRealm] any get(AddressValue index);
-    [ImplementedInBindings, NeedsCallerRealm] undefined set(AddressValue index, optional any value);
+    [NeedsCallerRealm] any get(AddressValue index);
+    [NeedsCallerRealm] undefined set(AddressValue index, optional any value);
 
-    [ImplementedInBindings, NeedsCallerRealm] readonly attribute AddressValue length;
+    [NeedsCallerRealm] readonly attribute AddressValue length;
 };

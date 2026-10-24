@@ -4,7 +4,7 @@ dictionary TagType {
 };
 
 // https://webassembly.github.io/spec/js-api/#tag
-[LegacyNamespace=WebAssembly, Exposed=*]
+[LegacyNamespace=WebAssembly, Exposed=*, ImplementedIn=Rust]
 interface Tag {
-    [ImplementedInBindings] constructor(TagType type);
+    constructor(TagType type);
 };

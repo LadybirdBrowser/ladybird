@@ -1194,23 +1194,6 @@ class ViewTransition;
 
 }
 
-namespace Web::WebAssembly {
-
-class Global;
-class Instance;
-class Memory;
-class Module;
-class Table;
-class Tag;
-
-namespace Detail {
-
-class WebAssemblyCache;
-
-}
-
-}
-
 namespace Web::WebAudio {
 
 class AudioBuffer;

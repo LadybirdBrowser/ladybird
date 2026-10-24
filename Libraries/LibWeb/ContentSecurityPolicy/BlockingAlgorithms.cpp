@@ -485,7 +485,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_wasm_byte_compilation(JS::
 
     // 4. If result is "Blocked", throw a WebAssembly.CompileError exception.
     if (result == Directives::Directive::Result::Blocked) {
-        return realm.vm().throw_completion<WebAssembly::CompileError>("Blocked by Content Security Policy"sv);
+        return JS::throw_completion(WebAssembly::create_compile_error(realm, "Blocked by Content Security Policy"_utf16));
     }
 
     return {};

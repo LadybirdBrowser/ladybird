@@ -708,7 +708,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
     };
 
     main_thread_vm_ptr()->host_resize_array_buffer = [default_host_resize_array_buffer = move(main_thread_vm_ptr()->host_resize_array_buffer)](JS::ArrayBuffer& buffer, size_t new_byte_length) -> JS::ThrowCompletionOr<JS::HandledByHost> {
-        auto wasm_handled = TRY(WebAssembly::Detail::host_resize_array_buffer(*main_thread_vm_ptr(), buffer, new_byte_length));
+        auto wasm_handled = TRY(WebAssembly::host_resize_array_buffer(*main_thread_vm_ptr(), buffer, new_byte_length));
         if (wasm_handled == JS::HandledByHost::Handled)
             return JS::HandledByHost::Handled;
 
@@ -716,7 +716,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
     };
 
     main_thread_vm_ptr()->host_grow_shared_array_buffer = [default_host_grow_shared_array_buffer = move(main_thread_vm_ptr()->host_grow_shared_array_buffer)](JS::ArrayBuffer& buffer, size_t new_byte_length) -> JS::ThrowCompletionOr<JS::HandledByHost> {
-        auto wasm_handled = TRY(WebAssembly::Detail::host_grow_shared_array_buffer(*main_thread_vm_ptr(), buffer, new_byte_length));
+        auto wasm_handled = TRY(WebAssembly::host_grow_shared_array_buffer(*main_thread_vm_ptr(), buffer, new_byte_length));
         if (wasm_handled == JS::HandledByHost::Handled)
             return JS::HandledByHost::Handled;
 
