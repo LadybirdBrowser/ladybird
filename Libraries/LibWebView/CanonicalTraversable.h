@@ -138,6 +138,9 @@ public:
     // Fired after every canonical session-history mutation, once the history has reached its post-mutation state.
     Function<void()> on_session_history_changed;
 
+    bool is_created_by_web_content() const { return m_is_created_by_web_content; }
+    void set_is_created_by_web_content(bool value) { m_is_created_by_web_content = value; }
+
     Web::HTML::VisibilityState system_visibility_state() const { return m_system_visibility_state; }
     void set_system_visibility_state(Web::HTML::VisibilityState);
 
@@ -267,6 +270,9 @@ private:
     };
     HashMap<Web::HTML::CrossProcessId, PendingBeforeunloadCheck> m_pending_beforeunload_checks;
     void dispatch_next_beforeunload_group(Web::HTML::CrossProcessId check_id);
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#is-created-by-web-content
+    bool m_is_created_by_web_content { false };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#system-visibility-state
     Web::HTML::VisibilityState m_system_visibility_state { Web::HTML::VisibilityState::Hidden };

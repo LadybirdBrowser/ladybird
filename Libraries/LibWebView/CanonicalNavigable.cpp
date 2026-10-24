@@ -1083,6 +1083,8 @@ Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_sta
         .active_document_is_fully_active = hosted_state.active_document_is_fully_active,
         .top_level_creation_url = traversable.active_document().creation_url(),
         .top_level_origin = traversable.active_document().origin(),
+        .top_level_is_created_by_web_content = traversable.is_created_by_web_content(),
+        .top_level_session_history_entry_count = traversable.session_history().size(),
         .has_cross_site_ancestor = active_document_has_cross_site_ancestor(),
         .browsing_context_group_id = browsing_context_group_id,
         .opener_policy = active_document().opener_policy(),

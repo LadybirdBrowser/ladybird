@@ -2604,6 +2604,10 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     }
     traversable.active_browsing_context().set_popup_sandboxing_flag_set(popup_sandboxing_flag_set);
 
+    // 10. Set chosen's is created by web content to true.
+    if (!picture_in_picture_navigable.has_value())
+        traversable.set_is_created_by_web_content(true);
+
     auto new_page_id = Application::the().allocate_page_id();
     client().open_page_for_new_top_level_traversable(new_page_id, traversable);
 

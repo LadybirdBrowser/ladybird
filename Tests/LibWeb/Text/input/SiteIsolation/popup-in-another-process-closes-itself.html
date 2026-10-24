@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A popup that moved to another process keeps its is created by web content there, so it can close itself after
+    // more navigations.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const echo = async (name, body, hostname) => {
+            const url = new URL(await httpServer.createEcho("GET", `/${name}-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>${body}<\/script>`,
+            }));
+            if (hostname)
+                url.hostname = hostname;
+            return url.href;
+        };
+        const loaded = `addEventListener("load", () => opener.postMessage("loaded", "*"));`;
+        const crossSiteHostname = uniqueLocalhostHostname("self-close-cross-site");
+
+        const urls = [
+            await echo("self-close-first", loaded),
+            await echo("self-close-cross-site", loaded, crossSiteHostname),
+            await echo("self-close-cross-site-again", loaded, crossSiteHostname),
+            await echo("self-close-last", `window.close(); opener.postMessage(\`closed: \${window.closed}\`, "*");`, crossSiteHostname),
+        ];
+
+        let message = nextMessage();
+        const popup = window.open(urls[0]);
+        println(await message);
+        for (const url of urls.slice(1)) {
+            message = nextMessage();
+            popup.location.href = url;
+            println(await message);
+        }
+    });
+</script>

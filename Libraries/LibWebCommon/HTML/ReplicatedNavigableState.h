@@ -56,6 +56,8 @@ struct ReplicatedNavigableState {
     bool active_document_is_fully_active { false };
     URL::URL top_level_creation_url;
     URL::Origin top_level_origin;
+    bool top_level_is_created_by_web_content { false };
+    u64 top_level_session_history_entry_count { 1 };
     bool has_cross_site_ancestor { false };
     Optional<u64> browsing_context_group_id;
 

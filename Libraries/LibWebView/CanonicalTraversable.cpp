@@ -617,6 +617,9 @@ void CanonicalTraversable::remove_from_index(CanonicalNavigable& navigable)
 
 void CanonicalTraversable::session_history_changed()
 {
+    // The traversable's replicated state carries its session history entries's size.
+    send_replicated_state();
+
     if (on_session_history_changed)
         on_session_history_changed();
 }
