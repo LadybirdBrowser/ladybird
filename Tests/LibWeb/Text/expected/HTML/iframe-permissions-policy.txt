@@ -1,0 +1,8 @@
+same-origin: enabled
+cross-origin: disabled
+cross-origin-allowfullscreen: enabled
+cross-origin-allow-src: enabled
+cross-origin-allow-other-origin: disabled
+same-origin-allow-none: disabled
+same-origin-header-none: disabled
+cross-origin-allow-overrides-allowfullscreen: disabled

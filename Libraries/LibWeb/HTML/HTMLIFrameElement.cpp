@@ -64,8 +64,12 @@ void HTMLIFrameElement::attribute_changed(Utf16FlyString const& name, Optional<U
     // Similarly, whenever an iframe element with a non-null content navigable but with no srcdoc attribute specified
     // has its src attribute set, changed, or removed, the user agent must process the iframe attributes.
     if (m_content_navigable) {
-        if (name == AttributeNames::srcdoc || (name == AttributeNames::src && !has_attribute(AttributeNames::srcdoc)))
+        if (name == AttributeNames::srcdoc || (name == AttributeNames::src && !has_attribute(AttributeNames::srcdoc))) {
+            // NB: The UI process creates the permissions policy of the navigable's next document with the container
+            //     policy, which these attributes change through the declared origin.
+            document().page().client().page_did_change_navigable_container_state(m_content_navigable->id(), replicated_container_state());
             process_the_iframe_attributes();
+        }
 
         // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:iframe-sandboxing-flag-set-2
         // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:iframe-sandboxing-flag-set-3
@@ -82,9 +86,9 @@ void HTMLIFrameElement::attribute_changed(Utf16FlyString const& name, Optional<U
             }
         }
 
-        // A content navigable whose document another process hosts reads the sandbox and referrerpolicy attributes
-        // through its replicated state, which the UI process keeps current from these reports.
-        if (name == AttributeNames::sandbox || name == AttributeNames::referrerpolicy)
+        // A content navigable whose document another process hosts reads these attributes through its replicated
+        // state, which the UI process keeps current from these reports.
+        if (name == AttributeNames::sandbox || name == AttributeNames::referrerpolicy || name == AttributeNames::allow || name == AttributeNames::allowfullscreen)
             document().page().client().page_did_change_navigable_container_state(m_content_navigable->id(), replicated_container_state());
     }
 

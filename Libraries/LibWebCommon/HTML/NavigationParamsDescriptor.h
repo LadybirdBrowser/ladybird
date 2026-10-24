@@ -32,6 +32,7 @@
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 #include <LibWebCommon/HTML/UserNavigationInvolvement.h>
+#include <LibWebCommon/PermissionsPolicy/PermissionsPolicy.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
@@ -128,6 +129,8 @@ struct NavigationParamsDescriptor {
     Optional<u64> agent_cluster_id;
     CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
     Optional<u64> new_browsing_context_group_id;
+    // The permissions policy the UI process created for the new Document.
+    Optional<PermissionsPolicy::PermissionsPolicy> permissions_policy {};
 };
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#non-fetch-scheme-navigation-params

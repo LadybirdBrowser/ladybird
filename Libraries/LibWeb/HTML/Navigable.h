@@ -90,6 +90,10 @@ public:
     SandboxingFlagSet container_iframe_sandboxing_flag_set() const { return container_state().iframe_sandboxing_flag_set; }
     SandboxingFlagSet container_document_active_sandboxing_flag_set() const { return container_state().document_active_sandboxing_flag_set; }
     EmbedderPolicy container_document_embedder_policy() const { return container_state().document_embedder_policy; }
+
+    // https://w3c.github.io/webappsec-permissions-policy/#algo-create-from-response
+    // NB: Given this navigable's container, whose state another process can report.
+    PermissionsPolicy::PermissionsPolicy create_a_permissions_policy_from_a_response(URL::Origin const&, HTTP::HeaderList const& response_header_list) const;
     Optional<Utf16FlyString> container_local_name() const { return container_state().local_name; }
     ReferrerPolicy::ReferrerPolicy container_iframe_referrer_policy() const { return container_state().iframe_referrer_policy; }
 

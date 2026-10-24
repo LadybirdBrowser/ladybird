@@ -75,6 +75,7 @@
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/HTML/UserNavigationInvolvement.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebCommon/PermissionsPolicy/PermissionsPolicy.h>
 
 namespace Web {
 
@@ -266,18 +267,7 @@ struct DocumentUnloadTimingInfo {
     HighResolutionTime::DOMHighResTimeStamp unload_event_end_time { 0 };
 };
 
-enum class PolicyControlledFeature : u8 {
-    Autoplay,
-    Camera,
-    CrossOriginIsolated,
-    EncryptedMedia,
-    FocusWithoutUserActivation,
-    Fullscreen,
-    Gamepad,
-    Microphone,
-    PictureInPicture,
-    WindowManagement,
-};
+using PolicyControlledFeature = PermissionsPolicy::PolicyControlledFeature;
 
 struct PendingFullscreenEvent {
     enum class Type {
@@ -1067,6 +1057,10 @@ public:
     // https://html.spec.whatwg.org/multipage/origin.html#active-sandboxing-flag-set
     HTML::SandboxingFlagSet active_sandboxing_flag_set() const;
     void set_active_sandboxing_flag_set(HTML::SandboxingFlagSet);
+
+    // https://html.spec.whatwg.org/multipage/dom.html#concept-document-permissions-policy
+    PermissionsPolicy::PermissionsPolicy const& permissions_policy() const { return m_permissions_policy; }
+    void set_permissions_policy(PermissionsPolicy::PermissionsPolicy policy) { m_permissions_policy = move(policy); }
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-policy-container
     GC::Ref<HTML::PolicyContainer> policy_container() const;
@@ -2104,6 +2098,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/origin.html#active-sandboxing-flag-set
     HTML::SandboxingFlagSet m_active_sandboxing_flag_set;
+
+    // https://html.spec.whatwg.org/multipage/dom.html#concept-document-permissions-policy
+    PermissionsPolicy::PermissionsPolicy m_permissions_policy { PermissionsPolicy::PermissionsPolicy::empty_permissions_policy() };
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-policy-container
     mutable GC::Ptr<HTML::PolicyContainer> m_policy_container;
