@@ -1,0 +1,10 @@
+When caret-color is auto, Ladybird keeps auto as the computed value and
+reads the element’s own color wherever the caret is painted or
+getComputedStyle() resolves it. The other engines resolve it at use the
+same way. Blink keeps caret-color as a StyleAutoColor in ComputedStyle,
+and CaretDisplayItemClient resolves it at paint with LayoutObject::
+ResolveColor(GetCSSPropertyCaretColor()). WebKit’s CaretBase::
+computeCaretColor() checks caretColor().isAuto() when it picks the color
+to paint. And Gecko keeps nsStyleUI::mCaretColor as a StyleColorOrAuto,
+and nsIFrame::GetCaretColorAt() resolves it at paint time, through
+GetVisitedDependentColor().
