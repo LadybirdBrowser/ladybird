@@ -57,7 +57,7 @@ pub unsafe extern "C" fn web_image_data_create(
     // SAFETY: The caller passes the live VM and a live realm.
     let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     let mut cx = CallContext::new(vm, realm);
-    let result = ImageData::create(&mut cx, width, height, None).map(|image_data| {
+    let result = ImageData::create(&mut cx, width, height, None, None).map(|image_data| {
         *out_image_data = cell_into_abi(image_data);
         Value::UNDEFINED
     });

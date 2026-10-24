@@ -236,7 +236,13 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         //    settings, and defaultColorSpace set to this's color space.
         // 4. Initialize the image data of newImageData to transparent black.
         // 5. Return newImageData.
-        ImageData::create(cx, absolute_magnitude(sw), absolute_magnitude(sh), Some(&settings))
+        ImageData::create(
+            cx,
+            absolute_magnitude(sw),
+            absolute_magnitude(sh),
+            Some(&settings),
+            Some(self.context_attributes.color_space),
+        )
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata-imagedata
@@ -248,11 +254,10 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         // 1. Let newImageData be a new ImageData object.
         // 2. Initialize newImageData given the value of imageData's width attribute, the value of imageData's height
         //    attribute, and defaultColorSpace set to the value of imageData's colorSpace attribute.
-        // FIXME: Set defaultColorSpace to the value of image_data's colorSpace attribute
         // 3. Initialize the image data of newImageData to transparent black.
         // 4. Return newImageData.
         let (width, height) = image_data.size();
-        ImageData::create(cx, width, height, None)
+        ImageData::create(cx, width, height, None, Some(image_data.predefined_color_space()))
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getimagedata
@@ -286,7 +291,13 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         // 3. Let imageData be a new ImageData object.
         // 4. Initialize imageData given sw, sh, settings set to settings, and defaultColorSpace set to this's color
         //    space.
-        let image_data = ImageData::create(cx, width, height, Some(&settings))?;
+        let image_data = ImageData::create(
+            cx,
+            width,
+            height,
+            Some(&settings),
+            Some(self.context_attributes.color_space),
+        )?;
 
         // 5. Let the source rectangle be the rectangle whose corners are the four points (sx, sy), (sx+sw, sy),
         //    (sx+sw, sy+sh), (sx, sy+sh).
