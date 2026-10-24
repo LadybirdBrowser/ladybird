@@ -1268,10 +1268,12 @@ impl<'pass> GridFormattingContext<'pass> {
     fn used(&self, item: GridItem) -> &'pass UsedValues {
         self.run.records.used_values(item.box_)
     }
+    #[inline]
     fn style(&self, node: Node) -> StyleValues<'pass> {
         StyleValues::for_node(&self.run.callbacks, node)
     }
 
+    #[inline]
     fn facts(&self, node: Node) -> NodeFacts<'_> {
         NodeFacts::new(&self.run.callbacks, node)
     }
@@ -1307,6 +1309,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
+    #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass> {
         sizing_context::SizingContext::new(self.run.purpose, self.run.records, self.run.callbacks)
     }

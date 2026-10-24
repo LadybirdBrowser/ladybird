@@ -1765,6 +1765,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             .map_or(0.0, |value| value.to_px(viewport_percentage_basis).to_double() as f32)
     }
 
+    #[inline]
     fn style(&self, node: Node) -> StyleValues<'_> {
         StyleValues::for_node(&self.run.callbacks, node)
     }

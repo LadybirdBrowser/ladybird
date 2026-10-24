@@ -50,6 +50,7 @@ pub(crate) type StylePayloadsRef = crate::css::host_shared::HostShared<FfiStyleP
 /// # Safety
 ///
 /// The style record pinned for the row must outlive `'a`.
+#[inline]
 pub(crate) unsafe fn style_payloads<'a>(style: StylePayloadsRef) -> Option<&'a FfiStylePayloads> {
     // SAFETY: A non-null style pointer addresses the group pointer array of the style record, which
     // FfiStylePayloads mirrors exactly, and the caller keeps the record alive for 'a.
