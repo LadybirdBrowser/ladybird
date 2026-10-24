@@ -2252,34 +2252,14 @@ impl<'pass> SizingContext<'pass> {
     pub(crate) fn block_level_table_wrapper_outer_inline_contributions(
         &self,
         wrapper: Node,
-        available_block_size: AvailableSize,
         constraints: ContainingBlockConstraints,
     ) -> OuterInlineContributions {
-        let table_inline_size_under = |inline_size| {
-            self.compute_table_box_inline_size_inside_wrapper(
-                wrapper,
-                AvailableSpace {
-                    inline_size,
-                    block_size: available_block_size,
-                },
-                constraints,
-                None,
-                formatting_context::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
-            )
-        };
-        let max_content_inline_size = table_inline_size_under(AvailableSize::MaxContent);
-        let min_content_inline_size = table_inline_size_under(AvailableSize::MinContent);
-        formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-            self.records,
-            &self.callbacks,
-            wrapper,
-            self.skipped_child_depends_on_percentage_block_size(wrapper),
-        );
+        let table_border_box_inline_sizes = self.content_inline_sizes(wrapper, constraints, None).sizes;
         let style = self.style(wrapper);
         let indefinite_inline_basis = CssPixels::default();
         OuterInlineContributions {
-            min_content_inline_size,
-            max_content_inline_size,
+            min_content_inline_size: table_border_box_inline_sizes.min,
+            max_content_inline_size: table_border_box_inline_sizes.max,
             margin_start: style.margin_left().to_px(indefinite_inline_basis),
             border_start: CssPixels::default(),
             padding_start: CssPixels::default(),
@@ -3040,6 +3020,14 @@ impl<'pass> SizingContext<'pass> {
             }
             return self.cache_content_sizes_measured_without_layout(node, kind, key, sizes);
         }
+        if let Some(sizes) =
+            intrinsic_sizing::content_sizes_of_table(self.callbacks, &scope, constraints, depends_on_block_size)
+        {
+            if let Some(trace) = &trace {
+                trace.append(" FROM COLUMNS");
+            }
+            return self.cache_content_sizes_measured_without_layout(node, kind, key, sizes);
+        }
         let input = LayoutInput::new(
             AvailableSpace {
                 inline_size: available_inline_size,
@@ -3427,6 +3415,48 @@ impl<'pass> SizingContext<'pass> {
         find(self, wrapper).expect("table wrapper must contain a table box")
     }
 
+    fn size_table_box_inside_wrapper<R>(
+        &self,
+        wrapper: Node,
+        containing_block_inline_size: CssPixels,
+        table_constraints: ContainingBlockConstraints,
+        size_table: impl FnOnce(&FormattingContextRun<'_>, &UsedValues) -> R,
+    ) -> R {
+        let table_box = self.table_box_inside_wrapper(wrapper);
+        let table_used = used_values::create_used_values(&self.callbacks, table_box, table_constraints);
+        let table_style = self.style(table_box);
+        table_used.border_left.set(table_style.border_left_width());
+        table_used.border_right.set(table_style.border_right_width());
+        table_used
+            .padding_left
+            .set(table_style.padding_left().to_px(containing_block_inline_size));
+        table_used
+            .padding_right
+            .set(table_style.padding_right().to_px(containing_block_inline_size));
+
+        RunRecords::with_content_sizing_root(
+            self.callbacks,
+            table_box,
+            self.callbacks.in_flow_containing_block(table_box),
+            &table_used,
+            |records, callbacks| {
+                let table_run = FormattingContextRun {
+                    purpose: formatting_context::LayoutPurpose::Measurement,
+                    records,
+                    box_: table_box,
+                    layout_mode: LayoutMode::IntrinsicSizing,
+                    callbacks,
+                    should_collect_devtools_layout_data: false,
+                    treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+                    fragments: None,
+                    previous_line_data: None,
+                    fragmentainer: None,
+                };
+                size_table(&table_run, &table_used)
+            },
+        )
+    }
+
     // 17.5.2 Table width algorithms: the 'table-layout' property
     // https://www.w3.org/TR/CSS22/tables.html#width-layout
     pub(crate) fn compute_table_box_inline_size_inside_wrapper(
@@ -3449,44 +3479,18 @@ impl<'pass> SizingContext<'pass> {
 
         // table-wrapper can't have borders or paddings but it might have margin taken from table-root.
         let available_inline_size = containing_block_inline_size - margin_left - margin_right;
-        let table_box = self.table_box_inside_wrapper(wrapper);
 
-        let measurement = formatting_context::MeasurementState::create(self.callbacks);
 
         // The table wrapper is invisible to percentage resolution, so the table box gets the
         // wrapper's constraints unchanged. Callers measuring a table wrapper for grid alignment
         // pass the grid-area inline size as the wrapper's percentage basis.
         let table_constraints = table_wrapper_constraints;
-        let table_used = measurement.create_used_values(table_box, table_constraints);
-        let table_style = self.style(table_box);
-        table_used.border_left.set(table_style.border_left_width());
-        table_used.border_right.set(table_style.border_right_width());
-        table_used
-            .padding_left
-            .set(table_style.padding_left().to_px(containing_block_inline_size));
-        table_used
-            .padding_right
-            .set(table_style.padding_right().to_px(containing_block_inline_size));
-
-        RunRecords::with_root(
-            *measurement.callbacks(),
-            table_box,
-            measurement.callbacks().in_flow_containing_block(table_box),
-            &table_used,
-            |records, callbacks| {
-                let table_run = FormattingContextRun {
-                    purpose: formatting_context::LayoutPurpose::Measurement,
-                    records,
-                    box_: table_box,
-                    layout_mode: LayoutMode::IntrinsicSizing,
-                    callbacks,
-                    should_collect_devtools_layout_data: false,
-                    treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-                    fragments: None,
-                    previous_line_data: None,
-                    fragmentainer: None,
-                };
-                let mut table = table_formatting_context::TableFormattingContext::new(&table_run);
+        self.size_table_box_inside_wrapper(
+            wrapper,
+            containing_block_inline_size,
+            table_constraints,
+            |table_run, table_used| {
+                let mut table = table_formatting_context::TableFormattingContext::new(table_run);
                 let table_available = table_used.available_inner_space_or_constraints_from(available_space);
                 table.run_until_inline_size_calculation(
                     LayoutInput::new(
@@ -3503,7 +3507,7 @@ impl<'pass> SizingContext<'pass> {
                     .store_table_inline_layout(wrapper, table.take_inline_layout());
                 if table_wrapper_inline_size_mode
                     == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
-                    && !table_style.width().is_auto()
+                    && !self.style(table_run.box_).width().is_auto()
                 {
                     return table_used_inline_size;
                 }
@@ -3514,6 +3518,46 @@ impl<'pass> SizingContext<'pass> {
                 }
             },
         )
+    }
+
+    pub(crate) fn table_wrapper_content_inline_sizes(
+        &self,
+        wrapper: Node,
+        available_block_size: AvailableSize,
+        table_wrapper_constraints: ContainingBlockConstraints,
+    ) -> ContentSizes {
+        let indefinite_containing_block_inline_size = CssPixels::default();
+        let (table_box, table_border_box_inline_sizes, table_depends_on_percentage_block_size) = self
+            .size_table_box_inside_wrapper(
+                wrapper,
+                indefinite_containing_block_inline_size,
+                table_wrapper_constraints,
+                |table_run, _| {
+                    let sizes = table_formatting_context::TableFormattingContext::new(table_run)
+                        .border_box_inline_sizes(LayoutInput::new(
+                            AvailableSpace {
+                                inline_size: AvailableSize::MaxContent,
+                                block_size: available_block_size,
+                            },
+                            table_wrapper_constraints,
+                            ParticipationInParentFormattingContext::Root,
+                        ));
+                    (
+                        table_run.box_,
+                        sizes,
+                        table_run
+                            .sizing()
+                            .resolve_percentage_block_size_dependency(table_run.box_),
+                    )
+                },
+            );
+        formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
+            self.records,
+            &self.callbacks,
+            table_box,
+            table_depends_on_percentage_block_size,
+        );
+        table_border_box_inline_sizes
     }
 
     // 17.5.3 Table height algorithms

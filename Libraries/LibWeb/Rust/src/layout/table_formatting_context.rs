@@ -686,6 +686,14 @@ impl TableInlineLayout {
     }
 }
 
+#[derive(Clone, Copy)]
+struct TableInlineSizeMeasures {
+    spacing: CssPixels,
+    grid_min: CssPixels,
+    grid_max: CssPixels,
+    capmin: CssPixels,
+}
+
 fn matching_children<T: TableTree>(tree: &T, parent: Node, predicate: impl Fn(FfiDisplay) -> bool) -> Vec<Node> {
     let mut result = Vec::new();
     let mut child = tree.first_child(parent);
@@ -871,7 +879,7 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
     }
 }
 
-const BORDER_COLLAPSE_SEPARATE: u8 = 0;
+pub(super) const BORDER_COLLAPSE_SEPARATE: u8 = 0;
 const TABLE_LAYOUT_FIXED: u8 = 1;
 
 /// The grid columns that a table-column box, or a table-column-group box without table-column children, corresponds
@@ -2250,14 +2258,7 @@ impl<'pass> TableFormattingContext<'pass> {
             .should_treat_max_inline_size_as_none(self.run.box_, available, self.table_constraints)
     }
 
-    fn compute_table_inline_size(&mut self) {
-        // https://drafts.csswg.org/css-tables-3/#computing-the-table-width
-
-        let table_style = self.style(self.run.box_);
-        let available_inline = self.available_space.inline_size;
-        // Percentages on 'width' and 'height' on the table are relative to the table wrapper box's containing block,
-        // not the table wrapper box itself.
-        let basis = self.table_constraints.inline_basis();
+    fn table_inline_size_measures(&mut self) -> TableInlineSizeMeasures {
         // Compute undistributable space due to border spacing: https://www.w3.org/TR/css-tables-3/#computing-undistributable-space.
         let spacing = (self.columns.len() + 1) * self.border_spacing_inline();
         // The row/column-grid inline-size minimum (GRIDMIN) is the sum of the min-content inline size
@@ -2275,6 +2276,31 @@ impl<'pass> TableFormattingContext<'pass> {
             .fold(CssPixels::default(), |sum, column| sum + column.max_size)
             + spacing;
         let capmin = self.compute_capmin();
+        TableInlineSizeMeasures {
+            spacing,
+            grid_min,
+            grid_max,
+            capmin,
+        }
+    }
+
+    fn used_table_inline_size(
+        &mut self,
+        available_inline: AvailableSize,
+        measures: TableInlineSizeMeasures,
+    ) -> CssPixels {
+        // https://drafts.csswg.org/css-tables-3/#computing-the-table-width
+
+        let TableInlineSizeMeasures {
+            spacing,
+            grid_min,
+            grid_max,
+            capmin,
+        } = measures;
+        let table_style = self.style(self.run.box_);
+        // Percentages on 'width' and 'height' on the table are relative to the table wrapper box's containing block,
+        // not the table wrapper box itself.
+        let basis = self.table_constraints.inline_basis();
         // The used minimum inline size of a table is the greater of the resolved min-width, CAPMIN, and GRIDMIN.
         let mut used_min = grid_min.max(capmin);
         if !crate::layout::sizing_context::is_plain_auto(table_style.min_width()) {
@@ -2338,9 +2364,13 @@ impl<'pass> TableFormattingContext<'pass> {
         if !self.should_treat_max_inline_size_as_none(available_inline) {
             used = used.min(self.resolve_inline_constraint(table_style.max_width(), grid_min, grid_max, basis));
         }
-        used = used.max(used_min);
-        let table_used = self.used_values(self.run.box_);
-        table_used.set_content_inline_size(used);
+        used.max(used_min)
+    }
+
+    fn compute_table_inline_size(&mut self) {
+        let measures = self.table_inline_size_measures();
+        let used = self.used_table_inline_size(self.available_space.inline_size, measures);
+        self.used_values(self.run.box_).set_content_inline_size(used);
     }
 
     fn can_skip_row_intrinsic_measurement(&mut self) -> bool {
@@ -2373,6 +2403,72 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     pub(super) fn run_until_inline_size_calculation(&mut self, input: LayoutInput, skip_row_measurement: bool) {
+        self.measure_tracks(input, skip_row_measurement);
+        // Compute the inline size of the table.
+        self.compute_table_inline_size();
+    }
+
+    fn measures_for_intrinsic_inline_sizes(&mut self, input: LayoutInput) -> TableInlineSizeMeasures {
+        self.measure_tracks(
+            LayoutInput {
+                available_space: AvailableSpace {
+                    inline_size: AvailableSize::MaxContent,
+                    ..input.available_space
+                },
+                ..input
+            },
+            true,
+        );
+        self.table_inline_size_measures()
+    }
+
+    pub(super) fn content_inline_sizes(&mut self, input: LayoutInput) -> sizing_context::ContentSizes {
+        let measures = self.measures_for_intrinsic_inline_sizes(input);
+        sizing_context::ContentSizes {
+            min: self.used_table_inline_size(AvailableSize::MinContent, measures),
+            max: self.used_table_inline_size(AvailableSize::MaxContent, measures),
+        }
+    }
+
+    fn max_inline_size_fits_content_to_unknown_containing_block_inline_size(&self) -> bool {
+        let max_inline_size = self.style(self.run.box_).max_width();
+        self.table_constraints.percentage_basis_inline_size.is_none()
+            && max_inline_size.is_fit_content()
+            && max_inline_size.fit_content_available_space().is_none()
+    }
+
+    fn used_table_inline_size_when_laid_out_at_intrinsic_inline_size(
+        &mut self,
+        intrinsic_sizing_constraint: AvailableSize,
+        measures: TableInlineSizeMeasures,
+    ) -> CssPixels {
+        let intrinsic_inline_size = self.used_table_inline_size(intrinsic_sizing_constraint, measures);
+        if self.max_inline_size_fits_content_to_unknown_containing_block_inline_size() {
+            return intrinsic_inline_size;
+        }
+        self.used_table_inline_size(AvailableSize::Definite(intrinsic_inline_size), measures)
+    }
+
+    pub(super) fn border_box_inline_sizes(&mut self, input: LayoutInput) -> sizing_context::ContentSizes {
+        let measures = self.measures_for_intrinsic_inline_sizes(input);
+        let content_box_inline_sizes = sizing_context::ContentSizes {
+            min: self
+                .used_table_inline_size_when_laid_out_at_intrinsic_inline_size(AvailableSize::MinContent, measures),
+            max: self
+                .used_table_inline_size_when_laid_out_at_intrinsic_inline_size(AvailableSize::MaxContent, measures),
+        };
+        let table_used = self.used_values(self.run.box_);
+        let collapsed = table_used.uses_collapsing_borders_model.get();
+        let border_box_inline_size = |content_inline_size: CssPixels| {
+            table_used.border_box_left(collapsed) + content_inline_size + table_used.border_box_right(collapsed)
+        };
+        sizing_context::ContentSizes {
+            min: border_box_inline_size(content_box_inline_sizes.min),
+            max: border_box_inline_size(content_box_inline_sizes.max),
+        }
+    }
+
+    fn measure_tracks(&mut self, input: LayoutInput, skip_row_measurement: bool) {
         self.available_space = input.available_space;
         // Determine the number of rows/columns the table requires.
         let table_grid = calculate_table_grid(self, self.run.box_, MissingTableCells::Include);
@@ -2451,8 +2547,6 @@ impl<'pass> TableFormattingContext<'pass> {
             // and the largest block size specified on cells that span only this row.
             self.compute_table_measures(TrackAxis::Row);
         }
-        // Compute the inline size of the table.
-        self.compute_table_inline_size();
     }
 
     fn layout_inside_cell(
