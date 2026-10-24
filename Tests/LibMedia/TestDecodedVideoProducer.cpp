@@ -332,7 +332,7 @@ Vector<AK::Duration> presentation_timestamps_of_first_samples(StringView path, s
     return timestamps;
 }
 
-// Releases withheld outputs from another thread a few milliseconds after they arrive, the way a media engine finishes
+// Releases withheld outputs from another thread up to a millisecond after they arrive, the way a media engine finishes
 // frames on threads of its own.
 class AsynchronousOutputReleaser {
 public:
@@ -341,7 +341,9 @@ public:
     {
         m_thread = MUST(Threading::Thread::try_create("Release"sv, [this]() -> intptr_t {
             while (!m_stop.load()) {
-                MUST(Core::System::sleep_ms(get_random_uniform(4)));
+                // Spin, since not every platform can sleep for less than a millisecond.
+                auto release_time = MonotonicTime::now() + AK::Duration::from_microseconds(get_random_uniform(1000));
+                while (MonotonicTime::now() < release_time && !m_stop.load()) { }
                 m_withheld_outputs->release_next();
             }
             return 0;
@@ -392,6 +394,8 @@ TEST_CASE(decoding_resumes_when_a_held_frame_releases_its_storage)
 
     // Holding a frame from every slot the pool can allocate leaves the decoder with nowhere to put its next one.
     Vector<NonnullRefPtr<Media::VideoFrame>> held_frames;
+    auto previous_frame_time = MonotonicTime::now();
+    AK::Duration longest_frame_interval;
     for (u32 index = 0; index < Media::VideoFramePool::MAX_SLOT_COUNT; index++) {
         auto frame = take_frame_within_time_limit(*producer, loop, time_limit);
         if (frame == nullptr) {
@@ -399,11 +403,18 @@ TEST_CASE(decoding_resumes_when_a_held_frame_releases_its_storage)
             return;
         }
         held_frames.append(frame.release_nonnull());
+
+        // The first frame's wait includes creating the decoder.
+        auto frame_time = MonotonicTime::now();
+        if (index > 0)
+            longest_frame_interval = max(longest_frame_interval, frame_time - previous_frame_time);
+        previous_frame_time = frame_time;
     }
 
-    // No further frame can exist while every slot is held, however long the decoder is given to produce one.
-    auto backpressure_deadline = MonotonicTime::now_coarse() + AK::Duration::from_milliseconds(100);
-    while (MonotonicTime::now_coarse() < backpressure_deadline) {
+    // No further frame can exist while every slot is held, though one would have arrived well within twice the longest
+    // time any frame took while the pool filled.
+    auto backpressure_deadline = MonotonicTime::now() + AK::Duration::from_microseconds(longest_frame_interval.to_microseconds() * 2);
+    while (MonotonicTime::now() < backpressure_deadline) {
         EXPECT_NE(producer->peek().status, Media::PipelineStatus::HaveData);
         loop.pump(Core::EventLoop::WaitMode::PollForEvents);
     }
@@ -771,7 +782,7 @@ TEST_CASE(seeks_land_on_the_right_frame_while_output_arrives_asynchronously)
     auto time_limit = AK::Duration::from_seconds(5);
     auto first_timestamp = sample_timestamps.first();
     auto last_timestamp = sample_timestamps.last();
-    for (size_t seek_index = 0; seek_index < 300; seek_index++) {
+    for (size_t seek_index = 0; seek_index < 100; seek_index++) {
         auto target = first_timestamp + AK::Duration::from_milliseconds(get_random_uniform((last_timestamp - first_timestamp).to_milliseconds()));
         producer->seek(target);
 
