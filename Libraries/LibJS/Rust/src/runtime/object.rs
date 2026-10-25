@@ -52,7 +52,7 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::private_environment::PrivateName;
 use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_descriptor::{PropertyDescriptor, to_property_descriptor};
-use crate::runtime::property_key::PropertyKey;
+use crate::runtime::property_key::{NonSymbolPropertyKey, PropertyKey};
 use crate::runtime::realm::Realm;
 use crate::runtime::shape::{AssignCopy, Shape};
 use crate::runtime::special_property_cache::{self, SpecialPropertyKey};
@@ -2971,7 +2971,6 @@ impl Object {
         mut callback: impl FnMut(&PropertyKey, bool) -> ThrowCompletionOr<()>,
     ) -> ThrowCompletionOr<()> {
         if self.eligible_for_own_property_enumeration_fast_path() {
-            // NB: These are index and string keys, which hold no cells, so they need no rooting.
             let mut keys = Vec::with_capacity(
                 self.indexed_real_size()
                     + self.shape().property_count() as usize
@@ -2987,18 +2986,21 @@ impl Object {
                     {
                         enumerable = result.attributes.is_enumerable();
                     }
-                    keys.push((PropertyKey::from(index), enumerable));
+                    keys.push((NonSymbolPropertyKey::from(index), enumerable));
                 }
             }
 
             if self.has_magical_length_property() {
-                keys.push((vm.names.length.clone(), false));
+                keys.push((NonSymbolPropertyKey::from(vm.names.length.as_string().clone()), false));
             }
 
             self.shape()
                 .for_each_property_in_insertion_order(|property_key, metadata| {
                     if property_key.is_string() {
-                        keys.push((property_key.clone(), metadata.attributes.is_enumerable()));
+                        keys.push((
+                            NonSymbolPropertyKey::from(property_key.as_string().clone()),
+                            metadata.attributes.is_enumerable(),
+                        ));
                     }
                     ControlFlow::Continue(())
                 });
