@@ -33,6 +33,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Selection/CaretNavigation.h>
 #include <LibWeb/Selection/SelectionModifier.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
@@ -154,6 +155,190 @@ Utf16String command_default_paragraph_separator_value(DOM::Document const& docum
     return document.default_single_line_container_name().to_utf16_string();
 }
 
+// Returns the Text node that follows text in tree order within block, if only inline elements are between them.
+static GC::Ptr<DOM::Text> next_text_in_inline_content(DOM::Text& text, DOM::Node& block)
+{
+    for (auto* node = text.next_in_pre_order(&block); node; node = node->next_in_pre_order(&block)) {
+        if (auto* next_text = as_if<DOM::Text>(*node))
+            return next_text;
+        if (!is<DOM::Element>(*node) || !is_inline_node(*node) || editing_ignores_content(*node))
+            return {};
+    }
+    return {};
+}
+
+// Returns the Text node that precedes text in tree order within block, if only inline elements are between them.
+static GC::Ptr<DOM::Text> previous_text_in_inline_content(DOM::Text& text, DOM::Node& block)
+{
+    for (auto* node = text.previous_in_pre_order(); node && node != &block; node = node->previous_in_pre_order()) {
+        if (auto* previous_text = as_if<DOM::Text>(*node))
+            return previous_text;
+        // NB: Inclusive ancestors of text precede it in tree order but are not between it and the previous Text node.
+        if (node->is_inclusive_ancestor_of(text))
+            continue;
+        if (!is<DOM::Element>(*node) || !is_inline_node(*node) || editing_ignores_content(*node))
+            return {};
+    }
+    return {};
+}
+
+// INTEROP: When the user deletes a character in text, browsers delete the content between the caret and the adjacent
+//          visible caret position, which includes collapsed white-space. They then rebalance the white-space after
+//          the deletion only in one Text node, instead of canonicalizing the white-space sequence across nodes. See the
+//          INTEROP note at rebalance_whitespace_in_text_node(). This handles the deletions in collapsible white-space
+//          that do not leave an element empty. It returns false if it did not handle the deletion.
+static bool delete_character_in_text(DOM::Document& document, Selection& selection, Web::Selection::SelectionDirection direction)
+{
+    auto range = selection.range();
+    if (!range || !range->collapsed())
+        return false;
+
+    // NB: See the INTEROP note at remove_collapsed_spaces_in_text_node().
+    if (auto* text = as_if<DOM::Text>(*range->start_container())) {
+        auto offset = offset_after_removing(remove_collapsed_spaces_in_text_node(*text, range->start_offset()), range->start_offset());
+        if (offset != range->start_offset())
+            MUST(selection.collapse(*text, offset));
+        range = selection.range();
+    }
+
+    Web::Selection::CaretNavigator navigator(document);
+    Web::Selection::CaretLocation caret { range->start_container(), range->start_offset(), selection.focus_affinity() };
+    auto destination = navigator.move(caret, Web::Selection::SelectionAlteration::Move, direction, Web::Selection::SelectionGranularity::Character);
+    if (!destination.has_value())
+        return false;
+
+    DOM::BoundaryPoint start { range->start_container(), range->start_offset() };
+    DOM::BoundaryPoint end { destination->node, static_cast<WebIDL::UnsignedLong>(destination->offset) };
+    if (direction == Web::Selection::SelectionDirection::Backward)
+        swap(start, end);
+    if (DOM::position_of_boundary_point_relative_to_other_boundary_point(start, end) != DOM::RelativeBoundaryPointPosition::Before)
+        return false;
+
+    auto* start_text = as_if<DOM::Text>(*start.node);
+    auto* end_text = as_if<DOM::Text>(*end.node);
+    if (!start_text || !end_text)
+        return false;
+    auto block = block_node_of_node(*start_text);
+    if (!block || block != block_node_of_node(*end_text))
+        return false;
+
+    // NB: Start from the upstream equivalent of the start, the end of the preceding Text node.
+    if (start.offset == 0) {
+        if (auto previous_text = previous_text_in_inline_content(*start_text, *block)) {
+            start_text = previous_text.ptr();
+            start = { *start_text, static_cast<WebIDL::UnsignedLong>(start_text->length()) };
+        }
+    }
+
+    // Collect the Text nodes from start to end, which must only have inline elements between them.
+    GC::RootVector<GC::Ref<DOM::Text>> texts;
+    texts.append(*start_text);
+    while (texts.last().ptr() != end_text) {
+        auto next_text = next_text_in_inline_content(*texts.last(), *block);
+        if (!next_text)
+            return false;
+        texts.append(*next_text);
+    }
+
+    // NB: Leave deletions in links to the steps below, which handle the link boundaries.
+    for (auto text : texts) {
+        if (!text->is_editable() || !text->parent() || text->first_ancestor_of_type<HTML::HTMLAnchorElement>()
+            || text_preserves_spaces(*text))
+            return false;
+    }
+
+    // Only handle blocks that contain nothing but text and inline elements that are not empty, and that keep some
+    // visible text.
+    bool block_has_only_inline_content = true;
+    bool keeps_visible_text = false;
+    block->for_each_in_subtree([&](GC::Ref<DOM::Node> descendant) {
+        if (auto* text = as_if<DOM::Text>(*descendant)) {
+            if (keeps_visible_text)
+                return TraversalDecision::Continue;
+            auto data = text->data().utf16_view();
+            size_t deleted_start = 0;
+            size_t deleted_end = 0;
+            if (text == start_text || text == end_text) {
+                deleted_start = text == start_text ? start.offset : 0;
+                deleted_end = text == end_text ? end.offset : data.length_in_code_units();
+            } else if (texts.contains_slow(GC::Ref { *text })) {
+                deleted_end = data.length_in_code_units();
+            }
+            for (size_t offset = 0; offset < data.length_in_code_units() && !keeps_visible_text; ++offset) {
+                if (offset >= deleted_start && offset < deleted_end)
+                    continue;
+                auto code_unit = data.code_unit_at(offset);
+                if (code_unit != ' ' && code_unit != '\t' && code_unit != '\n' && code_unit != '\r')
+                    keeps_visible_text = true;
+            }
+            return TraversalDecision::Continue;
+        }
+        if (!is<DOM::Element>(*descendant) || !is_inline_node(descendant) || editing_ignores_content(*descendant)
+            || !descendant->has_children()) {
+            block_has_only_inline_content = false;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+    if (!block_has_only_inline_content || !keeps_visible_text)
+        return false;
+
+    // Do not handle deletions that leave an element without children.
+    for (auto text : texts) {
+        auto delete_start = text.ptr() == start_text ? start.offset : 0;
+        auto delete_end = text.ptr() == end_text ? end.offset : text->length();
+        if (delete_start == 0 && delete_end == text->length() && text->parent()->child_count() == 1)
+            return false;
+    }
+
+    // NB: See the INTEROP note at remove_collapsed_spaces_in_text_node().
+    auto removed_offsets = remove_collapsed_spaces_in_text_node(*start_text, start.offset);
+    if (end_text == start_text)
+        end.offset = offset_after_removing(removed_offsets, end.offset);
+    start.offset = offset_after_removing(removed_offsets, start.offset);
+    removed_offsets = remove_collapsed_spaces_in_text_node(*end_text, end.offset);
+    if (end_text == start_text)
+        start.offset = offset_after_removing(removed_offsets, start.offset);
+    end.offset = offset_after_removing(removed_offsets, end.offset);
+    if (end.offset == end_text->length()) {
+        if (auto next_text = next_text_in_inline_content(*end_text, *block))
+            (void)remove_collapsed_spaces_in_text_node(*next_text, 0);
+    }
+
+    for (auto text : texts) {
+        auto delete_start = text.ptr() == start_text ? start.offset : 0;
+        auto delete_end = text.ptr() == end_text ? end.offset : text->length();
+        if (delete_end > delete_start)
+            MUST(delete_data(text, delete_start, delete_end - delete_start));
+        if (text.ptr() != start_text && text->length() == 0)
+            remove_node(text);
+    }
+
+    // Rebalance the white-space at the downstream equivalent of the deletion point.
+    GC::Ref<DOM::Text> rebalanced_text = *start_text;
+    size_t rebalanced_offset = start.offset;
+    if (start.offset == start_text->length()) {
+        for (auto next_text = next_text_in_inline_content(*start_text, *block); next_text; next_text = next_text_in_inline_content(*next_text, *block)) {
+            if (next_text->length() == 0)
+                continue;
+            rebalanced_text = *next_text;
+            rebalanced_offset = 0;
+            break;
+        }
+    }
+    rebalance_whitespace_in_text_node(rebalanced_text, rebalanced_offset);
+
+    if (start_text->length() == 0 && start_text->parent()) {
+        auto parent = GC::Ref { *start_text->parent() };
+        auto index = start_text->index();
+        remove_node(*start_text);
+        MUST(selection.collapse(parent, index));
+    } else {
+        MUST(selection.collapse(*start_text, start.offset));
+    }
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-delete-command
 bool command_delete_action(DOM::Document& document, Utf16View)
 {
@@ -164,6 +349,10 @@ bool command_delete_action(DOM::Document& document, Utf16View)
         delete_the_selection(selection);
         return true;
     }
+
+    // NB: See the INTEROP note at delete_character_in_text().
+    if (delete_character_in_text(document, selection, Web::Selection::SelectionDirection::Backward))
+        return true;
 
     // 2. Canonicalize whitespace at the active range's start.
     canonicalize_whitespace(active_range.start());
@@ -946,6 +1135,10 @@ bool command_forward_delete_action(DOM::Document& document, Utf16View)
         return true;
     }
 
+    // NB: See the INTEROP note at delete_character_in_text().
+    if (delete_character_in_text(document, selection, Web::Selection::SelectionDirection::Forward))
+        return true;
+
     // 2. Canonicalize whitespace at the active range's start.
     canonicalize_whitespace(active_range.start());
 
@@ -1697,6 +1890,11 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
     // NOTE: node is set in step 2
     auto offset = active_range->start_offset();
 
+    // NB: See the INTEROP note at remove_collapsed_spaces_in_text_node(). Browsers remove the spaces that are not
+    //     rendered before they split the line.
+    if (auto* text = as_if<DOM::Text>(*node))
+        offset = static_cast<WebIDL::UnsignedLong>(offset_after_removing(remove_collapsed_spaces_in_text_node(*text, offset), offset));
+
     // 4. If node is a Text node, and offset is neither 0 nor the length of node, call splitText(offset) on node.
     if (is<DOM::Text>(*node) && offset != 0 && offset != node->length())
         MUST(split_text(static_cast<DOM::Text&>(*node), offset));
@@ -2081,6 +2279,33 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
         }
     }
 
+    // INTEROP: Browsers keep the white-space at the edges of the two lines visible. They remove white-space that would
+    //          collapse in a line which has nothing else that is visible, and rebalance the white-space at the end of
+    //          container and at the start of new container. See the INTEROP note at
+    //          rebalance_whitespace_in_text_node().
+    for (GC::Ref<DOM::Node> line : { GC::Ref<DOM::Node> { *container }, GC::Ref<DOM::Node> { *new_container } }) {
+        if (has_visible_children(line))
+            continue;
+        GC::RootVector<GC::Ref<DOM::Node>> collapsed_white_space;
+        line->for_each_child([&](GC::Ref<DOM::Node> child) {
+            if (is_whitespace_node(child) && child->is_editable())
+                collapsed_white_space.append(child);
+            return IterationDecision::Continue;
+        });
+        for (auto child : collapsed_white_space)
+            remove_node(child);
+    }
+    GC::Ptr<DOM::Node> last_descendant = container->last_child();
+    while (last_descendant && last_descendant->last_child())
+        last_descendant = last_descendant->last_child();
+    if (auto* text = as_if<DOM::Text>(last_descendant.ptr()))
+        rebalance_whitespace_in_text_node(*text, text->length());
+    GC::Ptr<DOM::Node> first_descendant = new_container->first_child();
+    while (first_descendant && first_descendant->first_child())
+        first_descendant = first_descendant->first_child();
+    if (auto* text = as_if<DOM::Text>(first_descendant.ptr()))
+        rebalance_whitespace_in_text_node(*text, 0);
+
     // 30. While container's lastChild is a prohibited paragraph child, set container to its lastChild.
     while (container->last_child() && is_prohibited_paragraph_child(*container->last_child()))
         container = container->last_child();
@@ -2195,11 +2420,35 @@ static bool insert_text(DOM::Document& document, Utf16View value, InsertTextCont
 
     // 11. Canonicalize whitespace at (node, offset).
     // INTEROP: Inserting a non-space character does not normalize an untouched whitespace run after the caret.
-    if (!is<DOM::Text>(*node) || value == " "sv
+    // NB: See the INTEROP note at rebalance_whitespace_in_text_node(). When typing, browsers only rebalance the
+    //     whitespace around the inserted text after inserting it. Keep using the steps below next to links, which
+    //     handle the link boundaries.
+    auto is_next_to_link = [&] {
+        if (is<HTML::HTMLAnchorElement>(*node) || node->first_ancestor_of_type<HTML::HTMLAnchorElement>())
+            return true;
+        DOM::Node* previous = nullptr;
+        DOM::Node* next = nullptr;
+        if (is<DOM::Text>(*node)) {
+            previous = node->previous_sibling();
+            next = node->next_sibling();
+        } else {
+            previous = offset > 0 ? node->child_at_index(offset - 1) : nullptr;
+            next = node->child_at_index(offset);
+        }
+        return is<HTML::HTMLAnchorElement>(previous) || is<HTML::HTMLAnchorElement>(next);
+    };
+    auto rebalances_whitespace = !replaces_selection && context == InsertTextContext::Typing && !is_next_to_link();
+    auto follows_or_inserts_space = !is<DOM::Text>(*node) || value == " "sv
         || (offset == 0 ? as<DOM::Text>(*node).data().starts_with(' ')
                         : as<DOM::Text>(*node).data().code_unit_at(offset - 1) == u' '
-                    || as<DOM::Text>(*node).data().code_unit_at(offset - 1) == u'\u00a0'))
+                    || as<DOM::Text>(*node).data().code_unit_at(offset - 1) == u'\u00a0');
+    if (!rebalances_whitespace && follows_or_inserts_space)
         canonicalize_whitespace({ node, offset });
+
+    // NB: See the INTEROP note at remove_collapsed_spaces_in_text_node(). Browsers remove the collapsed spaces when
+    //     typing a space.
+    if (auto* text = as_if<DOM::Text>(*node); rebalances_whitespace && text && (value.code_unit_at(0) == ' ' || value.code_unit_at(0) == u'\u00A0'))
+        MUST(selection.collapse(*text, offset_after_removing(remove_collapsed_spaces_in_text_node(*text, offset), offset)));
 
     // 12. Let (node, offset) be the active range's start.
     range = *active_range(document);
@@ -2286,8 +2535,20 @@ static bool insert_text(DOM::Document& document, Utf16View value, InsertTextCont
     // 15. Restore states and values from overrides.
     restore_states_and_values(document, overrides);
 
+    // NB: See the INTEROP note at rebalance_whitespace_in_text_node().
+    if (rebalances_whitespace) {
+        auto inserted_range = active_range(document);
+        if (auto* text = as_if<DOM::Text>(*inserted_range->start_container()); text && inserted_range->end_container().ptr() == text) {
+            auto start_offset = inserted_range->start_offset();
+            auto end_offset = inserted_range->end_offset();
+            rebalance_whitespace_in_text_node(*text, end_offset);
+            if (auto code_unit = value.code_unit_at(0); code_unit != ' ' && code_unit != u'\u00A0')
+                rebalance_whitespace_in_text_node(*text, start_offset);
+        }
+    }
+
     // 16. Canonicalize whitespace at the active range's start, with fix collapsed space false.
-    if (replaces_selection)
+    else if (replaces_selection)
         canonicalize_whitespace_after_selection_replacement(active_range(document)->start());
     else
         canonicalize_whitespace(active_range(document)->start(), false);
@@ -2295,7 +2556,7 @@ static bool insert_text(DOM::Document& document, Utf16View value, InsertTextCont
     // 17. Canonicalize whitespace at the active range's end, with fix collapsed space false.
     if (replaces_selection)
         canonicalize_whitespace_after_selection_replacement(active_range(document)->end());
-    else if (value == " "sv)
+    else if (!rebalances_whitespace && value == " "sv)
         canonicalize_whitespace(active_range(document)->end(), false);
 
     // 18. If value is a space character, autolink the active range's start.

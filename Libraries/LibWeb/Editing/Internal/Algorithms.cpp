@@ -730,6 +730,149 @@ void canonicalize_whitespace_after_node_insertion(DOM::BoundaryPoint boundary)
     canonicalize_whitespace_impl(boundary, false, PreserveLeadingSpaceAcrossNodeBoundary::Yes);
 }
 
+// Whether the spaces in text are preserved, so that they do not collapse.
+bool text_preserves_spaces(DOM::Text& text)
+{
+    if (!text.parent())
+        return false;
+    auto white_space_collapse = resolved_keyword(*text.parent(), CSS::PropertyID::WhiteSpaceCollapse);
+    return white_space_collapse.has_value()
+        && first_is_one_of(*white_space_collapse, CSS::Keyword::Preserve, CSS::Keyword::PreserveSpaces, CSS::Keyword::BreakSpaces);
+}
+
+// INTEROP: Before inserting or deleting text, browsers remove the collapsible spaces around the caret that are not
+//          rendered: the spaces that follow another space, and the spaces at the start or the end of a line. This does
+//          this for the whitespace sequence around offset in text, and returns the offsets of the removed spaces.
+Vector<size_t> remove_collapsed_spaces_in_text_node(DOM::Text& text, size_t offset)
+{
+    if (!text.is_editable() || !text.parent() || text_preserves_spaces(text))
+        return {};
+
+    auto is_whitespace = [](char16_t code_unit) { return code_unit == ' ' || code_unit == u'\u00A0'; };
+    auto data = text.data();
+    auto length = data.length_in_code_units();
+    if (offset > length)
+        return {};
+
+    auto upstream = offset;
+    while (upstream > 0 && is_whitespace(data.code_unit_at(upstream - 1)))
+        --upstream;
+    auto downstream = offset;
+    while (downstream < length && is_whitespace(data.code_unit_at(downstream)))
+        ++downstream;
+    if (upstream == downstream)
+        return {};
+
+    // Whether the sequence follows a collapsible space in a preceding Text node of the same line.
+    auto follows_collapsible_space = [&] {
+        auto block = block_node_of_node(text);
+        for (auto* node = text.previous_in_pre_order(); node && node != block.ptr(); node = node->previous_in_pre_order()) {
+            if (node->is_inclusive_ancestor_of(text))
+                continue;
+            if (auto* previous_text = as_if<DOM::Text>(*node)) {
+                if (previous_text->length() == 0)
+                    continue;
+                return previous_text->data().code_unit_at(previous_text->length() - 1) == ' ';
+            }
+            if (!is<DOM::Element>(*node) || !is_inline_node(*node) || editing_ignores_content(*node))
+                return false;
+        }
+        return false;
+    };
+
+    // NB: The trailing spaces of the sequence collapse if it is at the end of a line.
+    auto trailing_spaces_start = downstream;
+    if (downstream == length && precedes_a_line_break(text)) {
+        while (trailing_spaces_start > upstream && data.code_unit_at(trailing_spaces_start - 1) == ' ')
+            --trailing_spaces_start;
+    }
+
+    Vector<size_t> collapsed_offsets;
+    auto previous_collapses = upstream == 0 && (follows_a_line_break(text) || follows_collapsible_space());
+    for (auto index = upstream; index < downstream; ++index) {
+        auto code_unit = data.code_unit_at(index);
+        if (code_unit == ' ' && (previous_collapses || index >= trailing_spaces_start)) {
+            collapsed_offsets.append(index);
+            continue;
+        }
+        previous_collapses = code_unit == ' ';
+    }
+
+    // NB: Delete each run of adjacent collapsed spaces at once, from the end, so that the offsets stay valid.
+    for (size_t run_end = collapsed_offsets.size(); run_end > 0;) {
+        auto run_start = run_end - 1;
+        while (run_start > 0 && collapsed_offsets[run_start - 1] + 1 == collapsed_offsets[run_start])
+            --run_start;
+        MUST(delete_data(text, collapsed_offsets[run_start], run_end - run_start));
+        run_end = run_start;
+    }
+    return collapsed_offsets;
+}
+
+size_t offset_after_removing(Vector<size_t> const& removed_offsets, size_t offset)
+{
+    size_t removed_before_offset = 0;
+    for (auto removed_offset : removed_offsets) {
+        if (removed_offset < offset)
+            ++removed_before_offset;
+    }
+    return offset - removed_before_offset;
+}
+
+// INTEROP: After inserting or deleting text, browsers do not canonicalize a whitespace sequence across node boundaries.
+//          They rebalance the whitespace around offset within its Text node only. The sequence alternates between
+//          non-breaking spaces and spaces, a sequence of two or more starts with a non-breaking space, and there is a
+//          non-breaking space at the start of the Text node and at its end, unless a sibling Text node that starts with
+//          visible text follows it.
+void rebalance_whitespace_in_text_node(DOM::Text& text, size_t offset)
+{
+    if (!text.is_editable() || !text.parent() || text_preserves_spaces(text))
+        return;
+
+    auto is_whitespace = [](char16_t code_unit) { return code_unit == ' ' || code_unit == u'\u00A0'; };
+    auto data = text.data();
+    auto length = data.length_in_code_units();
+    if (offset > length)
+        return;
+
+    auto upstream = offset;
+    while (upstream > 0 && is_whitespace(data.code_unit_at(upstream - 1)))
+        --upstream;
+    auto downstream = offset;
+    while (downstream < length && is_whitespace(data.code_unit_at(downstream)))
+        ++downstream;
+    if (upstream == downstream)
+        return;
+
+    auto* next_text = as_if<DOM::Text>(text.next_sibling());
+    auto next_text_starts_with_visible_text = next_text && next_text->length() > 0 && !is_whitespace(next_text->data().code_unit_at(0));
+    auto starts_with_non_breaking_space = upstream == 0;
+    auto ends_with_non_breaking_space = downstream == length && !next_text_starts_with_visible_text;
+
+    char16_t previous = 0;
+    for (auto index = upstream; index < downstream; ++index) {
+        char16_t replacement;
+        if (index == upstream && starts_with_non_breaking_space)
+            replacement = u'\u00A0';
+        else if (index + 1 == downstream && ends_with_non_breaking_space)
+            replacement = u'\u00A0';
+        else if (previous == ' ')
+            replacement = u'\u00A0';
+        else if (previous == u'\u00A0')
+            replacement = ' ';
+        else if (index + 1 < downstream)
+            replacement = u'\u00A0';
+        else
+            replacement = ' ';
+        previous = replacement;
+
+        if (text.data().code_unit_at(index) == replacement)
+            continue;
+        MUST(insert_data(text, index, Utf16String::from_code_point(replacement)));
+        MUST(delete_data(text, index + 1, 1));
+    }
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#clear-the-value
 GC::RootVector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const& command, GC::Ref<DOM::Element> element)
 {
