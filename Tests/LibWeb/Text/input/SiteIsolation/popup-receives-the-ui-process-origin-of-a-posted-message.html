@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A message posted to a window in another process has the origin the UI process holds for the posting document,
+    // not the one the posting process claims.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const crossSiteUrl = new URL(
+            await httpServer.createEcho("GET", `/posted-message-origin-cross-site-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("message", event => opener.postMessage(event.origin, "*"));
+                    opener.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        crossSiteUrl.hostname = uniqueLocalhostHostname("posted-message-origin");
+
+        const popupUrl = await httpServer.createEcho("GET", `/posted-message-origin-same-site-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>location.href = ${JSON.stringify(crossSiteUrl.href)};<\/script>`,
+        });
+
+        const nextMessage = () => new Promise(resolve => {
+            addEventListener("message", event => resolve(event.data), { once: true });
+        });
+
+        const realOrigin = self.origin;
+        const ready = nextMessage();
+        const popup = window.open(popupUrl);
+        await ready;
+
+        const reply = nextMessage();
+        internals.spoofCurrentOriginInThisProcess("https://spoofed.example");
+        popup.postMessage("hello", "*");
+        const origin = await reply;
+        println(`origin is the page's own: ${origin === realOrigin}`);
+        println(`origin is the claimed one: ${origin === "https://spoofed.example"}`);
+        popup.close();
+    });
+</script>

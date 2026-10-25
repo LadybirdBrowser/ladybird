@@ -1105,6 +1105,13 @@ void Internals::spoof_current_url(Utf16String const& url_string)
     page().client().page_did_spoof_document_origin_for_testing(window.associated_document().relevant_settings_object(), origin);
 }
 
+void Internals::spoof_current_origin_in_this_process(Utf16String const& url_string)
+{
+    auto url = DOMURL::parse(url_string.utf16_view());
+    VERIFY(url.has_value());
+    window().associated_document().set_origin(url->origin());
+}
+
 void Internals::load_url(Utf16String const& url_string)
 {
     auto url = DOMURL::parse(url_string.utf16_view());

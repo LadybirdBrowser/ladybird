@@ -12,13 +12,22 @@
 #include <LibURL/Origin.h>
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/HTML/SerializationRecords.h>
 
 namespace Web::HTML {
 
+struct MessageDescriptor {
+    SerializedTransferRecord serialize_with_transfer_result;
+    Variant<Utf16String, URL::Origin> target_origin;
+    URL::Origin source_origin;
+    Optional<CrossProcessId> source_navigable_id;
+};
+
 struct PostedMessageDescriptor {
     SerializedTransferRecord serialize_with_transfer_result;
     Variant<Utf16String, URL::Origin> target_origin;
+    EnvironmentId incumbent_settings_id;
     URL::Origin source_origin;
     Optional<CrossProcessId> source_navigable_id;
 };
@@ -26,6 +35,12 @@ struct PostedMessageDescriptor {
 }
 
 namespace IPC {
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::MessageDescriptor const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::MessageDescriptor> decode(Decoder&);
 
 template<>
 WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::PostedMessageDescriptor const&);

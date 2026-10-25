@@ -144,6 +144,7 @@ public:
     WebIDL::ExceptionOr<bool> dispatch_user_activated_event(DOM::EventTarget&, DOM::Event& event);
 
     void spoof_current_url(Utf16String const& url);
+    void spoof_current_origin_in_this_process(Utf16String const& url);
     void set_navigator_compatibility_mode(Bindings::InternalsNavigatorCompatibilityMode);
     void load_url(Utf16String const& url);
 

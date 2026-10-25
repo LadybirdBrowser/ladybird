@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A function from a removed iframe posts to an isolated iframe after the UI process has stopped holding the removed
+    // iframe's document. The message keeps the origin its process gives only if that process hosts a document of it.
+    promiseTest(async () => {
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", "/removed-iframe-posts-with-a-hosted-origin", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("message", event => parent.postMessage({ data: event.data, origin: event.origin }, "*"));
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("removed-iframe-posts-with-a-hosted-origin");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const remoteIframe = document.createElement("iframe");
+        remoteIframe.src = remoteUrl;
+        document.body.appendChild(remoteIframe);
+        await ready;
+
+        const postFromARemovedIframe = async (name, spoofedOrigin) => {
+            const iframe = document.createElement("iframe");
+            iframe.srcdoc = `<script>parent.${name} = target => target.postMessage("${name}", "*");<\/script>`;
+            await new Promise(resolve => {
+                iframe.onload = resolve;
+                document.body.appendChild(iframe);
+            });
+            const post = window[name];
+            if (spoofedOrigin)
+                iframe.contentWindow.internals.spoofCurrentOriginInThisProcess(spoofedOrigin);
+            iframe.remove();
+            return post;
+        };
+        const postWithItsOwnOrigin = await postFromARemovedIframe("postWithItsOwnOrigin");
+        const postWithAnotherOrigin = await postFromARemovedIframe("postWithAnotherOrigin", "https://spoofed.example");
+        while (internals.dumpSiteIsolationProcessTree().includes(": local"))
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+        const reply = nextMessage();
+        postWithAnotherOrigin(remoteIframe.contentWindow);
+        postWithItsOwnOrigin(remoteIframe.contentWindow);
+        const { data, origin } = await reply;
+        println(`first message: ${data}`);
+        println(`its origin is this page's: ${origin === self.origin}`);
+    });
+</script>

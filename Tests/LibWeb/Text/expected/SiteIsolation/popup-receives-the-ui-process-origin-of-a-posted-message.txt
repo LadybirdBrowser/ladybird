@@ -1,0 +1,2 @@
+origin is the page's own: true
+origin is the claimed one: false

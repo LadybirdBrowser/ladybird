@@ -135,6 +135,7 @@ public:
     void release_unneeded_representing_pages();
     bool hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const&);
     Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id);
+    bool hosts_a_document_of_origin(URL::Origin const&);
 
     WebContentPage* page(Web::PageId page_id) const;
     template<CallableAs<IterationDecision, WebContentPage&> Callback>

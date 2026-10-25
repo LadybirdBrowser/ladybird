@@ -1670,6 +1670,7 @@ WebIDL::ExceptionOr<Window::PreparedPostMessage> Window::prepare_post_message(JS
     return PreparedPostMessage {
         .serialize_with_transfer_result = move(serialize_with_transfer_result),
         .target_origin = move(target_origin),
+        .incumbent_settings_id = incumbent_settings.id,
         .source_origin = move(source_origin),
         .source = source,
     };

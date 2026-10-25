@@ -75,6 +75,19 @@ Optional<CanonicalEnvironmentSettingsObject const&> WebContentClient::hosted_env
     return environment;
 }
 
+bool WebContentClient::hosts_a_document_of_origin(URL::Origin const& origin)
+{
+    bool hosts_one = false;
+    for_each_page([&](WebContentPage& page) {
+        page.for_each_hosted_document([&](CanonicalDocument& document) {
+            hosts_one = document.origin().is_same_origin(origin);
+            return hosts_one ? IterationDecision::Break : IterationDecision::Continue;
+        });
+        return hosts_one ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return hosts_one;
+}
+
 void WebContentClient::did_retain_blob_url_token(Web::HTML::CrossProcessId navigable_id, URL::BlobURLEntry::Token token)
 {
     if (auto navigable = hosted_navigable(navigable_id); navigable.has_value())

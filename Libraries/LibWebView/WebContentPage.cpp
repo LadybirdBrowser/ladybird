@@ -715,12 +715,43 @@ void WebContentPage::did_request_navigation_of_navigable(Web::HTML::CrossProcess
     target->begin_navigation(move(navigation));
 }
 
-void WebContentPage::did_post_message_to_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message)
+void WebContentPage::did_post_message_to_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor posted_message)
 {
-    // The window post message steps queue their task on the target window in the process hosting its document.
+    // https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
+    // 2. Let incumbentSettings be the incumbent settings object.
+    // NB: The posting process determined it. Any page of that process can host it, since the request comes through the
+    //     page holding the target's tab.
+    auto incumbent_settings = client().hosted_environment(posted_message.incumbent_settings_id);
+
+    // 8. Queue a global task on the posted message task source given targetWindow to run the following steps:
+    // NB: The process hosting targetWindow's document queues it, with the origin and source given here.
     auto endpoint = endpoint_hosting_navigable_represented_by(navigable_id);
     if (!endpoint)
         return;
+
+    // 8.2. Let origin be incumbentSettings's origin.
+    // AD-HOC: For a window whose document this process no longer holds, which a same-origin document can still call
+    //         into, the origin the posting process gives is taken if that process hosts a document of that origin.
+    Optional<URL::Origin> origin;
+    if (incumbent_settings.has_value())
+        origin = incumbent_settings->origin();
+    else if (client().hosts_a_document_of_origin(posted_message.source_origin))
+        origin = move(posted_message.source_origin);
+    if (!origin.has_value())
+        return;
+
+    // 8.3. Let source be the WindowProxy object corresponding to incumbentSettings's global object (a Window object).
+    // NB: The source must be a navigable the posting process hosts.
+    Optional<Web::HTML::CrossProcessId> source_navigable_id;
+    if (posted_message.source_navigable_id.has_value() && client().hosted_navigable(*posted_message.source_navigable_id).has_value())
+        source_navigable_id = posted_message.source_navigable_id;
+
+    Web::HTML::MessageDescriptor message {
+        .serialize_with_transfer_result = move(posted_message.serialize_with_transfer_result),
+        .target_origin = move(posted_message.target_origin),
+        .source_origin = origin.release_value(),
+        .source_navigable_id = source_navigable_id,
+    };
     endpoint->async_deliver_posted_message(navigable_id, move(message));
 }
 

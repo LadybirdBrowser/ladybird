@@ -1,0 +1,2 @@
+first message: postWithItsOwnOrigin
+its origin is this page's: true

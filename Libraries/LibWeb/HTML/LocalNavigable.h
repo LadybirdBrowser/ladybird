@@ -195,7 +195,7 @@ public:
     void adopt_navigation_started_in_ui_process(Utf16String navigation_id);
     void navigate_to_a_javascript_url_from_ui_process(URL::URL const&, HistoryHandlingBehavior, URL::Origin const& initiator_origin, NavigationSourceSnapshot const&, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, Utf16String navigation_id);
     void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker, Optional<URL::Origin> initiator_origin);
-    void deliver_posted_message_from_another_process(PostedMessageDescriptor);
+    void deliver_posted_message_from_another_process(MessageDescriptor);
     void run_navigation_unload_check(Utf16String const& navigation_id, UnloadPromptShown, GC::Ref<GC::Function<void(bool)>> completion_steps);
     void continue_navigation_at_population(NavigationPopulationRequest, NavigationPopulationResult);
 

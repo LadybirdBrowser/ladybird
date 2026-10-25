@@ -75,6 +75,7 @@ struct EmbedderPolicy;
 class EnvironmentId;
 struct HistoryNavigationPopulation;
 enum class HistoryStepResult;
+struct MessageDescriptor;
 struct NavigationPopulationRequest;
 struct NavigationPopulationResult;
 struct NavigationStartRequest;

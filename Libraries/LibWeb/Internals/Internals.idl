@@ -135,6 +135,8 @@ interface Internals {
 
     boolean dispatchUserActivatedEvent(EventTarget target, Event event);
     undefined spoofCurrentURL(USVString url);
+    // Gives the document the URL's origin in this process only, as a compromised process would claim it.
+    undefined spoofCurrentOriginInThisProcess(USVString url);
     // Sets the navigator compatibility mode of this process; the realms created afterwards expose what that mode has.
     undefined setNavigatorCompatibilityMode(InternalsNavigatorCompatibilityMode mode);
 
