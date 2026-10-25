@@ -41,7 +41,7 @@ public:
 
     [[nodiscard]] HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope() const;
     [[nodiscard]] JS::Object& relevant_global_object() const;
-    [[nodiscard]] GC::Ptr<WebIDL::DOMException> error() const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ptr<WebIDL::DOMException>> error() const;
     [[nodiscard]] WebIDL::ExceptionOr<JS::Value> result() const;
     [[nodiscard]] Bindings::IDBRequestReadyState ready_state() const;
 
