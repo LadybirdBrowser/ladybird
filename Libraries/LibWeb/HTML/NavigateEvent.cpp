@@ -263,6 +263,9 @@ void NavigateEvent::process_scroll_behavior()
         // 2. If document's indicated part is null, then scroll to the beginning of the document given document. [CSSOMVIEW]
         auto indicated_part = document.determine_the_indicated_part();
         if (indicated_part.has<DOM::Element*>() && indicated_part.get<DOM::Element*>() == nullptr) {
+            // INTEROP: Other browsers also clear the document's target element here, as scrolling to the fragment
+            //          does when the indicated part is null.
+            document.set_target_element(nullptr);
             document.scroll_to_the_beginning_of_the_document();
         }
 
