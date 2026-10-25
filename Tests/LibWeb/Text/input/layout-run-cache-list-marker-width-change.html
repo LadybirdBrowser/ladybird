@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px serif; }
+    ol, ul { margin: 0; width: 400px; }
+    #image { list-style-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Crect width='12' height='8' fill='green'/%3E%3C/svg%3E"); }
+    #inside { list-style-position: inside; }
+    #indentedInline li, #indentedBlocks li { text-indent: 10%; }
+</style>
+<ol id="decimal"><li>one</li><li id="second">two</li></ol>
+<ul id="disc"><li>one</li></ul>
+<ul id="image"><li>one</li></ul>
+<ol id="rtl" dir="rtl"><li>one</li></ol>
+<ol id="inside"><li>one</li></ol>
+<ol id="blocks"><li><p>one</p></li></ol>
+<ol id="indentedInline"><li>one</li></ol>
+<ol id="indentedBlocks"><li><p>one</p></li></ol>
+<script>
+    function markerInlineOffsets(list) {
+        const markers = internals.dumpLayoutTree(list).matchAll(/ListItemMarkerBox <\(anonymous\)> at \[([\d.]+),/g);
+        return JSON.stringify([...markers].map(match => Number(match[1])));
+    }
+
+    function markerInlineSizes(list) {
+        const markers = internals.dumpLayoutTree(list).matchAll(/ListItemMarkerBox <\(anonymous\)> at \S+ \[\S+ ([\d.]+) /g);
+        return JSON.stringify([...markers].map(match => Number(match[1])));
+    }
+
+    function markerTexts(list) {
+        const texts = internals.dumpLayoutTree(list).matchAll(/from GeneratedTextNode .*\n\s+"(.*)"/g);
+        return JSON.stringify([...texts].map(match => match[1]));
+    }
+
+    layoutTest({
+        setup: async () => {
+            for (let frame = 0; frame < 100 && !/ImageBox <\(anonymous\)> at \S+ \[0\+0\+0 12 /.test(internals.dumpLayoutTree(image)); ++frame)
+                await new Promise(resolve => requestAnimationFrame(resolve));
+        },
+        steps: [
+            {
+                name: "decimal markers reuse their runs after a list width change",
+                mutate: () => {
+                    decimal.style.width = "300px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          ListItemMarkerBox(anonymous) MEASURE max-content inline (cache=hit)
+                          ListItemMarkerBox(anonymous)/block REUSE SUBTREE
+                          ListItemMarkerBox(anonymous) MEASURE max-content inline (cache=hit)
+                          ListItemMarkerBox(anonymous)/block REUSE SUBTREE
+                          BlockContainer<UL>#disc REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#image REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#rtl REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#inside REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#blocks REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedInline REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedBlocks REUSE IN-FLOW SUBTREE
+                `,
+            },
+            {
+                name: "disc markers reuse their runs after a list width change",
+                mutate: () => {
+                    disc.style.width = "300px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<OL>#decimal REUSE IN-FLOW SUBTREE
+                          ListItemMarkerBox(anonymous) MEASURE max-content inline (cache=hit)
+                          ListItemMarkerBox(anonymous)/block REUSE SUBTREE
+                          BlockContainer<UL>#image REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#rtl REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#inside REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#blocks REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedInline REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedBlocks REUSE IN-FLOW SUBTREE
+                `,
+            },
+            {
+                name: "image markers reuse their runs after a list width change",
+                mutate: () => {
+                    image.style.width = "300px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<OL>#decimal REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#disc REUSE IN-FLOW SUBTREE
+                          ListItemMarkerBox(anonymous) MEASURE max-content inline (cache=hit)
+                          ListItemMarkerBox(anonymous)/block REUSE SUBTREE
+                          BlockContainer<OL>#rtl REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#inside REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#blocks REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedInline REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedBlocks REUSE IN-FLOW SUBTREE
+                `,
+            },
+            {
+                name: "RTL markers reuse their runs and move with the list's inline start",
+                mutate: () => {
+                    rtl.style.width = "300px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<OL>#decimal REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#disc REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#image REUSE IN-FLOW SUBTREE
+                          ListItemMarkerBox(anonymous) MEASURE max-content inline (cache=hit)
+                          ListItemMarkerBox(anonymous)/block REUSE SUBTREE
+                          BlockContainer<OL>#inside REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#blocks REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedInline REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedBlocks REUSE IN-FLOW SUBTREE
+                `,
+                check: equal => {
+                    equal(markerInlineOffsets(rtl), "[300]", "RTL marker inline offset");
+                },
+            },
+            {
+                name: "inside markers reuse their runs after a list width change",
+                mutate: () => {
+                    inside.style.width = "300px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<OL>#decimal REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#disc REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#image REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#rtl REUSE IN-FLOW SUBTREE
+                          ListItemMarkerBox(anonymous)/block REUSE SUBTREE
+                          BlockContainer<OL>#blocks REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedInline REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedBlocks REUSE IN-FLOW SUBTREE
+                `,
+            },
+            {
+                name: "markers of list items with block children reuse their runs after a list width change",
+                mutate: () => {
+                    blocks.style.width = "300px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<OL>#decimal REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#disc REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#image REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#rtl REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#inside REUSE IN-FLOW SUBTREE
+                          ListItemMarkerBox(anonymous) MEASURE max-content inline (cache=hit)
+                          ListItemMarkerBox(anonymous)/block REUSE SUBTREE
+                          BlockContainer<OL>#indentedInline REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedBlocks REUSE IN-FLOW SUBTREE
+                `,
+            },
+            {
+                name: "markers of list items with a percentage text-indent and inline content reuse their runs after a list width change",
+                mutate: () => {
+                    indentedInline.style.width = "300px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<OL>#decimal REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#disc REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#image REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#rtl REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#inside REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#blocks REUSE IN-FLOW SUBTREE
+                          ListItemMarkerBox(anonymous) MEASURE max-content inline (cache=hit)
+                          ListItemMarkerBox(anonymous)/block REUSE SUBTREE
+                          BlockContainer<OL>#indentedBlocks REUSE IN-FLOW SUBTREE
+                `,
+            },
+            {
+                name: "markers whose percentage text-indent resolves against the list item re-run after a list width change",
+                mutate: () => {
+                    indentedBlocks.style.width = "300px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<OL>#decimal REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#disc REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#image REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#rtl REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#inside REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#blocks REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedInline REUSE IN-FLOW SUBTREE
+                          ListItemMarkerBox(anonymous) MEASURE max-content inline (cache=miss) FROM ITEMS
+                          ListItemMarkerBox(anonymous)/block RUN (cache=miss)
+                `,
+                check: equal => {
+                    const [unindentedMarkerInlineSize] = JSON.parse(markerInlineSizes(blocks));
+                    const textIndentOfThe300pxListItem = 30;
+                    equal(
+                        markerInlineSizes(indentedBlocks),
+                        JSON.stringify([unindentedMarkerInlineSize + textIndentOfThe300pxListItem]),
+                        "indented marker inline size"
+                    );
+                },
+            },
+            {
+                name: "a counter change re-runs the markers",
+                mutate: () => {
+                    second.value = 7;
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          ListItemMarkerBox(anonymous) MEASURE max-content inline (cache=miss) FROM ITEMS
+                          ListItemMarkerBox(anonymous)/block RUN (cache=miss)
+                          ListItemMarkerBox(anonymous) MEASURE max-content inline (cache=miss) FROM ITEMS
+                          ListItemMarkerBox(anonymous)/block RUN (cache=miss)
+                          BlockContainer<UL>#disc REUSE IN-FLOW SUBTREE
+                          BlockContainer<UL>#image REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#rtl REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#inside REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#blocks REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedInline REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedBlocks REUSE IN-FLOW SUBTREE
+                `,
+                check: equal => {
+                    equal(markerTexts(decimal), JSON.stringify(["1. ", "7. "]), "decimal marker texts");
+                },
+            },
+            {
+                name: "a list-style-type change re-runs the marker",
+                mutate: () => {
+                    disc.style.listStyleType = "square";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<OL>#decimal REUSE IN-FLOW SUBTREE
+                          ListItemMarkerBox(anonymous) MEASURE max-content inline (cache=miss) FROM ITEMS
+                          ListItemMarkerBox(anonymous)/block RUN (cache=miss)
+                          BlockContainer<UL>#image REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#rtl REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#inside REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#blocks REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedInline REUSE IN-FLOW SUBTREE
+                          BlockContainer<OL>#indentedBlocks REUSE IN-FLOW SUBTREE
+                `,
+            },
+        ],
+    });
+</script>
