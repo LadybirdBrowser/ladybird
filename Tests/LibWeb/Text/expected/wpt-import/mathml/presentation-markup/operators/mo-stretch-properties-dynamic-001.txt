@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	minsize
+Fail	maxsize
+Fail	largeop
+Fail	symmetric
+Fail	stretchy

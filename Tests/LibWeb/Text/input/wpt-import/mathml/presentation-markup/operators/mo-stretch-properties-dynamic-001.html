@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dynamic stretch properties</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<link rel="help" href="https://w3c.github.io/mathml-core/#dictionary-based-attributes">
+<meta name="assert" content="Verify stretchy, symmetric, largeop, minsize and maxsize are updated dynamically.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math {
+      font: 25px/1 Ahem;
+  }
+  @font-face {
+      font-family: operators;
+      src: url("../../../fonts/math/operators.woff");
+  }
+  mo {
+      font-family: operators;
+  }
+</style>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+
+      var epsilon = 1;
+      var emToPx = 25;
+      var element;
+
+      test(function() {
+          element = document.getElementById("minsize_attach");
+          element.setAttribute("minsize", "4em");
+          assert_approx_equals(element.getBoundingClientRect().height, 4 * emToPx, epsilon, "attach");
+
+          element = document.getElementById("minsize_modify");
+          element.setAttribute("minsize", "5em");
+          assert_approx_equals(element.getBoundingClientRect().height, 5 * emToPx, epsilon, "modify");
+
+          element = document.getElementById("minsize_remove");
+          element.removeAttribute("minsize");
+          const unstretched_size = 1 * emToPx;
+          assert_approx_equals(element.getBoundingClientRect().height, unstretched_size, epsilon, "remove");
+      }, `minsize`);
+
+      test(function() {
+          element = document.getElementById("maxsize_attach");
+          element.setAttribute("maxsize", "4em");
+          assert_approx_equals(element.getBoundingClientRect().height, 4 * emToPx, epsilon, "attach");
+
+          element = document.getElementById("maxsize_modify");
+          element.setAttribute("maxsize", "5em");
+          assert_approx_equals(element.getBoundingClientRect().height, 5 * emToPx, epsilon, "modify");
+
+          element = document.getElementById("maxsize_remove");
+          element.removeAttribute("maxsize");
+          assert_approx_equals(element.getBoundingClientRect().height, 6 * emToPx, epsilon, "remove");
+      }, `maxsize`);
+
+      test(function() {
+          element = document.getElementById("largeop_set_true");
+          element.setAttribute("largeop", "true");
+          assert_approx_equals(element.getBoundingClientRect().height, 2 * emToPx, epsilon, "set true");
+
+          element = document.getElementById("largeop_set_false");
+          element.setAttribute("largeop", "false");
+          assert_approx_equals(element.getBoundingClientRect().height, 1 * emToPx, epsilon, "set false");
+      }, `largeop`);
+
+      test(function() {
+          element = document.getElementById("symmetric_set_true");
+          element.setAttribute("symmetric", "true");
+          assert_approx_equals(element.getBoundingClientRect().height, 6 * emToPx, epsilon, "set true");
+
+          element = document.getElementById("symmetric_set_false");
+          element.setAttribute("symmetric", "false");
+          assert_approx_equals(element.getBoundingClientRect().height, 3 * emToPx, epsilon, "set false");
+      }, `symmetric`);
+
+      test(function() {
+          element = document.getElementById("stretchy_set_true");
+          element.setAttribute("stretchy", "true");
+          assert_approx_equals(element.getBoundingClientRect().height, 3 * emToPx, epsilon, "set true");
+
+          element = document.getElementById("stretchy_set_false");
+          element.setAttribute("stretchy", "false");
+          assert_approx_equals(element.getBoundingClientRect().height, 1 * emToPx, epsilon, "set false");
+      }, `stretchy`);
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mrow>
+        <mspace width="1em" height="1em" style="background: blue"/>
+        <mo id="minsize_attach" stretchy="true" symmetric="false">⥯</mo>
+        <mo id="minsize_modify" minsize="3em" stretchy="true" symmetric="false">⥯</mo>
+        <mo id="minsize_remove" minsize="2em" stretchy="true" symmetric="false">⥯</mo>
+        <mn><!-- not space like --></mn>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mrow>
+        <mspace width="1em" height="6em" style="background: blue"/>
+        <mo id="maxsize_attach" stretchy="true" symmetric="false">⥯</mo>
+        <mo id="maxsize_modify" maxsize="3em" stretchy="true" symmetric="false">⥯</mo>
+        <mo id="maxsize_remove" maxsize="2em" stretchy="true" symmetric="false">⥯</mo>
+        <mn><!-- not space like --></mn>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math displaystyle="true">
+      <mspace width="1em" height="1em" style="background: blue"/>
+      <mrow>
+        <mo id="largeop_set_true" largeop="false" stretchy="false">⥯</mo>
+        <mn><!-- not space like --></mn>
+      </mrow>
+      <mrow>
+        <mo id="largeop_set_false" largeop="true" stretchy="false">⥯</mo>
+        <mn><!-- not space like --></mn>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mrow>
+        <mspace width="1em" height="3em" style="background: blue"/>
+        <mo id="symmetric_set_true" symmetric="false" stretchy="true">⥯</mo>
+        <mo id="symmetric_set_false" symmetric="true" stretchy="true">⥯</mo>
+        <mn><!-- not space like --></mn>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mrow>
+        <mspace width="1em" height="3em" style="background: blue"/>
+        <mo id="stretchy_set_true" symmetric="false" stretchy="false">⥯</mo>
+        <mo id="stretchy_set_false" symmetric="false" stretchy="true">⥯</mo>
+        <mn><!-- not space like --></mn>
+      </mrow>
+    </math>
+  </p>
+</body>
+</html>
