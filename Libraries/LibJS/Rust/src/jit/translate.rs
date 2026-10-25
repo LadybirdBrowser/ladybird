@@ -27,11 +27,12 @@ use libjs_abi::register;
 use libjs_jit::code::{CALLEE_SLOT, FrameState, Repr, ResumeMode, Site, SiteKind, ValueLocation};
 
 use super::code::{CompileState, EXIT_COUNT_BEFORE_DISCARD, InlinedFunction, JitCode};
-use super::{DeferGc, executable_of, frame_of, frames_above};
+use super::{executable_of, frame_of, frames_above};
 use crate::bytecode::executable::Executable;
 use crate::bytecode::instruction::{OpCode, instruction_length_from_bytes};
 use crate::bytecode::instruction_at;
 use crate::bytecode::op;
+use crate::gc::defer_gc::DeferGc;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;

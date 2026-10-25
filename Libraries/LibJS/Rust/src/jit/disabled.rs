@@ -57,15 +57,6 @@ unsafe impl Trace for JitState {
     fn trace(&self, _visitor: &mut Visitor) {}
 }
 
-/// Keeps the heap from collecting garbage while it lives, which only matters for frames of inlined calls.
-pub struct DeferGc;
-
-impl DeferGc {
-    pub fn new(_vm: &Vm) -> Self {
-        Self
-    }
-}
-
 pub mod options {
     /// The options of the JIT, which these builds ignore.
     pub struct Options;
