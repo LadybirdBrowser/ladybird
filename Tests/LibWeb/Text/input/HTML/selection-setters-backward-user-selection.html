@@ -1,0 +1,73 @@
+<!doctype html>
+<script src="../include.js"></script>
+<input id="input" value="abcdef" />
+<textarea id="textarea">abcdef</textarea>
+<script>
+    const modShift = 1 << 2;
+
+    const cases = [
+        ["selectionStart", 1],
+        ["selectionStart", 3],
+        ["selectionEnd", 5],
+        ["selectionEnd", 3],
+        ["selectionDirection", "forward"],
+        ["selectionDirection", "backward"],
+        ["selectionDirection", "none"],
+    ];
+
+    const scriptCases = [
+        ['setSelectionRange(2, 4, "backward")', element => element.setSelectionRange(2, 4, "backward")],
+        [
+            '2-4 forward, selectionDirection = "backward"',
+            element => {
+                element.setSelectionRange(2, 4, "forward");
+                element.selectionDirection = "backward";
+            },
+        ],
+        [
+            "2-4 backward, selectionStart = 1",
+            element => {
+                element.setSelectionRange(2, 4, "backward");
+                element.selectionStart = 1;
+            },
+        ],
+        [
+            "2-4 backward, selectionEnd = 5",
+            element => {
+                element.setSelectionRange(2, 4, "backward");
+                element.selectionEnd = 5;
+            },
+        ],
+        ['setSelectionRange(2, 4, "forward")', element => element.setSelectionRange(2, 4, "forward")],
+    ];
+
+    function range(element) {
+        return `${element.selectionStart}-${element.selectionEnd} ${element.selectionDirection}`;
+    }
+
+    test(() => {
+        for (const id of ["input", "textarea"]) {
+            const element = document.getElementById(id);
+            element.focus();
+            for (const [attribute, value] of cases) {
+                element.setSelectionRange(4, 4);
+                internals.sendKey(element, "Left", modShift);
+                internals.sendKey(element, "Left", modShift);
+                const before = range(element);
+                element[attribute] = value;
+                println(`${id} ${before}, ${attribute} = ${JSON.stringify(value)}: ${range(element)}`);
+            }
+        }
+
+        for (const id of ["input", "textarea"]) {
+            const element = document.getElementById(id);
+            element.focus();
+            for (const [description, setup] of scriptCases) {
+                setup(element);
+                const before = range(element);
+                internals.sendKey(element, "Left", modShift);
+                println(`${id} ${description} (${before}), Shift+Left: ${range(element)}`);
+            }
+        }
+    });
+</script>
