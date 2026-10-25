@@ -176,7 +176,8 @@ void ObjectStore::possibly_update_the_key_generator(GC::Ref<Key> key)
     if (value >= static_cast<double>(generator.current_number())) {
         if (m_mutation_log)
             m_mutation_log->note_key_generator_changed(generator.current_number());
-        generator.set(static_cast<u64>(value + 1));
+        // NB: value + 1 is computed as an integer, as 2^53 + 1 does not fit in a double.
+        generator.set(static_cast<u64>(value) + 1);
     }
 }
 
