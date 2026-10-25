@@ -196,6 +196,10 @@ describe("in- and exports", () => {
         expectModulePassed("./import-with-attributes.mjs");
     });
 
+    test("import attribute keys must be unique", () => {
+        expectedModuleToThrowSyntaxError("./duplicate-import-attribute-key.mjs", "Duplicate import attribute key");
+    });
+
     test("namespace has expected ordering", () => {
         expectModulePassed("./namespace-order.mjs");
     });

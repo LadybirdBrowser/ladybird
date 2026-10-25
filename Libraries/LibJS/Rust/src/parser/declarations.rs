@@ -2182,7 +2182,7 @@ impl Parser<'_> {
         self.consume();
         self.consume_token(TokenType::CurlyOpen);
 
-        let mut attributes = Vec::new();
+        let mut attributes: Vec<ImportAttribute> = Vec::new();
         while !self.done() && !self.match_token(TokenType::CurlyClose) {
             let key: Utf16String = if self.match_token(TokenType::StringLiteral) {
                 let token = self.consume();
@@ -2202,6 +2202,14 @@ impl Parser<'_> {
             if self.match_token(TokenType::StringLiteral) {
                 let token = self.consume();
                 let (value, _) = self.parse_string_value(&token);
+
+                // https://tc39.es/ecma262/#sec-imports-static-semantics-early-errors
+                // It is a Syntax Error if WithClauseToAttributes of WithClause has two different entries a and b such
+                // that a.[[Key]] is b.[[Key]].
+                if attributes.iter().any(|attribute| attribute.key == key) {
+                    self.syntax_error("Duplicate import attribute key");
+                }
+
                 attributes.push(ImportAttribute { key, value });
             } else {
                 self.expected("string as attribute value");
