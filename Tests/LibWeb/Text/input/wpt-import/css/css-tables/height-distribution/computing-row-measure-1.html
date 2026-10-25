@@ -1,0 +1,94 @@
+<!doctype html>
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<link rel='stylesheet' href='../support/base.css' />
+
+<link rel="author" title="Greg Whitworth" href="gwhit@microsoft.com" />
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#computing-column-measures" />
+<main>
+    <h1>Width Distribution</h1>
+    <h4>"Computing column measures"</h4>
+    <p>This is testing intermediate min-content width for span 2</p>
+
+    <hr/>
+    <table cellspacing="0" cellpadding="0">
+        <colgroup style="width: auto;">
+            <col style="width: 10px;"></col>
+            <col style="width: 20px;"></col>
+        </colgroup>
+        <tr>
+            <td id="one" style="width: 1px;"></td>
+            <td style="width: 2px;"></td>
+        </tr>
+        <tr>
+            <td colspan="2" style="width: 51px;"></td>
+        </tr>
+    </table>
+
+    <table cellspacing="0" cellpadding="0">
+        <colgroup style="width: auto;">
+            <col style="width: 10px;"></col>
+            <col style="width: auto;"></col>
+        </colgroup>
+        <tr>
+            <td id="two" style="width: 1px;"></td>
+            <td style="width: auto;"></td>
+        </tr>
+        <tr>
+            <td colspan="2" style="width: 51px;"></td>
+        </tr>
+    </table>
+
+    <table cellspacing="0" cellpadding="0">
+        <colgroup style="width: 51px;">
+            <col style="width: 10px;"></col>
+            <col style="width: 20px;"></col>
+        </colgroup>
+        <tr>
+            <td id="three" style="width: 1px;"></td>
+            <td style="width: 2px;"></td>
+        </tr>
+    </table>
+
+    <table cellspacing="0" cellpadding="0">
+        <colgroup style="width: 51px;">
+            <col style="width: 20px;"></col>
+            <col style="width: auto;"></col>
+        </colgroup>
+        <tr>
+            <td style="width: 10px;"></td>
+            <td id="four" style="width: 20px;"></td>
+        </tr>
+    </table>
+</main>
+
+<style>
+    table { margin-bottom: 10px; height: 50px; }
+    td { outline: 1px solid red; outline-offset: -1px; }
+</style>
+<script>
+    var i = 1;
+    generate_tests(assert_equals, [
+        [
+            "Checking intermediate min-content width for span 2 (1)",
+            document.getElementById('one').offsetWidth,
+            17
+        ],
+        [
+            "Checking intermediate min-content width for span 2 (2)",
+            document.getElementById('two').offsetWidth,
+            10
+        ],
+        [
+            "Checking intermediate min-content width for span 2 (3)",
+            document.getElementById('three').offsetWidth,
+            10
+        ],
+        [
+            "Checking intermediate min-content width for span 2 (4)",
+            document.getElementById('four').offsetWidth,
+            51
+        ]
+    ]);
+</script>
+</html>
