@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Worklet.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
@@ -95,19 +96,19 @@ GC::Ref<WebIDL::Promise> Worklet::add_module(Utf16String const& module_url, Bind
 
             // 5. Run a module script given script. (This runs inside the worklet's own realm; Script::run
             //    enters the script's settings object's realm execution context.)
-            auto evaluation_promise = module_script.run();
-            VERIFY(evaluation_promise);
+            // NB: Running the script reports any exception it throws, which does not reject promise.
+            (void)module_script.run();
 
-            // 6. Resolve promise with undefined.
-            WebIDL::react_to_promise(*evaluation_promise,
-                GC::create_function(realm.heap(), [promise, &realm](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-                    WebIDL::resolve_promise(realm, promise, JS::js_undefined());
-                    return JS::js_undefined();
-                }),
-                GC::create_function(realm.heap(), [promise, &realm](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
-                    WebIDL::reject_promise(realm, promise, reason);
-                    return JS::js_undefined();
-                }));
+            // 6. Queue a global task on the networking task source given workletInstance's relevant global object to
+            //    perform the following steps:
+            //    1. If pendingTasks is not −1:
+            //       1. Set pendingTasks to pendingTasks − 1.
+            //       2. If pendingTasks is 0, then resolve promise.
+            // NB: With our single global scope, pendingTasks is 1 here.
+            queue_global_task(Task::Source::Networking, realm.global_object(), GC::create_function(realm.heap(), [promise, &realm] {
+                TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::resolve_promise(realm, promise, JS::js_undefined());
+            }));
         });
 
     auto fetch_result = fetch_worklet_module_worker_script_graph(

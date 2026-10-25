@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 18 tests
 
-15 Pass
-3 Fail
+16 Pass
+2 Fail
 Pass	Importing a script resolves the given promise.
 Pass	Importing scripts resolves all the given promises.
 Pass	Importing nested scripts resolves the given promise
 Pass	Importing cyclic scripts resolves the given promise
-Fail	Importing a script which throws should still resolve the given promise.
+Pass	Importing a script which throws should still resolve the given promise.
 Pass	Importing a non-existent script rejects the given promise with an AbortError.
 Pass	Importing an invalid URL should reject the given promise with a SyntaxError.
 Pass	Importing a blob URL should resolve the given promise.
