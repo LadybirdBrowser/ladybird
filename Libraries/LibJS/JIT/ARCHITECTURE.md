@@ -359,11 +359,12 @@ compiled again once catches keep happening there, and the recompile calls the ca
 ## 5. Dependencies and invalidation
 
 Compiled code may assume facts that hold until a rare runtime event (`code::Dependency`): a
-prototype chain stays valid, a shape stays stable, a global binding or a property of the global
-object is never assigned, the global declarative environment gets no bindings, no `[[IsHTMLDDA]]`
-object exists. Each of the first and the last kinds is a `WatchpointSet` that stays valid
-(`runtime/watchpoint_set.rs`), such as one of a realm for the iterator protocol
-(`runtime/realm_watchpoints.rs`).
+prototype chain stays valid, a shape stays stable, a prototype keeps the value of a property, a
+global binding or a property of the global object is never assigned, the global declarative
+environment gets no bindings, no `[[IsHTMLDDA]]` object exists. Each of the first, the third and
+the last kinds is a `WatchpointSet` that stays valid (`runtime/watchpoint_set.rs`), such as one of
+a realm for the iterator protocol (`runtime/realm_watchpoints.rs`) or the one of a prototype's slot
+(`Shape::watch_slot_for_replacements()`).
 
 - The builder and check elimination record the dependencies they rely on in
   `Graph::dependencies`.
@@ -440,6 +441,14 @@ nodes that rely on its state still take the values of their own checks. Where th
 before, loads of the binding stay plain loads; for a captured binding, that holds at all of its
 loads. Closures are counted where they are created (`SharedFunctionInstanceData::closure_count()`),
 so compiled code only copies closure templates of functions that have several closures already.
+
+**Methods of prototypes.** A property lookup cache entry that found an object in a prototype (like
+a method) is a constant to the builder. Where the prototype's shape watches the property's slot
+(`PropertyCacheEntrySnapshot::prototype_property_watchpoint`), the code depends on the slot's
+watchpoint set and loads nothing; otherwise it loads the property and checks it against the
+constant. Slots that property lookup caches write to have no watchpoint set, and neither do slots
+whose value was replaced while watched (`Shape::was_slot_replaced()`): the code their replacement
+invalidated learned nothing, while a failed check is an exit that the recompile avoids.
 
 **Polymorphic calls.** A call whose callee is a phi of a few function constants, like the methods
 that a `GetById` found for the shapes it switched on, inlines each of them (or calls the slow

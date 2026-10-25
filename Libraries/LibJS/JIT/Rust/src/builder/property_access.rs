@@ -186,6 +186,14 @@ impl GraphBuilder<'_> {
                 if let Some(index) = entry.prototype_property_inline_executable {
                     self.inlinable_functions.insert(bits, index);
                 }
+                // NB: While the watchpoint set is valid, the prototype holds
+                //     the object in the property, which needs no load.
+                if let Some(watchpoint) = entry.prototype_property_watchpoint {
+                    self.embed(watchpoint);
+                    self.embed(expected);
+                    self.assume(Dependency::WatchpointSetValid(watchpoint));
+                    return self.constant(bits);
+                }
                 self.load_constant_named(holder, offset, expected)
             }
             _ => self.load_named(holder, offset),

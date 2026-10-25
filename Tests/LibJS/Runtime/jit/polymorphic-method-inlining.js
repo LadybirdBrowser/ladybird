@@ -218,3 +218,25 @@ describe("inlined methods of callees copied to other registers", () => {
         for (let i = 0; i < iterations; ++i) expect(call(objects[i % 2])).toBe(i % 2 ? 2 + 2 + 20 : 1 + 1 + 10);
     });
 });
+
+describe("methods replaced again and again", () => {
+    test("methods redefined on a prototype many times", () => {
+        class A {
+            value() {
+                return 0;
+            }
+        }
+        function call(object) {
+            return object.value();
+        }
+        const object = new A();
+        for (let round = 1; round <= 20; ++round) {
+            Object.defineProperty(A.prototype, "value", {
+                value: () => round,
+                writable: true,
+                configurable: true,
+            });
+            for (let i = 0; i < iterations; ++i) expect(call(object)).toBe(round);
+        }
+    });
+});

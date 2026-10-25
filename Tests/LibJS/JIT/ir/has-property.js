@@ -11,7 +11,7 @@ jit.compile(own);
 
 // CHECK-FUNCTION: own
 // CHECK-PASS: frame initialization
-// CHECK: CheckValue
+// CHECK: CheckShape
 // CHECK: [[HAS:v[0-9]+]] = ProbeHasOwnProperty ([[O:v[0-9]+]], [[K:v[0-9]+]])
 // CHECK-NEXT: BranchTaggedEquals ([[HAS]], #empty)
 // CHECK: cold:

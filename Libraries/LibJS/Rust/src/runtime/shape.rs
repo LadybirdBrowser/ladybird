@@ -91,6 +91,8 @@ struct RareData {
     /// What is known of the replacement of the values in the slots of the object that has this prototype shape, by
     /// offset (see `Shape::watch_slot_for_replacements()`).
     watched_slots: HashMap<u32, WatchedSlot, RandomState>,
+    /// The offsets of the slots whose value changed while watched (see `Shape::was_slot_replaced()`).
+    replaced_slots: Vec<u32>,
 }
 
 /// What a prototype shape knows of the replacement of the value in one of the slots of its object.
@@ -1093,6 +1095,16 @@ impl Shape {
             })
     }
 
+    /// Whether the value in slot `offset` of the object of this prototype shape changed while something relied on it,
+    /// which compiled code takes as a sign that it may change again, rather than rely on it once more.
+    pub fn was_slot_replaced(&self, offset: u32) -> bool {
+        self.storage
+            .rare_data
+            .borrow()
+            .as_ref()
+            .is_some_and(|rare_data| rare_data.replaced_slots.contains(&offset))
+    }
+
     /// Notes that the value in slot `offset` of the object of this prototype shape changes, which fires the watchpoint
     /// set of the slot.
     pub fn note_slot_replacement(&self, vm: &Vm, offset: u32) {
@@ -1108,6 +1120,9 @@ impl Shape {
                 Some(WatchedSlot::Watched(watchpoint_set)) => {
                     let watchpoint_set = *watchpoint_set;
                     rare_data.watched_slots.remove(&offset);
+                    if !rare_data.replaced_slots.contains(&offset) {
+                        rare_data.replaced_slots.push(offset);
+                    }
                     watchpoint_set
                 }
                 Some(WatchedSlot::WrittenByCaches) | None => return,
