@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stretching operators along the block axis</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<link rel="help" href="https://w3c.github.io/mathml-core/#algorithm-for-stretching-operators-along-the-block-axis">
+<meta name="assert" content="">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math {
+      font: 25px/1 Ahem;
+  }
+  @font-face {
+      font-family: stretchy;
+      src: url("../../../fonts/math/stretchy.woff");
+  }
+  mo {
+      font-family: stretchy;
+  }
+</style>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+
+      var epsilon = 2;
+      var emToPx = 25;
+      var element;
+
+      test(function() {
+          element = document.getElementById("horizontal_arrow");
+          assert_approx_equals(element.getBoundingClientRect().height, 1 * emToPx, epsilon, "horizontal characters don't stretch vertically");
+
+          element = document.getElementById("vertical_arrow");
+          assert_approx_equals(element.getBoundingClientRect().height, 6 * emToPx, epsilon, "vertical characters stretch vertically");
+      }, `Taking into account stretch axis.`);
+
+      test(function() {
+          element = document.getElementById("non_stretchy_horizontal_arrow");
+          assert_approx_equals(element.getBoundingClientRect().height, 1 * emToPx, epsilon, "horizontal characters don't stretch vertically");
+
+          element = document.getElementById("non_stretchy_vertical_arrow");
+          assert_approx_equals(element.getBoundingClientRect().height, 1 * emToPx, epsilon, "vertical characters stretch vertically");
+      }, `Taking into account stretchy property.`);
+
+      test(function() {
+          // There are only stretchy operators : the maximum of their base sizes
+          // is used as the target size.
+          let tallest_base_size = 2 * emToPx;
+
+          element = document.getElementById("small_vertical");
+          assert_approx_equals(element.getBoundingClientRect().width, .5 * emToPx, epsilon, "small width");
+          assert_approx_equals(element.getBoundingClientRect().height, tallest_base_size, epsilon, "height is the max(.5em, 1em, 2em)");
+
+          element = document.getElementById("medium_vertical");
+          assert_approx_equals(element.getBoundingClientRect().width, 1 * emToPx, epsilon, "normal width");
+          assert_approx_equals(element.getBoundingClientRect().height, tallest_base_size, epsilon, "height is the max(.5em, 1em, 2em)");
+
+          element = document.getElementById("big_vertical");
+          assert_approx_equals(element.getBoundingClientRect().width, 2 * emToPx, epsilon, "large width");
+          assert_approx_equals(element.getBoundingClientRect().height, tallest_base_size, epsilon, "height is the max(.5em, 1em, 2em)");
+
+      }, `Only operators with a stretchy property and block stretch axis.`);
+
+      test(function() {
+          // There are non-stretchy operators : the maximum of their base sizes
+          // is used as the target size. In any case, operators remain at least
+          // as large as their base size.
+
+          element = document.getElementById("smaller_op");
+          assert_approx_equals(element.getBoundingClientRect().width, .5 * emToPx, epsilon, "small width");
+          assert_approx_equals(element.getBoundingClientRect().height, 1.5 * emToPx, epsilon, "height is the max(.5em, 1em)");
+
+          element = document.getElementById("bigger_op");
+          assert_approx_equals(element.getBoundingClientRect().width, 2 * emToPx, epsilon, "large width");
+          assert_approx_equals(element.getBoundingClientRect().height, 2 * emToPx, epsilon, "height is the max(1em, 2em)");
+
+      }, `Operators smaller and larger than non-stretchy siblings.`);
+
+      test(function() {
+          element = document.getElementById("core_operator_1");
+          assert_approx_equals(element.getBoundingClientRect().height, 6 * emToPx, epsilon, "mrow");
+
+          element = document.getElementById("core_operator_2");
+          assert_approx_equals(element.getBoundingClientRect().height, 6 * emToPx, epsilon, "munder");
+
+          element = document.getElementById("core_operator_3");
+          assert_approx_equals(element.getBoundingClientRect().height, 6 * emToPx, epsilon, "mover");
+
+          element = document.getElementById("core_operator_4");
+          assert_approx_equals(element.getBoundingClientRect().height, 6 * emToPx, epsilon, "mundeover");
+
+          element = document.getElementById("core_operator_5");
+          assert_approx_equals(element.getBoundingClientRect().height, 6 * emToPx, epsilon, "complex nesting");
+      }, `Embellished operators`);
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mrow>
+        <mspace width="1em" height="3em" depth="3em" style="background: blue"/>
+        <mo id="horizontal_arrow" stretchy="true">⥚</mo>
+        <mo id="vertical_arrow" stretchy="true">⥜</mo>
+        <mo id="non_stretchy_horizontal_arrow" stretchy="false">⥚</mo>
+        <mo id="non_stretchy_vertical_arrow" stretchy="false">⥜</mo>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mrow>
+        <!-- This contains only vertical stretchy operators. -->
+        <mo style="font-size: 50%" id="small_vertical" stretchy="true">⥜</mo>
+        <mo style="font-size: 200%" id="big_vertical" stretchy="true">⥜</mo>
+        <mo style="font-size: 100%" id="medium_vertical" stretchy="true">⥜</mo>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mrow>
+        <mspace style="background: blue" width="1em" height=".75em"/>
+        <mo style="font-size: 50%" id="smaller_op" stretchy="true">⥜</mo>
+        <mspace style="background: blue" width="1em" height="1.5em"/>
+        <mo style="font-size: 200%" id="bigger_op" stretchy="true">⥜</mo>
+        <mspace style="background: blue" width="1em" height="1em"/>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mrow>
+        <mspace width="1em" height="3em" depth="3em" style="background: blue"/>
+        <mrow><mo id="core_operator_1" stretchy="true">⥜</mo></mrow>
+        <munder>
+          <mo id="core_operator_2" stretchy="true">⥜</mo>
+          <mspace></mspace>
+        </munder>
+        <mover>
+          <mo id="core_operator_3" stretchy="true">⥜</mo>
+          <mspace></mspace>
+        </mover>
+        <munderover>
+          <mo id="core_operator_4" stretchy="true">⥜</mo>
+          <mspace></mspace>
+          <mspace></mspace>
+        </munderover>
+        <mrow>
+          <mspace></mspace>
+          <munderover>
+            <mover>
+              <munder>
+                <mrow>
+                  <mo id="core_operator_5" stretchy="true">⥜</mo>
+                </mrow>
+                <mspace></mspace>
+              </munder>
+              <mspace></mspace>
+            </mover>
+            <mspace></mspace>
+            <mspace></mspace>
+          </munderover>
+        </mrow>
+      </mrow>
+    </math>
+  </p>
+</body>
+</html>

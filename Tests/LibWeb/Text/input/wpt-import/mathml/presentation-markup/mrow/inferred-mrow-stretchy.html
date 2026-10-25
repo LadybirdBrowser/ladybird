@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stretchy in inferred mrows</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#horizontally-group-sub-expressions-mrow">
+<link rel="help" href="https://w3c.github.io/mathml-core/#radicals-msqrt-mroot">
+<link rel="help" href="https://w3c.github.io/mathml-core/#style-change-mstyle">
+<link rel="help" href="https://w3c.github.io/mathml-core/#error-message-merror">
+<link rel="help" href="https://w3c.github.io/mathml-core/#making-sub-expressions-invisible-mphantom">
+<link rel="help" href="https://w3c.github.io/mathml-core/#the-top-level-math-element">
+<link rel="help" href="https://www.w3.org/TR/MathML3/chapter3.html#presm.menclose">
+<link rel="help" href="https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded">
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<meta name="assert" content="Operators can stretch inside mrow-like elements.">
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  mo {
+    font-size: 10px;
+    font-family: axisheight5000-verticalarrow14000;
+  }
+  @font-face {
+    font-family: axisheight5000-verticalarrow14000;
+    src: url("../../../fonts/math/axisheight5000-verticalarrow14000.woff");
+  }
+</style>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+  function runTests()
+  {
+      ["Mrow", "Sqrt", "Style", "Error", "Phantom", "Math", "Menclose", "Mpadded", "Unknown", "Mtd", "None", "Mprescripts", "Mfenced", "A"].forEach((tag) => {
+          var mo = document.getElementById(`mo${tag}`);
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace());
+              assert_greater_than_equal(mo.getBoundingClientRect().height, 100);
+          }, `operator stretching inside ${tag}`);
+      });
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+<!-- mo operators below should stretch to cover the height of the mspace
+     sibling. The mn element ensures its parent is not an embellished operator,
+     so that this test really verifies the stretching is performed during the
+     layout of the parent and not as part of the stretching of an embellished
+     operator during the layout of the <math> ancestor. -->
+    <math><mrow><mo id="moMrow">&#x21A8;</mo><mspace width="1px" height="100px" style="background: blue"></mspace><mn></mn></mrow></math>
+    <math><msqrt><mo id="moSqrt">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></msqrt></math>
+    <math><mstyle><mo id="moStyle">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></mstyle></math>
+    <math><merror><mo id="moError">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></merror></math>
+    <math><mphantom><mo style="visibilty: visible;" id="moPhantom">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></mphantom></math>
+    <math><mo id="moMath">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></math>
+    <!-- menclose is treated as <unknown> in MathML Core -->
+    <math><menclose notation="box"><mo id="moMenclose">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></menclose></math>
+    <math><mpadded lspace="10px"><mo id="moMpadded">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></mpadded></math>
+    <math><unknown><mo id="moUnknown">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></unknown></math>
+    <math><mtable><mtr><mtd><mo id="moMtd">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></mtd></mtr></mtable></math>
+    <math><none><mo id="moNone">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></none></math>
+    <math><mprescripts><mo id="moMprescripts">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></mprescripts></math>
+    <math><mfenced><mo id="moMfenced">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></mfenced></math>
+    <math><a><mo id="moA">&#x21A8;</mo><mspace width="1px" height="100px" style="background: magenta"></mspace><mn></mn></a></math>
+  </p>
+</body>
+</html>

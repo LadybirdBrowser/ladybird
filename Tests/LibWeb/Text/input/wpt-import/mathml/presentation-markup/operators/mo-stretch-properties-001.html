@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stretch properties</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<link rel="help" href="https://w3c.github.io/mathml-core/#dictionary-based-attributes">
+<meta name="assert" content="Verify ">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math {
+      font: 25px/1 Ahem;
+  }
+  @font-face {
+      font-family: operators;
+      src: url("../../../fonts/math/operators.woff");
+  }
+  mo {
+      font-family: operators;
+  }
+</style>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+
+      var epsilon = 1;
+      var emToPx = 25;
+      var element;
+
+      test(function() {
+          element = document.getElementById("mn_vertical_line");
+          assert_approx_equals(element.getBoundingClientRect().height, 1 * emToPx, epsilon, "<mn> element");
+
+          element = document.getElementById("mo_prefix_vertical_line");
+          assert_approx_equals(element.getBoundingClientRect().height, 6 * emToPx, epsilon, "Prefix <mo> element");
+
+          element = document.getElementById("mo_infix_vertical_line");
+          assert_approx_equals(element.getBoundingClientRect().height, 1 * emToPx, epsilon, "Infix <mo> element");
+
+          element = document.getElementById("mo_postfix_vertical_line");
+          assert_approx_equals(element.getBoundingClientRect().height, 6 * emToPx, epsilon, "Postfix <mo> element");
+      }, `Stretchy vertical line`);
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mrow>
+        <!-- Some non-element nodes before -->
+        <mo id="mo_prefix_vertical_line" style="color: green">|</mo>
+        <mn id="mn_vertical_line">|</mn>
+        <mspace width="1em" height="3em" depth="3em" style="background: blue"/>
+        <mo id="mo_infix_vertical_line" lspace="0" rspace="0">|</mo>
+        <mo id="mo_postfix_vertical_line" style="color: green">|</mo>
+        <!-- Some non-element nodes after -->
+      </mrow>
+    </math>
+  </p>
+</body>
+</html>
