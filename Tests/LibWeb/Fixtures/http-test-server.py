@@ -9,6 +9,7 @@ import itertools
 import json
 import logging
 import os
+import re
 import socket
 import socketserver
 import ssl
@@ -17,6 +18,7 @@ import threading
 import time
 import urllib.parse
 
+from collections import defaultdict
 from types import SimpleNamespace
 from typing import Any
 from typing import Callable
@@ -115,7 +117,13 @@ class WPTContext:
         from wptserve.stash import start_server as start_stash_server
         from wptserve.utils import HTTPException
 
-        self.config_builder_class = ConfigBuilder
+        class TestWebConfigBuilder(ConfigBuilder):
+            # Our own servers serve HTTPS, not wptserve's, so keep the HTTPS ports that wptserve drops when its own TLS
+            # support is not configured.
+            def _get_ports(self, data):
+                return defaultdict(list, {scheme: list(ports) for scheme, ports in data["ports"].items()})
+
+        self.config_builder_class = TestWebConfigBuilder
         self.server_class = Server
 
         self.request_class = Request
@@ -140,6 +148,13 @@ class WPTContext:
         return handler
 
     def configure_server(self, http_ports, https_ports):
+        # The HTTP(S) servers also accept WebSocket connections.
+        self.ports = {"http": http_ports, "https": https_ports, "ws": http_ports[:1], "wss": https_ports}
+        self.configs_by_host = {}
+        self.configs_by_host_lock = threading.Lock()
+        cast(Any, self.server_class).config = self._build_config("web-platform.localhost")
+
+    def _build_config(self, browser_host):
         def make_subdomains_product(subdomains, depth=2):
             return {
                 ".".join(labels)
@@ -152,14 +167,33 @@ class WPTContext:
         logger = logging.getLogger("test-web-wptserve")
         with self.config_builder_class(
             logger,
-            browser_host="web-platform.localhost",
+            browser_host=browser_host,
             alternate_hosts={"alt": "not-localhost.localhost"},
-            ports={"http": http_ports, "https": https_ports},
+            ports=self.ports,
             subdomains=subdomains,
             not_subdomains=not_subdomains,
             check_subdomains=False,
         ) as config:
-            cast(Any, self.server_class).config = config
+            return config
+
+    def apply_config_for_request(self, request):
+        # test-web serves each test it loads over HTTP from a unique test-web-*.localhost host, so substitutions like
+        # {{host}} and {{domains[www1]}} name that host and its subdomains, as they name the test's host in WPT.
+        hostname = request.url_parts.hostname or ""
+        match = re.search(r"(?:^|\.)(test-web-[0-9a-fA-F-]+\.localhost)$", hostname)
+        if not match:
+            return
+
+        test_host = match.group(1)
+        with self.configs_by_host_lock:
+            config = self.configs_by_host.get(test_host)
+            if config is None:
+                # Each test has its own host, so only keep the configs of the most recent ones.
+                if len(self.configs_by_host) >= 64:
+                    self.configs_by_host.pop(next(iter(self.configs_by_host)))
+                config = self._build_config(test_host)
+                self.configs_by_host[test_host] = config
+        request.server.config = config
 
     def close(self):
         self.stash_manager.shutdown()
@@ -258,6 +292,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def _create_wpt_request_response(self):
         server = self._test_server()
         request = server.wpt.request_class(self)
+        server.wpt.apply_config_for_request(request)
         request.server._stash = server.wpt.stash_class(
             request.url_parts.path,
             server.wpt.stash_address,

@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+6 Pass
+6 Fail
+Pass	Content Security Policy: Expects blocked for worker-import-data to cross-http origin and keep-origin redirection from http context.
+Fail	Content Security Policy: Expects blocked for worker-import-data to cross-http origin and keep-origin redirection from http context.: securitypolicyviolation
+Pass	Content Security Policy: Expects blocked for worker-import-data to cross-http origin and no-redirect redirection from http context.
+Fail	Content Security Policy: Expects blocked for worker-import-data to cross-http origin and no-redirect redirection from http context.: securitypolicyviolation
+Pass	Content Security Policy: Expects blocked for worker-import-data to cross-http origin and swap-origin redirection from http context.
+Fail	Content Security Policy: Expects blocked for worker-import-data to cross-http origin and swap-origin redirection from http context.: securitypolicyviolation
+Pass	Content Security Policy: Expects blocked for worker-import-data to same-http origin and keep-origin redirection from http context.
+Fail	Content Security Policy: Expects blocked for worker-import-data to same-http origin and keep-origin redirection from http context.: securitypolicyviolation
+Pass	Content Security Policy: Expects blocked for worker-import-data to same-http origin and no-redirect redirection from http context.
+Fail	Content Security Policy: Expects blocked for worker-import-data to same-http origin and no-redirect redirection from http context.: securitypolicyviolation
+Pass	Content Security Policy: Expects blocked for worker-import-data to same-http origin and swap-origin redirection from http context.
+Fail	Content Security Policy: Expects blocked for worker-import-data to same-http origin and swap-origin redirection from http context.: securitypolicyviolation
