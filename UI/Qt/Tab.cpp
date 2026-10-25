@@ -1656,12 +1656,20 @@ void Tab::set_toolbar_window_controls_visible(bool visible)
     m_toolbar_window_controls_separator->setVisible(has_custom_window_controls);
     m_toolbar_window_controls->setVisible(has_native_window_controls || has_custom_window_controls);
     auto top_margin = TOOLBAR_VERTICAL_MARGIN;
+    auto toolbar_height = browser_chrome_layout_policy().toolbar_height;
+    // NB: Below the horizontal tab strip, the selected tab flows into the toolbar, so the location field gets a point more
+    //     room above it.
+    if (!visible) {
+        ++top_margin;
+        ++toolbar_height;
+    }
 #ifdef AK_OS_MACOS
     // NB: A toolbar holding the window controls is the top of the window, whose outline covers its first point.
     auto window_outline_width = visible ? 1 : 0;
     top_margin += window_outline_width;
-    m_toolbar->setFixedHeight(browser_chrome_layout_policy().toolbar_height + window_outline_width);
+    toolbar_height += window_outline_width;
 #endif
+    m_toolbar->setFixedHeight(toolbar_height);
     m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, top_margin, has_custom_window_controls ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
     m_toolbar->layout()->invalidate();
 }
