@@ -3367,6 +3367,7 @@ impl<'pass> TableFormattingContext<'pass> {
             self.used_values(self.rows[row_index].box_).content_offset.get().y + self.row_baseline(row_index)
         };
         let baselines_of_rows = |rows: &[usize], content_block_offset: CssPixels| DerivedBaselines {
+            inline_alignment: None,
             first: rows
                 .first()
                 .map(|&row_index| baseline_in_wrapper(row_index) - content_block_offset),
@@ -3379,6 +3380,7 @@ impl<'pass> TableFormattingContext<'pass> {
             formatting_context::store_derived_baselines(
                 self.used_values(self.rows[row_index].box_),
                 DerivedBaselines {
+                    inline_alignment: None,
                     first: baseline,
                     last: baseline,
                 },

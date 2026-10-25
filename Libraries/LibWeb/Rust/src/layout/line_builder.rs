@@ -859,20 +859,12 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             let style = self.style(style_source);
             let fragment_baseline = if is_block_ellipsis || self.facts(node).is_text_node() {
                 Self::baseline_for_style(style, style.line_height())
-            } else if let Some(content_baselines) = content_baselines {
-                formatting_context::box_baseline_with_content_baselines(
-                    &self.context().callbacks,
-                    node,
-                    self.context().used(node),
-                    formatting_context::BaselineSet::Last,
-                    content_baselines,
-                )
             } else {
-                formatting_context::box_baseline(
+                formatting_context::inline_box_baseline(
                     &self.context().callbacks,
                     node,
                     self.context().used(node),
-                    formatting_context::BaselineSet::Last,
+                    content_baselines.unwrap_or_else(|| self.context().used(node).content_baselines_from_cells()),
                 )
             };
             self.line_mut(line_index).fragments[fragment_index].baseline = fragment_baseline;

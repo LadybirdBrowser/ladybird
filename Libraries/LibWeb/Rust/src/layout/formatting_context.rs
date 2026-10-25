@@ -655,7 +655,7 @@ pub(crate) fn box_baseline_with_content_baselines(
     callbacks: &LayoutPass<'_>,
     box_: Node,
     used: &UsedValues,
-    mut baseline_set: BaselineSet,
+    baseline_set: BaselineSet,
     content_baselines: DerivedBaselines,
 ) -> CssPixels {
     let facts = NodeFacts::new(callbacks, box_);
@@ -706,21 +706,8 @@ pub(crate) fn box_baseline_with_content_baselines(
         return used.margin_box_top(collapsed) + used.content_block_size.get() + used.border_box_bottom(collapsed);
     }
 
-    // https://drafts.csswg.org/css-inline-3/#baseline-source
-    // auto: Specifies last-baseline alignment for inline-block, first-baseline alignment for everything else.
-    // NB: Callers ask an inline-level box for its last baseline set, since that is what CSS2's inline-block rule below
-    //     describes; inline-level flex and grid containers participate with their first baseline set instead.
     let display = facts.display();
     let is_flex_or_grid_container = display.is_flex_inside() || display.is_grid_inside();
-    if display.is_inline_outside() && is_flex_or_grid_container {
-        baseline_set = BaselineSet::First;
-    }
-    // https://www.w3.org/TR/CSS22/tables.html#height-layout
-    // "The baseline of an 'inline-table' is the baseline of the first row of the table." The table wrapper box of an
-    // inline-table is displayed like an inline-block, but is not one.
-    if display.is_inline_outside() && facts.is_table_wrapper() {
-        baseline_set = BaselineSet::First;
-    }
 
     // https://drafts.csswg.org/css2/#propdef-vertical-align
     // The baseline of an 'inline-block' is the baseline of its last line box in the normal flow, unless it has either
@@ -762,6 +749,57 @@ pub(crate) fn box_baseline_with_content_baselines(
     used.margin_box_block_size(collapsed)
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BaselinePurpose {
+    Container,
+    InlineAlignment,
+}
+
+pub(crate) fn inline_box_baseline(
+    callbacks: &LayoutPass<'_>,
+    box_: Node,
+    used: &UsedValues,
+    content_baselines: DerivedBaselines,
+) -> CssPixels {
+    box_baseline_for_purpose(
+        callbacks,
+        box_,
+        used,
+        BaselineSet::Last,
+        content_baselines,
+        BaselinePurpose::InlineAlignment,
+    )
+}
+
+fn box_baseline_for_purpose(
+    callbacks: &LayoutPass<'_>,
+    box_: Node,
+    used: &UsedValues,
+    mut baseline_set: BaselineSet,
+    mut content_baselines: DerivedBaselines,
+    purpose: BaselinePurpose,
+) -> CssPixels {
+    if purpose == BaselinePurpose::InlineAlignment {
+        let facts = NodeFacts::new(callbacks, box_);
+        let display = facts.display();
+        // https://drafts.csswg.org/css-inline-3/#baseline-source
+        // auto: Specifies last-baseline alignment for inline-block, first-baseline alignment for everything else.
+        // INTEROP: Flex and grid containers contribute their first baseline through inline-block ancestors too.
+        // NB: A button's anonymous content wrapper preserves the last baseline of multiline button content.
+        let flex_or_grid_baseline =
+            (display.is_flex_inside() || display.is_grid_inside()) && !facts.is_anonymous_button_content_wrapper();
+        // https://www.w3.org/TR/CSS22/tables.html#height-layout
+        // The baseline of an 'inline-table' is the baseline of the first row of the table.
+        let inline_table_baseline = display.is_inline_outside() && facts.is_table_wrapper();
+        if flex_or_grid_baseline || inline_table_baseline {
+            baseline_set = BaselineSet::First;
+        } else {
+            content_baselines.last = content_baselines.inline_alignment.or(content_baselines.last);
+        }
+    }
+    box_baseline_with_content_baselines(callbacks, box_, used, baseline_set, content_baselines)
+}
+
 /// First and last baseline sets derived for one box, relative to its content
 /// box. A formatting context derives its own root box's baselines during its
 /// run and records them on the instance; run_formatting_context, the side
@@ -771,6 +809,9 @@ pub(crate) fn box_baseline_with_content_baselines(
 pub(crate) struct DerivedBaselines {
     pub(crate) first: Option<CssPixels>,
     pub(crate) last: Option<CssPixels>,
+    // NB: Inline alignment can export a descendant flex/grid first baseline through block containers while
+    //     ordinary container derivation must retain the distinct last baseline set.
+    pub(crate) inline_alignment: Option<CssPixels>,
 }
 
 // NOTE: A box can be baselined more than once (e.g. table cells are laid out
@@ -779,6 +820,7 @@ pub(crate) struct DerivedBaselines {
 //       resetting the presence bits does not perturb payloads observed by the
 //       existing derivation flow.
 pub(crate) fn store_derived_baselines(used: &UsedValues, baselines: DerivedBaselines) {
+    used.inline_alignment_baseline.set(baselines.inline_alignment);
     used.has_first_baseline.set(baselines.first.is_some());
     if let Some(value) = baselines.first {
         used.first_baseline.set(value);
@@ -799,22 +841,44 @@ pub(crate) fn derive_baselines(records: &RunRecords, callbacks: &LayoutPass<'_>,
         .or_else(|| own_line_data.as_ref()?.lines().next());
     if let Some(first) = first {
         let last = lines.rfind(|line| !line.is_empty).unwrap_or(first);
-        let baseline_for_line_box = |line: inline_content::LineRecord, baseline_set: BaselineSet| -> CssPixels {
-            if !line.has_block_level_box {
-                return line.physical_vertical_end() - line.block_length + line.baseline;
-            }
-            assert_eq!(line.layout_fragment_count, 1);
-            let fragment_node = line
-                .first_fragment_node
-                .expect("block-level line must have one fragment");
-            let block_child_state = records.used_values(fragment_node);
-            let child_offset_from_margin_edge = block_child_state.content_offset.get().y
-                - block_child_state.margin_box_top(block_child_state.uses_collapsing_borders_model.get());
-            child_offset_from_margin_edge + box_baseline(callbacks, fragment_node, block_child_state, baseline_set)
-        };
+        let baseline_for_line_box =
+            |line: inline_content::LineRecord, baseline_set: BaselineSet, purpose: BaselinePurpose| -> CssPixels {
+                if !line.has_block_level_box {
+                    return line.physical_vertical_end() - line.block_length + line.baseline;
+                }
+                assert_eq!(line.layout_fragment_count, 1);
+                let fragment_node = line
+                    .first_fragment_node
+                    .expect("block-level line must have one fragment");
+                let block_child_state = records.used_values(fragment_node);
+                let child_offset_from_margin_edge = block_child_state.content_offset.get().y
+                    - block_child_state.margin_box_top(block_child_state.uses_collapsing_borders_model.get());
+                child_offset_from_margin_edge
+                    + box_baseline_for_purpose(
+                        callbacks,
+                        fragment_node,
+                        block_child_state,
+                        baseline_set,
+                        block_child_state.content_baselines_from_cells(),
+                        purpose,
+                    )
+            };
         return DerivedBaselines {
-            first: Some(baseline_for_line_box(first, BaselineSet::First)),
-            last: Some(baseline_for_line_box(last, BaselineSet::Last)),
+            first: Some(baseline_for_line_box(
+                first,
+                BaselineSet::First,
+                BaselinePurpose::Container,
+            )),
+            last: Some(baseline_for_line_box(
+                last,
+                BaselineSet::Last,
+                BaselinePurpose::Container,
+            )),
+            inline_alignment: Some(baseline_for_line_box(
+                last,
+                BaselineSet::Last,
+                BaselinePurpose::InlineAlignment,
+            )),
         };
     }
 
@@ -825,7 +889,7 @@ pub(crate) fn derive_baselines(records: &RunRecords, callbacks: &LayoutPass<'_>,
     // Derive baselines from the first/last in-flow child that has a baseline set of its own.
     // NB: Flex and grid containers derive their baselines from their items instead.
     let container_display = facts.display();
-    let baseline_from_children = |baseline_set: BaselineSet| -> Option<CssPixels> {
+    let baseline_from_children = |baseline_set: BaselineSet, purpose: BaselinePurpose| -> Option<CssPixels> {
         let mut next_child = match baseline_set {
             BaselineSet::First => callbacks.first_child(box_),
             BaselineSet::Last => callbacks.last_child(box_),
@@ -852,16 +916,23 @@ pub(crate) fn derive_baselines(records: &RunRecords, callbacks: &LayoutPass<'_>,
             if facts.is_table_wrapper() && !child_facts.display().is_table_inside() {
                 continue;
             }
-            if let Some(baseline) = baseline_of_child(records, callbacks, child, baseline_set, ChildBaselineSource::Own)
-            {
+            if let Some(baseline) = baseline_of_child_for_purpose(
+                records,
+                callbacks,
+                child,
+                baseline_set,
+                ChildBaselineSource::Own,
+                purpose,
+            ) {
                 return Some(baseline);
             }
         }
         None
     };
     DerivedBaselines {
-        first: baseline_from_children(BaselineSet::First),
-        last: baseline_from_children(BaselineSet::Last),
+        first: baseline_from_children(BaselineSet::First, BaselinePurpose::Container),
+        last: baseline_from_children(BaselineSet::Last, BaselinePurpose::Container),
+        inline_alignment: baseline_from_children(BaselineSet::Last, BaselinePurpose::InlineAlignment),
     }
 }
 
@@ -880,6 +951,24 @@ pub(crate) fn baseline_of_child(
     child: Node,
     baseline_set: BaselineSet,
     source: ChildBaselineSource,
+) -> Option<CssPixels> {
+    baseline_of_child_for_purpose(
+        records,
+        callbacks,
+        child,
+        baseline_set,
+        source,
+        BaselinePurpose::Container,
+    )
+}
+
+pub(crate) fn baseline_of_child_for_purpose(
+    records: &RunRecords,
+    callbacks: &LayoutPass<'_>,
+    child: Node,
+    baseline_set: BaselineSet,
+    source: ChildBaselineSource,
+    purpose: BaselinePurpose,
 ) -> Option<CssPixels> {
     let child_state = records.used_values_if_owned(child)?;
     let has_baseline = match baseline_set {
@@ -900,7 +989,17 @@ pub(crate) fn baseline_of_child(
         );
     }
     let child_offset_from_margin_edge = child_state.content_offset.get().y - child_state.margin_box_top(collapsed);
-    Some(child_offset_from_margin_edge + box_baseline(callbacks, child, child_state, baseline_set))
+    Some(
+        child_offset_from_margin_edge
+            + box_baseline_for_purpose(
+                callbacks,
+                child,
+                child_state,
+                baseline_set,
+                child_state.content_baselines_from_cells(),
+                purpose,
+            ),
+    )
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2411,6 +2510,7 @@ fn leave_own_frame(
             })
         };
         let orthogonal_flow_baselines = DerivedBaselines {
+            inline_alignment: None,
             first: along_parent_horizontal_axis(result.baselines.first),
             last: along_parent_horizontal_axis(result.baselines.last),
         };
@@ -3207,4 +3307,99 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         root_used.content_offset.get(),
         None,
     );
+}
+
+#[cfg(test)]
+mod baseline_tests {
+    use super::*;
+    use crate::css::computed_values::{BoxValues, GroupPayloadRef, clone_group_payload, release_group_payload};
+    use crate::css::css_enums::keyword;
+    use crate::css::display::FfiDisplay;
+    use crate::css::table_group_builder::group_index;
+    use crate::layout::layout_node_arena::LayoutNodeArena;
+    use crate::layout::node_data::{NodeConstructionFacts, NodeKind, StylePayloadsRef};
+    use crate::layout::run_records::LayoutScratch;
+
+    unsafe extern "C" fn unused_container_bases(
+        _: *mut c_void,
+        _: u32,
+    ) -> svg_formatting_context::FfiContainerLengthBases {
+        unreachable!("baseline derivation does not resolve container lengths")
+    }
+
+    #[test]
+    fn block_derivation_preserves_flex_last_baseline() {
+        check_block_derivation(keyword::FLEX);
+    }
+
+    #[test]
+    fn block_derivation_preserves_grid_last_baseline() {
+        check_block_derivation(keyword::GRID);
+    }
+
+    fn check_block_derivation(display: u16) {
+        let mut arena = LayoutNodeArena::new();
+        let scratch = LayoutScratch::default();
+        let mut child_style = FfiStylePayloads {
+            groups: std::array::from_fn(|index| GroupPayloadRef::default_payload(index).as_ptr()),
+        };
+        let mut parent_style = child_style;
+        // SAFETY: The source is the immortal default box payload. The clone is private until installed below.
+        let parent_box = unsafe { clone_group_payload(group_index::BOX, parent_style.groups[group_index::BOX]) };
+        // SAFETY: The clone has the BoxValues layout and no readers yet.
+        unsafe { (*parent_box.cast::<BoxValues>()).display = FfiDisplay::block() };
+        parent_style.groups[group_index::BOX] = parent_box;
+        // SAFETY: The source is the immortal default box payload. The clone is private until installed below.
+        let child_box = unsafe { clone_group_payload(group_index::BOX, child_style.groups[group_index::BOX]) };
+        // SAFETY: The clone has the BoxValues layout and no readers yet.
+        unsafe { (*child_box.cast::<BoxValues>()).display = FfiDisplay::from_single_keyword(display).unwrap() };
+        child_style.groups[group_index::BOX] = child_box;
+        let facts = NodeConstructionFacts {
+            kind: NodeKind::BlockContainer,
+            is_anonymous: false,
+            is_html_input_element: false,
+            is_html_html_element: false,
+            is_document_element: false,
+            is_in_user_agent_shadow_tree: false,
+            uses_button_layout: false,
+            is_editing_host: false,
+            is_body: false,
+            dom_paint_facts: 0,
+            style_node: 0,
+        };
+        let parent = arena.allocate(facts);
+        let child = arena.allocate(facts);
+        arena.set_node_style(parent, 0, StylePayloadsRef::new(&parent_style));
+        arena.set_node_style(child, 0, StylePayloadsRef::new(&child_style));
+        arena.insert_child(parent, child, Node::INVALID);
+        let callbacks = LayoutPass::new(
+            &arena,
+            &scratch,
+            layout_pass::ContainerLengthBasesQuery::new(std::ptr::null_mut(), unused_container_bases).sealed(),
+            CssPixels::from_integer(800),
+            CssPixels::from_integer(600),
+            false,
+        );
+        let parent_used = UsedValues::default();
+        RunRecords::with_root(&scratch, &arena, parent, Node::INVALID, &parent_used, |records| {
+            let child_used = records.register(child, UsedValues::default());
+            store_derived_baselines(
+                child_used,
+                DerivedBaselines {
+                    first: Some(CssPixels::from_integer(10)),
+                    last: Some(CssPixels::from_integer(30)),
+                    inline_alignment: None,
+                },
+            );
+            let baselines = derive_baselines(records, &callbacks, parent);
+            assert_eq!(baselines.first, Some(CssPixels::from_integer(10)));
+            assert_eq!(baselines.last, Some(CssPixels::from_integer(30)));
+            assert_eq!(baselines.inline_alignment, Some(CssPixels::from_integer(10)));
+        });
+        arena
+            .free_subtree(parent)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        release_group_payload(group_index::BOX, child_box);
+        release_group_payload(group_index::BOX, parent_box);
+    }
 }

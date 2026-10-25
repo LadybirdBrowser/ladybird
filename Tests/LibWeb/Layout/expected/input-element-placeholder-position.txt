@@ -10,13 +10,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "Input Field Placeholder Position Test"
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,74.875] [0+0+0 784 0+0+0] [0+0+0 38 0+0+0] children: inline
-        frag 0 from TextInputBox start: 0, length: 0, rect: [19,85.875 191.875x16] baseline: 27
-        frag 1 from TextNode start: 0, length: 1, rect: [221.875,88.875 8x16] baseline: 12.796875
+        frag 0 from TextInputBox start: 0, length: 0, rect: [19,85.875 191.875x16] baseline: 23.796875
+        frag 1 from TextNode start: 0, length: 1, rect: [221.875,85.875 8x16] baseline: 12.796875
             " "
-        frag 2 from TextInputBox start: 0, length: 0, rect: [240.875,85.875 191.875x16] baseline: 27
-        frag 3 from TextNode start: 0, length: 1, rect: [443.75,88.875 8x16] baseline: 12.796875
+        frag 2 from TextInputBox start: 0, length: 0, rect: [240.875,85.875 191.875x16] baseline: 23.796875
+        frag 3 from TextNode start: 0, length: 1, rect: [443.75,85.875 8x16] baseline: 12.796875
             " "
-        frag 4 from TextInputBox start: 0, length: 0, rect: [462.75,85.875 191.875x16] baseline: 27
+        frag 4 from TextInputBox start: 0, length: 0, rect: [462.75,85.875 191.875x16] baseline: 23.796875
         TextNode <#text> (not painted)
         TextInputBox <input> at [19,85.875] inline-block [0+1+10 191.875 10+1+0] [0+1+10 16 10+1+0] [BFC] children: not-inline
           Box <div> at [19,85.875] flex-container(row) [0+0+0 191.875 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline

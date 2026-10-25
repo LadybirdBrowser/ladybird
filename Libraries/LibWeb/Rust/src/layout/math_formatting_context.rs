@@ -1425,6 +1425,7 @@ pub(super) fn layout_operator(run: &FormattingContextRun<'_>, input: &LayoutInpu
     result.automatic_content_inline_size = inline_size;
     result.automatic_content_block_size = ascent + descent;
     result.baselines = DerivedBaselines {
+        inline_alignment: None,
         first: Some(ascent),
         last: Some(ascent),
     };
@@ -2282,6 +2283,7 @@ impl<'pass> MathFormattingContext<'pass> {
         }
 
         self.derived_baselines_of_root_box = DerivedBaselines {
+            inline_alignment: None,
             first: Some(content.ascent),
             last: Some(content.ascent),
         };

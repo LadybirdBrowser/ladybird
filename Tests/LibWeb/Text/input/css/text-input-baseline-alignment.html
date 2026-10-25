@@ -1,0 +1,57 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        for (const mode of ["quirks", "standards"]) {
+            const frame = document.createElement("iframe");
+            frame.width = 800;
+            const loaded = new Promise(resolve => (frame.onload = resolve));
+            frame.srcdoc = `${mode === "standards" ? "<!doctype html>" : ""}
+                <style>
+                    body { font: 20px/20px monospace; }
+                    input, button { font: inherit; height: 40px; padding: 4px; border: 2px solid; box-sizing: content-box; }
+                    .host { display: inline-block; height: 40px; padding: 4px; border: 2px solid; overflow: clip; }
+                    .wrapper { display: flex; height: 100%; align-items: center; }
+                    .editor { height: 1lh; overflow: auto; }
+                </style>
+                <div><input value="hello"><input type="submit"><button>Button</button></div>
+                <div><input><button>Button</button></div>
+                <div><input placeholder="hello"><button>Button</button></div>
+                <div><input type="number" value="42"><button>Button</button></div>
+                <div><input style="appearance: none" value="hello"><button>Button</button></div>
+                <div><span class="host"><div class="wrapper"><div class="editor">hello</div></div></span><button>Button</button></div>
+                <div><span class="host"><div class="wrapper"><div class="editor">hello<br>world</div></div></span><button>Button</button></div>
+                <div><span class="host"><div class="wrapper" style="display: grid"><div class="editor">hello<br>world</div></div></span><button>Button</button></div>`;
+            document.body.appendChild(frame);
+            await loaded;
+            const rows = frame.contentDocument.body.children;
+            for (let i = 0; i < rows.length; ++i) {
+                const tops = Array.from(rows[i].children, element => element.getBoundingClientRect().top);
+                println(`${mode} row ${i}: ${tops.every(top => top === tops[0])}`);
+            }
+            const blockScroll = frame.contentDocument.createElement("div");
+            blockScroll.innerHTML =
+                '<span class="host"><div class="wrapper" style="display: block"><div class="editor">hello<br>world</div></div></span><span style="display: inline-block; width: 0; height: 0"></span>';
+            frame.contentDocument.body.appendChild(blockScroll);
+            println(
+                `${mode} block scroll fallback: ${blockScroll.querySelector(".editor").getBoundingClientRect().bottom === blockScroll.lastChild.getBoundingClientRect().top}`
+            );
+            const multilineButton = frame.contentDocument.createElement("div");
+            multilineButton.innerHTML =
+                '<button><div>one</div><div>two<span style="display: inline-block; width: 0; height: 0"></span></div></button><span style="display: inline-block; width: 0; height: 0"></span>';
+            frame.contentDocument.body.appendChild(multilineButton);
+            println(
+                `${mode} multiline button baseline: ${multilineButton.querySelector("button span").getBoundingClientRect().top === multilineButton.lastChild.getBoundingClientRect().top}`
+            );
+            const fallback = frame.contentDocument.createElement("div");
+            fallback.innerHTML =
+                '<span style="display: inline-block; overflow: hidden; height: 40px">hello</span><span style="display: inline-block; width: 0; height: 0"></span>';
+            frame.contentDocument.body.appendChild(fallback);
+            println(
+                `${mode} inline-block fallback: ${fallback.firstChild.getBoundingClientRect().bottom === fallback.lastChild.getBoundingClientRect().top}`
+            );
+            frame.remove();
+        }
+        done();
+    });
+</script>

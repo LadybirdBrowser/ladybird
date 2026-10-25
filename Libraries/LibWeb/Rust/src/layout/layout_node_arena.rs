@@ -261,6 +261,7 @@ pub(crate) struct IntrinsicInlineMeasurementLayout {
     pub(crate) first_baseline: CssPixels,
     pub(crate) has_last_baseline: bool,
     pub(crate) last_baseline: CssPixels,
+    pub(crate) inline_alignment_baseline: Option<CssPixels>,
 }
 
 impl IntrinsicMeasurement for IntrinsicInlineSizeMeasurement {
@@ -7290,6 +7291,7 @@ mod tests {
                 first_baseline: CssPixels::from_raw(64),
                 has_last_baseline: true,
                 last_baseline: CssPixels::from_raw(128),
+                inline_alignment_baseline: None,
             }),
             depends_on_percentage_block_size: false,
             depends_on_percentage_inline_basis: false,
@@ -7567,6 +7569,7 @@ mod tests {
         let value = TableCellMeasurement {
             automatic_content_block_size: CssPixels::from_raw(320),
             baselines: crate::layout::layout_node_arena::DerivedBaselines {
+                inline_alignment: None,
                 first: Some(CssPixels::from_raw(64)),
                 last: None,
             },
