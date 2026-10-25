@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Properties of error event from failed open()
+1 Pass
+Pass	Properties of error event from failed open()
