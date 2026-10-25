@@ -21,6 +21,7 @@ pub mod font;
 pub mod font_catalog;
 pub mod geometry;
 pub mod image_frame;
+pub mod math_table;
 pub mod matrix;
 pub mod paint_enums;
 pub mod path;
