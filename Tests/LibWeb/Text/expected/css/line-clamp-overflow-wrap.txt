@@ -1,0 +1,26 @@
+legacy, 1 lines, width 0: height 20
+Clamped content remains scrollable: true
+legacy, 1 lines, width 1: height 20
+Clamped content remains scrollable: true
+legacy, 1 lines, width 10: height 20
+Clamped content remains scrollable: true
+legacy, 1 lines, width 36: height 20
+Clamped content remains scrollable: true
+legacy, 2 lines, width 0: height 40
+Clamped content remains scrollable: true
+legacy, 2 lines, width 1: height 40
+Clamped content remains scrollable: true
+legacy, 2 lines, width 10: height 40
+Clamped content remains scrollable: true
+legacy, 2 lines, width 36: height 40
+Clamped content remains scrollable: true
+standard, 1 lines, width 0: height 20
+standard, 1 lines, width 1: height 20
+standard, 1 lines, width 10: height 20
+standard, 1 lines, width 36: height 20
+standard, 2 lines, width 0: height 40
+standard, 2 lines, width 1: height 40
+standard, 2 lines, width 10: height 40
+standard, 2 lines, width 36: height 40
+Flex row height: 20
+Flex handle width: 0
