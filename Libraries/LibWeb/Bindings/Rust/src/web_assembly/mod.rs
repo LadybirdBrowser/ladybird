@@ -384,14 +384,24 @@ pub(crate) fn throw_of_trap(vm: &Vm, trap: Trap) -> Throw {
             thrown(vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]))
         }
         Trap::UncaughtException(exception) => {
+            // https://webassembly.github.io/spec/js-api/#call-an-exported-function
+            // 11. If ret is of the form exception exnaddr, then
+            //     1. Let tagaddr be exn_tag(store, exnaddr).
+            //     2. Let payload be exn_read(store, exnaddr).
+            //     3. Let jsTagAddr be the result of getting the JavaScript exception tag.
             let store = agent.store();
-            // NB: An exception with the JavaScript tag carries a JavaScript value that was thrown into WebAssembly
-            //     code, which continues as itself.
-            if store.exception(exception).tag == agent.js_tag() {
+            let tagaddr = store.exception(exception).tag;
+
+            //     4. If tagaddr is equal to jsTagAddr,
+            if tagaddr == agent.js_tag() {
+                //     1. Throw ToJSValue(payload[0]).
                 let payload = store.exception_values(exception)[0];
                 return Throw::new(to_js_value(vm, payload, EXTERNREF).unwrap_or_else(|throw| throw.value()));
             }
-            // Otherwise, throw the Exception object of the exception.
+
+            //     5. Otherwise,
+            //         1. Let exception be a new Exception created from exnaddr.
+            //         2. Throw exception.
             Throw::new(Exception::wrapper_of_address(vm, realm, exception))
         }
         // FIXME: Use the convoluted mapping of errors defined in the spec.
