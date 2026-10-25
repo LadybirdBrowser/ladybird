@@ -30,6 +30,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/QualifiedName.h>
@@ -991,11 +992,7 @@ void HTMLParserEndState::complete()
             log_document_stats_event(*document, "load"sv);
 
         // 5. Fire an event named load at window, with legacy target override flag set.
-        // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()
-        //        We should reorganize this so that the flag appears explicitly here instead.
-        window.dispatch_event(DOM::Event::create(
-            HTML::EventNames::load,
-            HighResolutionTime::current_high_resolution_time(relevant_global_object(window))));
+        DOM::EventDispatcher::dispatch(window, DOM::Event::create(HTML::EventNames::load, HighResolutionTime::current_high_resolution_time(relevant_global_object(window))), true);
 
         // INTEROP: A load event handler can call document.open(), which associates a replacement parser after the old
         //          parser was detached above. Do not let this completion continue into the replacement document.

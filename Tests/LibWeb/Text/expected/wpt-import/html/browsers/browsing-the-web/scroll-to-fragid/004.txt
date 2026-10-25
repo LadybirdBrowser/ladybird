@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Fragment Navigation: hashchange event
+1 Pass
+Pass	Fragment Navigation: hashchange event

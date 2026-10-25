@@ -575,7 +575,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Utf
 
 bool Window::dispatch_event(DOM::Event& event)
 {
-    return DOM::EventDispatcher::dispatch(*this, event, true);
+    return DOM::EventDispatcher::dispatch(*this, event);
 }
 
 Page& Window::page()
@@ -771,7 +771,7 @@ void Window::fire_a_page_transition_event(Utf16FlyString const& event_name, bool
     event->set_is_trusted(true);
 
     // and legacy target override flag set.
-    dispatch_event(event);
+    DOM::EventDispatcher::dispatch(*this, event, true);
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-localstorage
