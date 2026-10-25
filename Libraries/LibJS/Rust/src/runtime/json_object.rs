@@ -234,8 +234,8 @@ pub struct JsonStringifyCache {
     last_text_length: Cell<usize>,
 }
 
-impl Default for JsonStringifyCache {
-    fn default() -> Self {
+impl JsonStringifyCache {
+    pub(crate) fn new() -> Self {
         Self {
             entries: RefCell::new(Box::new([const { None }; JsonStringifyCache::ENTRY_COUNT])),
             objects: RefCell::new(Vec::new()),

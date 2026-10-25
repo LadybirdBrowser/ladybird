@@ -180,10 +180,13 @@ impl MapConstructor {
     fn construct(_: &NativeFunction, vm: &Vm, new_target: Gc<FunctionObject>) -> ThrowCompletionOr<Gc<Object>> {
         let realm = vm.current_realm().expect("a constructor runs in a realm");
 
-        let map =
-            ordinary_create_from_constructor_of(vm, realm, new_target, Intrinsics::map_prototype, |_, prototype| {
-                Map::new(vm, prototype)
-            })?;
+        let map = ordinary_create_from_constructor_of(
+            vm,
+            realm,
+            new_target,
+            Intrinsics::map_prototype,
+            |defer_gc, prototype| Map::new(defer_gc, vm, prototype),
+        )?;
 
         if vm.argument(0).is_nullish() {
             return Ok(map.upcast());

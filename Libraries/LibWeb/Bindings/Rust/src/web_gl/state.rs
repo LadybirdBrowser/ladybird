@@ -13,7 +13,7 @@ use core::marker::PhantomData;
 use core::ops::Deref;
 
 use ak::Utf16String;
-use libjs_rust::api::{ForeignCellSlot, Gc, GcRefCell, Realm, Trace, Visitor, Vm};
+use libjs_rust::api::{DeferGc, ForeignCellSlot, Gc, GcRefCell, Realm, Trace, Visitor, Vm};
 
 use super::canvas::{
     Canvas, TexImageSourceFrame, TexImageSourceKind, read_tex_image_frame, read_tex_image_pixels, read_tex_image_source,
@@ -66,7 +66,7 @@ pub(crate) struct RenderingContext<V: Version> {
 }
 
 impl<V: Version> RenderingContext<V> {
-    pub(crate) fn new(state: ContextState) -> Self {
+    pub(crate) fn new(_: &DeferGc<'_>, state: ContextState) -> Self {
         Self {
             state,
             version: PhantomData,
@@ -210,7 +210,7 @@ pub(crate) struct ContextParameters {
 }
 
 impl ContextState {
-    pub(crate) fn new(parameters: ContextParameters) -> Self {
+    pub(crate) fn new(_: &DeferGc<'_>, parameters: ContextParameters) -> Self {
         let canvas_cell = ForeignCellSlot::empty();
         // SAFETY: The canvas is a live cell of the heap that the runtime allocates from.
         unsafe { canvas_cell.set(Some(parameters.canvas.cell)) };

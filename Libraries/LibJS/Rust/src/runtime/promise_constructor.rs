@@ -742,7 +742,7 @@ impl PromiseConstructor {
             realm,
             new_target,
             |intrinsics, vm| intrinsics.promise_prototype(vm),
-            |_, prototype| Promise::new(vm, Promise::CLASS, prototype),
+            |defer_gc, prototype| Promise::new(defer_gc, vm, Promise::CLASS, prototype),
         )?;
 
         // 8. Let resolvingFunctions be CreateResolvingFunctions(promise).

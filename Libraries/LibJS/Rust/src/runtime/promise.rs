@@ -11,6 +11,7 @@ use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -124,13 +125,13 @@ impl Deref for Promise {
 
 impl Promise {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Promise> {
-        realm.create_object(vm, |_| {
-            Promise::new(vm, Self::CLASS, realm.intrinsics().promise_prototype(vm))
+        realm.create_object(vm, |defer_gc| {
+            Promise::new(defer_gc, vm, Self::CLASS, realm.intrinsics().promise_prototype(vm))
         })
     }
 
     /// A promise with `prototype`, for `class`, which is Promise or a class that extends it.
-    pub fn new(vm: &Vm, class: &'static Class, prototype: Gc<Object>) -> Promise {
+    pub fn new(_: &DeferGc<'_>, vm: &Vm, class: &'static Class, prototype: Gc<Object>) -> Promise {
         Promise {
             base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
             state: Cell::new(PromiseState::Pending),

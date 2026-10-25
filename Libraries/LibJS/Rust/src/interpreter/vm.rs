@@ -682,7 +682,7 @@ impl Vm {
             ),
             interned_strings: RefCell::default(),
             json_parse_cache: JsonParseCache::default(),
-            json_stringify_cache: JsonStringifyCache::default(),
+            json_stringify_cache: JsonStringifyCache::new(),
             empty_string: OnceCell::new(),
             cached_strings: OnceCell::new(),
             single_ascii_character_strings: OnceCell::new(),
@@ -1378,7 +1378,7 @@ impl Vm {
     fn remove_dead_cells_from_property_lookup_caches(&self, sweep: &Sweep<'_>) {
         self.executables.borrow_mut().retain(|executable| {
             if sweep.is_dead(*executable) {
-                executable.free_jit_entry_slot(self);
+                executable.free_jit_entry_slot(self, sweep);
                 return false;
             }
             executable.remove_dead_cells(sweep);

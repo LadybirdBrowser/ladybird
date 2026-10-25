@@ -78,7 +78,7 @@ pub unsafe extern "C" fn web_canvas_2d_context_create(
         host: NonNull::new(arguments.canvas_host).expect("C++ passes the canvas"),
         is_offscreen: arguments.canvas_is_offscreen,
     };
-    let state = ContextState::new(ContextParameters {
+    let parameters = ContextParameters {
         canvas,
         context_attributes: CanvasRenderingContext2DSettings {
             alpha: arguments.alpha,
@@ -91,11 +91,15 @@ pub unsafe extern "C" fn web_canvas_2d_context_create(
             width: arguments.width,
             height: arguments.height,
         },
-    });
+    };
     if arguments.canvas_is_offscreen {
-        cell_into_abi(allocate(vm, |_| RenderingContext2D::<Offscreen>::new(state)))
+        cell_into_abi(allocate(vm, |defer_gc| {
+            RenderingContext2D::<Offscreen>::new(defer_gc, ContextState::new(defer_gc, parameters))
+        }))
     } else {
-        cell_into_abi(allocate(vm, |_| RenderingContext2D::<OnScreen>::new(state)))
+        cell_into_abi(allocate(vm, |defer_gc| {
+            RenderingContext2D::<OnScreen>::new(defer_gc, ContextState::new(defer_gc, parameters))
+        }))
     }
 }
 

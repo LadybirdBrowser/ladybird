@@ -13,8 +13,7 @@ use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
-    add_disposable_resource, call_function_object, dispose_resources, new_dispose_capability,
-    ordinary_create_from_constructor_of,
+    add_disposable_resource, call_function_object, dispose_resources, ordinary_create_from_constructor_of,
 };
 use crate::runtime::async_disposable_stack::{AsyncDisposableStack, AsyncDisposableState};
 use crate::runtime::completion::{Completion, Must, ThrowCompletionOr};
@@ -291,18 +290,15 @@ impl AsyncDisposableStackPrototype {
             realm,
             realm.intrinsics().async_disposable_stack_constructor(vm).upcast(),
             Intrinsics::async_disposable_stack_prototype,
-            |_, prototype| AsyncDisposableStack::new(vm, prototype),
+            |defer_gc, prototype| AsyncDisposableStack::new(defer_gc, vm, prototype),
         )?;
 
         // 6. Set newAsyncDisposableStack.[[DisposeCapability]] to asyncDisposableStack.[[DisposeCapability]].
         // 7. Set asyncDisposableStack.[[DisposeCapability]] to NewDisposeCapability().
-        // NB: The resources move between the stacks once both exist, so that one of them always keeps them alive.
-        let dispose_capability = async_disposable_stack
+        // NB: The new stack's capability is a new one, so swapping the two capabilities performs both steps.
+        async_disposable_stack
             .dispose_capability()
-            .replace(new_dispose_capability());
-        new_async_disposable_stack
-            .dispose_capability()
-            .replace(dispose_capability);
+            .swap(new_async_disposable_stack.dispose_capability());
 
         // 8. Set asyncDisposableStack.[[AsyncDisposableState]] to disposed.
         async_disposable_stack.set_disposed();

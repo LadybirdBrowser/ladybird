@@ -10,6 +10,7 @@ use hashbrown::HashMap;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
@@ -79,7 +80,7 @@ impl Finalize for WeakMap {
 }
 
 impl WeakMap {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> WeakMap {
+    pub fn new(_: &DeferGc<'_>, vm: &Vm, prototype: Gc<Object>) -> WeakMap {
         WeakMap {
             base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
             values: GcRefCell::new(WeakMapValues::default()),
@@ -87,7 +88,9 @@ impl WeakMap {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WeakMap> {
-        realm.create_object(vm, |_| WeakMap::new(vm, realm.intrinsics().weak_map_prototype(vm)))
+        realm.create_object(vm, |defer_gc| {
+            WeakMap::new(defer_gc, vm, realm.intrinsics().weak_map_prototype(vm))
+        })
     }
 
     /// Registers the new WeakMap as a weak container.

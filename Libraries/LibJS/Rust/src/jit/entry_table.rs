@@ -18,6 +18,8 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use super::code::JitCode;
+use crate::gc::defer_gc::DeferGc;
+use crate::gc::sweep::Sweep;
 
 #[cfg(feature = "address-sanitizer")]
 unsafe extern "C" {
@@ -149,7 +151,7 @@ impl JitEntryTable {
     }
 
     /// Frees the slot of the executable whose head is at `owner`, which died, and returns its code.
-    pub fn free(&self, slot: u32, owner: u64) -> Option<JitCode> {
+    pub fn free(&self, slot: u32, owner: u64, _: &Sweep<'_>) -> Option<JitCode> {
         let slot = slot & JIT_ENTRY_SLOT_MASK;
         if slot == NO_JIT_ENTRY_SLOT {
             return None;
@@ -182,7 +184,7 @@ impl JitEntryTable {
     }
 
     /// Attaches `code` to the slot, which has none.
-    pub fn attach_code(&self, slot: u32, code: JitCode) {
+    pub fn attach_code(&self, slot: u32, code: JitCode, _: &DeferGc<'_>) {
         assert_ne!(slot & JIT_ENTRY_SLOT_MASK, NO_JIT_ENTRY_SLOT);
         assert!(self.code_cell(slot).replace(Some(Box::new(code))).is_none());
     }

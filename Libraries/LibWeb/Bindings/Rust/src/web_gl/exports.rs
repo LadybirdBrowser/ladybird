@@ -149,7 +149,7 @@ pub unsafe extern "C" fn web_webgl_context_create(
     } else {
         WebGLVersion::WebGL1
     };
-    let state = ContextState::new(ContextParameters {
+    let parameters = ContextParameters {
         // SAFETY: The caller hands over a reference to the transport.
         proxy: Proxy::new(unsafe { CppTransport::from_raw(transport) }),
         version,
@@ -157,15 +157,19 @@ pub unsafe extern "C" fn web_webgl_context_create(
         canvas,
         context_attributes: arguments.context_attributes.into(),
         supported_opengl_extensions: extension_names(arguments.supported_extensions),
-    });
+    };
     match version {
         WebGLVersion::WebGL1 => {
-            let context = allocate(vm, |_| RenderingContext::<WebGL1>::new(state));
+            let context = allocate(vm, |defer_gc| {
+                RenderingContext::<WebGL1>::new(defer_gc, ContextState::new(defer_gc, parameters))
+            });
             context.set_context_ref(ContextRef::WebGL1(context));
             cell_into_abi(context)
         }
         WebGLVersion::WebGL2 => {
-            let context = allocate(vm, |_| RenderingContext::<WebGL2>::new(state));
+            let context = allocate(vm, |defer_gc| {
+                RenderingContext::<WebGL2>::new(defer_gc, ContextState::new(defer_gc, parameters))
+            });
             context.set_context_ref(ContextRef::WebGL2(context));
             cell_into_abi(context)
         }

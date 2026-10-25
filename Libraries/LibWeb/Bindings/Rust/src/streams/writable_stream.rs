@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 use core::cell::Cell;
 
 use ak::Utf16String;
-use libjs_rust::api::{Gc, GcRefCell, MarkedVec, Object, Realm, Trace, Value, Vm};
+use libjs_rust::api::{DeferGc, Gc, GcRefCell, MarkedVec, Object, Realm, Trace, Value, Vm};
 
 use crate::bindings::conversions::FromJs;
 use crate::bindings::interface::{Ref, Wrappable, allocate, with_temporary_execution_context_and_callbacks};
@@ -98,7 +98,7 @@ impl Wrappable for WritableStream {}
 
 impl WritableStream {
     /// A new WritableStream in the realm, which InitializeWritableStream has initialized.
-    pub(crate) fn new(realm: Gc<Realm>) -> Self {
+    pub(crate) fn new(_: &DeferGc<'_>, realm: Gc<Realm>) -> Self {
         Self {
             realm: Cell::new(realm),
             backpressure: Cell::new(false),
@@ -180,7 +180,7 @@ impl WritableStream {
         }
 
         // 4. Perform ! InitializeWritableStream(this).
-        let this = allocate(cx.vm(), |_| Self::new(cx.realm()));
+        let this = allocate(cx.vm(), |defer_gc| Self::new(defer_gc, cx.realm()));
 
         // 5. Let sizeAlgorithm be ! ExtractSizeAlgorithm(strategy).
         let size_algorithm = extract_size_algorithm(&strategy);
@@ -294,7 +294,7 @@ impl Transferable for WritableStream {
     fn transfer_receiving_steps(cx: &mut CallContext, data_holder: &mut TransferDataReader) -> WebIdlResult<Ref<Self>> {
         let cx: &CallContext = cx;
         with_temporary_execution_context_and_callbacks(cx.realm(), || {
-            let value = allocate(cx.vm(), |_| Self::new(cx.realm()));
+            let value = allocate(cx.vm(), |defer_gc| Self::new(defer_gc, cx.realm()));
 
             // 1. Let deserializedRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[port]], the current
             //    Realm).
@@ -338,13 +338,13 @@ pub(crate) fn create_writable_stream(
     assert!(is_non_negative_number(Value::from_f64(high_water_mark)));
 
     // 2. Let stream be a new WritableStream.
-    let stream = allocate(cx.vm(), |_| WritableStream::new(cx.realm()));
+    let stream = allocate(cx.vm(), |defer_gc| WritableStream::new(defer_gc, cx.realm()));
 
     // 3. Perform ! InitializeWritableStream(stream).
     initialize_writable_stream(cx.vm(), stream);
 
     // 4. Let controller be a new WritableStreamDefaultController.
-    let controller = allocate(cx.vm(), |_| WritableStreamDefaultController::new());
+    let controller = allocate(cx.vm(), WritableStreamDefaultController::new);
 
     // 5. Perform ? SetUpWritableStreamDefaultController(stream, controller, startAlgorithm, writeAlgorithm,
     //    closeAlgorithm, abortAlgorithm, highWaterMark, sizeAlgorithm).

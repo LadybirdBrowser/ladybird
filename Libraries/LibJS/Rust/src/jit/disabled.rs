@@ -77,6 +77,7 @@ pub mod options {
 
 pub mod code {
     use super::{Executable, Visitor, Vm};
+    use crate::gc::sweep::Sweep;
 
     /// No return pc marks a call site in an inlined callee.
     pub const INLINED_CALL_SITE_BIT: u32 = 0;
@@ -104,7 +105,7 @@ pub mod code {
     impl Executable {
         pub fn allocate_jit_entry_slot(&self, _vm: &Vm) {}
 
-        pub fn free_jit_entry_slot(&self, _vm: &Vm) {}
+        pub fn free_jit_entry_slot(&self, _vm: &Vm, _sweep: &Sweep<'_>) {}
 
         pub fn trace_jit_code(&self, _visitor: &mut Visitor) {}
 

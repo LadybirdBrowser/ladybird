@@ -144,7 +144,7 @@ pub fn new_promise_capability(vm: &Vm, constructor: Value) -> ThrowCompletionOr<
             realm,
             constructor.as_function(),
             |intrinsics, vm| intrinsics.promise_prototype(vm),
-            |_, prototype| Promise::new(vm, Promise::CLASS, prototype),
+            |defer_gc, prototype| Promise::new(defer_gc, vm, Promise::CLASS, prototype),
         )?;
         let resolving_functions = promise.create_resolving_functions(vm);
         return Ok(PromiseCapability::create(

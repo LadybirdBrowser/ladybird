@@ -18,7 +18,7 @@ use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpac
 use libcompositing_rust::display_list::commands::{Canvas2DShadow, CanvasId};
 use libgfx_rust::path::Path;
 use libgfx_rust::{AffineTransform, Color, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, WindingRule};
-use libjs_rust::api::{ForeignCellSlot, Gc, GcRefCell, GcRefMut, Realm, Trace, Visitor, Vm};
+use libjs_rust::api::{DeferGc, ForeignCellSlot, Gc, GcRefCell, GcRefMut, Realm, Trace, Visitor, Vm};
 
 use super::canvas::{Canvas, FontMetricsSource, FontSelection, ResolvedFont, StyleValue, parse_color};
 use super::drawing_state::{CanvasColor, DrawingState, FillOrStrokeStyle};
@@ -50,7 +50,7 @@ pub(crate) struct RenderingContext2D<K: CanvasKind> {
 }
 
 impl<K: CanvasKind> RenderingContext2D<K> {
-    pub(crate) fn new(state: ContextState) -> Self {
+    pub(crate) fn new(_: &DeferGc<'_>, state: ContextState) -> Self {
         Self {
             state,
             kind: PhantomData,
@@ -192,7 +192,7 @@ pub(crate) fn paint_of<'a>(
 }
 
 impl ContextState {
-    pub(crate) fn new(parameters: ContextParameters) -> Self {
+    pub(crate) fn new(_: &DeferGc<'_>, parameters: ContextParameters) -> Self {
         let canvas_cell = ForeignCellSlot::empty();
         // SAFETY: The canvas is a live cell of the heap that the runtime allocates from.
         unsafe { canvas_cell.set(Some(parameters.canvas.cell)) };

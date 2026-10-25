@@ -12,8 +12,9 @@ use std::collections::VecDeque;
 use core::cell::Cell;
 
 use libjs_rust::api::{
-    ArrayBuffer, ArrayBufferShared, EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, FunctionObject,
-    Gc, GcRefCell, MarkedVec, Must, Throw, Trace, TypedArrayBase, Value, Vm, clone_array_buffer, construct,
+    ArrayBuffer, ArrayBufferShared, DeferGc, EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType,
+    FunctionObject, Gc, GcRefCell, MarkedVec, Must, Throw, Trace, TypedArrayBase, Value, Vm, clone_array_buffer,
+    construct,
 };
 
 use crate::bindings::conversions::{ArrayBufferView, BufferSource};
@@ -135,7 +136,7 @@ pub(crate) struct ReadableByteStreamController {
 impl Wrappable for ReadableByteStreamController {}
 
 impl ReadableByteStreamController {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(_: &DeferGc<'_>) -> Self {
         Self {
             auto_allocate_chunk_size: Cell::new(None),
             byob_request: Cell::new(None),
@@ -1921,7 +1922,7 @@ pub(crate) fn set_up_readable_byte_stream_controller_from_underlying_source(
     high_water_mark: f64,
 ) -> WebIdlResult<()> {
     // 1. Let controller be a new ReadableByteStreamController.
-    let controller = allocate(cx.vm(), |_| ReadableByteStreamController::new());
+    let controller = allocate(cx.vm(), ReadableByteStreamController::new);
 
     // 2. Let startAlgorithm be an algorithm that returns undefined.
     let mut start_algorithm = StartAlgorithm::ReturnsUndefined;

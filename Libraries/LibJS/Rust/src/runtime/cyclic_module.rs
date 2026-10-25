@@ -10,6 +10,7 @@ use core::ops::Deref;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Class, define_cell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
@@ -111,6 +112,7 @@ fn new_intrinsic_promise_capability(vm: &Vm, realm: Gc<Realm>) -> Gc<PromiseCapa
 impl CyclicModule {
     /// A cyclic module of `realm`, for `class`, which extends CyclicModule.
     pub fn new(
+        _: &DeferGc<'_>,
         class: &'static Class,
         realm: Gc<Realm>,
         filename: String,
