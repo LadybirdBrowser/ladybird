@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 21 tests
 
-7 Pass
-14 Fail
+9 Pass
+12 Fail
 Pass	Testing inserting content at non-collapsed selection around link element
 Fail	Inserting "XY" after deleting first character of a link containing <b> (Direct typing) in <p><a href="about:blank"><b>[z]abc</b></a></p>
 Fail	Inserting "XY" after deleting last character in a non-collapsed range of a link containing <b> (Direct typing) in <p><a href="about:blank"><b>abc[d]</b></a></p>
@@ -17,11 +17,11 @@ Fail	Inserting "XY" after deleting first character of a link containing <b> (Del
 Fail	Inserting "XY" after deleting last character in a non-collapsed range of a link containing <b> (Delete) in <p><a href="about:blank"><b>abc[d]</b></a></p>
 Fail	Inserting "XY" after deleting text after middle of a link containing <b> (Delete) in <p><a href="about:blank"><b>ab[cd</b></a>de]f</p>
 Fail	Inserting "XY" after deleting text before middle of a link containing <b> (Delete) in <p>a[bc<a href="about:blank"><b>de]f</b></a></p>
-Fail	Inserting "XY" after deleting first character of a link containing <b> (execCommand("delete")) in <p><a href="about:blank"><b>[z]abc</b></a></p>
+Pass	Inserting "XY" after deleting first character of a link containing <b> (execCommand("delete")) in <p><a href="about:blank"><b>[z]abc</b></a></p>
 Pass	Inserting "XY" after deleting last character in a non-collapsed range of a link containing <b> (execCommand("delete")) in <p><a href="about:blank"><b>abc[d]</b></a></p>
 Pass	Inserting "XY" after deleting text after middle of a link containing <b> (execCommand("delete")) in <p><a href="about:blank"><b>ab[cd</b></a>de]f</p>
 Pass	Inserting "XY" after deleting text before middle of a link containing <b> (execCommand("delete")) in <p>a[bc<a href="about:blank"><b>de]f</b></a></p>
-Fail	Inserting "XY" after deleting first character of a link containing <b> (execCommand("forwarddelete")) in <p><a href="about:blank"><b>[z]abc</b></a></p>
+Pass	Inserting "XY" after deleting first character of a link containing <b> (execCommand("forwarddelete")) in <p><a href="about:blank"><b>[z]abc</b></a></p>
 Pass	Inserting "XY" after deleting last character in a non-collapsed range of a link containing <b> (execCommand("forwarddelete")) in <p><a href="about:blank"><b>abc[d]</b></a></p>
 Pass	Inserting "XY" after deleting text after middle of a link containing <b> (execCommand("forwarddelete")) in <p><a href="about:blank"><b>ab[cd</b></a>de]f</p>
 Pass	Inserting "XY" after deleting text before middle of a link containing <b> (execCommand("forwarddelete")) in <p>a[bc<a href="about:blank"><b>de]f</b></a></p>

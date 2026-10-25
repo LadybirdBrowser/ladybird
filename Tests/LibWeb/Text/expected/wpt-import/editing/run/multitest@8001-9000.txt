@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-964 Pass
-36 Fail
+970 Pass
+30 Fail
 Pass	[["underline","","first application"],["underline","","second application"],["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
 Pass	[["underline","","first application"],["underline","","second application"],["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
 Pass	[["underline","","first application"],["underline","","second application"],["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
@@ -197,7 +197,7 @@ Pass	[["delete",""],["inserttext","a"]] "foo<s>[bar]</s>baz" queryCommandValue("
 Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar]</sub>baz": execCommand("delete", false, "") return value
 Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar]</sub>baz": execCommand("inserttext", false, "a") return value
 Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar]</sub>baz" checks for modifications to non-editable content
-Fail	[["delete",""],["inserttext","a"]] "foo<sub>[bar]</sub>baz" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar]</sub>baz" compare innerHTML
 Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar]</sub>baz" queryCommandIndeterm("delete") before
 Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar]</sub>baz" queryCommandState("delete") before
 Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar]</sub>baz" queryCommandValue("delete") before
@@ -213,7 +213,7 @@ Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar]</sub>baz" queryCommandVal
 Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar]</sup>baz": execCommand("delete", false, "") return value
 Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar]</sup>baz": execCommand("inserttext", false, "a") return value
 Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar]</sup>baz" checks for modifications to non-editable content
-Fail	[["delete",""],["inserttext","a"]] "foo<sup>[bar]</sup>baz" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar]</sup>baz" compare innerHTML
 Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar]</sup>baz" queryCommandIndeterm("delete") before
 Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar]</sup>baz" queryCommandState("delete") before
 Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar]</sup>baz" queryCommandValue("delete") before
@@ -309,7 +309,7 @@ Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar]</font>baz"
 Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz": execCommand("delete", false, "") return value
 Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz": execCommand("inserttext", false, "a") return value
 Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" checks for modifications to non-editable content
-Fail	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" compare innerHTML
 Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" queryCommandIndeterm("delete") before
 Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" queryCommandState("delete") before
 Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" queryCommandValue("delete") before
@@ -485,7 +485,7 @@ Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar]</font></sub>
 Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz": execCommand("delete", false, "") return value
 Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz": execCommand("inserttext", false, "a") return value
 Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" checks for modifications to non-editable content
-Fail	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" compare innerHTML
 Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" queryCommandIndeterm("delete") before
 Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" queryCommandState("delete") before
 Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" queryCommandValue("delete") before
@@ -901,7 +901,7 @@ Pass	[["delete",""],["inserttext","a"]] "foo<s>[bar</s>baz]" queryCommandValue("
 Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar</sub>baz]": execCommand("delete", false, "") return value
 Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar</sub>baz]": execCommand("inserttext", false, "a") return value
 Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar</sub>baz]" checks for modifications to non-editable content
-Fail	[["delete",""],["inserttext","a"]] "foo<sub>[bar</sub>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar</sub>baz]" compare innerHTML
 Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar</sub>baz]" queryCommandIndeterm("delete") before
 Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar</sub>baz]" queryCommandState("delete") before
 Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar</sub>baz]" queryCommandValue("delete") before
@@ -917,7 +917,7 @@ Pass	[["delete",""],["inserttext","a"]] "foo<sub>[bar</sub>baz]" queryCommandVal
 Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar</sup>baz]": execCommand("delete", false, "") return value
 Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar</sup>baz]": execCommand("inserttext", false, "a") return value
 Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar</sup>baz]" checks for modifications to non-editable content
-Fail	[["delete",""],["inserttext","a"]] "foo<sup>[bar</sup>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar</sup>baz]" compare innerHTML
 Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar</sup>baz]" queryCommandIndeterm("delete") before
 Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar</sup>baz]" queryCommandState("delete") before
 Pass	[["delete",""],["inserttext","a"]] "foo<sup>[bar</sup>baz]" queryCommandValue("delete") before

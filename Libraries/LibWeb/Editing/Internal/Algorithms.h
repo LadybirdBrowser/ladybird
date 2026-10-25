@@ -129,6 +129,7 @@ bool precedes_a_line_break(GC::Ref<DOM::Node>);
 Optional<DOM::BoundaryPoint> previous_equivalent_point(DOM::BoundaryPoint);
 void push_down_values(Utf16FlyString const&, GC::Ref<DOM::Node>, Optional<Utf16View>);
 Vector<RecordedOverride> record_current_overrides(DOM::Document const&);
+void restore_overrides_that_add_formatting(DOM::Document&, Vector<RecordedOverride> const&);
 Vector<RecordedOverride> record_current_states_and_values(DOM::Document const&);
 GC::ConservativeVector<RecordedNodeValue> record_the_values_of_nodes(Vector<GC::Ref<DOM::Node>> const&);
 void remove_extraneous_line_breaks_at_the_end_of_node(GC::Ref<DOM::Node>);

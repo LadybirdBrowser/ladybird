@@ -408,8 +408,28 @@ void canonicalize_collapsed_selection_for_editing(Selection& selection)
 
     Web::Selection::CaretNavigator navigator(selection.document());
     auto canonical_location = navigator.canonical_location_for_editing({ range->start_container(), range->start_offset(), selection.focus_affinity() });
-    if (canonical_location.node != range->start_container() || canonical_location.offset != range->start_offset())
-        MUST(selection.collapse(canonical_location.node, canonical_location.offset));
+    if (canonical_location.node == range->start_container() && canonical_location.offset == range->start_offset())
+        return;
+
+    // NB: Moving the caret unsets the overrides, but the canonical point is equivalent to the old one. Keep the
+    //     overrides that add formatting, such as the ones that deleting the selection set to keep the formatting of
+    //     deleted content.
+    auto& document = *selection.document();
+    auto overrides = record_current_overrides(document);
+    MUST(selection.collapse(canonical_location.node, canonical_location.offset));
+    restore_overrides_that_add_formatting(document, overrides);
+}
+
+void restore_overrides_that_add_formatting(DOM::Document& document, Vector<RecordedOverride> const& overrides)
+{
+    for (auto const& override : overrides) {
+        override.value.visit(
+            [&](bool value) {
+                if (value)
+                    document.set_command_state_override(override.command, value);
+            },
+            [&](Utf16String const& value) { document.set_command_value_override(override.command, value); });
+    }
 }
 
 enum class PreserveLeadingSpaceAcrossNodeBoundary {
@@ -1267,6 +1287,17 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
 
     // 19. Record current states and values, and let overrides be the result.
     auto overrides = record_current_states_and_values(document);
+
+    // INTEROP: Browsers keep the formatting of the deleted content for the text that is inserted next only if the
+    //          selection starts with text. They do not keep it if it starts with an image or an empty element.
+    GC::Ptr<DOM::Node> first_leaf = start.node;
+    if (!is<DOM::Text>(*start.node) || start.offset == start.node->length()) {
+        first_leaf = start.node->child_at_index(start.offset);
+        while (first_leaf && first_leaf->first_child())
+            first_leaf = first_leaf->first_child();
+    }
+    if (first_leaf && !is<DOM::Text>(*first_leaf))
+        overrides.clear();
 
     // 21. If start node and end node are the same, and start node is an editable Text node:
     if (start.node == end.node && is<DOM::Text>(*start.node) && start.node->is_editable()) {
