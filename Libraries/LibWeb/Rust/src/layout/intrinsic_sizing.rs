@@ -88,10 +88,6 @@ pub(super) fn content_sizes_of_inline_content(
         || formatting_context::independent_formatting_context_type(node, &callbacks)
             != formatting_context::FormattingContextType::Block
         || facts.is_table_wrapper()
-        || facts.is_fieldset_box()
-        || facts.uses_button_layout()
-        || facts.node_has_size_containment()
-        || facts.node_has_inline_size_containment()
         || style.writing_mode() != writing_mode::HORIZONTAL_TB
         || establishes_orthogonal_flow(&callbacks, node)
     {
@@ -166,6 +162,11 @@ fn multicol_content_sizes(
 fn child_is_inline_level(callbacks: &LayoutPass<'_>, child: Node) -> bool {
     let facts = NodeFacts::new(callbacks, child);
     facts.is_flow_layout_participant() && facts.is_inline()
+}
+
+fn child_is_inline_level_box_that_block_flow_cannot_lay_out(callbacks: &LayoutPass<'_>, child: Node) -> bool {
+    child_is_inline_level(callbacks, child)
+        && formatting_context::formatting_context_type_created_by_box(NodeFacts::new(callbacks, child)).is_none()
 }
 
 pub(super) fn floats_to_the_left(style: StyleValues<'_>) -> bool {
@@ -322,17 +323,9 @@ fn is_anonymous_wrapper_without_in_flow_content(callbacks: &LayoutPass<'_>, node
         && inline_content_has_no_in_flow_content(callbacks, node)
 }
 
-fn auto_width_rendered_legend_has_limits_that_layout_ignores(callbacks: &LayoutPass<'_>, fieldset: Node) -> bool {
+fn rendered_legend_with_automatic_inline_size(callbacks: &LayoutPass<'_>, fieldset: Node) -> Option<Node> {
     let legend = NodeFacts::new(callbacks, fieldset).rendered_legend();
-    if legend.is_invalid() {
-        return false;
-    }
-    let legend_style = StyleValues::for_node(callbacks, legend);
-    legend_style.width().is_auto()
-        && (legend_style.width().calc_size().is_some()
-            || !legend_style.max_width().is_none()
-            || !sizing_context::is_plain_auto(legend_style.min_width())
-            || NodeFacts::new(callbacks, legend).has_preferred_aspect_ratio())
+    (!legend.is_invalid() && StyleValues::for_node(callbacks, legend).width().is_auto()).then_some(legend)
 }
 
 pub(super) fn content_sizes_of_block_container(
@@ -348,15 +341,11 @@ pub(super) fn content_sizes_of_block_container(
         || formatting_context::independent_formatting_context_type(node, &callbacks)
             != formatting_context::FormattingContextType::Block
         || facts.is_table_wrapper()
-        || facts.node_has_size_containment()
-        || facts.node_has_inline_size_containment()
         || style.writing_mode() != writing_mode::HORIZONTAL_TB
         || establishes_orthogonal_flow(&callbacks, node)
-        || block_formatting_context::is_line_clamp_container(&callbacks, node)
-        || auto_width_rendered_legend_has_limits_that_layout_ignores(&callbacks, node)
         || callbacks
             .children(node)
-            .any(|child| child_is_inline_level(&callbacks, child))
+            .any(|child| child_is_inline_level_box_that_block_flow_cannot_lay_out(&callbacks, child))
     {
         return None;
     }
@@ -364,6 +353,7 @@ pub(super) fn content_sizes_of_block_container(
         let sizing = run.sizing();
         let child_constraints = sizing.constraints_for_child_context(node, constraints);
         let collects_column_spanners = facts.lays_out_in_columns();
+        let legend_sized_to_fit_its_content = rendered_legend_with_automatic_inline_size(&callbacks, node);
         let mut contributions_of_children = BlockLevelContributions::default();
         let mut largest_column_spanner_contributions = sizing_context::ContentSizes::default();
         for child in callbacks.children(node) {
@@ -371,7 +361,11 @@ pub(super) fn content_sizes_of_block_container(
             if !child_facts.is_flow_layout_participant() {
                 continue;
             }
-            if is_anonymous_wrapper_without_in_flow_content(&callbacks, child) {
+            let child_avoids_floats =
+                block_formatting_context::box_avoids_floats_because_it_establishes_formatting_context(
+                    &callbacks, child,
+                );
+            if !child_avoids_floats && is_anonymous_wrapper_without_in_flow_content(&callbacks, child) {
                 contributions_of_children.place_floats_among_children_of(
                     &callbacks,
                     &sizing,
@@ -383,6 +377,12 @@ pub(super) fn content_sizes_of_block_container(
             }
             let contributions = if child_facts.is_table_wrapper() {
                 sizing.block_level_table_wrapper_outer_inline_contributions(child, child_constraints)
+            } else if legend_sized_to_fit_its_content == Some(child) {
+                sizing.outer_inline_contributions_of_legend_whose_fit_content_size_ignores_its_limits(
+                    child,
+                    scope.available_block_size(),
+                    child_constraints,
+                )
             } else {
                 sizing.outer_inline_contributions(child, scope.available_block_size(), child_constraints)
             };
@@ -397,10 +397,6 @@ pub(super) fn content_sizes_of_block_container(
                 contributions_of_children.place_float(child_style, margin_box_contributions);
                 continue;
             }
-            let child_avoids_floats =
-                block_formatting_context::box_avoids_floats_because_it_establishes_formatting_context(
-                    &callbacks, child,
-                );
             if child_avoids_floats {
                 contributions_of_children.clear_floats(child_style.clear());
             }
@@ -504,7 +500,8 @@ pub(super) fn content_sizes_of_flex_container(
         constraints,
         block_size,
         depends_on_block_size,
-        |run, input| flex_formatting_context::FlexFormattingContext::new(run).content_inline_size(input),
+        SizeConstraint::None,
+        |run, input, _| flex_formatting_context::FlexFormattingContext::new(run).content_inline_size(input),
     ))
 }
 
@@ -515,9 +512,7 @@ pub(super) fn content_sizes_of_grid_container(
     block_size: Option<CssPixels>,
     depends_on_block_size: bool,
 ) -> Option<sizing_context::ContentInlineSizes> {
-    if !container_content_is_sized_without_layout(&callbacks, node, formatting_context::FormattingContextType::Grid)
-        || maximum_inline_size_is_the_content_size_under_the_other_constraint(&callbacks, node)
-    {
+    if !container_content_is_sized_without_layout(&callbacks, node, formatting_context::FormattingContextType::Grid) {
         return None;
     }
     Some(content_sizes_of_container_under_each_inline_size_constraint(
@@ -526,7 +521,11 @@ pub(super) fn content_sizes_of_grid_container(
         constraints,
         block_size,
         depends_on_block_size,
-        |run, input| grid_formatting_context::GridFormattingContext::new(run, None).content_inline_size(input),
+        content_size_named_by_maximum_inline_size(&callbacks, node),
+        |run, input, maximum_inline_size| {
+            grid_formatting_context::GridFormattingContext::new(run, None)
+                .content_inline_size(input, maximum_inline_size)
+        },
     ))
 }
 
@@ -535,17 +534,22 @@ fn container_content_is_sized_without_layout(
     node: Node,
     formatting_context_type: formatting_context::FormattingContextType,
 ) -> bool {
-    let facts = NodeFacts::new(callbacks, node);
     formatting_context::independent_formatting_context_type(node, callbacks) == formatting_context_type
-        && !facts.node_has_size_containment()
-        && !facts.node_has_inline_size_containment()
         && StyleValues::for_node(callbacks, node).writing_mode() == writing_mode::HORIZONTAL_TB
         && !establishes_orthogonal_flow(callbacks, node)
 }
 
-fn maximum_inline_size_is_the_content_size_under_the_other_constraint(callbacks: &LayoutPass<'_>, node: Node) -> bool {
+fn content_size_named_by_maximum_inline_size(callbacks: &LayoutPass<'_>, node: Node) -> SizeConstraint {
     let maximum = StyleValues::for_node(callbacks, node).max_width();
-    maximum.calc_size().is_none() && (maximum.is_min_content() || maximum.is_max_content())
+    if maximum.calc_size().is_some() {
+        SizeConstraint::None
+    } else if maximum.is_min_content() {
+        SizeConstraint::MinContent
+    } else if maximum.is_max_content() {
+        SizeConstraint::MaxContent
+    } else {
+        SizeConstraint::None
+    }
 }
 
 fn content_sizes_of_container_under_each_inline_size_constraint(
@@ -554,38 +558,96 @@ fn content_sizes_of_container_under_each_inline_size_constraint(
     constraints: ContainingBlockConstraints,
     block_size: Option<CssPixels>,
     depends_on_block_size: bool,
-    content_inline_size: impl Fn(&FormattingContextRun<'_>, LayoutInput) -> CssPixels,
+    content_size_named_by_maximum_inline_size: SizeConstraint,
+    content_inline_size: impl Fn(&FormattingContextRun<'_>, LayoutInput, Option<CssPixels>) -> CssPixels,
 ) -> sizing_context::ContentInlineSizes {
-    let content_inline_size_under = |inline_size_constraint: SizeConstraint, available_inline_size: AvailableSize| {
-        let scope = ContentSizingScope::new(&callbacks, node, constraints, block_size, inline_size_constraint);
-        scope.enter(callbacks, |run| {
-            let size = content_inline_size(
-                run,
-                LayoutInput::new(
-                    AvailableSpace {
-                        inline_size: available_inline_size,
-                        block_size: scope.available_block_size(),
-                    },
-                    constraints,
-                    ParticipationInParentFormattingContext::Root,
-                ),
-            );
-            let sizing = run.sizing();
-            let dependencies = IntrinsicMeasurementDependencies {
-                percentage_block_size: sizing.resolve_percentage_block_size_dependency(node),
-                percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(node),
-                block_size: depends_on_block_size,
-            };
-            (size, dependencies)
-        })
+    let available_inline_size_under = |inline_size_constraint: SizeConstraint| match inline_size_constraint {
+        SizeConstraint::MinContent => AvailableSize::MinContent,
+        _ => AvailableSize::MaxContent,
     };
-    let (min, min_content_dependencies) =
-        content_inline_size_under(SizeConstraint::MinContent, AvailableSize::MinContent);
-    let (max, max_content_dependencies) =
-        content_inline_size_under(SizeConstraint::MaxContent, AvailableSize::MaxContent);
+    let content_inline_size_under =
+        |inline_size_constraint: SizeConstraint, content_size_named_by_maximum: Option<CssPixels>| {
+            let scope = ContentSizingScope::new(&callbacks, node, constraints, block_size, inline_size_constraint);
+            scope.enter(callbacks, |run| {
+                let sizing = run.sizing();
+                let maximum_inline_size = content_size_named_by_maximum.map(|content_size| {
+                    sizing.apply_transferred_limits_to_intrinsic_inline_size(
+                        node,
+                        clamp_to_max_dimension_value(content_size),
+                        available_inline_size_under(content_size_named_by_maximum_inline_size),
+                        constraints,
+                    )
+                });
+                let size = content_inline_size(
+                    run,
+                    LayoutInput::new(
+                        AvailableSpace {
+                            inline_size: available_inline_size_under(inline_size_constraint),
+                            block_size: scope.available_block_size(),
+                        },
+                        constraints,
+                        ParticipationInParentFormattingContext::Root,
+                    ),
+                    maximum_inline_size,
+                );
+                let dependencies = IntrinsicMeasurementDependencies {
+                    percentage_block_size: sizing.resolve_percentage_block_size_dependency(node),
+                    percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(node),
+                    block_size: depends_on_block_size,
+                };
+                (size, dependencies)
+            })
+        };
+    let ((min, min_content_dependencies), (max, max_content_dependencies)) =
+        match content_size_named_by_maximum_inline_size {
+            SizeConstraint::MinContent => {
+                let min_content = content_inline_size_under(SizeConstraint::MinContent, None);
+                let max_content = content_inline_size_under(SizeConstraint::MaxContent, Some(min_content.0));
+                (min_content, max_content)
+            }
+            SizeConstraint::MaxContent => {
+                let max_content = content_inline_size_under(SizeConstraint::MaxContent, None);
+                let min_content = content_inline_size_under(SizeConstraint::MinContent, Some(max_content.0));
+                (min_content, max_content)
+            }
+            SizeConstraint::None => (
+                content_inline_size_under(SizeConstraint::MinContent, None),
+                content_inline_size_under(SizeConstraint::MaxContent, None),
+            ),
+        };
     sizing_context::ContentInlineSizes {
         sizes: sizing_context::ContentSizes { min, max },
         first_line_max_content: FirstLineMaxContent::without_floats(max),
         dependencies: min_content_dependencies.union(max_content_dependencies),
     }
+}
+
+pub(super) fn content_sizes_of_replaced_content(
+    callbacks: LayoutPass<'_>,
+    scope: &ContentSizingScope,
+    depends_on_block_size: bool,
+) -> Option<sizing_context::ContentInlineSizes> {
+    let node = scope.node;
+    if establishes_orthogonal_flow(&callbacks, node) {
+        return None;
+    }
+    let size = match formatting_context::independent_formatting_context_type(node, &callbacks) {
+        formatting_context::FormattingContextType::Svg
+        | formatting_context::FormattingContextType::InternalReplaced
+        | formatting_context::FormattingContextType::InternalDummy => CssPixels::default(),
+        formatting_context::FormattingContextType::ReplacedWithChildren => scope.root().content_inline_size.get(),
+        _ => return None,
+    };
+    Some(scope.enter(callbacks, |run| {
+        let sizing = run.sizing();
+        sizing_context::ContentInlineSizes {
+            sizes: sizing_context::ContentSizes { min: size, max: size },
+            first_line_max_content: FirstLineMaxContent::without_floats(size),
+            dependencies: IntrinsicMeasurementDependencies {
+                percentage_block_size: sizing.resolve_percentage_block_size_dependency(node),
+                percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(node),
+                block_size: depends_on_block_size,
+            },
+        }
+    }))
 }

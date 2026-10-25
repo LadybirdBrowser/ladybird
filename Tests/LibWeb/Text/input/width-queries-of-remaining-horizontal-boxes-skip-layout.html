@@ -1,0 +1,110 @@
+<!doctype html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    .wrapper {
+        width: max-content;
+        font: 10px/20px Ahem;
+    }
+
+    .zero {
+        width: 0;
+        font: 10px/20px Ahem;
+    }
+
+    #line-clamp {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+        overflow: hidden;
+    }
+
+    #grid-limited-to-min-content,
+    #grid-limited-to-max-content,
+    #grid-limited-to-min-content-in-fixed-width-box,
+    #grid-limited-to-max-content-in-fixed-width-box {
+        display: grid;
+        grid-template-columns: auto auto;
+    }
+
+    #grid-limited-to-min-content,
+    #grid-limited-to-min-content-in-fixed-width-box {
+        max-width: min-content;
+    }
+
+    #grid-limited-to-max-content,
+    #grid-limited-to-max-content-in-fixed-width-box {
+        max-width: max-content;
+    }
+
+    #contained-with-ratio {
+        display: flex;
+        contain: inline-size;
+        contain-intrinsic-width: 30px;
+        aspect-ratio: 1;
+        height: 50px;
+    }
+</style>
+<template id="fixture">
+    <div class="wrapper"><div id="inline-table-among-blocks" style="display: inline-block"><div>alpha</div><span style="display: table-cell">beta gamma</span><div>delta</div></div></div>
+    <div class="zero"><div id="inline-table-among-blocks-at-min-content" style="display: inline-block"><div>alpha</div><span style="display: table-cell">beta gamma</span><div>delta</div></div></div>
+    <div class="wrapper"><fieldset id="inline-fieldset" style="display: inline">alpha beta<div>gamma</div></fieldset></div>
+    <div class="wrapper"><fieldset id="fieldset-with-limited-legend"><legend style="min-width: 10px; max-width: 1000px">alpha beta gamma</legend>delta</fieldset></div>
+    <div class="wrapper"><div id="line-clamp"><div>alpha</div><div>beta gamma delta</div></div></div>
+    <div class="wrapper"><div id="grid-limited-to-min-content"><div>alpha beta</div><div>gamma</div></div></div>
+    <div class="wrapper"><div id="grid-limited-to-max-content"><div>alpha beta</div><div>gamma</div></div></div>
+    <div class="wrapper"><div style="display: inline-block"><div style="width: 200px"><div id="grid-limited-to-min-content-in-fixed-width-box"><div>alpha beta</div><div>gamma</div></div></div></div></div>
+    <div class="wrapper"><div style="display: inline-block"><div style="width: 200px"><div id="grid-limited-to-max-content-in-fixed-width-box"><div>alpha beta</div><div>gamma</div></div></div></div></div>
+    <div class="wrapper"><div style="display: flex; height: 100px"><svg id="svg-without-natural-size" viewBox="0 0 2 1"><rect width="2" height="1"/></svg><div>alpha</div></div></div>
+    <div class="wrapper"><div style="display: flex"><div id="contained-with-ratio"><div>alpha beta</div></div></div></div>
+    <div class="wrapper"><div style="display: inline-block"><div id="block-ruby" style="display: block ruby"><div>alpha</div></div></div></div>
+</template>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        const work = layoutWork(() => {
+            document.body.appendChild(document.getElementById("fixture").content.cloneNode(true));
+        });
+        const ids = [
+            "inline-table-among-blocks",
+            "inline-table-among-blocks-at-min-content",
+            "inline-fieldset",
+            "fieldset-with-limited-legend",
+            "line-clamp",
+            "grid-limited-to-min-content",
+            "grid-limited-to-max-content",
+            "grid-limited-to-min-content-in-fixed-width-box",
+            "grid-limited-to-max-content-in-fixed-width-box",
+            "svg-without-natural-size",
+            "contained-with-ratio",
+            "block-ruby",
+        ];
+        for (const id of ids) {
+            const isTarget = box => box.endsWith(`#${id}`);
+            const answers = new Set();
+            let misses = 0;
+            let nestedRuns = 0;
+            work.events.forEach((measure, start) => {
+                if (measure.event !== "measure" || !isTarget(measure.box) || !measure.size.endsWith("inline")) return;
+                if (measure.cache !== "miss") return;
+                ++misses;
+                answers.add(measure.from);
+                for (const event of work.events.slice(start + 1)) {
+                    if (event.depth <= measure.depth) break;
+                    if (event.event === "run") ++nestedRuns;
+                }
+            });
+            const intrinsicRuns = work.count(event => event.event === "run" && isTarget(event.box) && event.intrinsic);
+            const width = document.getElementById(id).getBoundingClientRect().width;
+            println(
+                `${id}: ${misses} inline misses answered from ${[...answers].join(", ") || "nothing"}, ${nestedRuns} runs under them, ${intrinsicRuns} intrinsic runs of the box, width ${width}`
+            );
+        }
+        done();
+    });
+</script>
