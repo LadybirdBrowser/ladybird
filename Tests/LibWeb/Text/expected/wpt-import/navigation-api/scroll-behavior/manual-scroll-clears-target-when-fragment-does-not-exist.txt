@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	scroll: scroll() should clear the CSS :target element when the fragment does not exist
+1 Pass
+Pass	scroll: scroll() should clear the CSS :target element when the fragment does not exist
