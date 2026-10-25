@@ -153,6 +153,7 @@ public:
     // Internal Getters/Setters
     GC::Ptr<NavigateEvent> ongoing_navigate_event() const { return m_ongoing_navigate_event; }
     void set_ongoing_navigate_event(GC::Ptr<NavigateEvent> event) { m_ongoing_navigate_event = event; }
+    GC::Ptr<NavigationAPIMethodTracker> ongoing_api_method_tracker() const { return m_ongoing_api_method_tracker; }
     void set_ongoing_api_method_tracker(GC::Ptr<NavigationAPIMethodTracker> tracker) { m_ongoing_api_method_tracker = tracker; }
 
     bool focus_changed_during_ongoing_navigation() const { return m_focus_changed_during_ongoing_navigation; }

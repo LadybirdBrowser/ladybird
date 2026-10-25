@@ -47,6 +47,9 @@ class Window;
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationintercepthandler
 using NavigationInterceptHandler = GC::Ref<WebIDL::CallbackType>;
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationprecommithandler
+using NavigationPrecommitHandler = GC::Ref<WebIDL::CallbackType>;
+
 using NavigationFocusReset = Bindings::NavigationFocusReset;
 using NavigationScrollBehavior = Bindings::NavigationScrollBehavior;
 
@@ -112,7 +115,9 @@ public:
 
     GC::Ref<DOM::AbortController> abort_controller() const { return *m_abort_controller; }
     InterceptionState interception_state() const { return m_interception_state; }
+    Vector<NavigationPrecommitHandler> const& navigation_precommit_handler_list() const { return m_navigation_precommit_handler_list; }
     Vector<NavigationInterceptHandler> const& navigation_handler_list() const { return m_navigation_handler_list; }
+    void append_to_navigation_handler_list(NavigationInterceptHandler handler) { m_navigation_handler_list.append(handler); }
     Optional<StorageSerializationRecord> classic_history_api_state() const { return m_classic_history_api_state; }
     bool has_started_navigate_event_intercept_commit_handler_steps() const { return m_has_started_navigate_event_intercept_commit_handler_steps; }
     Optional<CrossProcessId> resume_traversal_operation_id() const { return m_resume_traversal_operation_id; }
@@ -120,10 +125,14 @@ public:
     void set_abort_controller(GC::Ref<DOM::AbortController> c) { m_abort_controller = c; }
     void set_interception_state(InterceptionState s) { m_interception_state = s; }
     void set_classic_history_api_state(Optional<StorageSerializationRecord> r) { m_classic_history_api_state = move(r); }
+    void set_navigation_type(NavigationType navigation_type) { m_navigation_type = navigation_type; }
+    void set_info(JS::Value info) { m_info = info; }
     void set_has_started_navigate_event_intercept_commit_handler_steps() { m_has_started_navigate_event_intercept_commit_handler_steps = true; }
     void set_resume_traversal_operation_id(CrossProcessId id) { m_resume_traversal_operation_id = id; }
 
     void finish(bool did_fulfill);
+
+    WebIDL::ExceptionOr<void> perform_shared_checks();
 
 private:
     NavigateEvent(Window&, FlyString const& event_name, NavigateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
@@ -131,7 +140,6 @@ private:
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<void> perform_shared_checks();
     void process_scroll_behavior();
     void potentially_process_scroll_behavior();
     void potentially_reset_the_focus();
@@ -146,6 +154,9 @@ private:
 
     // The history operation resuming this intercepted traverse, which is revoked if the event is aborted first.
     Optional<CrossProcessId> m_resume_traversal_operation_id;
+
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigateevent-navigation-precommit-handler-list
+    Vector<NavigationPrecommitHandler> m_navigation_precommit_handler_list;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigateevent-navigation-handler-list
     Vector<NavigationInterceptHandler> m_navigation_handler_list;

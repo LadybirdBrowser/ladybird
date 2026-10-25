@@ -598,6 +598,7 @@ set(SOURCES
     HTML/NavigationObserver.cpp
     HTML/NavigationParams.cpp
     HTML/NavigationParamsDescriptor.cpp
+    HTML/NavigationPrecommitController.cpp
     HTML/NavigationTransition.cpp
     HTML/Navigator.cpp
     HTML/NavigatorBeacon.cpp
