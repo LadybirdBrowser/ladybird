@@ -192,13 +192,14 @@ pub mod translate {
         Vec::new()
     }
 
-    pub fn call_site_frame_arguments(
+    pub fn call_site_frame_arguments<'d>(
         _vm: &Vm,
         _frame: &ExecutionContext,
         _index: u32,
         _frame_pointer: u64,
         _frame_state: usize,
-    ) -> Vec<Value> {
+        _defer_gc: &'d crate::gc::defer_gc::DeferGc<'_>,
+    ) -> crate::gc::defer_gc::Deferred<'d, Vec<Value>> {
         unreachable!("no frame runs JIT code");
     }
 

@@ -22,6 +22,7 @@ use libjs_jit::snapshot::{
 use super::offset;
 use crate::bytecode::executable::Executable;
 use crate::gc::class::{Extends, GcCell, class_of};
+use crate::gc::defer_gc::{DeferGc, Deferred};
 use crate::interpreter::slow_paths::bindings::create_lexical_environment;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -79,7 +80,7 @@ pub struct AllocationInfos {
     pub cells: Vec<Gc<CellHeader>>,
 }
 
-pub fn allocation_infos(vm: &Vm, realm: Gc<Realm>) -> AllocationInfos {
+pub fn allocation_infos<'d>(vm: &Vm, realm: Gc<Realm>, defer_gc: &'d DeferGc<'_>) -> Deferred<'d, AllocationInfos> {
     let heap = vm.heap();
     let inline = heap.inline_allocation_info();
     let heap_address = heap.raw() as u64;
@@ -172,13 +173,13 @@ pub fn allocation_infos(vm: &Vm, realm: Gc<Realm>) -> AllocationInfos {
         slow_path: libjs_jit_clone_function as *const () as u64,
     };
 
-    AllocationInfos {
+    defer_gc.cover(AllocationInfos {
         object,
         array,
         rope,
         function,
         cells: vec![header_of(array_shape)],
-    }
+    })
 }
 
 fn header_of<T: Extends<CellHeader>>(cell: Gc<T>) -> Gc<CellHeader> {
@@ -437,20 +438,25 @@ pub extern "C" fn libjs_jit_create_lexical_environment(
     .as_ptr()
 }
 
+/// The sample of each closure template with its words, by shared function data index.
+pub type ClosureTemplates = Vec<Option<(Gc<EcmascriptFunctionObject>, Vec<u64>)>>;
+
 /// The closures JIT code of `executable`, whose frames run `function`, creates with each `NewFunction` (by shared
-/// function data index) by copying a sample (see `FunctionAllocationInfo`), or None for those it cannot. This
-/// allocates the samples, so it may collect garbage.
-pub fn closure_templates(
+/// function data index) by copying a sample (see `FunctionAllocationInfo`), or None for those it cannot.
+pub fn closure_templates<'d>(
     vm: &Vm,
     executable: Gc<Executable>,
     function: Gc<EcmascriptFunctionObject>,
-) -> Vec<Option<(Gc<EcmascriptFunctionObject>, Vec<u64>)>> {
-    (0..executable.shared_function_data_count())
-        .map(|index| {
-            let shared_data = executable.shared_function_data(u32::try_from(index).ok()?);
-            closure_template(vm, function, shared_data)
-        })
-        .collect()
+    defer_gc: &'d DeferGc<'_>,
+) -> Deferred<'d, ClosureTemplates> {
+    defer_gc.cover(
+        (0..executable.shared_function_data_count())
+            .map(|index| {
+                let shared_data = executable.shared_function_data(u32::try_from(index).ok()?);
+                closure_template(vm, function, shared_data)
+            })
+            .collect(),
+    )
 }
 
 fn closure_template(
@@ -487,8 +493,9 @@ fn closure_template(
 
 /// The closure templates as the snapshot carries them, with their samples as cells the code embeds.
 pub fn closure_template_snapshots(
-    templates: Vec<Option<(Gc<EcmascriptFunctionObject>, Vec<u64>)>>,
+    templates: ClosureTemplates,
     mut cell: impl FnMut(Gc<EcmascriptFunctionObject>) -> CellId,
+    _defer_gc: &DeferGc<'_>,
 ) -> Vec<Option<ClosureTemplateSnapshot>> {
     templates
         .into_iter()

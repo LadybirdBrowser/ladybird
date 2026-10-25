@@ -33,6 +33,7 @@ use crate::bytecode::executable::{Executable, PropertyLookupCacheEntryData, Prop
 use crate::bytecode::feedback::{CallFeedback, CallFeedbackForwarding, call_feedback_flags};
 use crate::bytecode::instruction::instruction_length_from_bytes;
 use crate::gc::class::Extends;
+use crate::gc::defer_gc::{DeferGc, Deferred};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
@@ -77,10 +78,10 @@ const MAX_INLINED_CONSTRUCT_INSTRUCTION_COUNT: u32 = 50;
 
 /// A snapshot with the cells it refers to, which must stay alive (and in place) until the job's code is installed or
 /// the job is abandoned.
-pub struct CapturedSnapshot {
+pub struct CapturedSnapshot<'d> {
     pub snapshot: Box<Snapshot>,
-    pub cells: Vec<Gc<CellHeader>>,
-    pub snapshot_executables: Vec<SnapshotExecutable>,
+    pub cells: Deferred<'d, Vec<Gc<CellHeader>>>,
+    pub snapshot_executables: Deferred<'d, Vec<SnapshotExecutable>>,
 }
 
 /// An executable of the snapshot.
@@ -1253,13 +1254,14 @@ fn captured_binding_accesses(executable: &Executable) -> CapturedBindingAccesses
 /// Captures the snapshot of a compile job for `executable`, whose frames run `function` in `realm`, or the top-level
 /// code of a script or of a module without one, in the running frame. `osr_pc` is the loop back edge whose tier-up
 /// budget ran out, if a loop triggered the compile.
-pub fn capture_snapshot(
+pub fn capture_snapshot<'d>(
     vm: &Vm,
     executable: Gc<Executable>,
     function: Option<Gc<EcmascriptFunctionObject>>,
     realm: Gc<Realm>,
     osr_pc: Option<u32>,
-) -> CapturedSnapshot {
+    defer_gc: &'d DeferGc<'_>,
+) -> CapturedSnapshot<'d> {
     let compiled_function_fields = match function {
         Some(function) => function_frame_fields(function),
         None => FunctionFrameFields {
@@ -1268,11 +1270,11 @@ pub fn capture_snapshot(
         },
     };
     // NB: These allocate (and so may collect garbage), which they do before anything is captured.
-    let allocation = allocation_infos(vm, realm);
+    let allocation = allocation_infos(vm, realm, defer_gc);
     // NB: Closures that top-level code creates have its environments, which the code does not know.
     let closure_templates = match function {
-        Some(function) => closure_templates(vm, executable, function),
-        None => (0..executable.shared_function_data_count()).map(|_| None).collect(),
+        Some(function) => closure_templates(vm, executable, function, defer_gc),
+        None => defer_gc.cover((0..executable.shared_function_data_count()).map(|_| None).collect()),
     };
     let closure_samples = closure_templates
         .iter()
@@ -1296,7 +1298,8 @@ pub fn capture_snapshot(
         lexical_environment_templates: Vec::new(),
         construct_this_shapes: HashMap::new(),
     };
-    builder.closure_templates = closure_template_snapshots(closure_templates, |sample| builder.cell(sample));
+    builder.closure_templates =
+        closure_template_snapshots(closure_templates.into_inner(), |sample| builder.cell(sample), defer_gc);
     builder.lexical_environment_templates =
         lexical_environment_templates(vm, executable, realm, |cell| builder.cell(cell));
     // NB: executable_snapshot() appends the inlining candidates it finds.
@@ -1325,7 +1328,7 @@ pub fn capture_snapshot(
         executables.push(builder.executable_snapshot(&entry));
         index += 1;
     }
-    let mut runtime = super::runtime_info::runtime_info(vm, realm, allocation);
+    let mut runtime = super::runtime_info::runtime_info(vm, realm, allocation.into_inner(), defer_gc);
     // NB: Code that embeds the prototypes of the runtime info lists them as embedded cells.
     builder.cell(realm.array_prototype());
     builder.cell(realm.object_prototype());
@@ -1369,22 +1372,24 @@ pub fn capture_snapshot(
     };
     CapturedSnapshot {
         snapshot: Box::new(snapshot),
-        cells: builder.cells,
-        snapshot_executables: builder
-            .entries
-            .iter()
-            .map(|entry| SnapshotExecutable {
-                executable: entry.executable,
-                function: entry.function,
-                known_exit_sites: entry.executable.jit_exit_site_count(),
-                known_builtin_exit_sites: entry.executable.jit_builtin_exit_site_count(),
-                property_cache_sizes: entry
-                    .executable
-                    .property_lookup_caches()
-                    .iter()
-                    .map(speculated_cache_size)
-                    .collect(),
-            })
-            .collect(),
+        cells: defer_gc.cover(builder.cells),
+        snapshot_executables: defer_gc.cover(
+            builder
+                .entries
+                .iter()
+                .map(|entry| SnapshotExecutable {
+                    executable: entry.executable,
+                    function: entry.function,
+                    known_exit_sites: entry.executable.jit_exit_site_count(),
+                    known_builtin_exit_sites: entry.executable.jit_builtin_exit_site_count(),
+                    property_cache_sizes: entry
+                        .executable
+                        .property_lookup_caches()
+                        .iter()
+                        .map(speculated_cache_size)
+                        .collect(),
+                })
+                .collect(),
+        ),
     }
 }

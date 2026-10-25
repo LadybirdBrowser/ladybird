@@ -14,7 +14,7 @@ use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::Executable;
 use crate::gc::class::{Extends, GcCell, cast_ref, define_cell};
-use crate::gc::defer_gc::DeferGc;
+use crate::gc::defer_gc::{DeferGc, Deferred};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
@@ -990,8 +990,8 @@ impl EcmascriptFunctionObject {
         let this_function = self.as_function_object_gc();
         // NB: The arguments of a frame of an inlined call may be objects JIT code never created, which only the
         //     arguments object holds once it exists.
-        let _defer_gc = DeferGc::new(vm);
-        let mut passed_arguments: Option<Vec<Cell<Value>>> = None;
+        let defer_gc = DeferGc::new(vm);
+        let mut passed_arguments: Option<Deferred<'_, Vec<Cell<Value>>>> = None;
 
         vm.for_each_stack_frame_top_to_bottom(|frame| {
             if frame.function != Some(this_function) {
@@ -999,28 +999,32 @@ impl EcmascriptFunctionObject {
             }
 
             // NB: The frame of a call that JIT code inlined has its arguments in the JIT frame.
-            passed_arguments = Some(match frame.inlined_call {
-                Some(inlined_call) => crate::jit::translate::call_site_frame_arguments(
-                    vm,
-                    frame.execution_context,
-                    inlined_call.site,
-                    inlined_call.frame_pointer,
-                    inlined_call.frame_state,
-                )
-                .into_iter()
-                .map(Cell::new)
-                .collect(),
-                None => {
-                    let context = frame.execution_context;
-                    // NB: The frame of an inlined call that JIT code published or materialized for a call it made has
-                    //     markers for the objects among its arguments that the code never allocated.
-                    crate::jit::translate::resolve_deferred_arguments(vm, context);
-                    context.arguments()[..context.passed_argument_count.get() as usize]
-                        .iter()
-                        .map(|argument| Cell::new(argument.get()))
-                        .collect()
-                }
-            });
+            passed_arguments = Some(
+                defer_gc.cover(match frame.inlined_call {
+                    Some(inlined_call) => crate::jit::translate::call_site_frame_arguments(
+                        vm,
+                        frame.execution_context,
+                        inlined_call.site,
+                        inlined_call.frame_pointer,
+                        inlined_call.frame_state,
+                        &defer_gc,
+                    )
+                    .into_inner()
+                    .into_iter()
+                    .map(Cell::new)
+                    .collect(),
+                    None => {
+                        let context = frame.execution_context;
+                        // NB: The frame of an inlined call that JIT code published or materialized for a call it made has
+                        //     markers for the objects among its arguments that the code never allocated.
+                        crate::jit::translate::resolve_deferred_arguments(vm, context);
+                        context.arguments()[..context.passed_argument_count.get() as usize]
+                            .iter()
+                            .map(|argument| Cell::new(argument.get()))
+                            .collect()
+                    }
+                }),
+            );
             ControlFlow::Break(())
         });
 
