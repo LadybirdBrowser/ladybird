@@ -276,7 +276,7 @@ fn throw_error(
 
 /// What a binding helper returns to continue after its instruction.
 fn continue_after_instruction(pc: u32) -> SlowPathControl {
-    SlowPathControl::dispatch_at(pc)
+    SlowPathControl::continue_at(pc)
 }
 
 fn advance_or_continue(pc: u32, next_pc: SlowPathControl, instruction_length: u32) -> SlowPathControl {
