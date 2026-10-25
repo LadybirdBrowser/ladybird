@@ -22,9 +22,11 @@ namespace Web::TrustedTypes {
     __ENUMERATE_INJECTION_SINKS(Document_writeln, "Document writeln")                               \
     __ENUMERATE_INJECTION_SINKS(Document_execCommand, "Document execCommand")                       \
     __ENUMERATE_INJECTION_SINKS(DOMParser_parseFromString, "DOMParser parseFromString")             \
+    __ENUMERATE_INJECTION_SINKS(Element_appendHTMLUnsafe, "Element appendHTMLUnsafe")               \
     __ENUMERATE_INJECTION_SINKS(Element_innerHTML, "Element innerHTML")                             \
     __ENUMERATE_INJECTION_SINKS(Element_insertAdjacentHTML, "Element insertAdjacentHTML")           \
     __ENUMERATE_INJECTION_SINKS(Element_outerHTML, "Element outerHTML")                             \
+    __ENUMERATE_INJECTION_SINKS(Element_prependHTMLUnsafe, "Element prependHTMLUnsafe")             \
     __ENUMERATE_INJECTION_SINKS(Element_setHTMLUnsafe, "Element setHTMLUnsafe")                     \
     __ENUMERATE_INJECTION_SINKS(Eval, "eval")                                                       \
     __ENUMERATE_INJECTION_SINKS(Function, "Function")                                               \
@@ -34,9 +36,14 @@ namespace Web::TrustedTypes {
     __ENUMERATE_INJECTION_SINKS(HTMLScriptElement_text, "HTMLScriptElement text")                   \
     __ENUMERATE_INJECTION_SINKS(HTMLScriptElement_textContent, "HTMLScriptElement textContent")     \
     __ENUMERATE_INJECTION_SINKS(Location_href, "Location href")                                     \
+    __ENUMERATE_INJECTION_SINKS(Node_afterHTMLUnsafe, "Node afterHTMLUnsafe")                       \
+    __ENUMERATE_INJECTION_SINKS(Node_beforeHTMLUnsafe, "Node beforeHTMLUnsafe")                     \
+    __ENUMERATE_INJECTION_SINKS(Node_replaceWithHTMLUnsafe, "Node replaceWithHTMLUnsafe")           \
     __ENUMERATE_INJECTION_SINKS(Range_createContextualFragment, "Range createContextualFragment")   \
     __ENUMERATE_INJECTION_SINKS(ServiceWorkerContainer_register, "ServiceWorkerContainer register") \
+    __ENUMERATE_INJECTION_SINKS(ShadowRoot_appendHTMLUnsafe, "ShadowRoot appendHTMLUnsafe")         \
     __ENUMERATE_INJECTION_SINKS(ShadowRoot_innerHTML, "ShadowRoot innerHTML")                       \
+    __ENUMERATE_INJECTION_SINKS(ShadowRoot_prependHTMLUnsafe, "ShadowRoot prependHTMLUnsafe")       \
     __ENUMERATE_INJECTION_SINKS(ShadowRoot_setHTMLUnsafe, "ShadowRoot setHTMLUnsafe")               \
     __ENUMERATE_INJECTION_SINKS(SharedWorker_constructor, "SharedWorker constructor")               \
     __ENUMERATE_INJECTION_SINKS(SVGScriptElement_href, "SVGScriptElement href")                     \

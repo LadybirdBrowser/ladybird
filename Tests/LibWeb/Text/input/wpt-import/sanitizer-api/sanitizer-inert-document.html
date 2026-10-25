@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Test whether fragment created for sanitization is inert.</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="test"></div>
+<script>
+promise_test(t => {
+  return new Promise((resolve, fail) => {
+    globalThis.failsafe = fail;
+    globalThis.resolvesafe = resolve;
+
+    const div = document.createElement("div");
+    document.getElementById("test").appendChild(div);
+    div.setHTML(`<img src="data:image/png," onerror="globalThis.failsafe('shouldnt load')">`);
+
+    const div2 = document.createElement("div");
+    document.getElementById("test").appendChild(div2);
+    div2.innerHTML = `<img src="data:image/png," onerror="globalThis.resolvesafe('shoud load')">`;
+  });
+}, "Test whether setHTML executes the fail handler.");
+
+promise_test(t => {
+  return new Promise((resolve, fail) => {
+    globalThis.failunsafe = fail;
+    globalThis.resolveunsafe = resolve;
+
+    const div = document.createElement("div");
+    document.getElementById("test").appendChild(div);
+    div.setHTMLUnsafe(
+      `<img src="data:image/png," onerror="globalThis.failunsafe()">`,
+      {sanitizer: {removeElements: ["img"]}});
+
+    const div2 = document.createElement("div");
+    document.getElementById("test").appendChild(div2);
+    div2.innerHTML = `<img src="data:image/png," onerror="globalThis.resolveunsafe()">`;
+  });
+}, "Test whether setHTMLUnsafe executes the fail handler.");
+
+const url = "/fetch/metadata/resources/record-header.py?file=image";
+const options = {sanitizer: {removeElements: ["img"]}};
+
+promise_test(t => {
+  return new Promise((resolve, fail) => {
+    const div = document.createElement("div");
+    document.getElementById("test").appendChild(div);
+    div.setHTML(`<img src="${url}">`, options);
+    fetch(url + "&retrieve=true")
+      .then(response => response.text())
+      .then(text => {
+        if (text.includes("No header has been recorded"))
+          resolve()
+        else
+          fail("The server observed a request. It shouldn't have.");
+      });
+  });
+}, "Test whether setHTML loads the image.");
+
+promise_test(t => {
+  return new Promise((resolve, fail) => {
+    const div = document.createElement("div");
+    document.getElementById("test").appendChild(div);
+    div.setHTMLUnsafe(`<img src="${url}">`, options);
+    fetch(url + "&retrieve=true")
+      .then(response => response.text())
+      .then(text => {
+        if (text.includes("No header has been recorded"))
+          resolve()
+        else
+          fail("The server observed a request. It shouldn't have.");
+      });
+  });
+}, "Test whether setHTMLUnsafe loads the image.");
+</script>
+</body>
+</html>

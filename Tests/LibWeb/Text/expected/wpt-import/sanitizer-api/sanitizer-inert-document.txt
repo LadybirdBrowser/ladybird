@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+2 Pass
+2 Fail
+Pass	Test whether setHTML executes the fail handler.
+Pass	Test whether setHTMLUnsafe executes the fail handler.
+Fail	Test whether setHTML loads the image.
+Fail	Test whether setHTMLUnsafe loads the image.

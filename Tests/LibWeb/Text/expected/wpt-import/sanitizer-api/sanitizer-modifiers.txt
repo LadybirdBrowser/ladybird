@@ -2,26 +2,26 @@ Harness status: OK
 
 Found 22 tests
 
-22 Fail
-Fail	sanitizer.allowAttribute() with global attributes
-Fail	sanitizer.allowAttribute() with global removeAttributes
-Fail	sanitizer.allowAttribute() with global attributes and elements
-Fail	sanitizer.allowAttribute() with global removeAttributes and element's attributes
-Fail	sanitizer.allowAttribute() with global removeAttributes and element's removeAttributes
-Fail	sanitizer.removeAttribute() with global attributes
-Fail	sanitizer.removeAttribute() with global removeAttributes
-Fail	sanitizer.removeAttribute() with global attributes and elements
-Fail	sanitizer.removeAttribute() with global removeAttributes and element's attributes
-Fail	sanitizer.removeAttribute() with global removeAttributes and element's removeAttributes
-Fail	sanitizer.removeElement() with global elements
-Fail	sanitizer.removeElement() with global removeElements
-Fail	sanitizer.replaceElementWithChildren() with global elements
-Fail	sanitizer.replaceElementWithChildren() with global removeElements
-Fail	sanitizer.allowElement() with global elements
-Fail	sanitizer.allowElement() with global removeElements
-Fail	sanitizer.allowElement() with global elements and attributes
-Fail	sanitizer.allowElement() with global elements and removeAttributes
-Fail	sanitizer.replaceElementWithChildren() does not allow non-replaceable elements.
-Fail	sanitizer.setJavascriptURLs()
-Fail	sanitizer.setComments()
-Fail	sanitizer.setDataAttributes()
+22 Pass
+Pass	sanitizer.allowAttribute() with global attributes
+Pass	sanitizer.allowAttribute() with global removeAttributes
+Pass	sanitizer.allowAttribute() with global attributes and elements
+Pass	sanitizer.allowAttribute() with global removeAttributes and element's attributes
+Pass	sanitizer.allowAttribute() with global removeAttributes and element's removeAttributes
+Pass	sanitizer.removeAttribute() with global attributes
+Pass	sanitizer.removeAttribute() with global removeAttributes
+Pass	sanitizer.removeAttribute() with global attributes and elements
+Pass	sanitizer.removeAttribute() with global removeAttributes and element's attributes
+Pass	sanitizer.removeAttribute() with global removeAttributes and element's removeAttributes
+Pass	sanitizer.removeElement() with global elements
+Pass	sanitizer.removeElement() with global removeElements
+Pass	sanitizer.replaceElementWithChildren() with global elements
+Pass	sanitizer.replaceElementWithChildren() with global removeElements
+Pass	sanitizer.allowElement() with global elements
+Pass	sanitizer.allowElement() with global removeElements
+Pass	sanitizer.allowElement() with global elements and attributes
+Pass	sanitizer.allowElement() with global elements and removeAttributes
+Pass	sanitizer.replaceElementWithChildren() does not allow non-replaceable elements.
+Pass	sanitizer.setJavascriptURLs()
+Pass	sanitizer.setComments()
+Pass	sanitizer.setDataAttributes()

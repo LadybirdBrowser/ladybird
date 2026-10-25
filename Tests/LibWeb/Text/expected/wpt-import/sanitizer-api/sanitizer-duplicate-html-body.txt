@@ -2,16 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-12 Fail
-Fail	Document.parseHTML testcase 0, "<body><body onload="alert(1)" onclick="alert(2)" class="safe-body" data-test="val"></body>"
-Fail	Document.parseHTML testcase 1, "<body id="initial" class="initial"><body id="duplicate" class="duplicate" dir="rtl" onclick="alert(1)"></body>"
-Fail	Document.parseHTML testcase 2, "<html lang="en" id="root"><html id="duplicate" dir="rtl" onclick="alert(1)"><body></body>"
-Fail	Document.parseHTML testcase 3, "<body><body class="allowed" title="forbidden"></body>"
-Fail	Document.parseHTML testcase 4, "<html lang="en" dir="ltr" class="html-cls"><body id="main" class="body-cls" dir="ltr"></body>"
-Fail	Document.parseHTML testcase 5, "<html><body><body class="body-cls" data-foo="bar"></body>"
-Fail	Document.parseHTMLUnsafe testcase 0, "<body><body data-bad="strip-me" data-good="keep-me"></body>"
-Fail	Document.parseHTMLUnsafe testcase 1, "<html data-bad-html="1" data-good-html="2"><body data-bad-body="3" data-good-body="4"></body>"
-Fail	Document.parseHTMLUnsafe testcase 2, "<html><body><html data-dup-bad-html="1" data-dup-good-html="2"><body data-dup-bad-body="3" data-dup-good-body="4"></body>"
-Fail	Document.parseHTMLUnsafe testcase 3, "<html title="html-title"><body title="body-title"><div title="div-title"></div></body>"
-Fail	Fragment setHTML testcase 0, "<body id="test-body" onclick="alert(1)" class="safe-body"></body>"
-Fail	Fragment setHTML testcase 1, "<body id="first" class="first"><body id="second" dir="rtl" onclick="alert(1)"></body>"
+12 Pass
+Pass	Document.parseHTML testcase 0, "<body><body onload="alert(1)" onclick="alert(2)" class="safe-body" data-test="val"></body>"
+Pass	Document.parseHTML testcase 1, "<body id="initial" class="initial"><body id="duplicate" class="duplicate" dir="rtl" onclick="alert(1)"></body>"
+Pass	Document.parseHTML testcase 2, "<html lang="en" id="root"><html id="duplicate" dir="rtl" onclick="alert(1)"><body></body>"
+Pass	Document.parseHTML testcase 3, "<body><body class="allowed" title="forbidden"></body>"
+Pass	Document.parseHTML testcase 4, "<html lang="en" dir="ltr" class="html-cls"><body id="main" class="body-cls" dir="ltr"></body>"
+Pass	Document.parseHTML testcase 5, "<html><body><body class="body-cls" data-foo="bar"></body>"
+Pass	Document.parseHTMLUnsafe testcase 0, "<body><body data-bad="strip-me" data-good="keep-me"></body>"
+Pass	Document.parseHTMLUnsafe testcase 1, "<html data-bad-html="1" data-good-html="2"><body data-bad-body="3" data-good-body="4"></body>"
+Pass	Document.parseHTMLUnsafe testcase 2, "<html><body><html data-dup-bad-html="1" data-dup-good-html="2"><body data-dup-bad-body="3" data-dup-good-body="4"></body>"
+Pass	Document.parseHTMLUnsafe testcase 3, "<html title="html-title"><body title="body-title"><div title="div-title"></div></body>"
+Pass	Fragment setHTML testcase 0, "<body id="test-body" onclick="alert(1)" class="safe-body"></body>"
+Pass	Fragment setHTML testcase 1, "<body id="first" class="first"><body id="second" dir="rtl" onclick="alert(1)"></body>"

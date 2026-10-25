@@ -509,6 +509,7 @@ set(SOURCES
     HTML/HTMLIFrameElement.cpp
     HTML/HTMLImageElement.cpp
     HTML/HTMLInputElement.cpp
+    HTML/HTMLInsertion.cpp
     HTML/HTMLLabelElement.cpp
     HTML/HTMLLegendElement.cpp
     HTML/HTMLLIElement.cpp
@@ -616,6 +617,8 @@ set(SOURCES
     HTML/RadioNodeList.cpp
     HTML/RemoteNavigable.cpp
     HTML/RemoteWindow.cpp
+    HTML/Sanitizer.cpp
+    HTML/SanitizerConfiguration.cpp
     HTML/Scripting/Agent.cpp
     HTML/Scripting/ClassicScript.cpp
     HTML/Scripting/Environments.cpp
@@ -946,6 +949,7 @@ set(SOURCES
     TrustedTypes/InjectionSink.cpp
     TrustedTypes/RequireTrustedTypesForDirective.cpp
     TrustedTypes/TrustedHTML.cpp
+    TrustedTypes/TrustedHTMLParserOptions.cpp
     TrustedTypes/TrustedScript.cpp
     TrustedTypes/TrustedScriptURL.cpp
     TrustedTypes/TrustedTypePolicy.cpp

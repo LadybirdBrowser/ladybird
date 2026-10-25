@@ -3,3 +3,13 @@ interface mixin NonDocumentTypeChildNode {
     readonly attribute Element? previousElementSibling;
     readonly attribute Element? nextElementSibling;
 };
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
+partial interface mixin NonDocumentTypeChildNode {
+    [CEReactions] undefined beforeHTML(DOMString html, optional SetHTMLOptions options = {});
+    [CEReactions] undefined afterHTML(DOMString html, optional SetHTMLOptions options = {});
+    [CEReactions] undefined replaceWithHTML(DOMString html, optional SetHTMLOptions options = {});
+    [CEReactions, ImplementedInBindings] undefined beforeHTMLUnsafe((TrustedHTML or DOMString) html, optional (SetHTMLUnsafeOptions or TrustedHTMLParserOptions) options = {});
+    [CEReactions, ImplementedInBindings] undefined afterHTMLUnsafe((TrustedHTML or DOMString) html, optional (SetHTMLUnsafeOptions or TrustedHTMLParserOptions) options = {});
+    [CEReactions, ImplementedInBindings] undefined replaceWithHTMLUnsafe((TrustedHTML or DOMString) html, optional (SetHTMLUnsafeOptions or TrustedHTMLParserOptions) options = {});
+};

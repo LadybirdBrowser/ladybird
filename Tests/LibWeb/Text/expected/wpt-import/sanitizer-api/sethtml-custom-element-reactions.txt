@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-4 Pass
-4 Fail
-Fail	Element.setHTML with a sanitizer runs custom element reactions before returning
-Fail	Element.setHTML with a sanitizer runs disconnectedCallback for the replaced children before returning
+8 Pass
+Pass	Element.setHTML with a sanitizer runs custom element reactions before returning
+Pass	Element.setHTML with a sanitizer runs disconnectedCallback for the replaced children before returning
 Pass	Element.setHTMLUnsafe with a sanitizer runs custom element reactions before returning
 Pass	Element.setHTMLUnsafe with a sanitizer runs disconnectedCallback for the replaced children before returning
-Fail	ShadowRoot.setHTML with a sanitizer runs custom element reactions before returning
-Fail	ShadowRoot.setHTML with a sanitizer runs disconnectedCallback for the replaced children before returning
+Pass	ShadowRoot.setHTML with a sanitizer runs custom element reactions before returning
+Pass	ShadowRoot.setHTML with a sanitizer runs disconnectedCallback for the replaced children before returning
 Pass	ShadowRoot.setHTMLUnsafe with a sanitizer runs custom element reactions before returning
 Pass	ShadowRoot.setHTMLUnsafe with a sanitizer runs disconnectedCallback for the replaced children before returning

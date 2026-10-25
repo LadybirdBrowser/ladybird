@@ -1,6 +1,15 @@
 Harness status: OK
 
-Found 1 tests
+Found 10 tests
 
-1 Fail
-Fail	Sanitizer script and raw text tokenizer testcases from sub.dat
+10 Pass
+Pass	Sanitizer script and raw text tokenizer testcases from sub.dat
+Pass	Testcase #0 [setHTML], "<script><img src=x onerror='window.scriptRan=true;'><div>content</div></script>", config: "{}"
+Pass	Testcase #1 [setHTML], "<script><img src=x onerror='window.scriptRan=true;'><div>content</div></script>", config: "{ "removeElements": ["script"] }"
+Pass	Testcase #2 [setHTMLUnsafe], "<script><b>bold text</b><img src=x></script>", config: "{ "replaceWithChildrenElements": ["script"] }"
+Pass	Testcase #3 [setHTMLUnsafe], "<style><img src=x><div>test</div></style>", config: "{ "replaceWithChildrenElements": ["style"] }"
+Pass	Testcase #4 [setHTMLUnsafe], "<textarea><img src=x><div>test</div></textarea>", config: "{ "replaceWithChildrenElements": ["textarea"] }"
+Pass	Testcase #5 [setHTML], "<script><b>Hello</b></script>", config: "{ "replaceWithChildrenElements": ["script"] }"
+Pass	Testcase #6 [setHTMLUnsafe], "<script><b>Hello</b></script>", config: "{ "removeElements": ["script"] }"
+Pass	Testcase #7 [setHTMLUnsafe], "<p>before</p><script><b>bold text</b><img src=x></script><p>after</p>", config: "{ "replaceWithChildrenElements": ["script"] }"
+Pass	Testcase #8 [setHTML], "<p>before</p><script><b>bold text</b><img src=x></script><p>after</p>", config: "{}"

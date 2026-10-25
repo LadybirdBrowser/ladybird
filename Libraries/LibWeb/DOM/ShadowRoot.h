@@ -63,9 +63,11 @@ public:
     virtual EventTarget* get_parent(Event const&) override;
 
     WebIDL::ExceptionOr<Utf16String> inner_html() const;
-    WebIDL::ExceptionOr<void> set_inner_html(Utf16View);
+    WebIDL::ExceptionOr<void> set_inner_html(Utf16View, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> = nullptr);
 
-    WebIDL::ExceptionOr<void> set_html_unsafe(StringView);
+    WebIDL::ExceptionOr<void> set_html(Utf16String const& html, Bindings::SetHTMLOptions const&);
+    WebIDL::ExceptionOr<void> append_html(Utf16String const& html, Bindings::SetHTMLOptions const&);
+    WebIDL::ExceptionOr<void> prepend_html(Utf16String const& html, Bindings::SetHTMLOptions const&);
 
     WebIDL::ExceptionOr<Utf16String> get_html(HTMLSerializationOptions const&) const;
 

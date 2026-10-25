@@ -27,6 +27,7 @@
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
+#include <LibWeb/HTML/HTMLInsertion.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -1451,26 +1452,10 @@ Gfx::DoubleRect Range::bounding_client_rect()
     return bounding_rect.to_type<float>().to_type<double>();
 }
 
-WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment(TrustedTypes::TrustedHTMLOrString const& string)
-{
-    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, string, "Range createContextualFragment", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::relevant_global_object(*start_container()),
-        string,
-        TrustedTypes::InjectionSink::Range_createContextualFragment,
-        "script"_utf16));
-
-    return create_contextual_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16());
-}
-
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
-WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment(StringView string)
+// NB: The steps after node, compliantString and compliantOptions have been determined.
+static WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment_for_node(GC::Ref<Node> node, StringView string, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> trusted_options)
 {
-    // 2. Let node be this's start node.
-    GC::Ref<Node> node = *start_container();
-
     // 3. Let element be null.
     GC::Ptr<Element> element = nullptr;
 
@@ -1487,14 +1472,39 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment
     //    - element's local name is "html"; and
     //    - element's namespace is the HTML namespace;
     if (!element || is<HTML::HTMLHtmlElement>(*element)) {
-        // then set element to the result of creating an element given this's node document,
+        // then set element to the result of creating an element given node's node document,
         // "body", and the HTML namespace.
         element = TRY(DOM::create_element(node->document(), HTML::TagNames::body, Namespace::HTML));
     }
 
-    // 7. Return the result of invoking the fragment parsing algorithm steps with element, compliantString, and Fragment.
+    // 7. Return the result of invoking the fragment parsing algorithm steps given element, compliantString,
+    //    compliantOptions, and Legacy.
     auto markup = Utf16String::from_utf8(string);
-    return Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> { *element }, markup.utf16_view(), HTML::ParserScriptingMode::Fragment);
+    return Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> { *element }, markup.utf16_view(), HTML::ParserScriptingMode::Fragment, HTML::FragmentFastPath::Allow, trusted_options);
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
+WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment(TrustedTypes::TrustedHTMLOrString const& string)
+{
+    // 1. Let node be this's start node.
+    GC::Ref<Node> node = *start_container();
+
+    // 2. Let (compliantString, compliantOptions) be the result of invoking the get trusted type compliant input
+    //    algorithm with this's relevant global object, string, a new SetHTMLUnsafeOptions dictionary whose runScripts
+    //    member is set to true and whose other members are set to their default values, "Range
+    //    createContextualFragment", node's node document's type, and false.
+    // NOTE: A Trusted Types default policy can override the options, for example by setting runScripts to false to
+    //       prevent scripts from executing when inserting the returned fragment.
+    auto const [compliant_string, trusted_options] = TRY(HTML::get_trusted_type_compliant_input_for_legacy_sink(node, string, TrustedTypes::InjectionSink::Range_createContextualFragment, HTML::LegacySinkRunScripts::Yes));
+
+    return create_contextual_fragment_for_node(node, compliant_string.to_utf8_but_should_be_ported_to_utf16(), trusted_options);
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
+WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment(StringView string, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> trusted_options)
+{
+    // 1. Let node be this's start node.
+    return create_contextual_fragment_for_node(*start_container(), string, trusted_options);
 }
 
 }

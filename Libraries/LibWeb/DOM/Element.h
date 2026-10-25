@@ -71,6 +71,8 @@ enum class ScrollIntoViewContainer : u8;
 enum class ScrollLogicalPosition : u8;
 struct GetHTMLOptions;
 struct PointerLockOptions;
+struct SetHTMLOptions;
+struct SetHTMLUnsafeOptions;
 WEB_API void set_prototype_from_custom_element_definition_if_needed(DOM::Element&, JS::HostObject& wrapper);
 WEB_API JS::Value element(JS::Realm&, GC::Ref<DOM::Element>);
 WEB_API DOM::Element* element_from_value(JS::Value);
@@ -86,7 +88,9 @@ WEB_API WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> inner_html(DOM::E
 WEB_API WebIDL::ExceptionOr<void> set_inner_html(DOM::Element&, TrustedTypes::TrustedHTMLOrString const&);
 WEB_API WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> outer_html(DOM::Element&);
 WEB_API WebIDL::ExceptionOr<void> set_outer_html(DOM::Element&, TrustedTypes::TrustedHTMLOrString const&);
-WEB_API WebIDL::ExceptionOr<void> set_html_unsafe(DOM::Element&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const&);
+WEB_API WebIDL::ExceptionOr<void> set_html_unsafe(DOM::Element&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const&, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const&);
+WEB_API WebIDL::ExceptionOr<void> append_html_unsafe(DOM::Element&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const&, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const&);
+WEB_API WebIDL::ExceptionOr<void> prepend_html_unsafe(DOM::Element&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const&, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const&);
 WEB_API WebIDL::ExceptionOr<void> insert_adjacent_html(DOM::Element&, Utf16String const& position, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const&);
 WEB_API WebIDL::ExceptionOr<void> set_attribute(DOM::Element&, Utf16String const&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const&);
 WEB_API WebIDL::ExceptionOr<void> set_attribute_ns(DOM::Element&, Optional<Utf16FlyString> const&, Utf16FlyString const&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const&);
@@ -529,18 +533,20 @@ public:
     CSS::StyleScope& document_or_shadow_root_style_scope();
     ElementByIdMap& document_or_shadow_root_element_by_id_map();
 
-    static WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target, Utf16View markup, HTML::ParserScriptingMode = HTML::ParserScriptingMode::Inert, HTML::FragmentFastPath = HTML::FragmentFastPath::Allow);
+    static WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target, Utf16View markup, HTML::ParserScriptingMode = HTML::ParserScriptingMode::Inert, HTML::FragmentFastPath = HTML::FragmentFastPath::Allow, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> = nullptr);
 
     [[nodiscard]] GC::Ptr<Element const> element_to_inherit_style_from(Optional<CSS::PseudoElement>) const;
 
     WebIDL::ExceptionOr<Utf16String> inner_html() const;
-    WebIDL::ExceptionOr<void> set_inner_html(Utf16View html);
+    WebIDL::ExceptionOr<void> set_inner_html(Utf16View html, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> = nullptr);
 
-    WebIDL::ExceptionOr<void> set_html_unsafe(StringView html);
+    WebIDL::ExceptionOr<void> set_html(Utf16String const& html, Bindings::SetHTMLOptions const&);
+    WebIDL::ExceptionOr<void> append_html(Utf16String const& html, Bindings::SetHTMLOptions const&);
+    WebIDL::ExceptionOr<void> prepend_html(Utf16String const& html, Bindings::SetHTMLOptions const&);
 
     WebIDL::ExceptionOr<Utf16String> get_html(HTMLSerializationOptions const&) const;
 
-    WebIDL::ExceptionOr<void> insert_adjacent_html(String const& position, StringView html);
+    WebIDL::ExceptionOr<void> insert_adjacent_html(String const& position, StringView html, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> = nullptr);
 
     enum class FullscreenRequester {
         Bindings,
@@ -572,7 +578,7 @@ public:
     bool is_picture_in_picture_element() const;
 
     WebIDL::ExceptionOr<Utf16String> outer_html() const;
-    WebIDL::ExceptionOr<void> set_outer_html(StringView html);
+    WebIDL::ExceptionOr<void> set_outer_html(StringView html, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> = nullptr);
 
     bool is_focused() const;
     bool is_the_active_element() const;

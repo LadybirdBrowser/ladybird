@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 34 tests
+Found 35 tests
 
-34 Pass
+35 Pass
 Pass	The HTMLScriptElement is initially trusted.
 Pass	Script source set via TrustedScript sink HTMLScriptElement.innerText keeps trustworthiness.
 Pass	Script source set via HTMLElement.innerText drops trustworthiness.
@@ -11,6 +11,7 @@ Pass	Script source set Node.textContent drops trustworthiness.
 Pass	Script source set via TrustedScript sink HTMLScriptElement.text keeps trustworthiness.
 Pass	Script source set via TrustedHTML sink Element.innerHTML drops trustworthiness.
 Pass	Script source set via TrustedHTML sink Element.setHTMLUnsafe() drops trustworthiness.
+Pass	Script source cannot be set via Element.setHTML().
 Pass	Splitting script source via Text.splitText() keeps trustworthiness.
 Pass	Normalizing script source via Element.normalize() keeps trustworthiness.
 Pass	Script source set via Node.nodeValue drops trustworthiness.

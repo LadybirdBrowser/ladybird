@@ -2,19 +2,18 @@ Harness status: OK
 
 Found 14 tests
 
-1 Pass
-13 Fail
-Fail	setHTML blocks CE constructor when element is dropped by explicit sanitizer config (removeElements)
-Fail	setHTML blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (removeElements)
-Fail	setHTML blocks CE constructor when element is dropped by explicit sanitizer config (allowElements)
-Fail	setHTML blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (allowElements)
-Fail	setHTML blocks CE constructor when element is dropped by explicit sanitizer config (replaceWithChildrenElements)
-Fail	setHTML blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (replaceWithChildrenElements)
-Fail	setHTMLUnsafe blocks CE constructor when element is dropped by explicit sanitizer config (removeElements)
-Fail	setHTMLUnsafe blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (removeElements)
-Fail	setHTMLUnsafe blocks CE constructor when element is dropped by explicit sanitizer config (allowElements)
-Fail	setHTMLUnsafe blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (allowElements)
-Fail	setHTMLUnsafe blocks CE constructor when element is dropped by explicit sanitizer config (replaceWithChildrenElements)
-Fail	setHTMLUnsafe blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (replaceWithChildrenElements)
-Fail	setHTML constructs an allowed CE from the scoped registry
+14 Pass
+Pass	setHTML blocks CE constructor when element is dropped by explicit sanitizer config (removeElements)
+Pass	setHTML blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (removeElements)
+Pass	setHTML blocks CE constructor when element is dropped by explicit sanitizer config (allowElements)
+Pass	setHTML blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (allowElements)
+Pass	setHTML blocks CE constructor when element is dropped by explicit sanitizer config (replaceWithChildrenElements)
+Pass	setHTML blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (replaceWithChildrenElements)
+Pass	setHTMLUnsafe blocks CE constructor when element is dropped by explicit sanitizer config (removeElements)
+Pass	setHTMLUnsafe blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (removeElements)
+Pass	setHTMLUnsafe blocks CE constructor when element is dropped by explicit sanitizer config (allowElements)
+Pass	setHTMLUnsafe blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (allowElements)
+Pass	setHTMLUnsafe blocks CE constructor when element is dropped by explicit sanitizer config (replaceWithChildrenElements)
+Pass	setHTMLUnsafe blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (replaceWithChildrenElements)
+Pass	setHTML constructs an allowed CE from the scoped registry
 Pass	setHTMLUnsafe constructs an allowed CE from the scoped registry

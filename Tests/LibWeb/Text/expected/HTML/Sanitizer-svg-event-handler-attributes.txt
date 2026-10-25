@@ -1,0 +1,12 @@
+permissive, unsafe: animate dur,onbegin,onend,onrepeat
+permissive, safe: animate dur
+permissive, parseHTML: animate dur
+permissive, removeUnsafe: animate dur
+attribute allowlist, unsafe: animate dur,onbegin,onend,onrepeat
+attribute allowlist, safe: animate dur
+attribute allowlist, parseHTML: animate dur
+attribute allowlist, removeUnsafe: animate dur
+element attribute allowlist, unsafe: animate dur,onbegin,onend,onrepeat
+element attribute allowlist, safe: animate dur
+element attribute allowlist, parseHTML: animate dur
+element attribute allowlist, removeUnsafe: animate dur

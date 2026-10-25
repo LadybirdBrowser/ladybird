@@ -58,6 +58,7 @@ struct FfiBoxMarks;
 namespace Web::Bindings {
 
 struct GetRootNodeOptions;
+struct SetHTMLOptions;
 
 }
 
@@ -562,7 +563,11 @@ public:
 
     WebIDL::ExceptionOr<Utf16String> serialize_fragment(HTML::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
 
-    WebIDL::ExceptionOr<void> unsafely_set_html(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>>, Utf16View);
+    // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
+    // NB: These are the NonDocumentTypeChildNode methods, which are exposed on Element and CharacterData objects.
+    WebIDL::ExceptionOr<void> before_html(Utf16String const& html, Bindings::SetHTMLOptions const&);
+    WebIDL::ExceptionOr<void> after_html(Utf16String const& html, Bindings::SetHTMLOptions const&);
+    WebIDL::ExceptionOr<void> replace_with_html(Utf16String const& html, Bindings::SetHTMLOptions const&);
 
     void replace_all(GC::Ptr<Node>);
     void replace_all(GC::RootVector<GC::Ref<Node>>);

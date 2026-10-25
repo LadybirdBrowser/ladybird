@@ -1,0 +1,48 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const namespace = "http://www.w3.org/2000/svg";
+        const attributes = ["dur", "onbegin", "onend", "onrepeat"];
+        const markup = '<svg><animate dur="1s" onbegin="void 0" onend="void 0" onrepeat="void 0"></animate></svg>';
+        const configurations = [
+            ["permissive", () => ({})],
+            ["attribute allowlist", () => ({ attributes })],
+            [
+                "element attribute allowlist",
+                () => ({
+                    elements: [
+                        "html",
+                        "head",
+                        "body",
+                        { name: "svg", namespace },
+                        { name: "animate", namespace, attributes },
+                    ],
+                    attributes: [],
+                }),
+            ],
+        ];
+
+        function printAttributes(label, root) {
+            const animation = root.querySelector("animate");
+            println(`${label}: ${animation.localName} ${animation.getAttributeNames().sort().join(",")}`);
+        }
+
+        for (const [name, configuration] of configurations) {
+            const container = document.createElement("div");
+            container.setHTMLUnsafe(markup, { sanitizer: configuration() });
+            printAttributes(`${name}, unsafe`, container);
+
+            container.setHTML(markup, { sanitizer: configuration() });
+            printAttributes(`${name}, safe`, container);
+
+            const parsed = Document.parseHTML(markup, { sanitizer: configuration() });
+            printAttributes(`${name}, parseHTML`, parsed);
+
+            const sanitizer = new Sanitizer(configuration());
+            sanitizer.removeUnsafe();
+            container.setHTMLUnsafe(markup, { sanitizer });
+            printAttributes(`${name}, removeUnsafe`, container);
+        }
+    });
+</script>

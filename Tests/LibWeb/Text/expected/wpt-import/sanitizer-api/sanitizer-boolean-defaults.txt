@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	comments
-Fail	data attributes
-Fail	javascript URLs
+3 Pass
+Pass	comments
+Pass	data attributes
+Pass	javascript URLs
