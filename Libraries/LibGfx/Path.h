@@ -8,7 +8,6 @@
 
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
-#include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
@@ -16,7 +15,6 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
-#include <LibGfx/Vector2.h>
 #include <LibGfx/WindingRule.h>
 
 namespace Gfx {
@@ -27,17 +25,6 @@ struct PathGeometry;
 struct PathGeometryData;
 
 }
-
-struct PointAlongPath {
-    FloatPoint point;
-    FloatVector2 tangent;
-};
-
-struct PathVertex {
-    FloatPoint point;
-    float distance;
-    FloatVector2 direction;
-};
 
 enum class PathVerb : u8 {
     Move,
@@ -88,16 +75,6 @@ public:
         Round,
         Bevel,
     };
-
-    void arc_to(FloatPoint point, float radius, bool large_arc, bool sweep);
-    void quadratic_bezier_curve_to(FloatPoint through, FloatPoint point);
-
-    [[nodiscard]] Vector<u8> serialize_to_bytes() const;
-
-    float length() const;
-    Optional<PointAlongPath> point_at_length(float distance) const;
-    Vector<PathVertex> vertices() const;
-    bool contains(FloatPoint point, Gfx::WindingRule) const;
 
     Gfx::Path clone() const { return *this; }
 
