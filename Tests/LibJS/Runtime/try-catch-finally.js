@@ -192,3 +192,25 @@ test("lexical declarations in a catch block may not redeclare the catch paramete
     expect("try {} catch ({ e }) { const [e] = []; }").not.toEval();
     expect("try {} catch (e) { using e = null; }").not.toEval();
 });
+
+test("var declaration named like the catch parameter leaves the function binding undefined", () => {
+    function local() {
+        try {
+            throw 1;
+        } catch (e) {
+            var e = 2;
+        }
+        return typeof e;
+    }
+    expect(local()).toBe("undefined");
+
+    function captured() {
+        try {
+            throw 1;
+        } catch (e) {
+            var e = 2;
+        }
+        return (() => e)();
+    }
+    expect(captured()).toBeUndefined();
+});

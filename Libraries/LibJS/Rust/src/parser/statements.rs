@@ -816,7 +816,7 @@ impl Parser<'_> {
                     &arena.strings,
                     &mut arena.scopes,
                 );
-                scope_collector.add_catch_parameter_identifier(&value, id);
+                scope_collector.add_catch_parameter_identifier(&value);
                 Some(CatchBinding::Identifier(id))
             } else {
                 self.expected("catch parameter");
