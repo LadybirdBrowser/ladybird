@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test cancel event is fired when the dialog is closed by user close requests</title>
+<link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=227534">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1322947">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+<script src="../../../../common/top-layer.js"></script>
+<script src="../../../../close-watcher/resources/helpers.js"></script>
+
+<dialog>
+  <p>Hello World</p>
+</dialog>
+
+<script type="module">
+setup({ single_test: true });
+
+const dialog = document.querySelector("dialog");
+const events = [];
+
+dialog.addEventListener("cancel", event => {
+  assert_true(event.cancelable, "cancel event should be cancelable");
+  assert_array_equals(events, []);
+
+  events.push("addEventListener cancel");
+});
+
+assert_equals(dialog.oncancel, null);
+dialog.oncancel = () => {
+  assert_array_equals(events, ["addEventListener cancel"]);
+
+  events.push("oncancel");
+};
+
+dialog.addEventListener("close", () => {
+  assert_array_equals(events, ["addEventListener cancel", "oncancel"]);
+
+  events.push("addEventListener close");
+});
+
+assert_equals(dialog.onclose, null);
+dialog.onclose = () => {
+  assert_array_equals(events, ["addEventListener cancel", "oncancel", "addEventListener close"]);
+
+  done();
+};
+
+dialog.showModal();
+await blessTopLayer(dialog);
+await sendCloseRequest();
+</script>

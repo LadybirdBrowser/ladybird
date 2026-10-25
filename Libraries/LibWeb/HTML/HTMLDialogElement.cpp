@@ -394,6 +394,41 @@ void HTMLDialogElement::close_the_dialog(Optional<Utf16String> result, GC::Ptr<D
     });
 }
 
+enum class ClosedByState : u8 {
+    Any,
+    CloseRequest,
+    None,
+};
+
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#computed-closed-by-state
+static ClosedByState computed_closed_by_state(HTMLDialogElement const& dialog)
+{
+    auto closedby = dialog.attribute(AttributeNames::closedby);
+    Optional<ClosedByState> state;
+    if (closedby.has_value()) {
+        if (closedby->equals_ignoring_ascii_case(u"any"sv))
+            state = ClosedByState::Any;
+        else if (closedby->equals_ignoring_ascii_case(u"closerequest"sv))
+            state = ClosedByState::CloseRequest;
+        else if (closedby->equals_ignoring_ascii_case(u"none"sv))
+            state = ClosedByState::None;
+    }
+
+    // 1. If the state of dialog's closedby attribute is Auto:
+    // NB: The missing value default and the invalid value default are both the Auto state.
+    if (!state.has_value()) {
+        // 1. If dialog's is modal is true, then return Close Request.
+        if (dialog.is_modal())
+            return ClosedByState::CloseRequest;
+
+        // 2. Return None.
+        return ClosedByState::None;
+    }
+
+    // 2. Return the state of dialog's closedby attribute.
+    return *state;
+}
+
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#set-the-dialog-close-watcher
 void HTMLDialogElement::set_close_watcher()
 {
@@ -434,8 +469,7 @@ void HTMLDialogElement::set_close_watcher()
     auto get_enabled_state = GC::create_function(GC::Heap::the(), [dialog = this] {
         if (dialog->m_enable_close_watcher_for_request_close)
             return true;
-        // FIXME: dialog's computed closed-by state is not None
-        return false;
+        return computed_closed_by_state(*dialog) != ClosedByState::None;
     });
 
     m_close_watcher = CloseWatcher::establish(*document().window(), move(get_enabled_state));
@@ -636,9 +670,7 @@ void HTMLDialogElement::light_dismiss_open_dialogs(UIEvents::PointerEvent const&
             return;
 
         // 6. If topmostDialog's computed closed-by state is not Any, then return.
-        // FIXME: This should use the "computed closed-by state" algorithm.
-        auto closedby = topmost_dialog->attribute(AttributeNames::closedby);
-        if (!closedby.has_value() || !closedby.value().equals_ignoring_ascii_case(u"any"sv))
+        if (computed_closed_by_state(*topmost_dialog) != ClosedByState::Any)
             return;
 
         // 7. Assert: topmostDialog's close watcher is not null.
