@@ -943,7 +943,10 @@ enum class NonceableResult {
     if (!is<HTML::HTMLElement>(element.ptr()) && !is<SVG::SVGElement>(element.ptr()))
         return NonceableResult::NotNonceable;
 
-    if (!element->has_attribute(HTML::AttributeNames::nonce))
+    // INTEROP: An element whose [[CryptographicNonce]] was set through the nonce IDL attribute, which intentionally
+    //          does not update the content attribute, is treated as if it had a nonce attribute.
+    auto const& internal_nonce = is<HTML::HTMLElement>(element.ptr()) ? as<HTML::HTMLElement>(*element).nonce() : as<SVG::SVGElement>(*element).nonce();
+    if (!element->has_attribute(HTML::AttributeNames::nonce) && internal_nonce.is_empty())
         return NonceableResult::NotNonceable;
 
     // 2. If element is a script element, then for each attribute of element’s attribute list:
