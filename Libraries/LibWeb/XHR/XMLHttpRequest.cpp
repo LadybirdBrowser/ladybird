@@ -381,7 +381,12 @@ Utf16String XMLHttpRequest::get_text_response() const
 
     // 3. If xhr’s response type is the empty string, charset is null, and the result of get a final MIME type for xhr is an XML MIME type,
     if (m_response_type == XMLHttpRequest::ResponseType::Empty && !charset.has_value() && get_final_mime_type().is_xml()) {
-        // FIXME: then use the rules set forth in the XML specifications to determine the encoding. Let charset be the determined encoding. [XML] [XML-NAMES]
+        // then use the rules set forth in the XML specifications to determine the encoding. Let charset be the determined encoding. [XML] [XML-NAMES]
+        // NB: The encoding declaration names the encoding, which this finds the way the HTML Standard does when
+        //     sniffing an encoding. Without one, charset stays null and is set to UTF-8 below, as the XML
+        //     specification requires.
+        if (auto xml_encoding = HTML::get_an_xml_encoding(m_received_bytes); xml_encoding.has_value())
+            charset = TextCodec::get_standardized_encoding(*xml_encoding);
     }
 
     // 4. If charset is null, then set charset to UTF-8.
@@ -457,7 +462,7 @@ void XMLHttpRequest::set_document_response()
     // 6. Otherwise, let document be a document that represents the result of running the XML parser with XML scripting support disabled on xhr’s received bytes. If that fails (unsupported character encoding, namespace well-formedness error, etc.), then return null.
     else {
         document = DOM::XMLDocument::create(page, *m_global_object, m_response->url().value_or({}));
-        if (!Web::build_xml_document(*document, m_received_bytes, {})) {
+        if (!Web::build_xml_document(*document, m_received_bytes, get_final_encoding())) {
             reset_response_object();
             return;
         }

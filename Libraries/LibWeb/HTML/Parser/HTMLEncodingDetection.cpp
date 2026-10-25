@@ -273,7 +273,7 @@ value:
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#concept-get-xml-encoding-when-sniffing
-static Optional<ByteString> get_an_xml_encoding(ReadonlyBytes input)
+Optional<ByteString> get_an_xml_encoding(ReadonlyBytes input)
 {
     // 1. Let encodingPosition be a pointer to the start of the stream.
     size_t encoding_position = 0;

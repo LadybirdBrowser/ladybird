@@ -31,6 +31,7 @@ Optional<StringView> extract_character_encoding_from_meta_element(ByteString con
 GC::Ptr<DOM::Attr> prescan_get_attribute(DOM::Document&, ReadonlyBytes input, size_t& position);
 Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document&, ReadonlyBytes input);
 Optional<ByteString> run_bom_sniff(ReadonlyBytes input);
+Optional<ByteString> get_an_xml_encoding(ReadonlyBytes input);
 
 // Extracts the rightmost DNS label from a URL's host as a TLD hint for chardetng.
 // Returns an empty string if the host is absent or is an IP address. chardetng treats
