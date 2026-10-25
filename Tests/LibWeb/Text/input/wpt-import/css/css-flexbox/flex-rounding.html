@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="help" href="https://issues.chromium.org/issues/40804774">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+body { margin: 0; }
+#flex {
+  display: flex;
+  width: 55px;
+}
+#flex > div {
+  flex-grow: 1;
+}
+</style>
+<div id="flex">
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div id="last"></div>
+</div>
+<script>
+test(function() {
+  assert_true(last.getBoundingClientRect().right <= flex.getBoundingClientRect().right);
+}, 'The last item shouldn\'t overflow the flexbox.');
+</script>
