@@ -86,6 +86,22 @@ if (( should_lint_rust )); then
         echo -e "[${BOLD_RED}FAIL${NC}]: cargo clippy -- -D clippy::all"
         ((FAILURES+=1))
     fi
+
+    # The GC lints link the compiler of a pinned nightly, which only some setups have.
+    rust_lints_toolchain=$(sed -n 's/^channel = "\(.*\)"$/\1/p' Meta/RustLints/rust-toolchain.toml)
+    if rustup component list --toolchain "${rust_lints_toolchain}" --installed 2>/dev/null | grep -q '^rustc-dev'; then
+        rust_lints_target_dir="${script_path}/../Build/rust-lints"
+        if CARGO_TARGET_DIR="${rust_lints_target_dir}" cargo +"${rust_lints_toolchain}" test --quiet \
+                --manifest-path Meta/RustLints/Cargo.toml \
+            && CARGO_TARGET_DIR="${rust_lints_target_dir}" Meta/RustLints/run.sh --quiet ; then
+            echo -e "[${GREEN}OK${NC}]: Meta/RustLints/run.sh"
+        else
+            echo -e "[${BOLD_RED}FAIL${NC}]: Meta/RustLints/run.sh"
+            ((FAILURES+=1))
+        fi
+    else
+        echo "Skipping Meta/RustLints/run.sh: ${rust_lints_toolchain} with rustc-dev is not installed."
+    fi
 else
     echo "No Rust files to check."
 fi
