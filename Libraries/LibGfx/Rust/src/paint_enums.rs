@@ -41,12 +41,6 @@ pub enum ScalingMode {
     NearestNeighbor,
 }
 
-impl ScalingMode {
-    pub fn from_raw(value: i32) -> Self {
-        Self::from_i32(value).unwrap_or_default()
-    }
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(i32)]
 pub enum CompositingAndBlendingOperator {
@@ -136,17 +130,6 @@ pub enum RectangularColorSpace {
     XyzD65,
 }
 
-impl RectangularColorSpace {
-    pub fn from_u8(value: u8) -> Self {
-        if value <= Self::XyzD65 as u8 {
-            // SAFETY: the enum is a dense u8 range starting at zero.
-            unsafe { std::mem::transmute::<u8, Self>(value) }
-        } else {
-            Self::default()
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PolarColorSpace {
@@ -155,17 +138,6 @@ pub enum PolarColorSpace {
     Lch,
     #[default]
     Oklch,
-}
-
-impl PolarColorSpace {
-    pub fn from_u8(value: u8) -> Self {
-        if value <= Self::Oklch as u8 {
-            // SAFETY: the enum is a dense u8 range starting at zero.
-            unsafe { std::mem::transmute::<u8, Self>(value) }
-        } else {
-            Self::default()
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -178,34 +150,12 @@ pub enum HueInterpolationMethod {
     Decreasing,
 }
 
-impl HueInterpolationMethod {
-    pub fn from_u8(value: u8) -> Self {
-        if value <= Self::Decreasing as u8 {
-            // SAFETY: the enum is a dense u8 range starting at zero.
-            unsafe { std::mem::transmute::<u8, Self>(value) }
-        } else {
-            Self::default()
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
 pub enum GradientInterpolationType {
     #[default]
     Rectangular,
     Polar,
-}
-
-impl GradientInterpolationType {
-    pub fn from_u8(value: u8) -> Self {
-        if value <= Self::Polar as u8 {
-            // SAFETY: the enum is a dense u8 range starting at zero.
-            unsafe { std::mem::transmute::<u8, Self>(value) }
-        } else {
-            Self::default()
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
