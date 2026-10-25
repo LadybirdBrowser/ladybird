@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" title="Joey Arhar" href="mailto:jarhar@chromium.org">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-actions.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+
+<!-- This behavior is not explicitly specified. -->
+
+<a id=anchorid href="javascript:window.anchornavigated = true;">anchor</a>
+
+<script>
+promise_test(async () => {
+  window.anchornavigated = false;
+
+  anchorid.contentEditable = true;
+  await test_driver.click(anchorid);
+
+  assert_false(window.anchornavigated, "Anchor's javascript: url was run.");
+
+}, 'Anchor elements should not be able to navigate if they have contentEditable.');
+</script>
