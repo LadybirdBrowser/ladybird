@@ -1,0 +1,16 @@
+quirks mode: true
+columnItem and its child: 20 10
+columnItemWithMinHeight and its child: 20 20
+columnItemWithWrapper and its child: 20 10
+rowItem and its child: 150 150
+rowItemWithMinHeight and its child: 20 150
+gridItem and its child: 20 10
+startGridItem and its child: 20 20
+fixedRowGridItem and its child: 100 50
+startGridItemInStretchedRow and its child: 150 150
+centerGridItemInFlexibleRow and its child: 150 150
+startGridItemInFixedRow and its child: 50 50
+itemOfColumnTurningIntoRow and its child: 20 10
+itemOfRowTurningIntoColumn and its child: 150 150
+itemOfColumnTurningIntoRow and its child after the flex direction changes: 150 150
+itemOfRowTurningIntoColumn and its child after the flex direction changes: 20 10

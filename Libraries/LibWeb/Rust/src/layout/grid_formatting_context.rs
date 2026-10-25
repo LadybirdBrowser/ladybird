@@ -2249,16 +2249,17 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn track_sizing_constraints(&self) -> ContainingBlockConstraints {
         // During track sizing the grid area is not known yet, so items have no percentage basis.
-        //
-        // Intrinsic contributions during track sizing measure items against the grid container's own content box, since the
-        // grid area does not exist yet.
-        let inherited = self
-            .sizing()
-            .constraints_for_child_context(self.run.box_, self.layout_input.unwrap().containing_block_constraints);
-        ContainingBlockConstraints {
-            percentage_basis_inline_size: None,
-            percentage_basis_block_size: None,
-            ..inherited
+        ContainingBlockConstraints::default()
+    }
+
+    fn quirks_mode_percentage_basis_for_items(
+        &self,
+        percentage_basis_block_size: Option<CssPixels>,
+    ) -> Option<CssPixels> {
+        if self.facts(self.run.box_).document_in_quirks_mode() {
+            percentage_basis_block_size
+        } else {
+            None
         }
     }
 
@@ -2304,6 +2305,8 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.fixed_track_span_size(item, Axis::Row)
             };
         }
+        constraints.quirks_mode_percentage_basis_block_size =
+            self.quirks_mode_percentage_basis_for_items(constraints.percentage_basis_block_size);
         constraints
     }
 
@@ -3636,6 +3639,8 @@ impl<'pass> GridFormattingContext<'pass> {
                 constraints = self.column_sizing_constraints(item, constraints);
             } else {
                 constraints.percentage_basis_block_size = Some(containing);
+                constraints.quirks_mode_percentage_basis_block_size =
+                    self.quirks_mode_percentage_basis_for_items(Some(containing));
             }
             let preferred = self.item_preferred_size(item, axis);
             let alignment = self.item_alignment(item, axis);
@@ -3732,7 +3737,10 @@ impl<'pass> GridFormattingContext<'pass> {
                 let content_measurement_constraints = if axis.is_column() || facts.is_table_wrapper() {
                     constraints
                 } else {
-                    self.intrinsic_contribution_constraints(item, axis)
+                    ContainingBlockConstraints {
+                        quirks_mode_percentage_basis_block_size: constraints.quirks_mode_percentage_basis_block_size,
+                        ..self.intrinsic_contribution_constraints(item, axis)
+                    }
                 };
                 self.sizing().calculate_fit_content_size(
                     item.box_,
@@ -4104,6 +4112,8 @@ impl<'pass> GridFormattingContext<'pass> {
             },
             containing_block_constraints: ContainingBlockConstraints {
                 percentage_basis_block_size,
+                quirks_mode_percentage_basis_block_size: self
+                    .quirks_mode_percentage_basis_for_items(percentage_basis_block_size),
                 ..self.grid_area_constraints(item)
             },
             content_box_position_in_bfc_root: None,

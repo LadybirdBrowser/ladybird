@@ -295,6 +295,13 @@ impl<'pass> FlexFormattingContext<'pass> {
             self.constraints_for_child_context(self.run.box_, self.layout_input.unwrap().containing_block_constraints);
         constraints.percentage_basis_inline_size = self.item_percentage_bases.percentage_basis_inline_size;
         constraints.percentage_basis_block_size = self.item_percentage_bases.percentage_basis_block_size;
+        let block_axis_is_cross_axis = self.is_row_layout();
+        constraints.quirks_mode_percentage_basis_block_size =
+            if self.facts(self.run.box_).document_in_quirks_mode() && block_axis_is_cross_axis {
+                constraints.percentage_basis_block_size
+            } else {
+                None
+            };
         constraints
     }
 
