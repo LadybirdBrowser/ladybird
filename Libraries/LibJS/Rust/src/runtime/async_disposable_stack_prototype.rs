@@ -294,7 +294,7 @@ impl AsyncDisposableStackPrototype {
             realm,
             realm.intrinsics().async_disposable_stack_constructor(vm).upcast(),
             Intrinsics::async_disposable_stack_prototype,
-            |prototype| AsyncDisposableStack::new(vm, new_dispose_capability(), prototype),
+            |prototype| AsyncDisposableStack::new(vm, prototype),
         )?;
 
         // 6. Set newAsyncDisposableStack.[[DisposeCapability]] to asyncDisposableStack.[[DisposeCapability]].
