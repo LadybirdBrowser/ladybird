@@ -10,6 +10,7 @@
 #include <AK/Assertions.h>
 #include <AK/HashTable.h>
 #include <AK/OwnPtr.h>
+#include <AK/Time.h>
 #include <AK/Tuple.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
@@ -222,6 +223,13 @@ public:
     [[nodiscard]] virtual bool has_been_destroyed() const override { return m_has_been_destroyed; }
     virtual void set_has_been_destroyed() override;
     void remove_from_all_local_navigables();
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#allowed-to-perform-a-navigation-or-history-update
+    enum class NavigationOrHistoryUpdatePermission : u8 {
+        Allowed,
+        Blocked,
+    };
+    NavigationOrHistoryUpdatePermission allowed_to_perform_a_navigation_or_history_update();
 
     virtual bool is_local_navigable() const override { return true; }
 
@@ -571,6 +579,9 @@ private:
     NavigationObserver::NavigationObserversList m_navigation_observers;
 
     bool m_has_been_destroyed { false };
+
+    MonotonicTime m_navigation_or_history_update_rate_limit_window_start { MonotonicTime::now_coarse() };
+    u32 m_navigation_or_history_updates_in_rate_limit_window { 0 };
     GC::Ptr<WindowProxy> m_window_proxy_after_unload;
     GC::Ptr<RemoteNavigable> m_provisional_for;
 

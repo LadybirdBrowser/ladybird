@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	history replaceState too many calls
+1 Pass
+Pass	history replaceState too many calls
