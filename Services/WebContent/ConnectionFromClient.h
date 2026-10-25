@@ -128,7 +128,7 @@ private:
     virtual void run_navigation_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Web::HTML::UnloadPromptShown) override;
     virtual void create_navigation_params(Web::PageId page_id, Web::HTML::NavigationPopulationRequest) override;
     virtual void cancel_navigation_params_creation(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
-    virtual void deliver_posted_message(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor) override;
+    virtual void deliver_posted_message(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::MessageDescriptor) override;
     virtual void close_traversable_from_script(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void run_focusing_steps_for_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::FocusTrigger) override;
     virtual void focus_window_of_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;

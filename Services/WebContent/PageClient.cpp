@@ -287,7 +287,7 @@ void PageClient::request_set_opener_of_remote_navigable(Web::HTML::RemoteNavigab
     client().async_did_request_set_opener_of_navigable(m_id, navigable.id(), opener.id());
 }
 
-void PageClient::deliver_posted_message(Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message)
+void PageClient::deliver_posted_message(Web::HTML::CrossProcessId navigable_id, Web::HTML::MessageDescriptor message)
 {
     if (auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr()))
         navigable->deliver_posted_message_from_another_process(move(message));

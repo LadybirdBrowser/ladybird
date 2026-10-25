@@ -11,10 +11,33 @@
 namespace IPC {
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Web::HTML::MessageDescriptor const& message)
+{
+    TRY(encoder.encode(message.serialize_with_transfer_result));
+    TRY(encoder.encode(message.target_origin));
+    TRY(encoder.encode(message.source_origin));
+    TRY(encoder.encode(message.source_navigable_id));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::MessageDescriptor> decode(Decoder& decoder)
+{
+    using TargetOrigin = Variant<Utf16String, URL::Origin>;
+    return Web::HTML::MessageDescriptor {
+        .serialize_with_transfer_result = TRY(decoder.decode<Web::HTML::SerializedTransferRecord>()),
+        .target_origin = TRY(decoder.decode<TargetOrigin>()),
+        .source_origin = TRY(decoder.decode<URL::Origin>()),
+        .source_navigable_id = TRY(decoder.decode<Optional<Web::HTML::CrossProcessId>>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::PostedMessageDescriptor const& message)
 {
     TRY(encoder.encode(message.serialize_with_transfer_result));
     TRY(encoder.encode(message.target_origin));
+    TRY(encoder.encode(message.incumbent_settings_id));
     TRY(encoder.encode(message.source_origin));
     TRY(encoder.encode(message.source_navigable_id));
     return {};
@@ -27,6 +50,7 @@ ErrorOr<Web::HTML::PostedMessageDescriptor> decode(Decoder& decoder)
     return Web::HTML::PostedMessageDescriptor {
         .serialize_with_transfer_result = TRY(decoder.decode<Web::HTML::SerializedTransferRecord>()),
         .target_origin = TRY(decoder.decode<TargetOrigin>()),
+        .incumbent_settings_id = TRY(decoder.decode<Web::HTML::EnvironmentId>()),
         .source_origin = TRY(decoder.decode<URL::Origin>()),
         .source_navigable_id = TRY(decoder.decode<Optional<Web::HTML::CrossProcessId>>()),
     };

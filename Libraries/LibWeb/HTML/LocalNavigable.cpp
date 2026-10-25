@@ -3430,7 +3430,7 @@ void LocalNavigable::navigate_to_a_javascript_url_from_ui_process(URL::URL const
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
-void LocalNavigable::deliver_posted_message_from_another_process(PostedMessageDescriptor message)
+void LocalNavigable::deliver_posted_message_from_another_process(MessageDescriptor message)
 {
     auto window = active_window();
     if (!window)

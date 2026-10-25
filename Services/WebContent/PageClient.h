@@ -149,7 +149,7 @@ public:
     void run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id, Web::HTML::UnloadPromptShown);
     void did_receive_unload_check_result(Web::HTML::CrossProcessId check_id, Web::HTML::CheckIfUnloadingIsCanceledResult);
     void create_navigation_params(Web::HTML::NavigationPopulationRequest);
-    void deliver_posted_message(Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor);
+    void deliver_posted_message(Web::HTML::CrossProcessId navigable_id, Web::HTML::MessageDescriptor);
     void cancel_navigation_params_creation(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id);
     void populate_navigation(Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult);
     void cancel_download(u64 download_id);
