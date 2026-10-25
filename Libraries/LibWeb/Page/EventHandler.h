@@ -35,6 +35,12 @@
 #include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
 
+namespace Web::HTML {
+
+enum class SequentialFocusDirection : u8;
+
+}
+
 namespace Web {
 
 struct AsyncScrollOperation {
@@ -145,8 +151,7 @@ private:
     [[nodiscard]] EventResult perform_cut_action();
     EventResult insert_pasted_content(Utf16View plain_text, Optional<Utf16View> html);
 
-    EventResult focus_next_element();
-    EventResult focus_previous_element();
+    EventResult focus_sequentially(HTML::SequentialFocusDirection);
 
     struct MouseEventCoordinates {
         CSSPixelPoint page_offset;

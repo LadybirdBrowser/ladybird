@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
 #include <LibGC/Root.h>
@@ -19,9 +20,11 @@
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -691,6 +694,303 @@ void run_unfocusing_steps(GC::Ptr<DOM::Node> old_focus_target)
     //       area of a top-level traversable. For example, if the currently focused area of a top-level traversable is a
     //       viewport, then it will usually keep its focus regardless until another focusable area is explicitly focused
     //       with the focusing steps.
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#focus-navigation-scope-owner
+static bool is_focus_navigation_scope_owner(DOM::Node const& node)
+{
+    // A node is a focus navigation scope owner if it is a Document, a shadow host, a slot, or an element which is the
+    // popover trigger of an element in the popover showing state.
+    // FIXME: Handle popover triggers.
+    if (is<DOM::Document>(node))
+        return true;
+    if (auto const* element = as_if<DOM::Element>(node))
+        return element->is_shadow_host() || is<HTMLSlotElement>(*element);
+    return false;
+}
+
+// NB: Appends the descendants of parent that have the same associated focus navigation owner as parent's children.
+static void append_focus_navigation_scope_descendants(DOM::Node& parent, Vector<GC::Ref<DOM::Element>>& scope)
+{
+    for (auto* child = parent.first_child(); child; child = child->next_sibling()) {
+        auto* element = as_if<DOM::Element>(*child);
+        if (!element)
+            continue;
+        scope.append(*element);
+
+        // NB: The associated focus navigation owner of a shadow host's child is its assigned slot.
+        if (element->is_shadow_host())
+            continue;
+
+        // INTEROP: A slot's fallback content belongs to the slot's own focus navigation scope; see
+        //          focus_navigation_scope().
+        if (is<HTMLSlotElement>(*element))
+            continue;
+
+        append_focus_navigation_scope_descendants(*element, scope);
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#focus-navigation-scope
+static GC::ConservativeVector<GC::Ref<DOM::Element>> focus_navigation_scope(DOM::Node& owner)
+{
+    // The contents of a given focus navigation scope owner owner's focus navigation scope are all elements whose
+    // associated focus navigation owner is owner.
+    // NB: We collect them in tree order by walking down from owner, instead of computing the associated focus
+    //     navigation owner of every element.
+    GC::ConservativeVector<GC::Ref<DOM::Element>> scope;
+
+    if (auto* document = as_if<DOM::Document>(owner)) {
+        // NB: We treat the document element as being in its document's scope.
+        if (auto* document_element = document->document_element()) {
+            scope.append(*document_element);
+            append_focus_navigation_scope_descendants(*document_element, scope);
+        }
+        return scope;
+    }
+
+    if (auto* slot = as_if<HTMLSlotElement>(owner)) {
+        // INTEROP: The spec puts a slot's fallback content in the focus navigation scope of the slot's shadow host,
+        //          ordered by tabindex among the other elements of the shadow tree. Browsers instead put it in the
+        //          slot's own scope, so it is navigated at the position of the slot, where it is rendered. We match
+        //          them. The fallback content is only rendered while the slot has no assigned nodes.
+        if (slot->assigned_nodes_internal().is_empty()) {
+            append_focus_navigation_scope_descendants(*slot, scope);
+            return scope;
+        }
+
+        for (auto const& slottable : slot->assigned_nodes_internal()) {
+            auto const* element = slottable.get_pointer<GC::Ref<DOM::Element>>();
+            if (!element)
+                continue;
+            scope.append(*element);
+            // NB: A shadow host or a slot owns the focus navigation scope of its own descendants.
+            if (!(*element)->is_shadow_host() && !is<HTMLSlotElement>(**element))
+                append_focus_navigation_scope_descendants(*element, scope);
+        }
+        return scope;
+    }
+
+    if (auto* element = as_if<DOM::Element>(owner); element && element->is_shadow_host())
+        append_focus_navigation_scope_descendants(*element->shadow_root(), scope);
+
+    return scope;
+}
+
+// NB: Whether element is a focusable area, for the purposes of sequential focus navigation.
+static bool is_sequential_focus_navigation_focusable_area(DOM::Element const& element)
+{
+    // INTEROP: A slot with a tabindex attribute is a focusable area in the spec, but browsers never focus a slot
+    //          through sequential focus navigation. We match them.
+    if (is<HTMLSlotElement>(element))
+        return false;
+    return is_focusable_area(const_cast<DOM::Element&>(element));
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#tabindex-value
+static Optional<i32> tabindex_value(DOM::Element const& element)
+{
+    auto attribute = element.attribute(AttributeNames::tabindex);
+    if (!attribute.has_value())
+        return {};
+    return parse_integer(*attribute);
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#tabindex-ordered-focus-navigation-scope
+static GC::ConservativeVector<GC::Ref<DOM::Element>> tabindex_ordered_focus_navigation_scope(DOM::Node& owner)
+{
+    // A tabindex-ordered focus navigation scope is a list of focusable areas and focus navigation scope owners.
+    // Every focus navigation scope owner owner has tabindex-ordered focus navigation scope, whose contents are
+    // determined as follows:
+    // - It contains all elements in owner's focus navigation scope that are themselves focus navigation scope owners,
+    //   except the elements whose tabindex value is a negative integer.
+    // - It contains all of the focusable areas whose DOM anchor is an element in owner's focus navigation scope,
+    //   except the focusable areas whose tabindex value is a negative integer.
+    // The order within a tabindex-ordered focus navigation scope is determined by each element's tabindex value.
+    // NB: Elements with a positive tabindex value come first, in increasing order of that value and then in tree
+    //     order. The elements with a tabindex value of zero or null follow in tree order.
+    struct Item {
+        GC::Ref<DOM::Element> element;
+        i32 tabindex;
+        size_t tree_index;
+    };
+    GC::ConservativeVector<Item> positive_items;
+    GC::ConservativeVector<GC::Ref<DOM::Element>> result;
+
+    for (auto const& element : focus_navigation_scope(owner)) {
+        if (!is_focus_navigation_scope_owner(*element) && !is_sequential_focus_navigation_focusable_area(*element))
+            continue;
+
+        auto tabindex = tabindex_value(*element).value_or(0);
+        if (tabindex < 0)
+            continue;
+
+        if (tabindex > 0)
+            positive_items.append({ element, tabindex, positive_items.size() });
+        else
+            result.append(element);
+    }
+
+    // NB: Elements with the same tabindex value stay in tree order.
+    quick_sort(positive_items, [](auto const& a, auto const& b) {
+        if (a.tabindex != b.tabindex)
+            return a.tabindex < b.tabindex;
+        return a.tree_index < b.tree_index;
+    });
+
+    GC::ConservativeVector<GC::Ref<DOM::Element>> ordered;
+    ordered.ensure_capacity(positive_items.size() + result.size());
+    for (auto const& item : positive_items)
+        ordered.unchecked_append(item.element);
+    ordered.extend(move(result));
+    return ordered;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#flattened-tabindex-ordered-focus-navigation-scope
+static void append_flattened_tabindex_ordered_focus_navigation_scope(DOM::Node& owner, Vector<GC::Ref<DOM::Element>>& result)
+{
+    // 1. Let result be a clone of owner's tabindex-ordered focus navigation scope.
+    // 2. For each item of result:
+    for (auto const& item : tabindex_ordered_focus_navigation_scope(owner)) {
+        // 1. If item is not a focus navigation scope owner, then continue.
+        if (!is_focus_navigation_scope_owner(*item)) {
+            result.append(item);
+            continue;
+        }
+
+        // 2. If item is not a focusable area, then replace item with all of the items in item's flattened
+        //    tabindex-ordered focus navigation scope.
+        if (!is_sequential_focus_navigation_focusable_area(*item)) {
+            append_flattened_tabindex_ordered_focus_navigation_scope(*item, result);
+            continue;
+        }
+
+        // 3. Otherwise, insert the contents of item's flattened tabindex-ordered focus navigation scope after item.
+        result.append(item);
+        append_flattened_tabindex_ordered_focus_navigation_scope(*item, result);
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation-order
+GC::ConservativeVector<GC::Ref<DOM::Element>> sequential_focus_navigation_order(DOM::Document& document)
+{
+    // Each Document has a sequential focus navigation order, which orders some or all of the focusable areas in the
+    // Document relative to each other. Its contents and ordering are given by the flattened tabindex-ordered focus
+    // navigation scope of the Document.
+    GC::ConservativeVector<GC::Ref<DOM::Element>> order;
+    append_flattened_tabindex_ordered_focus_navigation_scope(document, order);
+    return order;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#suitable-sequentially-focusable-area
+static bool is_suitable_sequentially_focusable_area(DOM::Element const& element)
+{
+    // A suitable sequentially focusable area is a focusable area whose DOM anchor is not inert and is sequentially
+    // focusable.
+    if (element.is_inert() || !is_sequential_focus_navigation_focusable_area(element))
+        return false;
+    return tabindex_value(element).value_or(0) >= 0;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#sequential-navigation-search-algorithm
+GC::Ptr<DOM::Element> sequential_navigation_search(Variant<GC::Ref<LocalNavigable>, GC::Ref<DOM::Node>> starting_point, SequentialFocusDirection direction, SelectionMechanism selection_mechanism)
+{
+    // 1. Pick the appropriate cell from the following table, and follow the instructions in that cell.
+    //    The appropriate cell is the one that is from the column whose header describes direction and from the first
+    //    row whose header describes starting point and selection mechanism.
+    GC::Ptr<DOM::Element> candidate;
+
+    if (auto const* navigable = starting_point.get_pointer<GC::Ref<LocalNavigable>>()) {
+        // -> starting point is a navigable
+        //    forward: Let candidate be the first suitable sequentially focusable area in starting point's active
+        //             document, if any; or else null.
+        //    backward: Let candidate be the last suitable sequentially focusable area in starting point's active
+        //              document, if any; or else null.
+        auto document = (*navigable)->active_document();
+        if (!document)
+            return nullptr;
+        auto order = sequential_focus_navigation_order(*document);
+        if (direction == SequentialFocusDirection::Forward) {
+            for (auto const& element : order) {
+                if (is_suitable_sequentially_focusable_area(*element)) {
+                    candidate = element;
+                    break;
+                }
+            }
+        } else {
+            for (auto const& element : order.in_reverse()) {
+                if (is_suitable_sequentially_focusable_area(*element)) {
+                    candidate = element;
+                    break;
+                }
+            }
+        }
+    } else {
+        auto node = starting_point.get<GC::Ref<DOM::Node>>();
+
+        if (selection_mechanism == SelectionMechanism::DOM) {
+            // -> selection mechanism is "DOM"
+            //    forward: Let candidate be the suitable sequentially focusable area, that appears nearest after
+            //             starting point in starting point's Document, in shadow-including tree order, if any; or
+            //             else null.
+            //    backward: Let candidate be the suitable sequentially focusable area, that appears nearest before
+            //              starting point in starting point's Document, in shadow-including tree order, if any; or
+            //              else null.
+            bool passed_starting_point = false;
+            node->document().for_each_shadow_including_inclusive_descendant([&](DOM::Node& descendant) {
+                if (&descendant == node.ptr()) {
+                    passed_starting_point = true;
+                    return direction == SequentialFocusDirection::Forward ? TraversalDecision::Continue : TraversalDecision::Break;
+                }
+                auto* element = as_if<DOM::Element>(descendant);
+                if (!element || !is_suitable_sequentially_focusable_area(*element))
+                    return TraversalDecision::Continue;
+                if (direction == SequentialFocusDirection::Backward) {
+                    candidate = element;
+                    return TraversalDecision::Continue;
+                }
+                if (passed_starting_point) {
+                    candidate = element;
+                    return TraversalDecision::Break;
+                }
+                return TraversalDecision::Continue;
+            });
+        } else {
+            // -> selection mechanism is "sequential"
+            //    forward: Let candidate be the first suitable sequentially focusable area after starting point, in
+            //             starting point's Document's sequential focus navigation order, if any; or else null.
+            //    backward: Let candidate be the last suitable sequentially focusable area before starting point, in
+            //              starting point's Document's sequential focus navigation order, if any; or else null.
+            auto order = sequential_focus_navigation_order(node->document());
+            auto index = order.find_first_index_if([&](auto const& element) { return element.ptr() == node.ptr(); });
+            VERIFY(index.has_value());
+            if (direction == SequentialFocusDirection::Forward) {
+                for (size_t i = *index + 1; i < order.size(); ++i) {
+                    if (is_suitable_sequentially_focusable_area(*order[i])) {
+                        candidate = order[i];
+                        break;
+                    }
+                }
+            } else {
+                for (size_t i = *index; i > 0; --i) {
+                    if (is_suitable_sequentially_focusable_area(*order[i - 1])) {
+                        candidate = order[i - 1];
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // FIXME: 2. If candidate is a navigable container with a non-null content navigable:
+    //           1. Let recursive candidate be the result of running the sequential navigation search algorithm with
+    //              candidate's content navigable, direction, and "sequential".
+    //           2. If recursive candidate is null, then return the result of running the sequential navigation search
+    //              algorithm with candidate, direction, and selection mechanism.
+    //           3. Otherwise, set candidate to recursive candidate.
+
+    // 3. Return candidate.
+    return candidate;
 }
 
 }

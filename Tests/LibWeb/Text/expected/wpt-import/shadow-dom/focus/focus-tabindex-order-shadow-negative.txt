@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Order when all elements in shadow tree has negative tabindex
+1 Pass
+Pass	Order when all elements in shadow tree has negative tabindex

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Focus controller should treat slots as a focus scope.
+1 Pass
+Pass	Focus controller should treat slots as a focus scope.

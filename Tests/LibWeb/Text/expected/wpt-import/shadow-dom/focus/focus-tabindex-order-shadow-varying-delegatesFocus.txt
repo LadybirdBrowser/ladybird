@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Order when tabindex varies and delegatesFocus = true
+1 Pass
+Pass	Order when tabindex varies and delegatesFocus = true

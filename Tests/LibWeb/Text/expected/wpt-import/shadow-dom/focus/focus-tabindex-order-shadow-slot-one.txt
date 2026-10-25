@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Order when all tabindex=0, except for one slot that has tabindex=1
+1 Pass
+Pass	Order when all tabindex=0, except for one slot that has tabindex=1

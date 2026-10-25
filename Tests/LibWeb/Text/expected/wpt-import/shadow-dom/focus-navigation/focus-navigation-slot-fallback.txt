@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Focus should jump to fallback elements when a slot does not have any assigned nodes.
+1 Pass
+Pass	Focus should jump to fallback elements when a slot does not have any assigned nodes.

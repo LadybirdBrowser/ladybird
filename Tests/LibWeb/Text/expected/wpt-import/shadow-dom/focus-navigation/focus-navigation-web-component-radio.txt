@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Focus for web component input type elements should be bound by <form> inside shadow DOM
+1 Pass
+Pass	Focus for web component input type elements should be bound by <form> inside shadow DOM
