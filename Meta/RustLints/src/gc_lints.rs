@@ -61,11 +61,21 @@ declare_lint! {
     "GC pointer dereferenced while a cell is dropped"
 }
 
+declare_lint! {
+    /// A type that does not implement `Trace` keeps GC pointers in a field, in heap memory the collector does not
+    /// scan. Nothing traces a value of it, wherever it is held. Implement `Trace` for it, so that whatever holds it
+    /// traces it, or give it a `&DeferGc` field, which ties its values to a deferral.
+    pub GC_CONTAINER_IN_UNTRACED_TYPE,
+    Deny,
+    "GC pointers kept in heap memory by a type that is not traced"
+}
+
 pub static LINTS: &[&Lint] = &[
     GC_CONTAINER_ON_STACK,
     ROOT_IN_TRACED_TYPE,
     UNTRACED_GC_POINTER,
     GC_POINTER_IN_DROP,
+    GC_CONTAINER_IN_UNTRACED_TYPE,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -119,6 +129,7 @@ impl_lint_pass!(GcLints<'_> => [
     ROOT_IN_TRACED_TYPE,
     UNTRACED_GC_POINTER,
     GC_POINTER_IN_DROP,
+    GC_CONTAINER_IN_UNTRACED_TYPE,
 ]);
 
 const LIBJS_CRATE: &str = "libjs_rust";
@@ -704,6 +715,30 @@ impl<'tcx> LateLintPass<'tcx> for GcLints<'tcx> {
         }
         let def_id = item.owner_id.to_def_id();
         if !self.traced_types.contains(&def_id) {
+            // NB: The GC's own types, like Root, are what the markers say they are, whatever their fields hold.
+            if self.kind(cx.tcx, def_id) != Kind::Other || self.is_deferral_scoped(cx.tcx, def_id) {
+                return;
+            }
+            for field in cx.tcx.adt_def(def_id).all_fields() {
+                let ty = normalize(
+                    cx,
+                    cx.tcx.type_of(field.did).instantiate_identity().skip_normalization(),
+                );
+                if let Some(container) = self.unscanned_container(cx, ty) {
+                    let field_id = cx.tcx.local_def_id_to_hir_id(field.did.expect_local());
+                    self.emit(
+                        cx,
+                        GC_CONTAINER_IN_UNTRACED_TYPE,
+                        field_id,
+                        cx.tcx.def_span(field.did),
+                        with_forced_trimmed_paths!(format!(
+                            "'{}' does not implement Trace but keeps GC pointers in '{container}', which the \
+                             collector does not scan",
+                            cx.tcx.def_path_str(def_id)
+                        )),
+                    );
+                }
+            }
             return;
         }
         let tcx = cx.tcx;
