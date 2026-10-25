@@ -1,9 +1,9 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: inline
-      frag 0 from Box start: 0, length: 0, rect: [8,8 10x10.3125] baseline: 12.796875
-      Box <div.inline-flex.aspect-ratio> at [8,8] flex-container(row) [0+0+0 10 0+0+0] [0+0+0 10.3125 0+0+0] [FFC] children: not-inline
-        BlockContainer <div.img-wrapper> at [8,8] flex-item [0+0+0 10 0+0+0] [0+0+0 10.3125 0+0+0] [BFC] children: inline
+      frag 0 from Box start: 0, length: 0, rect: [8,8 10x10.25] baseline: 12.796875
+      Box <div.inline-flex.aspect-ratio> at [8,8] flex-container(row) [0+0+0 10 0+0+0] [0+0+0 10.25 0+0+0] [FFC] children: not-inline
+        BlockContainer <div.img-wrapper> at [8,8] flex-item [0+0+0 10 0+0+0] [0+0+0 10.25 0+0+0] [BFC] children: inline
           frag 0 from ImageBox start: 0, length: 0, rect: [8,10 10x10] baseline: 10
           ImageBox <img> at [8,10] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
 
