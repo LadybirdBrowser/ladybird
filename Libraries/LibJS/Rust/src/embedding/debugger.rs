@@ -10,9 +10,9 @@
 //! js_debugger_is_enabled() needs debugging to be enabled, as C++ reaches the debugger through VM::debugger(), which is
 //! null otherwise.
 
+use core::cell::Ref;
 use core::ffi::c_void;
 use core::ptr::NonNull;
-use std::rc::Rc;
 
 use crate::breakpoint::BreakpointID;
 use crate::debugger::{Debugger, PauseInfo, PauseOnExceptions, PauseReason, ResumeMode, UpdateOriginalBindings};
@@ -163,7 +163,7 @@ fn source_range_into_abi(source_range: Option<&SourceRange>) -> JSDebuggerSource
 /// # Safety
 ///
 /// `vm` must point to a live VM.
-unsafe fn debugger_of<'a>(vm: *mut JSVM) -> (&'a Vm, Rc<Debugger>) {
+unsafe fn debugger_of<'a>(vm: *mut JSVM) -> (&'a Vm, Ref<'a, Debugger>) {
     // SAFETY: The caller passes a live VM.
     let vm = unsafe { vm_from_abi(vm) };
     (vm, vm.debugger().expect("debugging is enabled"))

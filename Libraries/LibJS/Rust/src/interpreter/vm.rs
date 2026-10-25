@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::{Cell, OnceCell, RefCell};
+use core::cell::{Cell, OnceCell, Ref, RefCell};
 use core::ffi::c_void;
 use core::ops::ControlFlow;
 use core::ptr::NonNull;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
-use std::rc::Rc;
 
 use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
@@ -584,7 +583,7 @@ pub struct Vm {
     /// their object. The objects are weak: the sweep callback forgets the ones that die.
     intrinsic_accessors: RefCell<IntrinsicAccessorMap>,
     /// The debugger, which the head points to while it is attached.
-    debugger: RefCell<Option<Rc<Debugger>>>,
+    debugger: RefCell<Option<Box<Debugger>>>,
     /// The properties defined with Object::define_unimplemented_property. The objects are weak: the sweep callback
     /// forgets the ones that die.
     unimplemented_properties: RefCell<UnimplementedPropertyMap>,
@@ -1092,9 +1091,8 @@ impl Vm {
         if self.debugger.borrow().is_some() {
             return;
         }
-        let debugger = Rc::new(Debugger::new());
-        self.head.debugger.set(Rc::as_ptr(&debugger).cast_mut().cast());
-        *self.debugger.borrow_mut() = Some(debugger);
+        let debugger: *const Debugger = self.debugger.borrow_mut().insert(Box::new(Debugger::new())).as_ref();
+        self.head.debugger.set(debugger.cast_mut().cast());
         self.update_dispatch_tables();
         // NB: Debuggers step through bytecode, so nothing enters JIT code while one is attached, not even JIT code
         //     that runs already, which calls other JIT code only through the entries of executables.
@@ -1106,12 +1104,12 @@ impl Vm {
         }
     }
 
+    /// Detaches the debugger, which must not be paused. Nothing may hold the debugger meanwhile.
     pub fn disable_debugging(&self) {
-        let debugger = self.debugger.borrow_mut().take();
-        if let Some(debugger) = &debugger {
-            assert!(!debugger.is_paused());
-        }
+        let mut debugger = self.debugger.borrow_mut();
+        assert!(!debugger.as_ref().is_some_and(|debugger| debugger.is_paused()));
         self.head.debugger.set(core::ptr::null_mut());
+        *debugger = None;
         drop(debugger);
         self.update_dispatch_tables();
     }
@@ -1121,12 +1119,13 @@ impl Vm {
         !self.head.debugger.get().is_null()
     }
 
+    /// Lends the attached debugger, which cannot be detached while it is lent.
     #[inline]
-    pub fn debugger(&self) -> Option<Rc<Debugger>> {
+    pub fn debugger(&self) -> Option<Ref<'_, Debugger>> {
         if !self.debugging_enabled() {
             return None;
         }
-        self.debugger.borrow().clone()
+        Ref::filter_map(self.debugger.borrow(), |debugger| debugger.as_deref()).ok()
     }
 
     pub fn register_weak_container(&self, weak_container: WeakContainer) {
