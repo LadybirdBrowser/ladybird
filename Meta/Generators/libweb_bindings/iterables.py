@@ -72,7 +72,6 @@ def define_the_pair_iterable_declaration(
     if interface.iterable is None or interface.iterable.key_type is None:
         return
 
-    includes.add("LibJS/Runtime/ArrayPrototype.h")
     out.write(
         """    object.define_native_function(realm, vm.names.entries, entries, 0, default_attributes);
     object.define_native_function(realm, vm.names.forEach, for_each, 1, default_attributes);
@@ -270,7 +269,6 @@ def write_iterator_prototype_implementation(
 
     includes.add("LibJS/Runtime/Error.h")
     includes.add("LibJS/Runtime/HostObject.h")
-    includes.add("LibJS/Runtime/IteratorPrototype.h")
     includes.add("LibJS/Runtime/PrimitiveString.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
     includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
@@ -362,7 +360,6 @@ def write_async_iterator_prototype_implementation(
         return
 
     includes.add("AK/StringView.h")
-    includes.add("LibJS/Runtime/AsyncIteratorPrototype.h")
     includes.add("LibJS/Runtime/PrimitiveString.h")
     includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
     includes.add("LibWeb/WebIDL/AsyncIterator.h")

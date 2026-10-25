@@ -44,32 +44,30 @@ pub type JSCreateRealmObjectCallback =
 pub type JSIntrinsic = u32;
 
 pub const JS_INTRINSIC_OBJECT_PROTOTYPE: JSIntrinsic = 0;
-pub const JS_INTRINSIC_FUNCTION_PROTOTYPE: JSIntrinsic = 1;
-pub const JS_INTRINSIC_ARRAY_PROTOTYPE: JSIntrinsic = 2;
-pub const JS_INTRINSIC_STRING_PROTOTYPE: JSIntrinsic = 3;
-pub const JS_INTRINSIC_ERROR_PROTOTYPE: JSIntrinsic = 4;
-pub const JS_INTRINSIC_ITERATOR_PROTOTYPE: JSIntrinsic = 5;
-pub const JS_INTRINSIC_ASYNC_ITERATOR_PROTOTYPE: JSIntrinsic = 6;
-pub const JS_INTRINSIC_ERROR_CONSTRUCTOR: JSIntrinsic = 7;
-pub const JS_INTRINSIC_PROMISE_CONSTRUCTOR: JSIntrinsic = 8;
-pub const JS_INTRINSIC_SHARED_ARRAY_BUFFER_CONSTRUCTOR: JSIntrinsic = 9;
-pub const JS_INTRINSIC_DATA_VIEW_CONSTRUCTOR: JSIntrinsic = 10;
-pub const JS_INTRINSIC_UINT8_ARRAY_CONSTRUCTOR: JSIntrinsic = 11;
-pub const JS_INTRINSIC_UINT8_CLAMPED_ARRAY_CONSTRUCTOR: JSIntrinsic = 12;
-pub const JS_INTRINSIC_UINT16_ARRAY_CONSTRUCTOR: JSIntrinsic = 13;
-pub const JS_INTRINSIC_UINT32_ARRAY_CONSTRUCTOR: JSIntrinsic = 14;
-pub const JS_INTRINSIC_BIG_UINT64_ARRAY_CONSTRUCTOR: JSIntrinsic = 15;
-pub const JS_INTRINSIC_INT8_ARRAY_CONSTRUCTOR: JSIntrinsic = 16;
-pub const JS_INTRINSIC_INT16_ARRAY_CONSTRUCTOR: JSIntrinsic = 17;
-pub const JS_INTRINSIC_INT32_ARRAY_CONSTRUCTOR: JSIntrinsic = 18;
-pub const JS_INTRINSIC_BIG_INT64_ARRAY_CONSTRUCTOR: JSIntrinsic = 19;
-pub const JS_INTRINSIC_FLOAT16_ARRAY_CONSTRUCTOR: JSIntrinsic = 20;
-pub const JS_INTRINSIC_FLOAT32_ARRAY_CONSTRUCTOR: JSIntrinsic = 21;
-pub const JS_INTRINSIC_FLOAT64_ARRAY_CONSTRUCTOR: JSIntrinsic = 22;
-pub const JS_INTRINSIC_JSON_STRINGIFY_FUNCTION: JSIntrinsic = 23;
-pub const JS_INTRINSIC_CONSOLE_OBJECT: JSIntrinsic = 24;
+pub const JS_INTRINSIC_ARRAY_PROTOTYPE: JSIntrinsic = 1;
+pub const JS_INTRINSIC_STRING_PROTOTYPE: JSIntrinsic = 2;
+pub const JS_INTRINSIC_ERROR_PROTOTYPE: JSIntrinsic = 3;
+pub const JS_INTRINSIC_ITERATOR_PROTOTYPE: JSIntrinsic = 4;
+pub const JS_INTRINSIC_ASYNC_ITERATOR_PROTOTYPE: JSIntrinsic = 5;
+pub const JS_INTRINSIC_ERROR_CONSTRUCTOR: JSIntrinsic = 6;
+pub const JS_INTRINSIC_PROMISE_CONSTRUCTOR: JSIntrinsic = 7;
+pub const JS_INTRINSIC_SHARED_ARRAY_BUFFER_CONSTRUCTOR: JSIntrinsic = 8;
+pub const JS_INTRINSIC_UINT8_ARRAY_CONSTRUCTOR: JSIntrinsic = 9;
+pub const JS_INTRINSIC_UINT8_CLAMPED_ARRAY_CONSTRUCTOR: JSIntrinsic = 10;
+pub const JS_INTRINSIC_UINT16_ARRAY_CONSTRUCTOR: JSIntrinsic = 11;
+pub const JS_INTRINSIC_UINT32_ARRAY_CONSTRUCTOR: JSIntrinsic = 12;
+pub const JS_INTRINSIC_BIG_UINT64_ARRAY_CONSTRUCTOR: JSIntrinsic = 13;
+pub const JS_INTRINSIC_INT8_ARRAY_CONSTRUCTOR: JSIntrinsic = 14;
+pub const JS_INTRINSIC_INT16_ARRAY_CONSTRUCTOR: JSIntrinsic = 15;
+pub const JS_INTRINSIC_INT32_ARRAY_CONSTRUCTOR: JSIntrinsic = 16;
+pub const JS_INTRINSIC_BIG_INT64_ARRAY_CONSTRUCTOR: JSIntrinsic = 17;
+pub const JS_INTRINSIC_FLOAT16_ARRAY_CONSTRUCTOR: JSIntrinsic = 18;
+pub const JS_INTRINSIC_FLOAT32_ARRAY_CONSTRUCTOR: JSIntrinsic = 19;
+pub const JS_INTRINSIC_FLOAT64_ARRAY_CONSTRUCTOR: JSIntrinsic = 20;
+pub const JS_INTRINSIC_JSON_STRINGIFY_FUNCTION: JSIntrinsic = 21;
+pub const JS_INTRINSIC_CONSOLE_OBJECT: JSIntrinsic = 22;
 /// One more than the largest JSIntrinsic.
-pub const JS_INTRINSIC_COUNT: JSIntrinsic = 25;
+pub const JS_INTRINSIC_COUNT: JSIntrinsic = 23;
 
 /// A slot holding `cell`, or an empty one for null.
 ///
@@ -182,7 +180,6 @@ pub unsafe extern "C" fn js_realm_intrinsic(
     let intrinsics = realm.intrinsics();
     let object: Gc<Object> = match intrinsic {
         JS_INTRINSIC_OBJECT_PROTOTYPE => intrinsics.object_prototype(vm),
-        JS_INTRINSIC_FUNCTION_PROTOTYPE => intrinsics.function_prototype(vm),
         JS_INTRINSIC_ARRAY_PROTOTYPE => intrinsics.array_prototype(vm),
         JS_INTRINSIC_STRING_PROTOTYPE => intrinsics.string_prototype(vm),
         JS_INTRINSIC_ERROR_PROTOTYPE => intrinsics.error_prototype(vm),
@@ -191,7 +188,6 @@ pub unsafe extern "C" fn js_realm_intrinsic(
         JS_INTRINSIC_ERROR_CONSTRUCTOR => intrinsics.error_constructor(vm).upcast(),
         JS_INTRINSIC_PROMISE_CONSTRUCTOR => intrinsics.promise_constructor(vm).upcast(),
         JS_INTRINSIC_SHARED_ARRAY_BUFFER_CONSTRUCTOR => intrinsics.shared_array_buffer_constructor(vm).upcast(),
-        JS_INTRINSIC_DATA_VIEW_CONSTRUCTOR => intrinsics.data_view_constructor(vm).upcast(),
         JS_INTRINSIC_UINT8_ARRAY_CONSTRUCTOR => intrinsics.uint8_array_constructor(vm).upcast(),
         JS_INTRINSIC_UINT8_CLAMPED_ARRAY_CONSTRUCTOR => intrinsics.uint8_clamped_array_constructor(vm).upcast(),
         JS_INTRINSIC_UINT16_ARRAY_CONSTRUCTOR => intrinsics.uint16_array_constructor(vm).upcast(),
