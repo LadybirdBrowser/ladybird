@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div style="height: 200vh; width: 200vw;"></div>
+<div id="frag"></div>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  await navigation.navigate("#frag").finished;
+  assert_equals(document.querySelector(":target"), document.getElementById("frag"),
+                "target element after navigating to #frag");
+
+  let intercept_resolve;
+  let navigate_event;
+  navigation.onnavigate = e => {
+    navigate_event = e;
+    e.intercept({ handler: () => new Promise(r => intercept_resolve = r),
+                  scroll: "manual" });
+  };
+  let promises = navigation.navigate("#does-not-exist");
+  await promises.committed;
+  assert_equals(document.querySelector(":target"), document.getElementById("frag"),
+                "target element before scroll()");
+  navigate_event.scroll();
+  assert_equals(document.querySelector(":target"), null, "target element after scroll()");
+  intercept_resolve();
+  await promises.finished;
+  assert_equals(document.querySelector(":target"), null, "target element after finished");
+}, "scroll: scroll() should clear the CSS :target element when the fragment does not exist");
+</script>
+</body>

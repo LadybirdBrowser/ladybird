@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<title>
+  Test that going back and forward during a precommitHandler ends up in the
+  correct entry
+</title>
+<body>
+  <script>
+    promise_test(async (t) => {
+      await new Promise((resolve) => window.addEventListener("load", resolve));
+      const initial_entry = navigation.currentEntry;
+      await navigation.navigate("#a", { history: "push" }).finished;
+
+      navigation.addEventListener(
+        "navigate",
+        (event) => {
+          event.intercept({
+            precommitHandler: () =>
+              new Promise((resolve, reject) => {
+                event.signal.addEventListener("abort", () =>
+                  reject(event.signal.reason),
+                );
+              }),
+          });
+        },
+        { once: true },
+      );
+
+      history.pushState(null, null, "#b");
+      await navigation.back().finished;
+      assert_equals(navigation.currentEntry, initial_entry);
+    });
+  </script>
+</body>

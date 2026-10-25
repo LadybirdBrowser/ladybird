@@ -1,0 +1,30 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div style="height: 200vh; width: 200vw;"></div>
+<div id="frag"></div>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  assert_equals(window.scrollY, 0);
+  await navigation.navigate("#frag").finished;
+  assert_not_equals(window.scrollY, 0);
+  navigation.onnavigate = e => {
+    e.intercept({
+      scroll: "manual",
+      handler: t.step_func(() => {
+        e.scroll();
+        assert_equals(window.scrollY, 0);
+        assert_throws_dom("InvalidStateError", () => e.scroll());
+      })
+    });
+  };
+  await navigation.back().finished;
+  assert_equals(window.scrollY, 0);
+}, "scroll: scroll() should throw if called a second time");
+</script>
+</body>

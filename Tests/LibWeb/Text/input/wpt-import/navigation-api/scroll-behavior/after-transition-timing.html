@@ -1,0 +1,49 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div style="height: 200vh; width: 200vw;"></div>
+<div id="frag"></div>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  assert_equals(window.scrollY, 0);
+  await navigation.navigate("#frag").finished;
+  assert_not_equals(window.scrollY, 0);
+
+  window.onpopstate = t.step_func(() => assert_not_equals(window.scrollY, 0));
+  window.onhashchange = t.step_func(() => assert_not_equals(window.scrollY, 0));
+
+  // The scroll restore should take place before navigatesuccess fires.
+  let navigatesuccess_called = false;
+  navigation.onnavigatesuccess = t.step_func(() => {
+    navigatesuccess_called = true;
+    assert_equals(window.scrollY, 0);
+  });
+
+  let back_promises = navigation.back();
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({ scroll: "after-transition",
+                  handler: async () => {
+                    // The ordering here should be:
+                    //  * intercept() is called
+                    //  * back_promises.committed is resolved
+                    //  * this handler runs.
+                    // If this handler incorrectly blocks back_promises.committed,
+                    // this test will hang.
+                    await back_promises.committed;
+                    assert_not_equals(window.scrollY, 0);
+                  }
+                });
+    assert_not_equals(window.scrollY, 0);
+  });
+
+  await back_promises.finished;
+  assert_equals(window.scrollY, 0);
+  assert_true(navigatesuccess_called);
+}, "scroll: after-transition should scroll when back completes, just before navigatesuccess");
+</script>
+</body>

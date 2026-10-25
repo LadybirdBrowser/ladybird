@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	scroll: scroll() should throw if invoked on a synthetic event.

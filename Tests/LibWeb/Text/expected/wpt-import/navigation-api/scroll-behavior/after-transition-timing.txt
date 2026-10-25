@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	scroll: after-transition should scroll when back completes, just before navigatesuccess

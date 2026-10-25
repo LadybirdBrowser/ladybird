@@ -1,0 +1,38 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+promise_test(async t => {
+  const err = new TypeError("a message");
+  let start_href = location.href;
+
+  let onnavigateerror_called = false;
+  let caught_rejection = false;
+  navigation.onnavigatesuccess = t.step_func(assert_unreached);
+  navigation.onnavigateerror = t.step_func(e => {
+    onnavigateerror_called = true;
+    assert_equals(location.hash, "#1");
+    assert_equals(e.constructor, ErrorEvent);
+    assert_equals(e.error, err);
+    assert_true(e.message.includes("TypeError: a message"));
+    assert_equals(e.filename, start_href);
+    assert_greater_than(e.colno, 0);
+    assert_greater_than(e.lineno, 0);
+  });
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept();
+    e.intercept({ handler: async () => {
+      await new Promise(r => t.step_timeout(r, 1));
+      return Promise.reject(err);
+    }});
+    e.intercept({ handler: () => new Promise(resolve => t.step_timeout(resolve, 1)) });
+  });
+
+  await navigation.navigate("#1").finished.catch(t.step_func(e => {
+    caught_rejection = true;
+    assert_equals(e, err);
+  }));
+  assert_true(onnavigateerror_called);
+  assert_true(caught_rejection);
+}, "event.intercept() is called multiple times and one of the promises rejects");
+</script>

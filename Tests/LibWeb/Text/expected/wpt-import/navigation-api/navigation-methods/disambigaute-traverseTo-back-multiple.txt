@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	navigation.traverseTo() goes to the nearest entry when going back

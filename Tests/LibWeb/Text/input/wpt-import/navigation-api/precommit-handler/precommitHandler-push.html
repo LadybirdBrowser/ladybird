@@ -1,0 +1,22 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../navigation-methods/return-value/resources/helpers.js"></script>
+<script src="resources/precommitHandler-helpers.js"></script>
+<body>
+<script>
+let tests = [
+  { mode: "rejectBeforeCommit", description: "precommitHandler for a push navigation, reject before commit" },
+  { mode: "rejectAfterCommit",  description: "precommitHandler for a push navigation, reject after commit" },
+  { mode: "success",            description: "precommitHandler for a push navigation, success" },
+];
+
+let onload_promise = new Promise(resolve => window.onload = resolve);
+for (let test of tests) {
+  promise_test(async t => {
+    await onload_promise;
+    await testDeferredCommit(t, "push", test.mode);
+  }, test.description);
+}
+</script>
+</body>

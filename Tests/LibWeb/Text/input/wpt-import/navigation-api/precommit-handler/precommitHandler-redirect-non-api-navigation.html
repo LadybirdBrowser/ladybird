@@ -1,0 +1,51 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<a id="link" href="#link-target"></a>
+<body>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  let start_length = navigation.entries().length;
+  let navState = { baz: "qux" };
+
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({
+      precommitHandler: t.step_func(controller => {
+        controller.redirect("#redirected", { state: navState });
+      }),
+    });
+  });
+
+  location.hash = "#hash-target";
+  await navigation.transition.finished;
+
+  assert_equals(location.hash, "#redirected");
+  // State serialization is a no-op for non-API navigations because there is
+  // no ongoing API method tracker.
+  assert_equals(navigation.currentEntry.getState(), undefined);
+}, "precommitHandler redirect() on non-API navigation does not serialize state");
+
+promise_test(async t => {
+  let start_length = navigation.entries().length;
+  let navState = { foo: "bar" };
+
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({
+      precommitHandler: t.step_func(controller => {
+        controller.redirect("#link-redirected", { state: navState });
+      }),
+    });
+  });
+
+  document.getElementById("link").click();
+  await navigation.transition.finished;
+
+  assert_equals(location.hash, "#link-redirected");
+  assert_equals(navigation.currentEntry.getState(), undefined);
+}, "precommitHandler redirect() with state on non-API navigation (link click)");
+</script>
+</body>

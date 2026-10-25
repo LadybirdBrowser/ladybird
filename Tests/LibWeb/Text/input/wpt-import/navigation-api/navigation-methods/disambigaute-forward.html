@@ -1,0 +1,42 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe id="i" src="../../common/blank.html"></iframe>
+<script>
+async_test(t => {
+  let start_length = navigation.entries().length;
+  let start_index = navigation.currentEntry.index;
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  window.onload = () => t.step_timeout(() => {
+    assert_equals(navigation.entries().length, start_length);
+    assert_equals(i.contentWindow.navigation.entries().length, 1);
+    navigation.navigate("#top");
+    assert_equals(navigation.entries().length, start_length+1);
+    assert_equals(i.contentWindow.navigation.entries().length, 1);
+    i.contentWindow.navigation.navigate("#1");
+    assert_equals(navigation.entries().length, start_length+1);
+    assert_equals(i.contentWindow.navigation.entries().length, 2);
+    assert_equals(navigation.currentEntry.index, start_index+1);
+    assert_equals(i.contentWindow.navigation.currentEntry.index, 1);
+    assert_true(navigation.canGoBack);
+    assert_true(i.contentWindow.navigation.canGoBack);
+
+    i.contentWindow.navigation.back().committed.then(t.step_func(() => {
+      assert_equals(navigation.currentEntry.index, start_index+1);
+      assert_equals(i.contentWindow.navigation.currentEntry.index, 0);
+      navigation.back().committed.then(t.step_func(() => {
+        assert_equals(navigation.currentEntry.index, start_index);
+        assert_equals(i.contentWindow.navigation.currentEntry.index, 0);
+        // There are 2 joint session history entries containing the top window's
+        // final key. Navigate to the nearest one (which navigates only the
+        // top window).
+        navigation.forward().committed.then(t.step_func_done(() => {
+          assert_equals(navigation.currentEntry.index, start_index+1);
+          assert_equals(i.contentWindow.navigation.currentEntry.index, 0);
+        }));
+      }));
+    }));
+  }, 0);
+}, "navigation.forward() goes to the nearest forward entry");
+</script>

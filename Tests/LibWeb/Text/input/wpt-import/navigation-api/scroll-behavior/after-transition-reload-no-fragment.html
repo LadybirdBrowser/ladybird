@@ -1,0 +1,19 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<link rel="help" href="https://html.spec.whatwg.org/#process-scroll-behavior">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div style="height: 300vh; width: 200vw;"></div>
+<script>
+promise_test(async t => {
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  window.scrollTo(0, 500);
+  assert_equals(window.scrollY, 500);
+
+  navigation.onnavigate = e => e.intercept({ scroll: "after-transition" });
+  await navigation.reload().finished;
+  assert_equals(window.scrollY, 0, "should scroll to the beginning of the document");
+}, "scroll: after-transition on a reload without a fragment scrolls to the beginning of the document");
+</script>
+</body>

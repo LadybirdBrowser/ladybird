@@ -1,0 +1,51 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div id="buffer" style="height: 1000px; width: 200vw;"></div>
+<div id="frag"></div>
+<div style="height: 2000px; width: 200vw;"></div>
+<style>
+  * {
+    overflow-anchor: none;
+  }
+</style>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  assert_equals(window.scrollY, 0);
+  await navigation.navigate("#frag").finished;
+  // Scroll down 10px from #frag
+  window.scrollBy(0, 10);
+  let scrollY_frag_plus_10 = window.scrollY;
+
+  let intercept_resolve;
+  let navigate_event;
+  navigation.onnavigate = e => {
+    navigate_event = e;
+    e.intercept({ handler: () => new Promise(r => intercept_resolve = r),
+                  scroll: "manual" });
+  };
+  let reload_promises = navigation.reload();
+  await reload_promises.committed;
+
+  // removing the <div id="buffer"> should stay in same position.
+  assert_equals(window.scrollY, scrollY_frag_plus_10);
+  buffer.remove();
+  let scrollY_after_buffer_remove = window.scrollY;
+  assert_equals(scrollY_after_buffer_remove, scrollY_frag_plus_10);
+
+  // scroll() should scroll to #frag, which is 10px up from the current location
+  navigate_event.scroll();
+  assert_equals(window.scrollY, scrollY_after_buffer_remove - 1000 - 10);
+
+  // Finishing should not scroll.
+  intercept_resolve();
+  await reload_promises.finished;
+  assert_equals(window.scrollY, scrollY_after_buffer_remove - 1000 - 10);
+}, "scroll: scroll() should work on a reload navigation");
+</script>
+</body>
