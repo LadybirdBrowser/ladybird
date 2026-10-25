@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="input" value="abcdef">
+<textarea id="textarea">abcdef</textarea>
+<script>
+    const modShift = 1 << 2;
+
+    test(() => {
+        for (const id of ["input", "textarea"]) {
+            const element = document.getElementById(id);
+            element.focus();
+            element.setSelectionRange(4, 4);
+            internals.sendKey(element, "Left", modShift);
+            internals.sendKey(element, "Left", modShift);
+            println(`${id} before: ${element.selectionStart}-${element.selectionEnd} ${element.selectionDirection}`);
+            try {
+                element.setRangeText("X");
+                println(`${id} after: value=${element.value} ${element.selectionStart}-${element.selectionEnd}`);
+            } catch (e) {
+                println(`${id} threw ${e.name}`);
+            }
+        }
+    });
+</script>
