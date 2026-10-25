@@ -1,0 +1,5 @@
+returnV128: TypeError
+returnExnref: TypeError
+callReturnsV128: TypeError
+callReturnsExnref: TypeError
+WebAssembly calls: 0, host calls: 0

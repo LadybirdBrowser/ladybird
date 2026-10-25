@@ -47,6 +47,18 @@ pub(crate) const EXTERNREF: ValType = ValType::Ref(RefType {
     heap: HeapType::Extern,
 });
 
+/// Whether a type matches v128 or exnref, whose values have no JavaScript value.
+pub(crate) fn matches_v128_or_exnref(ty: ValType) -> bool {
+    matches!(
+        ty,
+        ValType::V128
+            | ValType::Ref(RefType {
+                heap: HeapType::Exn | HeapType::NoExn,
+                ..
+            })
+    )
+}
+
 fn host_reference_of(vm: &Vm, value: Value) -> u64 {
     let cell = if value.is_cell() {
         value.as_cell().as_ptr().cast::<u8>()

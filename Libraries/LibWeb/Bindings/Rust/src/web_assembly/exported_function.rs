@@ -25,7 +25,9 @@ use libwasm_engine::runtime::{
 use libwasm_engine::types::FuncType;
 
 use crate::web_assembly::exception::Exception;
-use crate::web_assembly::values::{EXTERNREF, results_to_js_value, to_js_value, to_webassembly_value};
+use crate::web_assembly::values::{
+    EXTERNREF, matches_v128_or_exnref, results_to_js_value, to_js_value, to_webassembly_value,
+};
 use crate::web_assembly::{
     Agent, EntityRef, WasmValues, gc_visitor_visit_cell, host_object, set_host_object, throw_of_trap,
 };
@@ -107,34 +109,70 @@ pub(crate) fn create_exported_function(vm: &Vm, realm: Gc<Realm>, function: Func
 /// https://webassembly.github.io/spec/js-api/#call-an-exported-function
 fn call_an_exported_function(vm: &Vm, function: &ExportedFunction) -> ThrowCompletionOr<Value> {
     // 1. Let store be the surrounding agent's associated store.
-    // NB: The conversions below throw that TypeError.
+    // 2. Let functype be func_type(store, funcaddr).
+    // 3. Let func parameters → results be the expansion of functype.
+    // NB: The slots keep functype, which never changes.
+    let FuncType {
+        params: parameters,
+        results,
+    } = &function.ty;
 
+    // 4. If any type in parameters or results matches v128 or exnref, throw a TypeError.
+    // Note: the above error is thrown each time the [[Call]] method is invoked.
+    if parameters.iter().chain(results).any(|&ty| matches_v128_or_exnref(ty)) {
+        return vm.throw_completion_with_message(
+            ErrorKind::TypeError,
+            "Cannot call a WebAssembly function with v128 or exnref parameters or results from JavaScript".to_string(),
+        );
+    }
+
+    // 5. Let args be « ».
     // NB: The converted arguments may refer to new cells, which the cell of the arguments keeps alive during the call.
-    let arguments = WasmValues::allocate(vm);
+    let args = WasmValues::allocate(vm);
 
-    for (index, &parameter) in function.ty.params.iter().enumerate() {
-        let argument = to_webassembly_value(vm, vm.argument(index), parameter)?;
-        arguments.0.borrow_mut().push(argument);
+    // 6. Let i be 0.
+    // 7. For each t of parameters,
+    for (i, &t) in parameters.iter().enumerate() {
+        // 1. If argValues's size > i, let arg be argValues[i].
+        // 2. Otherwise, let arg be undefined.
+        let arg = vm.argument(i);
+
+        // 3. Append ? ToWebAssemblyValue(arg, t) to args.
+        let arg = to_webassembly_value(vm, arg, t)?;
+        args.0.borrow_mut().push(arg);
+
+        // 4. Set i to i + 1.
     }
 
     // NB: The results may refer to new cells, which the cell of the results keeps alive from when the call returns them.
-    let results = WasmValues::allocate(vm);
+    let ret = WasmValues::allocate(vm);
 
+    // 8. Let (store, ret) be the result of func_invoke(store, funcaddr, args).
     // 9. Set the surrounding agent's associated store to store.
-    let result = Agent::the(vm)
-        .store()
-        .invoke(function.function.0, &arguments.0.borrow());
+    let result = Agent::the(vm).store().invoke(function.function.0, &args.0.borrow());
     // NB: Using the Gc after the call keeps the arguments where the conservative scan finds them until it has returned.
-    core::hint::black_box(arguments);
+    core::hint::black_box(args);
 
+    // 10. If ret is error, throw an exception. This exception should be a WebAssembly RuntimeError exception, unless
+    //     otherwise indicated by the WebAssembly error mapping.
+    // 11. If ret is of the form exception exnaddr, then
+    // NB: throw_of_trap() throws what an error or an exception throws.
     match result {
-        Ok(values) => *results.0.borrow_mut() = values,
+        Ok(values) => *ret.0.borrow_mut() = values,
         Err(trap) => return Err(throw_of_trap(vm, trap)),
     }
 
-    let result = results_to_js_value(vm, &results.0.borrow(), &function.ty.results);
+    // 12. Let outArity be the size of ret.
+    // 13. If outArity is 0, return undefined.
+    // 14. Otherwise, if outArity is 1, return ToJSValue(ret[0]).
+    // 15. Otherwise,
+    //     1. Let values be « ».
+    //     2. For each r of ret,
+    //         1. Append ToJSValue(r) to values.
+    //     3. Return CreateArrayFromList(values).
+    let result = results_to_js_value(vm, &ret.0.borrow(), results);
     // NB: Using the Gc after the conversion keeps the results where the conservative scan finds them until it is done.
-    core::hint::black_box(results);
+    core::hint::black_box(ret);
     result
 }
 
@@ -190,17 +228,33 @@ impl HostFunction for HostFunctionSteps {
 fn run_a_host_function(
     vm: &Vm,
     function: Gc<FunctionObject>,
-    ty: &FuncType,
+    functype: &FuncType,
     arguments: &[WasmValue],
 ) -> ThrowCompletionOr<Vec<WasmValue>> {
-    // NB: The conversions below throw that TypeError.
+    // 1. Let func parameters → results be the expansion of functype.
+    let FuncType {
+        params: parameters,
+        results,
+    } = functype;
 
-    let js_arguments = MarkedVec::with_capacity(vm, arguments.len());
-
-    for (argument, &parameter) in arguments.iter().zip(&ty.params) {
-        js_arguments.push(to_js_value(vm, *argument, parameter)?);
+    // 2. If any type in parameters or results matches v128 or exnref, throw a TypeError.
+    if parameters.iter().chain(results).any(|&ty| matches_v128_or_exnref(ty)) {
+        return vm.throw_completion_with_message(
+            ErrorKind::TypeError,
+            "Cannot call a JavaScript function with v128 or exnref parameters or results from WebAssembly".to_string(),
+        );
     }
 
+    // 3. Let jsArguments be « ».
+    let js_arguments = MarkedVec::with_capacity(vm, arguments.len());
+
+    // 4. For each arg of arguments,
+    for (arg, &parameter) in arguments.iter().zip(parameters) {
+        // 1. Append ToJSValue(arg) to jsArguments.
+        js_arguments.push(to_js_value(vm, *arg, parameter)?);
+    }
+
+    // 5. Let ret be ? Call(func, undefined, jsArguments).
     let ret = call(
         vm,
         Value::from_object(function.upcast::<Object>()),
@@ -208,7 +262,9 @@ fn run_a_host_function(
         &js_arguments.values(),
     )?;
 
-    if ty.results.is_empty() {
+    // 6. Let resultsSize be results's size.
+    // 7. If resultsSize is 0, return « ».
+    if results.is_empty() {
         return Ok(Vec::new());
     }
 
@@ -216,10 +272,13 @@ fn run_a_host_function(
     //     them.
     let converted = WasmValues::allocate(vm);
 
-    if ty.results.len() == 1 {
-        let value = to_webassembly_value(vm, ret, ty.results[0])?;
+    // 8. Otherwise, if resultsSize is 1, return « ? ToWebAssemblyValue(ret, results[0]) ».
+    if results.len() == 1 {
+        let value = to_webassembly_value(vm, ret, results[0])?;
         converted.0.borrow_mut().push(value);
-    } else {
+    }
+    // 9. Otherwise,
+    else {
         // 1. Let method be ? GetMethod(ret, %Symbol.iterator%).
         let method = ret.get_method(vm, &PropertyKey::from(vm.well_known_symbols().iterator))?;
 
@@ -238,17 +297,19 @@ fn run_a_host_function(
 
         // 4. Let wasmValues be a new, empty list.
         // 5. If values's size is not resultsSize, throw a TypeError exception.
-        if values.len() != ty.results.len() {
+        if values.len() != results.len() {
             return vm.throw_completion_with_message(
                 ErrorKind::TypeError,
                 format!(
                     "Invalid number of return values for multi-value wasm return of {} objects",
-                    ty.results.len()
+                    results.len()
                 ),
             );
         }
 
-        for (index, &result_type) in ty.results.iter().enumerate() {
+        // 6. For each value and resultType in values and results, paired linearly,
+        for (index, &result_type) in results.iter().enumerate() {
+            // 1. Append ? ToWebAssemblyValue(value, resultType) to wasmValues.
             let value = to_webassembly_value(
                 vm,
                 values.get(index).expect("the list has a value per result"),
