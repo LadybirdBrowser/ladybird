@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Basic IIRFilterNode Operation
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+    <script src="../../resources/audit.js"></script>
+    <script src="../../resources/biquad-filters.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let sampleRate = 24000;
+      let testDurationSec = 0.25;
+      let testFrames = testDurationSec * sampleRate;
+
+      let audit = Audit.createTaskRunner();
+
+      audit.define('coefficient-normalization', (task, should) => {
+        // Test that the feedback coefficients are normalized.  Do this be
+        // creating two IIRFilterNodes.  One has normalized coefficients, and
+        // one doesn't.  Compute the difference and make sure they're the same.
+        let context = new OfflineAudioContext(2, testFrames, sampleRate);
+
+        // Use a simple impulse as the source.
+        let buffer = context.createBuffer(1, 1, sampleRate);
+        buffer.getChannelData(0)[0] = 1;
+        let source = context.createBufferSource();
+        source.buffer = buffer;
+
+        // Gain node for computing the difference between the filters.
+        let gain = context.createGain();
+        gain.gain.value = -1;
+
+        // The IIR filters.  Use a common feedforward array.
+        let ff = [1];
+
+        let fb1 = [1, .9];
+
+        let fb2 = new Float64Array(2);
+        // Scale the feedback coefficients by an arbitrary factor.
+        let coefScaleFactor = 2;
+        for (let k = 0; k < fb2.length; ++k) {
+          fb2[k] = coefScaleFactor * fb1[k];
+        }
+
+        let iir1;
+        let iir2;
+
+        should(function() {
+          iir1 = context.createIIRFilter(ff, fb1);
+        }, 'createIIRFilter with normalized coefficients').notThrow();
+
+        should(function() {
+          iir2 = context.createIIRFilter(ff, fb2);
+        }, 'createIIRFilter with unnormalized coefficients').notThrow();
+
+        // Create the graph.  The output of iir1 (normalized coefficients) is
+        // channel 0, and the output of iir2 (unnormalized coefficients), with
+        // appropriate scaling, is channel 1.
+        let merger = context.createChannelMerger(2);
+        source.connect(iir1);
+        source.connect(iir2);
+        iir1.connect(merger, 0, 0);
+        iir2.connect(gain);
+
+        // The gain for the gain node should be set to compensate for the
+        // scaling of the coefficients.  Since iir2 has scaled the coefficients
+        // by coefScaleFactor, the output is reduced by the same factor, so
+        // adjust the gain to scale the output of iir2 back up.
+        gain.gain.value = coefScaleFactor;
+        gain.connect(merger, 0, 1);
+
+        merger.connect(context.destination);
+
+        source.start();
+
+        // Rock and roll!
+
+        context.startRendering()
+            .then(function(result) {
+              // Find the max amplitude of the result, which should be near
+              // zero.
+              let iir1Data = result.getChannelData(0);
+              let iir2Data = result.getChannelData(1);
+
+              // Threshold isn't exactly zero because the arithmetic is done
+              // differently between the IIRFilterNode and the BiquadFilterNode.
+              should(
+                  iir2Data,
+                  'Output of IIR filter with unnormalized coefficients')
+                  .beCloseToArray(iir1Data, {absoluteThreshold: 2.1958e-38});
+            })
+            .then(() => task.done());
+      });
+
+      audit.define('one-zero', (task, should) => {
+        // Create a simple 1-zero filter and compare with the expected output.
+        let context = new OfflineAudioContext(1, testFrames, sampleRate);
+
+        // Use a simple impulse as the source
+        let buffer = context.createBuffer(1, 1, sampleRate);
+        buffer.getChannelData(0)[0] = 1;
+        let source = context.createBufferSource();
+        source.buffer = buffer;
+
+        // The filter is y(n) = 0.5*(x(n) + x(n-1)), a simple 2-point moving
+        // average.  This is rather arbitrary; keep it simple.
+
+        let iir = context.createIIRFilter([0.5, 0.5], [1]);
+
+        // Create the graph
+        source.connect(iir);
+        iir.connect(context.destination);
+
+        // Rock and roll!
+        source.start();
+
+        context.startRendering()
+            .then(function(result) {
+              let actual = result.getChannelData(0);
+              let expected = new Float64Array(testFrames);
+              // The filter is a simple 2-point moving average of an impulse, so
+              // the first two values are non-zero and the rest are zero.
+              expected[0] = 0.5;
+              expected[1] = 0.5;
+              should(actual, 'IIR 1-zero output').beCloseToArray(expected, {
+                absoluteThreshold: 0
+              });
+            })
+            .then(() => task.done());
+      });
+
+      audit.define('one-pole', (task, should) => {
+        // Create a simple 1-pole filter and compare with the expected output.
+
+        // The filter is y(n) + c*y(n-1)= x(n).  The analytical response is
+        // (-c)^n, so choose a suitable number of frames to run the test for
+        // where the output isn't flushed to zero.
+        let c = 0.9;
+        let eps = 1e-20;
+        let duration = Math.floor(Math.log(eps) / Math.log(Math.abs(c)));
+        let context = new OfflineAudioContext(1, duration, sampleRate);
+
+        // Use a simple impulse as the source
+        let buffer = context.createBuffer(1, 1, sampleRate);
+        buffer.getChannelData(0)[0] = 1;
+        let source = context.createBufferSource();
+        source.buffer = buffer;
+
+        let iir = context.createIIRFilter([1], [1, c]);
+
+        // Create the graph
+        source.connect(iir);
+        iir.connect(context.destination);
+
+        // Rock and roll!
+        source.start();
+
+        context.startRendering()
+            .then(function(result) {
+              let actual = result.getChannelData(0);
+              let expected = new Float64Array(actual.length);
+
+              // The filter is a simple 1-pole filter: y(n) = -c*y(n-k)+x(n),
+              // with an impulse as the input.
+              expected[0] = 1;
+              for (k = 1; k < testFrames; ++k) {
+                expected[k] = -c * expected[k - 1];
+              }
+
+              // Threshold isn't exactly zero due to round-off in the
+              // single-precision IIRFilterNode computations versus the
+              // double-precision Javascript computations.
+              should(actual, 'IIR 1-pole output').beCloseToArray(expected, {
+                absoluteThreshold: 2.7657e-8
+              });
+            })
+            .then(() => task.done());
+      });
+
+      // Return a function suitable for use as a defineTask function.  This
+      // function creates an IIRFilterNode equivalent to the specified
+      // BiquadFilterNode and compares the outputs.  The outputs from the two
+      // filters should be virtually identical.
+      function testWithBiquadFilter(filterType, errorThreshold, snrThreshold) {
+        return (task, should) => {
+          let context = new OfflineAudioContext(2, testFrames, sampleRate);
+
+          // Use a constant (step function) as the source
+          let buffer = createConstantBuffer(context, testFrames, 1);
+          let source = context.createBufferSource();
+          source.buffer = buffer;
+
+
+          // Create the biquad.  Choose some rather arbitrary values for Q and
+          // gain for the biquad so that the shelf filters aren't identical.
+          let biquad = context.createBiquadFilter();
+          biquad.type = filterType;
+          biquad.Q.value = 10;
+          biquad.gain.value = 10;
+
+          // Create the equivalent IIR Filter node by computing the coefficients
+          // of the given biquad filter type.
+          let nyquist = sampleRate / 2;
+          let coef = createFilter(
+              filterType, biquad.frequency.value / nyquist, biquad.Q.value,
+              biquad.gain.value);
+
+          let iir = context.createIIRFilter(
+              [coef.b0, coef.b1, coef.b2], [1, coef.a1, coef.a2]);
+
+          let merger = context.createChannelMerger(2);
+          // Create the graph
+          source.connect(biquad);
+          source.connect(iir);
+
+          biquad.connect(merger, 0, 0);
+          iir.connect(merger, 0, 1);
+
+          merger.connect(context.destination);
+
+          // Rock and roll!
+          source.start();
+
+          context.startRendering()
+              .then(function(result) {
+                // Find the max amplitude of the result, which should be near
+                // zero.
+                let expected = result.getChannelData(0);
+                let actual = result.getChannelData(1);
+
+                // On MacOSX, WebAudio uses an optimized Biquad implementation
+                // that is different from the implementation used for Linux and
+                // Windows.  This will cause the output to differ, even if the
+                // threshold passes.  Thus, only print out a very small number
+                // of elements of the array where we have tested that they are
+                // consistent.
+                should(actual, 'IIRFilter for Biquad ' + filterType)
+                    .beCloseToArray(expected, errorThreshold);
+
+                let snr = 10 * Math.log10(computeSNR(actual, expected));
+                should(snr, 'SNR for IIRFIlter for Biquad ' + filterType)
+                    .beGreaterThanOrEqualTo(snrThreshold);
+              })
+              .then(() => task.done());
+        };
+      }
+
+      // Thresholds here are experimentally determined.
+      let biquadTestConfigs = [
+        {
+          filterType: 'lowpass',
+          snrThreshold: 91.221,
+          errorThreshold: {relativeThreshold: 4.9834e-5}
+        },
+        {
+          filterType: 'highpass',
+          snrThreshold: 105.4590,
+          errorThreshold: {absoluteThreshold: 2.9e-6, relativeThreshold: 3e-5}
+        },
+        {
+          filterType: 'bandpass',
+          snrThreshold: 104.060,
+          errorThreshold: {absoluteThreshold: 2e-7, relativeThreshold: 8.7e-4}
+        },
+        {
+          filterType: 'notch',
+          snrThreshold: 91.312,
+          errorThreshold: {absoluteThreshold: 0, relativeThreshold: 4.22e-5}
+        },
+        {
+          filterType: 'allpass',
+          snrThreshold: 91.319,
+          errorThreshold: {absoluteThreshold: 0, relativeThreshold: 4.31e-5}
+        },
+        {
+          filterType: 'lowshelf',
+          snrThreshold: 90.609,
+          errorThreshold: {absoluteThreshold: 0, relativeThreshold: 2.98e-5}
+        },
+        {
+          filterType: 'highshelf',
+          snrThreshold: 103.159,
+          errorThreshold: {absoluteThreshold: 0, relativeThreshold: 1.24e-5}
+        },
+        {
+          filterType: 'peaking',
+          snrThreshold: 91.504,
+          errorThreshold: {absoluteThreshold: 0, relativeThreshold: 5.05e-5}
+        }
+      ];
+
+      // Create a set of tasks based on biquadTestConfigs.
+      for (k = 0; k < biquadTestConfigs.length; ++k) {
+        let config = biquadTestConfigs[k];
+        let name = k + ': ' + config.filterType;
+        audit.define(
+            name,
+            testWithBiquadFilter(
+                config.filterType, config.errorThreshold, config.snrThreshold));
+      }
+
+      audit.define('multi-channel', (task, should) => {
+        // Multi-channel test.  Create a biquad filter and the equivalent IIR
+        // filter.  Filter the same multichannel signal and compare the results.
+        let nChannels = 3;
+        let context =
+            new OfflineAudioContext(nChannels, testFrames, sampleRate);
+
+        // Create a set of oscillators as the multi-channel source.
+        let source = [];
+
+        for (k = 0; k < nChannels; ++k) {
+          source[k] = context.createOscillator();
+          source[k].type = 'sawtooth';
+          // The frequency of the oscillator is pretty arbitrary, but each
+          // oscillator should have a different frequency.
+          source[k].frequency.value = 100 + k * 100;
+        }
+
+        let merger = context.createChannelMerger(3);
+
+        let biquad = context.createBiquadFilter();
+
+        // Create the equivalent IIR Filter node.
+        let nyquist = sampleRate / 2;
+        let coef = createFilter(
+            biquad.type, biquad.frequency.value / nyquist, biquad.Q.value,
+            biquad.gain.value);
+        let fb = [1, coef.a1, coef.a2];
+        let ff = [coef.b0, coef.b1, coef.b2];
+
+        let iir = context.createIIRFilter(ff, fb);
+        // Gain node to compute the difference between the IIR and biquad
+        // filter.
+        let gain = context.createGain();
+        gain.gain.value = -1;
+
+        // Create the graph.
+        for (k = 0; k < nChannels; ++k)
+          source[k].connect(merger, 0, k);
+
+        merger.connect(biquad);
+        merger.connect(iir);
+        iir.connect(gain);
+        biquad.connect(context.destination);
+        gain.connect(context.destination);
+
+        for (k = 0; k < nChannels; ++k)
+          source[k].start();
+
+        context.startRendering()
+            .then(function(result) {
+              let errorThresholds = [3.7671e-5, 3.0071e-5, 2.6241e-5];
+
+              // Check the difference signal on each channel
+              for (channel = 0; channel < result.numberOfChannels; ++channel) {
+                // Find the max amplitude of the result, which should be near
+                // zero.
+                let data = result.getChannelData(channel);
+                let maxError =
+                    data.reduce(function(reducedValue, currentValue) {
+                      return Math.max(reducedValue, Math.abs(currentValue));
+                    });
+
+                should(
+                    maxError,
+                    'Max difference between IIR and Biquad on channel ' +
+                        channel)
+                    .beLessThanOrEqualTo(errorThresholds[channel]);
+              }
+
+            })
+            .then(() => task.done());
+      });
+
+      // Apply an IIRFilter to the given input signal.
+      //
+      // IIR filter in the time domain is
+      //
+      //   y[n] = sum(ff[k]*x[n-k], k, 0, M) - sum(fb[k]*y[n-k], k, 1, N)
+      //
+      function iirFilter(input, feedforward, feedback) {
+        // For simplicity, create an x buffer that contains the input, and a y
+        // buffer that contains the output.  Both of these buffers have an
+        // initial work space to implement the initial memory of the filter.
+        let workSize = Math.max(feedforward.length, feedback.length);
+        let x = new Float32Array(input.length + workSize);
+
+        // Float64 because we want to match the implementation that uses doubles
+        // to minimize roundoff.
+        let y = new Float64Array(input.length + workSize);
+
+        // Copy the input over.
+        for (let k = 0; k < input.length; ++k)
+          x[k + feedforward.length] = input[k];
+
+        // Run the filter
+        for (let n = 0; n < input.length; ++n) {
+          let index = n + workSize;
+          let yn = 0;
+          for (let k = 0; k < feedforward.length; ++k)
+            yn += feedforward[k] * x[index - k];
+          for (let k = 0; k < feedback.length; ++k)
+            yn -= feedback[k] * y[index - k];
+
+          y[index] = yn;
+        }
+
+        return y.slice(workSize).map(Math.fround);
+      }
+
+      // Cascade the two given biquad filters to create one IIR filter.
+      function cascadeBiquads(f1Coef, f2Coef) {
+        // The biquad filters are:
+        //
+        // f1 = (b10 + b11/z + b12/z^2)/(1 + a11/z + a12/z^2);
+        // f2 = (b20 + b21/z + b22/z^2)/(1 + a21/z + a22/z^2);
+        //
+        // To cascade them, multiply the two transforms together to get a fourth
+        // order IIR filter.
+
+        let numProduct = [
+          f1Coef.b0 * f2Coef.b0, f1Coef.b0 * f2Coef.b1 + f1Coef.b1 * f2Coef.b0,
+          f1Coef.b0 * f2Coef.b2 + f1Coef.b1 * f2Coef.b1 + f1Coef.b2 * f2Coef.b0,
+          f1Coef.b1 * f2Coef.b2 + f1Coef.b2 * f2Coef.b1, f1Coef.b2 * f2Coef.b2
+        ];
+
+        let denProduct = [
+          1, f2Coef.a1 + f1Coef.a1,
+          f2Coef.a2 + f1Coef.a1 * f2Coef.a1 + f1Coef.a2,
+          f1Coef.a1 * f2Coef.a2 + f1Coef.a2 * f2Coef.a1, f1Coef.a2 * f2Coef.a2
+        ];
+
+        return {
+          ff: numProduct, fb: denProduct
+        }
+      }
+
+      // Find the magnitude of the root of the quadratic that has the maximum
+      // magnitude.
+      //
+      // The quadratic is z^2 + a1 * z + a2 and we want the root z that has the
+      // largest magnitude.
+      function largestRootMagnitude(a1, a2) {
+        let discriminant = a1 * a1 - 4 * a2;
+        if (discriminant < 0) {
+          // Complex roots:  -a1/2 +/- i*sqrt(-d)/2.  Thus the magnitude of each
+          // root is the same and is sqrt(a1^2/4 + |d|/4)
+          let d = Math.sqrt(-discriminant);
+          return Math.hypot(a1 / 2, d / 2);
+        } else {
+          // Real roots
+          let d = Math.sqrt(discriminant);
+          return Math.max(Math.abs((-a1 + d) / 2), Math.abs((-a1 - d) / 2));
+        }
+      }
+
+      audit.define('4th-order-iir', (task, should) => {
+        // Cascade 2 lowpass biquad filters and compare that with the equivalent
+        // 4th order IIR filter.
+
+        let nyquist = sampleRate / 2;
+        // Compute the coefficients of a lowpass filter.
+
+        // First some preliminary stuff.  Compute the coefficients of the
+        // biquad.  This is used to figure out how frames to use in the test.
+        let biquadType = 'lowpass';
+        let biquadCutoff = 350;
+        let biquadQ = 5;
+        let biquadGain = 1;
+
+        let coef = createFilter(
+            biquadType, biquadCutoff / nyquist, biquadQ, biquadGain);
+
+        // Cascade the biquads together to create an equivalent IIR filter.
+        let cascade = cascadeBiquads(coef, coef);
+
+        // Since we're cascading two identical biquads, the root of denominator
+        // of the IIR filter is repeated, so the root of the denominator with
+        // the largest magnitude occurs twice.  The impulse response of the IIR
+        // filter will be roughly c*(r*r)^n at time n, where r is the root of
+        // largest magnitude.  This approximation gets better as n increases.
+        // We can use this to get a rough idea of when the response has died
+        // down to a small value.
+
+        // This is the value we will use to determine how many frames to render.
+        // Rendering too many is a waste of time and also makes it hard to
+        // compare the actual result to the expected because the magnitudes are
+        // so small that they could be mostly round-off noise.
+        //
+        // Find magnitude of the root with largest magnitude
+        let rootMagnitude = largestRootMagnitude(coef.a1, coef.a2);
+
+        // Find n such that |r|^(2*n) <= eps.  That is, n = log(eps)/(2*log(r)).
+        // Somewhat arbitrarily choose eps = 1e-20;
+        let eps = 1e-20;
+        let framesForTest =
+            Math.floor(Math.log(eps) / (2 * Math.log(rootMagnitude)));
+
+        // We're ready to create the graph for the test.  The offline context
+        // has two channels: channel 0 is the expected (cascaded biquad) result
+        // and channel 1 is the actual IIR filter result.
+        let context = new OfflineAudioContext(2, framesForTest, sampleRate);
+
+        // Use a simple impulse with a large (arbitrary) amplitude as the source
+        let amplitude = 1;
+        let buffer = context.createBuffer(1, testFrames, sampleRate);
+        buffer.getChannelData(0)[0] = amplitude;
+        let source = context.createBufferSource();
+        source.buffer = buffer;
+
+        // Create the two biquad filters.  Doesn't really matter what, but for
+        // simplicity we choose identical lowpass filters with the same
+        // parameters.
+        let biquad1 = context.createBiquadFilter();
+        biquad1.type = biquadType;
+        biquad1.frequency.value = biquadCutoff;
+        biquad1.Q.value = biquadQ;
+
+        let biquad2 = context.createBiquadFilter();
+        biquad2.type = biquadType;
+        biquad2.frequency.value = biquadCutoff;
+        biquad2.Q.value = biquadQ;
+
+        let iir = context.createIIRFilter(cascade.ff, cascade.fb);
+
+        // Create the merger to get the signals into multiple channels
+        let merger = context.createChannelMerger(2);
+
+        // Create the graph, filtering the source through two biquads.
+        source.connect(biquad1);
+        biquad1.connect(biquad2);
+        biquad2.connect(merger, 0, 0);
+
+        source.connect(iir);
+        iir.connect(merger, 0, 1);
+
+        merger.connect(context.destination);
+
+        // Now filter the source through the IIR filter.
+        let y = iirFilter(buffer.getChannelData(0), cascade.ff, cascade.fb);
+
+        // Rock and roll!
+        source.start();
+
+        context.startRendering()
+            .then(function(result) {
+              let expected = result.getChannelData(0);
+              let actual = result.getChannelData(1);
+
+              should(actual, '4-th order IIRFilter (biquad ref)')
+                  .beCloseToArray(expected, {
+                    // Thresholds experimentally determined.
+                    absoluteThreshold: 1.59e-7,
+                    relativeThreshold: 2.11e-5,
+                  });
+
+              let snr = 10 * Math.log10(computeSNR(actual, expected));
+              should(snr, 'SNR of 4-th order IIRFilter (biquad ref)')
+                  .beGreaterThanOrEqualTo(108.947);
+            })
+            .then(() => task.done());
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>
