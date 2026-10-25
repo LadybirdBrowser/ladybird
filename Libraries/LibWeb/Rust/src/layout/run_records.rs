@@ -365,7 +365,14 @@ pub(crate) struct RunRecords<'arena> {
     // Wrapper sizing hands this state to the wrapper's child run, which consumes it while laying
     // out the table box. Keeping it on the run prevents measurement state from escaping a pass.
     table_inline_layouts: RefCell<HashMap<Node, table_formatting_context::TableInlineLayout>>,
-    is_content_sizing: bool,
+    content_sizing: ContentSizing,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ContentSizing {
+    Layout,
+    RootContributions,
+    RootContentInlineSizes,
 }
 
 enum RunRecordClaim {
@@ -383,7 +390,14 @@ impl<'arena> RunRecords<'arena> {
         root_used: &'arena UsedValues,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
-        Self::enter(callbacks, root, root_containing_block, Some(root_used), false, run)
+        Self::enter(
+            callbacks,
+            root,
+            root_containing_block,
+            Some(root_used),
+            ContentSizing::Layout,
+            run,
+        )
     }
 
     pub(crate) fn with_content_sizing_root<R>(
@@ -393,7 +407,31 @@ impl<'arena> RunRecords<'arena> {
         root_used: &'arena UsedValues,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
-        Self::enter(callbacks, root, root_containing_block, Some(root_used), true, run)
+        Self::enter(
+            callbacks,
+            root,
+            root_containing_block,
+            Some(root_used),
+            ContentSizing::RootContributions,
+            run,
+        )
+    }
+
+    pub(crate) fn with_content_inline_sizes_root<R>(
+        callbacks: LayoutPass<'arena>,
+        root: Node,
+        root_containing_block: Node,
+        root_used: &'arena UsedValues,
+        run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
+    ) -> R {
+        Self::enter(
+            callbacks,
+            root,
+            root_containing_block,
+            Some(root_used),
+            ContentSizing::RootContentInlineSizes,
+            run,
+        )
     }
 
     pub(crate) fn with_unrooted<R>(
@@ -402,7 +440,7 @@ impl<'arena> RunRecords<'arena> {
         root_containing_block: Node,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
-        Self::enter(callbacks, root, root_containing_block, None, false, run)
+        Self::enter(callbacks, root, root_containing_block, None, ContentSizing::Layout, run)
     }
 
     fn enter<R>(
@@ -410,7 +448,7 @@ impl<'arena> RunRecords<'arena> {
         root: Node,
         root_containing_block: Node,
         root_used: Option<&'arena UsedValues>,
-        is_content_sizing: bool,
+        content_sizing: ContentSizing,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
         debug_assert!(
@@ -426,7 +464,7 @@ impl<'arena> RunRecords<'arena> {
             stack_length_at_start: scratch.run_record_stack.length(),
             records_outside_table: RefCell::new(HashMap::default()),
             table_inline_layouts: RefCell::new(HashMap::default()),
-            is_content_sizing,
+            content_sizing,
         };
         run(&records, callbacks.for_run(root, root_containing_block))
     }
@@ -449,7 +487,11 @@ impl<'arena> RunRecords<'arena> {
     }
 
     pub(crate) fn is_content_sizing(&self) -> bool {
-        self.is_content_sizing
+        self.content_sizing != ContentSizing::Layout
+    }
+
+    pub(crate) fn measures_content_inline_sizes_of(&self, node: Node) -> bool {
+        self.content_sizing == ContentSizing::RootContentInlineSizes && node == self.root
     }
 
     pub(crate) fn register(&self, node: Node, used: UsedValues) -> &UsedValues {

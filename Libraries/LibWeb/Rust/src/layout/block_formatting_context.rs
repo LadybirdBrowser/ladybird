@@ -760,13 +760,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             used.padding_left.set(padding_left);
             used.padding_right.set(padding_right);
         }
-        // NOTE: If we are calculating the min-content or max-content inline size of this box,
-        //       and the inline size should be treated as auto, then we can simply return here,
-        //       as the preferred inline size and min/max constraints are irrelevant for intrinsic sizing.
-        if self.used(node).inline_size_constraint.get() != SizeConstraint::None {
-            return None;
-        }
-
         // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
         // A rendered legend with a computed inline size of auto uses the
         // fit-content size, resolved here so the legend's children are laid
@@ -4245,13 +4238,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let inline_offset = if side == FloatSide::Left {
             floating_box.offset_from_edge
         } else {
-            let float_containing_block_inline_size = match self.used(node).inline_size_constraint.get() {
-                SizeConstraint::MinContent => CssPixels::default(),
-                // Preserve the MaxContent saturation quirk from the C++ fixed-point subtraction.
-                SizeConstraint::MaxContent => CssPixels::from_raw(i32::MAX),
-                SizeConstraint::None => floating_box.percentage_basis_inline_size.unwrap_or_default(),
-            };
-            float_containing_block_inline_size - floating_box.offset_from_edge
+            floating_box.percentage_basis_inline_size.unwrap_or_default() - floating_box.offset_from_edge
         };
         self.place_child(
             node,
@@ -4292,7 +4279,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             //       Applying them here would bake the box's own min/max-width into its measured intrinsic
             //       size, and the border-box adjustment would consume border/padding that measurement
             //       state does not have.
-            if self.used(block_container).inline_size_constraint.get() == SizeConstraint::None {
+            let root_is_measured_for_its_content_inline_size =
+                block_container == self.run.box_ && input.available_space.inline_size.is_intrinsic_sizing_constraint();
+            if !root_is_measured_for_its_content_inline_size {
                 // https://www.w3.org/TR/css-sizing-3/#sizing-values
                 // Percentages are resolved against the appropriate inline or block size of the containing block.
                 let containing_inline_size = input.containing_block_constraints.inline_basis();

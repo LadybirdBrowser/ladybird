@@ -1299,8 +1299,7 @@ impl<'context> InlineFormattingContext<'context> {
 
         let content_baselines = self.layout_inside(node, available_space);
         debug_assert!(
-            self.used(node).has_definite_inline_size.get()
-                || self.used(node).inline_size_constraint.get() != SizeConstraint::None,
+            self.used(node).has_definite_inline_size.get(),
             "atomic inline-level run left its root's inline size unresolved"
         );
         content_baselines

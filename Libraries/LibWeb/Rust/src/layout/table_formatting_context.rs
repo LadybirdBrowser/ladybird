@@ -2649,7 +2649,6 @@ impl<'pass> TableFormattingContext<'pass> {
         let facts = NodeFacts::new(&self.run.callbacks, cell.box_);
         if self.run.layout_mode == LayoutMode::IntrinsicSizing
             && !facts.is_inline()
-            && used.inline_size_constraint.get() == SizeConstraint::None
             && used.block_size_constraint.get() == SizeConstraint::None
             && used.has_definite_inline_size()
             && used.has_definite_block_size()
@@ -2680,7 +2679,6 @@ impl<'pass> TableFormattingContext<'pass> {
             content_block_size: used.content_block_size.get(),
             has_definite_inline_size: used.has_definite_inline_size(),
             has_definite_block_size: used.has_definite_block_size(),
-            inline_size_constraint: used.inline_size_constraint.get(),
             block_size_constraint: used.block_size_constraint.get(),
             uses_collapsing_borders_model: used.uses_collapsing_borders_model.get(),
             adopt_automatic_content_block_size,
