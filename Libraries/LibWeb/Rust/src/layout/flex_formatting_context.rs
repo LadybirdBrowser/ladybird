@@ -3640,6 +3640,13 @@ impl<'pass> FlexFormattingContext<'pass> {
             formatting_context::place_child(&self.run, item.box_, offset, None);
         }
         self.derived_baselines_of_root_box = DerivedBaselines {
+            inline_alignment: self.flex_lines.len().checked_sub(1).and_then(|line_index| {
+                self.baseline_of_line_for_purpose(
+                    line_index,
+                    formatting_context::BaselineSet::Last,
+                    formatting_context::BaselinePurpose::InlineAlignment,
+                )
+            }),
             first: self.baseline_of_line(0, formatting_context::BaselineSet::First),
             last: self
                 .flex_lines
@@ -3651,6 +3658,15 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     // https://drafts.csswg.org/css-flexbox-1/#flex-baselines
     fn baseline_of_line(&self, line_index: usize, baseline_set: formatting_context::BaselineSet) -> Option<CssPixels> {
+        self.baseline_of_line_for_purpose(line_index, baseline_set, formatting_context::BaselinePurpose::Container)
+    }
+
+    fn baseline_of_line_for_purpose(
+        &self,
+        line_index: usize,
+        baseline_set: formatting_context::BaselineSet,
+        purpose: formatting_context::BaselinePurpose,
+    ) -> Option<CssPixels> {
         let items = &self.flex_lines.get(line_index)?.items;
         // 1. If any of the flex items on the flex container's first line participate in baseline alignment, the flex
         //    container's main-axis baseline is the baseline of those flex items.
@@ -3677,12 +3693,13 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .max_by_key(|&index| self.flex_items[index].main_offset),
         })?;
         let source = self.baseline_source_for_item(item);
-        formatting_context::baseline_of_child(
+        formatting_context::baseline_of_child_for_purpose(
             self.run.records,
             &self.run.callbacks,
             self.flex_items[item].box_,
             baseline_set,
             source,
+            purpose,
         )
     }
 

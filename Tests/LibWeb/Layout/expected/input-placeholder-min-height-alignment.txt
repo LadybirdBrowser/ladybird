@@ -1,10 +1,10 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 44 0+0+8] children: inline
-      frag 0 from TextInputBox start: 0, length: 0, rect: [25,10 307x40] baseline: 32
-      frag 1 from TextNode start: 0, length: 1, rect: [349,27 8x16] baseline: 12.796875
+      frag 0 from TextInputBox start: 0, length: 0, rect: [25,10 307x40] baseline: 26.796875
+      frag 1 from TextNode start: 0, length: 1, rect: [349,22 8x16] baseline: 12.796875
           " "
-      frag 2 from TextInputBox start: 0, length: 0, rect: [374,23 307x14] baseline: 19
+      frag 2 from TextInputBox start: 0, length: 0, rect: [374,23 307x14] baseline: 13.796875
       TextInputBox <input.minimum> at [25,10] inline-block [0+1+16 307 16+1+0] [0+1+1 40 1+1+0] [BFC] children: not-inline
         Box <div> at [25,10] flex-container(row) [0+0+0 307 0+0+0] [0+0+0 40 0+0+0] [FFC] children: not-inline
           BlockContainer <div> at [25,20] flex-item [0+0+0 307 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline

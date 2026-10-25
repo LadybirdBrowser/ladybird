@@ -1,0 +1,22 @@
+quirks row 0: true
+quirks row 1: true
+quirks row 2: true
+quirks row 3: true
+quirks row 4: true
+quirks row 5: true
+quirks row 6: true
+quirks row 7: true
+quirks block scroll fallback: true
+quirks multiline button baseline: true
+quirks inline-block fallback: true
+standards row 0: true
+standards row 1: true
+standards row 2: true
+standards row 3: true
+standards row 4: true
+standards row 5: true
+standards row 6: true
+standards row 7: true
+standards block scroll fallback: true
+standards multiline button baseline: true
+standards inline-block fallback: true

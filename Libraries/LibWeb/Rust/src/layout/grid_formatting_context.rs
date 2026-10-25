@@ -4145,6 +4145,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         self.place_baseline_aligned_items(&baseline_aligned_items);
         self.derived_baselines_of_root_box = DerivedBaselines {
+            inline_alignment: None,
             first: self.baseline_of_items(formatting_context::BaselineSet::First),
             last: self.baseline_of_items(formatting_context::BaselineSet::Last),
         };

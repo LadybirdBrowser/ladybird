@@ -391,6 +391,7 @@ pub(crate) struct UsedValues {
     pub first_baseline: Cell<CssPixels>,
     pub has_last_baseline: Cell<bool>,
     pub last_baseline: Cell<CssPixels>,
+    pub inline_alignment_baseline: Cell<Option<CssPixels>>,
 
     // Layout outputs, deliberately outside the cell state.
     pub depends_on_percentage_block_size: Cell<bool>,
@@ -447,6 +448,7 @@ impl Default for UsedValues {
             first_baseline: Cell::new(zero),
             has_last_baseline: Cell::new(false),
             last_baseline: Cell::new(zero),
+            inline_alignment_baseline: Cell::new(None),
             depends_on_percentage_block_size: Cell::new(false),
             has_descendant_that_depends_on_percentage_block_size: Cell::new(false),
             line_data: RefCell::new(LineDataState::Empty),
@@ -537,6 +539,7 @@ impl UsedValues {
 
     pub(crate) fn content_baselines_from_cells(&self) -> DerivedBaselines {
         DerivedBaselines {
+            inline_alignment: self.inline_alignment_baseline.get(),
             first: self.has_first_baseline.get().then(|| self.first_baseline.get()),
             last: self.has_last_baseline.get().then(|| self.last_baseline.get()),
         }
@@ -605,6 +608,7 @@ impl UsedValues {
         self.block_size_constraint.set(state.block_size_constraint);
         self.has_first_baseline.set(state.has_first_baseline);
         self.has_last_baseline.set(state.has_last_baseline);
+        self.inline_alignment_baseline.set(state.inline_alignment_baseline);
     }
 
     pub(crate) fn own_metrics_are_sealed(&self) -> bool {
@@ -694,6 +698,7 @@ used_values_cell_state! {
     first_baseline: CssPixels,
     has_last_baseline: bool,
     last_baseline: CssPixels,
+    inline_alignment_baseline: Option<CssPixels>,
 }
 
 impl UsedValuesCellState {
@@ -734,6 +739,7 @@ impl UsedValuesCellState {
             std::mem::swap(&mut self.inline_size_constraint, &mut self.block_size_constraint);
             self.has_first_baseline = false;
             self.has_last_baseline = false;
+            self.inline_alignment_baseline = None;
         }
         self
     }

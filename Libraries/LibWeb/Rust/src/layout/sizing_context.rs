@@ -2333,6 +2333,7 @@ impl<'pass> SizingContext<'pass> {
                     first_baseline: used.first_baseline.get(),
                     has_last_baseline: used.has_last_baseline.get(),
                     last_baseline: used.last_baseline.get(),
+                    inline_alignment_baseline: used.inline_alignment_baseline.get(),
                 }),
                 depends_on_percentage_block_size: result.depends_on_percentage_block_size,
                 depends_on_percentage_inline_basis: self.measurement_root_observes_percentage_inline_basis(node),
@@ -2378,6 +2379,7 @@ impl<'pass> SizingContext<'pass> {
         used.is_collapsed_borders_table_box
             .set(measurement.is_collapsed_borders_table_box);
         let baselines = DerivedBaselines {
+            inline_alignment: measurement.inline_alignment_baseline,
             first: measurement.has_first_baseline.then_some(measurement.first_baseline),
             last: measurement.has_last_baseline.then_some(measurement.last_baseline),
         };

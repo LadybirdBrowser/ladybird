@@ -14,7 +14,7 @@ DisplayList:
 FillRect@s1/e0 rect=[8,8 198x20] color=rgb(255, 255, 255)
 FillRoundedRectRing@s1/e0 rect=[8,8 198x20] widths=[1,1,1,1] color=rgb(118, 118, 118)
 DrawGlyphRun@s1/c1/e0 rect=[11,10 28x16] translation=[11,22.796875] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/e0 rect=[205,13 8x16] translation=[205.875,25.796875] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[205,10 8x16] translation=[205.875,22.796875] color=rgb(0, 0, 0)
 FillRect@s1/e0 rect=[214,8 198x20] color=rgb(255, 255, 255)
 FillRoundedRectRing@s1/e0 rect=[214,8 198x20] widths=[1,1,1,1] color=rgb(118, 118, 118)
 DrawGlyphRun@s1/c3/e0 rect=[216,10 28x16] translation=[216.875,22.796875] color=rgb(0, 0, 0)
