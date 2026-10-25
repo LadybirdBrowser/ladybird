@@ -29,10 +29,11 @@ static constexpr auto DATABASE_SYNCHRONIZATION_TIMER = AK::Duration::from_second
 
 static constexpr u32 COOKIES_SCHEMA_BASELINE_VERSION = 1u;
 static constexpr u32 COOKIES_SCHEMA_PARTITION_KEY_VERSION = 2u;
+static constexpr u32 COOKIES_SCHEMA_HOST_ONLY_KEY_VERSION = 3u;
 
 static CookieStorageKey storage_key_for_cookie(HTTP::Cookie::Cookie const& cookie)
 {
-    return { cookie.name, cookie.domain, cookie.path, cookie.partition_key };
+    return { cookie.name, cookie.domain, cookie.host_only, cookie.path, cookie.partition_key };
 }
 
 // AD-HOC: The partition of the cookies that a context uses for url. See HTTP::Cookie::Cookie::partition_key.
@@ -106,6 +107,33 @@ ErrorOr<Database::MigrationOutcome> CookieJar::migrate_schema(Database::Database
                     SELECT name, value, same_site, creation_time, last_access_time, expiry_time, domain, path, secure, http_only, host_only, persistent FROM Cookies;
                 DROP TABLE Cookies;
                 ALTER TABLE PartitionedCookies RENAME TO Cookies;
+            )#"sv,
+        },
+        {
+            // A cookie set with a domain attribute equal to the host is distinct from a host-only cookie of that host,
+            // so the host-only-flag joins the primary key.
+            .version = COOKIES_SCHEMA_HOST_ONLY_KEY_VERSION,
+            .sql = R"#(
+                CREATE TABLE HostOnlyKeyedCookies (
+                    name TEXT,
+                    value TEXT,
+                    same_site INTEGER CHECK (same_site >= 0 AND same_site <= 3),
+                    creation_time INTEGER,
+                    last_access_time INTEGER,
+                    expiry_time INTEGER,
+                    domain TEXT,
+                    path TEXT,
+                    secure BOOLEAN,
+                    http_only BOOLEAN,
+                    host_only BOOLEAN,
+                    persistent BOOLEAN,
+                    partition_key TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY(name, domain, host_only, path, partition_key)
+                );
+                INSERT INTO HostOnlyKeyedCookies (name, value, same_site, creation_time, last_access_time, expiry_time, domain, path, secure, http_only, host_only, persistent, partition_key)
+                    SELECT name, value, same_site, creation_time, last_access_time, expiry_time, domain, path, secure, http_only, host_only, persistent, partition_key FROM Cookies;
+                DROP TABLE Cookies;
+                ALTER TABLE HostOnlyKeyedCookies RENAME TO Cookies;
             )#"sv,
         },
     });
@@ -457,7 +485,7 @@ void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const
 
     // 23. If the cookie store contains a cookie with the same name, domain, host-only-flag, and path as the
     //     newly-created cookie:
-    if (auto const& old_cookie = m_transient_storage.get_cookie(key); old_cookie.has_value() && old_cookie->host_only == cookie.host_only) {
+    if (auto const& old_cookie = m_transient_storage.get_cookie(key); old_cookie.has_value()) {
         // 1. Let old-cookie be the existing cookie with the same name, domain, host-only-flag, and path as the
         //    newly-created cookie. (Notice that this algorithm maintains the invariant that there is at most one such
         //    cookie.)
@@ -487,7 +515,7 @@ void CookieJar::update_cookie(HTTP::Cookie::Cookie cookie)
 
     // 23. If the cookie store contains a cookie with the same name, domain, host-only-flag, and path as the
     //     newly-created cookie:
-    if (auto const& old_cookie = m_transient_storage.get_cookie(key); old_cookie.has_value() && old_cookie->host_only == cookie.host_only) {
+    if (auto const& old_cookie = m_transient_storage.get_cookie(key); old_cookie.has_value()) {
         // 3. Update the creation-time of the newly-created cookie to match the creation-time of the old-cookie.
         cookie.creation_time = old_cookie->creation_time;
 

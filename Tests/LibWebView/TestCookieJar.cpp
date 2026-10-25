@@ -5,6 +5,7 @@
  */
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/QuickSort.h>
 #include <LibDatabase/Database.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibTest/TestCase.h>
@@ -146,7 +147,7 @@ TEST_CASE(unversioned_cookie_table_is_stamped_and_preserved)
     Optional<u32> version;
     auto statement = TRY_OR_FAIL(database->prepare_statement("SELECT version FROM SchemaVersions WHERE store = 'Cookies';"sv));
     database->execute_statement(statement, [&](auto statement_id) -> ErrorOr<void> { version = database->result_column<u32>(statement_id, 0); return {}; });
-    EXPECT_EQ(version, Optional<u32> { 2u });
+    EXPECT_EQ(version, Optional<u32> { 3u });
 
     auto jar = TRY_OR_FAIL(WebView::CookieJar::create(*database));
 
@@ -220,4 +221,49 @@ TEST_CASE(third_party_cookies_are_partitioned_by_top_level_site)
         else
             EXPECT(cookie.partition_key.is_empty());
     }
+}
+
+TEST_CASE(host_only_cookie_is_stored_apart_from_domain_cookie_for_same_host)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    EXPECT_EQ(TRY_OR_FAIL(WebView::CookieJar::migrate_schema(*database)), Database::MigrationOutcome::Success);
+
+    auto url = parse_url("https://www.example.com/"sv);
+    auto set_cookie = [&](WebView::CookieJar& jar, StringView value, Optional<String> domain) {
+        HTTP::Cookie::ParsedCookie cookie {
+            .name = "a"_string,
+            .value = MUST(String::from_utf8(value)),
+            .expiry_time_from_expires_attribute = UnixDateTime::now() + AK::Duration::from_seconds(3600),
+            .domain = move(domain),
+            .path = "/"_string,
+        };
+        jar.set_cookie(url, cookie, HTTP::Cookie::Source::NonHttp, {});
+    };
+    auto values = [](WebView::CookieJar& jar) {
+        Vector<String> values;
+        for (auto const& cookie : jar.get_all_cookies())
+            values.append(cookie.value);
+        quick_sort(values);
+        return values;
+    };
+
+    {
+        auto jar = TRY_OR_FAIL(WebView::CookieJar::create(*database));
+        set_cookie(*jar, "domain"sv, "www.example.com"_string);
+        set_cookie(*jar, "host-only"sv, {});
+        EXPECT_EQ(values(*jar), (Vector { "domain"_string, "host-only"_string }));
+    }
+
+    auto jar = TRY_OR_FAIL(WebView::CookieJar::create(*database));
+    EXPECT_EQ(values(*jar), (Vector { "domain"_string, "host-only"_string }));
+
+    HTTP::Cookie::ParsedCookie expired_cookie {
+        .name = "a"_string,
+        .value = {},
+        .expiry_time_from_expires_attribute = UnixDateTime::earliest(),
+        .domain = "www.example.com"_string,
+        .path = "/"_string,
+    };
+    jar->set_cookie(url, expired_cookie, HTTP::Cookie::Source::NonHttp, {});
+    EXPECT_EQ(values(*jar), Vector { "host-only"_string });
 }
