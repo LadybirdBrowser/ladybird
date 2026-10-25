@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-3 Pass
-2 Fail
+5 Pass
 Pass	Test type of close function.
-Fail	Test sending a message after closing.
+Pass	Test sending a message after closing.
 Pass	Test errors are delivered after close.
-Fail	Test workers do not deliver pending events.
+Pass	Test workers do not deliver pending events.
 Pass	Test terminating a worker after close.

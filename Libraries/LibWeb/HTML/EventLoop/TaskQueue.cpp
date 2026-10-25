@@ -35,6 +35,14 @@ void TaskQueue::visit_edges(Visitor& visitor)
 
 void TaskQueue::add(GC::Ref<Task> task)
 {
+    // https://html.spec.whatwg.org/multipage/workers.html#dom-workerglobalscope-closing
+    // Once the WorkerGlobalScope's closing flag is set to true, the event loop's task queues must discard any further
+    // tasks that would be added to them (tasks already on the queue are unaffected except where otherwise specified).
+    if (m_discards_further_tasks) {
+        task->discard();
+        return;
+    }
+
     // AD-HOC: Don't enqueue tasks for temporary (inert) documents used for fragment parsing.
     // FIXME: There's ongoing spec work to remove such documents: https://github.com/whatwg/html/pull/11970
     if (task->document() && task->document()->is_temporary_document_for_fragment_parsing()) {
