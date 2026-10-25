@@ -128,8 +128,11 @@ void DataTransferItemList::clear()
 {
     // The clear() method, if the DataTransferItemList object is in the read/write mode, must remove all the items from
     // the drag data store. Otherwise, it must do nothing.
-    if (m_data_transfer->mode() == DragDataStore::Mode::ReadWrite)
-        m_data_transfer->clear_data();
+    if (m_data_transfer->mode() != DragDataStore::Mode::ReadWrite)
+        return;
+
+    while (m_data_transfer->length() > 0)
+        m_data_transfer->remove_item(m_data_transfer->length() - 1);
 }
 
 }
