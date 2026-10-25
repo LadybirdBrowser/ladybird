@@ -20,7 +20,6 @@
 #include <LibWeb/Bindings/Location.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -753,12 +752,14 @@ WebIDL::ExceptionOr<void> Location::replace(Utf16String const& url)
     if (!has_relevant_document())
         return {};
 
-    // 2. Parse url relative to the entry settings object. If that failed, throw a "SyntaxError" DOMException.
-    auto replace_url = DOMURL::parse(url.utf16_view(), entry_settings_object().api_base_url());
+    // 2. Let urlRecord be the result of encoding-parsing a URL given url, relative to the entry settings object.
+    auto replace_url = entry_settings_object().encoding_parse_url(url.utf16_view());
+
+    // 3. If urlRecord is failure, then throw a "SyntaxError" DOMException.
     if (!replace_url.has_value())
         return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid URL '{}'", url));
 
-    // 3. Location-object navigate this to the resulting URL record given "replace".
+    // 4. Location-object navigate this to urlRecord given "replace".
     TRY(navigate(replace_url.release_value(), NavigationHistoryBehavior::Replace));
 
     return {};
@@ -776,12 +777,14 @@ WebIDL::ExceptionOr<void> Location::assign(Utf16String const& url)
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
         return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
-    // 3. Parse url relative to the entry settings object. If that failed, throw a "SyntaxError" DOMException.
-    auto assign_url = DOMURL::parse(url.utf16_view(), entry_settings_object().api_base_url());
+    // 3. Let urlRecord be the result of encoding-parsing a URL given url, relative to the entry settings object.
+    auto assign_url = entry_settings_object().encoding_parse_url(url.utf16_view());
+
+    // 4. If urlRecord is failure, then throw a "SyntaxError" DOMException.
     if (!assign_url.has_value())
         return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid URL '{}'", url));
 
-    // 4. Location-object navigate this to the resulting URL record.
+    // 5. Location-object navigate this to urlRecord.
     TRY(navigate(assign_url.release_value()));
 
     return {};
