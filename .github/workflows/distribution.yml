@@ -1,0 +1,41 @@
+name: Distribution
+
+run-name: Distribution ${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build, such as 2026.11.1 or 2027.1.4.alpha'
+        required: true
+        type: string
+
+jobs:
+  Lagom:
+    if: github.repository == 'LadybirdBrowser/ladybird'
+    name: ${{ matrix.os_name }}, ${{ matrix.arch }}, Distribution, Clang
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os_name: 'macOS'
+            arch: 'arm64'
+            runner_labels: '["blacksmith-6vcpu-macos-26"]'
+
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+
+    secrets:
+      VCPKG_CACHE_SAS: ${{ secrets.VCPKG_CACHE_SAS }}
+    uses: ./.github/workflows/lagom-template.yml
+    with:
+      toolchain: 'Clang'
+      os_name: ${{ matrix.os_name }}
+      runner_labels: ${{ matrix.runner_labels }}
+      arch: ${{ matrix.arch }}
+      build_preset: 'Distribution'
+      version: ${{ inputs.version }}
