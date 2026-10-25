@@ -150,8 +150,7 @@ impl Default for ShapeStorage {
 }
 
 // SAFETY: Visits the descriptor array, the keys this storage owns, the previous shape, the special property cache and
-// the watchpoint sets of slots. The shapes of transitions are
-// weak, and so are the keys of prototype transitions, which are only compared.
+// the rare data. The shapes of transitions are weak.
 unsafe impl Trace for ShapeStorage {
     fn trace(&self, visitor: &mut Visitor) {
         self.previous.trace(visitor);
@@ -178,25 +177,37 @@ unsafe impl Trace for ShapeStorage {
             }
         }
 
+        self.rare_data.trace(visitor);
+    }
+}
+
+// SAFETY: Visits the keys.
+unsafe impl Trace for OwnStringKeys {
+    fn trace(&self, visitor: &mut Visitor) {
+        visitor.visit_values(&self.keys);
+    }
+}
+
+// SAFETY: Visits the keys of delete transitions, the own string keys, the assign copy, the shapes of integrity levels and
+// the watchpoint sets of slots. The shapes of transitions and child prototype shapes are weak, and so are the keys of
+// prototype transitions, which are only compared.
+unsafe impl Trace for RareData {
+    fn trace(&self, visitor: &mut Visitor) {
         // FIXME: The delete transition keys should be weak, but we have to mark them for now in case they go stale.
-        if let Some(rare_data) = &*self.rare_data.borrow() {
-            for property_key in rare_data.delete_transitions.keys() {
-                property_key.trace(visitor);
-            }
-            if let Some(own_string_keys) = &rare_data.own_string_keys {
-                visitor.visit_values(&own_string_keys.keys);
-            }
-            if let Some(assign_copy) = &rare_data.assign_copy {
-                visitor.visit(assign_copy.prototype_validity);
-                visitor.visit(assign_copy.copy_shape);
-            }
-            for shape in rare_data.integrity_level_shapes.iter().flatten() {
-                visitor.visit(*shape);
-            }
-            for watched_slot in rare_data.watched_slots.values() {
-                if let WatchedSlot::Watched(watchpoint_set) = watched_slot {
-                    visitor.visit(*watchpoint_set);
-                }
+        for property_key in self.delete_transitions.keys() {
+            property_key.trace(visitor);
+        }
+        self.own_string_keys.trace(visitor);
+        if let Some(assign_copy) = &self.assign_copy {
+            visitor.visit(assign_copy.prototype_validity);
+            visitor.visit(assign_copy.copy_shape);
+        }
+        for shape in self.integrity_level_shapes.iter().flatten() {
+            visitor.visit(*shape);
+        }
+        for watched_slot in self.watched_slots.values() {
+            if let WatchedSlot::Watched(watchpoint_set) = watched_slot {
+                visitor.visit(*watchpoint_set);
             }
         }
     }

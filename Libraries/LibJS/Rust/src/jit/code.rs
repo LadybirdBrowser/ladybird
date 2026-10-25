@@ -12,6 +12,7 @@ use core::ffi::c_void;
 use libjs_jit::bytecode::{EnvironmentCoordinate, decode_instruction};
 pub use libjs_jit::code::INLINED_CALL_SITE_BIT;
 use libjs_jit::code::{ExitKind, Site};
+use libjs_runtime_macros::Trace;
 
 use super::entry_table::{JIT_ENTRY_SLOT_MASK, JitEntryTable, NO_JIT_ENTRY_SLOT};
 use super::executable_memory::ExecutableMemory;
@@ -86,17 +87,20 @@ impl CompileState {
 
 /// An executable of a compile job's snapshot, by index. Index 0 is the compiled executable (without a function); the
 /// others are inlining candidates, whose frames exits materialize.
-#[derive(Clone)]
+#[derive(Clone, Trace)]
 pub struct SnapshotExecutable {
     pub executable: Gc<Executable>,
     pub function: Option<InlinedFunction>,
     /// How many sites where JIT code exited the executable had recorded when the code was compiled, which the code
     /// knew of (see `Executable::add_jit_exit_site()`). The sites are only ever appended to.
+    #[gc(untraced)]
     pub known_exit_sites: usize,
     /// For the compiled executable, how many sites in inlined builtins it had recorded then.
+    #[gc(untraced)]
     pub known_builtin_exit_sites: usize,
     /// The size of each property lookup cache of the executable when the code was compiled (see
     /// `speculated_cache_size()`): how many shapes the code speculated on there.
+    #[gc(untraced)]
     pub property_cache_sizes: Box<[u8]>,
 }
 
@@ -115,20 +119,11 @@ pub fn speculated_cache_size(cache: &PropertyLookupCache) -> u8 {
 }
 
 /// The function object of an inlined executable, which its materialized frames run.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Trace)]
 pub enum InlinedFunction {
     Ecmascript(Gc<EcmascriptFunctionObject>),
     /// A builtin written in JavaScript, whose frames are set up like those of other builtins.
     Builtin(Gc<NativeJavaScriptBackedFunction>),
-}
-
-impl InlinedFunction {
-    pub fn visit(self, visitor: &mut Visitor) {
-        match self {
-            InlinedFunction::Ecmascript(function) => visitor.visit(function),
-            InlinedFunction::Builtin(function) => visitor.visit(function),
-        }
-    }
 }
 
 /// Installed machine code for one executable, with what exits need to rebuild interpreter frames. While JIT code runs
@@ -377,12 +372,7 @@ unsafe impl Trace for JitCode {
         for materialized in self.materialized_objects.borrow().iter() {
             visitor.visit(materialized.object);
         }
-        for executable in &self.snapshot_executables {
-            visitor.visit(executable.executable);
-            if let Some(function) = executable.function {
-                function.visit(visitor);
-            }
-        }
+        self.snapshot_executables.trace(visitor);
     }
 }
 
