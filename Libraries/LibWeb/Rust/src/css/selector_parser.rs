@@ -472,6 +472,17 @@ impl<'a> SelectorParser<'a> {
             let Some(SimpleSelector::PseudoElement(pseudo_element)) = compound.simple_selectors.first() else {
                 continue;
             };
+            // https://drafts.csswg.org/css-pseudo-4/#highlight-selectors
+            // INTEROP: Selectors 4 allows logical combination and user action pseudo-classes after any
+            //          pseudo-element, but browsers reject every simple selector after a highlight pseudo-element.
+            //          ::search-text is checked above, as it allows :current.
+            if matches!(
+                pseudo_element.pseudo_element,
+                PseudoElementType::Selection | PseudoElementType::SpellingError
+            ) && compound.simple_selectors.len() > 1
+            {
+                return Err(());
+            }
             // https://drafts.csswg.org/css-view-transitions-1/#pseudo-root
             // If a descendant pseudo of a pseudo-element root has no other siblings, then :only-child matches that
             // pseudo.
