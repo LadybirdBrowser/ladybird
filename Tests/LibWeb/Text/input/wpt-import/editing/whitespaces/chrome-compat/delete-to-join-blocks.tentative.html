@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="flags" content="may">
+<title>Testing normalizing white-space sequence after joining blocks</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../include/editor-test-utils.js"></script>
+<script>
+"use strict";
+
+addEventListener("DOMContentLoaded", () => {
+  // README:
+  // These tests based on the behavior of Chrome 134.  This test does NOT define
+  // nor suggest any standard behavior (actually, some expected results might
+  // look odd), but this test must help you to understand how other browsers
+  // use different logic to normalize white-space sequence.
+
+  const editingHost = document.querySelector("div[contenteditable]");
+  const utils = new EditorTestUtils(editingHost);
+
+  async function addPromiseTest(aInitHTML, aExpectedHTML) {
+    promise_test(async () => {
+      utils.setupEditingHost(aInitHTML);
+      document.execCommand("delete");
+      assert_equals(editingHost.innerHTML, aExpectedHTML);
+    }, `document.execCommand("delete") when "${aInitHTML}"`);
+  }
+
+  // Join sibling blocks.
+  addPromiseTest(
+    `<div>&nbsp;&nbsp;&nbsp;</div><div>{}<br></div>`,
+    `<div>&nbsp; &nbsp;</div>`
+  );
+  addPromiseTest(
+    `<div>a&nbsp;&nbsp;&nbsp;</div><div>{}<br></div>`,
+    `<div>a&nbsp; &nbsp;</div>`
+  );
+  addPromiseTest(
+    `<div><br></div><div>[]&nbsp;&nbsp;&nbsp;</div>`,
+    `<div>&nbsp; &nbsp;</div>`
+  );
+  addPromiseTest(
+    `<div><br></div><div>[]&nbsp;&nbsp;&nbsp;b</div>`,
+    `<div>&nbsp; &nbsp;b</div>`
+  );
+  addPromiseTest(
+    `<div>a</div><div>[]&nbsp;&nbsp;&nbsp;b</div>`,
+    `<div>a&nbsp; &nbsp;b</div>`
+  );
+  addPromiseTest(
+    `<div>a&nbsp;&nbsp;&nbsp;</div><div>[]&nbsp;&nbsp;&nbsp;b</div>`,
+    `<div>a&nbsp; &nbsp; &nbsp; b</div>`
+  );
+
+  // Join child block with its parent block.
+  addPromiseTest(
+    `<div>&nbsp;&nbsp;&nbsp;<div>{}<br></div></div>`,
+    `<div>&nbsp; &nbsp;</div>`
+  );
+  addPromiseTest(
+    `<div>a&nbsp;&nbsp;&nbsp;<div>{}<br></div></div>`,
+    `<div>a&nbsp; &nbsp;</div>`
+  );
+  addPromiseTest(
+    `<div><br><div>[]&nbsp;&nbsp;&nbsp;</div></div>`,
+    `<div><div>&nbsp; &nbsp;</div></div>`
+  );
+  addPromiseTest(
+    `<div><br><div>[]&nbsp;&nbsp;&nbsp;b</div></div>`,
+    `<div><div>&nbsp; &nbsp;b</div></div>`
+  );
+  addPromiseTest(
+    `<div>a<div>[]&nbsp;&nbsp;&nbsp;b</div></div>`,
+    `a&nbsp; &nbsp;b`
+  );
+  addPromiseTest(
+    `<div>a&nbsp;&nbsp;&nbsp;<div>[]&nbsp;&nbsp;&nbsp;b</div></div>`,
+    `a&nbsp; &nbsp; &nbsp; b`
+  );
+
+  // Join parent block with a child block.
+  addPromiseTest(
+    `<div><div>&nbsp;&nbsp;&nbsp;</div>{}<br></div>`,
+    `<div><div>&nbsp; &nbsp;</div></div>`
+  );
+  addPromiseTest(
+    `<div><div>a&nbsp;&nbsp;&nbsp;</div>{}<br></div>`,
+    `<div><div>a&nbsp; &nbsp;</div></div>`
+  );
+  addPromiseTest(
+    `<div><div><br></div>[]&nbsp;&nbsp;&nbsp;</div>`,
+    `<div>&nbsp; &nbsp;</div>`
+  );
+  addPromiseTest(
+    `<div><div><br></div>[]&nbsp;&nbsp;&nbsp;b</div>`,
+    `<div>&nbsp; &nbsp;b</div>`
+  );
+  addPromiseTest(
+    `<div><div>a</div>[]&nbsp;&nbsp;&nbsp;b</div>`,
+    `<div>a&nbsp; &nbsp;b</div>`
+  );
+  addPromiseTest(
+    `<div><div>a&nbsp;&nbsp;&nbsp;</div>[]&nbsp;&nbsp;&nbsp;b</div>`,
+    `<div>a&nbsp; &nbsp; &nbsp; b</div>`
+  );
+}, {once: true});
+</script>
+</head>
+<body>
+  <div contenteditable></div>
+</body>
+</html>

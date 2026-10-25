@@ -1,0 +1,37 @@
+Harness status: OK
+
+Found 31 tests
+
+13 Pass
+18 Fail
+Pass	Testing inserting content at non-collapsed selection around link element
+Fail	Inserting "XY" after deleting first character of a link (Direct typing) in <p><a href="about:blank">[z]abc</a></p>
+Fail	Inserting "XY" after deleting last character in a non-collapsed range of a link (Direct typing) in <p><a href="about:blank">abc[d]</a></p>
+Fail	Inserting "XY" after deleting text after middle of a link (Direct typing) in <p><a href="about:blank">ab[cd</a>de]f</p>
+Fail	Inserting "XY" after deleting text before middle of a link (Direct typing) in <p>a[bc<a href="about:blank">de]f</a></p>
+Fail	Inserting "XY" after deleting text between 2 same links (Direct typing) in <p><a href="about:blank">a[bc</a><a href="about:blank">de]f</a></p>
+Fail	Inserting "XY" after deleting text between 2 different links (Direct typing) in <p><a href="about:blank">a[bc</a><a href="http://example.com/">de]f</a></p>
+Fail	Inserting "XY" after deleting first character of a link (Backspace) in <p><a href="about:blank">[z]abc</a></p>
+Fail	Inserting "XY" after deleting last character in a non-collapsed range of a link (Backspace) in <p><a href="about:blank">abc[d]</a></p>
+Fail	Inserting "XY" after deleting text after middle of a link (Backspace) in <p><a href="about:blank">ab[cd</a>de]f</p>
+Fail	Inserting "XY" after deleting text before middle of a link (Backspace) in <p>a[bc<a href="about:blank">de]f</a></p>
+Fail	Inserting "XY" after deleting text between 2 same links (Backspace) in <p><a href="about:blank">a[bc</a><a href="about:blank">de]f</a></p>
+Fail	Inserting "XY" after deleting text between 2 different links (Backspace) in <p><a href="about:blank">a[bc</a><a href="http://example.com/">de]f</a></p>
+Fail	Inserting "XY" after deleting first character of a link (Delete) in <p><a href="about:blank">[z]abc</a></p>
+Fail	Inserting "XY" after deleting last character in a non-collapsed range of a link (Delete) in <p><a href="about:blank">abc[d]</a></p>
+Fail	Inserting "XY" after deleting text after middle of a link (Delete) in <p><a href="about:blank">ab[cd</a>de]f</p>
+Fail	Inserting "XY" after deleting text before middle of a link (Delete) in <p>a[bc<a href="about:blank">de]f</a></p>
+Fail	Inserting "XY" after deleting text between 2 same links (Delete) in <p><a href="about:blank">a[bc</a><a href="about:blank">de]f</a></p>
+Fail	Inserting "XY" after deleting text between 2 different links (Delete) in <p><a href="about:blank">a[bc</a><a href="http://example.com/">de]f</a></p>
+Pass	Inserting "XY" after deleting first character of a link (execCommand("delete")) in <p><a href="about:blank">[z]abc</a></p>
+Pass	Inserting "XY" after deleting last character in a non-collapsed range of a link (execCommand("delete")) in <p><a href="about:blank">abc[d]</a></p>
+Pass	Inserting "XY" after deleting text after middle of a link (execCommand("delete")) in <p><a href="about:blank">ab[cd</a>de]f</p>
+Pass	Inserting "XY" after deleting text before middle of a link (execCommand("delete")) in <p>a[bc<a href="about:blank">de]f</a></p>
+Pass	Inserting "XY" after deleting text between 2 same links (execCommand("delete")) in <p><a href="about:blank">a[bc</a><a href="about:blank">de]f</a></p>
+Pass	Inserting "XY" after deleting text between 2 different links (execCommand("delete")) in <p><a href="about:blank">a[bc</a><a href="http://example.com/">de]f</a></p>
+Pass	Inserting "XY" after deleting first character of a link (execCommand("forwarddelete")) in <p><a href="about:blank">[z]abc</a></p>
+Pass	Inserting "XY" after deleting last character in a non-collapsed range of a link (execCommand("forwarddelete")) in <p><a href="about:blank">abc[d]</a></p>
+Pass	Inserting "XY" after deleting text after middle of a link (execCommand("forwarddelete")) in <p><a href="about:blank">ab[cd</a>de]f</p>
+Pass	Inserting "XY" after deleting text before middle of a link (execCommand("forwarddelete")) in <p>a[bc<a href="about:blank">de]f</a></p>
+Pass	Inserting "XY" after deleting text between 2 same links (execCommand("forwarddelete")) in <p><a href="about:blank">a[bc</a><a href="about:blank">de]f</a></p>
+Pass	Inserting "XY" after deleting text between 2 different links (execCommand("forwarddelete")) in <p><a href="about:blank">a[bc</a><a href="http://example.com/">de]f</a></p>

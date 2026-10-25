@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	Typing X when <div contenteditable style="white-space:pre">{}<br></div>
+Pass	Typing space when <div contenteditable style="white-space:pre">{}<br></div>
+Pass	Typing X when <div contenteditable style="white-space:pre">abc[]<br></div>
+Pass	Typing space when <div contenteditable style="white-space:pre">abc[]<br></div>
+Pass	Typing X when <div contenteditable style="white-space:pre">abc{}<br></div>
+Pass	Typing space when <div contenteditable style="white-space:pre">abc{}<br></div>
+Pass	Typing X when <div contenteditable style="white-space:pre">ab[]c<br></div>
+Pass	Typing space when <div contenteditable style="white-space:pre">ab[]c<br></div>
+Pass	Typing X when <div contenteditable style="white-space:pre"><b>{}<br></b></div>
+Pass	Typing space when <div contenteditable style="white-space:pre"><b>{}<br></b></div>
+Pass	Typing X when <div contenteditable style="white-space:pre">abc[]<b><br></b></div>
+Pass	Typing space when <div contenteditable style="white-space:pre">abc[]<b><br></b></div>
+Pass	Typing X when <div contenteditable style="white-space:pre">abc<b>{}<br></b></div>
+Pass	Typing space when <div contenteditable style="white-space:pre">abc<b>{}<br></b></div>
+Pass	Typing X when <div contenteditable style="white-space:pre">abc&nbsp;[]<br></div>
+Pass	Typing space when <div contenteditable style="white-space:pre">abc&nbsp;[]<br></div>

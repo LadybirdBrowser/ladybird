@@ -1,0 +1,358 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf-8>
+<meta name="flags" content="may">
+<title>Testing normalizing white space sequence after execCommand("forward", false, "")</title>
+<script src=../../include/implementation.js></script>
+<script>var testsJsLibraryOnly = true</script>
+<script src="../../include/tests.js"></script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+"use strict";
+
+setup({explicit_done: true});
+
+function runTests() {
+  // README:
+  // These tests based on the behavior of Chrome 83.  This test does NOT define
+  // nor suggest any standard behavior (actually, some expected results might
+  // look odd), but this test must help you to understand how other browsers
+  // use different logic to normalize white-space sequence.
+
+  document.body.innerHTML = "<div contenteditable></div>";
+  let editor = document.querySelector("div[contenteditable]");
+  editor.focus();
+  let selection = document.getSelection();
+
+  function toPlaintext(str) {
+    return str.replace(/&nbsp;/g, "\u00A0");
+  }
+  function escape(str) {
+    return str.replace(/\u00A0/ig, "&nbsp;");
+  }
+
+  // Test simple removing in a text node.
+  //  - initialText: Set to data of text node (only &nbsp; entity is handled)
+  //  - expectedText: Set to data of the text node after `execCommand("forward")`
+  //  - whiteSpaceRange: Set first item to start offset of whitespace sequence,
+  //                     set second item to number of white spaces.
+  for (const currentTest of [
+    { initialText: "a&nbsp;", expectedText: "a", whiteSpaceRange: [1, 1] },
+    { initialText: "a&nbsp;&nbsp;", expectedText: "a&nbsp;", whiteSpaceRange: [1, 2] },
+    { initialText: "a &nbsp;",      expectedText: "a&nbsp;", whiteSpaceRange: [1, 2] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;", expectedText: "a&nbsp;&nbsp;", whiteSpaceRange: [1, 3] },
+    { initialText: "a&nbsp; &nbsp;",      expectedText: "a&nbsp;&nbsp;", whiteSpaceRange: [1, 3] },
+    { initialText: "a &nbsp;&nbsp;",      expectedText: "a&nbsp;&nbsp;", whiteSpaceRange: [1, 3] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;", expectedText: "a&nbsp; &nbsp;", whiteSpaceRange: [1, 4] },
+    { initialText: "a&nbsp;&nbsp; &nbsp;",      expectedText: "a&nbsp; &nbsp;", whiteSpaceRange: [1, 4] },
+    { initialText: "a&nbsp; &nbsp;&nbsp;",      expectedText: "a&nbsp; &nbsp;", whiteSpaceRange: [1, 4] },
+    { initialText: "a &nbsp; &nbsp;",           expectedText: "a&nbsp; &nbsp;", whiteSpaceRange: [1, 4] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", expectedText: "a&nbsp; &nbsp;&nbsp;", whiteSpaceRange: [1, 5] },
+    { initialText: "a&nbsp; &nbsp; &nbsp;",           expectedText: "a&nbsp; &nbsp;&nbsp;", whiteSpaceRange: [1, 5] },
+    { initialText: "a&nbsp;&nbsp;&nbsp; &nbsp;",      expectedText: "a&nbsp; &nbsp;&nbsp;", whiteSpaceRange: [1, 5] },
+    { initialText: "a&nbsp;&nbsp; &nbsp;&nbsp;",      expectedText: "a&nbsp; &nbsp;&nbsp;", whiteSpaceRange: [1, 5] },
+    { initialText: "a&nbsp; &nbsp;&nbsp;&nbsp;",      expectedText: "a&nbsp; &nbsp;&nbsp;", whiteSpaceRange: [1, 5] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", expectedText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;", whiteSpaceRange: [1, 10] },
+    { initialText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;",                     expectedText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;", whiteSpaceRange: [1, 10] },
+    { initialText: "a &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;",                          expectedText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;", whiteSpaceRange: [1, 10] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", expectedText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;", whiteSpaceRange: [1, 11] },
+    { initialText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;",                          expectedText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;", whiteSpaceRange: [1, 11] },
+    { initialText: "a&nbsp;b", expectedText: "ab", whiteSpaceRange: [1, 1] },
+    { initialText: "a b",      expectedText: "ab", whiteSpaceRange: [1, 1] },
+    { initialText: "a&nbsp;&nbsp;b", expectedText: "a b", whiteSpaceRange: [1, 2] },
+    { initialText: "a&nbsp; b",      expectedText: "a b", whiteSpaceRange: [1, 2] },
+    { initialText: "a &nbsp;b",      expectedText: "a b", whiteSpaceRange: [1, 2] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;b", expectedText: "a&nbsp; b", whiteSpaceRange: [1, 3] },
+    { initialText: "a&nbsp; &nbsp;b",      expectedText: "a&nbsp; b", whiteSpaceRange: [1, 3] },
+    { initialText: "a &nbsp; b",           expectedText: "a&nbsp; b", whiteSpaceRange: [1, 3] },
+    { initialText: "a &nbsp;&nbsp;b",      expectedText: "a&nbsp; b", whiteSpaceRange: [1, 3] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;b", expectedText: "a&nbsp; &nbsp;b", whiteSpaceRange: [1, 4] },
+    { initialText: "a&nbsp; &nbsp; b",           expectedText: "a&nbsp; &nbsp;b", whiteSpaceRange: [1, 4] },
+    { initialText: "a &nbsp; &nbsp;b",           expectedText: "a&nbsp; &nbsp;b", whiteSpaceRange: [1, 4] },
+    { initialText: "a&nbsp;&nbsp; &nbsp;b",      expectedText: "a&nbsp; &nbsp;b", whiteSpaceRange: [1, 4] },
+    { initialText: "a&nbsp; &nbsp;&nbsp;b",      expectedText: "a&nbsp; &nbsp;b", whiteSpaceRange: [1, 4] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b", expectedText: "a&nbsp; &nbsp; b", whiteSpaceRange: [1, 5] },
+    { initialText: "a&nbsp; &nbsp; &nbsp;b",           expectedText: "a&nbsp; &nbsp; b", whiteSpaceRange: [1, 5] },
+    { initialText: "a &nbsp; &nbsp; b",                expectedText: "a&nbsp; &nbsp; b", whiteSpaceRange: [1, 5] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp; b",      expectedText: "a&nbsp; &nbsp; b", whiteSpaceRange: [1, 5] },
+    { initialText: "a&nbsp;&nbsp;&nbsp; &nbsp;b",      expectedText: "a&nbsp; &nbsp; b", whiteSpaceRange: [1, 5] },
+    { initialText: "a&nbsp;&nbsp; &nbsp;&nbsp;b",      expectedText: "a&nbsp; &nbsp; b", whiteSpaceRange: [1, 5] },
+    { initialText: "a&nbsp; &nbsp;&nbsp;&nbsp;b",      expectedText: "a&nbsp; &nbsp; b", whiteSpaceRange: [1, 5] },
+    { initialText: "a &nbsp;&nbsp;&nbsp;&nbsp;b",      expectedText: "a&nbsp; &nbsp; b", whiteSpaceRange: [1, 5] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b", expectedText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b", whiteSpaceRange: [1, 10] },
+    { initialText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b",                          expectedText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b", whiteSpaceRange: [1, 10] },
+    { initialText: "a &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b",                          expectedText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b", whiteSpaceRange: [1, 10] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b", expectedText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b", whiteSpaceRange: [1, 11] },
+    { initialText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b",                          expectedText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b", whiteSpaceRange: [1, 11] },
+    { initialText: "a &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b",                               expectedText: "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b", whiteSpaceRange: [1, 11] },
+    { initialText: "&nbsp;b", expectedText: "b", whiteSpaceRange: [0, 1] },
+    { initialText: "&nbsp;&nbsp;b", expectedText: "&nbsp;b", whiteSpaceRange: [0, 2] },
+    { initialText: "&nbsp; b",      expectedText: "&nbsp;b", whiteSpaceRange: [0, 2] },
+    { initialText: "&nbsp;&nbsp;&nbsp;b", expectedText: "&nbsp; b", whiteSpaceRange: [0, 3] },
+    { initialText: "&nbsp; &nbsp;b",      expectedText: "&nbsp; b", whiteSpaceRange: [0, 3] },
+    { initialText: "&nbsp;&nbsp; b",      expectedText: "&nbsp; b", whiteSpaceRange: [0, 3] },
+    { initialText: "&nbsp;&nbsp;&nbsp;&nbsp;b", expectedText: "&nbsp; &nbsp;b", whiteSpaceRange: [0, 4] },
+    { initialText: "&nbsp; &nbsp; b",           expectedText: "&nbsp; &nbsp;b", whiteSpaceRange: [0, 4] },
+    { initialText: "&nbsp;&nbsp;&nbsp; b",      expectedText: "&nbsp; &nbsp;b", whiteSpaceRange: [0, 4] },
+    { initialText: "&nbsp;&nbsp; &nbsp;b",      expectedText: "&nbsp; &nbsp;b", whiteSpaceRange: [0, 4] },
+    { initialText: "&nbsp; &nbsp;&nbsp;b",      expectedText: "&nbsp; &nbsp;b", whiteSpaceRange: [0, 4] },
+    { initialText: "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b", expectedText: "&nbsp; &nbsp; b", whiteSpaceRange: [0, 5] },
+    { initialText: "&nbsp; &nbsp; &nbsp;b",           expectedText: "&nbsp; &nbsp; b", whiteSpaceRange: [0, 5] },
+    { initialText: "&nbsp;&nbsp;&nbsp; &nbsp;b",      expectedText: "&nbsp; &nbsp; b", whiteSpaceRange: [0, 5] },
+    { initialText: "&nbsp;&nbsp; &nbsp;&nbsp;b",      expectedText: "&nbsp; &nbsp; b", whiteSpaceRange: [0, 5] },
+    { initialText: "&nbsp; &nbsp;&nbsp;&nbsp;b",      expectedText: "&nbsp; &nbsp; b", whiteSpaceRange: [0, 5] },
+    { initialText: "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b", expectedText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b", whiteSpaceRange: [0, 10] },
+    { initialText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b",                          expectedText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b", whiteSpaceRange: [0, 10] },
+    { initialText: "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b",                     expectedText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b", whiteSpaceRange: [0, 10] },
+    { initialText: "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b", expectedText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b", whiteSpaceRange: [0, 11] },
+    { initialText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b",                          expectedText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b", whiteSpaceRange: [0, 11] },
+    { initialText: "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b",                          expectedText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b", whiteSpaceRange: [0, 11] },
+    { initialText: "&nbsp;", expectedText: "", whiteSpaceRange: [0, 1] },
+    { initialText: "&nbsp;&nbsp;", expectedText: "&nbsp;", whiteSpaceRange: [0, 2] },
+    { initialText: "&nbsp;&nbsp;&nbsp;", expectedText: "&nbsp;&nbsp;", whiteSpaceRange: [0, 3] },
+    { initialText: "&nbsp; &nbsp;",      expectedText: "&nbsp;&nbsp;", whiteSpaceRange: [0, 3] },
+    { initialText: "&nbsp;&nbsp;&nbsp;&nbsp;", expectedText: "&nbsp; &nbsp;", whiteSpaceRange: [0, 4] },
+    { initialText: "&nbsp;&nbsp; &nbsp;",      expectedText: "&nbsp; &nbsp;", whiteSpaceRange: [0, 4] },
+    { initialText: "&nbsp; &nbsp;&nbsp;",      expectedText: "&nbsp; &nbsp;", whiteSpaceRange: [0, 4] },
+    { initialText: "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", expectedText: "&nbsp; &nbsp;&nbsp;", whiteSpaceRange: [0, 5] },
+    { initialText: "&nbsp; &nbsp; &nbsp;",           expectedText: "&nbsp; &nbsp;&nbsp;", whiteSpaceRange: [0, 5] },
+    { initialText: "&nbsp;&nbsp;&nbsp; &nbsp;",      expectedText: "&nbsp; &nbsp;&nbsp;", whiteSpaceRange: [0, 5] },
+    { initialText: "&nbsp;&nbsp; &nbsp;&nbsp;",      expectedText: "&nbsp; &nbsp;&nbsp;", whiteSpaceRange: [0, 5] },
+    { initialText: "&nbsp; &nbsp;&nbsp;&nbsp;",      expectedText: "&nbsp; &nbsp;&nbsp;", whiteSpaceRange: [0, 5] },
+    { initialText: "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", expectedText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;", whiteSpaceRange: [0, 10] },
+    { initialText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;",                     expectedText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;", whiteSpaceRange: [0, 10] },
+    { initialText: "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;",                     expectedText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;", whiteSpaceRange: [0, 10] },
+    { initialText: "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", expectedText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;", whiteSpaceRange: [0, 11] },
+    { initialText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;",                          expectedText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;", whiteSpaceRange: [0, 11] },
+    { initialText: "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;",                     expectedText: "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;", whiteSpaceRange: [0, 11] },
+  ]) {
+    for (let i = currentTest.whiteSpaceRange[0]; i < currentTest.whiteSpaceRange[0] + currentTest.whiteSpaceRange[1]; i++) {
+      currentTest.getInitialText = function (aCaretPos) {
+        return escape(`${toPlaintext(this.initialText).slice(0, aCaretPos)}[]${toPlaintext(this.initialText).slice(aCaretPos)}`);
+      }
+      test(function () {
+        editor.innerHTML = "";
+        editor.appendChild(document.createTextNode(toPlaintext(currentTest.initialText)));
+        selection.collapse(editor.firstChild, i);
+        document.execCommand("forwarddelete", false, "");
+        if (currentTest.expectedText.length) {
+          assert_equals(escape(editor.childNodes.item(0).data), currentTest.expectedText, "Modified text is wrong");
+          assert_equals(selection.focusNode, editor.childNodes.item(0), "Selection focus node is wrong");
+          assert_equals(selection.focusOffset, i, "Selection focus offset is wrong");
+          assert_equals(selection.anchorNode, editor.childNodes.item(0), "Selection anchor node is wrong");
+          assert_equals(selection.anchorOffset, i, "Selection anchor offset is wrong");
+        } else {
+          assert_equals(escape(editor.textContent), "", "Modified text is wrong");
+          assert_equals(selection.focusNode, editor, "Selection focus node is wrong");
+          assert_equals(selection.focusOffset, 0, "Selection focus offset is wrong");
+          assert_equals(selection.anchorNode, editor, "Selection anchor node is wrong");
+          assert_equals(selection.anchorOffset, 0, "Selection anchor offset is wrong");
+        }
+      }, `execCommand("forwarddelete", false, ""): "${currentTest.getInitialText(i)}" (length of whitespace sequence: ${currentTest.whiteSpaceRange[1]})`);
+    }
+  }
+
+  // Test white space sequence split to multiple text node.
+  //  - initialText: Set to data of text nodes.  This must have "|" at least one.
+  //                 Then, the text will be split at every "|".
+  //                 Same as above test, only &nbsp; is handled at setting.
+  //                 "[]" means that caret position.
+  //  - expectedText: Set to data of all text nodes as an array.
+  //                  Same as above test, only &nbsp; is handled before comparing.
+  for (const currentTest of [
+    { initialText: "a&nbsp; []&nbsp;|&nbsp; &nbsp;b", expectedText: ["a&nbsp; []", "&nbsp; &nbsp;b"] },
+    { initialText: "a&nbsp; []&nbsp;| &nbsp; b",      expectedText: ["a&nbsp; []", "&nbsp; &nbsp;b"] },
+    { initialText: "a&nbsp; &nbsp;[]|&nbsp; &nbsp;b", expectedText: ["a&nbsp; &nbsp;[]", "&nbsp; b"] },
+    { initialText: "a&nbsp; &nbsp;[]| &nbsp; b",      expectedText: ["a&nbsp; &nbsp;[]", "&nbsp; b"] },
+    { initialText: "a&nbsp; &nbsp;|[]&nbsp; &nbsp;b", expectedText: ["a&nbsp; &nbsp;[]", "&nbsp; b"] },
+    { initialText: "a&nbsp; &nbsp;|[] &nbsp; b",      expectedText: ["a&nbsp; &nbsp;[]", "&nbsp; b"] },
+    { initialText: "a&nbsp; &nbsp;| []&nbsp; b",      expectedText: ["a&nbsp; &nbsp;", "&nbsp;[] b"] },
+    { initialText: "a &nbsp; |[]&nbsp; &nbsp;b",      expectedText: ["a &nbsp; []", "&nbsp; b"] },
+    { initialText: "a &nbsp; []|&nbsp; &nbsp;b",      expectedText: ["a &nbsp; []", "&nbsp; b"] },
+    { initialText: "a &nbsp;[] |&nbsp; &nbsp;b",      expectedText: ["a &nbsp;[]", "&nbsp; &nbsp;b"] },
+
+    { initialText: "a&nbsp;&nbsp;[]&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;b", expectedText: ["a&nbsp; []&nbsp;", "&nbsp;&nbsp;&nbsp;&nbsp;b"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;[]&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;b", expectedText: ["a&nbsp;&nbsp;&nbsp;[]", "&nbsp; &nbsp; b"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;[]|&nbsp;&nbsp;&nbsp;&nbsp;b", expectedText: ["a&nbsp;&nbsp;&nbsp;&nbsp;[]", "&nbsp; &nbsp;b"] },
+    { initialText: "a&nbsp;[]b&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;c",       expectedText: ["a&nbsp;[] &nbsp;", "&nbsp;&nbsp;&nbsp;&nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;[]b&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp; []&nbsp;&nbsp;", "&nbsp;&nbsp;&nbsp;&nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;[]b|&nbsp;&nbsp;&nbsp;&nbsp;c",       expectedText: ["a&nbsp;&nbsp;&nbsp;[]", "&nbsp; &nbsp; c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;[]|b&nbsp;&nbsp;&nbsp;&nbsp;c",       expectedText: ["a&nbsp;&nbsp;&nbsp;[]", "&nbsp; &nbsp; c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;|[]b&nbsp;&nbsp;&nbsp;&nbsp;c",       expectedText: ["a&nbsp;&nbsp;&nbsp;[]", "&nbsp; &nbsp; c"] },
+    { initialText: "a&nbsp;&nbsp;[]&nbsp;|b&nbsp;&nbsp;&nbsp;&nbsp;c",       expectedText: ["a&nbsp;&nbsp;[]", "b&nbsp;&nbsp;&nbsp;&nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;|&nbsp;[]b&nbsp;&nbsp;&nbsp;c",       expectedText: ["a&nbsp;&nbsp;&nbsp;", "&nbsp;[] &nbsp; c"] },
+
+    { initialText: "a&nbsp;&nbsp;&nbsp;|&nbsp;|[]&nbsp;&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp;&nbsp;&nbsp;", "&nbsp;[]", "&nbsp; &nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;| |[]&nbsp;&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp;&nbsp;&nbsp;", " []", "&nbsp; &nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;| []|&nbsp;&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp;&nbsp;&nbsp;", " []", "&nbsp; &nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;|[] |&nbsp;&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp;&nbsp;&nbsp;[]", "&nbsp; &nbsp; c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;[]| |&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp;&nbsp;&nbsp;&nbsp;[]", "&nbsp; &nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;[]&nbsp;| |&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp;&nbsp;&nbsp;[]", "&nbsp;", "&nbsp;&nbsp;&nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;|&nbsp;|&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp; &nbsp;[]&nbsp;", "&nbsp;", "&nbsp;&nbsp;&nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;| |&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp; &nbsp;[]&nbsp;", " ", "&nbsp;&nbsp;&nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;[]&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp;&nbsp;&nbsp;&nbsp;", "", "&nbsp;[] &nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;||[]&nbsp;&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp;&nbsp;&nbsp;&nbsp;[]", "&nbsp; &nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;|[]|&nbsp;&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp;&nbsp;&nbsp;&nbsp;[]", "&nbsp; &nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;&nbsp;[]||&nbsp;&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp;&nbsp;&nbsp;&nbsp;[]", "&nbsp; &nbsp;c"] },
+    { initialText: "a&nbsp;&nbsp;&nbsp;[]&nbsp;||&nbsp;&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp;&nbsp;&nbsp;[]", "&nbsp; &nbsp; c"] },
+    { initialText: "a&nbsp;&nbsp;[]&nbsp;&nbsp;||&nbsp;&nbsp;&nbsp;&nbsp;c", expectedText: ["a&nbsp; []&nbsp;", "", "&nbsp;&nbsp;&nbsp;&nbsp;c"] },
+  ]) {
+    test(function () {
+      editor.innerHTML = "";
+      let caret = { container: null, offset: -1 };
+      for (let text of toPlaintext(currentTest.initialText).split("|")) {
+        let caretOffset = text.indexOf("[]");
+        if (caretOffset >= 0) {
+          text = text.slice(0, caretOffset) + text.slice(caretOffset + 2);
+        }
+        let textNode = document.createTextNode(text);
+        editor.appendChild(textNode);
+        if (caretOffset >= 0) {
+          caret = { container: textNode, offset: caretOffset };
+        }
+      }
+      selection.collapse(caret.container, caret.offset);
+      document.execCommand("forwarddelete", false, "");
+      let child = editor.firstChild;
+      for (let expectedText of currentTest.expectedText) {
+        expectedText = toPlaintext(expectedText);
+        let caretOffset = expectedText.indexOf("[]");
+        if (caretOffset >= 0) {
+          expectedText = expectedText.slice(0, caretOffset) + expectedText.slice(caretOffset + 2);
+        }
+        if (!child || child.nodeName !== "#text") {
+          assert_equals("", escape(expectedText), "Expected text node is not there");
+          if (caretOffset >= 0) {
+            assert_equals(-1, caretOffset, "Selection should be contained in this node");
+          }
+        } else {
+          assert_equals(escape(child.data), escape(expectedText), "Modified text is wrong");
+          if (caretOffset >= 0) {
+            assert_equals(selection.focusNode, child, "Selection focus node is wrong");
+            assert_equals(selection.focusOffset, caretOffset, "Selection focus offset is wrong");
+            assert_equals(selection.anchorNode, child, "Selection anchor node is wrong");
+            assert_equals(selection.anchorOffset, caretOffset, "Selection anchor offset is wrong");
+          }
+        }
+        child = child.nextSibling;
+      }
+      if (child && child.nodeName === "#text") {
+        assert_equals(escape(child.data), "", "Unexpected text node is there");
+      }
+    }, `execCommand("forwarddelete", false, ""): "${currentTest.initialText}"`);
+  }
+
+  // Test white spaces around inline element boundary
+  //  - initialHTML: Set to innerHTML of the <div>  ("[{" and "]}" set selection to the range)
+  //  - expectedText: Set to innerHTML of the <div> after `execCommand("delete")`
+  for (const currentTest of [
+    { initialHTML: "<span>abc[] <span>&nbsp;def</span></span>",      expectedHTML: "<span>abc<span>&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc[]&nbsp;<span>&nbsp;def</span></span>", expectedHTML: "<span>abc<span>&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc[]&nbsp;<span> def</span></span>",      expectedHTML: "<span>abc<span>&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc []<span>&nbsp;def</span></span>",      expectedHTML: "<span>abc <span>def</span></span>" },
+    { initialHTML: "<span>abc&nbsp;[]<span>&nbsp;def</span></span>", expectedHTML: "<span>abc&nbsp;<span>def</span></span>" },
+    { initialHTML: "<span>abc&nbsp;[]<span> def</span></span>",      expectedHTML: "<span>abc&nbsp;<span>def</span></span>" },
+    { initialHTML: "<span>abc[]&nbsp;<span>&nbsp; def</span></span>", expectedHTML: "<span>abc<span>&nbsp; def</span></span>" },
+    { initialHTML: "<span>abc[]&nbsp;<span> &nbsp;def</span></span>", expectedHTML: "<span>abc<span>&nbsp; def</span></span>" },
+    { initialHTML: "<span>abc[]&nbsp; <span>&nbsp;&nbsp;def</span></span>", expectedHTML: "<span>abc&nbsp;<span>&nbsp;&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc[]&nbsp; <span>&nbsp; def</span></span>", expectedHTML: "<span>abc&nbsp;<span>&nbsp; def</span></span>" },
+    { initialHTML: "<span>abc[]&nbsp;&nbsp;<span>&nbsp;&nbsp;def</span></span>", expectedHTML: "<span>abc&nbsp;<span>&nbsp;&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc[] &nbsp;<span>&nbsp;&nbsp;def</span></span>",      expectedHTML: "<span>abc&nbsp;<span>&nbsp;&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc[] &nbsp;<span> &nbsp;def</span></span>",           expectedHTML: "<span>abc&nbsp;<span> &nbsp;def</span></span>" },
+    { initialHTML: "<span>abc[] &nbsp;<span>&nbsp; def</span></span>",           expectedHTML: "<span>abc&nbsp;<span>&nbsp; def</span></span>" },
+    { initialHTML: "<span>abc&nbsp; []<span>&nbsp; def</span></span>",      expectedHTML: "<span>abc&nbsp; <span>&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc&nbsp; <span>[]&nbsp; def</span></span>",      expectedHTML: "<span>abc&nbsp; <span>&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc&nbsp;&nbsp;[]<span> &nbsp;def</span></span>", expectedHTML: "<span>abc&nbsp;&nbsp;<span>&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc&nbsp;&nbsp;<span>[] &nbsp;def</span></span>", expectedHTML: "<span>abc&nbsp;&nbsp;<span>&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc &nbsp;[]<span>&nbsp; def</span></span>",      expectedHTML: "<span>abc &nbsp;<span>&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc &nbsp;<span>[]&nbsp; def</span></span>",      expectedHTML: "<span>abc &nbsp;<span>&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc&nbsp; <span>&nbsp;[] def</span></span>",      expectedHTML: "<span>abc&nbsp; <span>&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc &nbsp;<span>&nbsp;[] def</span></span>",      expectedHTML: "<span>abc &nbsp;<span>&nbsp;def</span></span>" },
+    { initialHTML: "<span>abc &nbsp;<span> []&nbsp;def</span></span>",      expectedHTML: "<span>abc &nbsp;<span>&nbsp;def</span></span>" },
+
+    { initialHTML: "<span><span>abc[] </span>&nbsp;def</span>",      expectedHTML: "<span><span>abc</span>&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc[]&nbsp;</span>&nbsp;def</span>", expectedHTML: "<span><span>abc</span>&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc[]&nbsp;</span> def</span>",      expectedHTML: "<span><span>abc</span>&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc []</span>&nbsp;def</span>",      expectedHTML: "<span><span>abc </span>def</span>" },
+    { initialHTML: "<span><span>abc&nbsp;[]</span>&nbsp;def</span>", expectedHTML: "<span><span>abc&nbsp;</span>def</span>" },
+    { initialHTML: "<span><span>abc&nbsp;[]</span> def</span>",      expectedHTML: "<span><span>abc&nbsp;</span>def</span>" },
+    { initialHTML: "<span><span>abc[]&nbsp;</span>&nbsp; def</span>", expectedHTML: "<span><span>abc</span>&nbsp; def</span>" },
+    { initialHTML: "<span><span>abc[]&nbsp;</span> &nbsp;def</span>", expectedHTML: "<span><span>abc</span>&nbsp; def</span>" },
+    { initialHTML: "<span><span>abc[]&nbsp; </span>&nbsp;&nbsp;def</span>", expectedHTML: "<span><span>abc&nbsp;</span>&nbsp;&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc[]&nbsp; </span>&nbsp; def</span>", expectedHTML: "<span><span>abc&nbsp;</span>&nbsp; def</span>" },
+    { initialHTML: "<span><span>abc[]&nbsp;&nbsp;</span>&nbsp;&nbsp;def</span>", expectedHTML: "<span><span>abc&nbsp;</span>&nbsp;&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc[] &nbsp;</span>&nbsp;&nbsp;def</span>",      expectedHTML: "<span><span>abc&nbsp;</span>&nbsp;&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc[] &nbsp;</span> &nbsp;def</span>",           expectedHTML: "<span><span>abc&nbsp;</span> &nbsp;def</span>" },
+    { initialHTML: "<span><span>abc[] &nbsp;</span>&nbsp; def</span>",           expectedHTML: "<span><span>abc&nbsp;</span>&nbsp; def</span>" },
+    { initialHTML: "<span><span>abc&nbsp; []</span>&nbsp; def</span>",      expectedHTML: "<span><span>abc&nbsp; </span>&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc&nbsp; </span>[]&nbsp; def</span>",      expectedHTML: "<span><span>abc&nbsp; </span>&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc&nbsp;&nbsp;[]</span> &nbsp;def</span>", expectedHTML: "<span><span>abc&nbsp;&nbsp;</span>&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc&nbsp;&nbsp;</span>[] &nbsp;def</span>", expectedHTML: "<span><span>abc&nbsp;&nbsp;</span>&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc &nbsp;[]</span>&nbsp; def</span>",      expectedHTML: "<span><span>abc &nbsp;</span>&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc &nbsp;</span>[]&nbsp; def</span>",      expectedHTML: "<span><span>abc &nbsp;</span>&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc&nbsp; </span>&nbsp;[] def</span>",      expectedHTML: "<span><span>abc&nbsp; </span>&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc &nbsp;</span>&nbsp;[] def</span>",      expectedHTML: "<span><span>abc &nbsp;</span>&nbsp;def</span>" },
+    { initialHTML: "<span><span>abc &nbsp;</span> []&nbsp;def</span>",      expectedHTML: "<span><span>abc &nbsp;</span>&nbsp;def</span>" },
+
+    { initialHTML: "<span>abc[] </span><span>&nbsp;def</span>",      expectedHTML: "<span>abc</span><span>&nbsp;def</span>" },
+    { initialHTML: "<span>abc[]&nbsp;</span><span>&nbsp;def</span>", expectedHTML: "<span>abc</span><span>&nbsp;def</span>" },
+    { initialHTML: "<span>abc[]&nbsp;</span><span> def</span>",      expectedHTML: "<span>abc</span><span>&nbsp;def</span>" },
+    { initialHTML: "<span>abc []</span><span>&nbsp;def</span>",      expectedHTML: "<span>abc </span><span>def</span>" },
+    { initialHTML: "<span>abc&nbsp;[]</span><span>&nbsp;def</span>", expectedHTML: "<span>abc&nbsp;</span><span>def</span>" },
+    { initialHTML: "<span>abc&nbsp;[]</span><span> def</span>",      expectedHTML: "<span>abc&nbsp;</span><span>def</span>" },
+    { initialHTML: "<span>abc[]&nbsp;</span><span>&nbsp; def</span>", expectedHTML: "<span>abc</span><span>&nbsp; def</span>" },
+    { initialHTML: "<span>abc[]&nbsp;</span><span> &nbsp;def</span>", expectedHTML: "<span>abc</span><span>&nbsp; def</span>" },
+    { initialHTML: "<span>abc[]&nbsp; </span><span>&nbsp;&nbsp;def</span>", expectedHTML: "<span>abc&nbsp;</span><span>&nbsp;&nbsp;def</span>" },
+    { initialHTML: "<span>abc[]&nbsp; </span><span>&nbsp; def</span>", expectedHTML: "<span>abc&nbsp;</span><span>&nbsp; def</span>" },
+    { initialHTML: "<span>abc[]&nbsp;&nbsp;</span><span>&nbsp;&nbsp;def</span>", expectedHTML: "<span>abc&nbsp;</span><span>&nbsp;&nbsp;def</span>" },
+    { initialHTML: "<span>abc[] &nbsp;</span><span>&nbsp;&nbsp;def</span>",      expectedHTML: "<span>abc&nbsp;</span><span>&nbsp;&nbsp;def</span>" },
+    { initialHTML: "<span>abc[] &nbsp;</span><span> &nbsp;def</span>",           expectedHTML: "<span>abc&nbsp;</span><span> &nbsp;def</span>" },
+    { initialHTML: "<span>abc[] &nbsp;</span><span>&nbsp; def</span>",           expectedHTML: "<span>abc&nbsp;</span><span>&nbsp; def</span>" },
+    { initialHTML: "<span>abc&nbsp; []</span><span>&nbsp; def</span>",      expectedHTML: "<span>abc&nbsp; </span><span>&nbsp;def</span>" },
+    { initialHTML: "<span>abc&nbsp; </span><span>[]&nbsp; def</span>",      expectedHTML: "<span>abc&nbsp; </span><span>&nbsp;def</span>" },
+    { initialHTML: "<span>abc&nbsp;&nbsp;[]</span><span> &nbsp;def</span>", expectedHTML: "<span>abc&nbsp;&nbsp;</span><span>&nbsp;def</span>" },
+    { initialHTML: "<span>abc&nbsp;&nbsp;</span><span>[] &nbsp;def</span>", expectedHTML: "<span>abc&nbsp;&nbsp;</span><span>&nbsp;def</span>" },
+    { initialHTML: "<span>abc &nbsp;[]</span><span>&nbsp; def</span>",      expectedHTML: "<span>abc &nbsp;</span><span>&nbsp;def</span>" },
+    { initialHTML: "<span>abc &nbsp;</span><span>[]&nbsp; def</span>",      expectedHTML: "<span>abc &nbsp;</span><span>&nbsp;def</span>" },
+    { initialHTML: "<span>abc&nbsp; </span><span>&nbsp;[] def</span>",      expectedHTML: "<span>abc&nbsp; </span><span>&nbsp;def</span>" },
+    { initialHTML: "<span>abc &nbsp;</span><span>&nbsp;[] def</span>",      expectedHTML: "<span>abc &nbsp;</span><span>&nbsp;def</span>" },
+    { initialHTML: "<span>abc &nbsp;</span><span> []&nbsp;def</span>",      expectedHTML: "<span>abc &nbsp;</span><span>&nbsp;def</span>" },
+
+    { initialHTML: "a[]<span style=white-space:pre;>b   </span>c", expectedHTML: "a<span style=\"white-space:pre;\">   </span>c" },
+    { initialHTML: "a<span style=white-space:pre;>b[]   </span>c", expectedHTML: "a<span style=\"white-space:pre;\">b  </span>c" },
+    { initialHTML: "a<span style=white-space:pre;>b []  </span>c", expectedHTML: "a<span style=\"white-space:pre;\">b  </span>c" },
+    { initialHTML: "a<span style=white-space:pre;>b  [] </span>c", expectedHTML: "a<span style=\"white-space:pre;\">b  </span>c" },
+    { initialHTML: "a<span style=white-space:pre;>b   []</span>c", expectedHTML: "a<span style=\"white-space:pre;\">b   </span>" },
+    { initialHTML: "a<span style=white-space:pre;>b  [] </span>", expectedHTML: "a<span style=\"white-space:pre;\">b  </span>" },
+    { initialHTML: "a[]<span style=white-space:pre;> </span>b", expectedHTML: "ab" },
+    { initialHTML: "a&nbsp;&nbsp;&nbsp;[]<span style=white-space:pre;>   </span>", expectedHTML: "a&nbsp;&nbsp;&nbsp;<span style=\"white-space:pre;\">  </span>" },
+    { initialHTML: "a&nbsp;&nbsp;[]&nbsp;<span style=white-space:pre;>   </span>", expectedHTML: "a&nbsp;&nbsp;<span style=\"white-space:pre;\">   </span>" },
+    { initialHTML: "a&nbsp;[]&nbsp;&nbsp;<span style=white-space:pre;>   </span>", expectedHTML: "a&nbsp;&nbsp;<span style=\"white-space:pre;\">   </span>" },
+    { initialHTML: "a&nbsp;[]&nbsp;&nbsp;<span style=white-space:pre;>b  </span>", expectedHTML: "a&nbsp;&nbsp;<span style=\"white-space:pre;\">b  </span>" },
+    { initialHTML: "a&nbsp;&nbsp;&nbsp;[]&nbsp;<span style=white-space:pre;>   </span>", expectedHTML: "a&nbsp;&nbsp;&nbsp;<span style=\"white-space:pre;\">   </span>" },
+    { initialHTML: "a&nbsp;&nbsp;[]&nbsp;&nbsp;<span style=white-space:pre;>   </span>", expectedHTML: "a&nbsp; &nbsp;<span style=\"white-space:pre;\">   </span>" },
+    { initialHTML: "a&nbsp;&nbsp;[]&nbsp;&nbsp;<span style=white-space:pre;>b  </span>", expectedHTML: "a&nbsp; &nbsp;<span style=\"white-space:pre;\">b  </span>" },
+    { initialHTML: "<span style=white-space:pre;> []  </span>&nbsp;&nbsp;&nbsp;a", expectedHTML: "<span style=\"white-space:pre;\">  </span>&nbsp;&nbsp;&nbsp;a" },
+    { initialHTML: "<span style=white-space:pre;>  [] </span>&nbsp;&nbsp;&nbsp;a", expectedHTML: "<span style=\"white-space:pre;\">  </span>&nbsp; &nbsp;a" },
+    { initialHTML: "<span style=white-space:pre;>   []</span>&nbsp;&nbsp;&nbsp;&nbsp;a", expectedHTML: "<span style=\"white-space:pre;\">   </span>&nbsp; &nbsp;a" },
+    { initialHTML: "<span style=white-space:pre;>   </span>[]&nbsp;&nbsp;&nbsp;&nbsp;a", expectedHTML: "<span style=\"white-space:pre;\">   </span>&nbsp; &nbsp;a" },
+  ]) {
+    test(function () {
+      let points = setupDiv(editor, currentTest.initialHTML);
+      selection.setBaseAndExtent(points[0], points[1], points[2], points[3]);
+      document.execCommand("forwarddelete", false, "");
+      assert_equals(editor.innerHTML, currentTest.expectedHTML);
+    }, `execCommand("forwarddelete", false, ""): "${currentTest.initialHTML}"`);
+  }
+
+  done();
+}
+
+window.addEventListener("load", runTests, {once: true});
+</script>
+</body>
+</html>

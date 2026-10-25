@@ -1,0 +1,162 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<meta name="variant" content="?white-space=normal">
+<meta name="variant" content="?white-space=pre">
+<meta name="variant" content="?white-space=pre-line">
+<meta name="variant" content="?white-space=pre-wrap">
+<title>Pasting rich text into contenteditable=plaintext-only</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../include/editor-test-utils.js"></script>
+<script>
+"use strict";
+
+const searchParams = new URLSearchParams(document.location.search);
+const whiteSpace = searchParams.get("white-space");
+const useBR = whiteSpace == "normal";
+const collapseWhiteSpaces = whiteSpace == "normal" || whiteSpace == "pre-line";
+
+addEventListener("load", () => {
+  const editingHost = document.createElement("div");
+  editingHost.style.whiteSpace = whiteSpace;
+  editingHost.setAttribute("contenteditable", "plaintext-only");
+  document.body.appendChild(editingHost);
+  editingHost.focus();
+  editingHost.getBoundingClientRect();
+  const utils = new EditorTestUtils(editingHost);
+
+  for (const data of [
+    {
+      insertHTML: "plaintext",
+      expected: "plaintext",
+    },
+    {
+      // line breaks should not be preformatted
+      insertHTML: "1st line\n2nd line",
+      expected: "1st line 2nd line",
+    },
+    {
+      // preformatted line breaks should appear as-is
+      insertHTML: "<pre>1st line\n2nd line</pre>",
+      expected: useBR
+        ? "1st line<br>2nd line"
+        : "1st line\n2nd line",
+    },
+    {
+      // text should be inserted into the <b>
+      initialInnerHTML: "<b>{}</b>",
+      insertHTML: "plaintext",
+      expected: "<b>plaintext</b>",
+    },
+    {
+      // text should be inserted into the <b>
+      initialInnerHTML: "<b>{}<br></b>",
+      insertHTML: "plaintext",
+      expected: ["<b>plaintext</b>", "<b>plaintext<br></b>"],
+    },
+    {
+      // text should be inserted into the <b>
+      initialInnerHTML: "<b>A[]B</b>",
+      insertHTML: "plaintext",
+      expected: "<b>AplaintextB</b>",
+    },
+    {
+      // text should be inserted into the <span> even if it's meaningless
+      initialInnerHTML: "<span>A[]B</span>",
+      insertHTML: "plaintext",
+      expected: "<span>AplaintextB</span>",
+    },
+    {
+      // inserting one paragraph should cause inserting only its contents.
+      // (but it's okay other serialized text.)
+      insertHTML: "<div>abc</div>",
+      expected: "abc",
+    },
+    {
+      // inserting one paragraph should cause inserting only its contents.
+      // (but it's okay other serialized text.)
+      insertHTML: "<div>abc<br>def</div>",
+      expected: useBR ? "abc<br>def" : "abc\ndef",
+    },
+    {
+      // inserting 2 or more paragraphs should be handled as multiple lines
+      insertHTML: "<div>abc</div><div>def</div>",
+      expected: useBR ? "abc<br>def" : "abc\ndef",
+    },
+    {
+      // inserting 2 or more paragraphs should be handled as multiple lines
+      insertHTML: "<div>abc<br>def</div><div>ghi<br>jkl</div>",
+      expected: useBR
+        ? "abc<br>def<br>ghi<br>jkl"
+        : "abc\ndef\nghi\njkl",
+    },
+    {
+      // <noscript> content should not be inserted
+      insertHTML: "<noscript>no script</noscript>",
+      expected: "",
+    },
+    {
+      // <noframes> content should not be inserted
+      insertHTML: "<noframes>no frames</noframes>",
+      expected: "",
+    },
+    {
+      // <script> content should not be inserted
+      insertHTML: `<script>script</${"script"}>`,
+      expected: "",
+    },
+    {
+      // <style> content should not be inserted
+      insertHTML: "<style>style</style>",
+      expected: "",
+    },
+    {
+      // <head> content should not be inserted
+      insertHTML: "<html><head><title>title</title></head><body>body</body></html>",
+      expected: "body",
+    },
+    {
+      // white-spaces should be collapsed
+      insertHTML: "plain  text",
+      expected: "plain text",
+    },
+    {
+      // white-spaces should be collapsed
+      insertHTML: "<span>plain  text</span>",
+      expected: "plain text",
+    },
+    {
+      // preformatted white-spaces should not be collapsed
+      insertHTML: "<pre>plain  text</pre>",
+      expected: !collapseWhiteSpaces
+        ? "plain  text"
+        : ["plain &nbsp;text", "plain&nbsp; text", "plain&nbsp;&nbsp;text",
+           "plain \u00A0text", "plain\u00A0 text", "plain\u00A0\u00A0text"],
+    },
+    {
+      // even if inserting HTML is empty, selected text should be deleted
+      initialInnerHTML: "A[B]C",
+      insertHTML: "",
+      expected: "AC",
+    },
+  ]) {
+    test(() => {
+      utils.setupEditingHost(data.initialInnerHTML ? data.initialInnerHTML : "");
+      document.execCommand("insertHTML", false, data.insertHTML);
+      if (Array.isArray(data.expected)) {
+        assert_in_array(editingHost.innerHTML, data.expected);
+      } else {
+        assert_equals(editingHost.innerHTML, data.expected);
+      }
+    }, `execCommand("insertHTML", false, "${data.insertHTML}") when "${
+      data.initialInnerHTML ? data.initialInnerHTML : ""
+    }"`);
+  }
+}, {once: true});
+</script>
+</head>
+<body></body>
+</html>

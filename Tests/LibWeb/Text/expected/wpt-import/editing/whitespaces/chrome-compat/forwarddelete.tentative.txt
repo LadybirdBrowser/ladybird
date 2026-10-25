@@ -1,0 +1,608 @@
+Harness status: OK
+
+Found 602 tests
+
+517 Pass
+85 Fail
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;" (length of whitespace sequence: 1)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "a[] &nbsp;" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "a []&nbsp;" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a[] &nbsp;&nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a []&nbsp;&nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp;[]&nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp; &nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp; &nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[] &nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp; []&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp;&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp;&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[]&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a[] &nbsp; &nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a []&nbsp; &nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp;[] &nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; []&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp; &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp; &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[] &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; []&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp; &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp; &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp; &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[] &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp; []&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[] &nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp; []&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp; &nbsp;[]&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[]&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;&nbsp;[]&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; []&nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; []&nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp; []&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;[]&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a[] &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a []&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; []&nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; []&nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp; []&nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp; &nbsp; []&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; []&nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; []&nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp; []&nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; []&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;b" (length of whitespace sequence: 1)
+Pass	execCommand("forwarddelete", false, ""): "a[] b" (length of whitespace sequence: 1)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;b" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;b" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; b" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] b" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "a[] &nbsp;b" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "a []&nbsp;b" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a[] &nbsp; b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a []&nbsp; b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp;[] b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a[] &nbsp;&nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a []&nbsp;&nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp;[]&nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp; b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp; b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp; b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[] b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a[] &nbsp; &nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a []&nbsp; &nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp;[] &nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; []&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp; &nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp; &nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[] &nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp; []&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp;&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp;&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp;&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[]&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp; &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp; &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[] &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; []&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[] &nbsp; &nbsp; b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a []&nbsp; &nbsp; b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp;[] &nbsp; b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; []&nbsp; b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp;[] b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp;&nbsp; b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;&nbsp; b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp; b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp; b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;[] b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp; &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp; &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp; &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[] &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp; []&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp; &nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp; &nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[] &nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp; []&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp; &nbsp;[]&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[] &nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a []&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp;[]&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp;&nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp;&nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; []&nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; []&nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp; []&nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;[] b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a[] &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a []&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; []&nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; []&nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp; []&nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp; &nbsp; []&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a[]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; []&nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; []&nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp; []&nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; []&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a[] &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a []&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; []&nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; []&nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp; []&nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp; &nbsp; []&nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;[] b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;b" (length of whitespace sequence: 1)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;b" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;b" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; b" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] b" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp;b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp; b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp; b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[] b" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp; b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp; b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp; b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;[] b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp; b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp; b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp; b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;[] b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp; &nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp; &nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[] &nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; []&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp;&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp;&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp;&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;[]&nbsp;b" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp; &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp; &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;[] &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; []&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp; &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp; &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp; &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;[] &nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp; []&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp; &nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp; &nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[] &nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; []&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp;[]&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; []&nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; []&nbsp; &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp; []&nbsp; b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;[] b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; []&nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; []&nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; []&nbsp; &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; []&nbsp;b" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; []&nbsp; &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; []&nbsp; &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp; []&nbsp; &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; []&nbsp;b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; []&nbsp; &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; []&nbsp; &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; []&nbsp; &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; []&nbsp; b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;[] b" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;" (length of whitespace sequence: 1)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;" (length of whitespace sequence: 2)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp;" (length of whitespace sequence: 3)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp;&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;[]&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp; &nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp; &nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[] &nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; []&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp;&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp;&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;[]&nbsp;" (length of whitespace sequence: 4)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp; &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp; &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;[] &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; []&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp; &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp; &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp; &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;[] &nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp; []&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[] &nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; []&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp;[]&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;[]&nbsp;&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;&nbsp;[]&nbsp;" (length of whitespace sequence: 5)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; []&nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; []&nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp; []&nbsp;&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;[]&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; []&nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; []&nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; []&nbsp; &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; []&nbsp;" (length of whitespace sequence: 10)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[]&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; []&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; []&nbsp; &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; []&nbsp; &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp; []&nbsp; &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; []&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "[]&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;[]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp;[] &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; []&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp;[] &nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; []&nbsp; &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp;[] &nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; []&nbsp; &nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;[] &nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; []&nbsp;&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;[]&nbsp;" (length of whitespace sequence: 11)
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp;|&nbsp; &nbsp;b"
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp; []&nbsp;| &nbsp; b"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[]|&nbsp; &nbsp;b"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;[]| &nbsp; b"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;|[]&nbsp; &nbsp;b"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;|[] &nbsp; b"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp; &nbsp;| []&nbsp; b"
+Fail	execCommand("forwarddelete", false, ""): "a &nbsp; |[]&nbsp; &nbsp;b"
+Fail	execCommand("forwarddelete", false, ""): "a &nbsp; []|&nbsp; &nbsp;b"
+Fail	execCommand("forwarddelete", false, ""): "a &nbsp;[] |&nbsp; &nbsp;b"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;b"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;b"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;[]|&nbsp;&nbsp;&nbsp;&nbsp;b"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;[]b&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]b&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]b|&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]|b&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;|[]b&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;|b&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;|&nbsp;[]b&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;|&nbsp;|[]&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;| |[]&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;| []|&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;|[] |&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;[]| |&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;| |&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;|&nbsp;|&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;&nbsp;| |&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;[]&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;||[]&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;|[]|&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;&nbsp;[]||&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;||&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp;||&nbsp;&nbsp;&nbsp;&nbsp;c"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[] <span>&nbsp;def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp;<span>&nbsp;def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp;<span> def</span></span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc []<span>&nbsp;def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc&nbsp;[]<span>&nbsp;def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc&nbsp;[]<span> def</span></span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp;<span>&nbsp; def</span></span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp;<span> &nbsp;def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp; <span>&nbsp;&nbsp;def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp; <span>&nbsp; def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp;&nbsp;<span>&nbsp;&nbsp;def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[] &nbsp;<span>&nbsp;&nbsp;def</span></span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc[] &nbsp;<span> &nbsp;def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[] &nbsp;<span>&nbsp; def</span></span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc&nbsp; []<span>&nbsp; def</span></span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc&nbsp; <span>[]&nbsp; def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc&nbsp;&nbsp;[]<span> &nbsp;def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc&nbsp;&nbsp;<span>[] &nbsp;def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc &nbsp;[]<span>&nbsp; def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc &nbsp;<span>[]&nbsp; def</span></span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc&nbsp; <span>&nbsp;[] def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc &nbsp;<span>&nbsp;[] def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc &nbsp;<span> []&nbsp;def</span></span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc[] </span>&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc[]&nbsp;</span>&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc[]&nbsp;</span> def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span><span>abc []</span>&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc&nbsp;[]</span>&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc&nbsp;[]</span> def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span><span>abc[]&nbsp;</span>&nbsp; def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span><span>abc[]&nbsp;</span> &nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc[]&nbsp; </span>&nbsp;&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc[]&nbsp; </span>&nbsp; def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc[]&nbsp;&nbsp;</span>&nbsp;&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc[] &nbsp;</span>&nbsp;&nbsp;def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span><span>abc[] &nbsp;</span> &nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc[] &nbsp;</span>&nbsp; def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span><span>abc&nbsp; []</span>&nbsp; def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span><span>abc&nbsp; </span>[]&nbsp; def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc&nbsp;&nbsp;[]</span> &nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc&nbsp;&nbsp;</span>[] &nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc &nbsp;[]</span>&nbsp; def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc &nbsp;</span>[]&nbsp; def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span><span>abc&nbsp; </span>&nbsp;[] def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc &nbsp;</span>&nbsp;[] def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span><span>abc &nbsp;</span> []&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[] </span><span>&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp;</span><span>&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp;</span><span> def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc []</span><span>&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc&nbsp;[]</span><span>&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc&nbsp;[]</span><span> def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp;</span><span>&nbsp; def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp;</span><span> &nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp; </span><span>&nbsp;&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp; </span><span>&nbsp; def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[]&nbsp;&nbsp;</span><span>&nbsp;&nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[] &nbsp;</span><span>&nbsp;&nbsp;def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc[] &nbsp;</span><span> &nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc[] &nbsp;</span><span>&nbsp; def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc&nbsp; []</span><span>&nbsp; def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc&nbsp; </span><span>[]&nbsp; def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc&nbsp;&nbsp;[]</span><span> &nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc&nbsp;&nbsp;</span><span>[] &nbsp;def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc &nbsp;[]</span><span>&nbsp; def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc &nbsp;</span><span>[]&nbsp; def</span>"
+Pass	execCommand("forwarddelete", false, ""): "<span>abc&nbsp; </span><span>&nbsp;[] def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc &nbsp;</span><span>&nbsp;[] def</span>"
+Fail	execCommand("forwarddelete", false, ""): "<span>abc &nbsp;</span><span> []&nbsp;def</span>"
+Pass	execCommand("forwarddelete", false, ""): "a[]<span style=white-space:pre;>b   </span>c"
+Pass	execCommand("forwarddelete", false, ""): "a<span style=white-space:pre;>b[]   </span>c"
+Pass	execCommand("forwarddelete", false, ""): "a<span style=white-space:pre;>b []  </span>c"
+Pass	execCommand("forwarddelete", false, ""): "a<span style=white-space:pre;>b  [] </span>c"
+Pass	execCommand("forwarddelete", false, ""): "a<span style=white-space:pre;>b   []</span>c"
+Pass	execCommand("forwarddelete", false, ""): "a<span style=white-space:pre;>b  [] </span>"
+Pass	execCommand("forwarddelete", false, ""): "a[]<span style=white-space:pre;> </span>b"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]<span style=white-space:pre;>   </span>"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;<span style=white-space:pre;>   </span>"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;<span style=white-space:pre;>   </span>"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;[]&nbsp;&nbsp;<span style=white-space:pre;>b  </span>"
+Fail	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;&nbsp;[]&nbsp;<span style=white-space:pre;>   </span>"
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp;<span style=white-space:pre;>   </span>"
+Pass	execCommand("forwarddelete", false, ""): "a&nbsp;&nbsp;[]&nbsp;&nbsp;<span style=white-space:pre;>b  </span>"
+Pass	execCommand("forwarddelete", false, ""): "<span style=white-space:pre;> []  </span>&nbsp;&nbsp;&nbsp;a"
+Pass	execCommand("forwarddelete", false, ""): "<span style=white-space:pre;>  [] </span>&nbsp;&nbsp;&nbsp;a"
+Pass	execCommand("forwarddelete", false, ""): "<span style=white-space:pre;>   []</span>&nbsp;&nbsp;&nbsp;&nbsp;a"
+Pass	execCommand("forwarddelete", false, ""): "<span style=white-space:pre;>   </span>[]&nbsp;&nbsp;&nbsp;&nbsp;a"

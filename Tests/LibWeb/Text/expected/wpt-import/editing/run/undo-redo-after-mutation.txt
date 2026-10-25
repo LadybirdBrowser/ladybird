@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+2 Pass
+5 Fail
+Pass	Redo for execCommand("insertLineBreak") after removing prior sibling with DOM API after undoing
+Fail	Redo for execCommand("insertLineBreak") after appending new child with DOM API after undoing
+Pass	Redo for execCommand("insertLineBreak") after inserting new child with DOM API after undoing
+Fail	Redo for execCommand("insertLineBreak") after removing its container with DOM API after undoing
+Fail	Redo for execCommand("insertLineBreak") after removing <i> element following the container with DOM API after undoing
+Fail	Redo for execCommand("insertLineBreak") between <b> and <i> after removing preceding <b> element with DOM API after undoing
+Fail	Redo for execCommand("insertLineBreak") between <b> and <i> after after removing following <i> element with DOM API after undoing

@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 21 tests
+
+15 Pass
+6 Fail
+Pass	Testing inserting content at non-collapsed selection around link element
+Pass	Inserting "XY" after deleting first character of a link in <b> and containing <i> (Direct typing) in <p><b><a href="about:blank"><i>[z]abc</i></a></b></p>
+Fail	Inserting "XY" after deleting last character in a non-collapsed range of a link in <b> and containing <i> (Direct typing) in <p><b><a href="about:blank"><i>abc[d]</i></a></b></p>
+Fail	Inserting "XY" after deleting text after middle of a link in <b> and containing <i> (Direct typing) in <p><b><a href="about:blank"><i>ab[cd</i></a>de]f</b></p>
+Pass	Inserting "XY" after deleting text before middle of a link in <b> and containing <i> (Direct typing) in <p><b>a[bc<a href="about:blank"><i>de]f</i></a></b></p>
+Fail	Inserting "XY" after deleting first character of a link in <b> and containing <i> (Backspace) in <p><b><a href="about:blank"><i>[z]abc</i></a></b></p>
+Pass	Inserting "XY" after deleting last character in a non-collapsed range of a link in <b> and containing <i> (Backspace) in <p><b><a href="about:blank"><i>abc[d]</i></a></b></p>
+Pass	Inserting "XY" after deleting text after middle of a link in <b> and containing <i> (Backspace) in <p><b><a href="about:blank"><i>ab[cd</i></a>de]f</b></p>
+Pass	Inserting "XY" after deleting text before middle of a link in <b> and containing <i> (Backspace) in <p><b>a[bc<a href="about:blank"><i>de]f</i></a></b></p>
+Fail	Inserting "XY" after deleting first character of a link in <b> and containing <i> (Delete) in <p><b><a href="about:blank"><i>[z]abc</i></a></b></p>
+Pass	Inserting "XY" after deleting last character in a non-collapsed range of a link in <b> and containing <i> (Delete) in <p><b><a href="about:blank"><i>abc[d]</i></a></b></p>
+Pass	Inserting "XY" after deleting text after middle of a link in <b> and containing <i> (Delete) in <p><b><a href="about:blank"><i>ab[cd</i></a>de]f</b></p>
+Pass	Inserting "XY" after deleting text before middle of a link in <b> and containing <i> (Delete) in <p><b>a[bc<a href="about:blank"><i>de]f</i></a></b></p>
+Fail	Inserting "XY" after deleting first character of a link in <b> and containing <i> (execCommand("delete")) in <p><b><a href="about:blank"><i>[z]abc</i></a></b></p>
+Pass	Inserting "XY" after deleting last character in a non-collapsed range of a link in <b> and containing <i> (execCommand("delete")) in <p><b><a href="about:blank"><i>abc[d]</i></a></b></p>
+Pass	Inserting "XY" after deleting text after middle of a link in <b> and containing <i> (execCommand("delete")) in <p><b><a href="about:blank"><i>ab[cd</i></a>de]f</b></p>
+Pass	Inserting "XY" after deleting text before middle of a link in <b> and containing <i> (execCommand("delete")) in <p><b>a[bc<a href="about:blank"><i>de]f</i></a></b></p>
+Fail	Inserting "XY" after deleting first character of a link in <b> and containing <i> (execCommand("forwarddelete")) in <p><b><a href="about:blank"><i>[z]abc</i></a></b></p>
+Pass	Inserting "XY" after deleting last character in a non-collapsed range of a link in <b> and containing <i> (execCommand("forwarddelete")) in <p><b><a href="about:blank"><i>abc[d]</i></a></b></p>
+Pass	Inserting "XY" after deleting text after middle of a link in <b> and containing <i> (execCommand("forwarddelete")) in <p><b><a href="about:blank"><i>ab[cd</i></a>de]f</b></p>
+Pass	Inserting "XY" after deleting text before middle of a link in <b> and containing <i> (execCommand("forwarddelete")) in <p><b>a[bc<a href="about:blank"><i>de]f</i></a></b></p>

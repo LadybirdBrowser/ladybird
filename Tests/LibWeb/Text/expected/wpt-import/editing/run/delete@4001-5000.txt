@@ -1,0 +1,1006 @@
+Harness status: OK
+
+Found 1000 tests
+
+989 Pass
+11 Fail
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandIndeterm("stylewithcss") after
+Fail	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandState("defaultparagraphseparator") before
+Fail	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandState("defaultparagraphseparator") after
+Fail	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p style=text-decoration:line-through>[]bar" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandState("defaultparagraphseparator") before
+Fail	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p>[]bar" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p><u>foo</u><p><s>[]bar</s>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<p><s>[]bar</s>" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" checks for modifications to non-editable content
+Fail	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandIndeterm("stylewithcss") before
+Fail	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p style=color:blue>foo</p>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "foo<p style=color:brown>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" checks for modifications to non-editable content
+Fail	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<div style=color:blue><p style=color:green>foo</div><p style=color:brown>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["delete",""]] "<p style=color:blue>foo<div style=color:brown><p style=color:green>[]bar" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo[bar]baz": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo[bar]baz" checks for modifications to non-editable content
+Pass	[["delete",""]] "foo[bar]baz" compare innerHTML
+Pass	[["delete",""]] "foo[bar]baz" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo[bar]baz" queryCommandState("delete") before
+Pass	[["delete",""]] "foo[bar]baz" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo[bar]baz" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo[bar]baz" queryCommandState("delete") after
+Pass	[["delete",""]] "foo[bar]baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>[bar]</b>baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo<b>{bar}</b>baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "foo{<b>bar</b>}baz" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo<span>[bar]</span>baz": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo<span>[bar]</span>baz" checks for modifications to non-editable content
+Pass	[["delete",""]] "foo<span>[bar]</span>baz" compare innerHTML
+Pass	[["delete",""]] "foo<span>[bar]</span>baz" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo<span>[bar]</span>baz" queryCommandState("delete") before
+Pass	[["delete",""]] "foo<span>[bar]</span>baz" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo<span>[bar]</span>baz" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo<span>[bar]</span>baz" queryCommandState("delete") after
+Pass	[["delete",""]] "foo<span>[bar]</span>baz" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo<span>{bar}</span>baz": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo<span>{bar}</span>baz" checks for modifications to non-editable content
+Pass	[["delete",""]] "foo<span>{bar}</span>baz" compare innerHTML
+Pass	[["delete",""]] "foo<span>{bar}</span>baz" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo<span>{bar}</span>baz" queryCommandState("delete") before
+Pass	[["delete",""]] "foo<span>{bar}</span>baz" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo<span>{bar}</span>baz" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo<span>{bar}</span>baz" queryCommandState("delete") after
+Pass	[["delete",""]] "foo<span>{bar}</span>baz" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo{<span>bar</span>}baz": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo{<span>bar</span>}baz" checks for modifications to non-editable content
+Pass	[["delete",""]] "foo{<span>bar</span>}baz" compare innerHTML
+Pass	[["delete",""]] "foo{<span>bar</span>}baz" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo{<span>bar</span>}baz" queryCommandState("delete") before
+Pass	[["delete",""]] "foo{<span>bar</span>}baz" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo{<span>bar</span>}baz" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo{<span>bar</span>}baz" queryCommandState("delete") after
+Pass	[["delete",""]] "foo{<span>bar</span>}baz" queryCommandValue("delete") after
+Pass	[["delete",""]] "<b>foo[bar</b><i>baz]quz</i>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<b>foo[bar</b><i>baz]quz</i>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<b>foo[bar</b><i>baz]quz</i>" compare innerHTML
+Pass	[["delete",""]] "<b>foo[bar</b><i>baz]quz</i>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<b>foo[bar</b><i>baz]quz</i>" queryCommandState("delete") before
+Pass	[["delete",""]] "<b>foo[bar</b><i>baz]quz</i>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<b>foo[bar</b><i>baz]quz</i>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<b>foo[bar</b><i>baz]quz</i>" queryCommandState("delete") after
+Pass	[["delete",""]] "<b>foo[bar</b><i>baz]quz</i>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p>foo</p><p>[bar]</p><p>baz</p>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p>foo</p><p>[bar]</p><p>baz</p>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<p>foo</p><p>[bar]</p><p>baz</p>" compare innerHTML
+Pass	[["delete",""]] "<p>foo</p><p>[bar]</p><p>baz</p>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p>foo</p><p>[bar]</p><p>baz</p>" queryCommandState("delete") before
+Pass	[["delete",""]] "<p>foo</p><p>[bar]</p><p>baz</p>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p>foo</p><p>[bar]</p><p>baz</p>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p>foo</p><p>[bar]</p><p>baz</p>" queryCommandState("delete") after
+Pass	[["delete",""]] "<p>foo</p><p>[bar]</p><p>baz</p>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p>foo</p><p>{bar}</p><p>baz</p>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p>foo</p><p>{bar}</p><p>baz</p>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<p>foo</p><p>{bar}</p><p>baz</p>" compare innerHTML
+Pass	[["delete",""]] "<p>foo</p><p>{bar}</p><p>baz</p>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p>foo</p><p>{bar}</p><p>baz</p>" queryCommandState("delete") before
+Pass	[["delete",""]] "<p>foo</p><p>{bar}</p><p>baz</p>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p>foo</p><p>{bar}</p><p>baz</p>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p>foo</p><p>{bar}</p><p>baz</p>" queryCommandState("delete") after
+Pass	[["delete",""]] "<p>foo</p><p>{bar}</p><p>baz</p>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p>foo</p><p>{bar</p>}<p>baz</p>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p>foo</p><p>{bar</p>}<p>baz</p>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<p>foo</p><p>{bar</p>}<p>baz</p>" compare innerHTML
+Pass	[["delete",""]] "<p>foo</p><p>{bar</p>}<p>baz</p>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p>foo</p><p>{bar</p>}<p>baz</p>" queryCommandState("delete") before
+Pass	[["delete",""]] "<p>foo</p><p>{bar</p>}<p>baz</p>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p>foo</p><p>{bar</p>}<p>baz</p>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p>foo</p><p>{bar</p>}<p>baz</p>" queryCommandState("delete") after
+Pass	[["delete",""]] "<p>foo</p><p>{bar</p>}<p>baz</p>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar}</p><p>baz</p>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo</p>{<p>bar</p>}<p>baz</p>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<p>baz]quz" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<div>baz]quz</div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<div>baz]quz</div>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo[bar<div>baz]quz</div>" queryCommandIndeterm("delete") before

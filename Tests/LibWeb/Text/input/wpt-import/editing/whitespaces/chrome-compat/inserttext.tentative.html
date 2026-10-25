@@ -1,0 +1,527 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf-8>
+<meta name="flags" content="may">
+<title>Testing normalizing white-space sequence after execCommand("inserttext", false, "foo")</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+"use strict";
+
+setup({explicit_done: true});
+
+function runTests() {
+  // README:
+  // These tests based on the behavior of Chrome 83.  This test does NOT define
+  // nor suggest any standard behavior (actually, some expected results might
+  // look odd), but this test must help you to understand how other browsers
+  // use different logic to normalize white-space sequence.
+
+  document.body.innerHTML = "<div contenteditable></div>";
+  let editor = document.querySelector("div[contenteditable]");
+  editor.focus();
+  let selection = document.getSelection();
+
+  function toPlaintext(str) {
+    return str.replace(/&nbsp;/g, "\u00A0");
+  }
+  function escape(str) {
+    return typeof(str) === "string" ? str.replace(/\u00A0/ig, "&nbsp;") : "";
+  }
+
+  function generateWhiteSpaces(num, lastIsAlwaysNBSP) {
+    if (!num) {
+      return "";
+    }
+    let str = "";
+    for (let i = 0; i < num - 1; i++) {
+      str += i % 2 ? " " : "\u00A0";
+    }
+    str += lastIsAlwaysNBSP || num % 2 ? "\u00A0" : " ";
+    return escape(str);
+  }
+  function getDescriptionForTextNode(textNode) {
+    return selection.focusNode === textNode ?
+      `${escape(textNode.data.slice(0, selection.focusOffset))}[]${escape(textNode.data.slice(selection.focusOffset))}` :
+      escape(textNode);
+  }
+
+  for (let i = 0; i < 12; i++) {
+    editor.innerHTML = `a${i === 1 ? " " : generateWhiteSpaces(i, false)}b`;
+    selection.collapse(editor.firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(escape(editor.firstChild.data),
+                    `a${i === 0 ? " " : escape(generateWhiteSpaces(i + 1, false))}b`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+  }
+
+  for (let i = 0; i < 12; i++) {
+    editor.innerHTML = `a${generateWhiteSpaces(i, true)}`;
+    selection.collapse(editor.firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(escape(editor.firstChild.data),
+                    `a${escape(generateWhiteSpaces(i + 1, true))}`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+  }
+
+  for (let i = 0; i < 12; i++) {
+    editor.innerHTML = `${generateWhiteSpaces(i, false)}b`;
+    selection.collapse(editor.firstChild, i);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(escape(editor.firstChild.data),
+      `${i === 0 ? "&nbsp;" : escape(generateWhiteSpaces(i + 1, false))}b`,
+      "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+  }
+
+  for (let i = 0; i < 12; i++) {
+    editor.innerHTML = `a${i === 0 ? " " : generateWhiteSpaces(i + 1, false)}b`;
+    selection.collapse(editor.firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(escape(editor.firstChild.data),
+                    `a${i === 0 ? "&nbsp; " : escape(generateWhiteSpaces(i + 2, false))}b`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+  }
+
+  editor.innerHTML = "a&nbsp;b";
+  selection.collapse(editor.firstChild, 1);
+  test(function () {
+    document.execCommand("inserttext", false, " ");
+    assert_equals(escape(editor.firstChild.data), "a&nbsp; b", "Modified text is wrong");
+  }, `execCommand("inserttext", false, " ") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+
+  for (let i = 1; i <= 3; i++) {
+    editor.innerHTML = "a&nbsp;&nbsp;b";
+    selection.collapse(editor.firstChild, i);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(escape(editor.firstChild.data),
+                    `a${escape(generateWhiteSpaces(3, false))}b`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+  }
+
+  for (let i = 1; i <= 6; i++) {
+    editor.innerHTML = "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b";
+    selection.collapse(editor.firstChild, i);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(escape(editor.firstChild.data),
+                    `a${escape(generateWhiteSpaces(6, false))}b`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+  }
+
+  for (let i = 1; i <= 7; i++) {
+    editor.innerHTML = "a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b";
+    selection.collapse(editor.firstChild, i);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(escape(editor.firstChild.data),
+                    `a${escape(generateWhiteSpaces(7, false))}b`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+  }
+
+  for (let i = 0; i < 12; i++) {
+    editor.innerHTML = `a${generateWhiteSpaces(i)}b`;
+    selection.collapse(editor.firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, "\u00A0");
+      assert_equals(escape(editor.firstChild.data),
+                    `a${i === 0 ? " " : escape(generateWhiteSpaces(i + 1, false))}b`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, "\\u00A0") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span>${i === 0 ? " " : generateWhiteSpaces(i + 1)}</span>b`;
+    selection.collapse(editor.querySelector("span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span>${escape(generateWhiteSpaces(i + 2, true))}</span>b`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span>${getDescriptionForTextNode(editor.querySelector("span").firstChild)}</span>b"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span>b${generateWhiteSpaces(i, true)}</span>c`;
+    selection.collapse(editor.querySelector("span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span>b${escape(generateWhiteSpaces(i + 1, true))}</span>c`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span>${getDescriptionForTextNode(editor.querySelector("span").firstChild)}</span>c"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span>b${generateWhiteSpaces(i, true)}</span> c`;
+    selection.collapse(editor.querySelector("span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span>b${escape(generateWhiteSpaces(i + 1, true))}</span> c`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span>${getDescriptionForTextNode(editor.querySelector("span").firstChild)}</span> c"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span>b${generateWhiteSpaces(i, true)}</span>&nbsp;c`;
+    selection.collapse(editor.querySelector("span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span>b${escape(generateWhiteSpaces(i + 1, true))}</span>&nbsp;c`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span>${getDescriptionForTextNode(editor.querySelector("span").firstChild)}</span>&nbsp;c"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span>b${generateWhiteSpaces(i, true)}</span><span>c</span>`;
+    selection.collapse(editor.querySelector("span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span>b${escape(generateWhiteSpaces(i + 1, true))}</span><span>c</span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span>${getDescriptionForTextNode(editor.querySelector("span").firstChild)}</span><span>c</span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span>b${generateWhiteSpaces(i, true)}</span><span> c</span>`;
+    selection.collapse(editor.querySelector("span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span>b${escape(generateWhiteSpaces(i + 1, true))}</span><span> c</span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span>${getDescriptionForTextNode(editor.querySelector("span").firstChild)}</span><span> c</span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span>b${generateWhiteSpaces(i, true)}</span><span>&nbsp;c</span>`;
+    selection.collapse(editor.querySelector("span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span>b${escape(generateWhiteSpaces(i + 1, true))}</span><span>&nbsp;c</span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span>${getDescriptionForTextNode(editor.querySelector("span").firstChild)}</span><span>&nbsp;c</span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span>b${generateWhiteSpaces(i, true)}</span><span><span>c</span></span>`;
+    selection.collapse(editor.querySelector("span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span>b${escape(generateWhiteSpaces(i + 1, true))}</span><span><span>c</span></span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span>${getDescriptionForTextNode(editor.querySelector("span").firstChild)}</span><span><span>c</span></span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span>b${generateWhiteSpaces(i, true)}</span><span><span> c</span></span>`;
+    selection.collapse(editor.querySelector("span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span>b${escape(generateWhiteSpaces(i + 1, true))}</span><span><span> c</span></span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span>${getDescriptionForTextNode(editor.querySelector("span").firstChild)}</span><span><span> c</span></span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span>b${generateWhiteSpaces(i, true)}</span><span><span>&nbsp;c</span></span>`;
+    selection.collapse(editor.querySelector("span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span>b${escape(generateWhiteSpaces(i + 1, true))}</span><span><span>&nbsp;c</span></span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span>${getDescriptionForTextNode(editor.querySelector("span").firstChild)}</span><span><span>&nbsp;c</span></span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span><span>b${generateWhiteSpaces(i, true)}</span></span><span>c</span>`;
+    selection.collapse(editor.querySelector("span span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span><span>b${escape(generateWhiteSpaces(i + 1, true))}</span></span><span>c</span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span><span>${getDescriptionForTextNode(editor.querySelector("span span").firstChild)}</span></span><span>c</span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span><span>b${generateWhiteSpaces(i, true)}</span></span><span> c</span>`;
+    selection.collapse(editor.querySelector("span span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span><span>b${escape(generateWhiteSpaces(i + 1, true))}</span></span><span> c</span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span><span>${getDescriptionForTextNode(editor.querySelector("span span").firstChild)}</span></span><span> c</span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a<span><span>b${generateWhiteSpaces(i, true)}</span></span><span>&nbsp;c</span>`;
+    selection.collapse(editor.querySelector("span span").firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a<span><span>b${escape(generateWhiteSpaces(i + 1, true))}</span></span><span>&nbsp;c</span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "a<span><span>${getDescriptionForTextNode(editor.querySelector("span span").firstChild)}</span></span><span>&nbsp;c</span>"`);
+  }
+
+  for (let i = 2; i < 8; i++) {
+    editor.innerHTML = "ab";
+    selection.collapse(editor.firstChild, 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ".repeat(i));
+      assert_equals(escape(editor.firstChild.data),
+                    `a${i > 0 ? escape(generateWhiteSpaces(i, false)) : " "}b`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, "${" ".repeat(i)}") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+  }
+
+  for (let i = 2; i < 8; i++) {
+    editor.innerHTML = "a";
+    selection.collapse(editor.firstChild, 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ".repeat(i));
+      assert_equals(escape(editor.firstChild.data),
+                    `a${i > 0 ? escape(generateWhiteSpaces(i, true)) : " "}`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, "${" ".repeat(i)}") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+  }
+
+  for (let i = 2; i < 8; i++) {
+    editor.innerHTML = "ab";
+    selection.collapse(editor.firstChild, 1);
+    test(function () {
+      document.execCommand("inserttext", false, "\u00A0".repeat(i));
+      assert_equals(escape(editor.firstChild.data),
+                    `a${i > 0 ? escape(generateWhiteSpaces(i, false)) : " "}b`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, "${"\\u00A0".repeat(i)}") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+  }
+
+  for (let i = 2; i < 8; i++) {
+    editor.innerHTML = "a";
+    selection.collapse(editor.firstChild, 1);
+    test(function () {
+      document.execCommand("inserttext", false, "\u00A0".repeat(i));
+      assert_equals(escape(editor.firstChild.data),
+                    `a${i > 0 ? escape(generateWhiteSpaces(i, true)) : " "}`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, "${"\\u00A0".repeat(i)}") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a${generateWhiteSpaces(i, true)}<span style=white-space:pre>b</span>`;
+    selection.collapse(editor.firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a${escape(generateWhiteSpaces(i + 1, true))}<span style=\"white-space:pre\">b</span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "${getDescriptionForTextNode(editor.firstChild)}<span style=white-space:pre>b</span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a${generateWhiteSpaces(i, true)}<span style=white-space:pre> </span>`;
+    selection.collapse(editor.firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a${escape(generateWhiteSpaces(i + 1, true))}<span style=\"white-space:pre\"> </span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "${getDescriptionForTextNode(editor.firstChild)}<span style=white-space:pre> </span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a${generateWhiteSpaces(i, true)}<span style=white-space:pre>&nbsp;</span>`;
+    selection.collapse(editor.firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, " ");
+      assert_equals(editor.innerHTML,
+                    `a${escape(generateWhiteSpaces(i + 1, true))}<span style=\"white-space:pre\">&nbsp;</span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, " ") at "${getDescriptionForTextNode(editor.firstChild)}<span style=white-space:pre>&nbsp;</span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a${generateWhiteSpaces(i, true)}<span style=white-space:pre>b</span>`;
+    selection.collapse(editor.firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, "\u00A0");
+      assert_equals(editor.innerHTML,
+                    `a${escape(generateWhiteSpaces(i + 1, true))}<span style=\"white-space:pre\">b</span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, "\\u00A0") at "${getDescriptionForTextNode(editor.firstChild)}<span style=white-space:pre>b</span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a${generateWhiteSpaces(i, true)}<span style=white-space:pre> </span>`;
+    selection.collapse(editor.firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, "\u00A0");
+      assert_equals(editor.innerHTML,
+                    `a${escape(generateWhiteSpaces(i + 1, true))}<span style=\"white-space:pre\"> </span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, "\\u00A0") at "${getDescriptionForTextNode(editor.firstChild)}<span style=white-space:pre> </span>"`);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    editor.innerHTML = `a${generateWhiteSpaces(i, true)}<span style=white-space:pre>&nbsp;</span>`;
+    selection.collapse(editor.firstChild, i + 1);
+    test(function () {
+      document.execCommand("inserttext", false, "\u00A0");
+      assert_equals(editor.innerHTML,
+                    `a${escape(generateWhiteSpaces(i + 1, true))}<span style=\"white-space:pre\">&nbsp;</span>`,
+                    "Modified text is wrong");
+    }, `execCommand("inserttext", false, "\\u00A0") at "${getDescriptionForTextNode(editor.firstChild)}<span style=white-space:pre>&nbsp;</span>"`);
+  }
+
+  editor.innerHTML = "a&nbsp;&nbsp;c";
+  selection.collapse(editor.firstChild, 2);
+  test(function () {
+    document.execCommand("inserttext", false, "b");
+    assert_equals(escape(editor.firstChild.data), "a b c", "Modified text is wrong");
+  }, `execCommand("inserttext", false, "b") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+
+  editor.innerHTML = "a&nbsp;&nbsp;&nbsp;&nbsp;c";
+  selection.collapse(editor.firstChild, 1);
+  test(function () {
+    document.execCommand("inserttext", false, "b");
+    assert_equals(escape(editor.firstChild.data), `ab${escape(generateWhiteSpaces(4))}c`, "Modified text is wrong");
+  }, `execCommand("inserttext", false, "b") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+
+  editor.innerHTML = "a&nbsp;&nbsp;&nbsp;&nbsp;c";
+  selection.collapse(editor.firstChild, 2);
+  test(function () {
+    document.execCommand("inserttext", false, "b");
+    assert_equals(escape(editor.firstChild.data), `a b${escape(generateWhiteSpaces(3))}c`, "Modified text is wrong");
+  }, `execCommand("inserttext", false, "b") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+
+  editor.innerHTML = "a&nbsp;&nbsp;&nbsp;&nbsp;c";
+  selection.collapse(editor.firstChild, 3);
+  test(function () {
+    document.execCommand("inserttext", false, "b");
+    assert_equals(escape(editor.firstChild.data),
+                  `a${escape(generateWhiteSpaces(2))}b${escape(generateWhiteSpaces(2))}c`,
+                  "Modified text is wrong");
+  }, `execCommand("inserttext", false, "b") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+
+  editor.innerHTML = "a&nbsp;&nbsp;&nbsp;&nbsp;c";
+  selection.collapse(editor.firstChild, 4);
+  test(function () {
+    document.execCommand("inserttext", false, "b");
+    assert_equals(escape(editor.firstChild.data),
+                  `a${escape(generateWhiteSpaces(3))}b c`,
+                  "Modified text is wrong");
+  }, `execCommand("inserttext", false, "b") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+
+  editor.innerHTML = "a&nbsp;&nbsp;&nbsp;&nbsp;c";
+  selection.collapse(editor.firstChild, 5);
+  test(function () {
+    document.execCommand("inserttext", false, "b");
+    assert_equals(escape(editor.firstChild.data), `a${escape(generateWhiteSpaces(4))}bc`, "Modified text is wrong");
+  }, `execCommand("inserttext", false, "b") at "${getDescriptionForTextNode(editor.firstChild)}"`);
+
+  // Test white space sequence split to multiple text node.
+  //  - initialText: Set to data of text nodes.  This must have "|" at least one.
+  //                 Then, the text will be split at every "|".
+  //                 Same as above test, only &nbsp; is handled at setting.
+  //                 "[]" means that caret position.
+  //  - expectedText: Set to data of all text nodes as an array.
+  //                  Same as above test, only &nbsp; is handled before comparing.
+  for (const currentTest of [
+    { initialText: "a[]|b", expectedText: ["a", "b"] },
+    { initialText: "a []|b", expectedText: ["a ", "b"] },
+    { initialText: "a |[]b", expectedText: ["a ", "b"] },
+    { initialText: "a[]&nbsp;|b", expectedText: ["a&nbsp;", "b"] },
+    { initialText: "a&nbsp;[]|b", expectedText: ["a&nbsp;", "b"] },
+    { initialText: "a&nbsp;|[]b", expectedText: ["a&nbsp;", "b"] },
+    { initialText: "a[]|&nbsp;b", expectedText: ["a", "&nbsp;b"] },
+    { initialText: "a|[]&nbsp;b", expectedText: ["a", "&nbsp;b"] },
+    { initialText: "a|&nbsp;[]b", expectedText: ["a", "&nbsp;b"] },
+    { initialText: "a[] |&nbsp;b", expectedText: ["a ", "&nbsp;b"] },
+    { initialText: "a []|&nbsp;b", expectedText: ["a ", "&nbsp;b"] },
+    { initialText: "a |[]&nbsp;b", expectedText: ["a ", "&nbsp;b"] },
+    { initialText: "a |&nbsp;[]b", expectedText: ["a ", "&nbsp;b"] },
+    { initialText: "a[]&nbsp;| b", expectedText: ["a&nbsp;", " b"] },
+    { initialText: "a&nbsp;[]| b", expectedText: ["a&nbsp;", " b"] },
+    { initialText: "a&nbsp;|[] b", expectedText: ["a&nbsp;", " b"] },
+    { initialText: "a&nbsp;| []b", expectedText: ["a&nbsp;", " b"] },
+    { initialText: "a[]&nbsp;|&nbsp;b", expectedText: ["a&nbsp;", "&nbsp;b"] },
+    { initialText: "a&nbsp;[]|&nbsp;b", expectedText: ["a&nbsp;", "&nbsp;b"] },
+    { initialText: "a&nbsp;|[]&nbsp;b", expectedText: ["a&nbsp;", "&nbsp;b"] },
+    { initialText: "a&nbsp;|&nbsp;[]b", expectedText: ["a&nbsp;", "&nbsp;b"] },
+  ]) {
+    test(function () {
+      editor.innerHTML = "";
+      let caret = { container: null, offset: -1 };
+      for (let text of toPlaintext(currentTest.initialText).split("|")) {
+        let caretOffset = text.indexOf("[]");
+        if (caretOffset >= 0) {
+          text = text.slice(0, caretOffset) + text.slice(caretOffset + 2);
+        }
+        let textNode = document.createTextNode(text);
+        editor.appendChild(textNode);
+        if (caretOffset >= 0) {
+          caret = { container: textNode, offset: caretOffset };
+        }
+      }
+      selection.collapse(caret.container, caret.offset);
+      document.execCommand("inserttext", false, "");
+      let child = editor.firstChild;
+      for (let expectedText of currentTest.expectedText) {
+        expectedText = toPlaintext(expectedText);
+        let caretOffset = expectedText.indexOf("[]");
+        if (caretOffset >= 0) {
+          expectedText = expectedText.slice(0, caretOffset) + expectedText.slice(caretOffset + 2);
+        }
+        if (!child || child.nodeName !== "#text") {
+          assert_equals("", escape(expectedText), "Expected text node is not there");
+          if (caretOffset >= 0) {
+            assert_equals(-1, caretOffset, "Selection should be contained in this node");
+          }
+        } else {
+          assert_equals(escape(child.data), escape(expectedText), "Modified text is wrong");
+          if (caretOffset >= 0) {
+            assert_equals(selection.focusNode, child, "Selection focus node is wrong");
+            assert_equals(selection.focusOffset, caretOffset, "Selection focus offset is wrong");
+            assert_equals(selection.anchorNode, child, "Selection anchor node is wrong");
+            assert_equals(selection.anchorOffset, caretOffset, "Selection anchor offset is wrong");
+          }
+        }
+        child = child.nextSibling;
+      }
+      if (child && child.nodeName === "#text") {
+        assert_equals(escape(child.data), "", "Unexpected text node is there");
+      }
+    }, `execCommand("inserttext", false, ""): "${currentTest.initialText}"`);
+  }
+
+  done();
+}
+
+window.addEventListener("load", runTests, {once: true});
+</script>
+</body>
+</html>

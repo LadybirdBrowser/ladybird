@@ -1,0 +1,1006 @@
+Harness status: OK
+
+Found 1000 tests
+
+984 Pass
+16 Fail
+Pass	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}" checks for modifications to non-editable content
+Fail	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}" compare innerHTML
+Pass	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "a@b<b>[]c</b>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "a@b<b>[]c</b>" checks for modifications to non-editable content
+Fail	[["inserttext"," "]] "a@b<b>[]c</b>" compare innerHTML
+Pass	[["inserttext"," "]] "a@b<b>[]c</b>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "a@b<b>[]c</b>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "a@b<b>[]c</b>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "a@b<b>[]c</b>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "a@b<b>[]c</b>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "a@b<b>[]c</b>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<p>a@b</p><p>[]c</p>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<p>a@b</p><p>[]c</p>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<p>a@b</p><p>[]c</p>" compare innerHTML
+Pass	[["inserttext"," "]] "<p>a@b</p><p>[]c</p>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<p>a@b</p><p>[]c</p>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<p>a@b</p><p>[]c</p>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<p>a@b</p><p>[]c</p>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<p>a@b</p><p>[]c</p>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<p>a@b</p><p>[]c</p>" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "http://a[]": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "http://a[]" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "http://a[]" compare innerHTML
+Pass	[["inserttext","a"]] "http://a[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "http://a[]" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "http://a[]" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "http://a[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "http://a[]" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "http://a[]" queryCommandValue("inserttext") after
+Pass	[["inserttext","\t"]] "http://a[]": execCommand("inserttext", false, "\t") return value
+Pass	[["inserttext","\t"]] "http://a[]" checks for modifications to non-editable content
+Pass	[["inserttext","\t"]] "http://a[]" compare innerHTML
+Pass	[["inserttext","\t"]] "http://a[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","\t"]] "http://a[]" queryCommandState("inserttext") before
+Pass	[["inserttext","\t"]] "http://a[]" queryCommandValue("inserttext") before
+Pass	[["inserttext","\t"]] "http://a[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","\t"]] "http://a[]" queryCommandState("inserttext") after
+Pass	[["inserttext","\t"]] "http://a[]" queryCommandValue("inserttext") after
+Pass	[["inserttext","\f"]] "http://a[]": execCommand("inserttext", false, "\f") return value
+Pass	[["inserttext","\f"]] "http://a[]" checks for modifications to non-editable content
+Pass	[["inserttext","\f"]] "http://a[]" compare innerHTML
+Pass	[["inserttext","\f"]] "http://a[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","\f"]] "http://a[]" queryCommandState("inserttext") before
+Pass	[["inserttext","\f"]] "http://a[]" queryCommandValue("inserttext") before
+Pass	[["inserttext","\f"]] "http://a[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","\f"]] "http://a[]" queryCommandState("inserttext") after
+Pass	[["inserttext","\f"]] "http://a[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "http://a[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "http://a[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "http://a[]" compare innerHTML
+Pass	[["inserttext"," "]] "http://a[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "http://a[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "http://a[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "http://a[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "http://a[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "http://a[]" queryCommandValue("inserttext") after
+Pass	[["inserttext","   "]] "foo[]": execCommand("inserttext", false, "   ") return value
+Pass	[["inserttext","   "]] "foo[]" checks for modifications to non-editable content
+Pass	[["inserttext","   "]] "foo[]" compare innerHTML
+Pass	[["inserttext","   "]] "foo[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","   "]] "foo[]" queryCommandState("inserttext") before
+Pass	[["inserttext","   "]] "foo[]" queryCommandValue("inserttext") before
+Pass	[["inserttext","   "]] "foo[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","   "]] "foo[]" queryCommandState("inserttext") after
+Pass	[["inserttext","   "]] "foo[]" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo&nbsp;[]": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo&nbsp;[]" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo&nbsp;[]" compare innerHTML
+Pass	[["inserttext","a"]] "foo&nbsp;[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo&nbsp;[]" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo&nbsp;[]" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo&nbsp;[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo&nbsp;[]" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo&nbsp;[]" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo []": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo []" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo []" compare innerHTML
+Pass	[["inserttext","a"]] "foo []" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo []" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo []" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo []" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo []" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo []" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo[]": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<p>foo[]" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<p>foo[]" compare innerHTML
+Pass	[["inserttext","a"]] "<p>foo[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo[]" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo[]" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo[]" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo[]" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo</p>{}": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<p>foo</p>{}" checks for modifications to non-editable content
+Fail	[["inserttext","a"]] "<p>foo</p>{}" compare innerHTML
+Pass	[["inserttext","a"]] "<p>foo</p>{}" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo</p>{}" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo</p>{}" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo</p>{}" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo</p>{}" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo</p>{}" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<p>[]foo": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<p>[]foo" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<p>[]foo" compare innerHTML
+Pass	[["inserttext","a"]] "<p>[]foo" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<p>[]foo" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<p>[]foo" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<p>[]foo" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<p>[]foo" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<p>[]foo" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<p>{}foo": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<p>{}foo" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<p>{}foo" compare innerHTML
+Pass	[["inserttext","a"]] "<p>{}foo" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<p>{}foo" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<p>{}foo" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<p>{}foo" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<p>{}foo" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<p>{}foo" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "{}<p>foo": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "{}<p>foo" checks for modifications to non-editable content
+Fail	[["inserttext","a"]] "{}<p>foo" compare innerHTML
+Pass	[["inserttext","a"]] "{}<p>foo" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "{}<p>foo" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "{}<p>foo" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "{}<p>foo" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "{}<p>foo" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "{}<p>foo" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo</p>{}<p>bar</p>": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<p>foo</p>{}<p>bar</p>" checks for modifications to non-editable content
+Fail	[["inserttext","a"]] "<p>foo</p>{}<p>bar</p>" compare innerHTML
+Pass	[["inserttext","a"]] "<p>foo</p>{}<p>bar</p>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo</p>{}<p>bar</p>" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo</p>{}<p>bar</p>" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo</p>{}<p>bar</p>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo</p>{}<p>bar</p>" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo</p>{}<p>bar</p>" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<b>foo[]</b>bar": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<b>foo[]</b>bar" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<b>foo[]</b>bar" compare innerHTML
+Pass	[["inserttext","a"]] "<b>foo[]</b>bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<b>foo[]</b>bar" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<b>foo[]</b>bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<b>foo[]</b>bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<b>foo[]</b>bar" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<b>foo[]</b>bar" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<b>foo</b>[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<b>foo</b>[]bar" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<b>foo</b>[]bar" compare innerHTML
+Pass	[["inserttext","a"]] "<b>foo</b>[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<b>foo</b>[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<b>foo</b>[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<b>foo</b>[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<b>foo</b>[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<b>foo</b>[]bar" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<b>{}</b>bar": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<b>{}</b>bar" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<b>{}</b>bar" compare innerHTML
+Pass	[["inserttext","a"]] "foo<b>{}</b>bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<b>{}</b>bar" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<b>{}</b>bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<b>{}</b>bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<b>{}</b>bar" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<b>{}</b>bar" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<a>foo[]</a>bar": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<a>foo[]</a>bar" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<a>foo[]</a>bar" compare innerHTML
+Pass	[["inserttext","a"]] "<a>foo[]</a>bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<a>foo[]</a>bar" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<a>foo[]</a>bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<a>foo[]</a>bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<a>foo[]</a>bar" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<a>foo[]</a>bar" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<a>foo</a>[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<a>foo</a>[]bar" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<a>foo</a>[]bar" compare innerHTML
+Pass	[["inserttext","a"]] "<a>foo</a>[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<a>foo</a>[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<a>foo</a>[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<a>foo</a>[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<a>foo</a>[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<a>foo</a>[]bar" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<a href=/>foo[]</a>bar": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<a href=/>foo[]</a>bar" checks for modifications to non-editable content
+Fail	[["inserttext","a"]] "<a href=/>foo[]</a>bar" compare innerHTML
+Pass	[["inserttext","a"]] "<a href=/>foo[]</a>bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<a href=/>foo[]</a>bar" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<a href=/>foo[]</a>bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<a href=/>foo[]</a>bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<a href=/>foo[]</a>bar" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<a href=/>foo[]</a>bar" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<a href=/>foo</a>[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<a href=/>foo</a>[]bar" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<a href=/>foo</a>[]bar" compare innerHTML
+Pass	[["inserttext","a"]] "<a href=/>foo</a>[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<a href=/>foo</a>[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<a href=/>foo</a>[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<a href=/>foo</a>[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<a href=/>foo</a>[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<a href=/>foo</a>[]bar" queryCommandValue("inserttext") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar": execCommand("inserttext", false, "a") return value
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandState("defaultparagraphseparator") before
+Fail	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandIndeterm("inserttext") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandState("inserttext") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandValue("inserttext") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandIndeterm("inserttext") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandState("inserttext") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandValue("inserttext") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar": execCommand("inserttext", false, "a") return value
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandIndeterm("inserttext") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandState("inserttext") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandValue("inserttext") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandIndeterm("inserttext") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandState("inserttext") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>b]ar" queryCommandValue("inserttext") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az": execCommand("inserttext", false, "a") return value
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandIndeterm("inserttext") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandState("inserttext") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandValue("inserttext") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandIndeterm("inserttext") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandState("inserttext") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandValue("inserttext") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az": execCommand("inserttext", false, "a") return value
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandIndeterm("inserttext") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandState("inserttext") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandValue("inserttext") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandIndeterm("inserttext") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandState("inserttext") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","a"]] "<p>fo[o<p>bar<p>b]az" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "{}<br>": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "{}<br>" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "{}<br>" compare innerHTML
+Pass	[["inserttext","a"]] "{}<br>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "{}<br>" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "{}<br>" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "{}<br>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "{}<br>" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "{}<br>" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<p>{}<br>": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<p>{}<br>" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<p>{}<br>" compare innerHTML
+Pass	[["inserttext","a"]] "<p>{}<br>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<p>{}<br>" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<p>{}<br>" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<p>{}<br>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<p>{}<br>" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<p>{}<br>" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<p><span>{}<br></span>": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<p><span>{}<br></span>" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<p><span>{}<br></span>" compare innerHTML
+Pass	[["inserttext","a"]] "<p><span>{}<br></span>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<p><span>{}<br></span>" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<p><span>{}<br></span>" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<p><span>{}<br></span>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<p><span>{}<br></span>" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<p><span>{}<br></span>" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" compare innerHTML
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" compare innerHTML
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" compare innerHTML
+Pass	[["inserttext","a"]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("stylewithcss") before
+Fail	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>[foo<span style=color:#aBcDeF>bar]</span>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>{foo<span style=color:#aBcDeF>bar}</span>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" compare innerHTML
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span>baz]" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" compare innerHTML
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<b>[bar]</b>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<b>[bar]</b>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<b>[bar]</b>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<b>[bar]</b>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<b>[bar]</b>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<b>[bar]</b>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<b>[bar]</b>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<b>[bar]</b>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<b>[bar]</b>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<i>[bar]</i>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<i>[bar]</i>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<i>[bar]</i>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<i>[bar]</i>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<i>[bar]</i>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<i>[bar]</i>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<i>[bar]</i>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<i>[bar]</i>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<i>[bar]</i>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<s>[bar]</s>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<s>[bar]</s>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<s>[bar]</s>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<s>[bar]</s>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<s>[bar]</s>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<s>[bar]</s>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<s>[bar]</s>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<s>[bar]</s>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<s>[bar]</s>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<sub>[bar]</sub>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<sub>[bar]</sub>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<sub>[bar]</sub>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<sub>[bar]</sub>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<sub>[bar]</sub>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<sub>[bar]</sub>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<sub>[bar]</sub>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<sub>[bar]</sub>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<sub>[bar]</sub>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<sup>[bar]</sup>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<sup>[bar]</sup>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<sup>[bar]</sup>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<sup>[bar]</sup>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<sup>[bar]</sup>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<sup>[bar]</sup>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<sup>[bar]</sup>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<sup>[bar]</sup>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<sup>[bar]</sup>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<u>[bar]</u>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<u>[bar]</u>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<u>[bar]</u>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<u>[bar]</u>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<u>[bar]</u>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<u>[bar]</u>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<u>[bar]</u>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<u>[bar]</u>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<u>[bar]</u>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com>[bar]</a>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com>[bar]</a>baz" checks for modifications to non-editable content
+Fail	[["inserttext","a"]] "foo<a href=http://www.google.com>[bar]</a>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com>[bar]</a>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com>[bar]</a>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com>[bar]</a>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com>[bar]</a>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com>[bar]</a>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com>[bar]</a>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<font face=sans-serif>[bar]</font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<font face=sans-serif>[bar]</font>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<font face=sans-serif>[bar]</font>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<font face=sans-serif>[bar]</font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<font face=sans-serif>[bar]</font>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<font face=sans-serif>[bar]</font>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<font face=sans-serif>[bar]</font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<font face=sans-serif>[bar]</font>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<font face=sans-serif>[bar]</font>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<font size=4>[bar]</font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<font size=4>[bar]</font>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<font size=4>[bar]</font>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<font size=4>[bar]</font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<font size=4>[bar]</font>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<font size=4>[bar]</font>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<font size=4>[bar]</font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<font size=4>[bar]</font>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<font size=4>[bar]</font>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<font color=#0000FF>[bar]</font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<font color=#0000FF>[bar]</font>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<font color=#0000FF>[bar]</font>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<font color=#0000FF>[bar]</font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<font color=#0000FF>[bar]</font>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<font color=#0000FF>[bar]</font>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<font color=#0000FF>[bar]</font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<font color=#0000FF>[bar]</font>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<font color=#0000FF>[bar]</font>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar]</span>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar]</font></a>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar]</font></a>baz" checks for modifications to non-editable content
+Fail	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar]</font></a>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar]</font></a>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar]</font></a>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar]</font></a>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar]</font></a>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar]</font></a>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar]</font></a>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar]</a></font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar]</a></font>baz" checks for modifications to non-editable content
+Fail	[["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar]</a></font>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar]</a></font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar]</a></font>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar]</a></font>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar]</a></font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar]</a></font>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar]</a></font>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar]</font></a>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar]</font></a>baz" checks for modifications to non-editable content
+Fail	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar]</font></a>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar]</font></a>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar]</font></a>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar]</font></a>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar]</font></a>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar]</font></a>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar]</font></a>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar]</a></font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar]</a></font>baz" checks for modifications to non-editable content
+Fail	[["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar]</a></font>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar]</a></font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar]</a></font>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar]</a></font>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar]</a></font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar]</a></font>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar]</a></font>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar]</font></a>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar]</font></a>baz" checks for modifications to non-editable content
+Fail	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar]</font></a>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar]</font></a>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar]</font></a>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar]</font></a>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar]</font></a>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar]</font></a>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar]</font></a>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar]</u></a>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar]</u></a>baz" checks for modifications to non-editable content
+Fail	[["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar]</u></a>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar]</u></a>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar]</u></a>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar]</u></a>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar]</u></a>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar]</u></a>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar]</u></a>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar]</a></u>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar]</a></u>baz" checks for modifications to non-editable content
+Fail	[["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar]</a></u>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar]</a></u>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar]</a></u>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar]</a></u>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar]</a></u>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar]</a></u>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar]</a></u>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<sub><font size=2>[bar]</font></sub>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<sub><font size=2>[bar]</font></sub>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<sub><font size=2>[bar]</font></sub>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<sub><font size=2>[bar]</font></sub>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<sub><font size=2>[bar]</font></sub>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<sub><font size=2>[bar]</font></sub>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<sub><font size=2>[bar]</font></sub>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<sub><font size=2>[bar]</font></sub>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<sub><font size=2>[bar]</font></sub>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<font size=2><sub>[bar]</sub></font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<font size=2><sub>[bar]</sub></font>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<font size=2><sub>[bar]</sub></font>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<font size=2><sub>[bar]</sub></font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<font size=2><sub>[bar]</sub></font>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<font size=2><sub>[bar]</sub></font>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<font size=2><sub>[bar]</sub></font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<font size=2><sub>[bar]</sub></font>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<font size=2><sub>[bar]</sub></font>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<sub><font size=3>[bar]</font></sub>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<sub><font size=3>[bar]</font></sub>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<sub><font size=3>[bar]</font></sub>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<sub><font size=3>[bar]</font></sub>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<sub><font size=3>[bar]</font></sub>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<sub><font size=3>[bar]</font></sub>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<sub><font size=3>[bar]</font></sub>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<sub><font size=3>[bar]</font></sub>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<sub><font size=3>[bar]</font></sub>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo<font size=3><sub>[bar]</sub></font>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<b>bar]</b>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<i>bar]</i>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<s>bar]</s>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sub>bar]</sub>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<sup>bar]</sup>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<u>bar]</u>baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","a"]] "[foo<a href=http://www.google.com>bar]</a>baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "[foo<a href=http://www.google.com>bar]</a>baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "[foo<a href=http://www.google.com>bar]</a>baz" compare innerHTML
+Pass	[["inserttext","a"]] "[foo<a href=http://www.google.com>bar]</a>baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "[foo<a href=http://www.google.com>bar]</a>baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "[foo<a href=http://www.google.com>bar]</a>baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "[foo<a href=http://www.google.com>bar]</a>baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "[foo<a href=http://www.google.com>bar]</a>baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "[foo<a href=http://www.google.com>bar]</a>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font face=sans-serif>bar]</font>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font size=4>bar]</font>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<font color=#0000FF>bar]</font>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<span style=background-color:#00FFFF>bar]</span>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandIndeterm("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandState("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandValue("inserttext") before
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandIndeterm("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandState("inserttext") after
+Pass	[["stylewithcss","true"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandValue("inserttext") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz": execCommand("inserttext", false, "a") return value
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandState("stylewithcss") after

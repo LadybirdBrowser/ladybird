@@ -1,0 +1,1006 @@
+Harness status: OK
+
+Found 1000 tests
+
+998 Pass
+2 Fail
+Pass	[["inserttext","a"]] "foo[bar]baz": execCommand("inserttext", false, "a") return value
+Pass	[["inserttext","a"]] "foo[bar]baz" checks for modifications to non-editable content
+Pass	[["inserttext","a"]] "foo[bar]baz" compare innerHTML
+Pass	[["inserttext","a"]] "foo[bar]baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","a"]] "foo[bar]baz" queryCommandState("inserttext") before
+Pass	[["inserttext","a"]] "foo[bar]baz" queryCommandValue("inserttext") before
+Pass	[["inserttext","a"]] "foo[bar]baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","a"]] "foo[bar]baz" queryCommandState("inserttext") after
+Pass	[["inserttext","a"]] "foo[bar]baz" queryCommandValue("inserttext") after
+Pass	[["inserttext",""]] "foo[bar]baz": execCommand("inserttext", false, "") return value
+Pass	[["inserttext",""]] "foo[bar]baz" checks for modifications to non-editable content
+Pass	[["inserttext",""]] "foo[bar]baz" compare innerHTML
+Pass	[["inserttext",""]] "foo[bar]baz" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext",""]] "foo[bar]baz" queryCommandState("inserttext") before
+Pass	[["inserttext",""]] "foo[bar]baz" queryCommandValue("inserttext") before
+Pass	[["inserttext",""]] "foo[bar]baz" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext",""]] "foo[bar]baz" queryCommandState("inserttext") after
+Pass	[["inserttext",""]] "foo[bar]baz" queryCommandValue("inserttext") after
+Pass	[["inserttext","\t"]] "foo[]bar": execCommand("inserttext", false, "\t") return value
+Pass	[["inserttext","\t"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["inserttext","\t"]] "foo[]bar" compare innerHTML
+Pass	[["inserttext","\t"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","\t"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext","\t"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","\t"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","\t"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext","\t"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["inserttext","&"]] "foo[]bar": execCommand("inserttext", false, "&") return value
+Pass	[["inserttext","&"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["inserttext","&"]] "foo[]bar" compare innerHTML
+Pass	[["inserttext","&"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","&"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext","&"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","&"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","&"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext","&"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar": execCommand("inserttext", false, "\n") return value
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","\n"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar": execCommand("inserttext", false, "\n") return value
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","\n"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar": execCommand("inserttext", false, "abc\ndef") return value
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["defaultparagraphseparator","div"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar": execCommand("inserttext", false, "abc\ndef") return value
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["defaultparagraphseparator","p"],["inserttext","abc\ndef"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["inserttext","\u0007"]] "foo[]bar": execCommand("inserttext", false, "\x07") return value
+Pass	[["inserttext","\u0007"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["inserttext","\u0007"]] "foo[]bar" compare innerHTML
+Pass	[["inserttext","\u0007"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","\u0007"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext","\u0007"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","\u0007"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","\u0007"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext","\u0007"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["inserttext","<b>hi</b>"]] "foo[]bar": execCommand("inserttext", false, "<b>hi</b>") return value
+Pass	[["inserttext","<b>hi</b>"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["inserttext","<b>hi</b>"]] "foo[]bar" compare innerHTML
+Pass	[["inserttext","<b>hi</b>"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","<b>hi</b>"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext","<b>hi</b>"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","<b>hi</b>"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","<b>hi</b>"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext","<b>hi</b>"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["inserttext","<"]] "foo[]bar": execCommand("inserttext", false, "<") return value
+Pass	[["inserttext","<"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["inserttext","<"]] "foo[]bar" compare innerHTML
+Pass	[["inserttext","<"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","<"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext","<"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","<"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","<"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext","<"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["inserttext","&amp;"]] "foo[]bar": execCommand("inserttext", false, "&amp;") return value
+Pass	[["inserttext","&amp;"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["inserttext","&amp;"]] "foo[]bar" compare innerHTML
+Pass	[["inserttext","&amp;"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext","&amp;"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext","&amp;"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext","&amp;"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext","&amp;"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext","&amp;"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo[]bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo[]bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo []bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo []bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo []bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo []bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo []bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo []bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo []bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo []bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo []bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo[] bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo[] bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo[] bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo[] bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo[] bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo[] bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo[] bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo[] bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo[] bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo &nbsp;[]bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo &nbsp;[]bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo &nbsp;[]bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo &nbsp;[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo &nbsp;[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo &nbsp;[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo &nbsp;[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo &nbsp;[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo &nbsp;[]bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo []&nbsp;bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo []&nbsp;bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo []&nbsp;bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo []&nbsp;bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo []&nbsp;bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo []&nbsp;bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo []&nbsp;bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo []&nbsp;bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo []&nbsp;bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo[] &nbsp;bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo[] &nbsp;bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo[] &nbsp;bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo[] &nbsp;bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo[] &nbsp;bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo[] &nbsp;bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo[] &nbsp;bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo[] &nbsp;bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo[] &nbsp;bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp; []bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo&nbsp; []bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo&nbsp; []bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo&nbsp; []bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp; []bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp; []bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp; []bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp; []bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp; []bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;[] bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo&nbsp;[] bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo&nbsp;[] bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo&nbsp;[] bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;[] bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;[] bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;[] bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;[] bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;[] bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo[]&nbsp; bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo[]&nbsp; bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo[]&nbsp; bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo[]&nbsp; bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo[]&nbsp; bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo[]&nbsp; bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo[]&nbsp; bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo[]&nbsp; bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo[]&nbsp; bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;[]&nbsp;bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo&nbsp;[]&nbsp;bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo&nbsp;[]&nbsp;bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo&nbsp;[]&nbsp;bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;[]&nbsp;bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;[]&nbsp;bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;[]&nbsp;bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;[]&nbsp;bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;[]&nbsp;bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo[]&nbsp;&nbsp;bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo[]&nbsp;&nbsp;bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo[]&nbsp;&nbsp;bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo[]&nbsp;&nbsp;bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo[]&nbsp;&nbsp;bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo[]&nbsp;&nbsp;bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo[]&nbsp;&nbsp;bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo[]&nbsp;&nbsp;bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo[]&nbsp;&nbsp;bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo []&nbsp;        bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo []&nbsp;        bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo []&nbsp;        bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo []&nbsp;        bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo []&nbsp;        bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo []&nbsp;        bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo []&nbsp;        bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo []&nbsp;        bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo []&nbsp;        bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo  []bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo  []bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo  []bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo  []bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo  []bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo  []bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo  []bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo  []bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo  []bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo []&nbsp;&nbsp; &nbsp; bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo []&nbsp;&nbsp; &nbsp; bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo []&nbsp;&nbsp; &nbsp; bar" compare innerHTML
+Pass	[["inserttext"," "]] "foo []&nbsp;&nbsp; &nbsp; bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo []&nbsp;&nbsp; &nbsp; bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo []&nbsp;&nbsp; &nbsp; bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo []&nbsp;&nbsp; &nbsp; bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo []&nbsp;&nbsp; &nbsp; bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo []&nbsp;&nbsp; &nbsp; bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "[]foo": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "[]foo" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "[]foo" compare innerHTML
+Pass	[["inserttext"," "]] "[]foo" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "[]foo" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "[]foo" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "[]foo" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "[]foo" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "[]foo" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "{}foo": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "{}foo" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "{}foo" compare innerHTML
+Pass	[["inserttext"," "]] "{}foo" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "{}foo" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "{}foo" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "{}foo" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "{}foo" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "{}foo" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo[]" compare innerHTML
+Pass	[["inserttext"," "]] "foo[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo{}": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo{}" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo{}" compare innerHTML
+Pass	[["inserttext"," "]] "foo{}" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo{}" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo{}" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo{}" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo{}" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo{}" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo&nbsp;[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo&nbsp;[]" compare innerHTML
+Pass	[["inserttext"," "]] "foo&nbsp;[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;{}": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo&nbsp;{}" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo&nbsp;{}" compare innerHTML
+Pass	[["inserttext"," "]] "foo&nbsp;{}" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;{}" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;{}" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;{}" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;{}" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;{}" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]" compare innerHTML
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;{}": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;{}" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;{}" compare innerHTML
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;{}" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;{}" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;{}" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;{}" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;{}" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo&nbsp;&nbsp;{}" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<b>foo[]</b>bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<b>foo[]</b>bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<b>foo[]</b>bar" compare innerHTML
+Pass	[["inserttext"," "]] "<b>foo[]</b>bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<b>foo[]</b>bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<b>foo[]</b>bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<b>foo[]</b>bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<b>foo[]</b>bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<b>foo[]</b>bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo[]<b>bar</b>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo[]<b>bar</b>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo[]<b>bar</b>" compare innerHTML
+Pass	[["inserttext"," "]] "foo[]<b>bar</b>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo[]<b>bar</b>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo[]<b>bar</b>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo[]<b>bar</b>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo[]<b>bar</b>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo[]<b>bar</b>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo[] ": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo[] " checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo[] " compare innerHTML
+Pass	[["inserttext"," "]] "foo[] " queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo[] " queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo[] " queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo[] " queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo[] " queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo[] " queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] " foo   []   ": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] " foo   []   " checks for modifications to non-editable content
+Pass	[["inserttext"," "]] " foo   []   " compare innerHTML
+Pass	[["inserttext"," "]] " foo   []   " queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] " foo   []   " queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] " foo   []   " queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] " foo   []   " queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] " foo   []   " queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] " foo   []   " queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo[]<span> </span>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo[]<span> </span>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo[]<span> </span>" compare innerHTML
+Pass	[["inserttext"," "]] "foo[]<span> </span>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo[]<span> </span>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo[]<span> </span>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo[]<span> </span>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo[]<span> </span>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo[]<span> </span>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "foo[]<span> </span> ": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "foo[]<span> </span> " checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "foo[]<span> </span> " compare innerHTML
+Pass	[["inserttext"," "]] "foo[]<span> </span> " queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "foo[]<span> </span> " queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "foo[]<span> </span> " queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "foo[]<span> </span> " queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "foo[]<span> </span> " queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "foo[]<span> </span> " queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] " []foo": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] " []foo" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] " []foo" compare innerHTML
+Pass	[["inserttext"," "]] " []foo" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] " []foo" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] " []foo" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] " []foo" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] " []foo" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] " []foo" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "   []   foo ": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "   []   foo " checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "   []   foo " compare innerHTML
+Pass	[["inserttext"," "]] "   []   foo " queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "   []   foo " queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "   []   foo " queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "   []   foo " queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "   []   foo " queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "   []   foo " queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<span> </span>[]foo": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<span> </span>[]foo" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<span> </span>[]foo" compare innerHTML
+Pass	[["inserttext"," "]] "<span> </span>[]foo" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<span> </span>[]foo" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<span> </span>[]foo" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<span> </span>[]foo" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<span> </span>[]foo" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<span> </span>[]foo" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] " <span> </span>[]foo": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] " <span> </span>[]foo" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] " <span> </span>[]foo" compare innerHTML
+Pass	[["inserttext"," "]] " <span> </span>[]foo" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] " <span> </span>[]foo" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] " <span> </span>[]foo" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] " <span> </span>[]foo" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] " <span> </span>[]foo" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] " <span> </span>[]foo" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "{}<br>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "{}<br>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "{}<br>" compare innerHTML
+Pass	[["inserttext"," "]] "{}<br>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "{}<br>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "{}<br>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "{}<br>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "{}<br>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "{}<br>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<p>{}<br>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<p>{}<br>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<p>{}<br>" compare innerHTML
+Pass	[["inserttext"," "]] "<p>{}<br>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<p>{}<br>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<p>{}<br>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<p>{}<br>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<p>{}<br>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<p>{}<br>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<p>foo[]<p>bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<p>foo[]<p>bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<p>foo[]<p>bar" compare innerHTML
+Pass	[["inserttext"," "]] "<p>foo[]<p>bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<p>foo[]<p>bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<p>foo[]<p>bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<p>foo[]<p>bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<p>foo[]<p>bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<p>foo[]<p>bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<p>foo&nbsp;[]<p>bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<p>foo&nbsp;[]<p>bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<p>foo&nbsp;[]<p>bar" compare innerHTML
+Pass	[["inserttext"," "]] "<p>foo&nbsp;[]<p>bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<p>foo&nbsp;[]<p>bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<p>foo&nbsp;[]<p>bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<p>foo&nbsp;[]<p>bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<p>foo&nbsp;[]<p>bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<p>foo&nbsp;[]<p>bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<p>foo[]<p>&nbsp;bar": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<p>foo[]<p>&nbsp;bar" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<p>foo[]<p>&nbsp;bar" compare innerHTML
+Pass	[["inserttext"," "]] "<p>foo[]<p>&nbsp;bar" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<p>foo[]<p>&nbsp;bar" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<p>foo[]<p>&nbsp;bar" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<p>foo[]<p>&nbsp;bar" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<p>foo[]<p>&nbsp;bar" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<p>foo[]<p>&nbsp;bar" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo[]bar</pre>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<pre>foo[]bar</pre>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<pre>foo[]bar</pre>" compare innerHTML
+Pass	[["inserttext"," "]] "<pre>foo[]bar</pre>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo[]bar</pre>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo[]bar</pre>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo[]bar</pre>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo[]bar</pre>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo[]bar</pre>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo []bar</pre>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<pre>foo []bar</pre>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<pre>foo []bar</pre>" compare innerHTML
+Pass	[["inserttext"," "]] "<pre>foo []bar</pre>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo []bar</pre>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo []bar</pre>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo []bar</pre>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo []bar</pre>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo []bar</pre>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo[] bar</pre>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<pre>foo[] bar</pre>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<pre>foo[] bar</pre>" compare innerHTML
+Pass	[["inserttext"," "]] "<pre>foo[] bar</pre>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo[] bar</pre>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo[] bar</pre>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo[] bar</pre>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo[] bar</pre>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo[] bar</pre>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo &nbsp;[]bar</pre>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<pre>foo &nbsp;[]bar</pre>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<pre>foo &nbsp;[]bar</pre>" compare innerHTML
+Pass	[["inserttext"," "]] "<pre>foo &nbsp;[]bar</pre>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo &nbsp;[]bar</pre>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo &nbsp;[]bar</pre>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo &nbsp;[]bar</pre>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo &nbsp;[]bar</pre>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo &nbsp;[]bar</pre>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<pre>[]foo</pre>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<pre>[]foo</pre>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<pre>[]foo</pre>" compare innerHTML
+Pass	[["inserttext"," "]] "<pre>[]foo</pre>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<pre>[]foo</pre>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<pre>[]foo</pre>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<pre>[]foo</pre>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<pre>[]foo</pre>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<pre>[]foo</pre>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo[]</pre>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<pre>foo[]</pre>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<pre>foo[]</pre>" compare innerHTML
+Pass	[["inserttext"," "]] "<pre>foo[]</pre>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo[]</pre>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo[]</pre>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo[]</pre>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo[]</pre>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo[]</pre>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo&nbsp;[]</pre>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<pre>foo&nbsp;[]</pre>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<pre>foo&nbsp;[]</pre>" compare innerHTML
+Pass	[["inserttext"," "]] "<pre>foo&nbsp;[]</pre>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo&nbsp;[]</pre>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo&nbsp;[]</pre>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<pre>foo&nbsp;[]</pre>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo&nbsp;[]</pre>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<pre>foo&nbsp;[]</pre>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<pre> foo   []   </pre>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<pre> foo   []   </pre>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<pre> foo   []   </pre>" compare innerHTML
+Pass	[["inserttext"," "]] "<pre> foo   []   </pre>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<pre> foo   []   </pre>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<pre> foo   []   </pre>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<pre> foo   []   </pre>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<pre> foo   []   </pre>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<pre> foo   []   </pre>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo []bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo []bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo []bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo []bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo []bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo []bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo []bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo []bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo []bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[] bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[] bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[] bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[] bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[] bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[] bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[] bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[] bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[] bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo &nbsp;[]bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo &nbsp;[]bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo &nbsp;[]bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo &nbsp;[]bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo &nbsp;[]bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo &nbsp;[]bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo &nbsp;[]bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo &nbsp;[]bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo &nbsp;[]bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>[]foo</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre>[]foo</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre>[]foo</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre>[]foo</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>[]foo</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>[]foo</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>[]foo</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>[]foo</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>[]foo</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo[]</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo&nbsp;[]</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo&nbsp;[]</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo&nbsp;[]</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo&nbsp;[]</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo&nbsp;[]</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo&nbsp;[]</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo&nbsp;[]</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo&nbsp;[]</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre>foo&nbsp;[]</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre> foo   []   </div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre> foo   []   </div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre> foo   []   </div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre> foo   []   </div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre> foo   []   </div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre> foo   []   </div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre> foo   []   </div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre> foo   []   </div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre> foo   []   </div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo []bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo []bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo []bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo []bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo []bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo []bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo []bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo []bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo []bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[] bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[] bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[] bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[] bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[] bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[] bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[] bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[] bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[] bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo &nbsp;[]bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo &nbsp;[]bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo &nbsp;[]bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo &nbsp;[]bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo &nbsp;[]bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo &nbsp;[]bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo &nbsp;[]bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo &nbsp;[]bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo &nbsp;[]bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>[]foo</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>[]foo</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>[]foo</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>[]foo</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>[]foo</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>[]foo</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>[]foo</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>[]foo</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>[]foo</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo[]</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo&nbsp;[]</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo&nbsp;[]</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo&nbsp;[]</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo&nbsp;[]</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo&nbsp;[]</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo&nbsp;[]</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo&nbsp;[]</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo&nbsp;[]</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap>foo&nbsp;[]</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap> foo   []   </div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap> foo   []   </div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap> foo   []   </div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap> foo   []   </div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap> foo   []   </div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap> foo   []   </div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap> foo   []   </div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap> foo   []   </div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-wrap> foo   []   </div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo []bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo []bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo []bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo []bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo []bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo []bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo []bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo []bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo []bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[] bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[] bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[] bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[] bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[] bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[] bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[] bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[] bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[] bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo &nbsp;[]bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo &nbsp;[]bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo &nbsp;[]bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo &nbsp;[]bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo &nbsp;[]bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo &nbsp;[]bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo &nbsp;[]bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo &nbsp;[]bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo &nbsp;[]bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>[]foo</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>[]foo</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>[]foo</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>[]foo</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>[]foo</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>[]foo</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>[]foo</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>[]foo</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>[]foo</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo[]</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo&nbsp;[]</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo&nbsp;[]</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo&nbsp;[]</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo&nbsp;[]</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo&nbsp;[]</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo&nbsp;[]</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo&nbsp;[]</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo&nbsp;[]</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line>foo&nbsp;[]</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line> foo   []   </div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line> foo   []   </div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line> foo   []   </div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line> foo   []   </div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line> foo   []   </div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line> foo   []   </div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line> foo   []   </div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line> foo   []   </div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:pre-line> foo   []   </div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo []bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo []bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo []bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo []bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo []bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo []bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo []bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo []bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo []bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[] bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[] bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[] bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[] bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[] bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[] bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[] bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[] bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[] bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo &nbsp;[]bar</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo &nbsp;[]bar</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo &nbsp;[]bar</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo &nbsp;[]bar</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo &nbsp;[]bar</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo &nbsp;[]bar</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo &nbsp;[]bar</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo &nbsp;[]bar</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo &nbsp;[]bar</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>[]foo</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>[]foo</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>[]foo</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>[]foo</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>[]foo</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>[]foo</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>[]foo</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>[]foo</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>[]foo</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]</div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo[]</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo&nbsp;[]</div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo&nbsp;[]</div>" checks for modifications to non-editable content
+Fail	[["inserttext"," "]] "<div style=white-space:nowrap>foo&nbsp;[]</div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo&nbsp;[]</div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo&nbsp;[]</div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo&nbsp;[]</div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo&nbsp;[]</div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo&nbsp;[]</div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap>foo&nbsp;[]</div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap> foo   []   </div>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap> foo   []   </div>" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap> foo   []   </div>" compare innerHTML
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap> foo   []   </div>" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap> foo   []   </div>" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap> foo   []   </div>" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap> foo   []   </div>" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap> foo   []   </div>" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<div style=white-space:nowrap> foo   []   </div>" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "http://a[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "http://a[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "http://a[]" compare innerHTML
+Pass	[["inserttext"," "]] "http://a[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "http://a[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "http://a[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "http://a[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "http://a[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "http://a[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "ftp://a[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "ftp://a[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "ftp://a[]" compare innerHTML
+Pass	[["inserttext"," "]] "ftp://a[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "ftp://a[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "ftp://a[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "ftp://a[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "ftp://a[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "ftp://a[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "quasit://a[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "quasit://a[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "quasit://a[]" compare innerHTML
+Pass	[["inserttext"," "]] "quasit://a[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "quasit://a[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "quasit://a[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "quasit://a[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "quasit://a[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "quasit://a[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] ".x-++-.://a[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] ".x-++-.://a[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] ".x-++-.://a[]" compare innerHTML
+Pass	[["inserttext"," "]] ".x-++-.://a[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] ".x-++-.://a[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] ".x-++-.://a[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] ".x-++-.://a[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] ".x-++-.://a[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] ".x-++-.://a[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "(http://a)[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "(http://a)[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "(http://a)[]" compare innerHTML
+Pass	[["inserttext"," "]] "(http://a)[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "(http://a)[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "(http://a)[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "(http://a)[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "(http://a)[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "(http://a)[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "&lt;http://a>[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "&lt;http://a>[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "&lt;http://a>[]" compare innerHTML
+Pass	[["inserttext"," "]] "&lt;http://a>[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "&lt;http://a>[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "&lt;http://a>[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "&lt;http://a>[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "&lt;http://a>[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "&lt;http://a>[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "http://a![]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "http://a![]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "http://a![]" compare innerHTML
+Pass	[["inserttext"," "]] "http://a![]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "http://a![]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "http://a![]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "http://a![]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "http://a![]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "http://a![]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~http://a!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~http://a!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~http://a!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" compare innerHTML
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~http://a!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~http://a!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~http://a!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~http://a!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~http://a!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~http://a!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "http://a!\"'(),-.:;&lt;>`[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "http://a!\"'(),-.:;&lt;>`[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "http://a!\"'(),-.:;&lt;>`[]" compare innerHTML
+Pass	[["inserttext"," "]] "http://a!\"'(),-.:;&lt;>`[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "http://a!\"'(),-.:;&lt;>`[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "http://a!\"'(),-.:;&lt;>`[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "http://a!\"'(),-.:;&lt;>`[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "http://a!\"'(),-.:;&lt;>`[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "http://a!\"'(),-.:;&lt;>`[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "http://a#$%&amp;*+/=?^_|~[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "http://a#$%&amp;*+/=?^_|~[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "http://a#$%&amp;*+/=?^_|~[]" compare innerHTML
+Pass	[["inserttext"," "]] "http://a#$%&amp;*+/=?^_|~[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "http://a#$%&amp;*+/=?^_|~[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "http://a#$%&amp;*+/=?^_|~[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "http://a#$%&amp;*+/=?^_|~[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "http://a#$%&amp;*+/=?^_|~[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "http://a#$%&amp;*+/=?^_|~[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "mailto:a[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "mailto:a[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "mailto:a[]" compare innerHTML
+Pass	[["inserttext"," "]] "mailto:a[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "mailto:a[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "mailto:a[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "mailto:a[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "mailto:a[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "mailto:a[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "a@b[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "a@b[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "a@b[]" compare innerHTML
+Pass	[["inserttext"," "]] "a@b[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "a@b[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "a@b[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "a@b[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "a@b[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "a@b[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "a@[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "a@[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "a@[]" compare innerHTML
+Pass	[["inserttext"," "]] "a@[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "a@[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "a@[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "a@[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "a@[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "a@[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "@b[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "@b[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "@b[]" compare innerHTML
+Pass	[["inserttext"," "]] "@b[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "@b[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "@b[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "@b[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "@b[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "@b[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "#@x[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "#@x[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "#@x[]" compare innerHTML
+Pass	[["inserttext"," "]] "#@x[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "#@x[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "#@x[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "#@x[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "#@x[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "#@x[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "a@.[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "a@.[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "a@.[]" compare innerHTML
+Pass	[["inserttext"," "]] "a@.[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "a@.[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "a@.[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "a@.[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "a@.[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "a@.[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~a@b!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~a@b!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" checks for modifications to non-editable content
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~a@b!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" compare innerHTML
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~a@b!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~a@b!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~a@b!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~a@b!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~a@b!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~a@b!\"#$%&amp;'()*+,-./:;&lt;=>?^_`|~[]" queryCommandValue("inserttext") after
+Pass	[["inserttext"," "]] "<b>a@b</b>{}": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "]] "<b>a@b</b>{}" checks for modifications to non-editable content
+Fail	[["inserttext"," "]] "<b>a@b</b>{}" compare innerHTML
+Pass	[["inserttext"," "]] "<b>a@b</b>{}" queryCommandIndeterm("inserttext") before
+Pass	[["inserttext"," "]] "<b>a@b</b>{}" queryCommandState("inserttext") before
+Pass	[["inserttext"," "]] "<b>a@b</b>{}" queryCommandValue("inserttext") before
+Pass	[["inserttext"," "]] "<b>a@b</b>{}" queryCommandIndeterm("inserttext") after
+Pass	[["inserttext"," "]] "<b>a@b</b>{}" queryCommandState("inserttext") after
+Pass	[["inserttext"," "]] "<b>a@b</b>{}" queryCommandValue("inserttext") after

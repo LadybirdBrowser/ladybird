@@ -1,0 +1,182 @@
+<!doctype html>
+<meta charset=utf-8>
+<meta name="timeout" content="long">
+
+<meta name="variant" content="?host=span&white-space=normal&display=block&command=insertParagraph">
+<meta name="variant" content="?host=span&white-space=pre&display=block&command=insertParagraph">
+<meta name="variant" content="?host=span&white-space=pre-wrap&display=block&command=insertParagraph">
+<meta name="variant" content="?host=span&white-space=pre-line&display=block&command=insertParagraph">
+<meta name="variant" content="?host=span&white-space=normal&display=block&command=insertText">
+<meta name="variant" content="?host=span&white-space=pre&display=block&command=insertText">
+<meta name="variant" content="?host=span&white-space=pre-wrap&display=block&command=insertText">
+<meta name="variant" content="?host=span&white-space=pre-line&display=block&command=insertText">
+
+<meta name="variant" content="?host=span&white-space=normal&display=inline&command=insertParagraph">
+<meta name="variant" content="?host=span&white-space=pre&display=inline&command=insertParagraph">
+<meta name="variant" content="?host=span&white-space=pre-wrap&display=inline&command=insertParagraph">
+<meta name="variant" content="?host=span&white-space=pre-line&display=inline&command=insertParagraph">
+<meta name="variant" content="?host=span&white-space=normal&display=inline&command=insertText">
+<meta name="variant" content="?host=span&white-space=pre&display=inline&command=insertText">
+<meta name="variant" content="?host=span&white-space=pre-wrap&display=inline&command=insertText">
+<meta name="variant" content="?host=span&white-space=pre-line&display=inline&command=insertText">
+
+<meta name="variant" content="?host=span&white-space=normal&display=inline-block&command=insertParagraph">
+<meta name="variant" content="?host=span&white-space=pre&display=inline-block&command=insertParagraph">
+<meta name="variant" content="?host=span&white-space=pre-wrap&display=inline-block&command=insertParagraph">
+<meta name="variant" content="?host=span&white-space=pre-line&display=inline-block&command=insertParagraph">
+<meta name="variant" content="?host=span&white-space=normal&display=inline-block&command=insertText">
+<meta name="variant" content="?host=span&white-space=pre&display=inline-block&command=insertText">
+<meta name="variant" content="?host=span&white-space=pre-wrap&display=inline-block&command=insertText">
+<meta name="variant" content="?host=span&white-space=pre-line&display=inline-block&command=insertText">
+
+<meta name="variant" content="?host=p&white-space=normal&display=block&command=insertParagraph">
+<meta name="variant" content="?host=p&white-space=pre&display=block&command=insertParagraph">
+<meta name="variant" content="?host=p&white-space=pre-wrap&display=block&command=insertParagraph">
+<meta name="variant" content="?host=p&white-space=pre-line&display=block&command=insertParagraph">
+<meta name="variant" content="?host=p&white-space=normal&display=block&command=insertText">
+<meta name="variant" content="?host=p&white-space=pre&display=block&command=insertText">
+<meta name="variant" content="?host=p&white-space=pre-wrap&display=block&command=insertText">
+<meta name="variant" content="?host=p&white-space=pre-line&display=block&command=insertText">
+
+<meta name="variant" content="?host=p&white-space=normal&display=inline&command=insertParagraph">
+<meta name="variant" content="?host=p&white-space=pre&display=inline&command=insertParagraph">
+<meta name="variant" content="?host=p&white-space=pre-wrap&display=inline&command=insertParagraph">
+<meta name="variant" content="?host=p&white-space=pre-line&display=inline&command=insertParagraph">
+<meta name="variant" content="?host=p&white-space=normal&display=inline&command=insertText">
+<meta name="variant" content="?host=p&white-space=pre&display=inline&command=insertText">
+<meta name="variant" content="?host=p&white-space=pre-wrap&display=inline&command=insertText">
+<meta name="variant" content="?host=p&white-space=pre-line&display=inline&command=insertText">
+
+<meta name="variant" content="?host=p&white-space=normal&display=inline-block&command=insertParagraph">
+<meta name="variant" content="?host=p&white-space=pre&display=inline-block&command=insertParagraph">
+<meta name="variant" content="?host=p&white-space=pre-wrap&display=inline-block&command=insertParagraph">
+<meta name="variant" content="?host=p&white-space=pre-line&display=inline-block&command=insertParagraph">
+<meta name="variant" content="?host=p&white-space=normal&display=inline-block&command=insertText">
+<meta name="variant" content="?host=p&white-space=pre&display=inline-block&command=insertText">
+<meta name="variant" content="?host=p&white-space=pre-wrap&display=inline-block&command=insertText">
+<meta name="variant" content="?host=p&white-space=pre-line&display=inline-block&command=insertText">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../include/editor-test-utils.js"></script>
+<link rel=stylesheet href=../include/reset.css>
+<title>Tests for inserting paragraph in editing host which cannot have &lt;div&gt; element as child</title>
+<body></body>
+<script>
+const params = new URLSearchParams(location.search);
+const tag = params.get("host");
+const whiteSpace = params.get("white-space");
+const isNewLineSignificant = whiteSpace == "pre" || whiteSpace == "pre-line" || whiteSpace == "pre-wrap";
+const display = params.get("display");
+const command = params.get("command");
+const editingHost = document.createElement(tag);
+editingHost.contentEditable = true;
+editingHost.style.whiteSpace = whiteSpace;
+editingHost.style.display = display;
+document.body.appendChild(editingHost);
+
+function execInsertTextOrParagraphCommand() {
+  if (command == "insertParagraph") {
+    document.execCommand(command);
+  } else {
+    // Inserting a linefeed by insertText command should be equivalent of insertParagraph.
+    document.execCommand(command, false, "\n");
+  }
+}
+
+const editingHostOpenTagAttrs = `contenteditable style="display:${display}; white-space:${whiteSpace}"`;
+test(() => {
+  const utils = new EditorTestUtils(editingHost);
+  utils.setupEditingHost(`a[]b`);
+  editingHost.getBoundingClientRect();
+  execInsertTextOrParagraphCommand();
+  // A linefeed should be inserted if it's significant.  Otherwise, <br>.
+  assert_equals(
+    editingHost.innerHTML,
+    isNewLineSignificant ? "a\nb" : "a<br>b"
+  );
+}, `<${tag} ${editingHostOpenTagAttrs}>a[]b</${tag}>`);
+
+test(() => {
+  const utils = new EditorTestUtils(editingHost);
+  utils.setupEditingHost(`<span style="white-space:normal">a[]b</span>`);
+  editingHost.getBoundingClientRect();
+  execInsertTextOrParagraphCommand();
+  // A <br> element should be inserted if another <span> makes the linebreaks not significant.
+  assert_equals(editingHost.innerHTML, `<span style="white-space:normal">a<br>b</span>`);
+}, `<${tag} ${editingHostOpenTagAttrs}><span style="white-space:normal">a[]b</span></${tag}>`);
+
+if (isNewLineSignificant) {
+  test(() => {
+    const utils = new EditorTestUtils(editingHost);
+    utils.setupEditingHost(`<span style="white-space:normal"><span style="white-space:${whiteSpace}">a[]b</span></span>`);
+    editingHost.getBoundingClientRect();
+    execInsertTextOrParagraphCommand();
+    // A linefeed should be inserted even if `white-space` is changed by ancestor, but it's back to preformatted.
+    assert_equals(editingHost.innerHTML, `<span style="white-space:normal"><span style="white-space:${whiteSpace}">a\nb</span></span>`);
+  }, `<${tag} ${editingHostOpenTagAttrs}><span style="white-space:normal"><span style="white-space:${whiteSpace}">a[]b</span></span></${tag}>`);
+}
+
+test(() => {
+  const utils = new EditorTestUtils(editingHost);
+  utils.setupEditingHost(`<span style="display:block">a[]b</span>`);
+  editingHost.getBoundingClientRect();
+  execInsertTextOrParagraphCommand();
+  // Split the internal <span> which is styled as block.
+  assert_equals(
+    editingHost.innerHTML,
+    `<span style="display:block">a</span><span style="display:block">b</span>`
+  );
+}, `<${tag} ${editingHostOpenTagAttrs}><span style="display:block;white-space:normal">a[]b</span></${tag}>`);
+
+test(() => {
+  const utils = new EditorTestUtils(editingHost);
+  utils.setupEditingHost(`<div>a[]b</div>`);
+  editingHost.getBoundingClientRect();
+  execInsertTextOrParagraphCommand();
+  // Although neither <span> nor <p> can have <div>, but if the insertion point is in the invalid <div>,
+  // browsers should just split the <div>.
+  assert_equals(editingHost.innerHTML, `<div>a</div><div>b</div>`);
+}, `<${tag} ${editingHostOpenTagAttrs}><div>a[]b</div></${tag}>`);
+
+test(() => {
+  const utils = new EditorTestUtils(editingHost);
+  utils.setupEditingHost(`<div style="display:inline">a[]b</div>`);
+  editingHost.getBoundingClientRect();
+  execInsertTextOrParagraphCommand();
+  // If <div> is styled as inline, it should be treated like <span>.
+  assert_equals(editingHost.innerHTML, `<div style="display:inline">a\nb</div>`);
+}, `<${tag} ${editingHostOpenTagAttrs}><div style="display:inline">a[]b</div></${tag}>`);
+
+test(() => {
+  const utils = new EditorTestUtils(editingHost);
+  utils.setupEditingHost(`<div style="display:inline-block">a[]b</div>`);
+  editingHost.getBoundingClientRect();
+  execInsertTextOrParagraphCommand();
+  // If <div> is styled as inline-block, it should be treated like <span>.
+  assert_equals(
+    editingHost.innerHTML,
+    isNewLineSignificant
+      ? `<div style="display:inline-block">a\nb</div>`
+      : `<div style="display:inline-block">a<br>b</div>`
+    );
+}, `<${tag} ${editingHostOpenTagAttrs}><div style="display:inline-block">a[]b</div></${tag}>`);
+
+test(() => {
+  const utils = new EditorTestUtils(editingHost);
+  utils.setupEditingHost(`<div style="display:inline;white-space:normal">a[]b</div>`);
+  editingHost.getBoundingClientRect();
+  execInsertTextOrParagraphCommand();
+  // If <div> is styled as inline, it should be treated like <span>.
+  assert_equals(editingHost.innerHTML, `<div style="display:inline;white-space:normal">a<br>b</div>`);
+}, `<${tag} ${editingHostOpenTagAttrs}><div style="display:inline;white-space:normal">a[]b</div></${tag}>`);
+
+test(() => {
+  const utils = new EditorTestUtils(editingHost);
+  utils.setupEditingHost(`<div style="display:inline-block;white-space:normal">a[]b</div>`);
+  editingHost.getBoundingClientRect();
+  execInsertTextOrParagraphCommand();
+  // If <div> is styled as inline-block, it should be treated like <span>.
+  assert_equals(editingHost.innerHTML, `<div style="display:inline-block;white-space:normal">a<br>b</div>`);
+}, `<${tag} ${editingHostOpenTagAttrs}><div style="display:inline-block;white-space:normal">a[]b</div></${tag}>`);
+</script>

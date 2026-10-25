@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 9 tests
+
+4 Pass
+5 Fail
+Pass	<p contenteditable style="display:inline-block; white-space:pre-line">a[]b</p>
+Pass	<p contenteditable style="display:inline-block; white-space:pre-line"><span style="white-space:normal">a[]b</span></p>
+Pass	<p contenteditable style="display:inline-block; white-space:pre-line"><span style="white-space:normal"><span style="white-space:pre-line">a[]b</span></span></p>
+Fail	<p contenteditable style="display:inline-block; white-space:pre-line"><span style="display:block;white-space:normal">a[]b</span></p>
+Pass	<p contenteditable style="display:inline-block; white-space:pre-line"><div>a[]b</div></p>
+Fail	<p contenteditable style="display:inline-block; white-space:pre-line"><div style="display:inline">a[]b</div></p>
+Fail	<p contenteditable style="display:inline-block; white-space:pre-line"><div style="display:inline-block">a[]b</div></p>
+Fail	<p contenteditable style="display:inline-block; white-space:pre-line"><div style="display:inline;white-space:normal">a[]b</div></p>
+Fail	<p contenteditable style="display:inline-block; white-space:pre-line"><div style="display:inline-block;white-space:normal">a[]b</div></p>

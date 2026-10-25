@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 16 tests
+
+15 Pass
+1 Fail
+Pass	Typing X when <div contenteditable style="white-space:pre-line">{}<br></div>
+Pass	Typing space when <div contenteditable style="white-space:pre-line">{}<br></div>
+Pass	Typing X when <div contenteditable style="white-space:pre-line">abc[]<br></div>
+Pass	Typing space when <div contenteditable style="white-space:pre-line">abc[]<br></div>
+Pass	Typing X when <div contenteditable style="white-space:pre-line">abc{}<br></div>
+Pass	Typing space when <div contenteditable style="white-space:pre-line">abc{}<br></div>
+Pass	Typing X when <div contenteditable style="white-space:pre-line">ab[]c<br></div>
+Pass	Typing space when <div contenteditable style="white-space:pre-line">ab[]c<br></div>
+Pass	Typing X when <div contenteditable style="white-space:pre-line"><b>{}<br></b></div>
+Pass	Typing space when <div contenteditable style="white-space:pre-line"><b>{}<br></b></div>
+Pass	Typing X when <div contenteditable style="white-space:pre-line">abc[]<b><br></b></div>
+Fail	Typing space when <div contenteditable style="white-space:pre-line">abc[]<b><br></b></div>
+Pass	Typing X when <div contenteditable style="white-space:pre-line">abc<b>{}<br></b></div>
+Pass	Typing space when <div contenteditable style="white-space:pre-line">abc<b>{}<br></b></div>
+Pass	Typing X when <div contenteditable style="white-space:pre-line">abc&nbsp;[]<br></div>
+Pass	Typing space when <div contenteditable style="white-space:pre-line">abc&nbsp;[]<br></div>

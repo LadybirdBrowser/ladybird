@@ -1,0 +1,205 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="variant" content="?whiteSpace=normal">
+<meta name="variant" content="?whiteSpace=pre">
+<meta name="variant" content="?whiteSpace=pre-wrap">
+<meta name="variant" content="?whiteSpace=pre-line">
+<title>Inserting text should cause a character data change at last even if browsers clean up unnecessary line break</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../include/editor-test-utils.js"></script>
+<script>
+"use strict";
+
+const params = new URLSearchParams(document.location.search);
+const whiteSpace = params.get("whiteSpace");
+const whiteSpaceIsCollapsible = whiteSpace == "normal" || whiteSpace == "pre-line";
+
+/**
+ * X (Twitter) expects a character data change notification or a Text node
+ * addition at last when the user types text. Therefore, browsers need to clean
+ * up unnecessary line break before if it's required.
+ * Note that this test does not check whether the padding line break result is
+ * exactly same as one expectation because it's out of scope of the issue.
+ */
+addEventListener("load", () => {
+  const editingHost = document.querySelector("div[contenteditable]");
+  editingHost.style.whiteSpace = whiteSpace;
+  const utils = new EditorTestUtils(editingHost);
+  let lastMutation;
+  const mutationObserver = new MutationObserver(mutations => {
+    lastMutation =
+      mutations.length ? mutations[mutations.length - 1] : undefined;
+  });
+  mutationObserver.observe(editingHost, {
+    childList: true,
+    characterData: true,
+    subtree: true,
+  });
+  function waitForTick() {
+    return new Promise(resolve => {
+      requestAnimationFrame(
+        () => requestAnimationFrame(resolve)
+      );
+    });
+  }
+  for (const data of [
+    {
+      summary: "Typing X",
+      initialHTML: "{}<br>",
+      run: () => utils.sendKey("X"),
+      expectedInnerHTML: [ "X", "X<br>" ],
+    },
+    {
+      summary: "Typing space",
+      initialHTML: "{}<br>",
+      run: () => utils.sendKey(" "),
+      expectedInnerHTML:
+        whiteSpaceIsCollapsible
+          ? [ "&nbsp;", "&nbsp;<br>" ]
+          : [ " ", " <br>" ],
+    },
+    {
+      summary: "Typing X",
+      initialHTML: "abc[]<br>",
+      run: () => utils.sendKey("X"),
+      expectedInnerHTML: [ "abcX", "abcX<br>" ],
+    },
+    {
+      summary: "Typing space",
+      initialHTML: "abc[]<br>",
+      run: () => utils.sendKey(" "),
+      expectedInnerHTML:
+        whiteSpaceIsCollapsible
+          ? [ "abc&nbsp;", "abc&nbsp;<br>" ]
+          : [ "abc ", "abc <br>" ],
+    },
+    {
+      summary: "Typing X",
+      initialHTML: "abc{}<br>",
+      run: () => utils.sendKey("X"),
+      expectedInnerHTML: [ "abcX", "abcX<br>" ],
+    },
+    {
+      summary: "Typing space",
+      initialHTML: "abc{}<br>",
+      run: () => utils.sendKey(" "),
+      expectedInnerHTML:
+        whiteSpaceIsCollapsible
+          ? [ "abc&nbsp;", "abc&nbsp;<br>" ]
+          : [ "abc ", "abc <br>" ],
+    },
+    {
+      summary: "Typing X",
+      initialHTML: "ab[]c<br>",
+      run: () => utils.sendKey("X"),
+      expectedInnerHTML: [ "abXc", "abXc<br>" ],
+    },
+    {
+      summary: "Typing space",
+      initialHTML: "ab[]c<br>",
+      run: () => utils.sendKey(" "),
+      expectedInnerHTML: [ "ab c", "ab c<br>" ],
+    },
+    {
+      summary: "Typing X",
+      initialHTML: "<b>{}<br></b>",
+      run: () => utils.sendKey("X"),
+      expectedInnerHTML: [ "<b>X</b>", "<b>X<br></b>" ],
+    },
+    {
+      summary: "Typing space",
+      initialHTML: "<b>{}<br></b>",
+      run: () => utils.sendKey(" "),
+      expectedInnerHTML:
+        whiteSpaceIsCollapsible
+          ? [ "<b>&nbsp;</b>", "<b>&nbsp;<br></b>" ]
+          : [ "<b> </b>", "<b> <br></b>" ],
+    },
+    {
+      summary: "Typing X",
+      initialHTML: "abc[]<b><br></b>",
+      run: () => utils.sendKey("X"),
+      expectedInnerHTML: [ "abcX", "abcX<b><br></b>" ],
+    },
+    {
+      summary: "Typing space",
+      initialHTML: "abc[]<b><br></b>",
+      run: () => utils.sendKey(" "),
+      expectedInnerHTML:
+        whiteSpaceIsCollapsible
+          ? [ "abc&nbsp;", "abc&nbsp;<b><br></b>" ]
+          : [ "abc ", "abc <b><br></b>" ],
+    },
+    {
+      summary: "Typing X",
+      initialHTML: "abc<b>{}<br></b>",
+      run: () => utils.sendKey("X"),
+      expectedInnerHTML: [ "abc<b>X</b>", "abc<b>X<br></b>",
+                           "abcX", "abcX<b><br></b>" ],
+    },
+    {
+      summary: "Typing space",
+      initialHTML: "abc<b>{}<br></b>",
+      run: () => utils.sendKey(" "),
+      expectedInnerHTML:
+        whiteSpaceIsCollapsible
+          ? [ "abc<b>&nbsp;</b>", "abc<b>&nbsp;<br></b>",
+              "abc&nbsp;", "abc&nbsp;<b><br></b>" ]
+          : [ "abc<b> </b>", "abc<b> <br></b>",
+              "abc ", "abc <b><br></b>" ],
+    },
+    {
+      summary: "Typing X",
+      initialHTML: "abc&nbsp;[]<br>",
+      run: () => utils.sendKey("X"),
+      expectedInnerHTML:
+       whiteSpaceIsCollapsible
+         ? [ "abc X", "abc X<br>" ]
+         : [ "abc&nbsp;X", "abc&nbsp;X<br>" ],
+    },
+    {
+      summary: "Typing space",
+      initialHTML: "abc&nbsp;[]<br>",
+      run: () => utils.sendKey(" "),
+      expectedInnerHTML:
+       whiteSpaceIsCollapsible
+         ? [ "abc&nbsp;&nbsp;", "abc&nbsp;&nbsp;<br>",
+             "abc &nbsp;", "abc &nbsp;<br>" ]
+         : [ "abc&nbsp; ", "abc&nbsp; <br>" ],
+    },
+  ]) {
+    promise_test(async t => {
+      utils.setupEditingHost(data.initialHTML);
+      await waitForTick();
+      lastMutation = null;
+      await data.run();
+      assert_true(
+        lastMutation?.type == "characterData" || lastMutation?.addedNodes[0]?.nodeName == "#text",
+        `${
+          t.name
+        }: The last mutation should be a character data change or a text node addition (got: { target: ${
+          lastMutation?.target
+        }, addedNodes[0]: ${lastMutation?.addedNodes[0]}, removedNodes[0]: ${
+          lastMutation?.removedNodes[0]
+        } })`
+      );
+      assert_in_array(
+        editingHost.innerHTML,
+        data.expectedInnerHTML,
+        `${t.name}: comparing innerHTML`
+      );
+    }, `${data.summary} when <div contenteditable style="white-space:${whiteSpace}">${data.initialHTML}</div>`);
+  }
+}, {once: true});
+</script>
+</head>
+<body>
+<div contenteditable></div>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<title>Test for inserting paragraph in non-splittable elements</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../include/editor-test-utils.js"></script>
+<div contenteditable></div>
+<script>
+"use strict";
+
+const editingHost = document.querySelector("div[contenteditable]");
+const utils = new EditorTestUtils(editingHost);
+
+const tests = [
+  {
+    selector: "button",
+    initial: "<div><button>abc</button></div>",
+    // <button> can have <br> so that it should be handled as insertLineBreak.
+    expected: "<div><button><br>abc</button></div>",
+  },
+  {
+    selector: "caption",
+    initial: "<div><table><caption>abc</caption><tbody><tr><td>abc</td></tr></tbody></table></div>",
+    // <caption> can have paragraphs so that it should be handled as in a block.
+    expected: "<div><table><caption><br>abc</caption><tbody><tr><td>abc</td></tr></tbody></table></div>",
+  },
+  {
+    selector: "col",
+    initial: "<div><table><colgroup><col></colgroup><tbody><tr><td>abc</td></tr></tbody></table></div>",
+    // <col> and its table parents cannot have paragraphs nor <br>, therefore,
+    // it should be handled outside <table> or the first cell in the table.
+    expected: [
+      "<div><table><colgroup><col></colgroup><tbody><tr><td><br>abc</td></tr></tbody></table></div>", // handled with the first cell case
+      "<div><br></div><div><table><colgroup><col></colgroup><tbody><tr><td>abc</td></tr></tbody></table></div>", // handled outside the table case
+    ],
+  },
+  {
+    selector: "colgroup",
+    initial: "<div><table><colgroup><col></colgroup><tbody><tr><td>abc</td></tr></tbody></table></div>",
+    // <colgroup> and its table parents cannot have paragraphs nor <br>,
+    // therefore, it should be handled outside <table> or the first cell
+    // in the table.
+    expected: [
+      "<div><table><colgroup><col></colgroup><tbody><tr><td><br>abc</td></tr></tbody></table></div>", // handled with the first cell case
+      "<div><br></div><div><table><colgroup><col></colgroup><tbody><tr><td>abc</td></tr></tbody></table></div>", // handled outside the table case
+    ],
+  },
+  {
+    selector: "iframe",
+    initial: "<div><iframe srcdoc=\"abc\"></iframe></div>",
+    // <iframe> is a replaced element so that it should be handled outside of it.
+    expected: "<div><br></div><div><iframe srcdoc=\"abc\"></iframe></div>",
+  },
+  {
+    selector: "legend",
+    initial: "<div><fieldset><legend>abc</legend></fieldset></div>",
+    // <fieldset> cannot have multiple <legend> elements so that it should not
+    // be split, and it cannot have paragraphs so that <br> element should be
+    // inserted instead.
+    expected: "<div><fieldset><legend><br>abc</legend></fieldset></div>",
+  },
+  {
+    selector: "meter",
+    initial: "<div><meter max=\"100\" value=\"50\">abc</meter></div>",
+    // <meter> is a replaced element so that it should be handled outside of it.
+    expected: "<div><br></div><div><meter max=\"100\" value=\"50\">abc</meter></div>",
+  },
+  {
+    selector: "optgroup",
+    initial: "<div><select><optgroup><option>abc</option></optgroup></select></div>",
+    // <optgroup> is a part of <select> and they are replaced so that it should
+    // be handled outside of it.
+    expected: "<div><br></div><div><select><optgroup><option>abc</option></optgroup></select></div>",
+  },
+  {
+    selector: "option",
+    initial: "<div><select><option>abc</option></select></div>",
+    // <option> is a part of <select> and they are replaced so that it should
+    // be handled outside of it.
+    expected: "<div><br></div><div><select><option>abc</option></select></div>",
+  },
+  {
+    selector: "progress",
+    initial: "<div><progress max=\"100\" value=\"50\">abc</progress></div>",
+    // <meter> is a replaced element so that it should be handled outside of it.
+    expected: "<div><br></div><div><progress max=\"100\" value=\"50\">abc</progress></div>",
+  },
+  {
+    selector: "select",
+    initial: "<div><select><option>abc</option></select></div>",
+    // <select> is a replaced element so that it should be handled outside of it.
+    expected: "<div><br></div><div><select><option>abc</option></select></div>",
+  },
+  {
+    selector: "table",
+    initial: "<div><table><tbody><tr><td>abc</td></tr></tbody></table></div>",
+    // <table> cannot have paragraphs nor <br>, therefore, it should be handled
+    // outside or in the first cell in the table.
+    expected: [
+      "<div><table><tbody><tr><td><br>abc</td></tr></tbody></table></div>", // handled in the first cell case
+      "<div><br></div><div><table><tbody><tr><td>abc</td></tr></tbody></table></div>", // handled outside the table case
+    ],
+  },
+  {
+    selector: "tbody",
+    initial: "<div><table><tbody><tr><td>abc</td></tr></tbody></table></div>",
+    // <tbody> and its parent cannot have paragraphs nor <br>, therefore,
+    // it should be handled outside <table> or the first cell in the table.
+    expected: [
+      "<div><table><tbody><tr><td><br>abc</td></tr></tbody></table></div>", // handled in the next cell case
+      "<div><br></div><div><table><tbody><tr><td>abc</td></tr></tbody></table></div>", // handled outside the table case
+    ],
+  },
+  {
+    selector: "tr",
+    initial: "<div><table><tbody><tr><td>abc</td></tr></tbody></table></div>",
+    // <tr> and its table parents cannot have paragraphs nor <br>, therefore,
+    // it should be handled outside <table> or the first cell in the table.
+    expected: [
+      "<div><table><tbody><tr><td><br>abc</td></tr></tbody></table></div>", // handled in the next cell case
+      "<div><br></div><div><table><tbody><tr><td>abc</td></tr></tbody></table></div>", // handled outside the table case
+    ],
+  },
+];
+
+for (const currentTest of tests) {
+  promise_test(async t => {
+    editingHost.innerHTML = currentTest.initial;
+    getSelection().collapse(editingHost.querySelector(currentTest.selector), 0);
+    await utils.sendEnterKey();
+    if (Array.isArray(currentTest.expected)) {
+      assert_in_array(editingHost.innerHTML, currentTest.expected);
+    } else {
+      assert_equals(editingHost.innerHTML, currentTest.expected);
+    }
+  }, `insertParagraph in ${currentTest.selector} of ${currentTest.initial}`);
+}
+</script>

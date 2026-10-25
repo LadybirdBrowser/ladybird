@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+7 Pass
+11 Fail
+Pass	document.execCommand("delete") when "<div>&nbsp;&nbsp;&nbsp;</div><div>{}<br></div>"
+Pass	document.execCommand("delete") when "<div>a&nbsp;&nbsp;&nbsp;</div><div>{}<br></div>"
+Pass	document.execCommand("delete") when "<div><br></div><div>[]&nbsp;&nbsp;&nbsp;</div>"
+Pass	document.execCommand("delete") when "<div><br></div><div>[]&nbsp;&nbsp;&nbsp;b</div>"
+Pass	document.execCommand("delete") when "<div>a</div><div>[]&nbsp;&nbsp;&nbsp;b</div>"
+Fail	document.execCommand("delete") when "<div>a&nbsp;&nbsp;&nbsp;</div><div>[]&nbsp;&nbsp;&nbsp;b</div>"
+Pass	document.execCommand("delete") when "<div>&nbsp;&nbsp;&nbsp;<div>{}<br></div></div>"
+Pass	document.execCommand("delete") when "<div>a&nbsp;&nbsp;&nbsp;<div>{}<br></div></div>"
+Fail	document.execCommand("delete") when "<div><br><div>[]&nbsp;&nbsp;&nbsp;</div></div>"
+Fail	document.execCommand("delete") when "<div><br><div>[]&nbsp;&nbsp;&nbsp;b</div></div>"
+Fail	document.execCommand("delete") when "<div>a<div>[]&nbsp;&nbsp;&nbsp;b</div></div>"
+Fail	document.execCommand("delete") when "<div>a&nbsp;&nbsp;&nbsp;<div>[]&nbsp;&nbsp;&nbsp;b</div></div>"
+Fail	document.execCommand("delete") when "<div><div>&nbsp;&nbsp;&nbsp;</div>{}<br></div>"
+Fail	document.execCommand("delete") when "<div><div>a&nbsp;&nbsp;&nbsp;</div>{}<br></div>"
+Fail	document.execCommand("delete") when "<div><div><br></div>[]&nbsp;&nbsp;&nbsp;</div>"
+Fail	document.execCommand("delete") when "<div><div><br></div>[]&nbsp;&nbsp;&nbsp;b</div>"
+Fail	document.execCommand("delete") when "<div><div>a</div>[]&nbsp;&nbsp;&nbsp;b</div>"
+Fail	document.execCommand("delete") when "<div><div>a&nbsp;&nbsp;&nbsp;</div>[]&nbsp;&nbsp;&nbsp;b</div>"
