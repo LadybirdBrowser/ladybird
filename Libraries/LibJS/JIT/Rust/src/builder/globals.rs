@@ -18,9 +18,10 @@
 //! An initialized immutable binding (`const`) keeps its value, which the
 //! code uses as a constant, and so does a mutable one that was never
 //! assigned, on which the code depends. So does a property of the global
-//! object that holds an object (such as a function a script declares) and
-//! was never assigned since it got that value, while the global object's
-//! shape is a dictionary (see `Dependency::GlobalPropertyUnassigned`).
+//! object that was never assigned since it got its first value other than
+//! `undefined` (such as a function a script declares, or the value of a
+//! `var` that names a constant), while the global object's shape is a
+//! dictionary (see `Dependency::GlobalPropertyUnassigned`).
 //! Other global variables that held an object (such as a function, a class
 //! or a namespace object) are speculated to keep it, which is checked where
 //! they are read, until a check like that fails. Those holding other values
@@ -51,6 +52,7 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::ShapeCheck;
 use crate::ir::value::OBJECT_TAG;
+use crate::ir::value::UNDEFINED;
 use crate::ir::value::tag;
 use crate::snapshot::CellId;
 use crate::snapshot::GlobalCacheSnapshot;
@@ -124,7 +126,7 @@ impl GraphBuilder<'_> {
                 assigned: false,
                 value,
                 ..
-            } if tag(value.bits) == OBJECT_TAG => {
+            } if value.bits != UNDEFINED => {
                 self.assume_global_declarations(globals);
                 self.assume(Dependency::GlobalPropertyUnassigned {
                     object: globals.object,
