@@ -9,6 +9,7 @@
 //! marker: the lints count every type that implements Trace by hand as one, as Gc, Value and PropertyKey do.
 
 use super::defer_gc::{DeferGc, Deferred};
+use super::gc_ref_cell::GcRefCell;
 use super::root::{MarkedVec, Root};
 use super::sweep::Sweep;
 use super::visitor::Trace;
@@ -50,3 +51,8 @@ unsafe impl DefersCollections for Sweep<'_> {}
 ///
 /// No value of the type may hold a pointer to a cell.
 pub unsafe trait HoldsNoCells {}
+
+/// Interior mutability for state that the collector traces, which state without GC pointers has no use for.
+pub trait TracedState {}
+
+impl<T> TracedState for GcRefCell<T> {}

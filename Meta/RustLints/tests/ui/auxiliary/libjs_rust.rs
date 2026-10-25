@@ -92,6 +92,10 @@ pub mod gc {
         }
     }
 
+    pub mod gc_ref_cell {
+        pub struct GcRefCell<T>(pub core::cell::RefCell<T>);
+    }
+
     pub mod defer_gc {
         pub struct DeferGc<'vm>(pub &'vm super::root::Vm);
 
@@ -132,6 +136,10 @@ pub mod gc {
         ///
         /// Stand-in.
         pub unsafe trait HoldsNoCells {}
+
+        pub trait TracedState {}
+
+        impl<T> TracedState for super::gc_ref_cell::GcRefCell<T> {}
     }
 
     pub mod weak {
@@ -148,6 +156,7 @@ pub mod gc {
 }
 
 pub use gc::defer_gc::{DeferGc, Deferred};
+pub use gc::gc_ref_cell::GcRefCell;
 pub use gc::root::{MarkedVec, Root, Vm};
 pub use gc::visitor::{Trace, Visitor};
 pub use gc::weak::GcWeak;
