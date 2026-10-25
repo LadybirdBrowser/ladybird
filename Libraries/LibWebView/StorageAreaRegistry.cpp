@@ -170,7 +170,7 @@ void StorageAreaRegistry::did_change(Badge<StorageJar>, StorageJar& jar, Storage
     }
 
     if (on_change_for_devtools)
-        on_change_for_devtools(jar, change, writer_url);
+        on_change_for_devtools(jar, change);
 }
 
 }

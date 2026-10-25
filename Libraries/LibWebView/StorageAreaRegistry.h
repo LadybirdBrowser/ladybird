@@ -72,8 +72,8 @@ public:
     void remove_item(StorageAreaListener&, Web::StorageAPI::StorageAreaId, Utf16String const& key, String const& url);
     void clear(StorageAreaListener&, Web::StorageAPI::StorageAreaId, String const& url);
 
-    // Every change to every jar, with the URL of the page that made it when a page did.
-    Function<void(StorageJar&, StorageChange const&, Optional<String> const& url)> on_change_for_devtools;
+    // Every change to every jar, whoever made it.
+    Function<void(StorageJar&, StorageChange const&)> on_change_for_devtools;
 
     void did_change(Badge<StorageJar>, StorageJar&, StorageChange const&);
     void remove_areas_of(Badge<StorageJar>, StorageJar&);

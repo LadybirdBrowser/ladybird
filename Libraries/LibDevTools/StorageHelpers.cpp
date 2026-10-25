@@ -8,6 +8,7 @@
 #include <LibDevTools/StorageHelpers.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
+#include <LibWebCommon/StorageAPI/StorageKey.h>
 
 namespace DevTools {
 
@@ -51,6 +52,17 @@ Optional<String> storage_host_for_url(URL::URL const& url)
         return url.serialize();
 
     return {};
+}
+
+Optional<String> storage_key_for_host(String const& storage_host)
+{
+    auto url = URL::Parser::basic_parse(storage_host);
+    if (!url.has_value())
+        return {};
+    auto key = Web::StorageAPI::obtain_a_storage_key(url->origin());
+    if (!key.has_value())
+        return {};
+    return key->to_string();
 }
 
 Optional<String> storage_host_name(String const& storage_host)

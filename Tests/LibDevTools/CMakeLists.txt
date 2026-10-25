@@ -1,5 +1,6 @@
 set(TEST_SOURCES
     TestDevToolsProtocol.cpp
+    TestStorageHelpers.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)
