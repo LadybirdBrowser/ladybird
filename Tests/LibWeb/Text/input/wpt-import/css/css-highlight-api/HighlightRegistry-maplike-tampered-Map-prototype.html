@@ -1,0 +1,91 @@
+<!doctype html>
+<title>HighlightRegistry is a maplike interface that works as expected even if Map.prototype is tampered</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<script>
+"use strict";
+
+function tamperMapPrototype() {
+  delete Map.prototype.size;
+
+  Map.prototype.entries = null;
+  Map.prototype.forEach = undefined;
+  Map.prototype.get = "foo";
+  Map.prototype.has = 0;
+  Map.prototype.keys = Symbol();
+  Map.prototype.values = 1;
+  Map.prototype[Symbol.iterator] = true;
+  Map.prototype.clear = false;
+  Map.prototype.delete = "";
+  Map.prototype.set = 3.14;
+
+  Object.freeze(Map.prototype);
+}
+
+function restoreMapPrototype(originalDescriptors) {
+  // Create a new object with the original descriptors
+  const newProto = Object.create(Object.prototype);
+
+  for (const [key, descriptor] of Object.entries(originalDescriptors)) {
+    if (descriptor) {
+      Object.defineProperty(newProto, key, descriptor);
+    }
+  }
+  // Replace the frozen prototype with the restored one
+  Object.setPrototypeOf(Map, newProto);
+}
+
+test(() => {
+  const originalDescriptors = {
+    size: Object.getOwnPropertyDescriptor(Map.prototype, 'size'),
+    entries: Object.getOwnPropertyDescriptor(Map.prototype, 'entries'),
+    forEach: Object.getOwnPropertyDescriptor(Map.prototype, 'forEach'),
+    get: Object.getOwnPropertyDescriptor(Map.prototype, 'get'),
+    has: Object.getOwnPropertyDescriptor(Map.prototype, 'has'),
+    keys: Object.getOwnPropertyDescriptor(Map.prototype, 'keys'),
+    values: Object.getOwnPropertyDescriptor(Map.prototype, 'values'),
+    [Symbol.iterator]: Object.getOwnPropertyDescriptor(Map.prototype, Symbol.iterator),
+    clear: Object.getOwnPropertyDescriptor(Map.prototype, 'clear'),
+    delete: Object.getOwnPropertyDescriptor(Map.prototype, 'delete'),
+    set: Object.getOwnPropertyDescriptor(Map.prototype, 'set')
+  };
+
+  tamperMapPrototype();
+
+  const highlight = new Highlight(new StaticRange({startContainer: document.body, endContainer: document.body, startOffset: 0, endOffset: 0}));
+  const highlightRegistry = CSS.highlights;
+
+  assert_equals(highlightRegistry.size, 0);
+  highlightRegistry.set("foo", highlight);
+  assert_equals(highlightRegistry.size, 1);
+
+  assert_true(highlightRegistry.has("foo"));
+  assert_equals([...highlightRegistry.entries()][0][0], "foo");
+
+  highlightRegistry.clear();
+  assert_equals(highlightRegistry.size, 0);
+  assert_equals(highlightRegistry.get("foo"), undefined);
+
+  highlightRegistry.set("bar", highlight);
+  assert_equals(highlightRegistry.get("bar"), highlight);
+  assert_equals([...highlightRegistry][0][1], highlight);
+
+  highlightRegistry.delete("bar");
+  assert_equals(highlightRegistry.size, 0);
+  assert_false(highlightRegistry.has("bar"));
+
+  highlightRegistry.set("baz", highlight);
+  assert_equals([...highlightRegistry.keys()][0], "baz");
+  assert_equals([...highlightRegistry.values()][0], highlight);
+
+  let callbackCalled = false;
+  highlightRegistry.forEach(() => { callbackCalled = true; });
+  assert_true(callbackCalled);
+
+  highlightRegistry.clear();
+  restoreMapPrototype(originalDescriptors);
+}, "HighlightRegistry is a maplike interface that works as expected even if Map.prototype is tampered.");
+</script>
+</body>

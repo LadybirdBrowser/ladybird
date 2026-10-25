@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	Highlight iteration includes ranges added after starting the iteration (Set-like behavior)
+Fail	Highlight iteration includes ranges added after starting the iteration when there were already ranges (Set-like behavior)
+Fail	Highlight iteration skips ranges deleted before being visited (Set-like behavior)
+Fail	Highlight iteration skips ranges deleted before being visited even when other ranges remain (Set-like behavior)
+Fail	Highlight iteration is not modified when a range that was already visited is deleted and there are still ranges to visit
+Fail	Highlight iteration skips all ranges when .clear() is called before visiting them (Set-like behavior)

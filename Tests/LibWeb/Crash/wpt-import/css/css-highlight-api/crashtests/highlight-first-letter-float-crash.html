@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html contenteditable>
+<style>
+div::first-letter {
+  float: right;
+}
+::highlight(test) { background-color: purple; }
+</style>
+<div><span id="span1">a<span>bc</span></span></div>
+<script>
+const span1 = document.getElementById("span1");
+const text_node = span1.firstChild;
+const range = document.createRange();
+range.setStart(text_node, 0);
+range.setEnd(text_node, 1);
+const highlight = new Highlight(range);
+CSS.highlights.set("test", highlight);
+</script>

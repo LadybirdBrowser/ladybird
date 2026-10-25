@@ -1,0 +1,59 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS ::highlight Pseudo-Element Test: ::highlight selector getComputedStyle</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<meta name="assert" value="Font relative units are correctly reported in getComputedStyle">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  :root {
+    font-size: 16px;
+  }
+  div {
+    margin: 40px;
+    font-size: 20px;
+  }
+  ::highlight(highlight1) {
+    text-underline-offset: 0.5em;
+    text-decoration-line: underline;
+    text-decoration-color: green;
+    text-decoration-thickness: 0.25rem;
+  }
+  #h2::highlight(highlight1) {
+    text-underline-offset: 1.0em;
+    text-decoration-line: underline;
+    text-decoration-color: blue;
+    text-decoration-thickness: 0.125rem;
+  }
+</style>
+<div id="h1">A green 10px offset underline 4px thick</div>
+<div id="h2">A blue 20px offset underline 2px thick</div>
+<script>
+  let r1 = new Range();
+  r1.setStart(h1, 0);
+  r1.setEnd(h1, 1);
+  let r2 = new Range();
+  r2.setStart(h2, 0);
+  r2.setEnd(h2, 1);
+  CSS.highlights.set("highlight1", new Highlight(r1, r2));
+
+  let highlightPseudo = "::highlight(highlight1)";
+  test(() => {
+    let style = getComputedStyle(document.documentElement, highlightPseudo);
+    assert_equals(style.textUnderlineOffset, "8px", "Text underline offset is 8px.");
+    assert_equals(style.textDecorationThickness, "4px", "Text decoration thickness is 4px.");
+  }, `getComputedStyle() for root element`);
+
+  test(() => {
+    let style = getComputedStyle(h1, highlightPseudo);
+    assert_equals(style.textUnderlineOffset, "10px", "Text underline offset is 10px.");
+    assert_equals(style.textDecorationThickness, "4px", "Text decoration thickness is 4px.");
+  }, `getComputedStyle() for root highlight applied to div`);
+
+  test(() => {
+    let style = getComputedStyle(h2, highlightPseudo);
+    assert_equals(style.textUnderlineOffset, "20px", "Text underline offset is 20px.");
+    assert_equals(style.textDecorationThickness, "2px", "Text decoration thickness is 2px.");
+  }, `getComputedStyle() for div specific highlight`);
+
+</script>

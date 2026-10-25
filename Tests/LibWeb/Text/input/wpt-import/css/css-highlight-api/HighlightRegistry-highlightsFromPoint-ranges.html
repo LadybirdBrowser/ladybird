@@ -1,0 +1,110 @@
+<!doctype html>
+<meta name="author" title="Fernando Fiori" href="mailto:ffiori@microsoft.com">
+<meta name="assert" content="HighlightRegistry.highlightsFromPoint returns the Highlights and their corresponding Ranges and StaticRanges present at the coordinates provided as argument in the right order in multi-line text.">
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/#interactions">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-range-getclientrects">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+::highlight(example-highlight) {
+    background-color: rgba(0, 255, 255, 0.5);
+}
+body {
+    font-family: monospace;
+}
+</style>
+<span id="example-span-1">0123456789</span><br>
+<span id="example-span-2">0123456789</span>
+<script>
+    const textNode1 = document.querySelector("#example-span-1");
+    const textNode2 = document.querySelector("#example-span-2");
+
+    function test_ranges(ranges) {
+        assert_equals(ranges.length, 2, 'test_ranges() should be called with exactly two ranges.');
+        let big_range = ranges[0].startOffset < ranges[1].startOffset ? ranges[0] : ranges[1];
+
+        let highlight = new Highlight(...ranges);
+        CSS.highlights.set("example-highlight", highlight);
+
+        const rect = textNode1.getBoundingClientRect();
+        const characterWidth = rect.width / textNode1.textContent.length;
+        const characterHeight = rect.height;
+
+        // No Highlights outside of text contents.
+        let x = rect.left - 1;
+        let y = rect.top - 1;
+        let highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 0, 'CSS.highlights.highlightsFromPoint() returns an empty array when the coordinates provided are outside of the text contents');
+
+        // Get x and y coordinates between characters '0' and '1' on the first line (not highlighted).
+        x = rect.left + characterWidth;
+        y = rect.top + characterHeight / 2;
+        highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 0, 'CSS.highlights.highlightsFromPoint() returns an empty array when the coordinates provided are outside of the highlighted ranges');
+
+        // Get x and y coordinates between characters '2' and '3' on the first line.
+        x = rect.left + 3 * characterWidth;
+        highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 1, 'CSS.highlights.highlightsFromPoint() returns exactly one HighlightHitResult when the coordinates provided point at one Highlight');
+        assert_equals(highlight_hit_results[0].highlight, highlight, 'CSS.highlights.highlightsFromPoint() returns a HighlightHitResult with the Highlight present at the coordinates provided');
+        assert_array_equals(highlight_hit_results[0].ranges, [big_range], 'CSS.highlights.highlightsFromPoint() returns a HighlightHitResult with the ranges of the Highlight present at the coordinates provided');
+
+        // Get x and y coordinates between characters '6' and '7' on the first line.
+        x = rect.left + 7 * characterWidth;
+        highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 1, 'CSS.highlights.highlightsFromPoint() returns exactly one HighlightHitResult when the coordinates provided point at one Highlight');
+        assert_equals(highlight_hit_results[0].highlight, highlight, 'CSS.highlights.highlightsFromPoint() returns a HighlightHitResult with the Highlight present at the coordinates provided');
+        assert_array_equals(highlight_hit_results[0].ranges, ranges, 'CSS.highlights.highlightsFromPoint() returns a HighlightHitResult with the ranges of the Highlight present at the coordinates provided in the right order');
+
+        // Get x and y coordinates to the right of the last character of the first line.
+        x = rect.left + 12 * characterWidth;
+        highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 0, 'CSS.highlights.highlightsFromPoint() returns an empty array when the coordinates provided are to the right of the text contents');
+
+        // Get x and y coordinates between characters '0' and '1' on the second line.
+        x = rect.left + characterWidth;
+        y = rect.top + 1.5 * characterHeight;
+        highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 1, 'CSS.highlights.highlightsFromPoint() returns exactly one HighlightHitResult when the coordinates provided point at one Highlight');
+        assert_equals(highlight_hit_results[0].highlight, highlight, 'CSS.highlights.highlightsFromPoint() returns a HighlightHitResult with the Highlight present at the coordinates provided');
+        assert_array_equals(highlight_hit_results[0].ranges, [big_range], 'CSS.highlights.highlightsFromPoint() returns a HighlightHitResult with the ranges of the Highlight present at the coordinates provided');
+
+        // Get x and y coordinates between characters '8' and '9' on the second line (not highlighted).
+        x = rect.left + 9 * characterWidth;
+        highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 0, 'CSS.highlights.highlightsFromPoint() returns an empty array when the coordinates provided are outside of the highlighted ranges');
+
+        // Get x and y coordinates to the right of the last character of the second line.
+        x = rect.left + 12 * characterWidth;
+        highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 0, 'CSS.highlights.highlightsFromPoint() returns an empty array when the coordinates provided are to the right of the text contents');
+
+        // Get x and y coordinates below the second line.
+        x = rect.left + 5 * characterWidth;
+        y = rect.top + 3 * characterHeight;
+        highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 0, 'CSS.highlights.highlightsFromPoint() returns an empty array when the coordinates provided are below the text contents');
+    }
+
+    test(() => {
+        // Set a Highlight with two nested ranges in this way:
+        // 01[234(56789)
+        // 01234567]89
+        let range1 = new Range();
+        range1.setStart(textNode1.childNodes[0], 5);
+        range1.setEnd(textNode1.childNodes[0], 10);
+        let range2 = new Range();
+        range2.setStart(textNode1.childNodes[0], 2);
+        range2.setEnd(textNode2.childNodes[0], 8);
+
+        let static_range1 = new StaticRange({startContainer: textNode1.childNodes[0], startOffset: 5, endContainer: textNode1.childNodes[0], endOffset: 10})
+        let static_range2 = new StaticRange({startContainer: textNode1.childNodes[0], startOffset: 2, endContainer: textNode2.childNodes[0], endOffset: 8})
+
+        test_ranges([range1, range2]);
+        test_ranges([range2, range1]);
+        test_ranges([static_range1, static_range2]);
+        test_ranges([static_range2, static_range1]);
+        test_ranges([static_range1, range2]);
+        test_ranges([range1, static_range2]);
+    }, 'CSS.highlights.highlightsFromPoint() returns HighlightHitResults with the Highlights and their corresponding Ranges and StaticRanges present at the given point in the right order on multi-line text.');
+</script>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+
+<body onload="boom()">
+    <p id="A"></p>
+    <p id="B"></p>
+</body>
+
+<script>
+function boom() {
+    let highlight0 = new Highlight();
+
+    let range = new StaticRange({
+        endContainer: document.getElementById("A"),
+        startOffset: 1,
+        startContainer: document.getElementById("B"),
+        endOffset: 1,
+    });
+    CSS.highlights.set("highlight0", highlight0);
+
+    document.getElementById("A").remove();
+    highlight0.add(range);
+}
+</script>

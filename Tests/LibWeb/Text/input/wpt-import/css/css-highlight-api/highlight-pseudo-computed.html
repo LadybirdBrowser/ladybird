@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS ::highlight Pseudo-Element Test: ::highlight selector getComputedStyle</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #target::highlight(foo) {
+    background-color: green;
+    color: lime;
+  }
+
+  #target::highlight(bar) {
+    background-color: cyan;
+    color: fuchsia;
+  }
+</style>
+<div id="target"></div>
+<script>
+  let highlightPseudo = "::highlight(foo)";
+  test(() => {
+    let style = getComputedStyle(target, highlightPseudo);
+    assert_equals(style.backgroundColor, "rgb(0, 128, 0)", "Background color is green.");
+    assert_equals(style.color, "rgb(0, 255, 0)", "Color is lime.");
+  }, `getComputedStyle() for ${highlightPseudo}`);
+
+  highlightPseudo = "::highlight(bar)";
+  test(() => {
+    let style = getComputedStyle(target, highlightPseudo);
+    assert_equals(style.backgroundColor, "rgb(0, 255, 255)", "Background color is cyan.");
+    assert_equals(style.color, "rgb(255, 0, 255)", "Color is fuchsia.");
+  }, `Different getComputedStyle() for ${highlightPseudo} and same element`);
+
+  for (const illHighlightPseudo of ["::highlight(foo):", "::highlight(foo))", "::highlight(foo)(", "::highlight", "::highlight(foo)(foo)", "::highlight(foo)()", ":::highlight(foo)", "::highlight(foo).", "::highlight(foo,bar)", "::highlight(foo bar)"]) {
+    test(() => {
+      let style = getComputedStyle(target, illHighlightPseudo);
+      assert_equals(style.length, 0, "Invalid pseudo identifiers should not return a style.");
+    }, `getComputedStyle() for ${illHighlightPseudo} should not return a style.`);
+  }
+</script>

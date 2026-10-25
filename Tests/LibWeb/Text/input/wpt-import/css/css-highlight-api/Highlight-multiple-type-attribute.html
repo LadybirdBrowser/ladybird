@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Highlight type has a limited set of types</title>
+    <link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style>
+    #one::highlight(yellow-highlight) {
+        background-color: yellow;
+    }
+    #two::highlight(green-highlight) {
+        background-color: green;
+    }
+    </style>
+</head>
+<body>
+    <span id="one">One </span><span id="two">two </span>
+    <script>
+        test(() => {
+            let highlightYellow = new Highlight(new StaticRange({startContainer: document.body, startOffset: 1, endContainer: document.body, endOffset: 2}));
+            let highlightGreen = new Highlight(new StaticRange({startContainer: document.body, startOffset: 2, endContainer: document.body, endOffset: 3}));
+
+            CSS.highlights.set("yellow-highlight", highlightYellow);
+            CSS.highlights.set("green-highlight", highlightGreen);
+
+            assert_equals(highlightYellow.type, "highlight");
+            assert_equals(highlightGreen.type, "highlight");
+
+            highlightGreen.type = "grammar-error";
+
+            assert_equals(highlightYellow.type, "highlight");
+            assert_equals(highlightGreen.type, "grammar-error");
+
+            highlightGreen.type = "Spelling-error";
+
+            assert_equals(highlightYellow.type, "highlight");
+            assert_equals(highlightGreen.type, "grammar-error");
+
+            highlightYellow.type = "ergeoirgjgeerror";
+
+            assert_equals(highlightYellow.type, "highlight");
+            assert_equals(highlightGreen.type, "grammar-error");
+        });
+    </script>
+</body>
+</html>

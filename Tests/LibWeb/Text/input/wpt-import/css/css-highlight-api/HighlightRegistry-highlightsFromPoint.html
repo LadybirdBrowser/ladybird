@@ -1,0 +1,251 @@
+<!doctype html>
+<meta name="author" title="Fernando Fiori" href="mailto:ffiori@microsoft.com">
+<meta name="assert" content="HighlightRegistry.highlightsFromPoint returns the Highlights present at the coordinates provided as argument in the right order.">
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/#interactions">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-range-getclientrects">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+::highlight(example-highlight) {
+    background-color: rgba(0, 255, 255, 0.5);
+}
+::highlight(example-highlight-2) {
+    background-color: rgba(255, 255, 0, 0.5);
+}
+body {
+    font-family: monospace;
+}
+</style>
+<span id="example-span">0123456789</span>
+<script>
+    test(() => {
+        assert_throws_js(TypeError, () => { CSS.highlights.highlightsFromPoint("asdf", 10); });
+        assert_throws_js(TypeError, () => { CSS.highlights.highlightsFromPoint(10); });
+        assert_throws_js(TypeError, () => { CSS.highlights.highlightsFromPoint(); });
+        assert_throws_js(TypeError, () => { CSS.highlights.highlightsFromPoint(10, 10, "asdf"); });
+    }, 'CSS.highlights.highlightsFromPoint() should throw when called with incorrect parameters.');
+
+    test(() => {
+        assert_equals(CSS.highlights.highlightsFromPoint(-1,-1).length, 0);
+    }, 'CSS.highlights.highlightsFromPoint() should return an empty array when called with a point outside the document.');
+
+    test(() => {
+        // Set two Highlights in this way: 01[234[56789]]
+        const textNode = document.querySelector("#example-span");
+        let range1 = new Range();
+        range1.setStart(textNode.childNodes[0], 2);
+        range1.setEnd(textNode.childNodes[0], 10);
+        let range2 = new Range();
+        range2.setStart(textNode.childNodes[0], 5);
+        range2.setEnd(textNode.childNodes[0], 10);
+
+        let highlight1 = new Highlight(range1);
+        CSS.highlights.set("example-highlight", highlight1);
+        let highlight2 = new Highlight(range2);
+        CSS.highlights.set("example-highlight-2", highlight2);
+
+        const rect = textNode.getBoundingClientRect();
+        const characterWidth = rect.width / textNode.textContent.length;
+
+        // No Highlights outside of text contents.
+        let x = rect.left - 1;
+        let y = rect.top - 1;
+        let highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 0, 'CSS.highlights.highlightsFromPoint() returns an empty array when the coordinates provided are outside of the text contents');
+
+        // Get x and y coordinates between '0' and '1'.
+        x = rect.left + characterWidth;
+        y = rect.top + rect.height / 2;
+        highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 0, 'CSS.highlights.highlightsFromPoint() returns an empty array when the coordinates provided point at no Highlights');
+
+        // Get x and y coordinates between '2' and '3'.
+        x = rect.left + 3 * characterWidth;
+        highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 1, 'CSS.highlights.highlightsFromPoint() returns exactly one HighlightHitResult when the coordinates provided point at one Highlight');
+        assert_equals(highlight_hit_results[0].highlight, highlight1, 'CSS.highlights.highlightsFromPoint() returns a HighlightHitResult with the Highlight present at the coordinates provided');
+        assert_array_equals(highlight_hit_results[0].ranges, [range1], 'CSS.highlights.highlightsFromPoint() returns a HighlightHitResult with the ranges of the Highlight present at the coordinates provided');
+
+        // Get x and y coordinates between '6' and '7'.
+        // Same priority for the Highlights, break tie by order of registration.
+        x = rect.left + 7 * characterWidth;
+        highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 2, 'CSS.highlights.highlightsFromPoint() returns exactly two HighlightHitResults when the coordinates provided point at two overlapping Highlights');
+        assert_equals(highlight_hit_results[0].highlight, highlight2, 'CSS.highlights.highlightsFromPoint() returns first a HighlightHitResult with the Highlight registered last when both Highlights present at the point provided have the same priority');
+        assert_equals(highlight_hit_results[1].highlight, highlight1, 'CSS.highlights.highlightsFromPoint() returns last  a HighlightHitResult with the Highlight registered first when both Highlights present at the point provided have the same priority');
+        assert_array_equals(highlight_hit_results[0].ranges, [range2], 'CSS.highlights.highlightsFromPoint() returns first a HighlightHitResult with the ranges of the Highlight present on top at the coordinates provided');
+        assert_array_equals(highlight_hit_results[1].ranges, [range1], 'CSS.highlights.highlightsFromPoint() returns last a HighlightHitResult with the ranges of the Highlight present at the bottom at the coordinates provided');
+
+        // Now highlight1 should be first because it's got higher priority.
+        highlight1.priority = 2;
+        highlight2.priority = 1;
+        highlight_hit_results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(highlight_hit_results.length, 2, 'CSS.highlights.highlightsFromPoint() returns exactly two HighlightHitResults when the coordinates provided point at two overlapping Highlights');
+        assert_equals(highlight_hit_results[0].highlight, highlight1, 'CSS.highlights.highlightsFromPoint() returns first a HighlightHitResult with the Highlight with higher priority when there are two Highlights present at the point provided');
+        assert_equals(highlight_hit_results[1].highlight, highlight2, 'CSS.highlights.highlightsFromPoint() returns last a HighlightHitResult with the Highlight with lower priority when there are two Highlights present at the point provided');
+    }, 'CSS.highlights.highlightsFromPoint() returns the Highlights with their corresponding ranges present at the given point in the right order.');
+
+    test(() => {
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        document.body.appendChild(iframe);
+
+        const iframeWindow = iframe.contentWindow;
+        const iframeDoc = iframeWindow.document;
+        const span = iframeDoc.createElement("span");
+        span.textContent = "0123456789";
+        iframeDoc.body.appendChild(span);
+
+        const range = iframeDoc.createRange();
+        range.setStart(span.childNodes[0], 0);
+        range.setEnd(span.childNodes[0], 10);
+
+        const highlight = new iframeWindow.Highlight(range);
+        iframeWindow.CSS.highlights.set("example-highlight", highlight);
+
+        const results = iframeWindow.CSS.highlights.highlightsFromPoint(5, 5);
+        assert_equals(results.length, 0,
+            'highlightsFromPoint() returns empty array on a display:none iframe');
+
+        document.body.removeChild(iframe);
+    }, 'CSS.highlights.highlightsFromPoint() returns empty array when called on a display:none iframe document.');
+
+    test(() => {
+        CSS.highlights.clear();
+
+        const textNode = document.querySelector("#example-span");
+        const range = new Range();
+        range.setStart(textNode.childNodes[0], 0);
+        range.setEnd(textNode.childNodes[0], 10);
+
+        const highlight = new Highlight(range);
+        CSS.highlights.set("example-highlight", highlight);
+
+        const viewportWidth = document.documentElement.clientWidth;
+        const viewportHeight = document.documentElement.clientHeight;
+
+        // Query a point just outside the right edge of the viewport.
+        let results = CSS.highlights.highlightsFromPoint(viewportWidth + 1, 5);
+        assert_equals(results.length, 0,
+            'highlightsFromPoint() returns empty for x beyond viewport width');
+
+        // Query a point just outside the bottom edge of the viewport.
+        results = CSS.highlights.highlightsFromPoint(5, viewportHeight + 1);
+        assert_equals(results.length, 0,
+            'highlightsFromPoint() returns empty for y beyond viewport height');
+
+        // Verify the highlight is actually found at a valid point inside the viewport.
+        const rect = textNode.getBoundingClientRect();
+        const characterWidth = rect.width / textNode.textContent.length;
+        const x = rect.left + 3 * characterWidth;
+        const y = rect.top + rect.height / 2;
+        results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(results.length, 1,
+            'highlightsFromPoint() returns the highlight at valid coordinates inside the viewport');
+    }, 'CSS.highlights.highlightsFromPoint() returns empty array for coordinates outside the viewport.');
+
+    test(() => {
+        CSS.highlights.clear();
+
+        const textNode = document.querySelector("#example-span");
+        const range = new Range();
+        range.setStart(textNode.childNodes[0], 5);
+        range.setEnd(textNode.childNodes[0], 5);
+        assert_true(range.collapsed, 'range should be collapsed');
+
+        const highlight = new Highlight(range);
+        CSS.highlights.set("example-highlight", highlight);
+
+        const rect = textNode.getBoundingClientRect();
+        const characterWidth = rect.width / textNode.textContent.length;
+        const x = rect.left + 5 * characterWidth;
+        const y = rect.top + rect.height / 2;
+
+        const results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(results.length, 0,
+            'highlightsFromPoint() does not return a highlight whose only range is collapsed');
+    }, 'CSS.highlights.highlightsFromPoint() does not return highlights with only collapsed ranges.');
+
+    test(() => {
+        CSS.highlights.clear();
+
+        // Create a valid StaticRange, add it to a highlight, then invalidate it
+        // by shortening its text container below the retained end offset.
+        const tempSpan = document.createElement("span");
+        tempSpan.textContent = "temporary";
+        document.body.appendChild(tempSpan);
+
+        const staticRange = new StaticRange({
+            startContainer: tempSpan.childNodes[0],
+            startOffset: 0,
+            endContainer: tempSpan.childNodes[0],
+            endOffset: 9
+        });
+
+        const liveRange = new Range();
+        liveRange.selectNodeContents(tempSpan);
+
+        const highlight = new Highlight(staticRange, liveRange);
+        CSS.highlights.set("example-highlight", highlight);
+        try {
+            let rect = liveRange.getClientRects()[0];
+            let x = rect.left + rect.width / 2;
+            let y = rect.top + rect.height / 2;
+            let results = CSS.highlights.highlightsFromPoint(x, y);
+            assert_equals(results.length, 1);
+            assert_array_equals(results[0].ranges, [staticRange, liveRange],
+                'both overlapping ranges are returned before invalidation');
+
+            // The StaticRange retains endOffset 9, which is now out of bounds.
+            tempSpan.firstChild.data = "x";
+            rect = liveRange.getClientRects()[0];
+            x = rect.left + rect.width / 2;
+            y = rect.top + rect.height / 2;
+            results = CSS.highlights.highlightsFromPoint(x, y);
+            assert_equals(results.length, 1);
+            assert_array_equals(results[0].ranges, [liveRange],
+                'the invalid StaticRange is omitted at overlapping geometry');
+        } finally {
+            CSS.highlights.clear();
+            tempSpan.remove();
+        }
+    }, 'CSS.highlights.highlightsFromPoint() skips invalid StaticRanges.');
+
+    test(() => {
+        CSS.highlights.clear();
+
+        const textNode = document.querySelector("#example-span");
+
+        // Create two overlapping ranges: [0123456789] and [012345]6789
+        const range1 = new Range();
+        range1.setStart(textNode.childNodes[0], 0);
+        range1.setEnd(textNode.childNodes[0], 10);
+
+        const range2 = new Range();
+        range2.setStart(textNode.childNodes[0], 0);
+        range2.setEnd(textNode.childNodes[0], 6);
+
+        const highlight = new Highlight(range1, range2);
+        CSS.highlights.set("example-highlight", highlight);
+
+        const rect = textNode.getBoundingClientRect();
+        const characterWidth = rect.width / textNode.textContent.length;
+
+        // Query at character '3' -- both ranges cover this point.
+        let x = rect.left + 3 * characterWidth;
+        let y = rect.top + rect.height / 2;
+        let results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(results.length, 1,
+            'highlightsFromPoint() returns exactly one HighlightHitResult for a single highlight');
+        assert_array_equals(results[0].ranges, [range1, range2],
+            'both overlapping ranges are returned when both cover the queried point');
+
+        // Query at character '8' -- only range1 covers this point.
+        x = rect.left + 8 * characterWidth;
+        results = CSS.highlights.highlightsFromPoint(x, y);
+        assert_equals(results.length, 1,
+            'highlightsFromPoint() returns the highlight');
+        assert_array_equals(results[0].ranges, [range1],
+            'only the range that covers the queried point is returned');
+    }, 'CSS.highlights.highlightsFromPoint() returns all overlapping ranges within the same highlight.');
+</script>

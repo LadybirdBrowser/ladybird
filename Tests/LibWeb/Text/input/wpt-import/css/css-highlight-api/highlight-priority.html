@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Highlight priority attribute is mutable</title>
+    <link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/#priorities">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style>
+        ::highlight(yellow-highlight) {
+            background-color: yellow;
+        }
+        ::highlight(green-highlight) {
+            background-color: green;
+        }
+        ::highlight(blue-highlight) {
+            background-color: blue;
+        }
+    </style>
+</head>
+<body>
+    <span id="green-highlight">Green</span>
+    <span id="yellow-highlight">Yellow</span>
+    <span id="blue-highlight">Blue</span>
+    <span id="yellow-blue-highlight">Yellow-Blue</span>
+
+    <script>
+    test(() => {
+        let yellowBlue = document.getElementById("yellow-blue-highlight");
+
+        let green = document.getElementById("green-highlight");
+        let highlightGreen = new Highlight(new StaticRange({
+            startContainer: green.childNodes[0],
+            startOffset: 0,
+            endContainer: green.childNodes[0],
+            endOffset: 6
+        }));
+
+        let yellow = document.getElementById("yellow-highlight");
+        let highlightYellow = new Highlight(new StaticRange({
+            startContainer: yellow.childNodes[0],
+            startOffset: 0,
+            endContainer: yellow.childNodes[0],
+            endOffset: 6
+        }), new StaticRange({
+            startContainer: yellowBlue.childNodes[0],
+            startOffset: 0,
+            endContainer: yellowBlue.childNodes[0],
+            endOffset: 6
+        }));
+
+        let blue = document.getElementById("blue-highlight");
+        let highlightBlue = new Highlight(new StaticRange({
+            startContainer: blue.childNodes[0],
+            startOffset: 0,
+            endContainer: blue.childNodes[0],
+            endOffset: 4
+        }), new StaticRange({
+            startContainer: yellowBlue.childNodes[0],
+            startOffset: 0,
+            endContainer: yellowBlue.childNodes[0],
+            endOffset: 11
+        }));
+
+        CSS.highlights.set("yellow-highlight", highlightYellow);
+        CSS.highlights.set("green-highlight", highlightGreen);
+        CSS.highlights.set("blue-highlight", highlightBlue);
+
+        highlightYellow.priority = 10;
+        highlightBlue.priority = -1;
+
+        assert_equals(highlightYellow.priority, 10);
+        assert_equals(highlightGreen.priority, 0);
+        assert_equals(highlightBlue.priority, -1);
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS ::highlight Pseudo-Element Test: ::highlight selector parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<script>
+  const pseudo = "::highlight(foo)";
+  test_valid_selector(pseudo);
+  test_valid_selector(`.a${pseudo}`);
+  test_valid_selector(`div ${pseudo}`);
+  test_valid_selector(`::part(my-part)${pseudo}`);
+
+  test_valid_selector("::highlight(multi\\ word)");
+  test_valid_selector("::highlight(\\31\\32\\33)", "::highlight(\\31 23)");
+
+  test_valid_selector("::highlight(\\*)");
+  test_valid_selector("div::highlight(\\*)");
+  test_valid_selector(":root::highlight(\\*)");
+
+  test_invalid_selector("::highlight");
+  test_invalid_selector(`::before${pseudo}`);
+  test_invalid_selector(`${pseudo}.a`);
+  test_invalid_selector(`${pseudo} div`);
+  test_invalid_selector(`${pseudo}::after`);
+  test_invalid_selector(`${pseudo}:hover`);
+  test_invalid_selector(`:not(${pseudo})`);
+</script>
