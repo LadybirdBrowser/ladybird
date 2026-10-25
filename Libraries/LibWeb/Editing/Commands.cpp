@@ -1569,9 +1569,18 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
     // 8. Let container equal node.
     auto container = node;
 
+    // INTEROP: Browsers split a flex or grid item that is not a single-line container, such as a span, instead of the
+    //          flex or grid container.
+    auto is_flex_or_grid_item = [](DOM::Node& node) {
+        if (!is<HTML::HTMLElement>(node) || !node.is_editable() || !node.parent())
+            return false;
+        auto parent_display = resolved_display(*node.parent());
+        return parent_display.has_value() && (parent_display->is_flex_inside() || parent_display->is_grid_inside());
+    };
+
     // 9. While container is not a single-line container, and container's parent is editable and in the same editing
     //    host as node, set container to its parent.
-    while (!is_single_line_container(*container)) {
+    while (!is_single_line_container(*container) && !is_flex_or_grid_item(*container)) {
         auto container_parent = container->parent();
         if (!container_parent->is_editable() || !is_in_same_editing_host(*node, *container_parent))
             break;
@@ -1604,17 +1613,35 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
             container = outer_container;
     }
 
-    // 11. If container is not editable or not in the same editing host as node or is not a single-line container:
-    if (!container->is_editable() || !is_in_same_editing_host(*container, *node) || !is_single_line_container(*container)) {
-        // INTEROP: Browsers do not create a new paragraph in an editing host that is inline-level, or that cannot
-        //          contain the default single-line container, such as a span. They insert a line break instead.
+    auto container_is_editable_in_same_editing_host = container->is_editable() && is_in_same_editing_host(*container, *node);
+    auto container_display = resolved_display(*container);
+
+    // INTEROP: Browsers treat a single-line container that is inline-level like a span when its parent cannot contain
+    //          the default single-line container. They insert a line break in it instead of splitting it.
+    if (container_is_editable_in_same_editing_host && is_single_line_container(*container)
+        && container_display.has_value() && container_display->is_inline_outside() && container->parent()
+        && !is_allowed_child_of_node(document.default_single_line_container_name(), GC::Ref { *container->parent() }))
+        return command_insert_linebreak_action(document, {});
+
+    // INTEROP: Browsers do not create a new paragraph in an editing host that is inline-level, or that cannot contain
+    //          the default single-line container, such as a span. They insert a line break instead. But they split a
+    //          block-level element that is not a single-line container, such as a span with display: block.
+    auto should_split_block_level_container = container_is_editable_in_same_editing_host && is_flex_or_grid_item(*container);
+    if (!should_split_block_level_container && (!container_is_editable_in_same_editing_host || !is_single_line_container(*container))) {
         if (auto editing_host = node->editing_host()) {
             auto display = resolved_display(*editing_host);
             if ((display.has_value() && display->is_inline_outside())
-                || !is_allowed_child_of_node(document.default_single_line_container_name(), GC::Ref { *editing_host }))
-                return command_insert_linebreak_action(document, {});
+                || !is_allowed_child_of_node(document.default_single_line_container_name(), GC::Ref { *editing_host })) {
+                should_split_block_level_container = container_is_editable_in_same_editing_host && is<HTML::HTMLElement>(*container)
+                    && container_display.has_value() && container_display->is_block_outside();
+                if (!should_split_block_level_container)
+                    return command_insert_linebreak_action(document, {});
+            }
         }
+    }
 
+    // 11. If container is not editable or not in the same editing host as node or is not a single-line container:
+    if (!should_split_block_level_container && (!container_is_editable_in_same_editing_host || !is_single_line_container(*container))) {
         // 1. Let tag be the default single-line container name.
         auto tag = document.default_single_line_container_name();
 

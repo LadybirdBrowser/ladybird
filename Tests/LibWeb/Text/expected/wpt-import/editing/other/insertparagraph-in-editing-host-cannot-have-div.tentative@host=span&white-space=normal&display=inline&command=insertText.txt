@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 8 tests
 
-3 Pass
-5 Fail
+7 Pass
+1 Fail
 Pass	<span contenteditable style="display:inline; white-space:normal">a[]b</span>
 Pass	<span contenteditable style="display:inline; white-space:normal"><span style="white-space:normal">a[]b</span></span>
-Fail	<span contenteditable style="display:inline; white-space:normal"><span style="display:block;white-space:normal">a[]b</span></span>
+Pass	<span contenteditable style="display:inline; white-space:normal"><span style="display:block;white-space:normal">a[]b</span></span>
 Pass	<span contenteditable style="display:inline; white-space:normal"><div>a[]b</div></span>
 Fail	<span contenteditable style="display:inline; white-space:normal"><div style="display:inline">a[]b</div></span>
-Fail	<span contenteditable style="display:inline; white-space:normal"><div style="display:inline-block">a[]b</div></span>
-Fail	<span contenteditable style="display:inline; white-space:normal"><div style="display:inline;white-space:normal">a[]b</div></span>
-Fail	<span contenteditable style="display:inline; white-space:normal"><div style="display:inline-block;white-space:normal">a[]b</div></span>
+Pass	<span contenteditable style="display:inline; white-space:normal"><div style="display:inline-block">a[]b</div></span>
+Pass	<span contenteditable style="display:inline; white-space:normal"><div style="display:inline;white-space:normal">a[]b</div></span>
+Pass	<span contenteditable style="display:inline; white-space:normal"><div style="display:inline-block;white-space:normal">a[]b</div></span>
