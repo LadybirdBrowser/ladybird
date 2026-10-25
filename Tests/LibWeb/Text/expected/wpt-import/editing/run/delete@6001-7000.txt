@@ -1,0 +1,1006 @@
+Harness status: OK
+
+Found 1000 tests
+
+971 Pass
+29 Fail
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>foo<ol><li>bar<li>ba[z</ol><p>q]uz" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p>fo[o<ol><li>bar<li>b]az</ol><p>quz": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p>fo[o<ol><li>bar<li>b]az</ol><p>quz" checks for modifications to non-editable content
+Pass	[["delete",""]] "<p>fo[o<ol><li>bar<li>b]az</ol><p>quz" compare innerHTML
+Pass	[["delete",""]] "<p>fo[o<ol><li>bar<li>b]az</ol><p>quz" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p>fo[o<ol><li>bar<li>b]az</ol><p>quz" queryCommandState("delete") before
+Pass	[["delete",""]] "<p>fo[o<ol><li>bar<li>b]az</ol><p>quz" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p>fo[o<ol><li>bar<li>b]az</ol><p>quz" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p>fo[o<ol><li>bar<li>b]az</ol><p>quz" queryCommandState("delete") after
+Pass	[["delete",""]] "<p>fo[o<ol><li>bar<li>b]az</ol><p>quz" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<p>fo[o<ol><li>bar<li>baz</ol><p>q]uz" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ol><li>b]ar</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ol><li>b]ar</ol>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ol><li>b]ar</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ol><li>b]ar</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ol><li>b]ar</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ol><li>b]ar</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ol><li>b]ar</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ol><li>b]ar</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ol><li>b]ar</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ul><li>b]ar</ul>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ul><li>b]ar</ul>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ul><li>b]ar</ul>" compare innerHTML
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ul><li>b]ar</ul>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ul><li>b]ar</ul>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ul><li>b]ar</ul>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ul><li>b]ar</ul>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ul><li>b]ar</ul>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><li>fo[o</ol><ul><li>b]ar</ul>" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo[<ol><li>]bar</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo[<ol><li>]bar</ol>" checks for modifications to non-editable content
+Pass	[["delete",""]] "foo[<ol><li>]bar</ol>" compare innerHTML
+Pass	[["delete",""]] "foo[<ol><li>]bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo[<ol><li>]bar</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "foo[<ol><li>]bar</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo[<ol><li>]bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo[<ol><li>]bar</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "foo[<ol><li>]bar</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><li>foo[<li>]bar</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><li>foo[<li>]bar</ol>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<ol><li>foo[<li>]bar</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol><li>foo[<li>]bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><li>foo[<li>]bar</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><li>foo[<li>]bar</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><li>foo[<li>]bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><li>foo[<li>]bar</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><li>foo[<li>]bar</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo[<dl><dt>]bar<dd>baz</dl>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo[<dl><dt>]bar<dd>baz</dl>" checks for modifications to non-editable content
+Pass	[["delete",""]] "foo[<dl><dt>]bar<dd>baz</dl>" compare innerHTML
+Pass	[["delete",""]] "foo[<dl><dt>]bar<dd>baz</dl>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo[<dl><dt>]bar<dd>baz</dl>" queryCommandState("delete") before
+Pass	[["delete",""]] "foo[<dl><dt>]bar<dd>baz</dl>" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo[<dl><dt>]bar<dd>baz</dl>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo[<dl><dt>]bar<dd>baz</dl>" queryCommandState("delete") after
+Pass	[["delete",""]] "foo[<dl><dt>]bar<dd>baz</dl>" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo[<dl><dd>]bar</dl>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo[<dl><dd>]bar</dl>" checks for modifications to non-editable content
+Pass	[["delete",""]] "foo[<dl><dd>]bar</dl>" compare innerHTML
+Pass	[["delete",""]] "foo[<dl><dd>]bar</dl>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo[<dl><dd>]bar</dl>" queryCommandState("delete") before
+Pass	[["delete",""]] "foo[<dl><dd>]bar</dl>" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo[<dl><dd>]bar</dl>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo[<dl><dd>]bar</dl>" queryCommandState("delete") after
+Pass	[["delete",""]] "foo[<dl><dd>]bar</dl>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<dl><dt>foo[<dd>]bar</dl>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<dl><dt>foo[<dd>]bar</dl>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<dl><dt>foo[<dd>]bar</dl>" compare innerHTML
+Pass	[["delete",""]] "<dl><dt>foo[<dd>]bar</dl>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<dl><dt>foo[<dd>]bar</dl>" queryCommandState("delete") before
+Pass	[["delete",""]] "<dl><dt>foo[<dd>]bar</dl>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<dl><dt>foo[<dd>]bar</dl>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<dl><dt>foo[<dd>]bar</dl>" queryCommandState("delete") after
+Pass	[["delete",""]] "<dl><dt>foo[<dd>]bar</dl>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<dl><dt>foo[<dt>]bar<dd>baz</dl>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<dl><dt>foo[<dt>]bar<dd>baz</dl>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<dl><dt>foo[<dt>]bar<dd>baz</dl>" compare innerHTML
+Pass	[["delete",""]] "<dl><dt>foo[<dt>]bar<dd>baz</dl>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<dl><dt>foo[<dt>]bar<dd>baz</dl>" queryCommandState("delete") before
+Pass	[["delete",""]] "<dl><dt>foo[<dt>]bar<dd>baz</dl>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<dl><dt>foo[<dt>]bar<dd>baz</dl>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<dl><dt>foo[<dt>]bar<dd>baz</dl>" queryCommandState("delete") after
+Pass	[["delete",""]] "<dl><dt>foo[<dt>]bar<dd>baz</dl>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<dl><dt>foo<dd>bar[<dd>]baz</dl>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<dl><dt>foo<dd>bar[<dd>]baz</dl>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<dl><dt>foo<dd>bar[<dd>]baz</dl>" compare innerHTML
+Pass	[["delete",""]] "<dl><dt>foo<dd>bar[<dd>]baz</dl>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<dl><dt>foo<dd>bar[<dd>]baz</dl>" queryCommandState("delete") before
+Pass	[["delete",""]] "<dl><dt>foo<dd>bar[<dd>]baz</dl>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<dl><dt>foo<dd>bar[<dd>]baz</dl>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<dl><dt>foo<dd>bar[<dd>]baz</dl>" queryCommandState("delete") after
+Pass	[["delete",""]] "<dl><dt>foo<dd>bar[<dd>]baz</dl>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<b>foo [&nbsp;</b>bar]": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<b>foo [&nbsp;</b>bar]" checks for modifications to non-editable content
+Pass	[["delete",""]] "<b>foo [&nbsp;</b>bar]" compare innerHTML
+Pass	[["delete",""]] "<b>foo [&nbsp;</b>bar]" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<b>foo [&nbsp;</b>bar]" queryCommandState("delete") before
+Pass	[["delete",""]] "<b>foo [&nbsp;</b>bar]" queryCommandValue("delete") before
+Pass	[["delete",""]] "<b>foo [&nbsp;</b>bar]" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<b>foo [&nbsp;</b>bar]" queryCommandState("delete") after
+Pass	[["delete",""]] "<b>foo [&nbsp;</b>bar]" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo<b> [&nbsp;bar]</b>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo<b> [&nbsp;bar]</b>" checks for modifications to non-editable content
+Pass	[["delete",""]] "foo<b> [&nbsp;bar]</b>" compare innerHTML
+Pass	[["delete",""]] "foo<b> [&nbsp;bar]</b>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo<b> [&nbsp;bar]</b>" queryCommandState("delete") before
+Pass	[["delete",""]] "foo<b> [&nbsp;bar]</b>" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo<b> [&nbsp;bar]</b>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo<b> [&nbsp;bar]</b>" queryCommandState("delete") after
+Pass	[["delete",""]] "foo<b> [&nbsp;bar]</b>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<b>[foo&nbsp;] </b>bar": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<b>[foo&nbsp;] </b>bar" checks for modifications to non-editable content
+Pass	[["delete",""]] "<b>[foo&nbsp;] </b>bar" compare innerHTML
+Pass	[["delete",""]] "<b>[foo&nbsp;] </b>bar" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<b>[foo&nbsp;] </b>bar" queryCommandState("delete") before
+Pass	[["delete",""]] "<b>[foo&nbsp;] </b>bar" queryCommandValue("delete") before
+Pass	[["delete",""]] "<b>[foo&nbsp;] </b>bar" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<b>[foo&nbsp;] </b>bar" queryCommandState("delete") after
+Pass	[["delete",""]] "<b>[foo&nbsp;] </b>bar" queryCommandValue("delete") after
+Pass	[["delete",""]] "[foo<b>&nbsp;] bar</b>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "[foo<b>&nbsp;] bar</b>" checks for modifications to non-editable content
+Pass	[["delete",""]] "[foo<b>&nbsp;] bar</b>" compare innerHTML
+Pass	[["delete",""]] "[foo<b>&nbsp;] bar</b>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "[foo<b>&nbsp;] bar</b>" queryCommandState("delete") before
+Pass	[["delete",""]] "[foo<b>&nbsp;] bar</b>" queryCommandValue("delete") before
+Pass	[["delete",""]] "[foo<b>&nbsp;] bar</b>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "[foo<b>&nbsp;] bar</b>" queryCommandState("delete") after
+Pass	[["delete",""]] "[foo<b>&nbsp;] bar</b>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p style=display:inline>fo[o<p style=display:inline>b]ar": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p style=display:inline>fo[o<p style=display:inline>b]ar" checks for modifications to non-editable content
+Pass	[["delete",""]] "<p style=display:inline>fo[o<p style=display:inline>b]ar" compare innerHTML
+Pass	[["delete",""]] "<p style=display:inline>fo[o<p style=display:inline>b]ar" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p style=display:inline>fo[o<p style=display:inline>b]ar" queryCommandState("delete") before
+Pass	[["delete",""]] "<p style=display:inline>fo[o<p style=display:inline>b]ar" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p style=display:inline>fo[o<p style=display:inline>b]ar" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p style=display:inline>fo[o<p style=display:inline>b]ar" queryCommandState("delete") after
+Pass	[["delete",""]] "<p style=display:inline>fo[o<p style=display:inline>b]ar" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandIndeterm("stylewithcss") before
+Fail	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<span style=display:block>fo[o</span><span style=display:block>b]ar</span>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<span style=display:inline-block>fo[o</span><span style=display:inline-block>b]ar</span>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<span style=display:inline-block>fo[o</span><span style=display:inline-block>b]ar</span>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<span style=display:inline-block>fo[o</span><span style=display:inline-block>b]ar</span>" compare innerHTML
+Pass	[["delete",""]] "<span style=display:inline-block>fo[o</span><span style=display:inline-block>b]ar</span>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<span style=display:inline-block>fo[o</span><span style=display:inline-block>b]ar</span>" queryCommandState("delete") before
+Pass	[["delete",""]] "<span style=display:inline-block>fo[o</span><span style=display:inline-block>b]ar</span>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<span style=display:inline-block>fo[o</span><span style=display:inline-block>b]ar</span>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<span style=display:inline-block>fo[o</span><span style=display:inline-block>b]ar</span>" queryCommandState("delete") after
+Pass	[["delete",""]] "<span style=display:inline-block>fo[o</span><span style=display:inline-block>b]ar</span>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<span style=display:inline-table>fo[o</span><span style=display:inline-table>b]ar</span>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<span style=display:inline-table>fo[o</span><span style=display:inline-table>b]ar</span>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<span style=display:inline-table>fo[o</span><span style=display:inline-table>b]ar</span>" compare innerHTML
+Pass	[["delete",""]] "<span style=display:inline-table>fo[o</span><span style=display:inline-table>b]ar</span>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<span style=display:inline-table>fo[o</span><span style=display:inline-table>b]ar</span>" queryCommandState("delete") before
+Pass	[["delete",""]] "<span style=display:inline-table>fo[o</span><span style=display:inline-table>b]ar</span>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<span style=display:inline-table>fo[o</span><span style=display:inline-table>b]ar</span>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<span style=display:inline-table>fo[o</span><span style=display:inline-table>b]ar</span>" queryCommandState("delete") after
+Pass	[["delete",""]] "<span style=display:inline-table>fo[o</span><span style=display:inline-table>b]ar</span>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<span style=display:none>fo[o</span><span style=display:none>b]ar</span>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<span style=display:none>fo[o</span><span style=display:none>b]ar</span>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<span style=display:none>fo[o</span><span style=display:none>b]ar</span>" compare innerHTML
+Pass	[["delete",""]] "<span style=display:none>fo[o</span><span style=display:none>b]ar</span>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<span style=display:none>fo[o</span><span style=display:none>b]ar</span>" queryCommandState("delete") before
+Pass	[["delete",""]] "<span style=display:none>fo[o</span><span style=display:none>b]ar</span>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<span style=display:none>fo[o</span><span style=display:none>b]ar</span>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<span style=display:none>fo[o</span><span style=display:none>b]ar</span>" queryCommandState("delete") after
+Pass	[["delete",""]] "<span style=display:none>fo[o</span><span style=display:none>b]ar</span>" queryCommandValue("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" compare innerHTML
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandState("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandValue("delete") before
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandState("delete") after
+Pass	[["stylewithcss","true"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandValue("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>": execCommand("delete", false, "") return value
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" compare innerHTML
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandIndeterm("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandState("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandValue("delete") before
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandIndeterm("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandState("delete") after
+Pass	[["stylewithcss","false"],["delete",""]] "<quasit style=display:block>fo[o</quasit><quasit style=display:block>b]ar</quasit>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol><li>bar</ol>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<ol><li>foo</ol>{}<br><ol><li>bar</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol><li>bar</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol><li>bar</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo</ol><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol><li>bar</ol>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol><li>bar</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol><li>bar</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol><li>bar</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol id=b><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol id=b><li>bar</ol>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<ol><li>foo</ol>{}<br><ol id=b><li>bar</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol id=b><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol id=b><li>bar</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol id=b><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol id=b><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol id=b><li>bar</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ol id=b><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol id=b><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol id=b><li>bar</ol>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol id=b><li>bar</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol id=b><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol id=b><li>bar</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol id=b><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol id=b><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol id=b><li>bar</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol id=a><li>foo</ol>{}<br><ol id=b><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol class=a><li>foo</ol>{}<br><ol class=b><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol class=a><li>foo</ol>{}<br><ol class=b><li>bar</ol>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<ol class=a><li>foo</ol>{}<br><ol class=b><li>bar</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol class=a><li>foo</ol>{}<br><ol class=b><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol class=a><li>foo</ol>{}<br><ol class=b><li>bar</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol class=a><li>foo</ol>{}<br><ol class=b><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol class=a><li>foo</ol>{}<br><ol class=b><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol class=a><li>foo</ol>{}<br><ol class=b><li>bar</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol class=a><li>foo</ol>{}<br><ol class=b><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><ol><li>foo</ol><li>{}<br></li><ol><li>bar</ol></ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><ol><li>foo</ol><li>{}<br></li><ol><li>bar</ol></ol>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<ol><ol><li>foo</ol><li>{}<br></li><ol><li>bar</ol></ol>" compare innerHTML
+Pass	[["delete",""]] "<ol><ol><li>foo</ol><li>{}<br></li><ol><li>bar</ol></ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><ol><li>foo</ol><li>{}<br></li><ol><li>bar</ol></ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><ol><li>foo</ol><li>{}<br></li><ol><li>bar</ol></ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><ol><li>foo</ol><li>{}<br></li><ol><li>bar</ol></ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><ol><li>foo</ol><li>{}<br></li><ol><li>bar</ol></ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><ol><li>foo</ol><li>{}<br></li><ol><li>bar</ol></ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><li>foo[</ol>bar]<ol><li>baz</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><li>foo[</ol>bar]<ol><li>baz</ol>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<ol><li>foo[</ol>bar]<ol><li>baz</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol><li>foo[</ol>bar]<ol><li>baz</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><li>foo[</ol>bar]<ol><li>baz</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><li>foo[</ol>bar]<ol><li>baz</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><li>foo[</ol>bar]<ol><li>baz</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><li>foo[</ol>bar]<ol><li>baz</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><li>foo[</ol>bar]<ol><li>baz</ol>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li><p>foo[</ol><p>bar]<ol><li>baz</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><li>foo[]</ol><ol><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><li>foo[]</ol><ol><li>bar</ol>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<ol><li>foo[]</ol><ol><li>bar</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol><li>foo[]</ol><ol><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><li>foo[]</ol><ol><li>bar</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><li>foo[]</ol><ol><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><li>foo[]</ol><ol><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><li>foo[]</ol><ol><li>bar</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><li>foo[]</ol><ol><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol>[bar<ol><li>]baz</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><li>foo</ol>[bar<ol><li>]baz</ol>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<ol><li>foo</ol>[bar<ol><li>]baz</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol><li>foo</ol>[bar<ol><li>]baz</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol>[bar<ol><li>]baz</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol>[bar<ol><li>]baz</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol>[bar<ol><li>]baz</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol>[bar<ol><li>]baz</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol>[bar<ol><li>]baz</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li>]baz</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li>]baz</ol>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li>]baz</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li>]baz</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li>]baz</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li>]baz</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li>]baz</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li>]baz</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li>]baz</ol>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>[bar<ol><li><p>]baz</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol><ol><li>b[]ar</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><li>foo</ol><ol><li>b[]ar</ol>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<ol><li>foo</ol><ol><li>b[]ar</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol><li>foo</ol><ol><li>b[]ar</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol><ol><li>b[]ar</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol><ol><li>b[]ar</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol><ol><li>b[]ar</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol><ol><li>b[]ar</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol><ol><li>b[]ar</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><ol><li>foo[</ol><li>bar</ol>baz]<ol><li>quz</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><ol><li>foo[</ol><li>bar</ol>baz]<ol><li>quz</ol>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<ol><ol><li>foo[</ol><li>bar</ol>baz]<ol><li>quz</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol><ol><li>foo[</ol><li>bar</ol>baz]<ol><li>quz</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><ol><li>foo[</ol><li>bar</ol>baz]<ol><li>quz</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><ol><li>foo[</ol><li>bar</ol>baz]<ol><li>quz</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><ol><li>foo[</ol><li>bar</ol>baz]<ol><li>quz</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><ol><li>foo[</ol><li>bar</ol>baz]<ol><li>quz</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><ol><li>foo[</ol><li>bar</ol>baz]<ol><li>quz</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ul><li>bar</ul>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ul><li>bar</ul>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<ul><li>foo</ul>{}<br><ul><li>bar</ul>" compare innerHTML
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ul><li>bar</ul>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ul><li>bar</ul>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ul><li>bar</ul>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ul><li>bar</ul>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ul><li>bar</ul>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ul><li>bar</ul>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><li>foo[<li>bar]</ol><ol><li>baz</ol><ol><li>quz</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><li>foo[<li>bar]</ol><ol><li>baz</ol><ol><li>quz</ol>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<ol><li>foo[<li>bar]</ol><ol><li>baz</ol><ol><li>quz</ol>" compare innerHTML
+Pass	[["delete",""]] "<ol><li>foo[<li>bar]</ol><ol><li>baz</ol><ol><li>quz</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><li>foo[<li>bar]</ol><ol><li>baz</ol><ol><li>quz</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><li>foo[<li>bar]</ol><ol><li>baz</ol><ol><li>quz</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><li>foo[<li>bar]</ol><ol><li>baz</ol><ol><li>quz</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><li>foo[<li>bar]</ol><ol><li>baz</ol><ol><li>quz</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><li>foo[<li>bar]</ol><ol><li>baz</ol><ol><li>quz</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ul><li>bar</ul>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ul><li>bar</ul>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<ol><li>foo</ol>{}<br><ul><li>bar</ul>" compare innerHTML
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ul><li>bar</ul>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ul><li>bar</ul>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ul><li>bar</ul>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ul><li>bar</ul>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ul><li>bar</ul>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ol><li>foo</ol>{}<br><ul><li>bar</ul>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ol><li>foo</ol><p>{}<br></p><ul><li>bar</ul>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ol><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ol><li>bar</ol>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<ul><li>foo</ul>{}<br><ol><li>bar</ol>" compare innerHTML
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ol><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ol><li>bar</ol>" queryCommandState("delete") before
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ol><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ol><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ol><li>bar</ol>" queryCommandState("delete") after
+Pass	[["delete",""]] "<ul><li>foo</ul>{}<br><ol><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","div"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>": execCommand("delete", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandState("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("delete") before
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandIndeterm("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandState("delete") after
+Pass	[["defaultparagraphseparator","p"],["delete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p><b>[foo]</b>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p><b>[foo]</b>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<p><b>[foo]</b>" compare innerHTML
+Pass	[["delete",""]] "<p><b>[foo]</b>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p><b>[foo]</b>" queryCommandState("delete") before
+Pass	[["delete",""]] "<p><b>[foo]</b>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p><b>[foo]</b>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p><b>[foo]</b>" queryCommandState("delete") after
+Pass	[["delete",""]] "<p><b>[foo]</b>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p><quasit>[foo]</quasit>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p><quasit>[foo]</quasit>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<p><quasit>[foo]</quasit>" compare innerHTML
+Pass	[["delete",""]] "<p><quasit>[foo]</quasit>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p><quasit>[foo]</quasit>" queryCommandState("delete") before
+Pass	[["delete",""]] "<p><quasit>[foo]</quasit>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p><quasit>[foo]</quasit>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p><quasit>[foo]</quasit>" queryCommandState("delete") after
+Pass	[["delete",""]] "<p><quasit>[foo]</quasit>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p><b><i>[foo]</i></b>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p><b><i>[foo]</i></b>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<p><b><i>[foo]</i></b>" compare innerHTML
+Pass	[["delete",""]] "<p><b><i>[foo]</i></b>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p><b><i>[foo]</i></b>" queryCommandState("delete") before
+Pass	[["delete",""]] "<p><b><i>[foo]</i></b>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p><b><i>[foo]</i></b>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p><b><i>[foo]</i></b>" queryCommandState("delete") after
+Pass	[["delete",""]] "<p><b><i>[foo]</i></b>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p><b>{foo}</b>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p><b>{foo}</b>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<p><b>{foo}</b>" compare innerHTML
+Pass	[["delete",""]] "<p><b>{foo}</b>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p><b>{foo}</b>" queryCommandState("delete") before
+Pass	[["delete",""]] "<p><b>{foo}</b>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p><b>{foo}</b>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p><b>{foo}</b>" queryCommandState("delete") after
+Pass	[["delete",""]] "<p><b>{foo}</b>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p>{<b>foo</b>}": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p>{<b>foo</b>}" checks for modifications to non-editable content
+Fail	[["delete",""]] "<p>{<b>foo</b>}" compare innerHTML
+Pass	[["delete",""]] "<p>{<b>foo</b>}" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p>{<b>foo</b>}" queryCommandState("delete") before
+Pass	[["delete",""]] "<p>{<b>foo</b>}" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p>{<b>foo</b>}" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p>{<b>foo</b>}" queryCommandState("delete") after
+Pass	[["delete",""]] "<p>{<b>foo</b>}" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p><b>f[]</b>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p><b>f[]</b>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<p><b>f[]</b>" compare innerHTML
+Pass	[["delete",""]] "<p><b>f[]</b>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p><b>f[]</b>" queryCommandState("delete") before
+Pass	[["delete",""]] "<p><b>f[]</b>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p><b>f[]</b>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p><b>f[]</b>" queryCommandState("delete") after
+Pass	[["delete",""]] "<p><b>f[]</b>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<b>[foo]</b>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<b>[foo]</b>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<b>[foo]</b>" compare innerHTML
+Pass	[["delete",""]] "<b>[foo]</b>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<b>[foo]</b>" queryCommandState("delete") before
+Pass	[["delete",""]] "<b>[foo]</b>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<b>[foo]</b>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<b>[foo]</b>" queryCommandState("delete") after
+Pass	[["delete",""]] "<b>[foo]</b>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div><b>[foo]</b></div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div><b>[foo]</b></div>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<div><b>[foo]</b></div>" compare innerHTML
+Pass	[["delete",""]] "<div><b>[foo]</b></div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div><b>[foo]</b></div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div><b>[foo]</b></div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div><b>[foo]</b></div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div><b>[foo]</b></div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div><b>[foo]</b></div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div><div><p>foo</p></div></div><div></div><div><div>[]bar</div></div></div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div><div><p>foo</p></div></div><div></div><div><div>[]bar</div></div></div>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<div><div><p>foo</p></div></div><div></div><div><div>[]bar</div></div></div>" compare innerHTML
+Pass	[["delete",""]] "<div><div><p>foo</p></div></div><div></div><div><div>[]bar</div></div></div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div><div><p>foo</p></div></div><div></div><div><div>[]bar</div></div></div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div><div><p>foo</p></div></div><div></div><div><div>[]bar</div></div></div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div><div><p>foo</p></div></div><div></div><div><div>[]bar</div></div></div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div><div><p>foo</p></div></div><div></div><div><div>[]bar</div></div></div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div><div><p>foo</p></div></div><div></div><div><div>[]bar</div></div></div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div>foo</div><div></div><div>[]bar</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div>foo</div><div></div><div>[]bar</div>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<div>foo</div><div></div><div>[]bar</div>" compare innerHTML
+Pass	[["delete",""]] "<div>foo</div><div></div><div>[]bar</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div>foo</div><div></div><div>[]bar</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div>foo</div><div></div><div>[]bar</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div>foo</div><div></div><div>[]bar</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div>foo</div><div></div><div>[]bar</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div>foo</div><div></div><div>[]bar</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div>foo</div><span></span><div>[]bar</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div>foo</div><span></span><div>[]bar</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div>foo</div><span></span><div>[]bar</div>" compare innerHTML
+Pass	[["delete",""]] "<div>foo</div><span></span><div>[]bar</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div>foo</div><span></span><div>[]bar</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div>foo</div><span></span><div>[]bar</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div>foo</div><span></span><div>[]bar</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div>foo</div><span></span><div>[]bar</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div>foo</div><span></span><div>[]bar</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div>foo</div><!-- comment --><div>[]bar</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div>foo</div><!-- comment --><div>[]bar</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div>foo</div><!-- comment --><div>[]bar</div>" compare innerHTML
+Pass	[["delete",""]] "<div>foo</div><!-- comment --><div>[]bar</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div>foo</div><!-- comment --><div>[]bar</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div>foo</div><!-- comment --><div>[]bar</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div>foo</div><!-- comment --><div>[]bar</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div>foo</div><!-- comment --><div>[]bar</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div>foo</div><!-- comment --><div>[]bar</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div> a[]bc</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div> a[]bc</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div> a[]bc</div>" compare innerHTML
+Pass	[["delete",""]] "<div> a[]bc</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div> a[]bc</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div> a[]bc</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div> a[]bc</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div> a[]bc</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div> a[]bc</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div>  a[]bc</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div>  a[]bc</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div>  a[]bc</div>" compare innerHTML
+Pass	[["delete",""]] "<div>  a[]bc</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div>  a[]bc</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div>  a[]bc</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div>  a[]bc</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div>  a[]bc</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div>  a[]bc</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div> []abc</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div> []abc</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div> []abc</div>" compare innerHTML
+Pass	[["delete",""]] "<div> []abc</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div> []abc</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div> []abc</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div> []abc</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div> []abc</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div> []abc</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div> [] abc</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div> [] abc</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div> [] abc</div>" compare innerHTML
+Pass	[["delete",""]] "<div> [] abc</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div> [] abc</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div> [] abc</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div> [] abc</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div> [] abc</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div> [] abc</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div>abc</div><div> []def</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div>abc</div><div> []def</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div>abc</div><div> []def</div>" compare innerHTML
+Pass	[["delete",""]] "<div>abc</div><div> []def</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div>abc</div><div> []def</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div>abc</div><div> []def</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div>abc</div><div> []def</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div>abc</div><div> []def</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div>abc</div><div> []def</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div>abc</div><div> [] def</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div>abc</div><div> [] def</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div>abc</div><div> [] def</div>" compare innerHTML
+Pass	[["delete",""]] "<div>abc</div><div> [] def</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div>abc</div><div> [] def</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div>abc</div><div> [] def</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div>abc</div><div> [] def</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div>abc</div><div> [] def</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div>abc</div><div> [] def</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div>abc</div><div>  []def</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div>abc</div><div>  []def</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div>abc</div><div>  []def</div>" compare innerHTML
+Pass	[["delete",""]] "<div>abc</div><div>  []def</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div>abc</div><div>  []def</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div>abc</div><div>  []def</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div>abc</div><div>  []def</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div>abc</div><div>  []def</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div>abc</div><div>  []def</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div>abc </div><div>[]def</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div>abc </div><div>[]def</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div>abc </div><div>[]def</div>" compare innerHTML
+Pass	[["delete",""]] "<div>abc </div><div>[]def</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div>abc </div><div>[]def</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div>abc </div><div>[]def</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div>abc </div><div>[]def</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div>abc </div><div>[]def</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div>abc </div><div>[]def</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div>abc  </div><div>[]def</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div>abc  </div><div>[]def</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div>abc  </div><div>[]def</div>" compare innerHTML
+Pass	[["delete",""]] "<div>abc  </div><div>[]def</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div>abc  </div><div>[]def</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div>abc  </div><div>[]def</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div>abc  </div><div>[]def</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div>abc  </div><div>[]def</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div>abc  </div><div>[]def</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div>abc </div><div> []def</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div>abc </div><div> []def</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div>abc </div><div> []def</div>" compare innerHTML
+Pass	[["delete",""]] "<div>abc </div><div> []def</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div>abc </div><div> []def</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div>abc </div><div> []def</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div>abc </div><div> []def</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div>abc </div><div> []def</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div>abc </div><div> []def</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div>abc  </div><div> [] def</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div>abc  </div><div> [] def</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div>abc  </div><div> [] def</div>" compare innerHTML
+Pass	[["delete",""]] "<div>abc  </div><div> [] def</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div>abc  </div><div> [] def</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div>abc  </div><div> [] def</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div>abc  </div><div> [] def</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div>abc  </div><div> [] def</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div>abc  </div><div> [] def</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<div>abc  </div> <div>  []def</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<div>abc  </div> <div>  []def</div>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<div>abc  </div> <div>  []def</div>" compare innerHTML
+Pass	[["delete",""]] "<div>abc  </div> <div>  []def</div>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<div>abc  </div> <div>  []def</div>" queryCommandState("delete") before
+Pass	[["delete",""]] "<div>abc  </div> <div>  []def</div>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<div>abc  </div> <div>  []def</div>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<div>abc  </div> <div>  []def</div>" queryCommandState("delete") after
+Pass	[["delete",""]] "<div>abc  </div> <div>  []def</div>" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo<img contenteditable=false src=/img/lion.svg>[]bar": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo<img contenteditable=false src=/img/lion.svg>[]bar" checks for modifications to non-editable content
+Fail	[["delete",""]] "foo<img contenteditable=false src=/img/lion.svg>[]bar" compare innerHTML
+Pass	[["delete",""]] "foo<img contenteditable=false src=/img/lion.svg>[]bar" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo<img contenteditable=false src=/img/lion.svg>[]bar" queryCommandState("delete") before
+Pass	[["delete",""]] "foo<img contenteditable=false src=/img/lion.svg>[]bar" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo<img contenteditable=false src=/img/lion.svg>[]bar" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo<img contenteditable=false src=/img/lion.svg>[]bar" queryCommandState("delete") after
+Pass	[["delete",""]] "foo<img contenteditable=false src=/img/lion.svg>[]bar" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span>[]baz": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span>[]baz" checks for modifications to non-editable content
+Fail	[["delete",""]] "foo<span contenteditable=false>bar</span>[]baz" compare innerHTML
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span>[]baz" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span>[]baz" queryCommandState("delete") before
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span>[]baz" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span>[]baz" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span>[]baz" queryCommandState("delete") after
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span>[]baz" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span><span contenteditable=false>baz</span>[]qux": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span><span contenteditable=false>baz</span>[]qux" checks for modifications to non-editable content
+Fail	[["delete",""]] "foo<span contenteditable=false>bar</span><span contenteditable=false>baz</span>[]qux" compare innerHTML
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span><span contenteditable=false>baz</span>[]qux" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span><span contenteditable=false>baz</span>[]qux" queryCommandState("delete") before
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span><span contenteditable=false>baz</span>[]qux" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span><span contenteditable=false>baz</span>[]qux" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span><span contenteditable=false>baz</span>[]qux" queryCommandState("delete") after
+Pass	[["delete",""]] "foo<span contenteditable=false>bar</span><span contenteditable=false>baz</span>[]qux" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo<span contenteditable=false><span>b</span><span>a</span><span>r</span></span>[]baz": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo<span contenteditable=false><span>b</span><span>a</span><span>r</span></span>[]baz" checks for modifications to non-editable content
+Fail	[["delete",""]] "foo<span contenteditable=false><span>b</span><span>a</span><span>r</span></span>[]baz" compare innerHTML
+Pass	[["delete",""]] "foo<span contenteditable=false><span>b</span><span>a</span><span>r</span></span>[]baz" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo<span contenteditable=false><span>b</span><span>a</span><span>r</span></span>[]baz" queryCommandState("delete") before
+Pass	[["delete",""]] "foo<span contenteditable=false><span>b</span><span>a</span><span>r</span></span>[]baz" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo<span contenteditable=false><span>b</span><span>a</span><span>r</span></span>[]baz" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo<span contenteditable=false><span>b</span><span>a</span><span>r</span></span>[]baz" queryCommandState("delete") after
+Pass	[["delete",""]] "foo<span contenteditable=false><span>b</span><span>a</span><span>r</span></span>[]baz" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo<div contenteditable=false>bar</div>[]baz": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo<div contenteditable=false>bar</div>[]baz" checks for modifications to non-editable content
+Fail	[["delete",""]] "foo<div contenteditable=false>bar</div>[]baz" compare innerHTML
+Pass	[["delete",""]] "foo<div contenteditable=false>bar</div>[]baz" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo<div contenteditable=false>bar</div>[]baz" queryCommandState("delete") before
+Pass	[["delete",""]] "foo<div contenteditable=false>bar</div>[]baz" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo<div contenteditable=false>bar</div>[]baz" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo<div contenteditable=false>bar</div>[]baz" queryCommandState("delete") after
+Pass	[["delete",""]] "foo<div contenteditable=false>bar</div>[]baz" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo<span contenteditable=false><b>bar</b></span>[]baz": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo<span contenteditable=false><b>bar</b></span>[]baz" checks for modifications to non-editable content
+Fail	[["delete",""]] "foo<span contenteditable=false><b>bar</b></span>[]baz" compare innerHTML
+Pass	[["delete",""]] "foo<span contenteditable=false><b>bar</b></span>[]baz" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo<span contenteditable=false><b>bar</b></span>[]baz" queryCommandState("delete") before
+Pass	[["delete",""]] "foo<span contenteditable=false><b>bar</b></span>[]baz" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo<span contenteditable=false><b>bar</b></span>[]baz" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo<span contenteditable=false><b>bar</b></span>[]baz" queryCommandState("delete") after
+Pass	[["delete",""]] "foo<span contenteditable=false><b>bar</b></span>[]baz" queryCommandValue("delete") after
+Pass	[["delete",""]] "foo<span>bar<span contenteditable=false>baz</span></span>[]qux": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "foo<span>bar<span contenteditable=false>baz</span></span>[]qux" checks for modifications to non-editable content
+Fail	[["delete",""]] "foo<span>bar<span contenteditable=false>baz</span></span>[]qux" compare innerHTML
+Pass	[["delete",""]] "foo<span>bar<span contenteditable=false>baz</span></span>[]qux" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "foo<span>bar<span contenteditable=false>baz</span></span>[]qux" queryCommandState("delete") before
+Pass	[["delete",""]] "foo<span>bar<span contenteditable=false>baz</span></span>[]qux" queryCommandValue("delete") before
+Pass	[["delete",""]] "foo<span>bar<span contenteditable=false>baz</span></span>[]qux" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "foo<span>bar<span contenteditable=false>baz</span></span>[]qux" queryCommandState("delete") after
+Pass	[["delete",""]] "foo<span>bar<span contenteditable=false>baz</span></span>[]qux" queryCommandValue("delete") after
+Pass	[["delete",""]] "<span>[abc]</span>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<span>[abc]</span>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<span>[abc]</span>" compare innerHTML
+Pass	[["delete",""]] "<span>[abc]</span>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<span>[abc]</span>" queryCommandState("delete") before
+Pass	[["delete",""]] "<span>[abc]</span>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<span>[abc]</span>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<span>[abc]</span>" queryCommandState("delete") after
+Pass	[["delete",""]] "<span>[abc]</span>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<span>[abc]</span><br>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<span>[abc]</span><br>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<span>[abc]</span><br>" compare innerHTML
+Pass	[["delete",""]] "<span>[abc]</span><br>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<span>[abc]</span><br>" queryCommandState("delete") before
+Pass	[["delete",""]] "<span>[abc]</span><br>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<span>[abc]</span><br>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<span>[abc]</span><br>" queryCommandState("delete") after
+Pass	[["delete",""]] "<span>[abc]</span><br>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p><span>[abc]</span></p>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p><span>[abc]</span></p>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<p><span>[abc]</span></p>" compare innerHTML
+Pass	[["delete",""]] "<p><span>[abc]</span></p>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p><span>[abc]</span></p>" queryCommandState("delete") before
+Pass	[["delete",""]] "<p><span>[abc]</span></p>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p><span>[abc]</span></p>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p><span>[abc]</span></p>" queryCommandState("delete") after
+Pass	[["delete",""]] "<p><span>[abc]</span></p>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p><span>[abc]</span><br></p>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p><span>[abc]</span><br></p>" checks for modifications to non-editable content
+Pass	[["delete",""]] "<p><span>[abc]</span><br></p>" compare innerHTML
+Pass	[["delete",""]] "<p><span>[abc]</span><br></p>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p><span>[abc]</span><br></p>" queryCommandState("delete") before
+Pass	[["delete",""]] "<p><span>[abc]</span><br></p>" queryCommandValue("delete") before
+Pass	[["delete",""]] "<p><span>[abc]</span><br></p>" queryCommandIndeterm("delete") after
+Pass	[["delete",""]] "<p><span>[abc]</span><br></p>" queryCommandState("delete") after
+Pass	[["delete",""]] "<p><span>[abc]</span><br></p>" queryCommandValue("delete") after
+Pass	[["delete",""]] "<p contenteditable=false><span contenteditable=true>[abc]</span></p>": execCommand("delete", false, "") return value
+Pass	[["delete",""]] "<p contenteditable=false><span contenteditable=true>[abc]</span></p>" checks for modifications to non-editable content
+Fail	[["delete",""]] "<p contenteditable=false><span contenteditable=true>[abc]</span></p>" compare innerHTML
+Pass	[["delete",""]] "<p contenteditable=false><span contenteditable=true>[abc]</span></p>" queryCommandIndeterm("delete") before
+Pass	[["delete",""]] "<p contenteditable=false><span contenteditable=true>[abc]</span></p>" queryCommandState("delete") before
+Pass	[["delete",""]] "<p contenteditable=false><span contenteditable=true>[abc]</span></p>" queryCommandValue("delete") before

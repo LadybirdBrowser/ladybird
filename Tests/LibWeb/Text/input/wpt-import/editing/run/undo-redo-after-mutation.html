@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div contenteditable></div>
+<script>
+"use strict";
+let editor = document.querySelector("div[contenteditable]");
+let selection = document.getSelection();
+
+test(function () {
+  editor.innerHTML = "<i>will be removed</i> abc";
+  selection.collapse(editor.lastChild, editor.lastChild.length);
+  document.execCommand("insertLineBreak", false, "");
+  assert_equals(editor.innerHTML, "<i>will be removed</i> abc<br><br>",
+                "<br> element should be inserted by execCommand(\"insertLineBreak\")");
+  document.execCommand("undo", false, "");
+  assert_equals(editor.innerHTML, "<i>will be removed</i> abc",
+                "<br> element should be removed by execCommand(\"undo\")");
+  editor.firstChild.remove();
+  document.execCommand("redo", false, "");
+  assert_equals(editor.innerHTML, " abc<br><br>",
+                "<br> element should be inserted by execCommand(\"redo\")");
+}, "Redo for execCommand(\"insertLineBreak\") after removing prior sibling with DOM API after undoing");
+
+test(function () {
+  editor.innerHTML = "abc";
+  selection.collapse(editor.firstChild, editor.firstChild.length);
+  document.execCommand("insertLineBreak", false, "");
+  assert_equals(editor.innerHTML, "abc<br><br>",
+                "<br> element should be inserted by execCommand(\"insertLineBreak\")");
+  document.execCommand("undo", false, "");
+  assert_equals(editor.innerHTML, "abc",
+                "<br> element should be removed by execCommand(\"undo\")");
+  let i = document.createElement("i");
+  i.textContent = " appended text";
+  editor.appendChild(i);
+  document.execCommand("redo", false, "");
+  assert_equals(editor.innerHTML, "abc<i> appended text</i><br><br>",
+                "<br> element should be appended by execCommand(\"redo\") after the appended text");
+}, "Redo for execCommand(\"insertLineBreak\") after appending new child with DOM API after undoing");
+
+test(function () {
+  editor.innerHTML = "abc";
+  selection.collapse(editor.firstChild, editor.firstChild.length);
+  document.execCommand("insertLineBreak", false, "");
+  assert_equals(editor.innerHTML, "abc<br><br>",
+                "<br> element should be inserted by execCommand(\"insertLineBreak\")");
+  document.execCommand("undo", false, "");
+  assert_equals(editor.innerHTML, "abc",
+                "<br> element should be removed by execCommand(\"undo\")");
+  let i = document.createElement("i");
+  i.textContent = "inserted text ";
+  editor.insertBefore(i, editor.firstChild);
+  document.execCommand("redo", false, "");
+  assert_equals(editor.innerHTML, "<i>inserted text </i>abc<br><br>",
+                "<br> element should be appended by execCommand(\"redo\") after the appended text");
+}, "Redo for execCommand(\"insertLineBreak\") after inserting new child with DOM API after undoing");
+
+test(function () {
+  editor.innerHTML = "<b>will be removed</b><i>abc</i>";
+  selection.collapse(editor.querySelector("b").firstChild, editor.querySelector("b").firstChild.length);
+  document.execCommand("insertLineBreak", false, "");
+  assert_equals(editor.innerHTML, "<b>will be removed<br></b><i>abc</i>",
+                "<br> element should be inserted into the <b> element by execCommand(\"insertLineBreak\")");
+  document.execCommand("undo", false, "");
+  assert_equals(editor.innerHTML, "<b>will be removed</b><i>abc</i>",
+                "<br> element should be removed by execCommand(\"undo\")");
+  editor.querySelector("b").remove();
+  document.execCommand("redo", false, "");
+  assert_equals(editor.innerHTML, "<i>abc</i>",
+                "<br> element shouldn't be restored by execCommand(\"redo\") after removing the <b> element");
+}, "Redo for execCommand(\"insertLineBreak\") after removing its container with DOM API after undoing");
+
+test(function () {
+  editor.innerHTML = "<b>abc</b><i>will be removed</i>";
+  selection.collapse(editor.querySelector("b").firstChild, editor.querySelector("b").firstChild.length);
+  document.execCommand("insertLineBreak", false, "");
+  assert_equals(editor.innerHTML, "<b>abc<br></b><i>will be removed</i>",
+                "<br> element should be inserted into the <b> element by execCommand(\"insertLineBreak\")");
+  document.execCommand("undo", false, "");
+  assert_equals(editor.innerHTML, "<b>abc</b><i>will be removed</i>",
+                "<br> element should be removed by execCommand(\"undo\")");
+  editor.querySelector("i").remove();
+  document.execCommand("redo", false, "");
+  assert_equals(editor.innerHTML, "<b>abc<br></b>",
+                "<br> element should be restored by execCommand(\"redo\") after removing the following <i> element");
+}, "Redo for execCommand(\"insertLineBreak\") after removing <i> element following the container with DOM API after undoing");
+
+// Not sure whether redoing in both of the following 2 cases should work as so.
+test(function () {
+  editor.innerHTML = "<b>will be removed</b><i>abc</i>";
+  selection.collapse(editor, 1);
+  document.execCommand("insertLineBreak", false, "");
+  assert_equals(editor.innerHTML, "<b>will be removed</b><br><i>abc</i>",
+                "<br> element should be inserted between the <b> and <i> elements by execCommand(\"insertLineBreak\")");
+  document.execCommand("undo", false, "");
+  assert_equals(editor.innerHTML, "<b>will be removed</b><i>abc</i>",
+                "<br> element should be removed by execCommand(\"undo\")");
+  editor.querySelector("b").remove();
+  document.execCommand("redo", false, "");
+  assert_equals(editor.innerHTML, "<br><i>abc</i>",
+                "<br> element should be restored by execCommand(\"redo\") after removing the preceding <b> element");
+}, "Redo for execCommand(\"insertLineBreak\") between <b> and <i> after removing preceding <b> element with DOM API after undoing");
+
+test(function () {
+  editor.innerHTML = "<b>abc</b><i>will be removed</i>";
+  selection.collapse(editor, 1);
+  document.execCommand("insertLineBreak", false, "");
+  assert_equals(editor.innerHTML, "<b>abc</b><br><i>will be removed</i>",
+                "<br> element should be inserted between the <b> and <i> elements by execCommand(\"insertLineBreak\")");
+  document.execCommand("undo", false, "");
+  assert_equals(editor.innerHTML, "<b>abc</b><i>will be removed</i>",
+                "<br> element should be removed by execCommand(\"undo\")");
+  editor.querySelector("i").remove();
+  document.execCommand("redo", false, "");
+  assert_equals(editor.innerHTML, "<b>abc</b><br>",
+                "<br> element should be restored by execCommand(\"redo\") after removing the following <i> element");
+}, "Redo for execCommand(\"insertLineBreak\") between <b> and <i> after after removing following <i> element with DOM API after undoing");
+</script>

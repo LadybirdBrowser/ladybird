@@ -1,0 +1,151 @@
+<!doctype html>
+<html contenteditable>
+<head>
+<meta charset=utf-8>
+<title>Test "Select all" and deletion work with &lt;html contenteditable&gt;</title>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+</head>
+<body>
+<script>
+"use strict";
+
+const kBackspaceKey = "\uE003";
+const kDeleteKey = "\uE017";
+const kMeta = "\uE03d";
+const kControl = "\uE009";
+
+async function selectAllWithKey(elementToSelectAll) {
+  if (elementToSelectAll.length === 0) {
+    throw "element to select all must not be empty";
+  }
+  getSelection().collapse(elementToSelectAll, 0);
+  try {
+    await new test_driver.Actions()
+      .keyDown(kControl)
+      .keyDown("a")
+      .keyUp("a")
+      .keyUp(kControl)
+      .send();
+    if (!getSelection().isCollapsed) {
+      return;
+    }
+    await new test_driver.Actions()
+      .keyDown(kMeta)
+      .keyDown("a")
+      .keyUp("a")
+      .keyUp(kMeta)
+      .send();
+    if (!getSelection().isCollapsed) {
+      return;
+    }
+  } catch (ex) {
+    throw ex;
+  }
+  throw "Neither Control-A nor Meta-A does select all contents";
+}
+
+function deleteWithBackspaceKey() {
+  return new test_driver.Actions()
+    .keyDown(kBackspaceKey)
+    .keyUp(kBackspaceKey)
+    .send();
+}
+
+function deleteWithDeleteKey() {
+  return new test_driver.Actions()
+    .keyDown(kDeleteKey)
+    .keyUp(kDeleteKey)
+    .send();
+}
+
+promise_test(async () => {
+  document.body.innerHTML = "abc";
+  await selectAllWithKey(document.body);
+  await deleteWithBackspaceKey();
+  assert_in_array(document.body.innerHTML, ["", "<br>"]);
+}, "Select All, then, Backspace");
+
+promise_test(async () => {
+  document.body.innerHTML = "abc";
+  await selectAllWithKey(document.body);
+  await deleteWithDeleteKey();
+  assert_in_array(document.body.innerHTML, ["", "<br>"]);
+}, "Select All, then, Delete");
+
+promise_test(async () => {
+  document.body.innerHTML = "abc";
+  document.execCommand("selectall");
+  await deleteWithBackspaceKey();
+  assert_in_array(document.body.innerHTML, ["", "<br>"]);
+}, 'execCommand("selectall"), then, Backspace');
+
+promise_test(async () => {
+  document.body.innerHTML = "abc";
+  document.execCommand("selectall");
+  await deleteWithDeleteKey();
+  assert_in_array(document.body.innerHTML, ["", "<br>"]);
+}, 'execCommand("selectall"), then, Delete');
+
+promise_test(async () => {
+  document.body.innerHTML = "abc";
+  await selectAllWithKey(document.body);
+  document.execCommand("forwarddelete", false, false);
+  assert_in_array(document.body.innerHTML, ["", "<br>"]);
+}, 'Select All, then, execCommand("forwarddelete")');
+
+promise_test(async () => {
+  document.body.innerHTML = "abc";
+  await selectAllWithKey(document.body);
+  document.execCommand("delete", false, false);
+  assert_in_array(document.body.innerHTML, ["", "<br>"]);
+}, 'Select All, then, execCommand("delete")');
+
+test(() => {
+  document.body.innerHTML = "abc";
+  document.execCommand("selectall");
+  document.execCommand("forwarddelete", false, false);
+  assert_in_array(document.body.innerHTML, ["", "<br>"]);
+}, 'execCommand("selectall"), then, execCommand("forwarddelete")');
+
+test(() => {
+  document.body.innerHTML = "abc";
+  document.execCommand("selectall");
+  document.execCommand("delete", false, false);
+  assert_in_array(document.body.innerHTML, ["", "<br>"]);
+}, 'execCommand("selectall"), then, execCommand("delete")');
+
+promise_test(async () => {
+  document.body.innerHTML = "abc";
+  getSelection().selectAllChildren(document.documentElement);
+  await deleteWithBackspaceKey();
+  assert_in_array(document.body.innerHTML, ["", "<br>"]);
+}, 'getSelection().selectAllChildren(document.documentElement), then, Backspace');
+
+promise_test(async () => {
+  document.body.innerHTML = "abc";
+  getSelection().selectAllChildren(document.documentElement);
+  await deleteWithDeleteKey();
+  assert_in_array(document.body.innerHTML, ["", "<br>"]);
+}, 'getSelection().selectAllChildren(document.documentElement), then, Delete');
+
+test(() => {
+  document.body.innerHTML = "abc";
+  getSelection().selectAllChildren(document.documentElement);
+  document.execCommand("forwarddelete", false, false);
+  assert_in_array(document.body.innerHTML, ["", "<br>"]);
+}, 'getSelection().selectAllChildren(document.documentElement), then, execCommand("forwarddelete")');
+
+test(() => {
+  document.body.innerHTML = "abc";
+  getSelection().selectAllChildren(document.documentElement);
+  document.execCommand("delete", false, false);
+  assert_in_array(document.body.innerHTML, ["", "<br>"]);
+}, 'getSelection().selectAllChildren(document.documentElement), then, execCommand("delete")');
+
+</script>
+</body>
+</html>

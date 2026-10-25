@@ -1,0 +1,43 @@
+Harness status: OK
+
+Found 37 tests
+
+36 Pass
+1 Fail
+Pass	Testing inserting content around link element
+Fail	Replacing text in a link with "XY" in <p>[abc]</p>
+Pass	Inserting "XY" after making a link (following Selection.collapseToEnd) in <p>[abc]</p>
+Pass	Inserting "XY" after making a link (following ArrowRight key press) in <p>[abc]</p>
+Pass	Inserting "XY" after making a link (following End key press) in <p>[abc]</p>
+Pass	Inserting "XY" after making a link (following Selection.collapseToStart) in <p>[abc]</p>
+Pass	Inserting "XY" after making a link (following ArrowLeft key press) in <p>[abc]</p>
+Pass	Inserting "XY" after making a link (following Home key press) in <p>[abc]</p>
+Pass	Inserting "XY" after setting caret position to middle of a link (Selection.collapse) in <p><a href="about:blank">[]abc</a></p>
+Pass	Inserting "XY" after setting caret position to middle of a link (Selection.addRange) in <p><a href="about:blank">[]abc</a></p>
+Pass	Inserting "XY" after setting caret position to start of a link (Selection.collapse) in <p><a href="about:blank">ab[]c</a></p>
+Pass	Inserting "XY" after setting caret position to start of a link (Selection.addRange) in <p><a href="about:blank">ab[]c</a></p>
+Pass	Inserting "XY" after setting caret position to end of a link (Selection.collapse) in <p><a href="about:blank">ab[]c</a></p>
+Pass	Inserting "XY" after setting caret position to end of a link (Selection.addRange) in <p><a href="about:blank">ab[]c</a></p>
+Pass	Inserting "XY" after modifying caret position to middle of a link in <p><a href="about:blank">[]abc</a></p>
+Pass	Inserting "XY" after modifying caret position to start of a link in <p><a href="about:blank">ab[]c</a></p>
+Pass	Inserting "XY" after modifying caret position to end of a link in <p><a href="about:blank">ab[]c</a></p>
+Pass	Inserting "XY" after deleting following character of a link (Backspace) in <p><a href="about:blank">abc</a>d[]</p>
+Pass	Inserting "XY" after deleting following character of a link (execCommand("delete")) in <p><a href="about:blank">abc</a>d[]</p>
+Pass	Inserting "XY" after deleting a previous character of a link (Delete) in <p>[]z<a href="about:blank">abc</a></p>
+Pass	Inserting "XY" after deleting a previous character of a link (execCommand("forwarddelete")) in <p>[]z<a href="about:blank">abc</a></p>
+Pass	Inserting "XY" after deleting last character of a link (Backspace) in <p><a href="about:blank">abcd[]</a></p>
+Pass	Inserting "XY" after deleting last character of a link (execCommand("delete")) in <p><a href="about:blank">abcd[]</a></p>
+Pass	Inserting "XY" after deleting last character of a link (Delete) in <p><a href="about:blank">abc[]d</a></p>
+Pass	Inserting "XY" after deleting last character of a link (execCommand("forwarddelete")) in <p><a href="about:blank">abc[]d</a></p>
+Pass	Inserting "XY" after deleting first character of a link (Backspace) in <p><a href="about:blank">z[]abc</a></p>
+Pass	Inserting "XY" after deleting first character of a link (execCommand("delete")) in <p><a href="about:blank">z[]abc</a></p>
+Pass	Inserting "XY" after deleting first character of a link (Delete) in <p><a href="about:blank">[]zabc</a></p>
+Pass	Inserting "XY" after deleting first character of a link (execCommand("forwarddelete")) in <p><a href="about:blank">[]zabc</a></p>
+Pass	Inserting "XY" at start of a link which has a class for bold text in <p><a href="about:blank" class="bold">[]abc</a></p>
+Pass	Inserting "XY" at end of a link which has a class for bold text in <p><a href="about:blank" class="bold">abc[]</a></p>
+Pass	Inserting "XY" at start of a link which has inline style for bold text in <p><a href="about:blank" style="font-weight: bold">[]abc</a></p>
+Pass	Inserting "XY" at end of a link which has inline style for bold text in <p><a href="about:blank" style="font-weight: bold">abc[]</a></p>
+Pass	Inserting "XY" at start of a link which has a class for bold text (in CSS mode) in <p><a href="about:blank" class="bold">[]abc</a></p>
+Pass	Inserting "XY" at end of a link which has a class for bold text (in CSS mode) in <p><a href="about:blank" class="bold">abc[]</a></p>
+Pass	Inserting "XY" at start of a link which has inline style for bold text (in CSS mode) in <p><a href="about:blank" style="font-weight: bold">[]abc</a></p>
+Pass	Inserting "XY" at end of a link which has inline style for bold text (in CSS mode) in <p><a href="about:blank" style="font-weight: bold">abc[]</a></p>

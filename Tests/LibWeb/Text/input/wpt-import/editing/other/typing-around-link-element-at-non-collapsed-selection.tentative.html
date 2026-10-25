@@ -1,0 +1,214 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<meta name="variant" content="?target=ContentEditable">
+<meta name="variant" content="?target=ContentEditable&parent=b">
+<meta name="variant" content="?target=ContentEditable&child=b">
+<meta name="variant" content="?target=ContentEditable&parent=b&child=i">
+<meta name="variant" content="?target=DesignMode">
+<meta name="variant" content="?target=DesignMode&parent=b">
+<meta name="variant" content="?target=DesignMode&child=b">
+<meta name="variant" content="?target=DesignMode&parent=b&child=i">
+<title>Testing inserting content at non-collapsed selection around link element</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../include/editor-test-utils.js"></script>
+</head>
+<body>
+<div contenteditable></div>
+<iframe srcdoc="
+  <!doctype html>
+  <html>
+    <script>document.designMode='on';</script>
+    <script src='../../resources/testdriver.js'></script>
+    <script src='../../resources/testdriver-vendor.js'></script>
+    <script src='../../resources/testdriver-actions.js'></script>
+    <body></body>
+  </html>"></iframe>
+<script>
+"use strict";
+
+const params = new URLSearchParams(location.search.substring(1));
+const kTarget = params.get("target");
+const kParentTag = params.get("parent") === null
+  ? ["", ""]
+  : [`<${params.get("parent")}>`, `</${params.get("parent")}>`];
+const kChildTag = params.get("child") === null
+  ? ["", ""]
+  : [`<${params.get("child")}>`, `</${params.get("child")}>`];
+const kLinkDesc = (() => {
+  let result = ""
+  if (kParentTag[0] !== "") {
+    result += `in ${kParentTag[0]} `;
+    if (kChildTag[0] !== "") {
+      result += "and ";
+    }
+  }
+  if (kChildTag[0] !== "") {
+    result += `containing ${kChildTag[0]} `;
+  }
+  return result;
+})();
+const kNewContainerOfLink = (() => {
+  if (kParentTag !== "" && kChildTag !== "") {
+    return [`${kParentTag[0]}${kChildTag[0]}`, `${kChildTag[1]}${kParentTag[1]}`];
+  }
+  if (kParentTag !== "") {
+    return kParentTag;
+  }
+  if (kChildTag !== "") {
+    return kChildTag;
+  }
+  return ["", ""];
+})();
+
+function getEditingHost() {
+  return kTarget === "ContentEditable"
+    ? document.querySelector("div[contenteditable]")
+    : document.querySelector("iframe").contentDocument.body;
+}
+
+function addPromiseTest(test) {
+  promise_test(async () => {
+    let editingHost = getEditingHost();
+    let utils = new EditorTestUtils(editingHost);
+    utils.setupEditingHost(test.innerHTML);
+    utils.window.focus();
+    utils.document.body.focus();
+    editingHost.focus();
+    await test.run(utils);
+    if (Array.isArray(test.expectedResult)) {
+      assert_in_array(editingHost.innerHTML, test.expectedResult);
+    } else {
+      assert_equals(editingHost.innerHTML, test.expectedResult);
+    }
+  }, `${test.description} in ${test.innerHTML}`);
+}
+
+promise_test(async () => {
+  await new Promise(resolve => {
+    addEventListener("load", resolve, { once: true });
+  });
+}, "");
+
+for (const test of [
+    ["Direct typing", utils => {}],
+    ["Backspace", utils => { return utils.sendBackspaceKey(); }],
+    ["Delete", utils => { return utils.sendDeleteKey(); }],
+    ["execCommand(\"delete\")", utils => { utils.document.execCommand("delete", false); }],
+    ["execCommand(\"forwarddelete\")", utils => { utils.document.execCommand("forwarddelete", false); }],
+  ]) {
+
+  addPromiseTest({
+    description: `Inserting "XY" after deleting first character of a link ${kLinkDesc}(${test[0]})`,
+    innerHTML: `<p>${kParentTag[0]}<a href="about:blank">${kChildTag[0]}[z]abc${kChildTag[1]}</a>${kParentTag[1]}</p>`,
+    run: async (utils) => {
+      await test[1](utils);
+      await utils.sendKey("X", utils.kShiftKey);
+      await utils.sendKey("Y", utils.kShiftKey);
+    },
+    expectedResult: (() => {
+      if (test[0] === "Direct typing") {
+        return [
+          `<p>${kParentTag[0]}<a href="about:blank">${kChildTag[0]}XYabc${kChildTag[1]}</a>${kParentTag[1]}</p>`,
+          `<p>${kParentTag[0]}<a href="about:blank">${kChildTag[0]}XYabc${kChildTag[1]}</a>${kParentTag[1]}<br></p>`,
+        ];
+      }
+      return [
+        `<p>${kNewContainerOfLink[0]}XY<a href="about:blank">abc</a>${kNewContainerOfLink[1]}</p>`,
+        `<p>${kNewContainerOfLink[0]}XY<a href="about:blank">abc</a>${kNewContainerOfLink[1]}<br></p>`,
+      ];
+    })(),
+  });
+
+  addPromiseTest({
+    description: `Inserting "XY" after deleting last character in a non-collapsed range of a link ${kLinkDesc}(${test[0]})`,
+    innerHTML: `<p>${kParentTag[0]}<a href="about:blank">${kChildTag[0]}abc[d]${kChildTag[1]}</a>${kParentTag[1]}</p>`,
+    run: async (utils) => {
+      await test[1](utils);
+      await utils.sendKey("X", utils.kShiftKey);
+      await utils.sendKey("Y", utils.kShiftKey);
+    },
+    expectedResult: (() => {
+      if (test[0] === "Direct typing") {
+        return [
+          `<p>${kParentTag[0]}<a href="about:blank">${kChildTag[0]}abcXY${kChildTag[1]}</a>${kParentTag[1]}</p>`,
+          `<p>${kParentTag[0]}<a href="about:blank">${kChildTag[0]}abcXY${kChildTag[1]}</a>${kParentTag[1]}<br></p>`,
+        ];
+      }
+      return [
+        `<p>${kNewContainerOfLink[0]}<a href="about:blank">abc</a>XY${kNewContainerOfLink[1]}</p>`,
+        `<p>${kNewContainerOfLink[0]}<a href="about:blank">abc</a>XY${kNewContainerOfLink[1]}<br></p>`,
+      ];
+    })(),
+  });
+
+  addPromiseTest({
+    description: `Inserting "XY" after deleting text after middle of a link ${kLinkDesc}(${test[0]})`,
+    innerHTML: `<p>${kParentTag[0]}<a href="about:blank">${kChildTag[0]}ab[cd${kChildTag[1]}</a>de]f${kParentTag[1]}</p>`,
+    run: async (utils) => {
+      await test[1](utils);
+      await utils.sendKey("X", utils.kShiftKey);
+      await utils.sendKey("Y", utils.kShiftKey);
+    },
+    expectedResult: [
+      `<p>${kNewContainerOfLink[0]}<a href="about:blank">ab</a>XY${kChildTag[1]}f${kParentTag[1]}</p>`,
+      `<p>${kNewContainerOfLink[0]}<a href="about:blank">ab</a>XY${kChildTag[1]}f${kParentTag[1]}<br></p>`,
+    ],
+  });
+
+  addPromiseTest({
+    description: `Inserting "XY" after deleting text before middle of a link ${kLinkDesc}(${test[0]})`,
+    innerHTML: `<p>${kParentTag[0]}a[bc<a href="about:blank">${kChildTag[0]}de]f${kChildTag[1]}</a>${kParentTag[1]}</p>`,
+    run: async (utils) => {
+      await test[1](utils);
+      await utils.sendKey("X", utils.kShiftKey);
+      await utils.sendKey("Y", utils.kShiftKey);
+    },
+    expectedResult: [
+      `<p>${kParentTag[0]}aXY<a href="about:blank">${kChildTag[0]}f${kChildTag[1]}</a>${kParentTag[1]}</p>`,
+      `<p>${kParentTag[0]}aXY<a href="about:blank">${kChildTag[0]}f${kChildTag[1]}</a>${kParentTag[1]}<br></p>`,
+    ],
+  });
+
+  if (kParentTag[0] !== "" || kChildTag[0] !== "") {
+    continue;
+  }
+
+  addPromiseTest({
+    description: `Inserting "XY" after deleting text between 2 same links (${test[0]})`,
+    innerHTML: '<p><a href="about:blank">a[bc</a><a href="about:blank">de]f</a></p>',
+    run: async (utils) => {
+      await test[1](utils);
+      await utils.sendKey("X", utils.kShiftKey);
+      await utils.sendKey("Y", utils.kShiftKey);
+    },
+    expectedResult: [
+      '<p><a href="about:blank">a</a>XY<a href="about:blank">f</a></p>',
+      '<p><a href="about:blank">a</a>XY<a href="about:blank">f</a><br></p>',
+    ],
+  });
+
+  addPromiseTest({
+    description: `Inserting "XY" after deleting text between 2 different links (${test[0]})`,
+    innerHTML: '<p><a href="about:blank">a[bc</a><a href="http://example.com/">de]f</a></p>',
+    run: async (utils) => {
+      await test[1](utils);
+      await utils.sendKey("X", utils.kShiftKey);
+      await utils.sendKey("Y", utils.kShiftKey);
+    },
+    expectedResult: [
+      '<p><a href="about:blank">a</a>XY<a href="http://example.com/">f</a></p>',
+      '<p><a href="about:blank">a</a>XY<a href="http://example.com/">f</a><br></p>',
+    ],
+  });
+}
+
+</script>
+</body>
+</html>
