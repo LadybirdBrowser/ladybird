@@ -185,14 +185,14 @@ jobs:
       # bundle has to be self-contained. To make it self-contained, this script copies the libraries in, Qt included,
       # adds the Qt platform plugin, re-signs the executables with the entitlements the build used, and tars the result.
       - name: Package the macOS app bundle for the accessibility tests
-        if: ${{ inputs.os_name == 'macOS' }}
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: |
           "${{ env.pythonLocation }}/bin/python" Meta/package-macos-test-bundle.py \
             --build-dir Build --install-dir Install --output ladybird-app-bundle.tar.gz
 
       - name: Upload the macOS app bundle
-        if: ${{ inputs.os_name == 'macOS' }}
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
         uses: actions/upload-artifact@v7
         with:
           name: ladybird-app-bundle-${{ inputs.os_name }}-${{ inputs.arch }}-${{ inputs.build_preset }}
