@@ -130,7 +130,7 @@ impl PropertyLookupCacheEntryData {
     }
 
     fn has_dead_cell(&self) -> bool {
-        (self.key != 0 && cell_is_dead(Value(self.key).as_cell()))
+        (self.key != 0 && cell_is_dead(Value::from_bits(self.key).as_cell()))
             || self.from_shape.is_some_and(cell_is_dead)
             || self.shape.is_some_and(cell_is_dead)
             || self.prototype.is_some_and(cell_is_dead)

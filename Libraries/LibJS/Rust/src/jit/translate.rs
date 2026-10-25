@@ -105,7 +105,7 @@ impl RegisterDump {
 /// Reads a value that is not an object the code never created.
 fn read_location(location: ValueLocation, dump: &RegisterDump) -> Value {
     let (bits, repr) = match location {
-        ValueLocation::Constant(bits) => return Value(bits),
+        ValueLocation::Constant(bits) => return Value::from_bits(bits),
         ValueLocation::Register(encoding, repr) => {
             let bits = if repr == Repr::Float64 {
                 dump.fprs[usize::from(encoding)]
@@ -125,7 +125,7 @@ fn read_location(location: ValueLocation, dump: &RegisterDump) -> Value {
         }
     };
     match repr {
-        Repr::Tagged => Value(bits),
+        Repr::Tagged => Value::from_bits(bits),
         Repr::Int32 => Value::from_i32(bits as i32),
         Repr::Float64 => Value::from_f64(f64::from_bits(bits)),
         Repr::Bool => Value::from_bool(bits as u32 != 0),
@@ -246,7 +246,7 @@ impl<'a> SiteValues<'a> {
 const DEFERRED_ARGUMENT_MARKER: u64 = Value::EMPTY.0 | (1 << 47);
 
 fn deferred_argument_marker(frame_pointer: u64) -> Value {
-    Value(DEFERRED_ARGUMENT_MARKER | (frame_pointer & u64::from(u32::MAX)))
+    Value::from_bits(DEFERRED_ARGUMENT_MARKER | (frame_pointer & u64::from(u32::MAX)))
 }
 
 /// The low half of the frame pointer of the JIT frame that `value` is a marker of an object of (see

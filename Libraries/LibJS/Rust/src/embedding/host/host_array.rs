@@ -236,8 +236,8 @@ pub unsafe extern "C" fn js_host_array_array_set(
     completion_into_abi(as_host_array(&host_array).array_set(
         vm,
         key,
-        Value(value),
-        Value(receiver),
+        Value::from_bits(value),
+        Value::from_bits(receiver),
         cache_metadata,
         lookup_phase_from_abi(phase),
     ))

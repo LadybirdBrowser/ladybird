@@ -602,8 +602,8 @@ impl RawNativeFunctionResult {
 
     pub fn into_completion(self) -> ThrowCompletionOr<Value> {
         match self.variant {
-            0 => Ok(Value(self.payload)),
-            1 => Err(Throw::new(Value(self.payload))),
+            0 => Ok(Value::from_bits(self.payload)),
+            1 => Err(Throw::new(Value::from_bits(self.payload))),
             variant => unreachable!("{variant} is not a ThrowCompletionOr variant"),
         }
     }

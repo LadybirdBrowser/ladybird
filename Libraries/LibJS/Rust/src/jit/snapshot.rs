@@ -482,7 +482,7 @@ impl SnapshotBuilder<'_> {
                 prototype_chain_valid: entry
                     .prototype_chain_validity
                     .is_some_and(|validity| validity.is_valid()),
-                key: (entry.key != 0).then(|| self.cell(Value(entry.key).as_cell())),
+                key: (entry.key != 0).then(|| self.cell(Value::from_bits(entry.key).as_cell())),
                 key_value: entry.key,
                 prototype_property: self.optional_cell(prototype_property),
                 prototype_property_intrinsic: intrinsic_of(

@@ -253,7 +253,7 @@ unsafe fn property_descriptor_from_hook(descriptor: &JSPropertyDescriptor) -> Op
     const ATTRIBUTE_FLAGS: u16 = JS_PD_WRITABLE | JS_PD_ENUMERABLE | JS_PD_CONFIGURABLE;
     if descriptor.flags & !ATTRIBUTE_FLAGS == COMPLETE_DATA_DESCRIPTOR_FLAGS {
         return Some(PropertyDescriptor {
-            value: Some(Value(descriptor.value)),
+            value: Some(Value::from_bits(descriptor.value)),
             writable: Some(descriptor.flags & JS_PD_WRITABLE != 0),
             enumerable: Some(descriptor.flags & JS_PD_ENUMERABLE != 0),
             configurable: Some(descriptor.flags & JS_PD_CONFIGURABLE != 0),
@@ -384,7 +384,7 @@ fn delete_through_hook(object: &Object, _vm: &Vm, key: &PropertyKey) -> ThrowCom
 unsafe extern "C" fn append_key_to_list(keys: *mut c_void, key: JSValue) {
     // SAFETY: The sink's context is the rooted list of keys of the [[OwnPropertyKeys]] call that made the sink.
     let keys = unsafe { &*keys.cast::<MarkedVec<'_, Value>>() };
-    keys.push(Value(key));
+    keys.push(Value::from_bits(key));
 }
 
 fn own_property_keys_through_hook<'vm>(object: &Object, vm: &'vm Vm) -> ThrowCompletionOr<MarkedVec<'vm, Value>> {

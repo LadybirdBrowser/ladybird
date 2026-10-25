@@ -496,7 +496,7 @@ pub unsafe extern "C" fn js_array_buffer_data(buffer: *mut JSObject, out_byte_le
 pub unsafe extern "C" fn js_array_buffer_detach(vm: *mut JSVM, buffer: *mut JSObject, key: JSValue) -> JSCompletion {
     // SAFETY: The caller passes a live VM and buffer.
     let (vm, buffer) = unsafe { (vm_from_abi(vm), array_buffer_from_abi(buffer)) };
-    completion_into_abi(detach_array_buffer(vm, buffer, Some(Value(key))))
+    completion_into_abi(detach_array_buffer(vm, buffer, Some(Value::from_bits(key))))
 }
 
 /// ArrayBuffer::detach_and_take_data_block(): detaches `buffer`, as DetachArrayBuffer(buffer) does, and describes the
@@ -613,7 +613,7 @@ pub unsafe extern "C" fn js_array_buffer_detach_key(buffer: *mut JSObject) -> JS
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_array_buffer_set_detach_key(buffer: *mut JSObject, key: JSValue) {
     // SAFETY: The caller passes a live buffer.
-    unsafe { array_buffer_from_abi(buffer) }.set_detach_key(Value(key));
+    unsafe { array_buffer_from_abi(buffer) }.set_detach_key(Value::from_bits(key));
 }
 
 /// DataView::create(): a view of `buffer` from `byte_offset` on, of `byte_length` bytes, or of the rest of a resizable

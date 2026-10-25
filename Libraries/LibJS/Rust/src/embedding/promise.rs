@@ -118,7 +118,12 @@ pub unsafe extern "C" fn js_promise_perform_then(
         )
     };
     promise
-        .perform_then(vm, Value(on_fulfilled), Value(on_rejected), result_capability)
+        .perform_then(
+            vm,
+            Value::from_bits(on_fulfilled),
+            Value::from_bits(on_rejected),
+            result_capability,
+        )
         .0
 }
 
@@ -145,7 +150,9 @@ pub unsafe extern "C" fn js_promise_create_resolving_functions(
 pub unsafe extern "C" fn js_promise_capability_new(vm: *mut JSVM, constructor: JSValue) -> JSCompletion {
     // SAFETY: See the module documentation.
     let vm = unsafe { vm_from_abi(vm) };
-    completion_into_abi(new_promise_capability(vm, Value(constructor)).map(cell_into_abi::<JSPromiseCapability>))
+    completion_into_abi(
+        new_promise_capability(vm, Value::from_bits(constructor)).map(cell_into_abi::<JSPromiseCapability>),
+    )
 }
 
 /// [[Promise]] of the capability, which is an object but not necessarily a Promise. Main thread only.

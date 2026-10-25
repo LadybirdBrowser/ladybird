@@ -225,5 +225,5 @@ pub unsafe extern "C" fn js_console_print_value(
         strip_ansi,
         raw_strings,
     };
-    print(Value(value), &mut print_context).is_ok()
+    print(Value::from_bits(value), &mut print_context).is_ok()
 }

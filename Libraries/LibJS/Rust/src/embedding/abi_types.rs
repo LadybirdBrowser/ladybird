@@ -259,8 +259,8 @@ pub unsafe fn completion_writing_result_to<T>(result: ThrowCompletionOr<T>, out:
 /// The completion an embedder's hook returned, as the runtime's own.
 pub fn completion_from_abi(completion: JSCompletion) -> ThrowCompletionOr<Value> {
     match completion.variant {
-        JS_COMPLETION_NORMAL => Ok(Value(completion.payload)),
-        JS_COMPLETION_THROW => Err(Throw::new(Value(completion.payload))),
+        JS_COMPLETION_NORMAL => Ok(Value::from_bits(completion.payload)),
+        JS_COMPLETION_THROW => Err(Throw::new(Value::from_bits(completion.payload))),
         variant => panic!("the embedder returned a completion of unknown variant {variant}"),
     }
 }
@@ -270,7 +270,7 @@ pub fn value_into_abi(value: Value) -> JSValue {
 }
 
 pub fn value_from_abi(value: JSValue) -> Value {
-    Value(value)
+    Value::from_bits(value)
 }
 
 /// A borrowed run of code units in the two storage kinds of AK::Utf16View: `data` points to `length_in_code_units`

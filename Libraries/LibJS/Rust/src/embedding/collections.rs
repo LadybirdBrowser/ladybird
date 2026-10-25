@@ -99,7 +99,7 @@ pub unsafe extern "C" fn js_collections_map_size(map: *mut JSObject) -> usize {
 pub unsafe extern "C" fn js_collections_map_set(vm: *mut JSVM, map: *mut JSObject, key: JSValue, value: JSValue) {
     // SAFETY: See the module documentation.
     let (vm, map) = unsafe { (vm_from_abi(vm), map_from_abi(map)) };
-    map.map_set(vm, Value(key), Value(value));
+    map.map_set(vm, Value::from_bits(key), Value::from_bits(value));
 }
 
 /// Removes the key's entry, and returns whether there was one. Main thread only.
@@ -107,7 +107,7 @@ pub unsafe extern "C" fn js_collections_map_set(vm: *mut JSVM, map: *mut JSObjec
 pub unsafe extern "C" fn js_collections_map_remove(vm: *mut JSVM, map: *mut JSObject, key: JSValue) -> bool {
     // SAFETY: See the module documentation.
     let (vm, map) = unsafe { (vm_from_abi(vm), map_from_abi(map)) };
-    map.map_remove(vm, Value(key))
+    map.map_remove(vm, Value::from_bits(key))
 }
 
 /// Removes every entry. Main thread only.
@@ -182,7 +182,7 @@ pub unsafe extern "C" fn js_collections_set_size(set: *mut JSObject) -> usize {
 pub unsafe extern "C" fn js_collections_set_add(vm: *mut JSVM, set: *mut JSObject, value: JSValue) {
     // SAFETY: See the module documentation.
     let (vm, set) = unsafe { (vm_from_abi(vm), set_from_abi(set)) };
-    set.set_add(vm, Value(value));
+    set.set_add(vm, Value::from_bits(value));
 }
 
 /// Removes the value, and returns whether the set had it. Main thread only.
@@ -190,7 +190,7 @@ pub unsafe extern "C" fn js_collections_set_add(vm: *mut JSVM, set: *mut JSObjec
 pub unsafe extern "C" fn js_collections_set_remove(vm: *mut JSVM, set: *mut JSObject, value: JSValue) -> bool {
     // SAFETY: See the module documentation.
     let (vm, set) = unsafe { (vm_from_abi(vm), set_from_abi(set)) };
-    set.set_remove(vm, Value(value))
+    set.set_remove(vm, Value::from_bits(value))
 }
 
 /// Removes every value. Main thread only.

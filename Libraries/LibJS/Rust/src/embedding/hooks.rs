@@ -551,7 +551,7 @@ fn get_code_for_eval(vm: &Vm, argument: &Object) -> Option<Gc<PrimitiveString>> 
     if !call_embedder_hook!(vm, get_code_for_eval, lent_object_into_abi(argument), &raw mut code) {
         return None;
     }
-    let code = Value(code);
+    let code = Value::from_bits(code);
     assert!(code.is_string(), "the code of an object for eval() is a String");
     Some(code.as_string())
 }
@@ -617,7 +617,7 @@ unsafe extern "C" fn append_import_meta_property(properties: *mut c_void, key: J
             clone_lent_property_key_from_abi(key),
         )
     };
-    properties.push((key, Value(value)));
+    properties.push((key, Value::from_bits(value)));
 }
 
 fn get_import_meta_properties(vm: &Vm, module: Gc<SourceTextModule>) -> MarkedVec<'_, (PropertyKey, Value)> {

@@ -308,7 +308,12 @@ pub unsafe extern "C" fn js_function_call(
 ) -> JSCompletion {
     // SAFETY: See the module documentation.
     let (vm, arguments) = unsafe { (vm_from_abi(vm), values_from_abi(arguments, count)) };
-    completion_into_abi(call(vm, Value(function), Value(this_value), arguments))
+    completion_into_abi(call(
+        vm,
+        Value::from_bits(function),
+        Value::from_bits(this_value),
+        arguments,
+    ))
 }
 
 /// Construct(F, argumentsList, newTarget), whose payload is the new object. The function must be a constructor, and
@@ -344,7 +349,7 @@ pub unsafe extern "C" fn js_function_get_method(
 ) -> JSCompletion {
     // SAFETY: See the module documentation.
     let (vm, key) = unsafe { (vm_from_abi(vm), property_key_from_abi(key)) };
-    completion_into_abi(Value(value).get_method(vm, key))
+    completion_into_abi(Value::from_bits(value).get_method(vm, key))
 }
 
 // Functions from source text, which hosts create outside of any script

@@ -109,7 +109,7 @@ fn run_callee_frame_from_jit(vm: &Vm, site: &JitCallSite, callee_frame: NonNull<
         let result = enter_jit_code(vm, callee_frame);
         match result.status {
             EntryStatus::Returned => {
-                vm.return_from_running_frame(Value(result.value));
+                vm.return_from_running_frame(Value::from_bits(result.value));
                 return finish_call_from_jit(vm, site.frame, site.pc, site.return_pc);
             }
             EntryStatus::ExitInterpreter => return finish_call_from_jit(vm, site.frame, site.pc, site.return_pc),
@@ -896,7 +896,7 @@ pub unsafe extern "C" fn libjs_jit_prepare_call_environment(
             Gc::from_non_null(NonNull::new(function.cast_mut()).expect("a function")),
         )
     };
-    let argument = Value(this_argument);
+    let argument = Value::from_bits(this_argument);
     // NB: ToObject would make a wrapper of the caller's realm.
     if function.uses_this()
         && function.this_mode() == ThisMode::Global
@@ -936,7 +936,7 @@ pub extern "C" fn libjs_jit_array_push(array: &Array, value: u64) -> u64 {
         array.indexed_storage_kind(),
         IndexedStorageKind::None | IndexedStorageKind::Packed
     ));
-    array.indexed_append(Value(value), DEFAULT_ATTRIBUTES);
+    array.indexed_append(Value::from_bits(value), DEFAULT_ATTRIBUTES);
     Value::from_f64(f64::from(array.indexed_array_like_size())).0
 }
 
@@ -953,7 +953,7 @@ pub extern "C" fn libjs_jit_store_holey_element(object: &Object, index: u32, val
         IndexedStorageKind::Holey | IndexedStorageKind::Packed
     ));
     assert!(index < object.indexed_array_like_size());
-    object.indexed_put(index, Value(value), DEFAULT_ATTRIBUTES);
+    object.indexed_put(index, Value::from_bits(value), DEFAULT_ATTRIBUTES);
 }
 
 /// `u64 libjs_jit_primitive_to_string(VM*, u64 primitive)`: `String(primitive)`, which is ToString of the primitive,
@@ -961,7 +961,7 @@ pub extern "C" fn libjs_jit_store_holey_element(object: &Object, index: u32, val
 ///
 /// JIT code calls this with its VM and a primitive.
 pub extern "C" fn libjs_jit_primitive_to_string(vm: &Vm, primitive: u64) -> u64 {
-    let primitive = Value(primitive);
+    let primitive = Value::from_bits(primitive);
     assert!(!primitive.is_object());
     // 22.1.1.1 String ( value ), https://tc39.es/ecma262/#sec-string-constructor-string-value
     if primitive.is_symbol() {
@@ -1014,7 +1014,7 @@ extern "C" fn libjs_jit_math_pow(base: f64, exponent: f64) -> f64 {
 ///
 /// JIT code calls this with its VM, a function object and such a primitive.
 pub extern "C" fn libjs_jit_to_object(vm: &Vm, primitive: u64, function: u64) -> u64 {
-    let (function, primitive) = (Value(function).as_object(), Value(primitive));
+    let (function, primitive) = (Value::from_bits(function).as_object(), Value::from_bits(primitive));
     assert!(!primitive.is_object() && !primitive.is_nullish());
     if vm.current_realm() != Some(function.shape().realm()) {
         return Value::EMPTY.0;
@@ -1028,7 +1028,7 @@ pub extern "C" fn libjs_jit_to_object(vm: &Vm, primitive: u64, function: u64) ->
 ///
 /// JIT code calls this with its VM, a length below 2^31 and a function object.
 pub extern "C" fn libjs_jit_array_create(vm: &Vm, length: u32, function: u64) -> u64 {
-    let realm = Value(function).as_object().shape().realm();
+    let realm = Value::from_bits(function).as_object().shape().realm();
     if vm.current_realm() != Some(realm) {
         return Value::EMPTY.0;
     }

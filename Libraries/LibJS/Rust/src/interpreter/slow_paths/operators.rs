@@ -471,7 +471,7 @@ pub fn r#in(vm: &Vm, pc: u32, values: &mut op::InValues) -> SlowPathControl {
 
 /// Converts a value to a boolean for the jump handlers: 0 for false and 1 for true. It never throws.
 pub fn helper_to_boolean(encoded_value: u64) -> u64 {
-    let value = Value(encoded_value);
+    let value = Value::from_bits(encoded_value);
     u64::from(value.to_boolean())
 }
 

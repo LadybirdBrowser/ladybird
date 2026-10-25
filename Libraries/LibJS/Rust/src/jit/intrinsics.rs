@@ -132,7 +132,7 @@ fn has_own_string_property(vm: &Vm, object: Gc<Object>, name: &Utf16FlyString) -
 ///
 /// JIT code calls this with its VM.
 pub extern "C" fn libjs_jit_has_own_property(vm: &Vm, object: u64, key: u64) -> u64 {
-    let (object, key) = (Value(object), Value(key));
+    let (object, key) = (Value::from_bits(object), Value::from_bits(key));
     if !object.is_object() || !has_ordinary_lookups(object.as_object()) {
         return Value::EMPTY.0;
     }
@@ -156,7 +156,7 @@ pub extern "C" fn libjs_jit_has_own_property(vm: &Vm, object: u64, key: u64) -> 
 ///
 /// JIT code calls this with its VM.
 pub extern "C" fn libjs_jit_has_property(vm: &Vm, key: u64, object: u64) -> u64 {
-    let (key_value, object) = (Value(key), Value(object));
+    let (key_value, object) = (Value::from_bits(key), Value::from_bits(object));
     let index_key = key_value.is_int32() && key_value.as_i32() >= 0;
     if !object.is_object() || !(key_value.is_string() || key_value.is_symbol() || index_key) {
         return Value::EMPTY.0;
@@ -210,7 +210,7 @@ pub extern "C" fn libjs_jit_has_property(vm: &Vm, key: u64, object: u64) -> u64 
 ///
 /// JIT code calls this with its VM.
 pub extern "C" fn libjs_jit_open_array_iteration(vm: &Vm, iterable: u64) -> u64 {
-    let iterable = Value(iterable);
+    let iterable = Value::from_bits(iterable);
     if !iterable.is_object() {
         return Value::EMPTY.0;
     }

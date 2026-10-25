@@ -349,7 +349,7 @@ pub unsafe extern "C" fn js_debugger_set_pause_on_exceptions(vm: *mut JSVM, mode
 pub unsafe extern "C" fn js_debugger_did_finish_exception_propagation(vm: *mut JSVM, exception: JSValue) {
     // SAFETY: The caller passes a live VM.
     let (_, debugger) = unsafe { debugger_of(vm) };
-    debugger.did_finish_exception_propagation(Value(exception));
+    debugger.did_finish_exception_propagation(Value::from_bits(exception));
 }
 
 /// Debugger::add_breakpoint(filename, line, column): a breakpoint in every source code with that filename, at the
