@@ -1,0 +1,116 @@
+<!DOCTYPE HTML>
+<title>Radio input cancel behavior reverts state</title>
+<link rel="author" title="jeffcarp" href="mailto:gcarpenterv@gmail.com">
+<link rel="help" href="https://html.spec.whatwg.org/#radio-button-state-(type=radio)">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<body>
+<script>
+"use strict";
+
+test(() => {
+  const input = document.createElement("input");
+  input.type = "radio";
+  document.body.appendChild(input);
+  const events = [];
+
+  input.addEventListener("change", () => {
+    events.push("change");
+  });
+  input.addEventListener("click", () => {
+    events.push("click");
+  });
+  input.addEventListener("input", () => {
+    events.push("input");
+  });
+
+  assert_false(input.checked);
+
+  input.click();
+
+  assert_true(input.checked);
+  assert_array_equals(events, ["click", "input", "change"]);
+
+}, "radio input emits click, input, change events in order after synthetic click");
+
+test(() => {
+  const input = document.createElement("input");
+  input.type = "radio";
+  document.body.appendChild(input);
+  const events = [];
+
+  input.addEventListener("change", () => {
+    events.push("change");
+  });
+  input.addEventListener("click", () => {
+    events.push("click");
+  });
+  input.addEventListener("input", () => {
+    events.push("input");
+  });
+
+  assert_false(input.checked);
+
+  const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+  input.dispatchEvent(event);
+
+  assert_true(input.checked);
+  assert_array_equals(events, ["click", "input", "change"]);
+
+}, "radio input emits click, input, change events in order after dispatching click event");
+
+test(() => {
+  const input = document.createElement("input");
+  input.type = "radio";
+  input.checked = true;
+  document.body.appendChild(input);
+  const events = [];
+
+  input.addEventListener("change", () => {
+    events.push("change");
+  });
+  input.addEventListener("click", () => {
+    events.push("click");
+  });
+  input.addEventListener("input", () => {
+    events.push("input");
+  });
+
+  input.click();
+
+  assert_array_equals(events, ["click"]);
+
+}, "checked radio input emits only click event on click ");
+
+test(() => {
+  const input = document.createElement("input");
+  input.type = "radio";
+  document.body.appendChild(input);
+  const events = [];
+
+  input.addEventListener("change", () => {
+    events.push("change");
+  });
+  input.addEventListener("click", e => {
+    // cancel click event
+    e.preventDefault();
+    events.push("click");
+  });
+  input.addEventListener("input", () => {
+    events.push("input");
+  });
+
+  assert_false(input.checked);
+
+  input.click();
+
+  assert_false(input.checked);
+
+  // only click event called
+  assert_array_equals(events, ["click"]);
+
+}, "radio input synthetic click respects cancelling behaviour");
+
+</script>

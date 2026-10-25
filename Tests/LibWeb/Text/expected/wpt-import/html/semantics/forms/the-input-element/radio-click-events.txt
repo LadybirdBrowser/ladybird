@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Pass	radio input emits click, input, change events in order after synthetic click
+Pass	radio input emits click, input, change events in order after dispatching click event
+Fail	checked radio input emits only click event on click 
+Pass	radio input synthetic click respects cancelling behaviour
