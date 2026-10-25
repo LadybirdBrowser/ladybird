@@ -2879,7 +2879,6 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.run.layout_mode == LayoutMode::Normal
             && !self.run.should_collect_devtools_layout_data
             && !space.inline_size.is_intrinsic_sizing_constraint()
-            && !space.block_size.is_intrinsic_sizing_constraint()
             && self.inline_axis_is_horizontal(self.run.box_)
     }
 

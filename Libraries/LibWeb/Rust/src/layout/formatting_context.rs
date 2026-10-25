@@ -122,7 +122,6 @@ pub(crate) fn run_builds_fragments(
     layout_mode == LayoutMode::Normal
         && (input.participation == ParticipationInParentFormattingContext::AtomicInline
             || !input.available_space.inline_size.is_intrinsic_sizing_constraint())
-        && !input.available_space.block_size.is_intrinsic_sizing_constraint()
         && (parent_collects_fragments || input.participation != ParticipationInParentFormattingContext::Root)
 }
 
@@ -2549,8 +2548,14 @@ fn enter_own_frame(
         };
         used.set_content_inline_size(inline_size);
     }
+    let mut body_available_space = used.available_inner_space_or_constraints_from(available_space);
+    // NB: A root measured for its inline size in its parent's frame is laid out under that intrinsic size along its own
+    //     block axis.
+    if !used.has_definite_block_size() && available_space.block_size.is_intrinsic_sizing_constraint() {
+        body_available_space.block_size = available_space.block_size;
+    }
     let mut body_input = LayoutInput::new(
-        used.available_inner_space_or_constraints_from(available_space),
+        body_available_space,
         constraints,
         ParticipationInParentFormattingContext::Root,
     );
@@ -2759,7 +2764,6 @@ pub(crate) fn layout_inside_child(
     if !force_independent_context_run
         && layout_mode == LayoutMode::IntrinsicSizing
         && !facts.is_inline()
-        && used.block_size_constraint.get() == SizeConstraint::None
         && used.has_definite_inline_size()
         && used.has_definite_block_size()
     {
@@ -3047,7 +3051,6 @@ pub(crate) fn lay_out_shape_for_its_result(
 pub(super) fn parent_owns_root_input_cells(callbacks: &LayoutPass<'_>, box_: Node, input: &LayoutInput) -> bool {
     input.participation == ParticipationInParentFormattingContext::Item
         && !input.available_space.inline_size.is_intrinsic_sizing_constraint()
-        && !input.available_space.block_size.is_intrinsic_sizing_constraint()
         && !frame_established_by(callbacks, box_).is_orthogonal_to(callbacks.frame)
 }
 

@@ -212,7 +212,6 @@ fn intrinsic_size_name(kind: IntrinsicSizeCacheKind) -> &'static str {
     match kind {
         IntrinsicSizeCacheKind::MinContentInline => "min-content inline",
         IntrinsicSizeCacheKind::MaxContentInline => "max-content inline",
-        IntrinsicSizeCacheKind::MinContentBlock => "min-content block",
         IntrinsicSizeCacheKind::MaxContentBlock => "max-content block",
     }
 }

@@ -74,12 +74,10 @@ fn unobserved_own_block_size_verification_is_enabled() -> bool {
 
 fn run_is_verified_at_other_unobserved_root_inputs(
     root_cells: used_values::RootInputCells,
-    input: LayoutInput,
     result: &formatting_context::ChildLayoutResult,
 ) -> bool {
     result.own_block_size_observation == formatting_context::OwnBlockSizeObservation::Unobserved
         && !root_cells.has_content_offset
-        && !input.available_space.block_size.is_intrinsic_sizing_constraint()
 }
 
 fn root_inputs_at_other_own_block_sizes(
@@ -87,7 +85,7 @@ fn root_inputs_at_other_own_block_sizes(
     input: LayoutInput,
     result: &formatting_context::ChildLayoutResult,
 ) -> Vec<(used_values::RootInputCells, LayoutInput)> {
-    if !run_is_verified_at_other_unobserved_root_inputs(root_cells, input, result) {
+    if !run_is_verified_at_other_unobserved_root_inputs(root_cells, result) {
         return Vec::new();
     }
     let mut other_definite_own_block_sizes = Vec::new();
@@ -119,10 +117,9 @@ fn root_inputs_at_other_own_block_sizes(
 
 fn root_cells_at_other_block_margins(
     root_cells: used_values::RootInputCells,
-    input: LayoutInput,
     result: &formatting_context::ChildLayoutResult,
 ) -> Option<used_values::RootInputCells> {
-    run_is_verified_at_other_unobserved_root_inputs(root_cells, input, result).then(|| used_values::RootInputCells {
+    run_is_verified_at_other_unobserved_root_inputs(root_cells, result).then(|| used_values::RootInputCells {
         margin_top: root_cells.margin_top + CssPixels::from_integer(30),
         margin_bottom: root_cells.margin_bottom - CssPixels::from_integer(20),
         ..root_cells
@@ -152,7 +149,7 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
             (cells, input, reference)
         })
         .collect::<Vec<_>>();
-    if let Some(cells) = root_cells_at_other_block_margins(root_cells, input, &outputs.result) {
+    if let Some(cells) = root_cells_at_other_block_margins(root_cells, &outputs.result) {
         let reference = format!(
             "its layout at the block margins {:?} and {:?}",
             cells.margin_top, cells.margin_bottom
@@ -612,18 +609,16 @@ mod tests {
 
     #[test]
     fn unobserved_block_margins_are_verified_at_other_block_margins_only() {
-        let (root_cells, input) = item_root_inputs(40, true);
+        let (root_cells, _) = item_root_inputs(40, true);
         assert_eq!(
             root_cells_at_other_block_margins(
                 root_cells,
-                input,
                 &result_observing(formatting_context::OwnBlockSizeObservation::Observed, 40)
             ),
             None
         );
         let cells = root_cells_at_other_block_margins(
             root_cells,
-            input,
             &result_observing(formatting_context::OwnBlockSizeObservation::Unobserved, 40),
         )
         .expect("an unobserved own block size is verified at other block margins");

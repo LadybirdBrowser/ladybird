@@ -1036,15 +1036,13 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         (!content_box.is_invalid() && self.facts(content_box).is_anonymous_button_content_box()).then_some(content_box)
     }
 
-    fn forwards_percentage_bases_as_anonymous_box(&self, node: Node, used: &UsedValues) -> bool {
+    fn forwards_percentage_bases_as_anonymous_box(&self, node: Node) -> bool {
         let facts = self.facts(node);
         facts.is_box()
             && facts.is_anonymous()
             && !facts.is_table_cell()
             && !facts.has_auto_content_box_size()
-            && ((!self.records.measures_content_inline_sizes_of(node)
-                && used.block_size_constraint.get() == SizeConstraint::None)
-                || self.is_anonymous_block_box_in_block_flow(node))
+            && (!self.records.measures_content_inline_sizes_of(node) || self.is_anonymous_block_box_in_block_flow(node))
     }
 
     fn is_anonymous_block_box_in_block_flow(&self, node: Node) -> bool {
@@ -1077,7 +1075,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // against the closest non-anonymous ancestor, so an anonymous containing block without a
         // definite size of its own passes the constraints it was given through. Anonymous table
         // cells are the exception: they are proper containing blocks with their own size semantics.
-        let should_forward_indefinite_basis = self.forwards_percentage_bases_as_anonymous_box(containing_block, used);
+        let should_forward_indefinite_basis = self.forwards_percentage_bases_as_anonymous_box(containing_block);
 
         let inline = if used.has_definite_inline_size() {
             Some(used.content_inline_size.get())
@@ -1227,10 +1225,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let style = self.style(node);
         let in_quirks_mode = facts.document_in_quirks_mode();
         let svg_root_forwards_quirks_basis = facts.is_svg_svg_box() && in_quirks_mode;
-        let forwards_block_basis_as_anonymous_box = self
-            .records
-            .used_values_if_owned(node)
-            .is_some_and(|used| self.forwards_percentage_bases_as_anonymous_box(node, used));
+        let forwards_block_basis_as_anonymous_box =
+            self.records.used_values_if_owned(node).is_some() && self.forwards_percentage_bases_as_anonymous_box(node);
         let forwards_quirks_basis_as_auto_height_block_container = in_quirks_mode
             && !facts.is_viewport()
             && !facts.is_table_cell()
@@ -1591,20 +1587,14 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if size.is_none() {
             return true;
         }
-        if size.contains_percentage() {
-            if available == AvailableSize::MinContent {
-                return false;
-            }
-            if constraints.percentage_basis_block_size.is_none() {
-                return true;
-            }
+        if size.contains_percentage() && constraints.percentage_basis_block_size.is_none() {
+            return true;
         }
         // NB: As for the inline axis, calc-size() can change the size of a keyword limit.
         let keyword_limit_is_cyclic = size.calc_size().is_none();
         keyword_limit_is_cyclic
             && ((size.is_fit_content() && available.is_intrinsic_sizing_constraint())
-                || (size.is_max_content() && available == AvailableSize::MaxContent)
-                || (size.is_min_content() && available == AvailableSize::MinContent))
+                || (size.is_max_content() && available == AvailableSize::MaxContent))
     }
 
     // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
@@ -1763,12 +1753,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             let mut content_constraints = constraints;
             content_constraints.percentage_basis_inline_size = Some(other_axis_size);
             content_constraints.percentage_basis_block_size = Some(transferred_size);
-            return self.measure_intrinsic_block_size(
-                content_box,
-                other_axis_size,
-                content_constraints,
-                IntrinsicSizeCacheKind::MaxContentBlock,
-            );
+            return self.measure_intrinsic_block_size(content_box, other_axis_size, content_constraints);
         }
         let root = used_values::create_used_values(&self.callbacks, node, constraints);
         root.set_content_inline_size(other_axis_size);
@@ -1992,9 +1977,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             return None;
         }
         let used = self.used(node);
-        if used.block_size_constraint.get() != SizeConstraint::None {
-            return None;
-        }
         self.callbacks
             .arena()
             .with_current_committed_fragment(node, |fragment| {
@@ -3104,57 +3086,35 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         ContentInlineSizeAnswer::from_cache(measurement, kind)
     }
 
-    // Lays `node` out at `inline_size` under an intrinsic block-size constraint, reusing and populating the cache.
+    // Measures the max-content block size of `node` at `inline_size`, reusing and populating the cache.
     fn measure_intrinsic_block_size(
         &self,
         node: Node,
         inline_size: CssPixels,
         constraints: ContainingBlockConstraints,
-        kind: IntrinsicSizeCacheKind,
     ) -> CssPixels {
         if self.establishes_orthogonal_flow(node) {
-            return self.content_block_size_of_orthogonal_flow(node, inline_size, constraints, kind);
+            return self.content_block_size_of_orthogonal_flow(
+                node,
+                inline_size,
+                constraints,
+                IntrinsicSizeCacheKind::MaxContentInline,
+            );
         }
-        let (size_constraint, available_block_size) = match kind {
-            IntrinsicSizeCacheKind::MinContentBlock => (SizeConstraint::MinContent, AvailableSize::MinContent),
-            IntrinsicSizeCacheKind::MaxContentBlock => (SizeConstraint::MaxContent, AvailableSize::MaxContent),
-            _ => unreachable!("block size cache kind must use the block axis"),
-        };
+        let kind = IntrinsicSizeCacheKind::MaxContentBlock;
         let key = formatting_context::cache_key(Some(inline_size), None, constraints);
         if let Some(cached) = self.intrinsic_block_cache_get(node, kind, key) {
             self.callbacks.arena().layout_trace.intrinsic_size_hit(node, kind);
             return cached.size;
         }
 
-        let result = if kind == IntrinsicSizeCacheKind::MaxContentBlock
-            && let Some(child_run_shapes) = self.child_run_shapes
+        let result = if let Some(child_run_shapes) = self.child_run_shapes
             && let Some(shape) = child_run_shapes.child_run_shape_at(node, inline_size, constraints)
         {
             formatting_context::lay_out_shape_for_its_result(self.callbacks, shape, LayoutMode::Normal)
-        } else if kind == IntrinsicSizeCacheKind::MaxContentBlock
-            && self.block_size_is_measured_with_normal_layout(node)
-        {
-            let _trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
-            self.measure_block_size_with_normal_layout(node, inline_size, constraints)
         } else {
             let _trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
-            let measurement = formatting_context::MeasurementState::create(self.callbacks);
-            let root = measurement.create_used_values(node, constraints);
-            root.block_size_constraint.set(size_constraint);
-            root.has_definite_block_size.set(false);
-            root.set_content_inline_size(inline_size);
-            let mut input = LayoutInput::new(
-                AvailableSpace {
-                    inline_size: AvailableSize::definite(inline_size),
-                    block_size: available_block_size,
-                },
-                constraints,
-                ParticipationInParentFormattingContext::Root,
-            );
-            input.sizing.root_is_measured_for_its_content_block_size =
-                formatting_context::independent_formatting_context_type(node, &self.callbacks)
-                    == formatting_context::FormattingContextType::Grid;
-            measurement.run(node, &root, input)
+            self.measure_block_size_with_normal_layout(node, inline_size, constraints)
         };
         let value = clamp_to_max_dimension_value(result.automatic_content_block_size);
         self.charge_measurement_dependency_to_measured_box_and_containing_block(
@@ -3172,10 +3132,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             },
         );
         value
-    }
-
-    fn block_size_is_measured_with_normal_layout(&self, node: Node) -> bool {
-        !self.facts(node).document_in_quirks_mode()
     }
 
     fn measure_block_size_with_normal_layout(
@@ -3208,7 +3164,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     }
 
     /// The min-content or max-content block size of a box that establishes an orthogonal flow: its block axis here is
-    /// its inline axis in its own frame, so this is its content inline size there, at `inline_size` as its block size.
+    /// its inline axis in its own frame, so this is its content inline size of `kind` there, at `inline_size` as its
+    /// block size.
     fn content_block_size_of_orthogonal_flow(
         &self,
         node: Node,
@@ -3223,12 +3180,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             percentage_basis_block_size: constraints.percentage_basis_inline_size,
             quirks_mode_percentage_basis_block_size: None,
         };
-        let inline_kind = match kind {
-            IntrinsicSizeCacheKind::MinContentBlock => IntrinsicSizeCacheKind::MinContentInline,
-            IntrinsicSizeCacheKind::MaxContentBlock => IntrinsicSizeCacheKind::MaxContentInline,
-            _ => unreachable!("block size cache kind must use the block axis"),
-        };
-        let answer = sizing.content_inline_size(node, constraints_in_own_frame, Some(inline_size), inline_kind);
+        let answer = sizing.content_inline_size(node, constraints_in_own_frame, Some(inline_size), kind);
         self.charge_measurement_dependency_to_measured_box_and_containing_block(
             node,
             answer.dependencies.percentage_block_size,
@@ -3246,11 +3198,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let facts = self.facts(node);
         // NB: The block axis of a box that establishes an orthogonal flow is its own inline axis.
         if self.establishes_orthogonal_flow(node) && self.has_children(node) {
-            return self.measure_intrinsic_block_size(
+            return self.content_block_size_of_orthogonal_flow(
                 node,
                 inline_size,
                 constraints,
-                IntrinsicSizeCacheKind::MinContentBlock,
+                IntrinsicSizeCacheKind::MinContentInline,
             );
         }
         if facts.is_replaced_box() {
@@ -3270,11 +3222,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
         if self.establishes_orthogonal_flow(node) && self.has_children(node) {
-            return self.measure_intrinsic_block_size(
+            return self.content_block_size_of_orthogonal_flow(
                 node,
                 inline_size,
                 constraints,
-                IntrinsicSizeCacheKind::MaxContentBlock,
+                IntrinsicSizeCacheKind::MaxContentInline,
             );
         }
         if self.facts(node).has_preferred_aspect_ratio() {
@@ -3327,7 +3279,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if !self.has_children(node) && !self.has_size_without_children(node) {
             return CssPixels::default();
         }
-        self.measure_intrinsic_block_size(node, inline_size, constraints, IntrinsicSizeCacheKind::MaxContentBlock)
+        self.measure_intrinsic_block_size(node, inline_size, constraints)
     }
 
     pub(crate) fn measure_automatic_content_block_size(
@@ -3716,10 +3668,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                     return self
                         .calculate_min_content_block_size(node, inline_size, constraints)
                         .max(stretch);
-                }
-                // When sizing under a min-content constraint, equal to the min-content size.
-                if available_space.block_size == AvailableSize::MinContent {
-                    return self.calculate_min_content_block_size(node, inline_size, constraints);
                 }
                 // Otherwise, equal to the max-content size in that axis.
                 self.calculate_max_content_block_size(node, inline_size, constraints)

@@ -3,7 +3,7 @@ columnItem and its child: 20 10
 columnItemWithMinHeight and its child: 20 20
 columnItemWithWrapper and its child: 20 10
 rowItem and its child: 150 150
-rowItemWithMinHeight and its child: 20 150
+rowItemWithMinHeight and its child: 150 150
 gridItem and its child: 20 10
 startGridItem and its child: 20 20
 fixedRowGridItem and its child: 100 50

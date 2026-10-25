@@ -226,7 +226,6 @@ fn intrinsic_cache_store<V: IntrinsicMeasurement>(
 pub(crate) enum IntrinsicSizeCacheKind {
     MinContentInline,
     MaxContentInline,
-    MinContentBlock,
     MaxContentBlock,
 }
 
@@ -288,7 +287,6 @@ struct IntrinsicSizeMaps {
     // This is a subtree fact and shares the intrinsic cache's epoch so descendant changes invalidate it.
     inline_size_depends_on_block_size: Option<bool>,
     content_inline_sizes: IntrinsicMeasurements<IntrinsicInlineSizeMeasurement>,
-    min_content_block_size: IntrinsicMeasurements<IntrinsicBlockSizeMeasurement>,
     max_content_block_size: IntrinsicMeasurements<IntrinsicBlockSizeMeasurement>,
 }
 
@@ -299,7 +297,6 @@ impl IntrinsicSizeMaps {
     ) -> Option<&IntrinsicMeasurements<IntrinsicBlockSizeMeasurement>> {
         match kind {
             IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline => None,
-            IntrinsicSizeCacheKind::MinContentBlock => Some(&self.min_content_block_size),
             IntrinsicSizeCacheKind::MaxContentBlock => Some(&self.max_content_block_size),
         }
     }
@@ -310,7 +307,6 @@ impl IntrinsicSizeMaps {
     ) -> Option<&mut IntrinsicMeasurements<IntrinsicBlockSizeMeasurement>> {
         match kind {
             IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline => None,
-            IntrinsicSizeCacheKind::MinContentBlock => Some(&mut self.min_content_block_size),
             IntrinsicSizeCacheKind::MaxContentBlock => Some(&mut self.max_content_block_size),
         }
     }
@@ -7468,7 +7464,7 @@ mod tests {
         let first_data = arena.data(first.slot);
         caches.intrinsic_block_size_cache_put(
             arena.intrinsic_size_cache_stamp(first.slot),
-            IntrinsicSizeCacheKind::MinContentBlock,
+            IntrinsicSizeCacheKind::MaxContentBlock,
             key,
             value,
         );
@@ -7480,7 +7476,7 @@ mod tests {
         assert_eq!(
             caches.intrinsic_block_size_cache_get(
                 arena.intrinsic_size_cache_stamp(first.slot),
-                IntrinsicSizeCacheKind::MinContentBlock,
+                IntrinsicSizeCacheKind::MaxContentBlock,
                 key
             ),
             Some(value)
@@ -7507,7 +7503,7 @@ mod tests {
         assert_eq!(
             caches.intrinsic_block_size_cache_get(
                 arena.intrinsic_size_cache_stamp(first.slot),
-                IntrinsicSizeCacheKind::MinContentBlock,
+                IntrinsicSizeCacheKind::MaxContentBlock,
                 key
             ),
             None
@@ -7534,7 +7530,7 @@ mod tests {
         assert_eq!(
             caches.intrinsic_block_size_cache_get(
                 arena.intrinsic_size_cache_stamp(second.slot),
-                IntrinsicSizeCacheKind::MinContentBlock,
+                IntrinsicSizeCacheKind::MaxContentBlock,
                 key
             ),
             None
@@ -7553,6 +7549,7 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let caches = super::IntrinsicSizeCaches::default();
         let allocation = arena.allocate_for_test();
+        let dependent_allocation = arena.allocate_for_test();
         let key_with_basis = |basis: i32| IntrinsicSizeCacheKey {
             measured_at_inline_size: Some(CssPixels::from_raw(64)),
             percentage_basis_block_size: Some(CssPixels::from_raw(basis)),
@@ -7564,7 +7561,6 @@ mod tests {
             ..Default::default()
         };
         let max_content = IntrinsicSizeCacheKind::MaxContentBlock;
-        let min_content = IntrinsicSizeCacheKind::MinContentBlock;
 
         let independent = IntrinsicBlockSizeMeasurement {
             size: CssPixels::from_raw(128),
@@ -7608,45 +7604,45 @@ mod tests {
             depends_on_percentage_inline_basis: false,
         };
         caches.intrinsic_block_size_cache_put(
-            arena.intrinsic_size_cache_stamp(allocation.slot),
-            min_content,
+            arena.intrinsic_size_cache_stamp(dependent_allocation.slot),
+            max_content,
             key_without_basis,
             dependent,
         );
         assert_eq!(
             caches.intrinsic_block_size_cache_get(
-                arena.intrinsic_size_cache_stamp(allocation.slot),
-                min_content,
+                arena.intrinsic_size_cache_stamp(dependent_allocation.slot),
+                max_content,
                 key_without_basis
             ),
             Some(dependent)
         );
         assert_eq!(
             caches.intrinsic_block_size_cache_get(
-                arena.intrinsic_size_cache_stamp(allocation.slot),
-                min_content,
+                arena.intrinsic_size_cache_stamp(dependent_allocation.slot),
+                max_content,
                 key_with_basis(100)
             ),
             None
         );
         caches.intrinsic_block_size_cache_put(
-            arena.intrinsic_size_cache_stamp(allocation.slot),
-            min_content,
+            arena.intrinsic_size_cache_stamp(dependent_allocation.slot),
+            max_content,
             key_with_basis(100),
             dependent,
         );
         assert_eq!(
             caches.intrinsic_block_size_cache_get(
-                arena.intrinsic_size_cache_stamp(allocation.slot),
-                min_content,
+                arena.intrinsic_size_cache_stamp(dependent_allocation.slot),
+                max_content,
                 key_with_basis(100)
             ),
             Some(dependent)
         );
         assert_eq!(
             caches.intrinsic_block_size_cache_get(
-                arena.intrinsic_size_cache_stamp(allocation.slot),
-                min_content,
+                arena.intrinsic_size_cache_stamp(dependent_allocation.slot),
+                max_content,
                 key_with_basis(200)
             ),
             None
@@ -7697,6 +7693,9 @@ mod tests {
         );
         arena
             .free_subtree(allocation.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        arena
+            .free_subtree(dependent_allocation.slot)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 

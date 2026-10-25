@@ -3030,7 +3030,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let scratch = formatting_context::MeasurementState::create(self.run.callbacks);
         let live = self.used(subgrid);
         let scratch_root = scratch.create_used_values(subgrid.box_, ContainingBlockConstraints::default());
-        live.mirror_box_metrics_and_size_constraints_into(&scratch_root);
+        live.mirror_box_metrics_into(&scratch_root);
         scratch_root
             .has_definite_inline_size
             .set(live.has_definite_inline_size.get());
@@ -4626,7 +4626,6 @@ impl<'pass> GridFormattingContext<'pass> {
         //               formatting context takes it from our run.
         if self.run.layout_mode == LayoutMode::IntrinsicSizing
             && !available.inline_size.is_intrinsic_sizing_constraint()
-            && !available.block_size.is_intrinsic_sizing_constraint()
             && !self.facts(self.run.box_).display().is_inline_outside()
             && self.container_used().has_definite_block_size()
         {

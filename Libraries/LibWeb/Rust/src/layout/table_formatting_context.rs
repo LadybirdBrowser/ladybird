@@ -2656,7 +2656,6 @@ impl<'pass> TableFormattingContext<'pass> {
         let facts = NodeFacts::new(&self.run.callbacks, cell.box_);
         if self.run.layout_mode == LayoutMode::IntrinsicSizing
             && !facts.is_inline()
-            && used.block_size_constraint.get() == SizeConstraint::None
             && used.has_definite_inline_size()
             && used.has_definite_block_size()
         {
