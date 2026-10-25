@@ -212,6 +212,13 @@ void MutationLog::revert_entries(ObjectStore& store, size_t from_position, GC::P
                 VERIFY(connection);
                 database->remove_object_store(store);
                 connection->remove_from_object_store_set(store);
+
+                // https://w3c.github.io/IndexedDB/#abort-a-transaction
+                // Any object stores and indexes which were created during the transaction are now considered deleted
+                // for the purposes of other algorithms.
+                store.set_deleted(true);
+                for (auto const& [_, index] : store.index_set())
+                    index->set_deleted(true);
             },
             [&](ObjectStoreDeleted&) {
                 VERIFY(database);
@@ -225,6 +232,11 @@ void MutationLog::revert_entries(ObjectStore& store, size_t from_position, GC::P
             [&](IndexCreated& e) {
                 VERIFY(database);
                 e.index->object_store()->index_set().remove(e.index->name());
+
+                // https://w3c.github.io/IndexedDB/#abort-a-transaction
+                // Any object stores and indexes which were created during the transaction are now considered deleted
+                // for the purposes of other algorithms.
+                e.index->set_deleted(true);
             },
             [&](IndexDeleted& e) {
                 VERIFY(database);

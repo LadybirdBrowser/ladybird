@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-2 Pass
-4 Fail
-Fail	Created stores get their indexes marked as deleted after the transaction that created them aborts
+6 Pass
+Pass	Created stores get their indexes marked as deleted after the transaction that created them aborts
 Pass	Deleted stores get their indexes marked as not-deleted after the transaction that deleted them aborts
-Fail	Created+deleted stores still have their indexes marked as deleted after the transaction aborts
-Fail	Created indexes get marked as deleted after their transaction aborts
+Pass	Created+deleted stores still have their indexes marked as deleted after the transaction aborts
+Pass	Created indexes get marked as deleted after their transaction aborts
 Pass	Deleted indexes get marked as not-deleted after the transaction aborts
-Fail	Created+deleted indexes are still marked as deleted after their transaction aborts
+Pass	Created+deleted indexes are still marked as deleted after their transaction aborts
