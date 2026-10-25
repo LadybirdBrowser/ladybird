@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Zoom property on computed values of transform with a translation and animation used</title>
+<link rel="author" href="mailto:salipov@mozilla.com" title="Seva Alipov">
+<link rel="author" href="https://mozilla.com" title="Mozilla">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1927186">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+@keyframes kf {
+  from { transform: translate(50px, 100%); }
+  to { transform: translate(0px, 0px); }
+}
+@keyframes kf2 {
+  from { transform: translate(50px, calc(50% + 25px)); }
+  to { transform: translate(0px, 0px); }
+}
+
+.container {
+  zoom: 2;
+  width: 100px;
+  height: 100px;
+  border: 1px solid;
+}
+#foo {
+  width: 50px;
+  height: 50px;
+  background: purple;
+  animation: kf 99999s steps(5) infinite alternate;
+}
+#bar {
+  width: 50px;
+  height: 50px;
+  background: orange;
+  animation: kf2 99999s steps(5) infinite alternate;
+}
+</style>
+
+<div class="container">
+  <div id="foo"></div>
+</div>
+<div class="container">
+  <div id="bar"></div>
+</div>
+
+<script>
+test(() => {
+  assert_equals(getComputedStyle(foo).transform, "matrix(1, 0, 0, 1, 50, 50)");
+}, "Zoom does not affect the computed transform matrix of a translated animated element.");
+test(() => {
+  assert_equals(getComputedStyle(bar).transform, "matrix(1, 0, 0, 1, 50, 50)");
+}, "Zoom does not affect the computed transform matrix of a translated animated element that uses mixed px/percentage values.")
+</script>

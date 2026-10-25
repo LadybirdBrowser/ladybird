@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+2 Pass
+3 Fail
+Pass	getBoundingClientRect for elements with css zoom
+Pass	getBoundingClientRect for elements with css zoom 1
+Fail	getBoundingClientRect for elements with css zoom 2
+Fail	getBoundingClientRect for elements with css zoom 3
+Fail	getBoundingClientRect for elements with css zoom 4

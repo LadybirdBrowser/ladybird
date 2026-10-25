@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	computed inherited word-spacing
+Pass	computed zoomed word-spacing
+Pass	computed zoomed inherited word-spacing

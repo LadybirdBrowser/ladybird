@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<title>OffsetTop and OffsetLeft for elements with css zoom</title>
+<link rel="author" title="Yotam Hacohen" href="mailto:yotha@chromium.org">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">"
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<!DOCTYPE html>
+
+<style>
+  .outer_div {
+    width: 100px;
+    height: 100px;
+    border: 1px solid black;
+    position: relative;
+    margin: 10px;
+  }
+  .square {
+    width: 10px;
+    height: 10px;
+    background-color: green;
+    margin: 1px;
+    top:10x;
+    left: 10x;
+  }
+  .one {
+    position: relative;
+    top: 10px;
+    left: 10px;
+  }
+  .two {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    zoom: 2;
+  }
+
+  .three {
+    position: absolute;
+    top: 10px;
+    left: 50px;
+    zoom: 0.5;
+  }
+  span.square {
+      display: inline-block;
+  }
+</style>
+
+<div class="outer_div">
+  <div id="unzoomed_one" class="square one"></div>
+  <div id="unzoomed_two" class="square two"></div>
+  <div id="unzoomed_three" class="square three"></div>
+</div>
+<div style="zoom:3" class="outer_div">
+  <div id="zoomed_one" class="square one"></div>
+  <div id="zoomed_two" class="square two"></div>
+  <div id="zoomed_three" class="square three"></div>
+</div>
+
+<div class="outer_div" style="margin: 30px;" id="outer_div">
+    <div id="zoomed_middle" style="margin: 10px; zoom:2">
+        <div class="square" id="unzoomed_inner"></div>
+    </div>
+</div>
+<div class="outer_div" style="margin: 30px;">
+    <div id="unzoomed_middle">
+        <div class="square" id="zoomed_inner" style="zoom:2; width: 100px; height: 100px; border: 1px solid black;"></div>
+    </div>
+</div>
+
+
+<script>
+test(() => {
+  assert_equals(unzoomed_one.offsetTop, 11, 'unzoomed_one.offsetTop');
+  assert_equals(unzoomed_one.offsetLeft, 11, 'unzoomed_one.offsetLeft');
+  assert_equals(unzoomed_two.offsetTop, 21, 'unzoomed_two.offsetTop');
+  assert_equals(unzoomed_two.offsetLeft, 21, 'unzoomed_two.offsetLeft');
+  assert_equals(unzoomed_three.offsetTop, 11, 'unzoomed_three.offsetTop');
+  assert_equals(unzoomed_three.offsetLeft, 51, 'unzoomed_three.offsetLeft');
+  assert_equals(zoomed_one.offsetTop, 11, 'zoomed_one.offsetTop');
+  assert_equals(zoomed_one.offsetLeft, 11, 'zoomed_one.offsetLeft');
+  assert_equals(zoomed_two.offsetTop, 21, 'zoomed_two.offsetTop');
+  assert_equals(zoomed_two.offsetLeft, 21, 'zoomed_two.offsetLeft');
+  assert_equals(zoomed_three.offsetTop, 11, 'zoomed_three.offsetTop');
+  assert_equals(zoomed_three.offsetLeft, 51, 'zoomed_three.offsetLeft');
+  assert_equals(unzoomed_inner.offsetTop, 10, 'unzoomed_inner.offsetTop');
+  assert_equals(unzoomed_inner.offsetLeft, 11, 'unzoomed_inner.offsetLeft');
+  assert_equals(zoomed_inner.offsetTop, 0, 'zoomed_inner.offsetTop');
+  assert_equals(zoomed_inner.offsetLeft, 1, 'zoomed_inner.offsetLeft');
+}, 'Verifies that offsetTop and offsetLeft find the right OffsetParent and return values excluding the target zoom');
+
+test(() => {
+  assert_equals(unzoomed_one.offsetWidth, zoomed_one.offsetWidth, "offsetWidth");
+  assert_equals(unzoomed_one.offsetHeight, zoomed_one.offsetHeight, "offsetHeight");
+  assert_equals(zoomed_inner.offsetWidth, outer_div.offsetWidth, "offsetWidth for nested element");
+  assert_equals(zoomed_inner.offsetHeight, outer_div.offsetHeight, "offsetHeight for nested element");
+}, 'check that offset is equal between elements when one of them has css zoom');
+</script>

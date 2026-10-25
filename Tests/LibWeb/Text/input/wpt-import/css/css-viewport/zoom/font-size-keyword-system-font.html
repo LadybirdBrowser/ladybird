@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to font-size when specified via system font keyword</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+#ref, #target {
+  font: menu;
+  width: 1em;
+  height: 1em;
+}
+#target {
+  zoom: 2;
+}
+</style>
+<div id="ref">Reference</div>
+<div id="target">Target</div>
+<script>
+test(function() {
+  const unzoomedComputedSize = parseFloat(getComputedStyle(ref).fontSize);
+  assert_greater_than(unzoomedComputedSize, 0, "system font should have a positive font-size");
+  const zoomedComputedSize = parseFloat(getComputedStyle(target).fontSize);
+  assert_equals(zoomedComputedSize, unzoomedComputedSize, "computed style should be the same");
+
+  const unzoomedWidth = ref.getBoundingClientRect().width;
+  const zoomedWidth = target.getBoundingClientRect().width;
+  assert_approx_equals(zoomedWidth, 2 * unzoomedWidth, 0.1);
+}, "zoom scales font-size set via system font keyword");
+</script>

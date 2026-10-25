@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>zoom interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/10872">
+<meta name="assert" content="zoom is animated by computed value (number).">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-actions.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  zoom: 3;
+}
+.target {
+  width: 10px;
+  height: 10px;
+  background: black;
+  zoom: 1;
+}
+</style>
+
+<body>
+<template id="target-template">
+  <div class="parent">
+    <div class="target"></div>
+  </div>
+</template>
+</body>
+
+<script>
+test_interpolation({
+  property: 'zoom',
+  from: neutralKeyframe,
+  to: '2',
+}, [
+  {at: -0.3, expect: '0.7'},
+  {at: 0, expect: '1'},
+  {at: 0.3, expect: '1.3'},
+  {at: 0.6, expect: '1.6'},
+  {at: 1, expect: '2'},
+  {at: 1.5, expect: '2.5'},
+]);
+
+test_interpolation({
+  property: 'zoom',
+  from: 'initial',
+  to: '2',
+}, [
+  {at: -0.3, expect: '0.7'},
+  {at: 0, expect: '1'},
+  {at: 0.3, expect: '1.3'},
+  {at: 0.6, expect: '1.6'},
+  {at: 1, expect: '2'},
+  {at: 1.5, expect: '2.5'},
+]);
+
+test_interpolation({
+  property: 'zoom',
+  from: 'inherit',
+  to: '2',
+}, [
+  {at: -0.3, expect: '3.3'},
+  {at: 0, expect: '3'},
+  {at: 0.3, expect: '2.7'},
+  {at: 0.6, expect: '2.4'},
+  {at: 1, expect: '2'},
+  {at: 1.5, expect: '1.5'},
+]);
+
+test_interpolation({
+  property: 'zoom',
+  from: 'unset',
+  to: '2',
+}, [
+  {at: -0.3, expect: '0.7'},
+  {at: 0, expect: '1'},
+  {at: 0.3, expect: '1.3'},
+  {at: 0.6, expect: '1.6'},
+  {at: 1, expect: '2'},
+  {at: 1.5, expect: '2.5'},
+]);
+
+test_interpolation({
+  property: 'zoom',
+  from: '1',
+  to: '2',
+}, [
+  // at: -5 yields a raw value of -4; zoom is clamped to >= 0, and the legacy
+  // `zoom: 0` -> 1 conversion then folds that to 1.
+  {at: -5, expect: '1'},
+  {at: -0.3, expect: '0.7'},
+  {at: 0, expect: '1'},
+  {at: 0.3, expect: '1.3'},
+  {at: 0.6, expect: '1.6'},
+  {at: 1, expect: '2'},
+  {at: 1.5, expect: '2.5'},
+]);
+
+test_interpolation({
+  property: 'zoom',
+  from: '0.5',
+  to: '1.5',
+}, [
+  {at: -5, expect: '1'},
+  {at: -0.3, expect: '0.2'},
+  {at: 0, expect: '0.5'},
+  {at: 0.5, expect: '1'},
+  {at: 1, expect: '1.5'},
+  {at: 1.5, expect: '2'},
+]);
+
+test_interpolation({
+  property: 'zoom',
+  from: 'normal',
+  to: '3',
+}, [
+  {at: -0.5, expect: '1'},
+  {at: 0, expect: '1'},
+  {at: 0.5, expect: '2'},
+  {at: 1, expect: '3'},
+]);
+
+test_interpolation({
+  property: 'zoom',
+  from: '100%',
+  to: '300%',
+}, [
+  {at: 0, expect: '1'},
+  {at: 0.5, expect: '2'},
+  {at: 1, expect: '3'},
+]);
+
+test_interpolation({
+  property: 'zoom',
+  from: '50%',
+  to: '2',
+}, [
+  {at: 0, expect: '0.5'},
+  {at: 0.5, expect: '1.25'},
+  {at: 1, expect: '2'},
+]);
+
+// Element-dependent percentage: sibling-index() == 1 inside the test
+// template, so calc(sibling-index() * 100%) resolves to 1. This exercises
+// the TreeCountingChecker path in CSSZoomInterpolationType::MaybeConvertValue.
+test_interpolation({
+  property: 'zoom',
+  from: 'calc(sibling-index() * 100%)',
+  to: '2',
+}, [
+  {at: 0, expect: '1'},
+  {at: 0.5, expect: '1.5'},
+  {at: 1, expect: '2'},
+]);
+
+test(() => {
+  const target = document.createElement('div');
+  target.style.width = '10px';
+  target.style.height = '10px';
+  document.body.appendChild(target);
+
+  const animation = target.animate(
+      [{zoom: '1'}, {zoom: '2'}],
+      {duration: 1000, fill: 'both'});
+  animation.pause();
+  animation.currentTime = 500;
+
+  assert_approx_equals(parseFloat(getComputedStyle(target).zoom), 1.5, 0.01);
+  assert_approx_equals(target.getBoundingClientRect().width, 15, 0.01);
+
+  target.remove();
+}, 'Animating zoom affects layout using the interpolated value');
+
+promise_test(async () => {
+  const target = document.createElement('div');
+  target.id = 'hover-target';
+  // 100s duration with -50s delay puts the transition at 50% progress on the
+  // first frame after :hover takes effect, so the sample is deterministic.
+  target.style.cssText = `
+    width: 100px;
+    height: 100px;
+    transition: all 100s linear -50s;
+  `;
+  document.body.appendChild(target);
+
+  const style = document.createElement('style');
+  style.textContent = '#hover-target:hover { zoom: 2; }';
+  document.head.appendChild(style);
+
+  await new test_driver.Actions()
+      .pointerMove(0, 0, {origin: target})
+      .send();
+
+  assert_true(target.matches(':hover'));
+  assert_approx_equals(parseFloat(getComputedStyle(target).zoom), 1.5, 0.01);
+  assert_approx_equals(target.getBoundingClientRect().width, 150, 1);
+
+  target.remove();
+  style.remove();
+}, 'transition: all animates zoom changes from :hover');
+</script>

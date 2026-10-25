@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS-viewport test: border-width keyword values returned by getComputedStyle() are unscaled</title>
+<link rel="author" title="Ibrahim Bendebka" href="https://github.com/sb3nder">
+<meta name="assert" content="This test verifies that zoom does not scale border-width keyword values returned by getComputedStyle()">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-om">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<style>
+  .thin, .medium, .thick {
+    border-style: solid;
+
+    width: 10px;
+    height: 10px;
+    margin: 5px;
+  }
+
+  .thin {
+    border-width: thin;
+  }
+
+  .medium {
+    border-width: medium;
+  }
+
+  .thick {
+    border-width: thick;
+  }
+
+  .zoomed {
+    zoom: 10;
+    border-color: blue;
+  }
+
+  #container {
+    /* needed for lengths snapped as a border width */
+    zoom: calc(1 / var(--device-pixel-ratio, 1));
+  }
+</style>
+
+<div id="container">
+  <div class="thin"></div>
+  <div class="medium"></div>
+  <div class="thick"></div>
+
+  <div class="thin zoomed"></div>
+  <div class="medium zoomed"></div>
+  <div class="thick zoomed"></div>
+</div>
+
+<script>
+  container.style.setProperty('--device-pixel-ratio', window.devicePixelRatio);
+
+  const keywords = ['thin', 'medium', 'thick'];
+  const propSuffixes = ['width', 'top-width', 'right-width', 'bottom-width', 'left-width', 'inline-start-width', 'inline-end-width', 'block-start-width', 'block-end-width'];
+  for (const keyword of keywords) {
+    const cs = getComputedStyle(document.querySelector(`.${keyword}`));
+    const csZoomed = getComputedStyle(document.querySelector(`.${keyword}.zoomed`));
+
+    test(() => {
+      for (const propSuffix of propSuffixes) {
+        const prop = `border-${propSuffix}`;
+        assert_equals(csZoomed[prop], cs[prop], `${prop}: ${keyword}`);
+      }
+    }, `border-width: ${keyword}`);
+  }
+</script>

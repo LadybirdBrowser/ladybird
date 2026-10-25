@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+1 Pass
+5 Fail
+Pass	getComputedStyle for elements with css zoom
+Fail	getComputedStyle for elements with css zoom 1
+Fail	getComputedStyle for elements with css zoom 2
+Fail	getComputedStyle for elements with css zoom 3
+Fail	getComputedStyle for elements with css zoom 4
+Fail	getComputedStyle for elements with css zoom 5

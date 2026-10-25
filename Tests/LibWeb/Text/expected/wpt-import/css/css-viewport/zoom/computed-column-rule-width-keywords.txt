@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	column-rule-width: thin
+Pass	column-rule-width: medium
+Pass	column-rule-width: thick

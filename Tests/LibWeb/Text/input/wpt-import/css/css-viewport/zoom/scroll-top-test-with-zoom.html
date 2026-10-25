@@ -1,0 +1,33 @@
+<!doctype html>
+<title>Scroll Top Test with Zoom</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #container {
+    width: 200px;
+    height: 100px;
+    border: solid thick;
+    overflow: auto;
+  }
+</style>
+<div id="container">
+  <div style="width: 100px; height: 2000px"></div>
+</div>
+
+<script>
+  var container = document.getElementById('container');
+  container.scrollTop = 77;
+  test(function() {
+    assert_equals(container.scrollTop, 77, "Initial scrollTop should be 77");
+  }, "Initial scrollTop with no zoom");
+
+  document.body.style.zoom = 1.2;
+  document.body.offsetTop;
+
+  document.body.style.zoom = 1;
+  test(function() {
+    assert_equals(container.scrollTop, 77, "scrollTop should remain consistent after resetting zoom");
+  }, "scrollTop after resetting zoom");
+  done();
+</script>

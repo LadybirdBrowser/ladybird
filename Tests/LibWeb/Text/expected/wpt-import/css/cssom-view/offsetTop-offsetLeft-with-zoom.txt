@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Fail	Verifies that offsetTop and offsetLeft find the right OffsetParent and return values excluding the target zoom
+Pass	check that offset is equal between elements when one of them has css zoom

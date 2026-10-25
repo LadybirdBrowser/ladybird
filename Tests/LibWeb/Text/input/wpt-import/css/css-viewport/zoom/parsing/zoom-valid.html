@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Test: parsing zoom with valid and invalid values</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/parsing-testcommon.js"></script>
+<body>
+<script>
+test_valid_value("zoom", "normal");
+test_valid_value("zoom", "1");
+test_valid_value("zoom", "100%");
+test_valid_value("zoom", "0");
+test_valid_value("zoom", "0%");
+test_valid_value("zoom", "1.5");
+test_valid_value("zoom", "150%")
+test_valid_value("zoom", "75%");
+test_valid_value("zoom", "0.5");
+
+test_invalid_value("zoom", "auto");
+test_invalid_value("zoom", "reset");
+test_invalid_value("zoom", "document");
+test_invalid_value("zoom", "-100%");
+test_invalid_value("zoom", "-200%");
+test_invalid_value("zoom", "-1");
+test_invalid_value("zoom", "-2");
+</script>

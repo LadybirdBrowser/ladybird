@@ -1,0 +1,200 @@
+Harness status: OK
+
+Found 195 tests
+
+195 Pass
+Pass	border-spacing
+Pass	font-size
+Pass	stroke-dashoffset
+Pass	stroke-width
+Pass	text-indent
+Pass	word-spacing
+Pass	baseline-shift
+Pass	border-block-end-width
+Pass	border-block-start-width
+Pass	border-bottom-left-radius
+Pass	border-bottom-right-radius
+Pass	border-bottom-width
+Pass	border-end-end-radius
+Pass	border-end-start-radius
+Pass	border-inline-end-width
+Pass	border-inline-start-width
+Pass	border-left-width
+Pass	border-right-width
+Pass	border-start-end-radius
+Pass	border-start-start-radius
+Pass	border-top-left-radius
+Pass	border-top-right-radius
+Pass	border-top-width
+Pass	column-rule-width
+Pass	cx
+Pass	cy
+Pass	margin-block-end
+Pass	margin-block-start
+Pass	margin-bottom
+Pass	margin-inline-end
+Pass	margin-inline-start
+Pass	margin-left
+Pass	margin-right
+Pass	margin-top
+Pass	offset-distance
+Pass	outline-offset
+Pass	outline-width
+Pass	overflow-clip-margin-block-end
+Pass	overflow-clip-margin-block-start
+Pass	overflow-clip-margin-bottom
+Pass	overflow-clip-margin-inline-end
+Pass	overflow-clip-margin-inline-start
+Pass	overflow-clip-margin-left
+Pass	overflow-clip-margin-right
+Pass	overflow-clip-margin-top
+Pass	padding-block-end
+Pass	padding-block-start
+Pass	padding-bottom
+Pass	padding-inline-end
+Pass	padding-inline-start
+Pass	padding-left
+Pass	padding-right
+Pass	padding-top
+Pass	r
+Pass	scroll-margin-block-end
+Pass	scroll-margin-block-start
+Pass	scroll-margin-bottom
+Pass	scroll-margin-inline-end
+Pass	scroll-margin-inline-start
+Pass	scroll-margin-left
+Pass	scroll-margin-right
+Pass	scroll-margin-top
+Pass	shape-margin
+Pass	x
+Pass	y
+Pass	border-spacing: initial;
+Pass	font-size: initial;
+Pass	stroke-dashoffset: initial;
+Pass	stroke-width: initial;
+Pass	text-indent: initial;
+Pass	word-spacing: initial;
+Pass	baseline-shift: initial;
+Pass	border-block-end-width: initial;
+Pass	border-block-start-width: initial;
+Pass	border-bottom-left-radius: initial;
+Pass	border-bottom-right-radius: initial;
+Pass	border-bottom-width: initial;
+Pass	border-end-end-radius: initial;
+Pass	border-end-start-radius: initial;
+Pass	border-inline-end-width: initial;
+Pass	border-inline-start-width: initial;
+Pass	border-left-width: initial;
+Pass	border-right-width: initial;
+Pass	border-start-end-radius: initial;
+Pass	border-start-start-radius: initial;
+Pass	border-top-left-radius: initial;
+Pass	border-top-right-radius: initial;
+Pass	border-top-width: initial;
+Pass	column-rule-width: initial;
+Pass	cx: initial;
+Pass	cy: initial;
+Pass	margin-block-end: initial;
+Pass	margin-block-start: initial;
+Pass	margin-bottom: initial;
+Pass	margin-inline-end: initial;
+Pass	margin-inline-start: initial;
+Pass	margin-left: initial;
+Pass	margin-right: initial;
+Pass	margin-top: initial;
+Pass	offset-distance: initial;
+Pass	outline-offset: initial;
+Pass	outline-width: initial;
+Pass	overflow-clip-margin-block-end: initial;
+Pass	overflow-clip-margin-block-start: initial;
+Pass	overflow-clip-margin-bottom: initial;
+Pass	overflow-clip-margin-inline-end: initial;
+Pass	overflow-clip-margin-inline-start: initial;
+Pass	overflow-clip-margin-left: initial;
+Pass	overflow-clip-margin-right: initial;
+Pass	overflow-clip-margin-top: initial;
+Pass	padding-block-end: initial;
+Pass	padding-block-start: initial;
+Pass	padding-bottom: initial;
+Pass	padding-inline-end: initial;
+Pass	padding-inline-start: initial;
+Pass	padding-left: initial;
+Pass	padding-right: initial;
+Pass	padding-top: initial;
+Pass	r: initial;
+Pass	scroll-margin-block-end: initial;
+Pass	scroll-margin-block-start: initial;
+Pass	scroll-margin-bottom: initial;
+Pass	scroll-margin-inline-end: initial;
+Pass	scroll-margin-inline-start: initial;
+Pass	scroll-margin-left: initial;
+Pass	scroll-margin-right: initial;
+Pass	scroll-margin-top: initial;
+Pass	shape-margin: initial;
+Pass	x: initial;
+Pass	y: initial;
+Pass	border-spacing (all: initial)
+Pass	font-size (all: initial)
+Pass	stroke-dashoffset (all: initial)
+Pass	stroke-width (all: initial)
+Pass	text-indent (all: initial)
+Pass	word-spacing (all: initial)
+Pass	baseline-shift (all: initial)
+Pass	border-block-end-width (all: initial)
+Pass	border-block-start-width (all: initial)
+Pass	border-bottom-left-radius (all: initial)
+Pass	border-bottom-right-radius (all: initial)
+Pass	border-bottom-width (all: initial)
+Pass	border-end-end-radius (all: initial)
+Pass	border-end-start-radius (all: initial)
+Pass	border-inline-end-width (all: initial)
+Pass	border-inline-start-width (all: initial)
+Pass	border-left-width (all: initial)
+Pass	border-right-width (all: initial)
+Pass	border-start-end-radius (all: initial)
+Pass	border-start-start-radius (all: initial)
+Pass	border-top-left-radius (all: initial)
+Pass	border-top-right-radius (all: initial)
+Pass	border-top-width (all: initial)
+Pass	column-rule-width (all: initial)
+Pass	cx (all: initial)
+Pass	cy (all: initial)
+Pass	margin-block-end (all: initial)
+Pass	margin-block-start (all: initial)
+Pass	margin-bottom (all: initial)
+Pass	margin-inline-end (all: initial)
+Pass	margin-inline-start (all: initial)
+Pass	margin-left (all: initial)
+Pass	margin-right (all: initial)
+Pass	margin-top (all: initial)
+Pass	offset-distance (all: initial)
+Pass	outline-offset (all: initial)
+Pass	outline-width (all: initial)
+Pass	overflow-clip-margin-block-end (all: initial)
+Pass	overflow-clip-margin-block-start (all: initial)
+Pass	overflow-clip-margin-bottom (all: initial)
+Pass	overflow-clip-margin-inline-end (all: initial)
+Pass	overflow-clip-margin-inline-start (all: initial)
+Pass	overflow-clip-margin-left (all: initial)
+Pass	overflow-clip-margin-right (all: initial)
+Pass	overflow-clip-margin-top (all: initial)
+Pass	padding-block-end (all: initial)
+Pass	padding-block-start (all: initial)
+Pass	padding-bottom (all: initial)
+Pass	padding-inline-end (all: initial)
+Pass	padding-inline-start (all: initial)
+Pass	padding-left (all: initial)
+Pass	padding-right (all: initial)
+Pass	padding-top (all: initial)
+Pass	r (all: initial)
+Pass	scroll-margin-block-end (all: initial)
+Pass	scroll-margin-block-start (all: initial)
+Pass	scroll-margin-bottom (all: initial)
+Pass	scroll-margin-inline-end (all: initial)
+Pass	scroll-margin-inline-start (all: initial)
+Pass	scroll-margin-left (all: initial)
+Pass	scroll-margin-right (all: initial)
+Pass	scroll-margin-top (all: initial)
+Pass	shape-margin (all: initial)
+Pass	x (all: initial)
+Pass	y (all: initial)

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	element with px line-height
+Pass	element with percentage line-height
+Pass	parent with px line-height
+Pass	parent with percentage line-height
+Pass	root with px line-height
+Pass	root with percentage line-height

@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1892676">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  :root,
+  #zoomed {
+    font-size: 10px;
+    line-height: 10px;
+    zoom: 2;
+  }
+</style>
+<div id="outside"></div>
+<div id="zoomed">
+  <div id="inside"></div>
+</div>
+<script>
+  function test_unit(unit, outside, zoomed, inside = zoomed) {
+    test(function() {
+      let values = { outside, zoomed, inside };
+      for (let id of ["outside", "zoomed", "inside"]) {
+        let el = document.getElementById(id);
+        el.style.height = "1" + unit;
+        // approx_equals is needed because innerHeight / innerWidth round.
+        assert_approx_equals(el.getBoundingClientRect().height, values[id], 1, `${unit} in ${id}`);
+        el.style.height = "";
+      }
+    });
+  }
+
+  test_unit("em", 20, 40);
+  test_unit("rem", 20, 40);
+  test_unit("lh", 20, 40);
+  test_unit("rlh", 20, 40);
+  test_unit("vh", 2 * innerHeight / 100, 4 * innerHeight / 100);
+  test_unit("vw", 2 * innerWidth / 100, 4 * innerWidth / 100);
+</script>

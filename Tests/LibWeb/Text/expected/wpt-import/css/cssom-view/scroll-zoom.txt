@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Pass	scroll properties for elements with css zoom
+Fail	scroll{Width, Height}
+Pass	scroll{Top, Left}

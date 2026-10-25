@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Zoom does not affect the computed transform matrix of a translated animated element.
+Pass	Zoom does not affect the computed transform matrix of a translated animated element that uses mixed px/percentage values.

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Test: getComputedStyle().zoom</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/computed-testcommon.js"></script>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+test_computed_value("zoom", "normal", "1");
+
+test_computed_value("zoom", "1", "1");
+test_computed_value("zoom", "1.5", "1.5");
+test_computed_value("zoom", "0.75", "0.75");
+test_computed_value("zoom", 'calc(1 - 0.5)', '0.5');
+test_computed_value("zoom", 'calc(1 * 0.5)', '0.5');
+
+test_computed_value("zoom", "100%", "1");
+test_computed_value("zoom", "150%", "1.5");
+test_computed_value("zoom", "75%", "0.75");
+test_computed_value("zoom", 'calc(100% - 50%)', '0.5');
+test_computed_value("zoom", 'calc(100% * 0.5)', '0.5');
+
+// Legacy crap, wat
+test_computed_value("zoom", "0", "1");
+test_computed_value("zoom", "0%", "1");
+</script>

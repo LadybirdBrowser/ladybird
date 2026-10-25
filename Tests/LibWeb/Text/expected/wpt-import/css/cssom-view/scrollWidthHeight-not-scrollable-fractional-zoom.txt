@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	scrollWidth equals clientWidth for a non-scrollable 203.2px box with 'zoom: 1.25'
+Pass	scrollWidth equals clientWidth for a non-scrollable 307.2px box with 'zoom: 1.25'
+Pass	scrollWidth equals clientWidth for a non-scrollable 202.30769231px box with 'zoom: 1.3'
+Pass	scrollWidth equals clientWidth for a non-scrollable 203.33333333px box with 'zoom: 1.5'
+Pass	scrollWidth equals clientWidth for a non-scrollable 202.66666667px box with 'zoom: 0.75'

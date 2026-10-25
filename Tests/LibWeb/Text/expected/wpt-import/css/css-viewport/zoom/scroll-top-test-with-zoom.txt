@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Initial scrollTop with no zoom
+Pass	scrollTop after resetting zoom

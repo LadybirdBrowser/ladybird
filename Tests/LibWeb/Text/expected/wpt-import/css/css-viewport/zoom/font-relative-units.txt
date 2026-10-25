@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	em = rem
+Pass	lh = rlh
+Pass	ex = rex
+Pass	cap = rcap
+Pass	ch = rch
+Pass	ic = ric
