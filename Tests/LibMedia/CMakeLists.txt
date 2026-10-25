@@ -53,10 +53,13 @@ if (APPLE)
     )
 endif()
 if (LINUX)
-    list(APPEND TEST_SOURCES
-        TestH264Decode.cpp
-        TestSystemFFmpeg.cpp
-    )
+    list(APPEND TEST_SOURCES TestH264Decode.cpp)
+
+    # Loads the bundled libavcodec in place of a system one, which needs it to be a shared library.
+    find_library(LADYBIRD_BUNDLED_LIBAVCODEC NAMES ${AVCODEC_LIBRARIES} PATHS ${AVCODEC_LIBRARY_DIRS} NO_DEFAULT_PATH REQUIRED)
+    if (LADYBIRD_BUNDLED_LIBAVCODEC MATCHES "\\${CMAKE_SHARED_LIBRARY_SUFFIX}$")
+        list(APPEND TEST_SOURCES TestSystemFFmpeg.cpp)
+    endif()
 endif()
 
 foreach(source IN LISTS TEST_SOURCES)
@@ -82,6 +85,7 @@ target_link_libraries(TestRemoteVideoNode PRIVATE LibThreading LibGfx LibIPC)
 
 if (LINUX)
     target_link_libraries(TestH264Decode PRIVATE LibGfx)
-    find_library(LADYBIRD_BUNDLED_LIBAVCODEC NAMES ${AVCODEC_LIBRARIES} PATHS ${AVCODEC_LIBRARY_DIRS} NO_DEFAULT_PATH REQUIRED)
+endif()
+if (TARGET TestSystemFFmpeg)
     target_compile_definitions(TestSystemFFmpeg PRIVATE LADYBIRD_BUNDLED_LIBAVCODEC_PATH="${LADYBIRD_BUNDLED_LIBAVCODEC}")
 endif()
