@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	Tab moves focus past the shadow host, not back to the start of the shadow tree
-Fail	Shift+Tab moves focus before the shadow host, not back to the end of the shadow tree
+2 Pass
+Pass	Tab moves focus past the shadow host, not back to the start of the shadow tree
+Pass	Shift+Tab moves focus before the shadow host, not back to the end of the shadow tree

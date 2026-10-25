@@ -1936,7 +1936,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
     if (!(modifiers & UIEvents::KeyModifier::Mod_Ctrl)) {
         if (key == UIEvents::KeyCode::Key_Tab) {
-            return modifiers & UIEvents::KeyModifier::Mod_Shift ? focus_previous_element() : focus_next_element();
+            return focus_sequentially(modifiers & UIEvents::KeyModifier::Mod_Shift ? HTML::SequentialFocusDirection::Backward : HTML::SequentialFocusDirection::Forward);
         }
     }
 
@@ -2926,76 +2926,73 @@ EventResult EventHandler::input_event(Utf16FlyString const& event_name, Utf16Fly
     return document->root().dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
 }
 
-EventResult EventHandler::focus_next_element()
+// https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation
+EventResult EventHandler::focus_sequentially(HTML::SequentialFocusDirection direction)
 {
-    if (!m_navigable->active_document())
-        return EventResult::Dropped;
-    if (!m_navigable->active_document()->is_fully_active())
-        return EventResult::Dropped;
-
-    auto set_focus_to_first_focusable_element = [&] {
-        auto* element = m_navigable->active_document()->first_child_of_type<DOM::Element>();
-
-        for (; element; element = element->next_element_in_pre_order()) {
-            if (element->is_focusable()) {
-                HTML::run_focusing_steps(element, nullptr, HTML::FocusTrigger::Key);
-                return EventResult::Handled;
-            }
-        }
-
-        return EventResult::Dropped;
-    };
-
-    auto node = m_navigable->active_document()->sequential_focus_navigation_starting_point();
-    if (!node)
-        node = m_navigable->active_document()->focused_area();
-    if (!node)
-        return set_focus_to_first_focusable_element();
-
-    for (node = node->next_in_pre_order(); node && !node->is_focusable(); node = node->next_in_pre_order())
-        ;
-
-    if (!node)
-        return set_focus_to_first_focusable_element();
-
-    HTML::run_focusing_steps(node, nullptr, HTML::FocusTrigger::Key);
-    return EventResult::Handled;
-}
-
-EventResult EventHandler::focus_previous_element()
-{
-    if (!m_navigable->active_document())
-        return EventResult::Dropped;
-    if (!m_navigable->active_document()->is_fully_active())
+    auto document = m_navigable->active_document();
+    if (!document || !document->is_fully_active())
         return EventResult::Dropped;
 
-    auto set_focus_to_last_focusable_element = [&] {
-        // FIXME: This often returns the HTML element itself, which has no previous sibling.
-        auto* element = m_navigable->active_document()->last_child_of_type<DOM::Element>();
+    // 1. Let starting point be the currently focused area of a top-level traversable, if the user requested to move
+    //    focus sequentially from there, or else the top-level traversable itself, if the user instead requested to
+    //    move focus from outside the top-level traversable.
+    // NB: Without a focused element, we start from the navigable, which makes us start at the beginning (or end) of
+    //     the sequential focus navigation order.
+    Variant<GC::Ref<HTML::LocalNavigable>, GC::Ref<DOM::Node>> starting_point = GC::Ref<HTML::LocalNavigable> { *m_navigable };
+    if (auto focused_area = document->focused_area(); focused_area && !is<DOM::Document>(*focused_area))
+        starting_point = GC::Ref { *focused_area };
 
-        for (; element; element = element->previous_element_in_pre_order()) {
-            if (element->is_focusable()) {
-                HTML::run_focusing_steps(element, nullptr, HTML::FocusTrigger::Key);
-                return EventResult::Handled;
-            }
-        }
+    // 2. If there is a sequential focus navigation starting point defined and it is inside starting point, then let
+    //    starting point be the sequential focus navigation starting point instead.
+    if (auto sequential_starting_point = document->sequential_focus_navigation_starting_point(); sequential_starting_point && &sequential_starting_point->document() == document.ptr()) {
+        auto is_inside_starting_point = starting_point.visit(
+            [](GC::Ref<HTML::LocalNavigable>) { return true; },
+            [&](GC::Ref<DOM::Node> node) { return node->is_shadow_including_inclusive_ancestor_of(*sequential_starting_point); });
+        if (is_inside_starting_point)
+            starting_point = GC::Ref { *sequential_starting_point };
+    }
 
+    // 3. Let direction be "forward" if the user requested the next control, and "backward" if the user requested the
+    //    previous control.
+
+    // 4. Loop: Let selection mechanism be "sequential" if starting point is a navigable or if starting point is in its
+    //    Document's sequential focus navigation order.
+    //    Otherwise, starting point is not in its Document's sequential focus navigation order; let selection mechanism
+    //    be "DOM".
+    auto selection_mechanism = starting_point.visit(
+        [](GC::Ref<HTML::LocalNavigable>) { return HTML::SelectionMechanism::Sequential; },
+        [](GC::Ref<DOM::Node> node) {
+            auto order = HTML::sequential_focus_navigation_order(node->document());
+            auto is_in_order = order.find_first_index_if([&](auto const& element) { return element.ptr() == node.ptr(); }).has_value();
+            return is_in_order ? HTML::SelectionMechanism::Sequential : HTML::SelectionMechanism::DOM;
+        });
+
+    // 5. Let candidate be the result of running the sequential navigation search algorithm with starting point,
+    //    direction, and selection mechanism.
+    auto candidate = HTML::sequential_navigation_search(starting_point, direction, selection_mechanism);
+
+    // 6. If candidate is not null, then run the focusing steps for candidate and return.
+    if (candidate) {
+        HTML::run_focusing_steps(candidate, nullptr, HTML::FocusTrigger::Key);
+        return EventResult::Handled;
+    }
+
+    // 7. Otherwise, unset the sequential focus navigation starting point.
+    document->move_sequential_focus_navigation_starting_point_to(nullptr);
+
+    // 8. If starting point is a top-level traversable, or a focusable area in the top-level traversable, the user
+    //    agent should transfer focus to its own controls appropriately (if any), honouring direction, and then return.
+    // FIXME: 9. Otherwise, starting point is a focusable area in a child navigable. Set starting point to that child
+    //           navigable's parent and return to the step labeled loop.
+    // NB: We do not move focus to the browser's own controls, and keep focus inside a child navigable. In both cases,
+    //     we restart these steps with the navigable itself as the starting point, which the spec allows a user agent
+    //     without sequentially focusable controls to do.
+    if (starting_point.has<GC::Ref<HTML::LocalNavigable>>())
         return EventResult::Dropped;
-    };
-
-    auto node = m_navigable->active_document()->sequential_focus_navigation_starting_point();
-    if (!node)
-        node = m_navigable->active_document()->focused_area();
-    if (!node)
-        return set_focus_to_last_focusable_element();
-
-    for (node = node->previous_in_pre_order(); node && !node->is_focusable(); node = node->previous_in_pre_order())
-        ;
-
-    if (!node)
-        return set_focus_to_last_focusable_element();
-
-    HTML::run_focusing_steps(node, nullptr, HTML::FocusTrigger::Key);
+    candidate = HTML::sequential_navigation_search(GC::Ref<HTML::LocalNavigable> { *m_navigable }, direction, HTML::SelectionMechanism::Sequential);
+    if (!candidate)
+        return EventResult::Dropped;
+    HTML::run_focusing_steps(candidate, nullptr, HTML::FocusTrigger::Key);
     return EventResult::Handled;
 }
 
