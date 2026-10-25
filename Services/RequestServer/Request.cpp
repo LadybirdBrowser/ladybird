@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Checked.h>
 #include <AK/GenericShorthands.h>
 #include <AK/HashMap.h>
@@ -1523,8 +1524,15 @@ void Request::handle_fetch_state()
             m_request_headers->set({ "If-Modified-Since"sv, *revalidation_attributes.last_modified });
     }
 
+    // NB: Send each header name once, with the combined value of all headers of that name, as other engines do.
+    Vector<StringView> sent_header_names;
     for (auto const& header : *m_request_headers) {
-        if (header.value.is_empty()) {
+        if (any_of(sent_header_names, [&](auto name) { return name.equals_ignoring_ascii_case(header.name); }))
+            continue;
+        sent_header_names.append(header.name);
+
+        auto value = m_request_headers->get(header.name).release_value();
+        if (value.is_empty()) {
             // curl will discard the header unless we pass the header name followed by a semicolon (i.e. we need to pass
             // "Content-Type;" instead of "Content-Type: ").
             //
@@ -1532,7 +1540,7 @@ void Request::handle_fetch_state()
             auto header_string = ByteString::formatted("{};", header.name);
             curl_headers = curl_slist_append(curl_headers, header_string.characters());
         } else {
-            auto header_string = ByteString::formatted("{}: {}", header.name, header.value);
+            auto header_string = ByteString::formatted("{}: {}", header.name, value);
             curl_headers = curl_slist_append(curl_headers, header_string.characters());
         }
     }
