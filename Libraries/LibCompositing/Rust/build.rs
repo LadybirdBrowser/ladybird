@@ -295,9 +295,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiEasingDescriptor",
         "FfiEasingKind",
         "FfiLinearEasingPoint",
-        "FfiCanvas2DPaint",
-        "FfiCanvas2DCompositing",
-        "FfiCanvas2DStroke",
     ]
     .map(String::from)
     .to_vec();
