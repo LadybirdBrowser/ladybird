@@ -29,6 +29,7 @@
 use super::code::CompileState;
 use super::feedback_dump::describe_feedback;
 use super::tier_up;
+use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::jit::InterpreterTier;
 use crate::layout::cell::Gc;
@@ -177,14 +178,18 @@ fn exit_count(vm: &Vm) -> ThrowCompletionOr<Value> {
 fn exit_sites(vm: &Vm) -> ThrowCompletionOr<Value> {
     let function = function_argument(vm)?;
     let realm = vm.current_realm().expect("jit.exitSites runs in a realm");
-    let sites: Vec<Value> = function
+    let sites = MarkedVec::new(vm);
+    for (pc, kind) in function
         .bytecode_executable()
         .map(|executable| executable.jit_exit_sites())
         .unwrap_or_default()
-        .into_iter()
-        .map(|(pc, kind)| Value::from_string(PrimitiveString::create_from_utf8(vm, &format!("{kind:?}@{pc}"))))
-        .collect();
-    Ok(Value::from_object(Array::create_from(vm, realm, &sites)))
+    {
+        sites.push(Value::from_string(PrimitiveString::create_from_utf8(
+            vm,
+            &format!("{kind:?}@{pc}"),
+        )));
+    }
+    Ok(Value::from_object(Array::create_from_list(vm, realm, &sites)))
 }
 
 fn discard_count(vm: &Vm) -> ThrowCompletionOr<Value> {
