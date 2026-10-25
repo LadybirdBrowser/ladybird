@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>Stylesheet in XHTML BODY blocking scripts</title>
+  <script src="../../../../../resources/testharness.js"></script>
+  <script src="../../../../../resources/testharnessreport.js"></script>
+  <script src="testlib/testlib.js"></script>
+</head>
+<body>
+  <div id="test">Test</div>
+  <!-- this stylesheet blocks scripts -->
+  <link rel="stylesheet" href="css/background.css?pipe=trickle(d2)" />
+  <script>
+    test(function() {
+      assert_equals(getComputedStyle(document.getElementById("test")).position,
+                    "fixed");
+    });
+  </script>
+</body>
+</html>
