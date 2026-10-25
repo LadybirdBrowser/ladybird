@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+1 Pass
+3 Fail
+Fail	pushState serializes state before checking the rate limit
+Fail	pushState parses the URL before checking the rate limit
+Fail	pushState checks whether the URL can be rewritten before checking the rate limit
+Pass	pushState checks fully active before checking the rate limit
