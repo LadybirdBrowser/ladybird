@@ -341,6 +341,54 @@ impl<'pass> FlexFormattingContext<'pass> {
         reverse
     }
 
+    // Whether the start side of the writing mode, in the main axis, is the frame's right or bottom side.
+    fn main_axis_writing_mode_start_is_reverse(&self) -> bool {
+        if self.is_row_layout() {
+            self.inline_axis_is_reverse(self.run.box_)
+        } else {
+            self.block_axis_is_reverse(self.run.box_)
+        }
+    }
+
+    // Whether the given start, end, left or right value of justify-content packs the flex items against the main
+    // axis side that is the frame's right or bottom side.
+    // https://drafts.csswg.org/css-align-3/#positional-values
+    fn justify_content_position_is_reverse(&self, justify: u8) -> bool {
+        let start_is_reverse = self.main_axis_writing_mode_start_is_reverse();
+        match justify {
+            justify_content::START => start_is_reverse,
+            justify_content::END => !start_is_reverse,
+            // left: Aligns the alignment subject to be flush with the alignment container's line-left or physical
+            //       left edge, whichever is in the appropriate axis.
+            //       If the property's axis is not parallel with either left↔right axis, this value behaves as start.
+            // NB: The frame's left side is the line-left side. The main axis of a column flex container runs along
+            //     the physical left↔right axis in a vertical writing mode.
+            justify_content::LEFT => {
+                if self.is_row_layout() {
+                    false
+                } else if self.run.callbacks.frame.is_transposed() {
+                    self.run.callbacks.frame.frame_side(geometry::Side::Left) == geometry::Side::Bottom
+                } else {
+                    start_is_reverse
+                }
+            }
+            // right: Aligns the alignment subject to be flush with the alignment container's line-right or physical
+            //        right edge, whichever is in the appropriate axis.
+            //        If the property's axis is not parallel with either left↔right axis, this value behaves as
+            //        start.
+            justify_content::RIGHT => {
+                if self.is_row_layout() {
+                    true
+                } else if self.run.callbacks.frame.is_transposed() {
+                    self.run.callbacks.frame.frame_side(geometry::Side::Right) == geometry::Side::Bottom
+                } else {
+                    start_is_reverse
+                }
+            }
+            _ => unreachable!("not a positional justify-content value"),
+        }
+    }
+
     fn is_direction_reverse(&self) -> bool {
         let mut reverse = if self.is_row_layout() {
             self.inline_axis_is_reverse(self.run.box_)
@@ -2170,17 +2218,13 @@ impl<'pass> FlexFormattingContext<'pass> {
             let justify = self.style(self.run.box_).justify_content();
             if auto_margins == 0 && number_of_items > 0 {
                 match justify {
-                    justify_content::START | justify_content::LEFT => {}
-                    justify_content::STRETCH | justify_content::NORMAL | justify_content::FLEX_START => {
-                        if self.is_direction_reverse() {
+                    justify_content::START | justify_content::END | justify_content::LEFT | justify_content::RIGHT => {
+                        if self.justify_content_position_is_reverse(justify) {
                             initial_offset = self.inner_main_size_used(self.container_used());
                         }
                     }
-                    justify_content::END => {
-                        initial_offset = self.inner_main_size_used(self.container_used());
-                    }
-                    justify_content::RIGHT => {
-                        if self.is_row_layout() {
+                    justify_content::STRETCH | justify_content::NORMAL | justify_content::FLEX_START => {
+                        if self.is_direction_reverse() {
                             initial_offset = self.inner_main_size_used(self.container_used());
                         }
                     }
@@ -2234,7 +2278,9 @@ impl<'pass> FlexFormattingContext<'pass> {
             // Otherwise the cursor offset is the 'start' of the region or initial offset
             let cursor_right = if auto_margins == 0 {
                 match justify {
-                    justify_content::START | justify_content::LEFT => false,
+                    justify_content::START | justify_content::END | justify_content::LEFT | justify_content::RIGHT => {
+                        self.justify_content_position_is_reverse(justify)
+                    }
                     justify_content::NORMAL
                     | justify_content::FLEX_START
                     | justify_content::CENTER
@@ -2242,8 +2288,6 @@ impl<'pass> FlexFormattingContext<'pass> {
                     | justify_content::SPACE_BETWEEN
                     | justify_content::SPACE_EVENLY
                     | justify_content::STRETCH => self.is_direction_reverse(),
-                    justify_content::END => true,
-                    justify_content::RIGHT => self.is_row_layout(),
                     justify_content::FLEX_END => !self.is_direction_reverse(),
                     _ => false,
                 }
@@ -2750,8 +2794,15 @@ impl<'pass> FlexFormattingContext<'pass> {
         // assuming both the child and the flex container were fixed-size boxes of their used size.
         // (For this purpose, auto margins are treated as zero.
 
-        let main_alignment = match self.style(self.run.box_).justify_content() {
-            justify_content::START | justify_content::LEFT => StaticPositionAlignment::Start,
+        let justify = self.style(self.run.box_).justify_content();
+        let main_alignment = match justify {
+            justify_content::START | justify_content::END | justify_content::LEFT | justify_content::RIGHT => {
+                if self.justify_content_position_is_reverse(justify) {
+                    StaticPositionAlignment::End
+                } else {
+                    StaticPositionAlignment::Start
+                }
+            }
             justify_content::STRETCH
             | justify_content::NORMAL
             | justify_content::FLEX_START
@@ -2762,7 +2813,6 @@ impl<'pass> FlexFormattingContext<'pass> {
                     StaticPositionAlignment::Start
                 }
             }
-            justify_content::END | justify_content::RIGHT => StaticPositionAlignment::End,
             justify_content::FLEX_END => {
                 if self.is_direction_reverse() {
                     StaticPositionAlignment::Start
