@@ -51,6 +51,8 @@ function(ladybird_sign_helper_process target)
         list(APPEND release_entitlements com.apple.security.cs.allow-jit)
     endif()
     ladybird_write_entitlements("${CMAKE_CURRENT_BINARY_DIR}/${target}.release.entitlements" ${release_entitlements})
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${target}.release.entitlements" DESTINATION entitlements
+        COMPONENT ladybird_Runtime)
 
     add_custom_command(TARGET ${target} POST_BUILD
         COMMAND codesign -s - -f -o runtime --entitlements "${entitlements_file}" "$<TARGET_FILE:${target}>"
