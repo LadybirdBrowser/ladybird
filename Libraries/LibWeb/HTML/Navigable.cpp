@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
@@ -284,7 +285,16 @@ bool Navigable::allowed_by_sandboxing_to_navigate(Navigable const& target, Sourc
 
     // 4. If target is a top-level traversable:
     if (target.is_top_level_traversable()) {
-        // FIXME: 1. If source is the one permitted sandboxed navigator of target, then return true.
+        // 1. If source is the one permitted sandboxed navigator of target, then return true.
+        // NB: The one permitted sandboxed navigator is a browsing context, so we compare the active browsing contexts.
+        auto const* local_source = as_if<LocalNavigable>(source);
+        auto const* local_target = as_if<LocalNavigable>(target);
+        if (local_source && local_target) {
+            auto source_browsing_context = const_cast<LocalNavigable&>(*local_source).active_browsing_context();
+            auto target_browsing_context = const_cast<LocalNavigable&>(*local_target).active_browsing_context();
+            if (source_browsing_context && target_browsing_context && target_browsing_context->the_one_permitted_sandboxed_navigator() == source_browsing_context)
+                return true;
+        }
 
         // 2. If sourceSnapshotParams's sandboxing flags's sandboxed navigation browsing context flag is set, then return false.
         if (has_flag(source_snapshot_params.sandboxing_flags, SandboxingFlagSet::SandboxedNavigation))

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script>
+  if (opener) {
+    // We're the popup.  Send back our state.  What we really want to send is
+    // our origin, but that will come automatically.
+    opener.postMessage(undefined, "*");
+    self.close();
+  } else {
+    // We're the child.  Start listening for messages and open ourselves as the
+    // popup.
+    onmessage = function (e) {
+      parent.postMessage({ data: e.data, origin: e.origin }, "*");
+    };
+    popupWin = window.open(location.href);
+  }
+</script>
