@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Ensure the correct JSON parser is used
+Pass	Ensure UTF-16 results in an error
+Pass	Ensure the response charset (windows-1252) is ignored
+Pass	Ensure the overrideMimeType() charset (windows-1252) is ignored
+Pass	Ensure the response charset (utf-16le) is ignored
+Pass	Ensure the overrideMimeType() charset (utf-16le) is ignored
