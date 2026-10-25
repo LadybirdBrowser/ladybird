@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>XMLHttpRequest: response document decoding</title>
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      function request(type, input, expected) {
+        async_test((test) => {
+          const client = new XMLHttpRequest();
+          client.responseType = 'document';
+          client.open("GET", "resources/status.py?content=" + input + "&type=" + encodeURIComponent(type), true);
+          client.onload = test.step_func_done(() => {
+            assert_equals(client.responseXML.querySelector("x").textContent, expected);
+          })
+          client.send(null);
+        }, document.title + " (" + type + " " + input + ")");
+      }
+
+      const encoded_content = "%e6%a9%9f";
+      const encoded_xml =
+        encodeURIComponent("<?xml version='1.0' encoding='windows-1252'?><x>") + encoded_content + encodeURIComponent("<\/x>");
+      const encoded_html =
+        encodeURIComponent("<!doctype html><meta charset=windows-1252><x>") + encoded_content + encodeURIComponent("<\/x>");
+      const decoded_as_windows_1252 = "\u00e6\u00a9\u0178";
+      const decoded_as_utf_8 = "\u6a5f";
+
+      request("application/xml", encoded_xml, decoded_as_windows_1252);
+      request("application/xml;charset=utf-8", encoded_xml, decoded_as_utf_8);
+      request("application/xml;charset=windows-1252", encoded_xml, decoded_as_windows_1252);
+      request("text/html", encoded_html, decoded_as_windows_1252);
+      request("text/html;charset=utf-8", encoded_html, decoded_as_utf_8);
+      request("text/html;charset=windows-1252", encoded_html, decoded_as_windows_1252);
+    </script>
+  </body>
+</html>

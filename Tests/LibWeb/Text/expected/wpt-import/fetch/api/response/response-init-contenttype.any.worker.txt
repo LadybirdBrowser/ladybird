@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+17 Pass
+1 Fail
+Pass	Default Content-Type for Response with empty body
+Pass	Default Content-Type for Response with Blob body (no type set)
+Pass	Default Content-Type for Response with Blob body (empty type)
+Fail	Default Content-Type for Response with Blob body (set type)
+Pass	Default Content-Type for Response with buffer source body
+Pass	Default Content-Type for Response with FormData body
+Pass	Default Content-Type for Response with URLSearchParams body
+Pass	Default Content-Type for Response with string body
+Pass	Default Content-Type for Response with ReadableStream body
+Pass	Can override Content-Type for Response with empty body
+Pass	Can override Content-Type for Response with Blob body (no type set)
+Pass	Can override Content-Type for Response with Blob body (empty type)
+Pass	Can override Content-Type for Response with Blob body (set type)
+Pass	Can override Content-Type for Response with buffer source body
+Pass	Can override Content-Type for Response with FormData body
+Pass	Can override Content-Type for Response with URLSearchParams body
+Pass	Can override Content-Type for Response with string body
+Pass	Can override Content-Type for Response with ReadableStream body

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS integration - Child css from internal stylesheet</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../common/utils.js"></script>
+    <!-- Common global functions for referrer-policy tests. -->
+    <script src="../../../common/security-features/resources/common.sub.js"></script>
+    <meta name="referrer" content="never">
+  </head>
+  <body>
+    <p>Check that child css are loaded with the referrer and referrer policy
+    from the internal stylesheet.</p>
+
+    <div class="styled"></div>
+
+    <script>
+      promise_test(function(css_test) {
+        let id = token();
+        let url_prefix = location.protocol + "//www1." + location.hostname + ":" + location.port;
+        let css_url = url_prefix + "/common/security-features/subresource/stylesheet.py?id=" + id + "&import-rule";
+        let check_url = url_prefix + "/common/security-features/subresource/stylesheet.py" +
+                        "?id=" + id + "&report-headers";
+
+        let style = document.createElement("style");
+        style.type = 'text/css';
+        style.appendChild(document.createTextNode("@import url('" + css_url + "');"));
+        document.head.appendChild(style);
+        return timeoutPromise(css_test, 1000)
+          .then(() => requestViaXhr(check_url))
+          .then(function(message) {
+              assert_own_property(message, "headers");
+              assert_own_property(message, "referrer");
+              assert_equals(message.referrer, css_url);
+            });
+      }, "Child css from internal stylesheet.");
+    </script>
+
+    <div id="log"></div>
+  </body>
+</html>

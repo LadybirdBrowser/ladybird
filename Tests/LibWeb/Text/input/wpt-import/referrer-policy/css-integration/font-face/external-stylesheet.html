@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS integration - Font from external stylesheet</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../common/utils.js"></script>
+    <!-- Common global functions for referrer-policy tests. -->
+    <script src="../../../common/security-features/resources/common.sub.js"></script>
+    <meta name="referrer" content="never">
+  </head>
+  <body>
+    <p>Check that resources from external stylesheets are loaded with
+    the referrer and referrer policy from the external stylesheet.</p>
+
+    <div class="styled"></div>
+
+    <script>
+      promise_test(function(css_test) {
+        let id = token();
+        let url_prefix = location.protocol + "//www1." + location.hostname + ":" + location.port;
+        let css_url = url_prefix + "/common/security-features/subresource/stylesheet.py?id=" + id + "&type=font";
+        let font_url = url_prefix + "/common/security-features/subresource/font.py" +
+                      "?id=" + id + "&report-headers";
+
+        return new Promise(resolve => {
+            let link = document.createElement("link");
+            link.href = css_url;
+            link.rel = "stylesheet";
+            link.onload = resolve;
+            document.head.appendChild(link);
+          })
+          .then(() => timeoutPromise(css_test, 1000))
+          .then(() => requestViaXhr(font_url))
+          .then(function(message) {
+              assert_own_property(message, "headers");
+              assert_own_property(message, "referrer");
+              assert_equals(message.referrer, css_url);
+            });
+      }, "Font from external stylesheet.");
+    </script>
+
+    <div id="log"></div>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Pass	large br data should be decompressed successfully
+Fail	large br data should be decompressed successfully with byte stream

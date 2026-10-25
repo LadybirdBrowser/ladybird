@@ -1,0 +1,2 @@
+Referrer-Policy: no-referrer
+Referrer-Policy: origin,not-a-valid-token

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- TODO(kristijanburnik): Remove subres. duplication. Reuse a template. -->
+<html>
+  <head>
+    <title>Link messaging - cross-origin Link navigation</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <!-- Common global functions for referrer-policy tests. -->
+    <script src="../../../common/security-features/resources/common.sub.js"></script>
+  </head>
+  <body>
+    <h1>Link messaging - cross-origin Link navigation</h1>
+    <p>If you can read JSON encoded HTTP request headers of the Link below,
+       the messaging works as expected.</p>
+
+    <pre id="received_message">Running...</pre>
+
+    <script>
+      promise_test(function() {
+        var urlPath = '/common/security-features/subresource/document.py';
+        var url = location.protocol + "//www1." + location.hostname + ":" + location.port +
+                  urlPath;
+        return requestViaAnchor(url)
+          .then(function(message) {
+              var pre = document.getElementById('received_message')
+              var headers = message.headers;
+              pre.innerHTML = "";
+              pre.innerHTML += url + ":\n\n";
+              pre.innerHTML += JSON.stringify(headers, null, 2) + "\n\n"
+              assert_own_property(headers, "host")
+              assert_own_property(headers, "connection")
+            });
+      }, "Link is responding with HTTP headers");
+    </script>
+
+    <div id="log"></div>
+  </body>
+</html>
