@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const echo = (path, status, size, delay) => server.createEcho("GET", path, {
+            status,
+            headers: { "Content-Type": "image/svg+xml", "Cache-Control": "no-store" },
+            body: `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="100%" height="100%" fill="green"/></svg>`,
+            delay_ms: delay,
+        });
+
+        // The first request finishes after href has changed, long before the second one. Only the second request
+        // is the element's image request, so only its completion fires an event on the element. The rendered width
+        // shows which image the element has: 0 for none, 20 for the second one.
+        async function run(name, firstStatus) {
+            const firstURL = await echo(`/svg-image-href-changed-while-loading-${name}-first.svg`, firstStatus, 10, 100);
+            const secondURL = await echo(`/svg-image-href-changed-while-loading-${name}-second.svg`, 200, 20, 1000);
+
+            const iframe = document.createElement("iframe");
+            const finished = new Promise(resolve => {
+                window.addEventListener("message", function listener(event) {
+                    if (event.source !== iframe.contentWindow)
+                        return;
+                    window.removeEventListener("message", listener);
+                    resolve(event.data);
+                });
+            });
+            iframe.srcdoc = `<!DOCTYPE html>
+<svg width="100" height="100"><image id="target"></image></svg>
+<script>
+    const log = [];
+    const target = document.getElementById("target");
+    const width = () => target.getBoundingClientRect().width;
+    for (const type of ["load", "error"])
+        target.addEventListener(type, () => log.push(\`image \${type}, width: \${width()}\`));
+    window.addEventListener("load", () => {
+        log.push(\`window load, width: \${width()}\`);
+        parent.postMessage(log, "*");
+    });
+    target.setAttribute("href", "${firstURL}");
+    target.setAttribute("href", "${secondURL}");
+<\/script>`;
+            document.body.appendChild(iframe);
+            const log = await finished;
+            iframe.remove();
+
+            println(`${name}:`);
+            for (const line of log)
+                println(`    ${line}`);
+        }
+
+        async function runInIframe(name, body) {
+            const iframe = document.createElement("iframe");
+            const finished = new Promise(resolve => {
+                window.addEventListener("message", function listener(event) {
+                    if (event.source !== iframe.contentWindow)
+                        return;
+                    window.removeEventListener("message", listener);
+                    resolve(event.data);
+                });
+            });
+            iframe.srcdoc = `<!DOCTYPE html>
+<svg width="100" height="100"><image id="target"></image><image id="witness"></image></svg>
+<script>
+    const log = [];
+    const target = document.getElementById("target");
+    const witness = document.getElementById("witness");
+    const width = () => target.getBoundingClientRect().width;
+    for (const type of ["load", "error"]) {
+        target.addEventListener(type, () => log.push(\`image \${type}, width: \${width()}\`));
+        witness.addEventListener(type, () => log.push(\`witness \${type}, width: \${width()}\`));
+    }
+    ${body}
+<\/script>`;
+            document.body.appendChild(iframe);
+            const log = await finished;
+            iframe.remove();
+
+            println(`${name}:`);
+            for (const line of log)
+                println(`    ${line}`);
+        }
+
+        // When href is removed or does not parse while a request is loading, that request is no longer the element's
+        // image request. The witness shares the request, and its callbacks run after the target's, so its load event
+        // shows that the request has finished.
+        async function runWhileLoading(name, changeHref) {
+            const url = await echo(`/svg-image-href-changed-while-loading-${name}.svg`, 200, 10, 100);
+            await runInIframe(name, `
+    window.addEventListener("load", () => {
+        log.push(\`window load, width: \${width()}\`);
+        parent.postMessage(log, "*");
+    });
+    target.setAttribute("href", "${url}");
+    ${changeHref}
+    witness.setAttribute("href", "${url}");`);
+        }
+
+        // When href is removed or does not parse after the image has loaded, the element no longer has an image.
+        async function runAfterLoad(name, changeHref) {
+            const url = await echo(`/svg-image-href-changed-while-loading-${name}.svg`, 200, 10, 0);
+            await runInIframe(name, `
+    window.addEventListener("load", () => {
+        log.push(\`window load, width: \${width()}\`);
+        ${changeHref}
+        log.push(\`href changed, width: \${width()}\`);
+        parent.postMessage(log, "*");
+    });
+    target.setAttribute("href", "${url}");`);
+        }
+
+        // When the shared request has already finished, the element's request completes as soon as href is set. A
+        // handler that removes href at that point drops the request that is being set up.
+        async function runRemovedByHandler(name, status, type) {
+            const url = await echo(`/svg-image-href-changed-while-loading-${name}.svg`, status, 10, 0);
+            await runInIframe(name, `
+    witness.addEventListener("${type}", () => {
+        target.addEventListener("${type}", () => target.removeAttribute("href"));
+        target.setAttribute("href", "${url}");
+        log.push(\`href set, width: \${width()}\`);
+        parent.postMessage(log, "*");
+    });
+    witness.setAttribute("href", "${url}");`);
+        }
+
+        await run("stale-load", 200);
+        await run("stale-error", 404);
+        await runWhileLoading("removed-while-loading", `target.removeAttribute("href");`);
+        await runWhileLoading("unparsable-while-loading", `target.setAttribute("href", "http://[");`);
+        await runAfterLoad("removed-after-load", `target.removeAttribute("href");`);
+        await runAfterLoad("unparsable-after-load", `target.setAttribute("href", "http://[");`);
+        await runRemovedByHandler("removed-by-load-handler", 200, "load");
+        await runRemovedByHandler("removed-by-error-handler", 404, "error");
+    });
+</script>

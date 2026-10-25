@@ -90,25 +90,55 @@ void SVGImageElement::process_the_url(Optional<Utf16String> const& href)
 {
     if (!href.has_value()) {
         m_href = {};
+        abandon_the_current_fetch();
         return;
     }
 
     m_href = document().encoding_parse_url(*href);
-    if (!m_href.has_value())
+    if (!m_href.has_value()) {
+        abandon_the_current_fetch();
         return;
+    }
 
     fetch_the_document(*m_href);
+}
+
+void SVGImageElement::abandon_the_current_fetch()
+{
+    // AD-HOC: Without a URL to fetch, the element has no image request. An earlier request that is still loading must
+    //         not fire events or keep delaying the load event, and an image that has already loaded is no longer the
+    //         element's image.
+    ++m_current_fetch_id;
+    m_load_event_delayer.clear();
+    if (!m_resource_request)
+        return;
+    unregister_with_decoded_image_data_if_needed();
+    m_resource_request = nullptr;
+    CSS::record_element_replaced_content_input(*this);
+    Painting::push_replaced_image_paint_facts(*this, *this);
+    set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
 }
 
 // https://svgwg.org/svg2-draft/linking.html#processingURL-fetch
 void SVGImageElement::fetch_the_document(URL::URL const& url)
 {
+    // NB: Replacing the delayer releases the one held for the previous request, so the document only waits for the
+    //     current request.
     m_load_event_delayer.emplace(document());
     unregister_with_decoded_image_data_if_needed();
-    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), url);
+    auto resource_request = HTML::SharedResourceRequest::get_or_create(document(), url);
+    m_resource_request = resource_request;
+    auto fetch_id = ++m_current_fetch_id;
     CSS::record_element_replaced_content_input(*this);
-    m_resource_request->add_callbacks(
-        [this, resource_request = GC::Root { m_resource_request }] {
+
+    // AD-HOC: A request that finishes after href has changed is no longer the element's image request. Its completion
+    //         must not fire events or release the load event delayer of the current request. Shared resource requests
+    //         are shared per URL, so each fetch gets its own ID instead of comparing requests.
+    resource_request->add_callbacks(
+        [this, fetch_id] {
+            if (fetch_id != m_current_fetch_id)
+                return;
+
             m_load_event_delayer.clear();
             register_with_decoded_image_data_if_needed();
             CSS::record_element_replaced_content_input(*this);
@@ -119,27 +149,36 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
             // When an Element element's associated image request has become completely available, run the algorithm
             // to process an image that finished loading passing in element and its associated image request as
             // inputs.
-            // NB: A request that finishes after href has changed is no longer the element's image request.
-            if (m_resource_request.ptr() == resource_request.ptr())
-                PaintTiming::process_an_image_that_finished_loading(*this, PaintTiming::image_request_info(Utf16String::from_utf8(resource_request->url().serialize()), resource_request->image_data()));
+            PaintTiming::process_an_image_that_finished_loading(*this, PaintTiming::image_request_info(Utf16String::from_utf8(m_resource_request->url().serialize()), m_resource_request->image_data()));
 
             dispatch_event(DOM::Event::create(HTML::EventNames::load,
                 HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
         },
-        [this] {
+        [this, fetch_id] {
+            if (fetch_id != m_current_fetch_id)
+                return;
+
             m_load_event_delayer.clear();
 
             dispatch_event(DOM::Event::create(HTML::EventNames::error,
                 HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
         },
-        [this] {
+        [this, fetch_id] {
+            if (fetch_id != m_current_fetch_id)
+                return;
+
             m_load_event_delayer.clear();
         });
 
-    if (m_resource_request->needs_fetching()) {
+    // NB: A request that has already completed runs its callbacks right away, and an event handler can change href.
+    //     Then this fetch is no longer the current one.
+    if (fetch_id != m_current_fetch_id)
+        return;
+
+    if (resource_request->needs_fetching()) {
         auto request = HTML::create_potential_CORS_request(url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
         request->set_client(&document().relevant_settings_object());
-        m_resource_request->fetch_resource(request);
+        resource_request->fetch_resource(request);
     }
 }
 

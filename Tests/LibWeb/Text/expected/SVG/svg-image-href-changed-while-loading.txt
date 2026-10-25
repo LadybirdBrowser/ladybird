@@ -1,0 +1,28 @@
+stale-load:
+    image load, width: 20
+    window load, width: 20
+stale-error:
+    image load, width: 20
+    window load, width: 20
+removed-while-loading:
+    witness load, width: 0
+    window load, width: 0
+unparsable-while-loading:
+    witness load, width: 0
+    window load, width: 0
+removed-after-load:
+    image load, width: 10
+    window load, width: 10
+    href changed, width: 0
+unparsable-after-load:
+    image load, width: 10
+    window load, width: 10
+    href changed, width: 0
+removed-by-load-handler:
+    witness load, width: 0
+    image load, width: 10
+    href set, width: 0
+removed-by-error-handler:
+    witness error, width: 0
+    image error, width: 0
+    href set, width: 0
