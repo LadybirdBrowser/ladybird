@@ -102,14 +102,19 @@ JustifyAlignment alignment_value_of_node(GC::Ptr<DOM::Node> node)
         return element->directionality() == DOM::Element::Directionality::Ltr ? JustifyAlignment::Right : JustifyAlignment::Left;
 
     // 5. If node's "text-align" property has resolved value "center", "justify", "left", or "right", return that value.
+    // INTEROP: The align attribute maps to the internal "text-align" values that also align block-level descendants.
+    //          Browsers give these the alignment value of the matching regular "text-align" value.
     switch (text_align_value.value()) {
     case CSS::Keyword::Center:
+    case CSS::Keyword::LibwebCenter:
         return JustifyAlignment::Center;
     case CSS::Keyword::Justify:
         return JustifyAlignment::Justify;
     case CSS::Keyword::Left:
+    case CSS::Keyword::LibwebLeft:
         return JustifyAlignment::Left;
     case CSS::Keyword::Right:
+    case CSS::Keyword::LibwebRight:
         return JustifyAlignment::Right;
     default:
         // 6. Return "left".
@@ -3135,8 +3140,9 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
         if (!node->is_editable() || !is<DOM::Element>(*node))
             return IterationDecision::Continue;
 
+        // AD-HOC: The align attribute of HTML elements is not in the HTML namespace, but in no namespace.
         auto& element = static_cast<DOM::Element&>(*node);
-        if (element.has_attribute_ns(Namespace::HTML, HTML::AttributeNames::align)
+        if (element.has_attribute(HTML::AttributeNames::align)
             || property_in_style_attribute(element, CSS::PropertyID::TextAlign)
             || element.local_name() == HTML::TagNames::center)
             element_list.append(element);
@@ -3147,8 +3153,9 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
     // 3. For each element in element list:
     for (auto element : element_list) {
         // 1. If element has an attribute in the HTML namespace whose local name is "align", remove that attribute.
-        if (element->has_attribute_ns(Namespace::HTML, HTML::AttributeNames::align))
-            remove_attribute_ns(*element, Namespace::HTML, HTML::AttributeNames::align);
+        // AD-HOC: See the note at step 2.
+        if (element->has_attribute(HTML::AttributeNames::align))
+            remove_attribute(*element, HTML::AttributeNames::align);
 
         // 2. Unset the CSS property "text-align" on element, if it's set by a style attribute.
         auto inline_style = element->style();
