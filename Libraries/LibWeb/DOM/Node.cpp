@@ -1947,11 +1947,10 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
         //    registry null.
         copy_element.shadow_root()->set_keep_custom_element_registry_null(node_element->shadow_root()->keep_custom_element_registry_null());
 
-        // 7. For each child of node’s shadow root’s children, in tree order:
-        //    clone a node given child with document set to document, subtree set to subtree, and parent set to copy’s
-        //    shadow root.
+        // 7. For each child of node’s shadow root’s children, in tree order: clone a node given child with document set
+        //    to document, subtree set to true, and parent set to copy’s shadow root.
         for (auto child = node_element->shadow_root()->first_child(); child; child = child->next_sibling()) {
-            TRY(child->clone_node(document, subtree, copy_element.shadow_root()));
+            TRY(child->clone_node(document, true, copy_element.shadow_root()));
         }
     }
 
