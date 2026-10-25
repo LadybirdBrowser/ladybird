@@ -28,7 +28,9 @@ GC::Ref<PopStateEvent> PopStateEvent::create(Utf16FlyString const& event_name, P
 
 GC::Ref<PopStateEvent> PopStateEvent::create(FlyString const& event_name, JS::Value state, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return GC::Heap::the().allocate<PopStateEvent>(event_name, state, time_stamp);
+    auto event = GC::Heap::the().allocate<PopStateEvent>(event_name, state, time_stamp);
+    event->set_is_trusted(true);
+    return event;
 }
 
 PopStateEvent::PopStateEvent(FlyString const& event_name, PopStateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
