@@ -10109,8 +10109,11 @@ void Document::publish_animation_keyframes_for_style_update()
     // NB: Read before the walk, so that a change the walk itself makes walks again next time.
     m_animation_keyframes_published_generation = m_style_sheet_set_generation;
     auto* host = style_computer().style_engine().host();
-    for (auto const& departed : m_departed_animation_keyframes)
+    for (auto const& departed : m_departed_animation_keyframes) {
         CSS::StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(host, departed.tree_scope.value(), departed.shadow_root_identity, {}, {}, {});
+        if (departed.has_position_try_rules)
+            CSS::StyleEngineFFI::style_engine_set_tree_scope_position_try_rules(host, departed.tree_scope.value(), {}, {}, {});
+    }
     m_departed_animation_keyframes.clear();
     style_scope().build_rule_cache_if_needed();
     for_each_shadow_root([](DOM::ShadowRoot& shadow_root) {

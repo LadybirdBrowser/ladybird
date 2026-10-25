@@ -2,17 +2,17 @@ Harness status: OK
 
 Found 12 tests
 
-3 Pass
-9 Fail
-Fail	Document position-try-fallbacks matches @position-try in document scope
+9 Pass
+3 Fail
+Pass	Document position-try-fallbacks matches @position-try in document scope
 Pass	Document position-try-fallbacks does not match @position-try in #outer_host scope
 Pass	Document position-try-fallbacks does not match @position-try in #inner_host scope
-Fail	Outer position-try-fallbacks matches @position-try in document scope
-Fail	Outer position-try-fallbacks matches @position-try in #outer_host scope
+Pass	Outer position-try-fallbacks matches @position-try in document scope
+Pass	Outer position-try-fallbacks matches @position-try in #outer_host scope
 Pass	Outer position-try-fallbacks does not match @position-try in #inner_host scope
-Fail	Inner position-try-fallbacks matches @position-try in document scope
-Fail	Inner position-try-fallbacks matches @position-try in #outer_host scope
-Fail	Inner position-try-fallbacks matches @position-try in #inner_host scope
+Pass	Inner position-try-fallbacks matches @position-try in document scope
+Pass	Inner position-try-fallbacks matches @position-try in #outer_host scope
+Pass	Inner position-try-fallbacks matches @position-try in #inner_host scope
 Fail	@position-try from same scope as :host rule
 Fail	@position-try from same scope as ::slotted() rule
 Fail	@position-try from same scope as ::part() rule

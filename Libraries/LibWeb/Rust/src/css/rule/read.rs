@@ -217,6 +217,15 @@ pub unsafe extern "C" fn rust_rule_view_name(
     }
 }
 
+/// The declarations of a `@position-try` rule, retained for the caller.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_rule_view_position_try_declarations(view: &NativeRuleView<'_>) -> *const DeclarationBlockData {
+    assert!(view.rule.rule_type() == NativeRuleType::PositionTry);
+    view.rule
+        .position_try_declarations()
+        .map_or(std::ptr::null(), Arc::into_raw)
+}
+
 /// # Safety
 /// The callback must not mutate the graph. Keys and declarations are borrowed for the callback.
 #[unsafe(no_mangle)]
@@ -351,6 +360,7 @@ impl<'a> RuleRef<'a> {
                 RulePayload::Property(property) => Some(property.name.clone()),
                 RulePayload::Keyframes(name) => Some(name.borrow().clone()),
                 RulePayload::CounterStyle(rule) => Some(rule.name()),
+                RulePayload::PositionTry { name, .. } => Some(name.clone()),
                 _ => None,
             },
             Self::Shared(rule, _) => rule.definition_name(),
@@ -494,6 +504,17 @@ impl<'a> RuleRef<'a> {
         match self {
             Self::Materialized(rule) => rule.cascade_declarations(),
             Self::Shared(rule, _) => rule.cascade_declarations(),
+        }
+    }
+
+    /// The declarations of a `@position-try` rule.
+    pub(crate) fn position_try_declarations(self) -> Option<Arc<DeclarationBlockData>> {
+        match self {
+            Self::Materialized(rule) => match &rule.payload {
+                RulePayload::PositionTry { declarations, .. } => Some(declarations.data()),
+                _ => None,
+            },
+            Self::Shared(rule, _) => rule.position_try_declarations(),
         }
     }
 

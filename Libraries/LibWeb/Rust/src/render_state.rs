@@ -170,6 +170,7 @@ impl RenderState {
                 rendering_preparation_pending: crate::painting::paint_passes::rendering_preparation_pending(arena)
                     .is_some(),
                 may_have_auto_content_visibility: arena.may_have_auto_content_visibility(),
+                may_have_position_options: arena.may_have_position_options(),
             },
             selector_attribute_value_text_requirements_version: engine
                 .selector_attribute_value_text_requirements_version(),
@@ -317,6 +318,8 @@ pub(crate) struct ArenaFacts {
     pub(crate) rendering_preparation_pending: bool,
     /// Whether a row has ever been given a style with `content-visibility: auto`.
     pub(crate) may_have_auto_content_visibility: bool,
+    /// Whether a box was laid out with position options, or has a last successful position option.
+    pub(crate) may_have_position_options: bool,
 }
 
 // Every write the host makes is moved through its queue and into the render state, so a variant that carries a large

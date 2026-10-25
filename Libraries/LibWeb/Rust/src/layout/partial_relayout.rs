@@ -171,6 +171,12 @@ impl LayoutNodeArena {
             return false;
         }
 
+        // https://drafts.csswg.org/css-anchor-position-1/#fallback-apply
+        // NB: Only a full layout pass determines the position fallback styles of a box.
+        if style.is_some_and(|style| style.anchor().position_try_fallbacks.length != 0) {
+            return false;
+        }
+
         // Only a full layout pass resolves anchor() functions in the inset properties to plain
         // values; a replay from saved inputs cannot.
         if node_facts::has_flag(data, NodeFlag::InsetsUseAnchorFunctions) {
@@ -650,6 +656,7 @@ impl LayoutNodeArena {
             },
             resolved_anchor_insets: None,
             resolved_anchor_sizes: Default::default(),
+            position_option: Default::default(),
         })
     }
 

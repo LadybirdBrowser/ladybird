@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 46 tests
 
-39 Pass
-7 Fail
+46 Pass
 Pass	, right:anchor(left), right:anchor(left)
 Pass	flip-block, right:anchor(left), right:anchor(left)
 Pass	flip-inline, bottom:anchor(top), bottom:anchor(top)
@@ -43,10 +42,10 @@ Pass	flip-start, left:anchor(self-end), top:anchor(bottom)
 Pass	flip-start, top:anchor(self-end), left:anchor(right)
 Pass	flip-block, bottom:anchor(self-start), top:anchor(bottom)
 Pass	flip-block, top:anchor(self-end), bottom:anchor(top)
-Fail	CSS Anchor Positioning: try-tactic, anchor()
-Fail	flip-inline
-Fail	flip-block
-Fail	flip-start
-Fail	flip-inline flip-start
-Fail	flip-start flip-block
-Fail	Can transform a value post-var-substitution
+Pass	CSS Anchor Positioning: try-tactic, anchor()
+Pass	flip-inline
+Pass	flip-block
+Pass	flip-start
+Pass	flip-inline flip-start
+Pass	flip-start flip-block
+Pass	Can transform a value post-var-substitution

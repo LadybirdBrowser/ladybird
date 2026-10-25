@@ -1,0 +1,68 @@
+<!doctype html>
+<html class=reftest-wait>
+<meta charset="utf-8">
+<title>CSS Anchor Positioning Test: @position-try with different default anchors,
+       switching to fixed-position anchor on scroll and back on another scroll</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#fallback-rule">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/position-try-switch-from-fixed-anchor-ref.html">
+<script src="../../common/reftest-wait.js"></script>
+<script src="../../common/rendering-utils.js"></script>
+<style>
+html {
+  scrollbar-width: none;
+}
+body {
+  width: 150vw;
+  height: 150vh;
+}
+.anchor {
+  width: 50px;
+  height: 50px;
+  background: orange;
+}
+#anchor1 {
+  anchor-name: --anchor1;
+  position: absolute;
+  top: 100px;
+  left: 350px;
+}
+#anchor2 {
+  anchor-name: --anchor2;
+  position:fixed;
+  right: 0;
+  bottom: 0;
+}
+#anchored {
+  position-anchor: --anchor1;
+  position-area: top;
+  position-try-fallbacks: --fixed;
+  position: fixed;
+  width: 50px;
+  height: 50px;
+  background: blue;
+}
+@position-try --fixed {
+  position-area: top left;
+  position-anchor: --anchor2;
+}
+</style>
+<div class="anchor" id="anchor1"></div>
+<div class="anchor" id="anchor2"></div>
+<div id="anchored"></div>
+<script>
+waitForAtLeastOneFrame().then(() => {
+  window.scrollTo(250, 100);
+  // The initial option no longer fits. Switch to fallback.
+  waitForAtLeastOneFrame().then(() => {
+    window.scrollTo(0, 0);
+
+    // The initial option would fit again, but so does the fallback. Redisplay
+    // to move away from the fallback option.
+    anchored.style.display = "none";
+    waitForAtLeastOneFrame().then(() => {
+      anchored.style.display = "block";
+      takeScreenshot();
+    });
+  });
+});
+</script>

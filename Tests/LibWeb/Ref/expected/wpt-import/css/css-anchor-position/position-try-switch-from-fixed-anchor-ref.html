@@ -1,0 +1,36 @@
+<!doctype html>
+<style>
+html {
+  scrollbar-width: none;
+}
+body {
+  width: 150vw;
+  height: 150vh;
+}
+.anchor {
+  width: 50px;
+  height: 50px;
+  background: orange;
+}
+#anchor1 {
+  position: absolute;
+  top: 100px;
+  left: 350px;
+}
+#anchor2 {
+  position:fixed;
+  right: 0;
+  bottom: 0;
+}
+#anchored {
+  position: absolute;
+  top: 50px;
+  left: 350px;
+  width: 50px;
+  height: 50px;
+  background: blue;
+}
+</style>
+<div class="anchor" id="anchor1"></div>
+<div class="anchor" id="anchor2"></div>
+<div id="anchored"></div>

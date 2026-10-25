@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-2 Pass
-2 Fail
+4 Pass
 Pass	position-try-fallbacks initially not matching any rules
-Fail	Enable @position-try rule stylesheet
-Fail	Insert overriding @position-try rule
+Pass	Enable @position-try rule stylesheet
+Pass	Insert overriding @position-try rule
 Pass	Disable the @position-try rules

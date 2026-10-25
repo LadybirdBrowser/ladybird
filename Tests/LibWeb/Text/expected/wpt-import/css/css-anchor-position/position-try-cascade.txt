@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-6 Fail
-Fail	@position-try rule applies
-Fail	@position-try rule wins over inline style
-Fail	@position-try rule does not win over !important
-Fail	@position-try rule does not win over animations
-Fail	@position-try rule does not win over transitions
-Fail	@position-try revert / revert-layer reverts to user / author origin
+6 Pass
+Pass	@position-try rule applies
+Pass	@position-try rule wins over inline style
+Pass	@position-try rule does not win over !important
+Pass	@position-try rule does not win over animations
+Pass	@position-try rule does not win over transitions
+Pass	@position-try revert / revert-layer reverts to user / author origin

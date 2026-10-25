@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<title>position-try-fallbacks:flip-block on bottom:anchor(outside)</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#position-try-fallbacks">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="position:relative; width:100px; height:100px; background:red;">
+  <div style="anchor-name:--a; height:20px; background:green;"></div>
+  <div style="position:absolute; position-anchor:--a; bottom:anchor(outside); position-try-fallbacks:flip-block; width:100px; height:80px; background:green;"></div>
+</div>

@@ -2,68 +2,68 @@ Harness status: OK
 
 Found 64 tests
 
-64 Fail
-Fail	none
-Fail	span-all
-Fail	span-all span-all
-Fail	top left
-Fail	top center
-Fail	top right
-Fail	center left
-Fail	center center
-Fail	center right
-Fail	bottom left
-Fail	bottom center
-Fail	bottom right
-Fail	start start
-Fail	start center
-Fail	start end
-Fail	center start
-Fail	center end
-Fail	end start
-Fail	end center
-Fail	end end
-Fail	self-start self-start
-Fail	self-start center
-Fail	self-start self-end
-Fail	center self-start
-Fail	center self-end
-Fail	self-end self-start
-Fail	self-end center
-Fail	self-end self-end
-Fail	y-start x-start
-Fail	y-start center
-Fail	y-start x-end
-Fail	center x-start
-Fail	center x-end
-Fail	y-end x-start
-Fail	y-end center
-Fail	y-end x-end
-Fail	self-y-start self-x-start
-Fail	self-y-start center
-Fail	self-y-start self-x-end
-Fail	center self-x-start
-Fail	center self-x-end
-Fail	self-y-end self-x-start
-Fail	self-y-end center
-Fail	self-y-end self-x-end
-Fail	span-self-y-start span-self-x-end
-Fail	span-bottom span-all
-Fail	Placement: --top
-Fail	Placement: --left
-Fail	Placement: --right, --top
-Fail	Placement: --bottom, --top
-Fail	Placement: --bottom, --right, --top
-Fail	Placement: --bottom, --right, --left, --top
-Fail	Placement: --bottom, --left, --top, --right
-Fail	Placement: --right flip-inline
-Fail	Placement: --bottom flip-block
-Fail	Placement: --left flip-start
-Fail	Placement: --right flip-x
-Fail	Placement: --bottom flip-y
-Fail	Placement: --left flip-inline, --top
-Fail	Placement: --left flip-x, --top
-Fail	Placement: --top flip-block, --left
-Fail	Placement: --top flip-y, --left
-Fail	Placement: --left flip-start flip-block, --left
-Fail	Placement: --left flip-start flip-y, --left
+64 Pass
+Pass	none
+Pass	span-all
+Pass	span-all span-all
+Pass	top left
+Pass	top center
+Pass	top right
+Pass	center left
+Pass	center center
+Pass	center right
+Pass	bottom left
+Pass	bottom center
+Pass	bottom right
+Pass	start start
+Pass	start center
+Pass	start end
+Pass	center start
+Pass	center end
+Pass	end start
+Pass	end center
+Pass	end end
+Pass	self-start self-start
+Pass	self-start center
+Pass	self-start self-end
+Pass	center self-start
+Pass	center self-end
+Pass	self-end self-start
+Pass	self-end center
+Pass	self-end self-end
+Pass	y-start x-start
+Pass	y-start center
+Pass	y-start x-end
+Pass	center x-start
+Pass	center x-end
+Pass	y-end x-start
+Pass	y-end center
+Pass	y-end x-end
+Pass	self-y-start self-x-start
+Pass	self-y-start center
+Pass	self-y-start self-x-end
+Pass	center self-x-start
+Pass	center self-x-end
+Pass	self-y-end self-x-start
+Pass	self-y-end center
+Pass	self-y-end self-x-end
+Pass	span-self-y-start span-self-x-end
+Pass	span-bottom span-all
+Pass	Placement: --top
+Pass	Placement: --left
+Pass	Placement: --right, --top
+Pass	Placement: --bottom, --top
+Pass	Placement: --bottom, --right, --top
+Pass	Placement: --bottom, --right, --left, --top
+Pass	Placement: --bottom, --left, --top, --right
+Pass	Placement: --right flip-inline
+Pass	Placement: --bottom flip-block
+Pass	Placement: --left flip-start
+Pass	Placement: --right flip-x
+Pass	Placement: --bottom flip-y
+Pass	Placement: --left flip-inline, --top
+Pass	Placement: --left flip-x, --top
+Pass	Placement: --top flip-block, --left
+Pass	Placement: --top flip-y, --left
+Pass	Placement: --left flip-start flip-block, --left
+Pass	Placement: --left flip-start flip-y, --left

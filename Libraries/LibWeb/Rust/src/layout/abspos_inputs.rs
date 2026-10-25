@@ -144,6 +144,19 @@ impl AbsposContainingBlockInfo {
     }
 }
 
+/// The position option a box was laid out with: an entry of its position options list, which was made of the base
+/// styles of one style record.
+/// https://drafts.csswg.org/css-anchor-position-1/#last-successful-position-option
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct PositionOptionChoice {
+    /// 0 for the base styles, or one more than the index of the position-try-fallbacks entry that made the option.
+    pub(crate) option: u32,
+    pub(crate) base_style_record: u64,
+    /// The identity of the @position-try rule the entry names, or 0 where it names none.
+    /// NB: A choice whose rule was replaced since is no longer the box's last successful position option.
+    pub(crate) rule: usize,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AbsposLayoutInputs {
     pub(crate) containing_block: super::formatting_context::Node,
@@ -152,6 +165,7 @@ pub(crate) struct AbsposLayoutInputs {
     pub(crate) containing_block_info: AbsposContainingBlockInfo,
     pub(crate) resolved_anchor_insets: Option<super::formatting_context::ResolvedAnchorInsets>,
     pub(crate) resolved_anchor_sizes: super::style_values::ResolvedAnchorSizes,
+    pub(crate) position_option: PositionOptionChoice,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

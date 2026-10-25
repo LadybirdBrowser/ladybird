@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Nothing fits after a fallback fit in a previous layout without rendering
+1 Pass
+Pass	Nothing fits after a fallback fit in a previous layout without rendering

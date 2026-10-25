@@ -396,6 +396,15 @@ impl<'a> SharedRule<'a> {
         }
     }
 
+    pub(crate) fn position_try_declarations(self) -> Option<Arc<DeclarationBlockData>> {
+        match self.data {
+            SharedRuleData::Rule(rule) if self.rule_type == NativeRuleType::PositionTry => {
+                rule.declaration_block.clone()
+            }
+            _ => None,
+        }
+    }
+
     pub(crate) fn visit_children(self, visit: &mut impl FnMut(Self) -> ControlFlow<()>) -> ControlFlow<()> {
         let SharedRuleData::Rule(rule) = self.data else {
             return ControlFlow::Continue(());

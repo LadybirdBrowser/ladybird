@@ -114,6 +114,11 @@ pub(crate) enum EngineWrite {
         shadow_root_identity: usize,
         row: super::animations::KeyframesRow,
     },
+    /// The `@position-try` row of one style scope.
+    PositionTryRules {
+        tree_scope: TreeScopeID,
+        row: super::position_try::PositionTryRow,
+    },
     /// The effects one of an element's animation lists holds, in composite order, described for the engine to sample
     /// them from.
     AnimationEffectDescriptions {
@@ -246,6 +251,7 @@ impl EngineWrite {
                 shadow_root_identity,
                 row,
             } => engine.animation_keyframes.set(tree_scope, shadow_root_identity, row),
+            Self::PositionTryRules { tree_scope, row } => engine.position_try_rules.set(tree_scope, row),
             Self::AnimationEffectDescriptions { node, slot, effects } => {
                 engine.animation_effect_descriptions.set(node, slot, effects);
             }

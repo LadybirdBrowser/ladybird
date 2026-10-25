@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	--pf
-Fail	--pf flip-block
-Fail	--pf flip-inline
-Fail	--pf flip-block flip-inline
-Fail	--pf flip-start
-Fail	--pf flip-block flip-start
-Fail	--pf flip-inline flip-start
-Fail	--pf flip-block flip-inline flip-start
+8 Pass
+Pass	--pf
+Pass	--pf flip-block
+Pass	--pf flip-inline
+Pass	--pf flip-block flip-inline
+Pass	--pf flip-start
+Pass	--pf flip-block flip-start
+Pass	--pf flip-inline flip-start
+Pass	--pf flip-block flip-inline flip-start
