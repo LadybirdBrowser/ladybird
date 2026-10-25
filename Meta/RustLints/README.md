@@ -11,6 +11,9 @@ plugin:
   type that implements `Trace`.
 - `untraced_gc_pointer`: a field marked `#[gc(untraced)]`, which `#[derive(Trace)]` skips, whose type can hold a GC
   pointer. A field whose cells something else keeps alive says what with `#[gc(untraced = "...")]`.
+- `gc_pointer_in_drop`: the `Drop` of a type that the crate's cells own, by value or through heap memory, dereferences a
+  `Gc`. Cells are dropped while the collector sweeps, when the cells they point to may be gone already. What needs other
+  cells belongs in `Finalize`, which runs while every cell that dies is intact.
 
 A GC pointer is a reference to a `GcCell`, a value of a type of the crate that implements `Trace` by hand, as `Gc`,
 `Value` and `PropertyKey` do, or a trait object whose trait requires `Trace`. A type that hides cell pointers in its

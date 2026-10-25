@@ -15,10 +15,10 @@ use rustc_errors::DiagDecorator;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{DefId, LOCAL_CRATE, LocalDefId};
 use rustc_hir::intravisit::FnKind;
-use rustc_hir::{Body, ByRef, Expr, ExprKind, FnDecl, FnRetTy, HirId, Item, ItemKind, Node, Pat, PatKind};
+use rustc_hir::{Body, ByRef, Expr, ExprKind, FnDecl, FnRetTy, HirId, Item, ItemKind, Node, Pat, PatKind, UnOp};
 use rustc_lint::{LateContext, LateLintPass, Lint};
 use rustc_middle::lint::LintLevelSource;
-use rustc_middle::ty::adjustment::{Adjust, PointerCoercion};
+use rustc_middle::ty::adjustment::{Adjust, DerefAdjustKind, PointerCoercion};
 use rustc_middle::ty::print::with_forced_trimmed_paths;
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_session::{declare_lint, impl_lint_pass};
@@ -52,7 +52,21 @@ declare_lint! {
     "GC pointers in a field that `#[derive(Trace)]` skips"
 }
 
-pub static LINTS: &[&Lint] = &[GC_CONTAINER_ON_STACK, ROOT_IN_TRACED_TYPE, UNTRACED_GC_POINTER];
+declare_lint! {
+    /// The `Drop` of a type that cells own dereferences a GC pointer. Cells are dropped while the collector sweeps, by
+    /// when the cells they point to may be gone. Do what needs other cells in `Finalize`, which runs while every cell
+    /// that dies is still intact.
+    pub GC_POINTER_IN_DROP,
+    Deny,
+    "GC pointer dereferenced while a cell is dropped"
+}
+
+pub static LINTS: &[&Lint] = &[
+    GC_CONTAINER_ON_STACK,
+    ROOT_IN_TRACED_TYPE,
+    UNTRACED_GC_POINTER,
+    GC_POINTER_IN_DROP,
+];
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
@@ -89,6 +103,8 @@ pub struct GcLints<'tcx> {
     holds_no_cells_types: FxHashSet<DefId>,
     keeps_alive_types: FxHashSet<DefId>,
     defers_collections_types: FxHashSet<DefId>,
+    /// The local types that cells of this crate own, which are dropped with them.
+    types_in_cells: Option<FxHashSet<DefId>>,
     /// Whether each type has a field that defers collections, which its values cannot outlive.
     deferral_scoped: FxHashMap<DefId, bool>,
     reaches_gc_pointer: FxHashMap<Ty<'tcx>, bool>,
@@ -102,6 +118,7 @@ impl_lint_pass!(GcLints<'_> => [
     GC_CONTAINER_ON_STACK,
     ROOT_IN_TRACED_TYPE,
     UNTRACED_GC_POINTER,
+    GC_POINTER_IN_DROP,
 ]);
 
 const LIBJS_CRATE: &str = "libjs_rust";
@@ -382,6 +399,68 @@ impl<'tcx> GcLints<'tcx> {
         false
     }
 
+    /// The local types that the cells of this crate own by value or through heap memory, which are dropped when the
+    /// collector sweeps the cells.
+    fn types_in_cells(&mut self, cx: &LateContext<'tcx>) -> &FxHashSet<DefId> {
+        if self.types_in_cells.is_none() {
+            let mut found = FxHashSet::default();
+            let mut pending: Vec<Ty<'tcx>> = self
+                .cell_types
+                .iter()
+                .filter(|def_id| def_id.is_local())
+                .map(|&def_id| cx.tcx.type_of(def_id).instantiate_identity().skip_normalization())
+                .collect();
+            let mut seen = FxHashSet::default();
+            while let Some(ty) = pending.pop() {
+                if !seen.insert(ty) {
+                    continue;
+                }
+                if let ty::Adt(adt, _) = ty.kind()
+                    && adt.did().is_local()
+                {
+                    found.insert(adt.did());
+                }
+                pending.extend(
+                    self.components(cx, ty, Target::UnscannedGcPointer)
+                        .into_iter()
+                        .map(|(component, _)| component),
+                );
+            }
+            self.types_in_cells = Some(found);
+        }
+        self.types_in_cells.as_ref().expect("computed above")
+    }
+
+    /// Whether the expression dereferences a pointer to a cell, as calling a method of the cell through a `Gc` does.
+    fn derefs_gc_pointer(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> bool {
+        let results = cx.typeck_results();
+        let is_cell =
+            |this: &Self, ty: Ty<'tcx>| matches!(ty.kind(), ty::Adt(adt, _) if this.cell_types.contains(&adt.did()));
+        if let ExprKind::Unary(UnOp::Deref, _) = expr.kind
+            && is_cell(self, results.expr_ty(expr))
+        {
+            return true;
+        }
+        results.expr_adjustments(expr).iter().any(|adjustment| {
+            matches!(adjustment.kind, Adjust::Deref(DerefAdjustKind::Overloaded(_))) && is_cell(self, adjustment.target)
+        })
+    }
+
+    /// The type whose `Drop::drop` the expression `hir_id` is in, if it is one that cells own.
+    fn enclosing_drop_of_type_in_cells(&mut self, cx: &LateContext<'tcx>, hir_id: HirId) -> Option<DefId> {
+        let tcx = cx.tcx;
+        let owner = hir_id.owner.def_id;
+        let impl_id = tcx.trait_impl_of_assoc(owner.to_def_id())?;
+        if Some(tcx.impl_trait_id(impl_id)) != tcx.lang_items().drop_trait() {
+            return None;
+        }
+        let ty::Adt(adt, _) = tcx.type_of(impl_id).instantiate_identity().skip_normalization().kind() else {
+            return None;
+        };
+        let did = adt.did();
+        self.types_in_cells(cx).contains(&did).then_some(did)
+    }
+
     fn emit(&mut self, cx: &LateContext<'_>, lint: &'static Lint, hir_id: HirId, span: Span, message: String) {
         let spec = cx.tcx.lint_level_spec_at_node(lint, hir_id);
         if (spec.is_allow() || spec.is_expect())
@@ -585,6 +664,20 @@ impl<'tcx> LateLintPass<'tcx> for GcLints<'tcx> {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if !self.enabled {
             return;
+        }
+        if self.derefs_gc_pointer(cx, expr)
+            && let Some(dropped) = self.enclosing_drop_of_type_in_cells(cx, expr.hir_id)
+        {
+            self.emit(
+                cx,
+                GC_POINTER_IN_DROP,
+                expr.hir_id,
+                expr.span,
+                format!(
+                    "the Drop of '{}', which cells own, dereferences a GC pointer, whose cell may be swept already",
+                    cx.tcx.def_path_str(dropped)
+                ),
+            );
         }
         // Boxing a closure into a `dyn Fn` hides its captures from the type of whatever holds it next, unless the trait
         // object still shows them by implementing Trace.

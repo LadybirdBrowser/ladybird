@@ -17,6 +17,15 @@ pub mod layout {
         }
 
         impl<T: ?Sized> Copy for Gc<T> {}
+
+        impl<T: crate::gc::class::GcCell> core::ops::Deref for Gc<T> {
+            type Target = T;
+
+            fn deref(&self) -> &T {
+                // SAFETY: Stand-in.
+                unsafe { self.0.as_ref() }
+            }
+        }
     }
 
     pub mod value {
@@ -152,3 +161,7 @@ unsafe impl Trace for Cell {
 }
 
 unsafe impl gc::class::GcCell for Cell {}
+
+impl Cell {
+    pub fn method(&self) {}
+}
