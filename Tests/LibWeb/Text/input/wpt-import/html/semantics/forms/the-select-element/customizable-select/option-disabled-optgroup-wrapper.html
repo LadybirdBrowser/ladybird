@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<link rel=help href="https://html.spec.whatwg.org/multipage/form-elements.html#concept-option-disabled">
+<link rel=help href="https://html.spec.whatwg.org/multipage/form-elements.html#selectedness-setting-algorithm">
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+
+<body>
+<script>
+test(() => {
+  const select = document.createElement('select');
+  const optgroup = document.createElement('optgroup');
+  optgroup.disabled = true;
+  const div = document.createElement('div');
+  const option = document.createElement('option');
+  div.appendChild(option);
+  optgroup.appendChild(div);
+  select.appendChild(optgroup);
+  document.body.appendChild(select);
+
+  assert_true(option.matches(':disabled'),
+    'Option inside <optgroup disabled><div> should match :disabled');
+  select.remove();
+}, ':disabled matches option in wrapper inside disabled optgroup');
+
+test(() => {
+  const select = document.createElement('select');
+  const optgroup = document.createElement('optgroup');
+  const div = document.createElement('div');
+  const option = document.createElement('option');
+  div.appendChild(option);
+  optgroup.appendChild(div);
+  select.appendChild(optgroup);
+  document.body.appendChild(select);
+
+  assert_false(option.matches(':disabled'),
+    'Option should not be disabled before optgroup is disabled');
+  optgroup.disabled = true;
+  assert_true(option.matches(':disabled'),
+    'Option should become disabled when optgroup becomes disabled');
+  optgroup.disabled = false;
+  assert_false(option.matches(':disabled'),
+    'Option should become enabled when optgroup becomes enabled');
+  select.remove();
+}, ':disabled updates dynamically when optgroup disabled changes with wrapper');
+
+test(() => {
+  const select = document.createElement('select');
+  const optgroup = document.createElement('optgroup');
+  optgroup.disabled = true;
+  const div = document.createElement('div');
+  const disabledOption = document.createElement('option');
+  disabledOption.value = 'disabled-wrapped';
+  div.appendChild(disabledOption);
+  optgroup.appendChild(div);
+  select.appendChild(optgroup);
+
+  const enabledOption = document.createElement('option');
+  enabledOption.value = 'enabled';
+  select.appendChild(enabledOption);
+
+  document.body.appendChild(select);
+
+  assert_equals(select.value, 'enabled',
+    'Selectedness setting algorithm should skip disabled wrapped option');
+  assert_equals(select.selectedIndex, 1,
+    'selectedIndex should point to the enabled option');
+  select.remove();
+}, 'selectedness setting algorithm skips wrapped options in disabled optgroup');
+</script>

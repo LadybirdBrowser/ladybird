@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	:disabled matches option in wrapper inside disabled optgroup
+Fail	:disabled updates dynamically when optgroup disabled changes with wrapper
+Fail	selectedness setting algorithm skips wrapped options in disabled optgroup
