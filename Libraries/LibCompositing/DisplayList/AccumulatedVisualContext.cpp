@@ -154,28 +154,12 @@ AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_animation
     return adopt_rust_handle(Compositing::RustFFI::visual_context_tree_with_visual_animation_samples(m_rust_tree, monotonic_time_ns));
 }
 
-Optional<float> AccumulatedVisualContextTree::effects_opacity(EffectNodeIndex effect) const
-{
-    float opacity = 1;
-    if (!Compositing::RustFFI::visual_context_tree_effects_opacity(m_rust_tree, effect, &opacity))
-        return {};
-    return opacity;
-}
-
 Optional<Gfx::Color> AccumulatedVisualContextTree::sampled_background_color(EffectNodeIndex effect) const
 {
     Gfx::Color color;
     if (!Compositing::RustFFI::visual_context_tree_sampled_background_color(m_rust_tree, effect, &color))
         return {};
     return color;
-}
-
-Vector<bool> AccumulatedVisualContextTree::spatial_nodes_in_subtrees_of(ReadonlySpan<SpatialNodeIndex> roots) const
-{
-    Vector<bool> in_subtree;
-    in_subtree.resize(spatial_node_count());
-    Compositing::RustFFI::visual_context_tree_mark_spatial_subtrees(m_rust_tree, roots.data(), roots.size(), in_subtree.data(), in_subtree.size());
-    return in_subtree;
 }
 
 Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(ContextRef context, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state, ClipBehavior clip_behavior) const
@@ -214,16 +198,6 @@ Gfx::FloatMatrix4x4 AccumulatedVisualContextTree::accumulated_matrix(SpatialNode
 {
     auto scroll_offsets = scroll_state.device_offsets();
     return Compositing::RustFFI::visual_context_tree_accumulated_matrix(m_rust_tree, index, scroll_offsets.data(), scroll_offsets.size(), include_visual_viewport_transform == IncludeVisualViewportTransform::Yes);
-}
-
-bool AccumulatedVisualContextTree::effect_is_isolated_by_layer(EffectNodeIndex effect) const
-{
-    return Compositing::RustFFI::visual_context_tree_effect_is_isolated_by_layer(m_rust_tree, effect);
-}
-
-bool AccumulatedVisualContextTree::has_unisolated_destination_reading_effect() const
-{
-    return Compositing::RustFFI::visual_context_tree_has_unisolated_destination_reading_effect(m_rust_tree);
 }
 
 void AccumulatedVisualContextTree::for_each_effects_filter_image_frame_id(Function<void(u64)> const& visit) const
