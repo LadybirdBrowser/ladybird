@@ -11,8 +11,8 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Fields, Index, parse_macro_input};
 
-/// Implements Trace by tracing every field. A field marked #[gc(untraced)] is skipped; it has to hold no cells, or
-/// cells something else keeps alive and the cell's owner clears once they die, like an inline cache's shapes.
+/// Implements Trace by tracing every field. A field marked #[gc(untraced)] is skipped and holds no cells, or says what
+/// keeps them alive: #[gc(untraced = "the realm traces the shapes")].
 ///
 /// The Trace trait is crate::gc::visitor::Trace, or path::gc::visitor::Trace for a type marked #[gc(crate = path)],
 /// such as a type that an embedder puts in cells of the runtime's heap from a crate of its own.
@@ -108,9 +108,19 @@ fn trace_fields(fields: &Fields, gc: &TokenStream2, access: impl Fn(TokenStream2
 
 fn is_untraced(field: &syn::Field) -> bool {
     field.attrs.iter().any(|attribute| {
-        attribute.path().is_ident("gc")
-            && attribute
-                .parse_args::<syn::Ident>()
-                .is_ok_and(|argument| argument == "untraced")
+        if !attribute.path().is_ident("gc") {
+            return false;
+        }
+        let mut untraced = false;
+        let _ = attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("untraced") {
+                untraced = true;
+                if meta.input.peek(syn::Token![=]) {
+                    meta.value()?.parse::<syn::LitStr>()?;
+                }
+            }
+            Ok(())
+        });
+        untraced
     })
 }

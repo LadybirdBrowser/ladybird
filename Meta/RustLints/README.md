@@ -1,6 +1,7 @@
 # Rust GC lints
 
-A rustc driver with lints for the Rust crates that use libjs_rust's GC, ported from the LibJSGC clang plugin:
+A rustc driver with lints for the Rust crates that use libjs_rust's GC, the first two ported from the LibJSGC clang
+plugin:
 
 - `gc_container_on_stack` (`gc_pointer_container_on_stack` in C++): a local, parameter, return value or unsizing
   coercion whose type owns a GC pointer through heap memory that the collector does not scan (`Vec`, `VecDeque`,
@@ -8,6 +9,8 @@ A rustc driver with lints for the Rust crates that use libjs_rust's GC, ported f
   these, ...). Keep such lists in a `MarkedVec`, or lend them from one.
 - `root_in_traced_type` (`strong_root_fields_in_gc_allocated_types`): a field that holds a `Root` or `MarkedVec` in a
   type that implements `Trace`.
+- `untraced_gc_pointer`: a field marked `#[gc(untraced)]`, which `#[derive(Trace)]` skips, whose type can hold a GC
+  pointer. A field whose cells something else keeps alive says what with `#[gc(untraced = "...")]`.
 
 A GC pointer is a reference to a `GcCell`, a value of a type of the crate that implements `Trace` by hand, as `Gc`,
 `Value` and `PropertyKey` do, or a trait object whose trait requires `Trace`. A type that hides cell pointers in its

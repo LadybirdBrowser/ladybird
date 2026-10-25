@@ -111,23 +111,38 @@ fn main() -> ExitCode {
     // Stand-ins for the crates whose items the lints know by path. The tests name libjs_rust's as `js`, as code outside
     // LibJS may not name the runtime's own modules (see Meta/Linters/check_libjs_rust_api.py).
     let mut externs = Vec::new();
-    for (crate_name, alias) in [("libjs_rust", "js"), ("smallvec", "smallvec")] {
+    for (crate_name, alias, crate_type) in [
+        ("libjs_rust", "js", "lib"),
+        ("smallvec", "smallvec", "lib"),
+        ("libjs_runtime_macros", "libjs_runtime_macros", "proc-macro"),
+    ] {
         let source = ui.join(format!("auxiliary/{crate_name}.rs"));
-        let rlib = out_dir.join(format!("lib{crate_name}.rlib"));
-        let _ = std::fs::remove_file(&rlib);
-        let stderr = run_driver(&[
-            source.to_str().expect("UTF-8 path"),
-            "--crate-type=lib",
-            &format!("--crate-name={crate_name}"),
-            "--edition=2024",
-            "--out-dir",
-            out_dir.to_str().expect("UTF-8 path"),
-        ]);
-        if !rlib.exists() {
+        let library = match crate_type {
+            "proc-macro" => out_dir.join(format!(
+                "{}{crate_name}{}",
+                std::env::consts::DLL_PREFIX,
+                std::env::consts::DLL_SUFFIX
+            )),
+            _ => out_dir.join(format!("lib{crate_name}.rlib")),
+        };
+        let _ = std::fs::remove_file(&library);
+        let mut args = vec![
+            source.to_str().expect("UTF-8 path").to_owned(),
+            format!("--crate-type={crate_type}"),
+            format!("--crate-name={crate_name}"),
+            "--edition=2024".to_owned(),
+            "--out-dir".to_owned(),
+            out_dir.to_str().expect("UTF-8 path").to_owned(),
+        ];
+        if crate_type == "proc-macro" {
+            args.extend(["--extern".to_owned(), "proc_macro".to_owned()]);
+        }
+        let stderr = run_driver(&args.iter().map(String::as_str).collect::<Vec<_>>());
+        if !library.exists() {
             eprintln!("building the {crate_name} stand-in failed:\n{stderr}");
             return ExitCode::FAILURE;
         }
-        externs.push(format!("{alias}={}", rlib.display()));
+        externs.push(format!("{alias}={}", library.display()));
     }
 
     let filter = std::env::args().nth(1);
