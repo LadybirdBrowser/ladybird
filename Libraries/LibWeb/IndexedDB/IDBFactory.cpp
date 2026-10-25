@@ -105,6 +105,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(Utf16String cons
                 // 4. Fire an event named error at request with its bubbles and cancelable attributes initialized to true.
                 request->dispatch_event(DOM::Event::create(
                     HTML::EventNames::error,
+                    { .bubbles = true, .cancelable = true },
                     current_high_resolution_time(request->relevant_global_scope())));
             } else {
                 // 1. Set request’s result to result.
