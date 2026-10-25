@@ -33,21 +33,35 @@ GC_DEFINE_ALLOCATOR(SharedResourceRequest);
 
 static u64 s_next_memory_cache_touch_serial;
 
-GC::Ref<SharedResourceRequest> SharedResourceRequest::get_or_create(DOM::Document& document, URL::URL const& url)
+GC::Ref<SharedResourceRequest> SharedResourceRequest::get_or_create(DOM::Document& document, URL::URL const& url, CORSSettingAttribute cors_setting)
 {
+    Key key { url, cors_setting };
     auto& shared_resource_requests = document.shared_resource_requests();
-    if (auto it = shared_resource_requests.find(url); it != shared_resource_requests.end()) {
+    if (auto it = shared_resource_requests.find(key); it != shared_resource_requests.end()) {
         it->value->touch_memory_cache_entry();
         return *it->value;
     }
-    auto request = GC::Heap::the().allocate<SharedResourceRequest>(document.page(), url, document);
-    shared_resource_requests.set(url, request);
+    auto request = GC::Heap::the().allocate<SharedResourceRequest>(document.page(), key, document);
+    shared_resource_requests.set(move(key), request);
     return request;
 }
 
-SharedResourceRequest::SharedResourceRequest(GC::Ref<Page> page, URL::URL url, GC::Ref<DOM::Document> document)
+GC::Ref<SharedResourceRequest> SharedResourceRequest::get_or_create(DOM::Document& document, Fetch::Infrastructure::Request const& request)
+{
+    // NB: This is the CORS settings attribute state that creating a potential-CORS request turns into the mode and
+    //     credentials mode of request.
+    auto cors_setting = CORSSettingAttribute::NoCORS;
+    if (request.mode() != Fetch::Infrastructure::Request::Mode::NoCORS) {
+        cors_setting = request.credentials_mode() == Fetch::Infrastructure::Request::CredentialsMode::Include
+            ? CORSSettingAttribute::UseCredentials
+            : CORSSettingAttribute::Anonymous;
+    }
+    return get_or_create(document, request.url(), cors_setting);
+}
+
+SharedResourceRequest::SharedResourceRequest(GC::Ref<Page> page, Key key, GC::Ref<DOM::Document> document)
     : m_page(page)
-    , m_url(move(url))
+    , m_key(move(key))
     , m_document(document)
 {
     touch_memory_cache_entry();
@@ -69,7 +83,7 @@ void SharedResourceRequest::finalize()
 void SharedResourceRequest::remove_from_document()
 {
     auto& shared_resource_requests = m_document->shared_resource_requests();
-    if (auto it = shared_resource_requests.find(m_url); it != shared_resource_requests.end() && it->value.ptr() == this)
+    if (auto it = shared_resource_requests.find(m_key); it != shared_resource_requests.end() && it->value.ptr() == this)
         shared_resource_requests.remove(it);
 }
 

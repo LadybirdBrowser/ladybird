@@ -164,7 +164,7 @@ GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(St
     if (!request)
         return {};
 
-    auto shared_resource_request = HTML::SharedResourceRequest::get_or_create(document, request->url());
+    auto shared_resource_request = HTML::SharedResourceRequest::get_or_create(document, *request);
 
     if (shared_resource_request->needs_fetching())
         shared_resource_request->fetch_resource(*request);

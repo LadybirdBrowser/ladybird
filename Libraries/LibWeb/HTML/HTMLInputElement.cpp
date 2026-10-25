@@ -1865,7 +1865,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16View value
     //     the networking task source once the resource has been fetched (defined below) has been run.
     m_load_event_delayer.emplace(document());
 
-    m_resource_request = SharedResourceRequest::get_or_create(document(), request->url());
+    m_resource_request = SharedResourceRequest::get_or_create(document(), *request);
     CSS::record_element_replaced_content_input(*this);
     m_resource_request->add_callbacks(
         [this]() {

@@ -12,6 +12,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/CORSSettingAttribute.h>
 
 namespace Web::HTML {
 
@@ -20,11 +21,22 @@ class SharedResourceRequest final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(SharedResourceRequest);
 
 public:
-    [[nodiscard]] static GC::Ref<SharedResourceRequest> get_or_create(DOM::Document&, URL::URL const&);
+    // NB: Only requests with the same CORS mode and credentials mode share a resource, so that each of them gets the
+    //     CORS and Cross-Origin-Resource-Policy checks for its own kind of request. Like the key of the list of
+    //     available images, this leaves out the origin, which is the same for every request of a document.
+    struct Key {
+        URL::URL url;
+        CORSSettingAttribute cors_setting { CORSSettingAttribute::NoCORS };
+
+        [[nodiscard]] bool operator==(Key const&) const = default;
+    };
+
+    [[nodiscard]] static GC::Ref<SharedResourceRequest> get_or_create(DOM::Document&, URL::URL const&, CORSSettingAttribute);
+    [[nodiscard]] static GC::Ref<SharedResourceRequest> get_or_create(DOM::Document&, Fetch::Infrastructure::Request const&);
 
     virtual ~SharedResourceRequest() override;
 
-    URL::URL const& url() const { return m_url; }
+    URL::URL const& url() const { return m_key.url; }
 
     [[nodiscard]] GC::Ptr<DecodedImageData> image_data() const;
     [[nodiscard]] bool can_be_pruned_from_memory_cache() const;
@@ -42,7 +54,7 @@ public:
     bool needs_fetching() const;
 
 private:
-    explicit SharedResourceRequest(GC::Ref<Page>, URL::URL, GC::Ref<DOM::Document>);
+    explicit SharedResourceRequest(GC::Ref<Page>, Key, GC::Ref<DOM::Document>);
 
     virtual void finalize() override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -77,7 +89,7 @@ private:
     };
     Vector<Callbacks> m_callbacks;
 
-    URL::URL m_url;
+    Key m_key;
     GC::Ptr<DecodedImageData> m_image_data;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     u64 m_cache_touch_serial { 0 };
@@ -85,6 +97,18 @@ private:
     GC::Ptr<DOM::Document> m_document;
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
+};
+
+}
+
+namespace AK {
+
+template<>
+struct Traits<Web::HTML::SharedResourceRequest::Key> : public DefaultTraits<Web::HTML::SharedResourceRequest::Key> {
+    static unsigned hash(Web::HTML::SharedResourceRequest::Key const& key)
+    {
+        return pair_int_hash(Traits<URL::URL>::hash(key.url), to_underlying(key.cors_setting));
+    }
 };
 
 }

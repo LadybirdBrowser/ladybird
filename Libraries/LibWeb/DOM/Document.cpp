@@ -7969,12 +7969,12 @@ void Document::set_latest_entry(RefPtr<HTML::SessionHistoryEntry> entry)
     m_latest_entry = move(entry);
 }
 
-HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& Document::shared_resource_requests()
+HashMap<HTML::SharedResourceRequest::Key, GC::Ptr<HTML::SharedResourceRequest>>& Document::shared_resource_requests()
 {
     return m_shared_resource_requests;
 }
 
-HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> const& Document::shared_resource_requests() const
+HashMap<HTML::SharedResourceRequest::Key, GC::Ptr<HTML::SharedResourceRequest>> const& Document::shared_resource_requests() const
 {
     return m_shared_resource_requests;
 }
@@ -8031,7 +8031,7 @@ void Document::prune_image_resource_caches()
             auto const& request = *it.value;
             if (!request.can_be_pruned_from_memory_cache())
                 continue;
-            if (is_used_by_css_image_resource(it.key, request))
+            if (is_used_by_css_image_resource(it.key.url, request))
                 continue;
             ++count;
             if (auto image_data = request.image_data())
@@ -8044,25 +8044,25 @@ void Document::prune_image_resource_caches()
 
     auto size = cache_size();
     while (size.decoded_image_size > decoded_image_resource_cache_limit || size.decoded_image_count > decoded_image_resource_cache_count_limit) {
-        Optional<URL::URL> least_recently_used_url;
+        Optional<HTML::SharedResourceRequest::Key> least_recently_used_key;
         u64 least_recently_used_serial = NumericLimits<u64>::max();
 
         for (auto const& it : m_shared_resource_requests) {
             auto const& request = *it.value;
             if (!request.can_be_pruned_from_memory_cache())
                 continue;
-            if (is_used_by_css_image_resource(it.key, request))
+            if (is_used_by_css_image_resource(it.key.url, request))
                 continue;
             if (request.cache_touch_serial() >= least_recently_used_serial)
                 continue;
-            least_recently_used_url = it.key;
+            least_recently_used_key = it.key;
             least_recently_used_serial = request.cache_touch_serial();
         }
 
-        if (!least_recently_used_url.has_value())
+        if (!least_recently_used_key.has_value())
             break;
 
-        m_shared_resource_requests.remove(least_recently_used_url.value());
+        m_shared_resource_requests.remove(least_recently_used_key.value());
 
         auto new_size = cache_size();
         if (new_size.decoded_image_size == size.decoded_image_size && new_size.decoded_image_count == size.decoded_image_count)

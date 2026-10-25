@@ -126,14 +126,14 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
     //     current request.
     m_load_event_delayer.emplace(document());
     unregister_with_decoded_image_data_if_needed();
-    auto resource_request = HTML::SharedResourceRequest::get_or_create(document(), url);
+    auto resource_request = HTML::SharedResourceRequest::get_or_create(document(), url, HTML::CORSSettingAttribute::NoCORS);
     m_resource_request = resource_request;
     auto fetch_id = ++m_current_fetch_id;
     CSS::record_element_replaced_content_input(*this);
 
     // AD-HOC: A request that finishes after href has changed is no longer the element's image request. Its completion
     //         must not fire events or release the load event delayer of the current request. Shared resource requests
-    //         are shared per URL, so each fetch gets its own ID instead of comparing requests.
+    //         are shared per URL and CORS mode, so each fetch gets its own ID instead of comparing requests.
     resource_request->add_callbacks(
         [this, fetch_id] {
             if (fetch_id != m_current_fetch_id)

@@ -65,7 +65,7 @@ void SVGFEImageElement::process_href(Optional<Utf16String> const& href)
     if (!m_href.has_value())
         return;
 
-    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), *m_href);
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), *m_href, HTML::CORSSettingAttribute::NoCORS);
     m_resource_request->add_callbacks(
         [this, resource_request = GC::Root { m_resource_request }] {
             document().note_svg_paint_resources_changed();
