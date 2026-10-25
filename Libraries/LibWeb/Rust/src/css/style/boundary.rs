@@ -234,12 +234,11 @@ style_boundary! {
         set_node_dom_paint_facts => SetNodeDomPaintFacts { node: StyleNodeID, facts: u8 };
         set_element_unique_node_id => SetElementUniqueNodeId { node: StyleNodeID, unique_node_id: i64 };
         set_element_table_spans => SetElementTableSpans {
-            node: StyleNodeID, column_span: u32, row_span: u32, raw_column_span: u32
+            node: StyleNodeID, column_span: u32, row_span: u32
         } =>
             engine.set_element_table_spans(node, TableSpans {
                 column_span: u16::try_from(column_span).expect("a column span is clamped to 1000"),
                 row_span: u16::try_from(row_span).expect("a row span is clamped to 65534"),
-                raw_column_span,
             });
         set_element_id_name => SetElementIdName { node: StyleNodeID, name: StyleAtomID };
         set_shadow_root => SetShadowRoot { shadow_host: StyleNodeID, shadow_root: StyleNodeID };

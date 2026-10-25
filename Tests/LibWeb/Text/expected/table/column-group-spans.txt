@@ -1,0 +1,8 @@
+group-span-two-cells: table 200, cells 100 100, columns colgroup@0+200
+group-span-one-cell: table 200, cells 100, columns colgroup@0+200
+column-span-two-cells: table 200, cells 100 100, columns colgroup@0+200 col@0+200
+empty-group-then-column: table 170, cells 50 120, columns colgroup@0+50 colgroup@50+120 col@50+120
+empty-group-then-percentage-column: table 400, cells 100 300, columns colgroup@0+100 colgroup@100+300 col@100+300
+constrained-empty-group: table 400, cells 50 350, columns colgroup@0+50 colgroup@50+350 col@50+350
+collapsed-group-span: table 22.25, cells 0 0 22.25, columns colgroup@0+0
+collapsed-group-span-one-cell: table 30, cells 0, columns colgroup@0+0 colgroup@0+30 col@0+30

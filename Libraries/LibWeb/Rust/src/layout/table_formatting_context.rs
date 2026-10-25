@@ -1018,10 +1018,6 @@ impl<'pass> TableFormattingContext<'pass> {
         StyleValues::for_node(&self.run.callbacks, node)
     }
 
-    fn raw_column_span(&self, column: Node) -> usize {
-        self.run.callbacks.arena().raw_table_column_span(column) as usize
-    }
-
     pub(super) fn new(run: &FormattingContextRun<'pass>) -> Self {
         Self {
             run: FormattingContextRun {
@@ -1118,8 +1114,9 @@ impl<'pass> TableFormattingContext<'pass> {
     /// The grid columns of the table-column boxes in tree order, each spanning the columns that its span attribute
     /// gives it. A table-column-group box without table-column children stands for the columns it spans itself, as
     /// the HTML table forming algorithm forms them: https://html.spec.whatwg.org/multipage/tables.html#forming-a-table
-    /// A table-column box is a child of a table-column-group, or a direct child of the table root (see
-    /// table_columns()).
+    /// A table-column box is a child of a table-column-group, or a direct child of the table root: the fixup
+    /// algorithm leaves the latter in place, as "A table-column box is misparented if its parent is neither a
+    /// table-column-group box nor a table-root box": https://www.w3.org/TR/css-tables-3/#fixup-algorithm
     fn column_track_ranges(&mut self) -> Vec<ColumnTrackRange> {
         let column_count = self.columns.len();
         let mut ranges = Vec::new();
@@ -1147,25 +1144,23 @@ impl<'pass> TableFormattingContext<'pass> {
         ranges
     }
 
-    /// The table-column boxes of the table in grid order. A table-column box is a child of a table-column-group, or
-    /// a direct child of the table root: the fixup algorithm leaves the latter in place, as "A table-column box is
-    /// misparented if its parent is neither a table-column-group box nor a table-root box":
-    /// https://www.w3.org/TR/css-tables-3/#fixup-algorithm
-    fn table_columns(&mut self) -> Vec<Node> {
-        let mut columns = Vec::new();
-        for child in self.matching_children(self.run.box_, |facts| {
-            facts.is_table_column_group() || facts.is_table_column()
-        }) {
-            if self.node_facts(child).is_table_column() {
-                columns.push(child);
-            } else {
-                columns.extend(self.matching_children(child, |facts| facts.is_table_column()));
-            }
+    /// The box whose style gives the width specified for the columns of a range, which is also the one that makes
+    /// them constrained and gives them a percentage contribution.
+    fn column_sizing_box(&self, range: ColumnTrackRange) -> Node {
+        // https://www.w3.org/TR/css-tables-3/#min-content-width-of-a-column-based-on-cells-of-span-up-to-1
+        // the width specified for the column:
+        // - the outer min-content width of its corresponding table-column, if any (and not auto)
+        // - the outer min-content width of its corresponding table-column-group, if any
+        // - or 0, if there is none
+        // NB: The first of these that applies is the width specified for the column, for its outer max-content
+        //     width, its constrainedness and its percentage contribution as well.
+        match range.group {
+            Some(group) if range.is_group_without_columns() || self.style(range.box_).width().is_auto() => group,
+            _ => range.box_,
         }
-        columns
     }
 
-    /// The table-column-group boxes and table-column boxes of the table in tree order (see table_columns()).
+    /// The table-column-group boxes and table-column boxes of the table in tree order (see column_track_ranges()).
     fn column_boxes(&mut self) -> Vec<Node> {
         let mut boxes = Vec::new();
         for child in self.matching_children(self.run.box_, |facts| {
@@ -1503,12 +1498,12 @@ impl<'pass> TableFormattingContext<'pass> {
         // Definition of constrainedness: https://www.w3.org/TR/css-tables-3/#constrainedness
         // NB: The definition uses https://www.w3.org/TR/CSS21/visudet.html#propdef-width for width, which doesn't include
         //     keyword values. The remaining checks can be simplified to checking whether the size is a length.
-        let mut column_index = 0usize;
-        for column in self.table_columns() {
-            if self.style(column).width().is_length() {
-                self.columns[column_index].is_constrained = true;
+        for range in self.column_track_ranges() {
+            if self.style(self.column_sizing_box(range)).width().is_length() {
+                for index in range.start..range.end {
+                    self.columns[index].is_constrained = true;
+                }
             }
-            column_index += self.raw_column_span(column);
         }
         for row_index in 0..self.rows.len() {
             let row_box = self.rows[row_index].box_;
@@ -1730,12 +1725,10 @@ impl<'pass> TableFormattingContext<'pass> {
 
     fn compute_outer_content_sizes(&mut self) {
         let basis = self.table_constraints.inline_basis();
-        let mut column_index = 0usize;
-        for column in self.table_columns() {
-            let style = self.style(column);
-            // Only lengths take part in the outer sizes of a column. A percentage width or max-width is the column's
-            // percentage contribution (https://www.w3.org/TR/css-tables-3/#percentage-contribution) and is resolved
-            // against the assignable table inline size during distribution, not against the containing block.
+        // Only lengths take part in the outer sizes of a column. A percentage width or max-width is the column's
+        // percentage contribution (https://www.w3.org/TR/css-tables-3/#percentage-contribution) and is resolved
+        // against the assignable table inline size during distribution, not against the containing block.
+        let outer_sizes = |style: StyleValues<'_>| {
             let length_or_zero = |size: &ComputedSize| {
                 if size.is_length() {
                     size.to_px(basis)
@@ -1750,11 +1743,17 @@ impl<'pass> TableFormattingContext<'pass> {
                 CssPixels::from_raw(i32::MAX)
             };
             let size = length_or_zero(style.width());
-            // The outer min-content inline size of a table-column or table-column-group is max(min-width, width).
-            self.columns[column_index].min_size = min_size.max(size);
-            // The outer max-content inline size of a table-column or table-column-group is max(min-width, min(max-width, width)).
-            self.columns[column_index].max_size = min_size.max(max_size.min(size));
-            column_index += self.raw_column_span(column);
+            // The outer min-content width of a table-column or table-column-group is max('min-width', 'width').
+            // The outer max-content width of a table-column or table-column-group is
+            // max('min-width', min('max-width', 'width')).
+            (min_size.max(size), min_size.max(max_size.min(size)))
+        };
+        for range in self.column_track_ranges() {
+            let (min_size, max_size) = outer_sizes(self.style(self.column_sizing_box(range)));
+            for index in range.start..range.end {
+                self.columns[index].min_size = min_size;
+                self.columns[index].max_size = max_size;
+            }
         }
         self.initialize_row_content_sizes();
     }
@@ -1874,14 +1873,15 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.rows[index].intrinsic_percentage = Self::cell_percentage(style, axis);
             }
         } else {
-            let mut column_index = 0usize;
-            for column in self.table_columns() {
-                let style = self.style(column);
+            for range in self.column_track_ranges() {
+                let style = self.style(self.column_sizing_box(range));
                 // Definition of percentage contribution: https://www.w3.org/TR/css-tables-3/#percentage-contribution
-                self.columns[column_index].has_intrinsic_percentage =
-                    style.max_width().is_percentage() || style.width().is_percentage();
-                self.columns[column_index].intrinsic_percentage = Self::cell_percentage(style, axis);
-                column_index += self.raw_column_span(column);
+                let has_intrinsic_percentage = style.max_width().is_percentage() || style.width().is_percentage();
+                let intrinsic_percentage = Self::cell_percentage(style, axis);
+                for index in range.start..range.end {
+                    self.columns[index].has_intrinsic_percentage = has_intrinsic_percentage;
+                    self.columns[index].intrinsic_percentage = intrinsic_percentage;
+                }
             }
         }
 

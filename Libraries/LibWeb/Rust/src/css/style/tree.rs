@@ -595,7 +595,6 @@ impl Iterator for FlatTreeChildren<'_> {
 pub struct TableSpans {
     pub column_span: u16,
     pub row_span: u16,
-    pub raw_column_span: u32,
 }
 
 impl Default for TableSpans {
@@ -603,7 +602,6 @@ impl Default for TableSpans {
         Self {
             column_span: 1,
             row_span: 1,
-            raw_column_span: 1,
         }
     }
 }
@@ -2463,7 +2461,6 @@ mod tests {
         let spans = TableSpans {
             column_span: 2,
             row_span: 3,
-            raw_column_span: 2,
         };
         fixture.tree.set_table_spans(element, spans);
         assert_eq!(fixture.tree.table_spans(element), spans);

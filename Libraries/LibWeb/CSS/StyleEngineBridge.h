@@ -50,7 +50,7 @@ void style_engine_set_text_is_in_user_agent_shadow_tree(DocumentHost const*, Sty
 void style_engine_set_text_is_password_input(DocumentHost const*, StyleNodeID node, bool value);
 void style_engine_set_node_dom_paint_facts(DocumentHost const*, StyleNodeID node, u8 facts);
 void style_engine_set_element_unique_node_id(DocumentHost const*, StyleNodeID node, u64 unique_node_id);
-void style_engine_set_element_table_spans(DocumentHost const*, StyleNodeID node, u32 column_span, u32 row_span, u32 raw_column_span);
+void style_engine_set_element_table_spans(DocumentHost const*, StyleNodeID node, u32 column_span, u32 row_span);
 void style_engine_set_element_id_name(DocumentHost const*, StyleNodeID node, StyleAtomID name);
 void style_engine_set_shadow_root(DocumentHost const*, StyleNodeID shadow_host, StyleNodeID shadow_root);
 void style_engine_record_environment_change(DocumentHost const*);

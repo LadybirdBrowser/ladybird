@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<style>
+    table {
+        border-spacing: 0;
+        font: 10px/1 monospace;
+        margin-bottom: 4px;
+    }
+    td {
+        padding: 0;
+    }
+</style>
+<table id="group-span-two-cells">
+    <colgroup span="2" style="width: 100px"></colgroup>
+    <tr><td>a</td><td>b</td></tr>
+</table>
+<table id="group-span-one-cell">
+    <colgroup span="2" style="width: 100px"></colgroup>
+    <tr><td>a</td></tr>
+</table>
+<table id="column-span-two-cells">
+    <col span="2" style="width: 100px">
+    <tr><td>a</td><td>b</td></tr>
+</table>
+<table id="empty-group-then-column">
+    <colgroup style="width: 50px"></colgroup>
+    <col style="width: 120px">
+    <tr><td>a</td><td>b</td></tr>
+</table>
+<table id="empty-group-then-percentage-column" style="width: 400px">
+    <colgroup></colgroup>
+    <col style="width: 75%">
+    <tr><td>a</td><td>b</td></tr>
+</table>
+<table id="constrained-empty-group" style="width: 400px">
+    <colgroup style="width: 50px"></colgroup>
+    <col>
+    <tr><td>a</td><td>b</td></tr>
+</table>
+<table id="collapsed-group-span">
+    <colgroup span="2" style="visibility: collapse"></colgroup>
+    <tr><td>aaaa</td><td>bbbb</td><td>cccc</td></tr>
+</table>
+<table id="collapsed-group-span-one-cell">
+    <colgroup span="2" style="width: 100px; visibility: collapse"></colgroup>
+    <col style="width: 30px">
+    <tr><td>a</td></tr>
+</table>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const table of document.querySelectorAll("table")) {
+            const cells = [...table.querySelectorAll("td")].map(cell => cell.getBoundingClientRect().width);
+            const columns = [...table.querySelectorAll("colgroup, col")].map(column => {
+                const rect = column.getBoundingClientRect();
+                return `${column.localName}@${rect.left - table.getBoundingClientRect().left}+${rect.width}`;
+            });
+            println(`${table.id}: table ${table.getBoundingClientRect().width}, cells ${cells.join(" ")}, columns ${columns.join(" ")}`);
+        }
+    });
+</script>
