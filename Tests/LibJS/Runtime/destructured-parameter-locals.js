@@ -54,3 +54,17 @@ test("multiple destructured parameters", () => {
     }
     expect(f({ a: 1 }, [2, 3])).toBe(6);
 });
+
+test("destructured catch parameter followed by a destructuring declaration", () => {
+    function f() {
+        let caught;
+        try {
+            throw { message: "error" };
+        } catch ({ message }) {
+            caught = message;
+        }
+        const { value } = { value: 1 };
+        return [caught, value, typeof message];
+    }
+    expect(f()).toEqual(["error", 1, "undefined"]);
+});

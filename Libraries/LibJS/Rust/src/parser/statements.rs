@@ -751,14 +751,14 @@ impl Parser<'_> {
 
         self.scope_collector.open_catch_scope();
 
+        let mut catch_pattern_names: Vec<StringId> = Vec::new();
         let parameter = if self.match_token(TokenType::ParenOpen) {
             self.consume();
             let parameter = if self.match_token(TokenType::CurlyOpen) || self.match_token(TokenType::BracketOpen) {
-                self.pattern_bound_names.clear();
                 let pattern = self.parse_binding_pattern();
+                let pattern_bound_names = std::mem::take(&mut self.pattern_bound_names);
                 // Materialize Utf16Strings for slice-based scope-collector calls.
-                let names_to_check: Vec<Utf16String> = self
-                    .pattern_bound_names
+                let names_to_check: Vec<Utf16String> = pattern_bound_names
                     .iter()
                     .map(|(n, _)| self.arena.strings[*n].clone())
                     .collect();
@@ -781,7 +781,8 @@ impl Parser<'_> {
                 self.scope_collector.add_catch_parameter_pattern(&bound_names);
                 // Register each binding pattern identifier for scope analysis
                 // so they get is_local() annotations (matching variable declarations).
-                let pattern_bound_ids: Vec<IdentifierId> = self.pattern_bound_names.iter().map(|(_, id)| *id).collect();
+                let pattern_bound_ids: Vec<IdentifierId> = pattern_bound_names.iter().map(|(_, id)| *id).collect();
+                catch_pattern_names = pattern_bound_names.iter().map(|(n, _)| *n).collect();
                 let Self {
                     scope_collector, arena, ..
                 } = self;
@@ -830,7 +831,7 @@ impl Parser<'_> {
         // Collect catch parameter names (as StringIds) for post-body validation.
         let catch_names: Vec<StringId> = match &parameter {
             Some(CatchBinding::Identifier(id)) => vec![self.arena.identifiers[*id].name],
-            Some(CatchBinding::BindingPattern(_)) => self.pattern_bound_names.iter().map(|(n, _)| *n).collect(),
+            Some(CatchBinding::BindingPattern(_)) => catch_pattern_names,
             None => Vec::new(),
         };
 
