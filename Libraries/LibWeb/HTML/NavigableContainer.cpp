@@ -199,6 +199,12 @@ HTML::WindowProxy* NavigableContainer::content_window()
 {
     if (!m_content_navigable)
         return nullptr;
+
+    // INTEROP: Browsers discard the navigables of a removed navigable container right away, while the spec only
+    //          destroys their documents in a later task. So a navigable in a destroyed subtree has no WindowProxy here.
+    if (m_content_navigable->is_in_a_destroyed_subtree())
+        return nullptr;
+
     return m_content_navigable->active_window_proxy().ptr();
 }
 

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Append iframe element to its own child document
+1 Pass
+Pass	Append iframe element to its own child document
