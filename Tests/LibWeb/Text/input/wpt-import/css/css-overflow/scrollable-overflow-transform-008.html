@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Overflow: Scrollable Overflow Transform Skew</title>
+<link rel="author" title="Jo Steven Novaryo" href="mailto:steven.novaryo@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#scrollable" />
+<meta name="assert" content="Checks that the bounding rectangle of skewed element is included correctly in scrollable overflow.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<style>
+  .container {
+    width: 100px;
+    height: 100px;
+    overflow: scroll;
+    background: silver;
+    border: solid thick;
+    scrollbar-width: none;
+  }
+
+  .element {
+    width: 200px;
+    height: 200px;
+    background: lime;
+  }
+
+  .element-2 {
+    width: 200px;
+    height: 200px;
+    background: aqua;
+  }
+</style>
+<body onload="checkLayout('.container')">
+
+  <div class="container" data-expected-scroll-width="227" data-expected-scroll-height="227">
+    <div style="transform: skew(-15deg, -15deg);" class="element">
+    </div>
+  </div>
+
+  <div class="container" data-expected-scroll-width="227" data-expected-scroll-height="227">
+    <div style="transform: skew(15deg, 15deg);" class="element">
+    </div>
+  </div>
+
+</body>
