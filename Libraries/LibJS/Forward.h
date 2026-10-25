@@ -170,7 +170,6 @@ class PropertyAttributes;
 class PropertyDescriptor;
 class PropertyKey;
 class Realm;
-class Reference;
 class Script;
 class SetIterator;
 class Shape;

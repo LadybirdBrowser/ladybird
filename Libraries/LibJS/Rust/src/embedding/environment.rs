@@ -232,10 +232,10 @@ pub unsafe extern "C" fn js_environment_delete_binding(
 /// reference is unresolvable. HasBinding runs on the way, which for the object environment of a with statement can
 /// run JavaScript and throw.
 ///
-/// The C++ Reference Record this resolves to has the environment as its base. GetValue, PutValue and delete of it are
-/// js_environment_get_binding_value(), js_environment_set_mutable_binding() and js_environment_delete_binding() with
-/// the same name and strictness, and for an unresolvable reference GetValue throws a ReferenceError, PutValue sets the
-/// property of the global object unless it is strict, and delete returns true. Borrows the name. Main thread only.
+/// GetValue, PutValue and delete of the Reference Record are js_environment_get_binding_value(),
+/// js_environment_set_mutable_binding() and js_environment_delete_binding() on the environment with the same name and
+/// strictness. For an unresolvable reference, GetValue throws a ReferenceError, PutValue sets the property of the global
+/// object unless it is strict, and delete returns true. Borrows the name. Main thread only.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_environment_resolve_binding(
     vm: *mut JSVM,

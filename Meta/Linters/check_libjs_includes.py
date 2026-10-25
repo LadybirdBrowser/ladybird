@@ -74,7 +74,6 @@ ALLOWED_HEADERS = {
     "LibJS/Runtime/PropertyDescriptor.h",
     "LibJS/Runtime/PropertyKey.h",
     "LibJS/Runtime/Realm.h",
-    "LibJS/Runtime/Reference.h",
     "LibJS/Runtime/RegExpObject.h",
     "LibJS/Runtime/Set.h",
     "LibJS/Runtime/SetIterator.h",
