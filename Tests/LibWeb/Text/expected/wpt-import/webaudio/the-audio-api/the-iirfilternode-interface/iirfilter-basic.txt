@@ -1,38 +1,48 @@
 Harness status: OK
 
-Found 32 tests
+Found 43 tests
 
-18 Pass
-14 Fail
+43 Pass
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "initialize"
 Pass	Executing "existence"
-Fail	Executing "parameters"
+Pass	Executing "parameters"
 Pass	Executing "exceptions-createIIRFilter"
-Fail	Executing "exceptions-getFrequencyData"
+Pass	Executing "exceptions-getFrequencyData"
 Pass	Audit report
 Pass	> [initialize] 
 Pass	  Initialize context for testing did not throw an exception.
 Pass	< [initialize] All assertions passed. (total 1 assertions)
 Pass	> [existence] 
-Fail	X context.createIIRFilter does not exist. Got undefined.
-Fail	< [existence] 1 out of 1 assertions were failed.
+Pass	  context.createIIRFilter does exist.
+Pass	< [existence] All assertions passed. (total 1 assertions)
 Pass	> [parameters] 
+Pass	  numberOfInputs is equal to 1.
+Pass	  numberOfOutputs is equal to 1.
+Pass	  channelCountMode is equal to max.
+Pass	  channelInterpretation is equal to speakers.
+Pass	< [parameters] All assertions passed. (total 4 assertions)
 Pass	> [exceptions-createIIRFilter] 
-Pass	  createIIRFilter() threw TypeError: "undefined is not a function (evaluated from 'context.createIIRFilter')".
-Pass	  createIIRFilter(new Float32Array(1)) threw TypeError: "undefined is not a function (evaluated from 'context.createIIRFilter')".
-Pass	  createIIRFilter(null, null) threw TypeError: "undefined is not a function (evaluated from 'context.createIIRFilter')".
-Fail	X createIIRFilter([], []) threw "TypeError" instead of NotSupportedError.
-Fail	X createIIRFilter([1], []) threw "TypeError" instead of NotSupportedError.
-Fail	X createIIRFilter([], [1]) threw "TypeError" instead of NotSupportedError.
-Fail	X createIIRFilter(new Float32Array(20), new Float32Array(20)) incorrectly threw TypeError: "undefined is not a function (evaluated from 'context.createIIRFilter')".
-Fail	X createIIRFilter(new Float32Array(21), [1]) threw "TypeError" instead of NotSupportedError.
-Fail	X createIIRFilter([1], new Float32Array(21)) threw "TypeError" instead of NotSupportedError.
-Fail	X createIIRFilter([1], new Float32Array(2)) threw "TypeError" instead of InvalidStateError.
-Fail	X createIIRFilter(new Float32Array(10), [1]) threw "TypeError" instead of InvalidStateError.
-Pass	  createIIRFilter([1], [1, NaN, Infinity]) threw TypeError: "undefined is not a function (evaluated from 'context.createIIRFilter')".
-Pass	  createIIRFilter([1, NaN, Infinity], [1]) threw TypeError: "undefined is not a function (evaluated from 'context.createIIRFilter')".
-Pass	  createIIRFilter([1, 'abc', []], [1]) threw TypeError: "undefined is not a function (evaluated from 'context.createIIRFilter')".
-Fail	< [exceptions-createIIRFilter] 8 out of 14 assertions were failed.
+Pass	  createIIRFilter() threw TypeError: "createIIRFilter() needs 2 arguments".
+Pass	  createIIRFilter(new Float32Array(1)) threw TypeError: "createIIRFilter() needs 2 arguments".
+Pass	  createIIRFilter(null, null) threw TypeError: "null is not an object".
+Pass	  createIIRFilter([], []) threw NotSupportedError: "The number of feedforward coefficients must be between 1 and 20".
+Pass	  createIIRFilter([1], []) threw NotSupportedError: "The number of feedback coefficients must be between 1 and 20".
+Pass	  createIIRFilter([], [1]) threw NotSupportedError: "The number of feedforward coefficients must be between 1 and 20".
+Pass	  createIIRFilter(new Float32Array(20), new Float32Array(20)) did not throw an exception.
+Pass	  createIIRFilter(new Float32Array(21), [1]) threw NotSupportedError: "The number of feedforward coefficients must be between 1 and 20".
+Pass	  createIIRFilter([1], new Float32Array(21)) threw NotSupportedError: "The number of feedback coefficients must be between 1 and 20".
+Pass	  createIIRFilter([1], new Float32Array(2)) threw InvalidStateError: "The first feedback coefficient must not be zero".
+Pass	  createIIRFilter(new Float32Array(10), [1]) threw InvalidStateError: "At least one feedforward coefficient must not be zero".
+Pass	  createIIRFilter([1], [1, NaN, Infinity]) threw TypeError: "Expected feedback to be a finite floating-point number".
+Pass	  createIIRFilter([1, NaN, Infinity], [1]) threw TypeError: "Expected feedforward to be a finite floating-point number".
+Pass	  createIIRFilter([1, 'abc', []], [1]) threw TypeError: "Expected feedforward to be a finite floating-point number".
+Pass	< [exceptions-createIIRFilter] All assertions passed. (total 14 assertions)
 Pass	> [exceptions-getFrequencyData] 
-Fail	# AUDIT TASK RUNNER FINISHED: 2 out of 5 tasks were failed.
+Pass	  getFrequencyResponse(null, new Float32Array(1), new Float32Array(1)) threw TypeError: "Not an object of type Float32Array".
+Pass	  getFrequencyResponse(new Float32Array(1), null, new Float32Array(1)) threw TypeError: "Not an object of type Float32Array".
+Pass	  getFrequencyResponse(new Float32Array(1), new Float32Array(1), null) threw TypeError: "Not an object of type Float32Array".
+Pass	  getFrequencyResponse(new Float32Array(10), new Float32Array(1), new Float32Array(20)) threw InvalidAccessError: "Arrays must have the same length".
+Pass	  getFrequencyResponse(new Float32Array(10), new Float32Array(20), new Float32Array(1)) threw InvalidAccessError: "Arrays must have the same length".
+Pass	< [exceptions-getFrequencyData] All assertions passed. (total 5 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 5 tasks ran successfully.

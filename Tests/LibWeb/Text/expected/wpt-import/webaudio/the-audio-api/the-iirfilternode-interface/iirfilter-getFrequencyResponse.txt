@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	1-pole IIR getFrequencyResponse() matches analytic response
-Fail	IIR filter equivalent to biquad has matching frequency response
-Fail	Out-of-range frequency values yield NaN responses
+3 Pass
+Pass	1-pole IIR getFrequencyResponse() matches analytic response
+Pass	IIR filter equivalent to biquad has matching frequency response
+Pass	Out-of-range frequency values yield NaN responses

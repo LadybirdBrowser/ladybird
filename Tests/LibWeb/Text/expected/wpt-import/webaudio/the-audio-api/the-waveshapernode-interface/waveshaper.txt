@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	WaveShaperNode applies non-linear distortion correctly
+1 Pass
+Pass	WaveShaperNode applies non-linear distortion correctly

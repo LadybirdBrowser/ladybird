@@ -28,6 +28,17 @@ struct AudioBufferContents : public AtomicRefCounted<AudioBufferContents> {
     float sample_rate { 0 };
 };
 
+// An immutable copy of a WaveShaperNode's curve.
+// https://webaudio.github.io/web-audio-api/#dom-waveshapernode-curve
+struct WaveShaperCurve : public AtomicRefCounted<WaveShaperCurve> {
+    explicit WaveShaperCurve(Vector<float> values)
+        : values(move(values))
+    {
+    }
+
+    Vector<float> values;
+};
+
 // An immutable snapshot of a PeriodicWave's Fourier coefficients.
 // https://webaudio.github.io/web-audio-api/#PeriodicWave
 struct PeriodicWaveData : public AtomicRefCounted<PeriodicWaveData> {

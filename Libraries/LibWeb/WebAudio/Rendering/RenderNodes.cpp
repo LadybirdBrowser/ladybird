@@ -607,6 +607,214 @@ void BiquadFilterRenderNode::process(RenderGraph& graph, RenderContext const& co
     }
 }
 
+IIRFilterRenderNode::IIRFilterRenderNode(NodeID node_id, size_t quantum_size, Vector<double> feedforward, Vector<double> feedback)
+    : RenderNode(node_id, 1, 1, quantum_size)
+    , m_feedforward(move(feedforward))
+    , m_feedback(move(feedback))
+{
+    VERIFY(m_feedforward.size() < history_size);
+    VERIFY(m_feedback.size() < history_size);
+}
+
+void IIRFilterRenderNode::process(RenderGraph& graph, RenderContext const& context)
+{
+    auto const& input = pull_input(graph, context, 0);
+
+    // The number of channels of the output always equals the number of channels of the input.
+    auto& filter_output = output(0);
+    filter_output.set_channel_count(input.channel_count());
+    if (m_filter_states.size() != input.channel_count())
+        m_filter_states.resize(input.channel_count());
+
+    // https://webaudio.github.io/web-audio-api/#IIRFilterNode-filter-definition
+    // sum_{k=0}^{N} a_k y(n-k) = sum_{k=0}^{M} b_k x(n-k), where a_0 is 1 as the coefficients are normalized.
+    static constexpr size_t history_mask = history_size - 1;
+    for (size_t channel_index = 0; channel_index < input.channel_count(); ++channel_index) {
+        auto& state = m_filter_states[channel_index];
+        auto input_samples = input.channel(channel_index);
+        auto output_samples = filter_output.channel(channel_index);
+        auto position = m_position;
+        for (size_t frame = 0; frame < context.quantum_size; ++frame, ++position) {
+            double x = input_samples[frame];
+            double y = m_feedforward[0] * x;
+            for (size_t k = 1; k < m_feedforward.size(); ++k)
+                y += m_feedforward[k] * state.inputs[(position - k) & history_mask];
+            for (size_t k = 1; k < m_feedback.size(); ++k)
+                y -= m_feedback[k] * state.outputs[(position - k) & history_mask];
+            // NB: A decaying output would otherwise settle on subnormal numbers, which are slow to compute with.
+            if (AK::fabs(y) < NumericLimits<double>::min_normal())
+                y = 0;
+            state.inputs[position & history_mask] = x;
+            state.outputs[position & history_mask] = y;
+            output_samples[frame] = static_cast<float>(y);
+        }
+    }
+    m_position += context.quantum_size;
+}
+
+WaveShaperRenderNode::WaveShaperRenderNode(NodeID node_id, size_t quantum_size)
+    : RenderNode(node_id, 1, 1, quantum_size)
+{
+    m_two_times_samples.resize(quantum_size * 2);
+    m_four_times_samples.resize(quantum_size * 4);
+}
+
+void WaveShaperRenderNode::handle_message(NodeMessage const& message)
+{
+    message.visit(
+        [&](SetWaveShaperParameters const& parameters) {
+            m_curve = parameters.curve;
+            m_oversample = parameters.oversample;
+        },
+        [](auto const&) { });
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-waveshapernode-curve
+float WaveShaperRenderNode::shape(float sample) const
+{
+    // 1. Let x be the input sample, y be the corresponding output of the node, c_k be the k'th element of the curve,
+    //    and N be the length of the curve.
+    auto const& curve = m_curve->values;
+    auto curve_length = curve.size();
+
+    // 2. Let v = (N-1)/2 (x + 1), k = floor(v), f = v - k
+    double v = (curve_length - 1) / 2.0 * (static_cast<double>(sample) + 1);
+
+    // 3. Then y = c_0 if v < 0, c_{N-1} if v >= N - 1, and (1-f) c_k + f c_{k+1} otherwise.
+    // NB: A NaN sample maps to c_0 as well.
+    if (!(v >= 0))
+        return curve.first();
+    if (v >= curve_length - 1)
+        return curve.last();
+    auto k = static_cast<size_t>(v);
+    double f = v - k;
+    return static_cast<float>((1 - f) * curve[k] + f * curve[k + 1]);
+}
+
+// NB: The up-sampling and down-sampling filters are not specified. These use a windowed sinc filter whose cutoff is
+//     half its band.
+Array<float, WaveShaperRenderNode::half_band_filter_length> const& WaveShaperRenderNode::half_band_filter_coefficients()
+{
+    static auto const coefficients = [] {
+        static constexpr size_t length = half_band_filter_length;
+        Array<double, length> taps {};
+        double sum = 0;
+        for (size_t index = 0; index < length; ++index) {
+            double offset = static_cast<double>(index) - (length - 1) / 2.0;
+            double sinc = offset == 0 ? 1 : AK::sin(AK::Pi<double> * offset / 2) / (AK::Pi<double> * offset / 2);
+            double phase = 2 * AK::Pi<double> * index / (length - 1);
+            double blackman_window = 0.42 - 0.5 * AK::cos(phase) + 0.08 * AK::cos(2 * phase);
+            taps[index] = sinc * blackman_window;
+            sum += taps[index];
+        }
+        Array<float, length> result {};
+        for (size_t index = 0; index < length; ++index)
+            result[index] = static_cast<float>(taps[index] / sum);
+        return result;
+    }();
+    return coefficients;
+}
+
+float WaveShaperRenderNode::HalfBandFilter::process(float sample)
+{
+    auto const& coefficients = half_band_filter_coefficients();
+    // NB: Every sample is stored twice, so that the last samples are contiguous wherever the ring buffer starts.
+    history[position] = sample;
+    history[position + half_band_filter_length] = sample;
+    auto const* newest_sample = &history[position + half_band_filter_length];
+    float result = 0;
+    for (size_t index = 0; index < half_band_filter_length; ++index)
+        result += coefficients[index] * *(newest_sample - index);
+    position = position + 1 == half_band_filter_length ? 0 : position + 1;
+    return result;
+}
+
+void WaveShaperRenderNode::up_sample(HalfBandFilter& filter, ReadonlySpan<float> input, Span<float> output)
+{
+    VERIFY(output.size() == input.size() * 2);
+    // NB: The zeros between the samples halve the gain of the filter, which the factor of 2 restores.
+    for (size_t index = 0; index < input.size(); ++index) {
+        output[2 * index] = 2 * filter.process(input[index]);
+        output[2 * index + 1] = 2 * filter.process(0);
+    }
+}
+
+void WaveShaperRenderNode::down_sample(HalfBandFilter& filter, ReadonlySpan<float> input, Span<float> output)
+{
+    VERIFY(input.size() == output.size() * 2);
+    for (size_t index = 0; index < output.size(); ++index) {
+        output[index] = filter.process(input[2 * index]);
+        (void)filter.process(input[2 * index + 1]);
+    }
+}
+
+void WaveShaperRenderNode::process(RenderGraph& graph, RenderContext const& context)
+{
+    auto const& input = pull_input(graph, context, 0);
+
+    // The number of channels of the output always equals the number of channels of the input.
+    auto& shaper_output = output(0);
+    shaper_output.set_channel_count(input.channel_count());
+    if (m_channel_states.size() != input.channel_count())
+        m_channel_states.resize(input.channel_count());
+
+    for (size_t channel_index = 0; channel_index < input.channel_count(); ++channel_index) {
+        auto input_samples = input.channel(channel_index).slice(0, context.quantum_size);
+        auto output_samples = shaper_output.channel(channel_index).slice(0, context.quantum_size);
+
+        // Initially the curve attribute is null, which means that the WaveShaperNode will pass its input to its output
+        // without modification.
+        if (!m_curve) {
+            input_samples.copy_to(output_samples);
+            continue;
+        }
+
+        auto& state = m_channel_states[channel_index];
+        switch (m_oversample) {
+        case Bindings::OverSampleType::None:
+            // The default value is "none", meaning the curve will be applied directly to the input samples.
+            for (size_t frame = 0; frame < context.quantum_size; ++frame)
+                output_samples[frame] = shape(input_samples[frame]);
+            break;
+        case Bindings::OverSampleType::_2x: {
+            // 1. Up-sample the input samples to 2x or 4x the sample-rate of the AudioContext. Thus for each render
+            //    quantum, generate twice (for 2x) or four times (for 4x) samples.
+            auto samples = m_two_times_samples.span();
+            up_sample(state.up_sampling_filters[0], input_samples, samples);
+
+            // 2. Apply the shaping curve.
+            for (auto& sample : samples)
+                sample = shape(sample);
+
+            // 3. Down-sample the result back to the sample-rate of the AudioContext. Thus taking the previously
+            //    processed samples processed samples, generating a single render quantum worth of samples as the
+            //    final result.
+            down_sample(state.down_sampling_filters[0], samples, output_samples);
+            break;
+        }
+        case Bindings::OverSampleType::_4x: {
+            // 1. Up-sample the input samples to 2x or 4x the sample-rate of the AudioContext. Thus for each render
+            //    quantum, generate twice (for 2x) or four times (for 4x) samples.
+            auto two_times_samples = m_two_times_samples.span();
+            auto four_times_samples = m_four_times_samples.span();
+            up_sample(state.up_sampling_filters[0], input_samples, two_times_samples);
+            up_sample(state.up_sampling_filters[1], two_times_samples, four_times_samples);
+
+            // 2. Apply the shaping curve.
+            for (auto& sample : four_times_samples)
+                sample = shape(sample);
+
+            // 3. Down-sample the result back to the sample-rate of the AudioContext. Thus taking the previously
+            //    processed samples processed samples, generating a single render quantum worth of samples as the
+            //    final result.
+            down_sample(state.down_sampling_filters[1], four_times_samples, two_times_samples);
+            down_sample(state.down_sampling_filters[0], two_times_samples, output_samples);
+            break;
+        }
+        }
+    }
+}
+
 namespace {
 
 // Gfx::DoubleVector3::normalize() divides by the length unconditionally, which would produce NaN components for a zero

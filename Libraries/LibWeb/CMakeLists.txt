@@ -1019,6 +1019,7 @@ set(SOURCES
     WebAudio/DelayNode.cpp
     WebAudio/DynamicsCompressorNode.cpp
     WebAudio/GainNode.cpp
+    WebAudio/IIRFilterNode.cpp
     WebAudio/MediaElementAudioSourceNode.cpp
     WebAudio/MediaStreamAudioDestinationNode.cpp
     WebAudio/MediaStreamAudioSourceNode.cpp
@@ -1043,6 +1044,7 @@ set(SOURCES
     WebAudio/Rendering/RenderNodes.cpp
     WebAudio/ScriptProcessorNode.cpp
     WebAudio/StereoPannerNode.cpp
+    WebAudio/WaveShaperNode.cpp
     WebDriver/Actions.cpp
     WebDriver/Contexts.cpp
     WebDriver/ElementLocationStrategies.cpp
