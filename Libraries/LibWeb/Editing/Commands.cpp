@@ -1533,11 +1533,36 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
 {
     // 1. Delete the selection.
     auto& selection = *document.get_selection();
+    auto selection_was_collapsed = selection.is_collapsed();
     delete_the_selection(selection);
 
-    // 2. If the active range's start node is neither editable nor an editing host, return true.
     GC::Ref<DOM::Range> active_range = *selection.range();
     GC::Ptr<DOM::Node> node = active_range->start_container();
+
+    // INTEROP: Browsers do not split the structure of a table outside of its cells. If the caret is in it, they
+    //          insert the new paragraph before the table, as if the caret were before it.
+    {
+        GC::Ptr<DOM::Node> element_to_insert_before;
+        for (GC::Ptr<DOM::Node> ancestor = node; selection_was_collapsed && ancestor && !ancestor->is_editing_host(); ancestor = ancestor->parent()) {
+            auto* element = as_if<HTML::HTMLElement>(*ancestor);
+            if (!element)
+                continue;
+            if (element->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::caption))
+                break;
+            if (element->local_name().is_one_of(HTML::TagNames::table, HTML::TagNames::tbody, HTML::TagNames::thead,
+                    HTML::TagNames::tfoot, HTML::TagNames::tr, HTML::TagNames::colgroup, HTML::TagNames::col))
+                element_to_insert_before = element;
+        }
+        if (element_to_insert_before) {
+            if (auto parent = element_to_insert_before->parent(); parent && parent->is_editable_or_editing_host()) {
+                MUST(selection.collapse(parent, element_to_insert_before->index()));
+                active_range = *selection.range();
+                node = parent;
+            }
+        }
+    }
+
+    // 2. If the active range's start node is neither editable nor an editing host, return true.
     if (!node->is_editable_or_editing_host())
         return true;
 
