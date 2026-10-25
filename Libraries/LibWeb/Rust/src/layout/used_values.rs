@@ -380,8 +380,6 @@ pub(crate) struct UsedValues {
     // the display along with the columns (CSS 2.2 §17.5.5).
     pub hidden_by_collapsed_columns: Cell<bool>,
 
-    pub block_size_constraint: Cell<SizeConstraint>,
-
     // Keep these as separate cells: content_offset is read by placement code
     // even where has_content_offset is false.
     pub has_content_offset: SealableCell<bool>,
@@ -442,7 +440,6 @@ impl Default for UsedValues {
             table_column_index: Cell::new(0),
             table_column_span: Cell::new(0),
             hidden_by_collapsed_columns: Cell::new(false),
-            block_size_constraint: Cell::new(SizeConstraint::None),
             has_content_offset: SealableCell::new(false),
             content_offset: SealableCell::new(FfiCssPixelPoint::default()),
             placed_in: Cell::new(crate::layout::node_data::NodeSlotId::INVALID),
@@ -606,7 +603,6 @@ impl UsedValues {
         );
         self.has_definite_inline_size.set(state.inputs.has_definite_inline_size);
         self.has_definite_block_size.set(state.inputs.has_definite_block_size);
-        self.block_size_constraint.set(state.inputs.block_size_constraint);
         self.has_first_baseline.set(state.outputs.has_first_baseline);
         self.has_last_baseline.set(state.outputs.has_last_baseline);
         self.inline_alignment_baseline
@@ -691,7 +687,6 @@ used_values_cells! {
         table_column_index: u32,
         table_column_span: u32,
         hidden_by_collapsed_columns: bool,
-        block_size_constraint: SizeConstraint,
         has_content_offset: bool,
         content_offset: FfiCssPixelPoint,
     }
@@ -807,10 +802,6 @@ impl UsedValuesCellState {
                 &mut inputs.has_definite_inline_size,
                 &mut inputs.has_definite_block_size,
             );
-            debug_assert!(
-                inputs.block_size_constraint == SizeConstraint::None,
-                "a box measured for its block size never lays out in an orthogonal frame"
-            );
             self.outputs.has_first_baseline = false;
             self.outputs.has_last_baseline = false;
             self.outputs.inline_alignment_baseline = None;
@@ -820,7 +811,7 @@ impl UsedValuesCellState {
 }
 
 impl UsedValues {
-    pub(crate) fn mirror_box_metrics_and_size_constraints_into(&self, scratch: &UsedValues) {
+    pub(crate) fn mirror_box_metrics_into(&self, scratch: &UsedValues) {
         scratch.margin_left.set(self.margin_left.get());
         scratch.margin_right.set(self.margin_right.get());
         scratch.margin_top.set(self.margin_top.get());
@@ -835,7 +826,6 @@ impl UsedValues {
         scratch.padding_bottom.set(self.padding_bottom.get());
         scratch.content_inline_size.set(self.content_inline_size.get());
         scratch.content_block_size.set(self.content_block_size.get());
-        scratch.block_size_constraint.set(self.block_size_constraint.get());
     }
 
     pub(crate) fn has_definite_inline_size(&self) -> bool {
@@ -843,7 +833,7 @@ impl UsedValues {
     }
 
     pub(crate) fn has_definite_block_size(&self) -> bool {
-        self.has_definite_block_size.get() && self.block_size_constraint.get() == SizeConstraint::None
+        self.has_definite_block_size.get()
     }
 
     pub(crate) fn set_content_inline_size(&self, value: CssPixels) {
@@ -1003,23 +993,15 @@ impl UsedValues {
         } else {
             AvailableSize::Indefinite
         };
-        let mut block_size = match self.block_size_constraint.get() {
-            SizeConstraint::MinContent => AvailableSize::MinContent,
-            SizeConstraint::MaxContent => AvailableSize::MaxContent,
-            SizeConstraint::None if self.has_definite_block_size.get() => {
-                AvailableSize::definite(self.content_block_size.get())
-            }
-            SizeConstraint::None => AvailableSize::Indefinite,
+        let block_size = if self.has_definite_block_size.get() {
+            AvailableSize::definite(self.content_block_size.get())
+        } else {
+            AvailableSize::Indefinite
         };
         if inline_size == AvailableSize::Indefinite
             && matches!(outer.inline_size, AvailableSize::MinContent | AvailableSize::MaxContent)
         {
             inline_size = outer.inline_size;
-        }
-        if block_size == AvailableSize::Indefinite
-            && matches!(outer.block_size, AvailableSize::MinContent | AvailableSize::MaxContent)
-        {
-            block_size = outer.block_size;
         }
         AvailableSpace {
             inline_size,
