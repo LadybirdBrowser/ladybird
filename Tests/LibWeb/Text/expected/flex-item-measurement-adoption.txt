@@ -2,6 +2,6 @@ PASS: items that are not stretched commit the run their measurement laid out (wo
 PASS: stretched block items commit the run their measurement laid out (work + checks)
 PASS: a stretched item with a percentage-height child lays it out again at its stretched size (work + checks)
 PASS: the next pass takes the block size of the stretched item with a percentage-height child from the size cache (work)
-PASS: a nested flex row is measured without layout runs to adopt, so its items are laid out when it commits (work + checks)
+PASS: a nested flex row is measured with normal layout, so it adopts the item runs its measurement laid out (work + checks)
 PASS: a flex row laid out before its width changes (work)
 PASS: the next pass at another width reuses the item whose width did not change and adopts the one that did (work + checks)

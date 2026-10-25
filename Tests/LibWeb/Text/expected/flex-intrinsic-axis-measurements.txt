@@ -1,4 +1,3 @@
 measured Box<DIV>#inner max-content inline
 measured BlockContainer<DIV>#item min-content inline
 measured Box<DIV>#inner max-content block
-measured BlockContainer<DIV>#item max-content block

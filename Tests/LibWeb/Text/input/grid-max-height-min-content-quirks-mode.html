@@ -1,0 +1,16 @@
+<!DOCTYPE quirks>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .row { height: 30px; }
+</style>
+<div id="grid" style="display: grid; max-height: min-content"><div class="row"></div></div>
+<div><div id="inline-grid" style="display: inline-grid; max-height: min-content"><div class="row"></div></div></div>
+<div style="display: flex; flex-direction: column"><div id="column-flex-item-grid" style="display: grid; max-height: min-content"><div class="row"></div></div></div>
+<div id="grid-with-min-content-height" style="display: grid; height: min-content; max-height: min-content"><div class="row"></div></div>
+<script>
+    test(() => {
+        for (const id of ["grid", "inline-grid", "column-flex-item-grid", "grid-with-min-content-height"])
+            println(`${id}: ${document.getElementById(id).getBoundingClientRect().height}`);
+    });
+</script>

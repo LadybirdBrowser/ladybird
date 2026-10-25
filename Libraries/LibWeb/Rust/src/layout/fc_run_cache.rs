@@ -227,6 +227,7 @@ fn sizing_directives_match_ignoring_unobserved(
         treat_block_axis_percentage_insets_as_auto_beyond_root,
         math_stretch_size_constraint,
         maximum_inline_size_resolved_by_caller,
+        root_is_measured_for_its_content_block_size,
     } = *a;
     forced_content_inline_size == b.forced_content_inline_size
         && forced_content_block_size == b.forced_content_block_size
@@ -243,6 +244,7 @@ fn sizing_directives_match_ignoring_unobserved(
             == b.treat_block_axis_percentage_insets_as_auto_beyond_root
         && math_stretch_size_constraint == b.math_stretch_size_constraint
         && maximum_inline_size_resolved_by_caller == b.maximum_inline_size_resolved_by_caller
+        && root_is_measured_for_its_content_block_size == b.root_is_measured_for_its_content_block_size
         && match (
             flex_self_block_size_resolution_space,
             b.flex_self_block_size_resolution_space,

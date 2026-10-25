@@ -2119,6 +2119,11 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .unwrap()
                 .cross
                 .is_intrinsic_sizing_constraint()
+            && !self
+                .layout_input
+                .unwrap()
+                .sizing
+                .root_is_measured_for_its_content_block_size
         {
             let min = self.computed_cross_min_size(self.run.box_).0;
             let cross_min = if crate::layout::sizing_context::is_plain_auto(min) {
@@ -3333,9 +3338,11 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn resolve_own_auto_block_size_from_max_content_main_size(&mut self) {
-        let Some(resolution_space) = self.layout_input.unwrap().sizing.flex_self_block_size_resolution_space else {
+        let sizing = self.layout_input.unwrap().sizing;
+        let resolution_space = sizing.flex_self_block_size_resolution_space;
+        if resolution_space.is_none() && !sizing.root_is_measured_for_its_content_block_size {
             return;
-        };
+        }
         if self.main_axis_is_horizontal() {
             return;
         }
@@ -3356,17 +3363,22 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
         let max_content_main_size = self.calculate_intrinsic_main_size_of_flex_container();
         self.determine_available_space_for_items(real_space_for_items);
-        self.resolve_own_auto_block_size(max_content_main_size, resolution_space);
+        match resolution_space {
+            Some(resolution_space) => self.resolve_own_auto_block_size(max_content_main_size, resolution_space),
+            None => self.set_container_main_size(max_content_main_size),
+        }
     }
 
     fn resolve_own_auto_block_size_from_line_cross_sizes(&mut self) {
-        let Some(resolution_space) = self.layout_input.unwrap().sizing.flex_self_block_size_resolution_space else {
-            return;
-        };
         if self.cross_axis_is_horizontal() {
             return;
         }
-        self.resolve_own_auto_block_size(self.automatic_block_size_from_line_cross_sizes(), resolution_space);
+        let sizing = self.layout_input.unwrap().sizing;
+        if let Some(resolution_space) = sizing.flex_self_block_size_resolution_space {
+            self.resolve_own_auto_block_size(self.automatic_block_size_from_line_cross_sizes(), resolution_space);
+        } else if sizing.root_is_measured_for_its_content_block_size {
+            self.set_container_cross_size(self.automatic_block_size_from_line_cross_sizes());
+        }
     }
 
     fn automatic_block_size_from_line_cross_sizes(&self) -> CssPixels {

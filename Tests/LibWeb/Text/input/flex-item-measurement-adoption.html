@@ -92,7 +92,7 @@
                 `,
             },
             {
-                name: "a nested flex row is measured without layout runs to adopt, so its items are laid out when it commits",
+                name: "a nested flex row is measured with normal layout, so it adopts the item runs its measurement laid out",
                 mutate: () => {
                     host.innerHTML = `<div class="row" id="outer"><div class="row" id="inner" style="width: 250px"><div class="fixed" id="innerShort">one line</div><div class="fixed" id="innerTall">some words that wrap into lines</div></div></div>`;
                 },
@@ -102,18 +102,14 @@
                         BlockContainer<HTML>/block RUN (cache=miss)
                           Box<DIV>#outer.row/flex RUN (cache=miss)
                             Box<DIV>#inner.row MEASURE max-content block (cache=miss)
-                              Box<DIV>#inner.row/flex (intrinsic) RUN (cache=bypass)
-                                BlockContainer<DIV>#innerShort.fixed MEASURE max-content block (cache=miss)
-                                  BlockContainer<DIV>#innerShort.fixed/block RUN (cache=miss)
-                                BlockContainer<DIV>#innerTall.fixed MEASURE max-content block (cache=miss)
-                                  BlockContainer<DIV>#innerTall.fixed/block RUN (cache=miss)
-                                BlockContainer<DIV>#innerShort.fixed MEASURE max-content block (cache=hit)
-                                BlockContainer<DIV>#innerTall.fixed MEASURE max-content block (cache=hit)
-                                BlockContainer<DIV>#innerShort.fixed MEASURE max-content block (cache=hit)
-                                BlockContainer<DIV>#innerTall.fixed MEASURE max-content block (cache=hit)
+                              Box<DIV>#inner.row/flex RUN (cache=miss)
+                                BlockContainer<DIV>#innerShort.fixed/block RUN (cache=miss)
+                                BlockContainer<DIV>#innerTall.fixed/block RUN (cache=miss)
+                                BlockContainer<DIV>#innerShort.fixed/block REPLAY FRAGMENTS
+                                BlockContainer<DIV>#innerTall.fixed/block REPLAY FRAGMENTS
                             Box<DIV>#inner.row/flex RUN (cache=miss)
-                              BlockContainer<DIV>#innerShort.fixed/block RUN (cache=miss)
-                              BlockContainer<DIV>#innerTall.fixed/block RUN (cache=miss)
+                              BlockContainer<DIV>#innerShort.fixed/block REPLAY FRAGMENTS
+                              BlockContainer<DIV>#innerTall.fixed/block REPLAY FRAGMENTS
                 `,
                 check: equal => {
                     equal(height("inner"), 80, "inner flex row height");
