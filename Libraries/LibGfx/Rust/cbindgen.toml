@@ -14,9 +14,19 @@ usize_is_size_t = true
 namespaces = ["Gfx", "FFI"]
 
 # The byte layout the filter codec writes is defined by these enums, and the C++ reader that
-# builds Skia filters from it decodes them from the same definitions.
+# builds Skia filters from it decodes them from the same definitions. The OpenType MATH table
+# structs are filled in by LibGfx for its Rust callers.
 [export]
-include = ["FilterOperationType", "ChannelSelector", "TurbulenceType", "PathVerb"]
+include = [
+    "FilterOperationType",
+    "ChannelSelector",
+    "TurbulenceType",
+    "PathVerb",
+    "FfiMathData",
+    "FfiGlyphMetrics",
+    "FfiMathGlyphVariant",
+    "FfiMathGlyphPart",
+]
 
 [parse]
 parse_deps = false

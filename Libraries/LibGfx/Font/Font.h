@@ -14,6 +14,7 @@
 #include <AK/FlyString.h>
 #include <AK/Once.h>
 #include <AK/Optional.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Font/RasterizerData.h>
@@ -84,6 +85,10 @@ public:
 
     bool is_emoji_font() const;
 
+    // The constants of the OpenType MATH table and the underline thickness of the post table, read on first use.
+    struct MathData;
+    MathData const& math_data() const;
+
     // Called by AtomicRefCounted when the last reference goes away.
     void will_be_destroyed() const;
 
@@ -108,6 +113,9 @@ private:
     // font, so the verdict is a single atomic byte. Either winner is correct: the classification
     // reads only the face's immutable tables.
     mutable Atomic<TriState> m_is_emoji_font { TriState::Unknown };
+
+    mutable OnceFlag m_math_data_once;
+    mutable OwnPtr<MathData> m_math_data;
 
     NonnullRefPtr<Typeface const> m_typeface;
     float m_point_width { 0.0f };
