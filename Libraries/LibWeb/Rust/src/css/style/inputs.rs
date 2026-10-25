@@ -290,6 +290,10 @@ impl RetainedState {
         {
             return;
         }
+        if let Some(deferred) = &mut self.deferred_user_agent_routes {
+            deferred.push((rule, program));
+            return;
+        }
         let routing = Arc::make_mut(&mut self.routing);
         routing.add_rule(rule, program, &self.programs);
     }
@@ -2056,6 +2060,7 @@ impl StyleEngine {
                 relational_arrival_keys_version: 0,
                 selector_programs_need_sweep: false,
                 routing: Arc::new(RoutingRegistry::new()),
+                deferred_user_agent_routes: None,
                 selector_truth_changes: SelectorTruthChanges::default(),
                 already_planned_selector_truth: DeltaBatch::default(),
                 selector_truth_changes_active: false,
@@ -3439,6 +3444,7 @@ impl RetainedState {
             relational_arrival_keys_version: _,
             selector_programs_need_sweep: _,
             routing: _,
+            deferred_user_agent_routes: _,
             // Scratch of one transaction.
             selector_truth_changes: _,
             already_planned_selector_truth: _,
