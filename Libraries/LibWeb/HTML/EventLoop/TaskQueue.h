@@ -31,6 +31,9 @@ public:
 
     void remove_tasks_matching(Function<bool(HTML::Task const&)>);
 
+    // https://html.spec.whatwg.org/multipage/workers.html#dom-workerglobalscope-closing
+    void discard_further_tasks() { m_discards_further_tasks = true; }
+
     Task const* last_added_task() const;
 
 private:
@@ -46,6 +49,7 @@ private:
     Task::Queue m_idle_tasks;
     GC::Ptr<HTML::Task const> m_last_added_task;
     Vector<GC::Ref<HTML::Task>> m_discarded_tasks;
+    bool m_discards_further_tasks { false };
 };
 
 }
