@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	XMLHttpRequest: The send() method: POSTing to URL that redirects (301)
-Fail	XMLHttpRequest: The send() method: POSTing to URL that redirects (302)
-Fail	XMLHttpRequest: The send() method: POSTing to URL that redirects (303)
-Fail	XMLHttpRequest: The send() method: POSTing to URL that redirects (307 (string))
-Fail	XMLHttpRequest: The send() method: POSTing to URL that redirects (307 (blob))
+5 Pass
+Pass	XMLHttpRequest: The send() method: POSTing to URL that redirects (301)
+Pass	XMLHttpRequest: The send() method: POSTing to URL that redirects (302)
+Pass	XMLHttpRequest: The send() method: POSTing to URL that redirects (303)
+Pass	XMLHttpRequest: The send() method: POSTing to URL that redirects (307 (string))
+Pass	XMLHttpRequest: The send() method: POSTing to URL that redirects (307 (blob))
