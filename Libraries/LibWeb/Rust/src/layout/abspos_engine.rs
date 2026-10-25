@@ -1262,19 +1262,19 @@ impl AbsposEngine<'_> {
 
 /// The tracks of the position-area grid a <position-area> selects in one physical axis, counted from the left or top.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct PositionAreaTrackRange {
-    first: u8,
-    last: u8,
+pub(crate) struct PositionAreaTrackRange {
+    pub(crate) first: u8,
+    pub(crate) last: u8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct PositionAreaTracks {
-    horizontal: PositionAreaTrackRange,
-    vertical: PositionAreaTrackRange,
+pub(crate) struct PositionAreaTracks {
+    pub(crate) horizontal: PositionAreaTrackRange,
+    pub(crate) vertical: PositionAreaTrackRange,
 }
 
 impl PositionAreaTrackRange {
-    fn reversed(self) -> Self {
+    pub(crate) fn reversed(self) -> Self {
         Self {
             first: 2 - self.last,
             last: 2 - self.first,
@@ -1308,9 +1308,9 @@ impl PositionAreaTracks {
 }
 
 #[derive(Clone, Copy)]
-struct PositionAreaWritingMode {
-    writing_mode: u8,
-    direction: u8,
+pub(crate) struct PositionAreaWritingMode {
+    pub(crate) writing_mode: u8,
+    pub(crate) direction: u8,
 }
 
 impl PositionAreaWritingMode {
@@ -1409,7 +1409,7 @@ fn classify_position_area_keyword(code: u8) -> (PositionAreaAxis, PositionAreaSe
 }
 
 /// https://drafts.csswg.org/css-anchor-position-1/#position-area-syntax
-fn resolve_position_area_tracks(
+pub(crate) fn resolve_position_area_tracks(
     codes: &[u8],
     containing_block: PositionAreaWritingMode,
     own: PositionAreaWritingMode,
@@ -3199,11 +3199,348 @@ impl<'pass> AbsposEngine<'pass> {
     ) {
         debug_assert!(!self.purpose.is_measurement());
         let child_box = child.child_box;
+        let position_option = self.determine_position_fallback_styles(&child);
         self.records
             .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
-        let containing_block_geometry = self.containing_block_geometry_for_pending_child(&child);
+        let mut inputs = self.pending_child_layout_inputs(&mut child);
+        inputs.position_option = position_option.choice();
+        self.install_resolved_anchor_sizes(child_box, &inputs);
+        self.layout_element(run, child_box, inputs);
+        drop(position_option);
+    }
+
+    /// https://drafts.csswg.org/css-anchor-position-1/#determine-position-fallback-styles
+    /// Chooses the position option the pending child `child` is laid out with, and makes its style reads see the
+    /// styles of that option until the answer is dropped.
+    fn determine_position_fallback_styles(
+        &self,
+        child: &abspos_inputs::PendingAbsposChild,
+    ) -> PositionOptionStyles<'pass> {
+        let node = child.child_box;
+        let mut styles = PositionOptionStyles {
+            callbacks: self.callbacks,
+            node,
+            choice: abspos_inputs::PositionOptionChoice::default(),
+            records: Vec::new(),
+            installed: false,
+        };
+        let style = StyleValues::for_node(&self.callbacks, node);
+        let anchor = style.anchor();
+        let arena = self.callbacks.arena();
+        if anchor.position_try_fallbacks.length == 0 || !style.is_absolutely_positioned() {
+            arena.forget_position_option_in_use(node);
+            return styles;
+        }
+        let Some(style_node) = arena.node_style_node(node) else {
+            arena.forget_position_option_in_use(node);
+            return styles;
+        };
+        let base_style_record = arena.node_style_record(node);
+        styles.choice.base_style_record = base_style_record;
+        // Logical directions are resolved against the writing mode of the containing block.
+        let containing_block = child.containing_block();
+        let (writing_mode, direction) = if containing_block.is_invalid() {
+            (writing_mode::HORIZONTAL_TB, direction::LTR)
+        } else {
+            let containing_block_style = StyleValues::for_node(&self.callbacks, containing_block);
+            (
+                containing_block_style.writing_mode(),
+                containing_block_style.direction(),
+            )
+        };
+
+        // Implementations may choose to impose an implementation-defined limit on the length of position options
+        // lists, to limit the amount of excess layout work that may be required. This limit must be at least five.
+        const POSITION_OPTIONS_LIST_LIMIT: usize = 32;
+        // NB: Each option is an entry of the position options list, the base styles first.
+        let entries = arena.with_style_engine(|engine| {
+            engine.position_option_entries(style_node, base_style_record, POSITION_OPTIONS_LIST_LIMIT - 1)
+        });
+        if entries.is_empty() {
+            arena.forget_position_option_in_use(node);
+            return styles;
+        }
+        let entry_of = |option: u32| {
+            option
+                .checked_sub(1)
+                .and_then(|index| entries.get(index as usize))
+                .copied()
+        };
+        let mut options: Vec<u32> = (0..=entries.len() as u32).collect();
+
+        // OPTIMIZATION: The styles of an option are made the first time it is tried, so that a box that fits with
+        //               its current styles makes no other.
+        let made_styles: std::cell::RefCell<Vec<(u32, Option<node_data::StylePayloadsRef>)>> =
+            std::cell::RefCell::new(Vec::new());
+        let records = std::cell::RefCell::new(Vec::new());
+        // The styles the option applies, which are none for the base styles, or none where it makes no styles.
+        let option_style = |option: u32| -> Option<Option<node_data::StylePayloadsRef>> {
+            let Some((index, _)) = entry_of(option) else {
+                return Some(None);
+            };
+            let made = made_styles
+                .borrow()
+                .iter()
+                .find(|&&(made_option, _)| made_option == option)
+                .map(|&(_, style)| style);
+            if let Some(style) = made {
+                return style.map(Some);
+            }
+            let record = arena.with_style_engine(|engine| {
+                engine.position_option_record(style_node, base_style_record, index, writing_mode, direction)
+            });
+            let style = record.as_ref().map(|record| record.payloads);
+            records.borrow_mut().extend(record);
+            made_styles.borrow_mut().push((option, style));
+            style.map(Some)
+        };
+
+        // https://drafts.csswg.org/css-anchor-position-1/#position-try-order-property
+        // For each entry in the position options list, apply that position option to the box, and find the
+        // inset-modified containing block size that results from those styles (treating auto inset values as zero).
+        // Stably sort the position options list according to this size, with the largest coming first.
+        if anchor.has_position_try_order {
+            let try_order = anchor.position_try_order;
+            let sized: Vec<(u32, CssPixels)> = options
+                .iter()
+                .filter_map(|&option| {
+                    let style = option_style(option)?;
+                    let size = self.with_position_option_style(node, style, || {
+                        let mut child = *child;
+                        let inputs = self.pending_child_layout_inputs(&mut child);
+                        let size = self.inset_modified_containing_block_size(node, &inputs);
+                        let horizontal_is_frame_inline = !self.callbacks.frame.is_transposed();
+                        let inline_axis_is_horizontal = writing_mode == writing_mode::HORIZONTAL_TB;
+                        let (horizontal, vertical) = if horizontal_is_frame_inline {
+                            (size.inline_size, size.block_size)
+                        } else {
+                            (size.block_size, size.inline_size)
+                        };
+                        match try_order {
+                            crate::css::css_enums::try_order::MOST_WIDTH => horizontal,
+                            crate::css::css_enums::try_order::MOST_HEIGHT => vertical,
+                            crate::css::css_enums::try_order::MOST_INLINE_SIZE if inline_axis_is_horizontal => {
+                                horizontal
+                            }
+                            crate::css::css_enums::try_order::MOST_INLINE_SIZE => vertical,
+                            _ if inline_axis_is_horizontal => vertical,
+                            _ => horizontal,
+                        }
+                    });
+                    Some((option, size))
+                })
+                .collect();
+            let mut sorted = sized;
+            sorted.sort_by_key(|a| core::cmp::Reverse(a.1));
+            options = sorted.into_iter().map(|(option, _)| option).collect();
+        }
+
+        // 1. Let current styles be the current used styles of abspos, as derived from the computed base style (which
+        //    might be the result of earlier fallback).
+        // NB: A box whose base styles, or the @position-try rule of its last successful position option, changed has
+        //     no last successful position option.
+        let last_successful_option = arena
+            .last_successful_position_option(node)
+            .filter(|choice| {
+                choice.base_style_record == base_style_record
+                    && entry_of(choice.option).map_or(0, |(_, rule)| rule) == choice.rule
+            })
+            .map_or(0, |choice| choice.option);
+        let current = options
+            .iter()
+            .position(|&option| option == last_successful_option && option_style(option).is_some())
+            .or_else(|| options.iter().position(|&option| option == 0))
+            .expect("the base styles are a position option");
+        let choice_of = |option: u32| abspos_inputs::PositionOptionChoice {
+            option,
+            base_style_record,
+            rule: entry_of(option).map_or(0, |(_, rule)| rule),
+        };
+        let fits = |index: usize| {
+            let option = options[index];
+            let Some(style) = option_style(option) else {
+                return false;
+            };
+            self.with_position_option_style(node, style, || self.position_option_fits(child, choice_of(option)))
+        };
+        // NB: The box determines its position fallback styles only where it overflows with its current styles.
+        // INTEROP: Other browsers take the first option of a list that position-try-order sorted that fits, even
+        //          where the base styles fit too.
+        let chosen = if anchor.has_position_try_order {
+            (0..options.len()).find(|&index| fits(index)).unwrap_or(current)
+        } else if fits(current) {
+            current
+        } else {
+            // 2. For each option in the position options list:
+            //    1. If option is currently abspos's last successful position option, continue.
+            // NB: position_option_fits() runs the other steps for each option.
+            // 3. Assert: The previous step finished without finding a position option that avoids overflow.
+            // 4. Return current styles.
+            (0..options.len())
+                .filter(|&index| index != current)
+                .find(|&index| fits(index))
+                .unwrap_or(current)
+        };
+        let option = options[chosen];
+        let style = option_style(option).flatten();
+        styles.choice = choice_of(option);
+        styles.records = records.into_inner();
+        arena.note_position_option_in_use(node, styles.choice);
+        if let Some(style) = style {
+            self.callbacks.scratch().push_position_option_style(node, style);
+            styles.installed = true;
+        }
+        styles
+    }
+
+    /// Runs `callback` with the style reads of `node` seeing `style`, or the style of its row for none.
+    fn with_position_option_style<T>(
+        &self,
+        node: Node,
+        style: Option<node_data::StylePayloadsRef>,
+        callback: impl FnOnce() -> T,
+    ) -> T {
+        let Some(style) = style else {
+            return callback();
+        };
+        self.callbacks.scratch().push_position_option_style(node, style);
+        let result = callback();
+        self.callbacks.scratch().pop_position_option_style(node);
+        result
+    }
+
+    /// The size of the inset-modified containing block that `inputs` give the box `node`, treating auto inset values
+    /// as zero.
+    fn inset_modified_containing_block_size(
+        &self,
+        node: Node,
+        inputs: &abspos_inputs::AbsposLayoutInputs,
+    ) -> geometry::LogicalSize {
+        let style = self
+            .style(node)
+            .with_resolved_insets(inputs.resolved_anchor_insets.as_ref());
+        let size = inputs.containing_block_info.rect.size;
+        let inset = |value: style_values::InsetValue<'_>, basis: CssPixels| {
+            if value.is_auto() {
+                CssPixels::default()
+            } else {
+                value.to_px(basis)
+            }
+        };
+        geometry::LogicalSize {
+            inline_size: size.inline_size
+                - inset(style.inset_left(), size.inline_size)
+                - inset(style.inset_right(), size.inline_size),
+            block_size: size.block_size
+                - inset(style.inset_top(), size.block_size)
+                - inset(style.inset_bottom(), size.block_size),
+        }
+    }
+
+    /// https://drafts.csswg.org/css-anchor-position-1/#determine-position-fallback-styles
+    /// Whether the margin box of the pending child `child`, laid out with the styles its style reads see, is fully
+    /// contained within its inset-modified containing block.
+    fn position_option_fits(
+        &self,
+        child: &abspos_inputs::PendingAbsposChild,
+        choice: abspos_inputs::PositionOptionChoice,
+    ) -> bool {
+        let node = child.child_box;
+        let mut child = *child;
+        let mut inputs = self.pending_child_layout_inputs(&mut child);
+        inputs.position_option = choice;
+        // 3. Let el rect be the size and position of abspos's margin box, and cb rect be the size and position of
+        //    abspos's inset-modified containing block, when laid out with adjusted styles.
+        let used = used_values::create_used_values(&self.callbacks, node, ContainingBlockConstraints::default());
+        let (available_space, constraints) = out_of_flow_root_space(inputs);
+        formatting_context::MeasurementState::create(self.callbacks).run_with_purpose(
+            formatting_context::LayoutPurpose::Measurement,
+            node,
+            &used,
+            LayoutMode::Normal,
+            LayoutInput::new(
+                available_space,
+                constraints,
+                ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs),
+            ),
+        );
+        let style = self
+            .style(node)
+            .with_resolved_insets(inputs.resolved_anchor_insets.as_ref());
+        let collapsed = used.uses_collapsing_borders_model.get();
+        let margin_box_size = geometry::LogicalSize {
+            inline_size: used.margin_box_inline_size(collapsed),
+            block_size: used.margin_box_block_size(collapsed),
+        };
+        let static_offset = aligned_static_offset(
+            inputs.static_position_rect,
+            margin_box_size.inline_size,
+            margin_box_size.block_size,
+        );
+        let containing_block = inputs.containing_block_info.rect;
+        let axis_is_contained = |start: style_values::InsetValue<'_>,
+                                 end: style_values::InsetValue<'_>,
+                                 containing_block_size: CssPixels,
+                                 margin_box_start: CssPixels,
+                                 margin_box_size: CssPixels| {
+            let inset = |value: style_values::InsetValue<'_>| {
+                if value.is_auto() {
+                    CssPixels::default()
+                } else {
+                    value.to_px(containing_block_size)
+                }
+            };
+            let inset_modified_start = inset(start);
+            let inset_modified_end = containing_block_size - inset(end);
+            // 4. If cb rect was negative-size in either axis and corrected into zero-size, continue.
+            if inset_modified_end < inset_modified_start {
+                return false;
+            }
+            // 5. If el rect is not fully contained within cb rect, continue.
+            margin_box_start >= inset_modified_start && margin_box_start + margin_box_size <= inset_modified_end
+        };
+        let margin_box_start = |mode: abspos_inputs::AbsposAxisMode,
+                                static_offset: CssPixels,
+                                containing_block_offset: CssPixels,
+                                start_inset: CssPixels| match mode {
+            abspos_inputs::AbsposAxisMode::StaticPosition => static_offset - containing_block_offset,
+            abspos_inputs::AbsposAxisMode::InsetFromRect => start_inset,
+        };
+        axis_is_contained(
+            style.inset_left(),
+            style.inset_right(),
+            containing_block.size.inline_size,
+            margin_box_start(
+                inputs.containing_block_info.inline_axis_mode,
+                static_offset.inline_offset,
+                containing_block.offset.inline_offset,
+                used.inset_left.get(),
+            ),
+            margin_box_size.inline_size,
+        ) && axis_is_contained(
+            style.inset_top(),
+            style.inset_bottom(),
+            containing_block.size.block_size,
+            margin_box_start(
+                inputs.containing_block_info.block_axis_mode,
+                static_offset.block_offset,
+                containing_block.offset.block_offset,
+                used.inset_top.get(),
+            ),
+            margin_box_size.block_size,
+        )
+    }
+
+    /// The layout inputs of the pending child `child`, as its style resolves them against its containing block and
+    /// its anchors.
+    fn pending_child_layout_inputs(
+        &self,
+        child: &mut abspos_inputs::PendingAbsposChild,
+    ) -> abspos_inputs::AbsposLayoutInputs {
+        let child_box = child.child_box;
+        let containing_block_geometry = self.containing_block_geometry_for_pending_child(child);
         let inline_containing_block_rect =
-            self.inline_containing_block_rect_for_pending_child(&child, &containing_block_geometry);
+            self.inline_containing_block_rect_for_pending_child(child, &containing_block_geometry);
         let translation_into_containing_block_space = formatting_context::point_sub(
             FfiCssPixelPoint::default(),
             containing_block_geometry.content_origin_in_entry_space,
@@ -3295,16 +3632,15 @@ impl<'pass> AbsposEngine<'pass> {
             self.zero_aligned_auto_margins(child_box, &mut resolved_anchor_sizes, &containing_block_info);
             (containing_block_info, resolved, resolved_anchor_sizes)
         };
-        let inputs = abspos_inputs::AbsposLayoutInputs {
+        abspos_inputs::AbsposLayoutInputs {
             containing_block: child.containing_block(),
             inline_containing_block: child.inline_containing_block(),
             static_position_rect: child.static_position_rect,
             containing_block_info,
             resolved_anchor_insets: resolved,
             resolved_anchor_sizes,
-        };
-        self.install_resolved_anchor_sizes(child_box, &inputs);
-        self.layout_element(run, child_box, inputs);
+            position_option: abspos_inputs::PositionOptionChoice::default(),
+        }
     }
 
     /// Joins the entry against the inline containing block rect its IFC
@@ -3478,4 +3814,36 @@ pub(crate) fn compute_inset_native(
         run.box_,
         run.treat_block_axis_percentage_insets_as_auto_beyond_root,
     );
+}
+
+/// The position option a box is laid out with, whose styles its style reads see while this lives, and the style records
+/// of its position options, which stay pinned until then.
+struct PositionOptionStyles<'pass> {
+    callbacks: LayoutPass<'pass>,
+    node: Node,
+    choice: abspos_inputs::PositionOptionChoice,
+    records: Vec<crate::css::style::layout_style::DerivedStyleRecord>,
+    installed: bool,
+}
+
+impl PositionOptionStyles<'_> {
+    fn choice(&self) -> abspos_inputs::PositionOptionChoice {
+        self.choice
+    }
+}
+
+impl Drop for PositionOptionStyles<'_> {
+    fn drop(&mut self) {
+        if self.installed {
+            self.callbacks.scratch().pop_position_option_style(self.node);
+        }
+        if self.records.is_empty() {
+            return;
+        }
+        self.callbacks.arena().with_style_engine(|engine| {
+            for record in &self.records {
+                engine.unpin_layout_style_record(record.record);
+            }
+        });
+    }
 }

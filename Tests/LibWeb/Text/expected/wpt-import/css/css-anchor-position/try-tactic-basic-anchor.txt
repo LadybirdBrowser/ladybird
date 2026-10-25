@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	Uses flip-block
-Fail	Uses flip-inline
-Fail	Uses flip-block flip-inline
+3 Pass
+Pass	Uses flip-block
+Pass	Uses flip-inline
+Pass	Uses flip-block flip-inline

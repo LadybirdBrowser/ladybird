@@ -1274,6 +1274,40 @@ pub extern "C" fn style_engine_set_tree_scope_animation_keyframes(
     super::engine_calls::queue(host, write);
 }
 
+/// Replaces the `@position-try` row of one style scope: each name the scope defines, packed into one buffer of code
+/// units with a length each, with the declarations of the rule that name resolves to. An empty row gives the scope's
+/// row up.
+///
+/// # Safety
+/// Each declaration pointer must be a live `Arc<DeclarationBlockData>` the call borrows.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_set_tree_scope_position_try_rules(
+    host: &DocumentHost,
+    tree_scope: u32,
+    name_lengths: ak::Span<'_, u32>,
+    name_units: ak::Span<'_, u16>,
+    declarations: ak::Span<'_, *const c_void>,
+) {
+    assert_eq!(
+        name_lengths.as_slice().len(),
+        declarations.as_slice().len(),
+        "each @position-try name has declarations"
+    );
+    // SAFETY: Guaranteed by the caller.
+    let row = unsafe {
+        super::position_try::PositionTryRules::row(
+            name_lengths.as_slice(),
+            name_units.as_slice(),
+            declarations.as_slice(),
+        )
+    };
+    let write = super::engine_calls::EngineWrite::PositionTryRules {
+        tree_scope: TreeScopeID(tree_scope),
+        row,
+    };
+    super::engine_calls::queue(host, write);
+}
+
 /// Keeps the store behind an environment an element holds, and what a child inherits of it,
 /// `inheritable` with its store: the engine resolves the environments of an element's children
 /// over it, and substitutes the element's own values under an animation overlay.

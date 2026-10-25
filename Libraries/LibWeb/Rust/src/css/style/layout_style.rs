@@ -195,6 +195,49 @@ impl LayoutStyle {
         !self.changed
     }
 
+    /// Builds the payloads of `groups` again from `table`, a longhand table holding the style's computed values with
+    /// some of them replaced.
+    /// The values `animated_overlay` samples over the table win over it where they do over the style's own table.
+    pub(crate) fn replace_groups_from_table(
+        &mut self,
+        table: &ComputedLonghandTable,
+        animated_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
+        groups: &[usize],
+    ) {
+        for &group in groups {
+            let current = self.payloads[group].as_ptr();
+            // SAFETY: The style holds a reference to its payload of every group.
+            let parent = unsafe { crate::css::computed_values::GroupPayloadRef::new(group, current) };
+            let payload = crate::css::table_group_builder::rebuild_group_from_table_and_overlay(
+                table,
+                animated_overlay,
+                group,
+                parent,
+                0,
+                0,
+                None,
+            )
+            .expect("a group of the accepted @position-try properties builds from a longhand table");
+            if payload == current {
+                release_group_payload(group, payload);
+                continue;
+            }
+            self.changed = true;
+            release_group_payload(
+                group,
+                std::mem::replace(&mut self.payloads[group], SharedPayload::new(payload)).as_ptr(),
+            );
+        }
+    }
+
+    pub(crate) fn position_area(&self) -> Vec<u8> {
+        self.group::<AnchorValues>().position_area.as_slice().to_vec()
+    }
+
+    pub(crate) fn set_position_area(&mut self, codes: Vec<u8>) {
+        self.edit::<AnchorValues>(|values| values.position_area = RetainedPositionAreaList::from_vec(codes));
+    }
+
     pub(crate) fn set_display(&mut self, display: FfiDisplay) {
         self.edit::<BoxValues>(|values| values.display = display);
     }

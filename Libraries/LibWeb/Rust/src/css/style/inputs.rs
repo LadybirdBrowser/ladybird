@@ -2016,6 +2016,7 @@ impl StyleEngine {
                 children_explicitly_inherit_marks: HashMap::default(),
                 css_defined_animations: Default::default(),
                 animation_keyframes: Default::default(),
+                position_try_rules: Default::default(),
                 animation_effect_descriptions: Default::default(),
                 hover: Default::default(),
                 held_root_font_inputs: None,
@@ -3392,6 +3393,7 @@ impl RetainedState {
             children_explicitly_inherit_marks,
             css_defined_animations,
             animation_keyframes: _,
+            position_try_rules: _,
             animation_effect_descriptions,
             // Like the host, a `rem` keeps reading the last document element's font until another
             // takes its place.

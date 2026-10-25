@@ -2,34 +2,34 @@ Harness status: OK
 
 Found 30 tests
 
-30 Fail
-Fail	CSS Anchor Positioning: try-tactic
-Fail	flip-block
-Fail	flip-y
-Fail	flip-inline
-Fail	flip-x
-Fail	flip-block flip-inline
-Fail	flip-inline flip-block
-Fail	flip-y flip-x
-Fail	flip-x flip-y
-Fail	flip-start
-Fail	flip-block flip-start flip-inline
-Fail	flip-inline flip-start flip-block
-Fail	flip-y flip-start flip-x
-Fail	flip-x flip-start flip-y
-Fail	flip-start flip-block
-Fail	flip-inline flip-start
-Fail	flip-start flip-y
-Fail	flip-x flip-start
-Fail	flip-start flip-inline
-Fail	flip-block flip-start
-Fail	flip-start flip-x
-Fail	flip-y flip-start
-Fail	flip-start flip-block flip-inline
-Fail	flip-start flip-inline flip-block
-Fail	flip-inline flip-block flip-start
-Fail	flip-block flip-inline flip-start
-Fail	flip-start flip-y flip-x
-Fail	flip-start flip-x flip-y
-Fail	flip-x flip-y flip-start
-Fail	flip-y flip-x flip-start
+30 Pass
+Pass	CSS Anchor Positioning: try-tactic
+Pass	flip-block
+Pass	flip-y
+Pass	flip-inline
+Pass	flip-x
+Pass	flip-block flip-inline
+Pass	flip-inline flip-block
+Pass	flip-y flip-x
+Pass	flip-x flip-y
+Pass	flip-start
+Pass	flip-block flip-start flip-inline
+Pass	flip-inline flip-start flip-block
+Pass	flip-y flip-start flip-x
+Pass	flip-x flip-start flip-y
+Pass	flip-start flip-block
+Pass	flip-inline flip-start
+Pass	flip-start flip-y
+Pass	flip-x flip-start
+Pass	flip-start flip-inline
+Pass	flip-block flip-start
+Pass	flip-start flip-x
+Pass	flip-y flip-start
+Pass	flip-start flip-block flip-inline
+Pass	flip-start flip-inline flip-block
+Pass	flip-inline flip-block flip-start
+Pass	flip-block flip-inline flip-start
+Pass	flip-start flip-y flip-x
+Pass	flip-start flip-x flip-y
+Pass	flip-x flip-y flip-start
+Pass	flip-y flip-x flip-start

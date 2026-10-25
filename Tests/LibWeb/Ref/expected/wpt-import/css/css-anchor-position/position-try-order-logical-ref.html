@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<style>
+.container {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  width: 100px;
+  height: 100px;
+  margin: 10px;
+  border: solid 3px;
+}
+
+.anchor {
+  position: absolute;
+  anchor-name: --a;
+  width: 25px;
+  height: 25px;
+  left: 50px;
+  top: 25px;
+  background: dodgerblue;
+}
+
+.anchored {
+  position: absolute;
+  position-anchor: --a;
+  position-try-fallbacks: flip-block flip-inline;
+  width: 15px;
+  height: 15px;
+  background: green;
+}
+</style>
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: top left;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: top left;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: bottom right;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: bottom right;"></div>
+</div>
+
+<br>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: top left;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: top left;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: bottom right;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: bottom right;"></div>
+</div>
+
+<br>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: bottom right;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: bottom right;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: top left;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: top left;"></div>
+</div>
+
+<br>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: bottom right;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: bottom right;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: top left;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="position-area: top left;"></div>
+</div>

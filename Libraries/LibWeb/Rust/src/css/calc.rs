@@ -1016,7 +1016,7 @@ pub(crate) fn de_percentify_calc_size_calculation(node: &Arc<CalcNode>) -> Optio
 
 /// Rebuilds a calculation with each leaf `replace` gives a replacement for replaced, or returns None where that
 /// would need to rebuild a kind of node other than the calc operators, min(), max() and clamp().
-fn map_calc_size_leaves(
+pub(crate) fn map_calc_size_leaves(
     node: &Arc<CalcNode>,
     replace: &dyn Fn(&CalcNode) -> Option<Arc<CalcNode>>,
 ) -> Option<Arc<CalcNode>> {

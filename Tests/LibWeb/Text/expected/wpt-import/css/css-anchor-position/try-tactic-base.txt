@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	flip-start affects base values
+1 Pass
+Pass	flip-start affects base values

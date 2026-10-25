@@ -3307,9 +3307,23 @@ pub(crate) fn rebuild_group_from_table(
     used_color_scheme: u8,
     length: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
 ) -> Option<*const c_void> {
+    rebuild_group_from_table_and_overlay(table, None, group, parent, current_color, used_color_scheme, length)
+}
+
+/// Rebuilds one group as [`rebuild_group_from_table`] does, with the values `animated_overlay` samples over the table
+/// where they win over it.
+pub(crate) fn rebuild_group_from_table_and_overlay(
+    table: &ComputedLonghandTable,
+    animated_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
+    group: usize,
+    parent: Option<GroupPayloadRef<'_>>,
+    current_color: u32,
+    used_color_scheme: u8,
+    length: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
+) -> Option<*const c_void> {
     let values = EffectiveValues {
         table,
-        animated_overlay: None,
+        animated_overlay,
     };
     let input = ColorResolutionInput {
         scheme: Some(used_color_scheme),

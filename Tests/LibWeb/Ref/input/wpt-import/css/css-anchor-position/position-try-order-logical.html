@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/12869#issuecomment-3406959070">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/position-try-order-logical-ref.html">
+<style>
+.container {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  width: 100px;
+  height: 100px;
+  margin: 10px;
+  border: solid 3px;
+}
+
+.anchor {
+  position: absolute;
+  anchor-name: --a;
+  width: 25px;
+  height: 25px;
+  left: 50px;
+  top: 25px;
+  background: dodgerblue;
+}
+
+.anchored {
+  position: absolute;
+  position-anchor: --a;
+  left: 100px;  /* ensure the element will overflow the IMCB at "base" position */
+  /* fallbacks: (1) with left inset removed; (2) also flipped in both axes */
+  position-try-fallbacks: --noinset, --noinset flip-block flip-inline;
+  width: 15px;
+  height: 15px;
+  background: green;
+}
+
+@position-try --noinset {
+  /* a fallback that just removes the left inset from the base position */
+  left: unset;
+}
+</style>
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           position-area: top left;
+           position-try-order: most-inline-size;
+           writing-mode: vertical-rl;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           position-area: top left;
+           position-try-order: most-inline-size;
+           writing-mode: horizontal-tb;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           position-area: top left;
+           position-try-order: most-block-size;
+           writing-mode: vertical-rl;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           position-area: top left;
+           position-try-order: most-block-size;
+           writing-mode: horizontal-tb;"></div>
+</div>
+
+<br>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           right: anchor(left); bottom: anchor(top);
+           position-try-order: most-inline-size;
+           writing-mode: vertical-rl;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           right: anchor(left); bottom: anchor(top);
+           position-try-order: most-inline-size;
+           writing-mode: horizontal-tb;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           right: anchor(left); bottom: anchor(top);
+           position-try-order: most-block-size;
+           writing-mode: vertical-rl;"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           right: anchor(left); bottom: anchor(top);
+           position-try-order: most-block-size;
+           writing-mode: horizontal-tb;"></div>
+</div>
+
+<br>
+
+<!-- vertical containing block. -->
+<div class="container" style="writing-mode: vertical-rl;">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           position-area: top left;
+           position-try-order: most-inline-size;
+           writing-mode: vertical-rl;"></div>
+</div>
+
+<div class="container" style="writing-mode: vertical-rl;">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           position-area: top left;
+           position-try-order: most-inline-size;
+           writing-mode: horizontal-tb;"></div>
+</div>
+
+<div class="container" style="writing-mode: vertical-rl;">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           position-area: top left;
+           position-try-order: most-block-size;
+           writing-mode: vertical-rl;"></div>
+</div>
+
+<div class="container" style="writing-mode: vertical-rl;">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           position-area: top left;
+           position-try-order: most-block-size;
+           writing-mode: horizontal-tb;"></div>
+</div>
+
+<br>
+
+<div class="container" style="writing-mode: vertical-rl;">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           right: anchor(left); bottom: anchor(top);
+           position-try-order: most-inline-size;
+           writing-mode: vertical-rl;"></div>
+</div>
+
+<div class="container" style="writing-mode: vertical-rl;">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           right: anchor(left); bottom: anchor(top);
+           position-try-order: most-inline-size;
+           writing-mode: horizontal-tb;"></div>
+</div>
+
+<div class="container" style="writing-mode: vertical-rl;">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           right: anchor(left); bottom: anchor(top);
+           position-try-order: most-block-size;
+           writing-mode: vertical-rl;"></div>
+</div>
+
+<div class="container" style="writing-mode: vertical-rl;">
+  <div class="anchor"></div>
+  <div class="anchored" style="
+           right: anchor(left); bottom: anchor(top);
+           position-try-order: most-block-size;
+           writing-mode: horizontal-tb;"></div>
+</div>

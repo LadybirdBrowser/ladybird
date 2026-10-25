@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<link rel="author" title="David Shin" href="mailto:dshin@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#fallback-rule">
+<link rel="help" href="https://drafts.csswg.org/css-shadow/#shadow-names">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/../reference/ref-filled-green-100px-square.xht">
+<style>
+#host {
+  position: relative;
+}
+
+.foo {
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+
+.foo::after {
+  display: block;
+  width: 100px;
+  height: 100px;
+  content: "";
+  background: green;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="host">
+  <template shadowrootmode="open">
+    <style>
+      @position-try --host-slot-part {
+        left: 0px;
+      }
+      ::slotted(.foo)::after {
+        position: absolute;
+        left: 999999px;
+        position-try-fallbacks: --host-slot-part;
+      }
+    </style>
+    <div id="part" part="part"></div>
+    <slot></slot>
+  </template>
+  <div class=foo></div>
+</div>

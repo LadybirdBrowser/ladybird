@@ -1306,6 +1306,11 @@ pub(crate) struct LayoutNodeArena {
     /// Layout inputs for new absolutely positioned boxes that the build confined to themselves.
     /// They stand in for the committed inputs such a box does not have yet.
     pub(crate) confined_abspos_layout_inputs: RefCell<HashMap<NodeSlotId, AbsposLayoutInputs>>,
+    /// The position option each box with position options was last laid out with.
+    /// https://drafts.csswg.org/css-anchor-position-1/#fallback-apply
+    position_options_in_use: RefCell<HashMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>>,
+    /// https://drafts.csswg.org/css-anchor-position-1/#last-successful-position-option
+    last_successful_position_options: RefCell<HashMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>>,
     pub(crate) inline_boxes_lifted_out_of: RefCell<HashMap<NodeSlotId, NodeSlotId>>,
     pub(crate) out_of_flow_positioning_contained: RefCell<HashMap<NodeSlotId, u32>>,
     /// Attribution of pending updates for partial relayout. Invariant: every update recorded
@@ -1412,6 +1417,8 @@ impl LayoutNodeArena {
             pending_attached_subtree_roots: RefCell::new(Vec::new()),
             deferred_child_list_insertion_parents: RefCell::new(Vec::new()),
             confined_abspos_layout_inputs: RefCell::new(HashMap::default()),
+            position_options_in_use: RefCell::new(HashMap::default()),
+            last_successful_position_options: RefCell::new(HashMap::default()),
             inline_boxes_lifted_out_of: RefCell::new(HashMap::default()),
             out_of_flow_positioning_contained: RefCell::new(HashMap::default()),
             pending_updates_escape_partial_relayout: Cell::new(false),
@@ -4910,6 +4917,45 @@ impl LayoutNodeArena {
         self.node_pre_order_label(node) < self.node_pre_order_label(other)
     }
 
+    /// Notes that the box `node` was laid out with the position option `choice`.
+    pub(crate) fn note_position_option_in_use(
+        &self,
+        node: NodeSlotId,
+        choice: super::abspos_inputs::PositionOptionChoice,
+    ) {
+        self.position_options_in_use.borrow_mut().insert(node, choice);
+    }
+
+    /// Notes that the box `node` was laid out with no position option.
+    pub(crate) fn forget_position_option_in_use(&self, node: NodeSlotId) {
+        let mut in_use = self.position_options_in_use.borrow_mut();
+        if !in_use.is_empty() {
+            in_use.remove(&node);
+        }
+    }
+
+    /// https://drafts.csswg.org/css-anchor-position-1/#last-successful-position-option
+    pub(crate) fn last_successful_position_option(
+        &self,
+        node: NodeSlotId,
+    ) -> Option<super::abspos_inputs::PositionOptionChoice> {
+        self.last_successful_position_options.borrow().get(&node).copied()
+    }
+
+    /// Whether a box was laid out with position options, or has a last successful position option.
+    pub(crate) fn may_have_position_options(&self) -> bool {
+        !self.position_options_in_use.borrow().is_empty() || !self.last_successful_position_options.borrow().is_empty()
+    }
+
+    /// https://drafts.csswg.org/css-anchor-position-1/#record-the-last-successful-position-option
+    /// Set the last successful position option of each box with position options to the one it is now using.
+    pub(crate) fn record_last_successful_position_options(&self) {
+        let mut in_use = self.position_options_in_use.borrow_mut();
+        in_use.retain(|&node, _| self.slot_is_live(node));
+        let mut last_successful = self.last_successful_position_options.borrow_mut();
+        last_successful.clone_from(&in_use);
+    }
+
     pub(crate) fn saved_abspos_layout_inputs(&self, data: &NodeData) -> Option<AbsposLayoutInputs> {
         let (index, metadata) = self.slot_for_data(data);
         self.paintable_rows
@@ -7150,6 +7196,7 @@ mod tests {
             },
             resolved_anchor_insets: None,
             resolved_anchor_sizes: Default::default(),
+            position_option: Default::default(),
         }
     }
 

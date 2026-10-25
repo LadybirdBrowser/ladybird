@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	Initial static left position is 0
-Fail	Left position set to right edge of anchor with @position-try
+Pass	Left position set to right edge of anchor with @position-try

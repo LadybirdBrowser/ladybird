@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 11 tests
 
-11 Fail
-Fail	 horizontal-tb ltr
-Fail	flip-inline horizontal-tb ltr
-Fail	flip-x horizontal-tb ltr
-Fail	flip-inline vertical-lr ltr
-Fail	flip-inline sideways-lr ltr
-Fail	flip-y vertical-lr ltr
-Fail	flip-y sideways-lr ltr
-Fail	flip-block sideways-rl ltr
-Fail	flip-x sideways-rl ltr
-Fail	flip-start horizontal-tb ltr
-Fail	flip-start horizontal-tb rtl
+11 Pass
+Pass	 horizontal-tb ltr
+Pass	flip-inline horizontal-tb ltr
+Pass	flip-x horizontal-tb ltr
+Pass	flip-inline vertical-lr ltr
+Pass	flip-inline sideways-lr ltr
+Pass	flip-y vertical-lr ltr
+Pass	flip-y sideways-lr ltr
+Pass	flip-block sideways-rl ltr
+Pass	flip-x sideways-rl ltr
+Pass	flip-start horizontal-tb ltr
+Pass	flip-start horizontal-tb rtl

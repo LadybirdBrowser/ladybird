@@ -109,6 +109,7 @@ pub mod order;
 mod ordering;
 mod partial_view;
 mod planning;
+pub(crate) mod position_try;
 mod prefix;
 pub mod program;
 mod program_updates;
@@ -919,6 +920,9 @@ pub struct RetainedState {
     /// The `@keyframes` each of the document's style scopes defines, as the host's rule caches
     /// resolved them, which an animation definition's keyframes are resolved from.
     animation_keyframes: crate::fork::ForkShared<animations::AnimationKeyframes>,
+    /// The `@position-try` rules each of the document's style scopes defines, as the host's rule caches resolved
+    /// them, which the position options of an absolutely positioned box are made from.
+    position_try_rules: crate::fork::ForkShared<position_try::PositionTryRules>,
     /// The animation effects the host holds for each element, described for sampling.
     animation_effect_descriptions: crate::fork::ForkShared<effect_descriptions::AnimationEffectDescriptions>,
     /// The font metrics of the record the host holds for the document element, which a `rem` the

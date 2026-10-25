@@ -42,6 +42,7 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
@@ -1115,6 +1116,12 @@ static void update_style_and_layout_for_rendering(DOM::Document& document)
             // 2. Continue.
             continue;
         }
+
+        // https://drafts.csswg.org/css-anchor-position-1/#last-successful-position-option
+        // At the time that ResizeObserver events are determined and delivered, the box must record the last
+        // successful position option.
+        if (auto* layout_node_arena = document.layout_node_arena_if_created())
+            Layout::RustFFI::render_state_record_last_successful_position_options(layout_node_arena->host());
 
         // 7. Otherwise, break.
         break;

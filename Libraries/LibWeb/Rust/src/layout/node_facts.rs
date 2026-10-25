@@ -763,7 +763,7 @@ impl<'pass> NodeFacts<'pass> {
     #[inline]
     pub(crate) fn new(callbacks: &LayoutPass<'pass>, node: Node) -> Self {
         let data = callbacks.node_data(node);
-        let style_payloads = callbacks.arena().style_payloads(node);
+        let style_payloads = callbacks.style_payloads_if_styled(node);
         Self {
             callbacks: *callbacks,
             node,

@@ -255,6 +255,7 @@ void StyleScope::build_rule_cache()
     if (!m_has_published_rule_cache) {
         publish_cascade_layer_order();
         publish_animation_keyframes();
+        publish_position_try_rules();
         m_has_published_rule_cache = true;
     }
 }
@@ -413,6 +414,8 @@ void StyleRuleCache::add_rules_from_cache(StyleRuleCache const& other)
 {
     for (auto const& [name, keyframe_set] : other.rules_by_animation_keyframes)
         rules_by_animation_keyframes.set(name, keyframe_set);
+    for (auto const& [name, declarations] : other.rules_by_position_try)
+        rules_by_position_try.set(name, RustDeclarationBlockSnapshot { Parser::ValueParserFFI::rust_declaration_data_retain(declarations.data()) });
     function_rules.extend(other.function_rules);
     has_size_container_queries |= other.has_size_container_queries;
 }
@@ -425,6 +428,11 @@ void StyleRuleCache::add_rules_from_sheet(StyleSheetState& sheet, CascadeOrigin 
             has_size_container_queries = true;
         if (rule.type() == RustRule::Type::Function)
             function_rules.append({ rule.compile_function(), Utf16FlyString::from_utf16(layer_prefix), cascade_origin });
+        if (rule.type() == RustRule::Type::PositionTry) {
+            if (auto* declarations = rule.position_try_declarations())
+                rules_by_position_try.set(Utf16FlyString { rule.name() }, RustDeclarationBlockSnapshot { declarations });
+            return;
+        }
         if (rule.type() != RustRule::Type::Keyframes)
             return;
 
@@ -587,17 +595,56 @@ void StyleScope::publish_animation_keyframes()
     m_published_keyframe_sets = move(published);
 }
 
+// The @position-try rules this scope defines, as the rule cache just built resolved them. The position options of an
+// absolutely positioned box are made from these.
+void StyleScope::publish_position_try_rules()
+{
+    auto const& rules = m_rule_cache->rules_by_position_try;
+    Vector<Utf16FlyString> names;
+    Vector<void const*> declarations;
+    names.ensure_capacity(rules.size());
+    declarations.ensure_capacity(rules.size());
+    for (auto const& [name, rule_declarations] : rules) {
+        names.unchecked_append(name);
+        declarations.unchecked_append(rule_declarations.data());
+    }
+    if (names == m_published_position_try_names && declarations == m_published_position_try_declarations)
+        return;
+
+    Vector<u32> name_lengths;
+    Vector<u16> name_units;
+    name_lengths.ensure_capacity(names.size());
+    for (auto const& name : names) {
+        name_lengths.unchecked_append(name.length_in_code_units());
+        for (size_t index = 0; index < name.length_in_code_units(); ++index)
+            name_units.append(name.code_unit_at(index));
+    }
+    StyleEngineFFI::style_engine_set_tree_scope_position_try_rules(
+        document().style_computer().style_engine().host(), style_engine_tree_scope().value(), name_lengths.span(),
+        name_units.span(), declarations.span());
+    m_published_position_try_names = move(names);
+    m_published_position_try_declarations = move(declarations);
+
+    // NB: The position options of a box are made from these rules as it is laid out, so a box whose options they
+    //     moved must be laid out again.
+    document().set_needs_full_layout_tree_update();
+}
+
 Optional<StyleScope::DepartedAnimationKeyframes> StyleScope::take_published_animation_keyframes()
 {
     // The scope publishes again in the document it joins, if it joins one, under the tree scope that document gives it.
     m_has_published_rule_cache = false;
+    bool const has_position_try_rules = !m_published_position_try_names.is_empty();
+    m_published_position_try_names.clear();
+    m_published_position_try_declarations.clear();
     auto* shadow_root = as_if<DOM::ShadowRoot>(*m_node);
-    if (!shadow_root || m_published_keyframe_sets.is_empty())
+    if (!shadow_root || (m_published_keyframe_sets.is_empty() && !has_position_try_rules))
         return {};
     return DepartedAnimationKeyframes {
         .tree_scope = shadow_root->style_engine_tree_scope(),
         .shadow_root_identity = bit_cast<FlatPtr>(shadow_root),
         .keyframe_sets = move(m_published_keyframe_sets),
+        .has_position_try_rules = has_position_try_rules,
     };
 }
 

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+
+<html class="reftest-wait">
+
+<head>
+<title>Retrying fallbacks after failing with a non-existing fallback</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://issues.chromium.org/issues/427134601">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/../reference/ref-filled-green-100px-square.xht">
+<style>
+  #anchor {
+    anchor-name: --a;
+  }
+
+  #anchored {
+    position: absolute;
+    position-anchor: --a;
+    position-area: left; /* No room on the left. */
+    position-try-fallbacks: --fits, --bogus;
+  }
+
+  @position-try --fits {
+    position-area: right;
+  }
+</style>
+<script src="../../common/reftest-wait.js"></script>
+<script src="../../common/rendering-utils.js"></script>
+</head>
+
+<body>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="position:relative; height:200px;">
+  <div id="container" style="overflow:hidden; width:100px; height:100px; background:red;">
+    <div id="anchor" style="width:50px; height:150px;">
+      <div style="height:50px;"></div>
+      <div style="height:100px; background:green;"></div>
+    </div>
+    <div style="height:300px;"></div>
+    <div id="anchored" style="width:50px; height:150px;">
+      <div style="height:50px;"></div>
+      <div style="height:100px; background:green;"></div>
+    </div>
+  </div>
+</div>
+<script>
+  waitForAtLeastOneFrame().then(() => {
+    waitForAtLeastOneFrame().then(() => {
+      container.scrollTop = 50;
+      waitForAtLeastOneFrame().then(() => {
+        takeScreenshot();
+      });
+    });
+  });
+</script>
+</body>
+
+</html>

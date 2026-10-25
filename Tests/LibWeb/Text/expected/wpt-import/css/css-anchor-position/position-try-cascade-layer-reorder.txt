@@ -2,6 +2,7 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	When in the same layer, the last rule of each name wins
+1 Pass
+1 Fail
+Pass	When in the same layer, the last rule of each name wins
 Fail	When in different layers, the rule of each name in the highest layer wins

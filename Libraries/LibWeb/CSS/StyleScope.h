@@ -68,6 +68,11 @@ struct StyleRuleCache {
     void add_rules_from_cache(StyleRuleCache const&);
 
     HashMap<Utf16FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
+    // https://drafts.csswg.org/css-anchor-position-1/#fallback-rule
+    // If multiple @position-try rules are declared with the same name, they cascade (overriding each other) the same
+    // as @keyframes rules do.
+    // NB: These are the declarations of the @position-try rule each name resolves to.
+    HashMap<Utf16FlyString, RustDeclarationBlockSnapshot> rules_by_position_try;
     Vector<CachedFunctionRule> function_rules;
     bool has_size_container_queries { false };
 };
@@ -108,6 +113,7 @@ public:
     void invalidate_style_cache();
     void publish_cascade_layer_order(StyleSheetState* pending_attachment = nullptr);
     void publish_animation_keyframes();
+    void publish_position_try_rules();
     void invalidate_user_style_sheet();
 
     // The `@keyframes` row a shadow root's scope published to the style engine, taken from the scope as the root
@@ -116,6 +122,8 @@ public:
         TreeScopeID tree_scope;
         FlatPtr shadow_root_identity { 0 };
         Vector<NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet const>> keyframe_sets;
+        // NB: Whether the scope published a `@position-try` row too, which is given up along with this one.
+        bool has_position_try_rules { false };
     };
     [[nodiscard]] Optional<DepartedAnimationKeyframes> take_published_animation_keyframes();
 
@@ -146,6 +154,10 @@ public:
     // The keyframe sets this scope last published. The style engine names them by pointer, so they stay alive after
     // the rule cache they came from is invalidated, until the scope publishes again or gives its row up.
     Vector<NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet const>> m_published_keyframe_sets;
+
+    // The names and declarations of the @position-try rules this scope last published.
+    Vector<Utf16FlyString> m_published_position_try_names;
+    Vector<void const*> m_published_position_try_declarations;
 
     RefPtr<StyleSheetState> m_user_style_sheet;
 

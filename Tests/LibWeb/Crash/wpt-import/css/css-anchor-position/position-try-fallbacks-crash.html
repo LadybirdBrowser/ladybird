@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=2009729">
+<style>
+.abs-cb {
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[abs] {
+  position: absolute;
+  position-anchor: auto;
+}
+
+.c {
+  width: 1px;
+  height: 1px;
+  margin-right: anchor-size(width);
+  position-try-fallbacks: top left, --position-fallback_1, flip-x;
+}
+</style>
+<div class=abs-cb>
+  <div id=d class=c abs=""></div>
+</div>
