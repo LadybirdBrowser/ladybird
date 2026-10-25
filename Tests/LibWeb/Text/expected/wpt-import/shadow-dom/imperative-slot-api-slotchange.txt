@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 13 tests
 
-12 Pass
-1 Fail
+13 Pass
 Pass	slotchange event must not fire synchronously.
 Pass	slotchange event should not fire when assignments do not change assignedNodes.
-Fail	slotchange event should not fire when same node is assigned.
+Pass	slotchange event should not fire when same node is assigned.
 Pass	Fire slotchange event when slot's assigned nodes changes.
 Pass	Fire slotchange event on previous slot and new slot when node is reassigned.
 Pass	Fire slotchange event on node assignment and when assigned node is removed.
