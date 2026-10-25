@@ -20,7 +20,7 @@ use rustc_lint::{LateContext, LateLintPass, Lint};
 use rustc_middle::lint::LintLevelSource;
 use rustc_middle::ty::adjustment::{Adjust, DerefAdjustKind, PointerCoercion};
 use rustc_middle::ty::print::with_forced_trimmed_paths;
-use rustc_middle::ty::{self, Ty, TyCtxt};
+use rustc_middle::ty::{self, Ty, TyCtxt, TypeVisitableExt};
 use rustc_session::{declare_lint, impl_lint_pass};
 
 use rustc_span::{DesugaringKind, Span, Symbol};
@@ -70,12 +70,21 @@ declare_lint! {
     "GC pointers kept in heap memory by a type that is not traced"
 }
 
+declare_lint! {
+    /// A `GcRefCell` holds state that the collector never reads: the state cannot hold a GC pointer, or its field is
+    /// untraced. Use a `RefCell`, which a collection never borrows.
+    pub GC_REF_CELL_WITHOUT_GC_POINTERS,
+    Deny,
+    "`GcRefCell` around state that the collector does not trace"
+}
+
 pub static LINTS: &[&Lint] = &[
     GC_CONTAINER_ON_STACK,
     ROOT_IN_TRACED_TYPE,
     UNTRACED_GC_POINTER,
     GC_POINTER_IN_DROP,
     GC_CONTAINER_IN_UNTRACED_TYPE,
+    GC_REF_CELL_WITHOUT_GC_POINTERS,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -119,6 +128,7 @@ pub struct GcLints<'tcx> {
     deferral_scoped: FxHashMap<DefId, bool>,
     reaches_gc_pointer: FxHashMap<Ty<'tcx>, bool>,
     reported_attributes: FxHashSet<Span>,
+    traced_state_types: FxHashSet<DefId>,
     hand_traced_types: FxHashSet<DefId>,
     trace_trait: Option<DefId>,
     enabled: bool,
@@ -130,6 +140,7 @@ impl_lint_pass!(GcLints<'_> => [
     UNTRACED_GC_POINTER,
     GC_POINTER_IN_DROP,
     GC_CONTAINER_IN_UNTRACED_TYPE,
+    GC_REF_CELL_WITHOUT_GC_POINTERS,
 ]);
 
 const LIBJS_CRATE: &str = "libjs_rust";
@@ -497,6 +508,46 @@ impl<'tcx> GcLints<'tcx> {
         );
     }
 
+    /// Rejects the fields of `def_id` that keep state the collector never reads in a type for traced state.
+    fn check_traced_state(&mut self, cx: &LateContext<'tcx>, def_id: DefId) {
+        let tcx = cx.tcx;
+        let untraced = Symbol::intern("untraced");
+        for field in tcx.adt_def(def_id).all_fields() {
+            let ty = normalize(cx, tcx.type_of(field.did).instantiate_identity().skip_normalization());
+            let ty::Adt(adt, args) = ty.kind() else {
+                continue;
+            };
+            if !self.traced_state_types.contains(&adt.did()) {
+                continue;
+            }
+            let state = args.type_at(0);
+            if state.has_param() {
+                continue;
+            }
+            let field_id = tcx.local_def_id_to_hir_id(field.did.expect_local());
+            let is_untraced = tcx.hir_attrs(field_id).iter().any(|attribute| {
+                attribute.has_name(Symbol::intern("gc"))
+                    && attribute
+                        .meta_item_list()
+                        .is_some_and(|items| items.iter().any(|item| item.has_name(untraced)))
+            });
+            let why = if is_untraced {
+                "is untraced"
+            } else if !self.reaches_gc_pointer(cx, state, &mut Vec::new()) {
+                "holds no GC pointers"
+            } else {
+                continue;
+            };
+            self.emit(
+                cx,
+                GC_REF_CELL_WITHOUT_GC_POINTERS,
+                field_id,
+                tcx.def_span(field.did),
+                with_forced_trimmed_paths!(format!("field of type '{ty}' {why}; use a RefCell")),
+            );
+        }
+    }
+
     fn check_unscanned(&mut self, cx: &LateContext<'tcx>, ty: Ty<'tcx>, hir_id: HirId, span: Span, what: &str) {
         if let Some(container) = self.unscanned_container(cx, ty) {
             self.emit(
@@ -557,6 +608,7 @@ impl<'tcx> LateLintPass<'tcx> for GcLints<'tcx> {
         let mut holds_no_cells_types = FxHashSet::default();
         let mut keeps_alive_types = FxHashSet::default();
         let mut defers_collections_types = FxHashSet::default();
+        let mut traced_state_types = FxHashSet::default();
         let trace = collect("libjs_rust::gc::visitor::Trace", &mut traced_types);
         // NB: #[derive(Trace)] traces the fields, which the type shows. A hand-written trace() can visit cells that
         //     the type hides, as PropertyKey does in a tagged usize.
@@ -583,12 +635,14 @@ impl<'tcx> LateLintPass<'tcx> for GcLints<'tcx> {
             "libjs_rust::gc::lint_markers::DefersCollections",
             &mut defers_collections_types,
         );
+        collect("libjs_rust::gc::lint_markers::TracedState", &mut traced_state_types);
         self.traced_types = traced_types;
         self.cell_types = cell_types;
         self.swept_types = swept_types;
         self.holds_no_cells_types = holds_no_cells_types;
         self.keeps_alive_types = keeps_alive_types;
         self.defers_collections_types = defers_collections_types;
+        self.traced_state_types = traced_state_types;
         self.hand_traced_types = hand_traced_types;
         self.trace_trait = Some(trace);
     }
@@ -714,6 +768,7 @@ impl<'tcx> LateLintPass<'tcx> for GcLints<'tcx> {
             return;
         }
         let def_id = item.owner_id.to_def_id();
+        self.check_traced_state(cx, def_id);
         if !self.traced_types.contains(&def_id) {
             // NB: The GC's own types, like Root, are what the markers say they are, whatever their fields hold.
             if self.kind(cx.tcx, def_id) != Kind::Other || self.is_deferral_scoped(cx.tcx, def_id) {

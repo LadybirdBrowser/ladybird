@@ -17,6 +17,8 @@ plugin:
 - `gc_container_in_untraced_type`: a type that does not implement `Trace` keeps a GC pointer in a field through heap
   memory, an `Rc` or a `Box` included. Nothing traces its values wherever they are held: implement `Trace` for it, so
   that its owner traces it, or tie it to a deferral.
+- `gc_ref_cell_without_gc_pointers`: a `GcRefCell` field whose state the collector never reads, because the field is
+  untraced or its type holds no GC pointer and no type with a hand-written `Trace`. Such state takes a `RefCell`.
 
 A GC pointer is a reference to a `GcCell`, a value of a type of the crate that implements `Trace` by hand, as `Gc`,
 `Value` and `PropertyKey` do, or a trait object whose trait requires `Trace`. A type that hides cell pointers in its
