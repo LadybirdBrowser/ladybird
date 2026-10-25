@@ -25,7 +25,7 @@ use crate::bytecode::generator::{LocalVariable, PendingClassBlueprint};
 use crate::bytecode_cache::{DecodedBytecodeBytes, DecodedExecutableRecord};
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::defer_gc::DeferGc;
-use crate::gc::heap::cell_is_dead;
+use crate::gc::sweep::Sweep;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
@@ -129,12 +129,12 @@ impl PropertyLookupCacheEntryData {
         }
     }
 
-    fn has_dead_cell(&self) -> bool {
-        (self.key != 0 && cell_is_dead(Value::from_bits(self.key).as_cell()))
-            || self.from_shape.is_some_and(cell_is_dead)
-            || self.shape.is_some_and(cell_is_dead)
-            || self.prototype.is_some_and(cell_is_dead)
-            || self.prototype_chain_validity.is_some_and(cell_is_dead)
+    fn has_dead_cell(&self, sweep: &Sweep<'_>) -> bool {
+        (self.key != 0 && sweep.is_dead(Value::from_bits(self.key).as_cell()))
+            || self.from_shape.is_some_and(|shape| sweep.is_dead(shape))
+            || self.shape.is_some_and(|shape| sweep.is_dead(shape))
+            || self.prototype.is_some_and(|prototype| sweep.is_dead(prototype))
+            || self.prototype_chain_validity.is_some_and(|validity| sweep.is_dead(validity))
     }
 }
 
@@ -187,11 +187,11 @@ impl PropertyLookupCacheEntry {
     }
 
     /// Forgets the whole entry if one of its cells died in this collection, as clear_cache_entry_if_dead does.
-    fn clear_if_it_has_a_dead_cell(&self) {
-        if self.get().has_dead_cell() {
+    fn clear_if_it_has_a_dead_cell(&self, sweep: &Sweep<'_>) {
+        if self.get().has_dead_cell(sweep) {
             self.set(PropertyLookupCacheEntryData::default());
         }
-        if self.getter.get().is_some_and(cell_is_dead) {
+        if self.getter.get().is_some_and(|getter| sweep.is_dead(getter)) {
             self.getter.set(None);
         }
     }
@@ -651,8 +651,8 @@ impl PropertyLookupCache {
         }
     }
 
-    /// Forgets the entries with a cell that died in this collection. Only the VM's sweep callback calls this.
-    pub fn remove_dead_entries(&self) {
+    /// Forgets the entries with a cell that died in this collection.
+    pub fn remove_dead_entries(&self, sweep: &Sweep<'_>) {
         if let Some(data) = self.megamorphic_data() {
             for entry in data
                 .primary_entries
@@ -660,13 +660,13 @@ impl PropertyLookupCache {
                 .chain(&data.secondary_entries)
                 .chain(core::iter::once(&data.entry))
             {
-                entry.clear_if_it_has_a_dead_cell();
+                entry.clear_if_it_has_a_dead_cell(sweep);
             }
             return;
         }
 
         for entry in self.entries() {
-            entry.clear_if_it_has_a_dead_cell();
+            entry.clear_if_it_has_a_dead_cell(sweep);
         }
     }
 }
@@ -828,9 +828,9 @@ impl StaticPropertyLookupCaches {
         &self.caches[site as usize]
     }
 
-    pub fn remove_dead_entries(&self) {
+    pub fn remove_dead_entries(&self, sweep: &Sweep<'_>) {
         for cache in &self.caches {
-            cache.remove_dead_entries();
+            cache.remove_dead_entries(sweep);
         }
     }
 }
@@ -997,15 +997,15 @@ impl KeyedPropertyLookupCache {
         }
     }
 
-    /// Forgets the entries with a cell that died in this collection. Only the VM's sweep callback calls this.
-    pub fn remove_dead_entries(&self) {
+    /// Forgets the entries with a cell that died in this collection.
+    pub fn remove_dead_entries(&self, sweep: &Sweep<'_>) {
         for entry in self.entries.borrow_mut().iter_mut() {
             let lookup = &entry.lookup;
             // NB: Entries of the keyed property store cache for puts it does not make have a shape but no type.
-            if lookup.shape.is_some_and(cell_is_dead)
-                || lookup.prototype.is_some_and(cell_is_dead)
-                || lookup.prototype_chain_validity.is_some_and(cell_is_dead)
-                || lookup.new_shape.is_some_and(cell_is_dead)
+            if lookup.shape.is_some_and(|shape| sweep.is_dead(shape))
+                || lookup.prototype.is_some_and(|prototype| sweep.is_dead(prototype))
+                || lookup.prototype_chain_validity.is_some_and(|validity| sweep.is_dead(validity))
+                || lookup.new_shape.is_some_and(|shape| sweep.is_dead(shape))
             {
                 *entry = KeyedPropertyLookupCacheEntry::default();
             }
@@ -1377,24 +1377,24 @@ impl Executable {
     }
 
     /// Forgets the cells the inline caches remember that died in this collection.
-    pub fn remove_dead_cells(&self) {
+    pub fn remove_dead_cells(&self, sweep: &Sweep<'_>) {
         for cache in &self.property_lookup_caches {
-            cache.remove_dead_entries();
+            cache.remove_dead_entries(sweep);
         }
         for cache in self
             .global_variable_caches
             .iter()
             .chain(self.dynamic_global_variable_caches.get().into_iter().flatten())
         {
-            cache.entry.clear_if_it_has_a_dead_cell();
+            cache.entry.clear_if_it_has_a_dead_cell(sweep);
         }
         for cache in &self.object_shape_caches {
-            if cache.shape.get().is_some_and(cell_is_dead) {
+            if cache.shape.get().is_some_and(|shape| sweep.is_dead(shape)) {
                 cache.shape.set(None);
             }
         }
         if let Some(feedback) = self.feedback() {
-            feedback.remove_dead_cells();
+            feedback.remove_dead_cells(sweep);
         }
     }
 

@@ -11,9 +11,9 @@ use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
-use crate::gc::heap::cell_is_dead;
 use crate::gc::visitor::{Trace, Visitor};
-use crate::gc::weak_container::{Sweep, WeakContainer};
+use crate::gc::sweep::Sweep;
+use crate::gc::weak_container::WeakContainer;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::object::Object;
@@ -111,11 +111,11 @@ impl WeakSet {
         self.values.borrow().0.len()
     }
 
-    fn remove_dead_cells(object: &Object, _: &Sweep<'_>) {
+    fn remove_dead_cells(object: &Object, sweep: &Sweep<'_>) {
         let weak_set = object
             .as_gc()
             .downcast::<WeakSet>()
             .expect("the weak container is a WeakSet");
-        weak_set.values.borrow_mut().0.retain(|&cell| !cell_is_dead(cell));
+        weak_set.values.borrow_mut().0.retain(|&cell| !sweep.is_dead(cell));
     }
 }

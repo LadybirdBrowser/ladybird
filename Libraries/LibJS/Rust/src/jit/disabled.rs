@@ -251,7 +251,7 @@ pub mod dependencies {
     pub struct Dependents;
 
     impl Dependents {
-        pub fn remove_dead_entries(&self) {}
+        pub fn remove_dead_entries(&self, _: &crate::gc::sweep::Sweep<'_>) {}
     }
 
     pub fn invalidate_dependents(_vm: &Vm, _dependency: Dependency) {}

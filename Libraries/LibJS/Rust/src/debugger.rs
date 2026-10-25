@@ -21,8 +21,8 @@ use crate::breakpoint::{Breakpoint, BreakpointID};
 use crate::bytecode::basic_block::SourceMapEntry;
 use crate::bytecode::executable::{Executable, LocalVariableMetadata};
 use crate::gc::foreign::ForeignCellSlot;
-use crate::gc::heap::cell_is_dead;
 use crate::gc::root::MarkedVec;
+use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::{EvalMode, StackTraceElement, Vm};
@@ -643,10 +643,10 @@ impl Debugger {
     }
 
     /// Forgets the executables that died in this collection, as LibGC prunes a WeakHashSet.
-    pub fn remove_dead_executables(&self) {
+    pub fn remove_dead_executables(&self, sweep: &Sweep<'_>) {
         self.executables
             .borrow_mut()
-            .retain(|_, executable| executable.get().is_some_and(|executable| !cell_is_dead(executable)));
+            .retain(|_, executable| executable.get().is_some_and(|executable| !sweep.is_dead(executable)));
     }
 
     fn resolve_breakpoint(&self, breakpoint: &Breakpoint) {

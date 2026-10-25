@@ -22,7 +22,7 @@ pub use libjs_jit::snapshot::CellId;
 
 use super::code::CompileState;
 use crate::bytecode::executable::Executable;
-use crate::gc::heap::cell_is_dead;
+use crate::gc::sweep::Sweep;
 use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -87,7 +87,7 @@ impl Dependents {
     }
 
     /// Forgets the entries of code whose executable died, and the slots of global objects that died.
-    pub fn remove_dead_entries(&self) {
+    pub fn remove_dead_entries(&self, sweep: &Sweep<'_>) {
         self.code.borrow_mut().retain(|_, dependents| {
             dependents.retain(|dependent| dependent.executable.get().is_some());
             !dependents.is_empty()
@@ -96,7 +96,7 @@ impl Dependents {
             // SAFETY: The map only holds objects that were live when their entries were added, and a dead object is
             //         intact until the sweep that follows this callback.
             let object = unsafe { Gc::from_non_null(NonNull::new_unchecked(object as *mut Object)) };
-            !cell_is_dead(object)
+            !sweep.is_dead(object)
         });
     }
 }

@@ -10,9 +10,9 @@ use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
-use crate::gc::heap::cell_is_dead;
 use crate::gc::visitor::{Trace, Visitor};
-use crate::gc::weak_container::{Sweep, WeakContainer};
+use crate::gc::sweep::Sweep;
+use crate::gc::weak_container::WeakContainer;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::object::Object;
@@ -159,7 +159,7 @@ impl FinalizationRegistry {
             let Some(target) = record.target else {
                 continue;
             };
-            if !cell_is_dead(target) {
+            if !sweep.is_dead(target) {
                 continue;
             }
             record.target = None;
