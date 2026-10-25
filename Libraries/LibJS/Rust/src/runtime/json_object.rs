@@ -238,6 +238,10 @@ pub struct JsonStringifyCache {
 }
 
 impl JsonStringifyCache {
+    #[cfg_attr(
+        ladybird_gc_lints,
+        expect(gc_container_on_stack, reason = "the VM makes its caches before its heap")
+    )]
     pub(crate) fn new() -> Self {
         Self {
             entries: RefCell::new(Box::new([const { None }; JsonStringifyCache::ENTRY_COUNT])),

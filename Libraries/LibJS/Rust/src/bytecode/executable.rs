@@ -28,6 +28,7 @@ use crate::gc::defer_gc::DeferGc;
 use crate::gc::root::MarkedVec;
 use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::weak::SweptAfterCollection;
 use crate::interpreter::vm::Vm;
 use crate::jit::InterpreterTier;
 use crate::jit::code::ExecutableJitState;
@@ -139,6 +140,10 @@ impl PropertyLookupCacheEntryData {
                 .is_some_and(|validity| sweep.is_dead(validity))
     }
 }
+
+// SAFETY: Entries live in the inline caches of executables and of the VM, which the VM sweeps after each collection (see
+// Vm::remove_dead_cells_from_property_lookup_caches()).
+unsafe impl SweptAfterCollection for PropertyLookupCacheEntry {}
 
 impl PropertyLookupCacheEntry {
     pub fn new() -> Self {
@@ -887,6 +892,10 @@ pub struct KeyedPropertyLookupCacheEntry {
 }
 
 const _: () = assert!(size_of::<KeyedPropertyLookupCacheEntry>() == 64);
+
+// SAFETY: Entries only live in the VM's keyed property lookup caches, which the VM sweeps after each collection (see
+// Vm::remove_dead_cells_from_property_lookup_caches()).
+unsafe impl SweptAfterCollection for KeyedPropertyLookupCacheEntry {}
 // NB: The interpreter reads entries with the layout of KeyedPropertyLookupCacheEntryLayout, and finds them the way
 //     entry_index_for() does.
 const _: () = assert!(

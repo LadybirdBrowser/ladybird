@@ -198,6 +198,10 @@ pub struct JitState {
 }
 
 impl JitState {
+    #[cfg_attr(
+        ladybird_gc_lints,
+        expect(gc_container_on_stack, reason = "the VM makes its JIT state before its heap")
+    )]
     pub fn new(options: Options) -> Self {
         translate::RegisterDump::assert_layout();
         let warming_up_dispatch_table = options

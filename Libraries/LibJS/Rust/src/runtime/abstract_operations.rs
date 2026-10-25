@@ -2111,6 +2111,10 @@ pub struct DisposableResource {
 }
 
 // 2.1.3 NewDisposeCapability ( ), https://tc39.es/proposal-explicit-resource-management/#sec-newdisposecapability
+#[cfg_attr(
+    ladybird_gc_lints,
+    expect(gc_container_on_stack, reason = "a new capability holds no resources")
+)]
 pub fn new_dispose_capability() -> DisposeCapability {
     // 1. Let stack be a new empty List.
     // 2. Return the DisposeCapability Record { [[DisposableResourceStack]]: stack }.
