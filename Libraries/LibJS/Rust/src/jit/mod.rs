@@ -34,7 +34,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
 use crate::bytecode::executable::Executable;
-use crate::gc::capi;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::dispatch_tables::DispatchTable;
 use crate::interpreter::vm::Vm;
@@ -467,23 +466,6 @@ unsafe impl Trace for JitState {
                 }
             }
         }
-    }
-}
-
-/// Keeps the heap from collecting garbage while it lives.
-pub(crate) struct DeferGc<'vm>(&'vm Vm);
-
-impl<'vm> DeferGc<'vm> {
-    pub(crate) fn new(vm: &'vm Vm) -> Self {
-        capi::gc_heap_defer_gc(vm.heap().handle());
-        Self(vm)
-    }
-}
-
-impl Drop for DeferGc<'_> {
-    fn drop(&mut self) {
-        // NB: This undoes the deferral of new().
-        capi::gc_heap_undefer_gc(self.0.heap().handle());
     }
 }
 

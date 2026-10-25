@@ -14,6 +14,7 @@ use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::Executable;
 use crate::gc::class::{Extends, GcCell, cast_ref, define_cell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
@@ -989,7 +990,7 @@ impl EcmascriptFunctionObject {
         let this_function = self.as_function_object_gc();
         // NB: The arguments of a frame of an inlined call may be objects JIT code never created, which only the
         //     arguments object holds once it exists.
-        let _defer_gc = crate::jit::DeferGc::new(vm);
+        let _defer_gc = DeferGc::new(vm);
         let mut passed_arguments: Option<Vec<Cell<Value>>> = None;
 
         vm.for_each_stack_frame_top_to_bottom(|frame| {

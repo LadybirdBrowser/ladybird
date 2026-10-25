@@ -10,6 +10,7 @@
 pub mod capi;
 pub mod class;
 pub mod class_id;
+pub mod defer_gc;
 pub mod embedder_cell;
 pub mod foreign;
 pub mod gc_ref_cell;
