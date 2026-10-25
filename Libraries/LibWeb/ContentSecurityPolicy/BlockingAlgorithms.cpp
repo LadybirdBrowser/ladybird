@@ -286,9 +286,8 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
                 //        just which directive is reported to have been violated.
                 auto directive_name = Directives::get_the_effective_directive_for_inline_checks(Directives::Directive::InlineType::Navigation);
 
-                // 2. If directive’s inline check returns "Allowed" when executed upon null, "navigation" and
+                // 2. If directive’s inline check returns "Allowed" when executed upon null, "navigation", policy, and
                 //    navigation request’s current URL, skip to the next directive.
-                // FIXME: File spec issue that they forgot to pass in "policy" here.
                 // FIXME: File spec issue that current URL is a URL object and not a string, therefore they must use a
                 //        spec operation to serialize the URL.
                 auto& realm = navigation_request->client()->realm();
@@ -301,8 +300,8 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
                 //    policy, and directive on navigation request’s client’s global object, policy, and directive-name.
                 auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(navigation_request->client()->global_object(), policy, directive_name.view().to_utf8_but_should_be_ported_to_utf16());
 
-                // 4. Set violation’s resource to navigation request’s URL.
-                violation->set_resource(navigation_request->url());
+                // 4. Set violation’s resource to "inline".
+                violation->set_resource(Violation::Resource::Inline);
 
                 // 5. Execute § 5.5 Report a violation on violation.
                 violation->report_a_violation(realm);
