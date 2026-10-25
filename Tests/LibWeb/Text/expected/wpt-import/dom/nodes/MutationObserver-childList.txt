@@ -1,0 +1,46 @@
+Harness status: OK
+
+Found 40 tests
+
+38 Pass
+2 Fail
+Pass	childList Node.nodeValue: no mutation
+Pass	childList Node.textContent: replace content mutation
+Pass	childList Node.textContent: no previous content mutation
+Pass	childList Node.textContent: textContent no mutation
+Pass	childList Node.textContent: empty string mutation
+Pass	childList Node.normalize mutation
+Pass	childList Node.normalize mutations
+Pass	childList Node.insertBefore: addition mutation
+Pass	childList Node.insertBefore: removal mutation
+Pass	childList Node.insertBefore: removal and addition mutations
+Pass	childList Node.insertBefore: fragment addition mutations
+Pass	childList Node.insertBefore: fragment removal mutations
+Pass	childList Node.insertBefore: last child addition mutation
+Pass	childList Node.appendChild: addition mutation
+Pass	childList Node.appendChild: removal mutation
+Pass	childList Node.appendChild: removal and addition mutations
+Pass	childList Node.appendChild: fragment addition mutations
+Pass	childList Node.appendChild: fragment removal mutations
+Pass	childList Node.appendChild: addition outside document tree mutation
+Pass	childList Node.replaceChild: replacement mutation
+Pass	childList Node.replaceChild: removal mutation
+Fail	childList Node.replaceChild: internal replacement mutation
+Fail	childList Node.replaceChild: self internal replacement mutation
+Pass	childList ParentNode.replaceChildren: move an existing child
+Pass	childList ParentNode.replaceChildren: self replacement of only child
+Pass	childList Node.removeChild: removal mutation
+Pass	Range (r70) is created
+Pass	childList Range.deleteContents: child removal mutation
+Pass	Range (r71) is created
+Pass	childList Range.deleteContents: child and data removal mutation
+Pass	Range (r80) is created
+Pass	childList Range.extractContents: child removal mutation
+Pass	Range (r81) is created
+Pass	childList Range.extractContents: child and data removal mutation
+Pass	Range (r90) is created
+Pass	childList Range.insertNode: child insertion mutation
+Pass	Range (r91) is created
+Pass	childList Range.insertNode: children insertion mutation
+Pass	Range (r100) is created
+Pass	childList Range.surroundContents: children removal and addition mutation
