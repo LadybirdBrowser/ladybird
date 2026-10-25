@@ -72,9 +72,11 @@ Optional<Vector<ByteString>> Header::extract_header_values() const
 
     // Access-Control-Request-Headers = 1#field-name      (field-name = token)
     // Accept-Ranges                  = acceptable-ranges (acceptable-ranges = 1#range-unit, range-unit = token)
+    // Referrer-Policy                = 1#policy-token    (https://w3c.github.io/webappsec-referrer-policy/#referrer-policy-header)
     if (name.is_one_of_ignoring_ascii_case(
             "Access-Control-Request-Headers"sv,
-            "Accept-Ranges"sv)) {
+            "Accept-Ranges"sv,
+            "Referrer-Policy"sv)) {
         if (auto headers = extract_token_headers(value); headers.has_value()) {
             if (headers->is_empty())
                 return {};
