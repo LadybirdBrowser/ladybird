@@ -9697,18 +9697,8 @@ Vector<Utf16FlyString> Document::supported_property_names() const
     OrderedHashTable<Utf16FlyString> names;
 
     for (auto const& element : m_potentially_named_elements) {
-        // - the value of the name content attribute for all exposed embed, form, iframe, img, and exposed object elements
-        //   that have a non-empty name content attribute and are in a document tree with document as their root;
-        if ((is<HTML::HTMLEmbedElement>(*element) && is_exposed(element))
-            || is<HTML::HTMLFormElement>(*element)
-            || is<HTML::HTMLIFrameElement>(*element)
-            || is<HTML::HTMLImageElement>(*element)
-            || (is<HTML::HTMLObjectElement>(*element) && is_exposed(element))) {
-            if (auto name = element->name(); name.has_value()) {
-                names.set(name.value());
-            }
-        }
-
+        // NB: Values from id attributes come before values from name attributes when the same element contributes
+        //     both, so the id values are collected first.
         // - the value of the id content attribute for all exposed object elements that have a non-empty id content attribute
         //   and are in a document tree with document as their root; and
         if (is<HTML::HTMLObjectElement>(*element) && is_exposed(element)) {
@@ -9722,6 +9712,18 @@ Vector<Utf16FlyString> Document::supported_property_names() const
         if (is<HTML::HTMLImageElement>(*element)) {
             if (auto id = element->id(); id.has_value() && element->name().has_value()) {
                 names.set(id.value());
+            }
+        }
+
+        // - the value of the name content attribute for all exposed embed, form, iframe, img, and exposed object elements
+        //   that have a non-empty name content attribute and are in a document tree with document as their root;
+        if ((is<HTML::HTMLEmbedElement>(*element) && is_exposed(element))
+            || is<HTML::HTMLFormElement>(*element)
+            || is<HTML::HTMLIFrameElement>(*element)
+            || is<HTML::HTMLImageElement>(*element)
+            || (is<HTML::HTMLObjectElement>(*element) && is_exposed(element))) {
+            if (auto name = element->name(); name.has_value()) {
+                names.set(name.value());
             }
         }
     }
