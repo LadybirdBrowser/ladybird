@@ -1264,14 +1264,33 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     // can reach its containing block's inline basis.
     pub(crate) fn measurement_root_observes_percentage_inline_basis(&self, node: Node) -> bool {
         let facts = self.facts(node);
+        if facts.is_list_item_marker_box() {
+            return self.list_item_marker_observes_percentage_inline_basis(node);
+        }
         if facts.is_anonymous() || facts.is_replaced_box() || facts.has_auto_content_box_size() {
             return true;
         }
-        let style = self.style(node);
+        Self::own_box_resolves_percentage_against_inline_basis(self.style(node))
+    }
+
+    fn own_box_resolves_percentage_against_inline_basis(style: StyleValues<'_>) -> bool {
         style.width().contains_percentage()
             || style.min_width().contains_percentage()
             || style.max_width().contains_percentage()
             || Self::box_edges_contain_percentage(style)
+    }
+
+    fn list_item_marker_observes_percentage_inline_basis(&self, marker: Node) -> bool {
+        let style = self.style(marker);
+        if Self::own_box_resolves_percentage_against_inline_basis(style) {
+            return true;
+        }
+        let marker_content_may_read_its_containing_block_inline_size = style.text_indent().contains_percentage()
+            || self
+                .callbacks
+                .children(marker)
+                .any(|content| self.facts(content).is_replaced_box());
+        marker_content_may_read_its_containing_block_inline_size && self.is_anonymous_block_box_in_block_flow(marker)
     }
 
     fn box_edges_contain_percentage(style: StyleValues<'_>) -> bool {
