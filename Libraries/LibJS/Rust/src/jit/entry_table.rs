@@ -149,7 +149,7 @@ impl JitEntryTable {
     }
 
     /// Frees the slot of the executable whose head is at `owner`, which died, and returns its code.
-    pub fn free(&self, slot: u32, owner: u64) -> Option<Box<JitCode>> {
+    pub fn free(&self, slot: u32, owner: u64) -> Option<JitCode> {
         let slot = slot & JIT_ENTRY_SLOT_MASK;
         if slot == NO_JIT_ENTRY_SLOT {
             return None;
@@ -158,11 +158,10 @@ impl JitEntryTable {
             self.is_owned_by(slot, owner),
             "only the owner of a JIT entry slot frees it"
         );
-        let code = self.code_cell(slot).take();
         self.entry_cell(slot).set(self.not_compiled_entry);
         self.owner_cell(slot).set(0);
         self.free_slots.borrow_mut().push(slot);
-        code
+        self.code_cell(slot).take().map(|code| *code)
     }
 
     /// Whether the slot belongs to the executable whose head is at `owner`.
@@ -177,15 +176,21 @@ impl JitEntryTable {
 
     /// The code attached to the slot.
     pub fn code(&self, slot: u32) -> Option<&JitCode> {
-        // SAFETY: The code stays in the slot until set_code() or free() replaces it, which callers do not do while
+        // SAFETY: The code stays in the slot until detach_code() or free() takes it, which callers do not do while
         //         they use the reference.
         unsafe { (*self.code_cell(slot).as_ptr()).as_deref() }
     }
 
-    /// Attaches `code` to the slot, and returns the code it had.
-    pub fn set_code(&self, slot: u32, code: Option<Box<JitCode>>) -> Option<Box<JitCode>> {
+    /// Attaches `code` to the slot, which has none.
+    pub fn attach_code(&self, slot: u32, code: JitCode) {
         assert_ne!(slot & JIT_ENTRY_SLOT_MASK, NO_JIT_ENTRY_SLOT);
-        self.code_cell(slot).replace(code)
+        assert!(self.code_cell(slot).replace(Some(Box::new(code))).is_none());
+    }
+
+    /// Drops the code attached to the slot.
+    pub fn detach_code(&self, slot: u32) {
+        assert_ne!(slot & JIT_ENTRY_SLOT_MASK, NO_JIT_ENTRY_SLOT);
+        drop(self.code_cell(slot).take());
     }
 }
 
