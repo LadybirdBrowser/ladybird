@@ -1682,10 +1682,13 @@ void Window::deliver_posted_message(SerializedTransferRecord serialize_with_tran
     if (source)
         source_for_event = GC::Ref { *source };
 
-    TemporaryExecutionContext temporary_execution_context { target_realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
-
     // 4. Let deserializeRecord be StructuredDeserializeWithTransfer(serializeWithTransferResult, targetRealm).
-    auto deserialize_record_or_error = structured_deserialize_with_transfer(serialize_with_transfer_result, target_realm);
+    // NB: The execution context must not stay on the stack while the event is dispatched, so that a microtask
+    //     checkpoint can be performed after each listener.
+    auto deserialize_record_or_error = [&] {
+        TemporaryExecutionContext temporary_execution_context { target_realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+        return structured_deserialize_with_transfer(serialize_with_transfer_result, target_realm);
+    }();
 
     // If this throws an exception, catch it, fire an event named messageerror at targetWindow, using MessageEvent,
     // with its origin initialized to origin and the source attribute initialized to source, and then return.

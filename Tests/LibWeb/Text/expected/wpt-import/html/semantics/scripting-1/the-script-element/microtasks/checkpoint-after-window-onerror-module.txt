@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	Promise resolved during #report-the-error
-Fail	Promise resolved during event handlers other than error
+Pass	Promise resolved during event handlers other than error

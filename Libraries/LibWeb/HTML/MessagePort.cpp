@@ -462,10 +462,13 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
     // 2. Let targetRealm be finalTargetPort's relevant realm.
     auto& target_realm = HTML::relevant_realm(final_target_port->relevant_global_object());
 
-    TemporaryExecutionContext context { target_realm };
-
     // 3. Let deserializeRecord be StructuredDeserializeWithTransfer(serializeWithTransferResult, targetRealm).
-    auto deserialize_record_or_error = structured_deserialize_with_transfer(serialize_with_transfer_result, target_realm);
+    // NB: The execution context must not stay on the stack while the event is dispatched, so that a microtask
+    //     checkpoint can be performed after each listener.
+    auto deserialize_record_or_error = [&] {
+        TemporaryExecutionContext context { target_realm };
+        return structured_deserialize_with_transfer(serialize_with_transfer_result, target_realm);
+    }();
     if (deserialize_record_or_error.is_error()) {
         // If this throws an exception, catch it, fire an event named messageerror at finalTargetPort, using MessageEvent, and then return.
         auto exception = deserialize_record_or_error.release_error();
