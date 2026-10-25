@@ -86,9 +86,6 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
             "LIBWEB_VERIFY_STYLE_ANSWER_PATCH"sv,
             "LIBWEB_VERIFY_CASCADE_WINNERS"sv,
             "LIBWEB_VERIFY_PREFIX_RELATION"sv,
-            "LIBWEB_VERIFY_COMPUTED_CLOSURE"sv,
-            "LIBWEB_VERIFY_STYLE_DIFF_FAST_PATH"sv,
-            "LIBWEB_VERIFY_SCROLL_OFFSET_FLAGS"sv,
         };
         for (auto variable : verification_variables)
             MUST(Core::Environment::set(variable, "1"sv, Core::Environment::Overwrite::Yes));
