@@ -553,19 +553,17 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_request_header(String const& name,
     if (m_send)
         return WebIDL::InvalidStateError::create("XHR send() flag is already set"_utf16);
 
+    // NB: The ByteString arguments hold their bytes as code points, which have to be isomorphic encoded back into bytes.
+    auto header = HTTP::Header::isomorphic_encode(name, value);
+
     // 3. Normalize value.
-    auto normalized_value = HTTP::normalize_header_value(value);
+    header.value = HTTP::normalize_header_value(header.value);
 
     // 4. If name is not a header name or value is not a header value, then throw a "SyntaxError" DOMException.
-    if (!HTTP::is_header_name(name))
+    if (!HTTP::is_header_name(header.name))
         return WebIDL::SyntaxError::create("Header name contains invalid characters."_utf16);
-    if (!HTTP::is_header_value(normalized_value))
+    if (!HTTP::is_header_value(header.value))
         return WebIDL::SyntaxError::create("Header value contains invalid characters."_utf16);
-
-    auto header = HTTP::Header {
-        .name = name.to_byte_string(),
-        .value = move(normalized_value),
-    };
 
     // 5. If (name, value) is a forbidden request-header, then return.
     if (HTTP::is_forbidden_request_header(header))
