@@ -176,6 +176,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
             pc,
             inlined_frame_bytes,
             stores_operands,
+            target,
         } => {
             let location = if *executable == 0 {
                 format!("@{pc}")
@@ -188,7 +189,8 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
                 format!(" without inlined frames ({inlined_frame_bytes} bytes)")
             };
             let stores = if *stores_operands { " storing operands" } else { "" };
-            with_inputs(&format!("CallDirect {location}{frames}{stores}"))
+            let target = target.map_or(String::new(), |target| format!(" of constant target {target}"));
+            with_inputs(&format!("CallDirect {location}{frames}{stores}{target}"))
         }
         Op::CallNative {
             executable,

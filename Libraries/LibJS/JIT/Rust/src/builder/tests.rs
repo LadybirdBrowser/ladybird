@@ -839,6 +839,7 @@ pub(crate) mod property_access {
             prototype_property: None,
             prototype_property_intrinsic: None,
             prototype_property_inline_executable: None,
+            prototype_property_direct_call: None,
             prototype_property_watchpoint: None,
             accessor_function: None,
             property_holds_data: false,

@@ -491,6 +491,8 @@ impl SnapshotBuilder<'_> {
                 prototype_property_inline_executable: prototype_property.and_then(|object| {
                     self.inline_executable_index(Some(Value::from_object(object).as_cell()), caller)
                 }),
+                prototype_property_direct_call: prototype_property
+                    .and_then(|object| self.prototype_method_direct_call(object)),
                 // NB: Watching a slot allocates, which collects no garbage while the snapshot is taken. Slots
                 //     replaced while watched are checked instead, as invalidated code learns nothing, while the
                 //     check learns from its exit.
@@ -855,6 +857,42 @@ impl SnapshotBuilder<'_> {
         Some(Some(index))
     }
 
+    fn direct_call_target_snapshot(
+        &mut self,
+        function: Gc<EcmascriptFunctionObject>,
+        environment: Option<u32>,
+        closures: bool,
+    ) -> DirectCallTarget {
+        let executable = function.inline_call_executable();
+        let entry = self
+            .vm
+            .jit
+            .entry_table
+            .as_ref()
+            .expect("the VM has a JIT entry table while the JIT is on")
+            .entry_address(executable.head.jit_entry_slot.get());
+        DirectCallTarget {
+            function: self.inlined_function(function),
+            executable: self.cell(executable),
+            entry,
+            registers_and_locals_count: executable.registers_and_locals_count(),
+            registers_and_locals_and_constants_count: executable.head.registers_and_locals_and_constants_count.get(),
+            function_fields: function_frame_fields(function),
+            environment,
+            closures,
+        }
+    }
+
+    /// The target through which JIT code may call `object`, a method a prototype held, directly, if it can and its
+    /// calls need no function environment (whose template would belong to the executable of the call).
+    fn prototype_method_direct_call(&mut self, object: Gc<Object>) -> Option<DirectCallTarget> {
+        let function = as_ecmascript_function_object(object)?;
+        if !function.can_inline_call() || function.function_environment_needed() {
+            return None;
+        }
+        Some(self.direct_call_target_snapshot(function, None, false))
+    }
+
     fn call_feedback(&mut self, call: &CallFeedback, entry: &Entry) -> CallFeedbackSnapshot {
         let target = call.target();
         let flags = call.flags.get();
@@ -883,28 +921,7 @@ impl SnapshotBuilder<'_> {
             && let Some(environment) = self.direct_call_environment(function)
             && !(closures && environment.is_some())
         {
-            let executable = function.inline_call_executable();
-            let function_fields = function_frame_fields(function);
-            let entry = self
-                .vm
-                .jit
-                .entry_table
-                .as_ref()
-                .expect("the VM has a JIT entry table while the JIT is on")
-                .entry_address(executable.head.jit_entry_slot.get());
-            snapshot.direct_call = Some(DirectCallTarget {
-                function: self.inlined_function(function),
-                executable: self.cell(executable),
-                entry,
-                registers_and_locals_count: executable.registers_and_locals_count(),
-                registers_and_locals_and_constants_count: executable
-                    .head
-                    .registers_and_locals_and_constants_count
-                    .get(),
-                function_fields,
-                environment,
-                closures,
-            });
+            snapshot.direct_call = Some(self.direct_call_target_snapshot(function, environment, closures));
         } else if let Some(function) = native_call_target(self.vm, call) {
             let entry = function
                 .native_function(self.vm)
