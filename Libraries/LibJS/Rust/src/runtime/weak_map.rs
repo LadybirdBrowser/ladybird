@@ -13,7 +13,7 @@ use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::cell_is_dead;
 use crate::gc::visitor::{Trace, Visitor};
-use crate::gc::weak_container::WeakContainer;
+use crate::gc::weak_container::{Sweep, WeakContainer};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::object::Object;
@@ -120,7 +120,7 @@ impl WeakMap {
         self.values.borrow().0.len()
     }
 
-    fn remove_dead_cells(object: &Object, _: &Vm) {
+    fn remove_dead_cells(object: &Object, _: &Sweep<'_>) {
         let weak_map = object
             .as_gc()
             .downcast::<WeakMap>()

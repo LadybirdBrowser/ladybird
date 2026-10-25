@@ -1146,8 +1146,8 @@ impl Vm {
     }
 
     /// Hands `finalization_registry` to HostEnqueueFinalizationRegistryCleanupJob once the collection in progress is
-    /// over. Only a weak container's remove_dead_cells() calls this.
-    pub fn enqueue_finalization_registry_cleanup_job_after_collection(
+    /// over. Only a weak container's remove_dead_cells() calls this, through its Sweep.
+    pub(crate) fn enqueue_finalization_registry_cleanup_job_after_collection(
         &self,
         finalization_registry: Gc<FinalizationRegistry>,
     ) {
