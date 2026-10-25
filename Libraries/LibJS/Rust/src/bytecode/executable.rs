@@ -24,6 +24,7 @@ use crate::bytecode::generator::{ConstantValue, ExceptionHandler};
 use crate::bytecode::generator::{LocalVariable, PendingClassBlueprint};
 use crate::bytecode_cache::{DecodedBytecodeBytes, DecodedExecutableRecord};
 use crate::gc::class::{Finalize, GcCell, define_cell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::heap::cell_is_dead;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
@@ -1326,13 +1327,6 @@ fn interpreter_buffer<T>(elements: &[T]) -> InterpreterBuffer<T> {
 }
 
 impl Executable {
-    /// Moves `executable` into the heap and has the VM prune its inline caches after every collection.
-    pub fn create_from_parts(vm: &Vm, executable: Executable) -> Gc<Executable> {
-        let executable = vm.heap().allocate(executable);
-        vm.register_executable(executable);
-        executable
-    }
-
     pub fn property_lookup_cache(&self, index: usize) -> &PropertyLookupCache {
         &self.property_lookup_caches[index]
     }
@@ -1404,6 +1398,7 @@ impl Executable {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new_with_bytecode(
         bytecode: ExecutableBytecode,
         number_of_registers: u32,
@@ -1412,6 +1407,7 @@ impl Executable {
         constants: Box<[Value]>,
         cache_counts: &ExecutableCacheCounts,
         is_strict_mode: bool,
+        _defer_gc: &DeferGc<'_>,
     ) -> Self {
         let property_lookup_caches: Box<[PropertyLookupCache]> = (0..cache_counts.property_lookup_caches)
             .map(|_| PropertyLookupCache::new())
@@ -1586,41 +1582,61 @@ impl Executable {
         source_code: Option<&Rc<SourceCode>>,
         replaced_executable: Option<Gc<Executable>>,
     ) -> Gc<Executable> {
-        // The literal values of class elements stay rooted until the executable that holds them is allocated.
-        let rooted_literal_values = MarkedVec::new(vm);
+        let executable = vm.heap().allocate_deferring_gc(|defer_gc| {
+            Self::build(
+                vm,
+                parts,
+                rooted_shared_function_data,
+                source_code,
+                replaced_executable,
+                defer_gc,
+            )
+        });
+        vm.register_executable(executable);
+        if let Some(replaced_executable) = replaced_executable {
+            Self::copy_runtime_caches_from(executable, &replaced_executable);
+            Self::take_over_warm_up_from(executable, &replaced_executable);
+        }
+
+        if let Some(debugger) = vm.debugger() {
+            debugger.register_executable(vm, executable);
+        }
+
+        executable
+    }
+
+    fn build(
+        vm: &Vm,
+        parts: ExecutableParts,
+        rooted_shared_function_data: &MarkedVec<'_, Gc<SharedFunctionInstanceData>>,
+        source_code: Option<&Rc<SourceCode>>,
+        replaced_executable: Option<Gc<Executable>>,
+        defer_gc: &DeferGc<'_>,
+    ) -> Executable {
         let class_blueprints: Box<[ClassBlueprint]> = parts
             .class_blueprints
             .iter()
-            .map(|blueprint| ClassBlueprint::create(vm, blueprint, source_code, &rooted_literal_values))
+            .map(|blueprint| ClassBlueprint::create(vm, blueprint, source_code, defer_gc))
             .collect();
         let shared_function_data: Box<[Gc<SharedFunctionInstanceData>]> =
-            rooted_shared_function_data.to_vec().into_boxed_slice();
-
-        // The constants stay rooted until the executable that holds them is allocated.
-        let rooted_constants = MarkedVec::with_capacity(vm, parts.constants.len());
-        for constant in &parts.constants {
-            rooted_constants.push(constant_value(vm, constant));
-        }
-        let constants: Box<[Value]> = rooted_constants.to_vec().into_boxed_slice();
-        // The template object caches stay rooted until the executable that holds them is allocated. An executable this
-        // one replaces shares its own, so that both hand out the same template objects.
-        let rooted_template_object_caches = MarkedVec::with_capacity(vm, parts.cache_counts.template_object as usize);
-        match replaced_executable {
+            (*rooted_shared_function_data.values()).into();
+        let constants: Box<[Value]> = parts
+            .constants
+            .iter()
+            .map(|constant| constant_value(vm, constant))
+            .collect();
+        // An executable this one replaces shares its template object caches, so that both hand out the same template
+        // objects.
+        let template_object_caches: Box<[Gc<TemplateObjectCache>]> = match replaced_executable {
             Some(replaced_executable)
                 if replaced_executable.template_object_caches.len() == parts.cache_counts.template_object as usize =>
             {
-                for cache in &replaced_executable.template_object_caches {
-                    rooted_template_object_caches.push(*cache);
-                }
+                replaced_executable.template_object_caches.clone()
             }
-            _ => {
-                for _ in 0..parts.cache_counts.template_object {
-                    rooted_template_object_caches.push(TemplateObjectCache::create(vm));
-                }
-            }
-        }
-        let template_object_caches: Box<[Gc<TemplateObjectCache>]> =
-            rooted_template_object_caches.to_vec().into_boxed_slice();
+            _ => (0..parts.cache_counts.template_object)
+                .map(|_| TemplateObjectCache::create(vm))
+                .collect(),
+        };
         let counts = ExecutableCacheCounts {
             property_lookup_caches: parts.cache_counts.property_lookup,
             global_variable_caches: parts.cache_counts.global_variable,
@@ -1636,6 +1652,7 @@ impl Executable {
             constants,
             &counts,
             parts.is_strict,
+            defer_gc,
         );
         executable.identifier_table = parts.identifier_table;
         executable.set_property_key_table(parts.property_key_table);
@@ -1680,19 +1697,6 @@ impl Executable {
             .collect();
         executable.argument_variable_names = parts.argument_variable_names.into_boxed_slice();
         executable.source_code = source_code.cloned();
-        let executable = Self::create_from_parts(vm, executable);
-        if let Some(replaced_executable) = replaced_executable {
-            Self::copy_runtime_caches_from(executable, &replaced_executable);
-            Self::take_over_warm_up_from(executable, &replaced_executable);
-        }
-        drop(rooted_template_object_caches);
-        drop(rooted_constants);
-        drop(rooted_literal_values);
-
-        if let Some(debugger) = vm.debugger() {
-            debugger.register_executable(vm, executable);
-        }
-
         executable
     }
 

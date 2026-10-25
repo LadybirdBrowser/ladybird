@@ -444,13 +444,6 @@ impl SourceTextModule {
             (Some(parts.executable), None)
         };
 
-        let functions_to_initialize = rooted_shared_data
-            .to_vec()
-            .into_iter()
-            .zip(parts.function_names)
-            .map(|(shared_data, name)| FunctionToInitialize { shared_data, name })
-            .collect();
-
         let module = vm.heap().allocate(SourceTextModule {
             base: CyclicModule::new(
                 Self::CLASS,
@@ -469,7 +462,12 @@ impl SourceTextModule {
             imported_bindings: GcRefCell::new(Vec::new()),
             var_declared_names: parts.var_declared_names,
             lexical_bindings: parts.lexical_bindings,
-            functions_to_initialize,
+            functions_to_initialize: rooted_shared_data
+                .values()
+                .iter()
+                .zip(parts.function_names)
+                .map(|(&shared_data, name)| FunctionToInitialize { shared_data, name })
+                .collect(),
             default_export_binding_name: parts.default_export_binding_name,
             executable: Cell::new(executable),
             tla_shared_data,
