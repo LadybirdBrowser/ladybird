@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="textarea" style="height: 40px"></textarea>
+<script>
+    promiseTest(async () => {
+        textarea.focus();
+        document.body.offsetHeight;
+
+        const layoutCount = () => internals.partialLayoutCount() + internals.fullLayoutCount();
+        const layoutsBefore = layoutCount();
+        for (let i = 0; i < 50; ++i)
+            document.execCommand("insertText", false, `\nline ${i}`);
+        println(`layouts during edits: ${layoutCount() - layoutsBefore}`);
+
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const bottomOfLastLine = textarea.scrollHeight - parseFloat(getComputedStyle(textarea).paddingBottom);
+        const scrolledToCaret = textarea.scrollTop > 0 && textarea.scrollTop + textarea.clientHeight >= bottomOfLastLine;
+        println(`caret revealed after the next rendering update: ${scrolledToCaret}`);
+    });
+</script>
