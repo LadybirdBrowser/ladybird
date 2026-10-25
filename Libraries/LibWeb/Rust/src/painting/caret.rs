@@ -9,6 +9,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_START_AND_END};
 use crate::painting::text_fragment::{self, CaretMatch};
+use crate::painting::visual_lines;
 
 pub(crate) struct CaretRectResult {
     pub rect: CssPixelRect,
@@ -78,6 +79,33 @@ pub(crate) fn caret_rect_for_position(
         offset,
         affinity_is_downstream,
     ))
+}
+
+/// The caret on an empty line of `block`, such as the line after a trailing newline, at `offset` in the text laid out
+/// in the fragments of `node_slots`. No fragment holds such a position.
+pub(crate) fn caret_rect_on_empty_line(
+    layout_arena: &impl PaintRead,
+    block: NodeSlotId,
+    node_slots: &[NodeSlotId],
+    offset: usize,
+) -> Option<CaretRectResult> {
+    if !layout_arena.paintable_row_is_populated(block) {
+        return None;
+    }
+    let side = layout_arena.committed_side_data(block);
+    let first_fragment = side.fragments().first()?;
+    if !node_slots.contains(&first_fragment.layout_node) {
+        return None;
+    }
+    let target = visual_lines::empty_line_caret_targets(layout_arena, block)
+        .into_iter()
+        .find(|target| target.offset == offset)?;
+    Some(CaretRectResult {
+        rect: target.rect,
+        style_source: text_fragment::style_source(layout_arena, first_fragment),
+        owner: block,
+        node: first_fragment.layout_node,
+    })
 }
 
 pub(crate) fn caret_rect_in_dom_range(

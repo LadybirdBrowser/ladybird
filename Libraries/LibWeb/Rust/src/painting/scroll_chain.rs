@@ -154,7 +154,13 @@ pub(crate) fn scroll_target_for_text_position(
     scroll_block_axis: bool,
 ) -> Option<(NodeSlotId, CssPixelPoint)> {
     let fragments = arena.text_fragments(text);
-    let caret = caret::caret_rect_for_position(arena, fragments.as_slice(), offset, affinity_is_downstream)?;
+    let node_slots = fragments.as_slice();
+    let caret = match caret::caret_rect_for_position(arena, node_slots, offset, affinity_is_downstream) {
+        Some(caret) => caret,
+        // No fragment holds the position: the caret sits on an empty line of the block that lays the text out.
+        None => std::iter::successors(arena.node_parent_if_live(text), |&node| arena.node_parent_if_live(node))
+            .find_map(|block| caret::caret_rect_on_empty_line(arena, block, node_slots, offset))?,
+    };
     let style = arena.node_style_if_live(caret.style_source)?;
     let horizontal = style.writing_mode() == writing_mode::HORIZONTAL_TB;
     let one = CssPixels::from_integer(1);
