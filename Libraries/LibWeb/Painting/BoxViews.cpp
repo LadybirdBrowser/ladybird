@@ -874,6 +874,20 @@ Vector<CSSPixelRect> client_rects(Layout::Node const& node, Layout::RustFFI::Ffi
     return rects;
 }
 
+bool has_sticky_positioned_inclusive_ancestor(Layout::Node const& node)
+{
+    return Layout::RustFFI::layout_script_has_sticky_positioned_inclusive_ancestor(node.document_host(), committed_row_slot(node));
+}
+
+CSSPixelPoint accumulated_sticky_offset(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
+{
+    Layout::RustFFI::FfiOptionalCssPixelPoint result;
+    Layout::RustFFI::layout_script_accumulated_sticky_offset(node.document_host(), committed_row_slot(node), rect_to_viewport_transform, &result);
+    if (!result.has_value)
+        return {};
+    return { result.x, result.y };
+}
+
 CSSPixelRect bounding_client_rect(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
 {
     CSSPixelRect rect;

@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-2 Pass
-3 Fail
+5 Pass
 Pass	before reaching the sticking point, neither sticky box should be offset
 Pass	the inner sticky can stick before the outer one if necessary
-Fail	both sticky boxes can be stuck at the same time
-Fail	neither sticky can escape their containing block
-Fail	the inner sticky cannot be pushed outside the outer sticky
+Pass	both sticky boxes can be stuck at the same time
+Pass	neither sticky can escape their containing block
+Pass	the inner sticky cannot be pushed outside the outer sticky
