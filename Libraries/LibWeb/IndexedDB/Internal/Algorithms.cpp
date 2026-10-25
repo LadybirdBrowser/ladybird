@@ -1275,7 +1275,7 @@ void fire_an_error_event(JS::Realm& realm, GC::Ref<IDBRequest> request)
 
         // 3. If event’s canceled flag is false, then run abort a transaction using transaction and request's error, and terminate these steps.
         if (!event->cancelled()) {
-            abort_a_transaction(*transaction, request->error());
+            abort_a_transaction(*transaction, MUST(request->error()));
             return;
         }
 
