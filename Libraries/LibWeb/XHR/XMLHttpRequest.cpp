@@ -1029,6 +1029,17 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
                     .process_response_consume_body = {},
                 }));
 
+        // AD-HOC: Stopping the fetch, as aborting the document does, discards it without a response. Hand this an
+        //         aborted network error instead, so that it fires abort as for a canceled fetch.
+        m_fetch_controller->set_stop_steps(GC::create_function(heap(), [this, fetch_controller = m_fetch_controller] {
+            HTML::queue_global_task(HTML::Task::Source::Networking, relevant_global_object(), GC::create_function(heap(), [this, fetch_controller] {
+                if (m_fetch_controller != fetch_controller)
+                    return;
+                m_response = Fetch::Infrastructure::Response::aborted_network_error();
+                MUST(handle_errors());
+            }));
+        }));
+
         // 11. Let now be the present time.
         // 12. Run these steps in parallel:
         //     1. Wait until either req’s done flag is set or this’s timeout is not 0 and this’s timeout milliseconds have passed since now.

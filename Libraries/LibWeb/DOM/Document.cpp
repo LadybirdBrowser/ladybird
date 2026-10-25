@@ -6614,22 +6614,21 @@ void Document::abort()
     //    or any queued tasks or any network data getting discarded,
     //    then make document unsalvageable given document and "fetch".
     bool canceled_fetch = false;
-    if (m_ongoing_navigation_fetch_controller && m_ongoing_navigation_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing) {
-        m_ongoing_navigation_fetch_controller->stop_fetch();
+    auto cancel_fetch = [&](GC::Ptr<Fetch::Infrastructure::FetchController> controller) {
+        if (!controller || controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
+            return;
+        controller->stop_fetch();
         canceled_fetch = true;
-    }
+    };
+
+    cancel_fetch(m_ongoing_navigation_fetch_controller);
     m_ongoing_navigation_fetch_controller = nullptr;
 
     // AD-HOC: The fetch group belongs to the document's Window. Once the Window is associated with another document,
     //         as when the initial about:blank document is replaced, its fetches are not in the context of this document.
     if (auto window = this->window(); window && window->associated_document_if_any().ptr() == this) {
-        for (auto& fetch_record : relevant_settings_object().fetch_group()) {
-            auto controller = fetch_record.fetch_controller();
-            if (!controller || controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
-                continue;
-            controller->stop_fetch();
-            canceled_fetch = true;
-        }
+        for (auto& fetch_record : relevant_settings_object().fetch_group())
+            cancel_fetch(fetch_record.fetch_controller());
     }
 
     if (canceled_fetch)
