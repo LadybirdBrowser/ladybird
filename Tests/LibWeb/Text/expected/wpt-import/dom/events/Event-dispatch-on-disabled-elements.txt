@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 9 tests
 
-8 Pass
-1 Fail
+9 Pass
 Pass	Can dispatch untrusted 'click' Events at disabled HTML elements.
 Pass	Can dispatch untrusted Events at disabled HTML elements.
 Pass	Can dispatch CustomEvents at disabled HTML elements.
@@ -12,4 +11,4 @@ Pass	CSS Transitions transitionrun, transitionstart, transitionend events fire o
 Pass	CSS Transitions transitioncancel event fires on disabled form elements
 Pass	CSS Animation animationstart, animationiteration, animationend fire on disabled form elements
 Pass	CSS Animation's animationcancel event fires on disabled form elements
-Fail	Real clicks on disabled elements must not dispatch events.
+Pass	Real clicks on disabled elements must not dispatch events.
