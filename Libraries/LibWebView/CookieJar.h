@@ -28,6 +28,7 @@ struct CookieStorageKey {
 
     String name;
     String domain;
+    bool host_only { false };
     String path;
     Utf16String partition_key;
 };
@@ -145,6 +146,7 @@ struct AK::Traits<WebView::CookieStorageKey> : public AK::DefaultTraits<WebView:
         unsigned hash = 0;
         hash = pair_int_hash(hash, key.name.hash());
         hash = pair_int_hash(hash, key.domain.hash());
+        hash = pair_int_hash(hash, key.host_only);
         hash = pair_int_hash(hash, key.path.hash());
         hash = pair_int_hash(hash, key.partition_key.hash());
         return hash;

@@ -3325,7 +3325,7 @@ ErrorOr<void> Application::set_cookie(DevTools::TabDescription const& descriptio
 
     Optional<CookieStorageKey> old_key;
     if (old_cookie.has_value())
-        old_key = CookieStorageKey { old_cookie->name, old_cookie->domain, old_cookie->path, old_cookie->partition_key };
+        old_key = CookieStorageKey { old_cookie->name, old_cookie->domain, old_cookie->host_only, old_cookie->path, old_cookie->partition_key };
 
     TRY(view->session().cookie_jar->set_cookie_from_devtools(*url, move(old_key), move(cookie)));
     return {};
@@ -3338,7 +3338,7 @@ void Application::delete_cookies(DevTools::TabDescription const& description, Ve
         return;
 
     for (auto const& cookie : cookies)
-        view->session().cookie_jar->delete_cookie({ cookie.name, cookie.domain, cookie.path, cookie.partition_key });
+        view->session().cookie_jar->delete_cookie({ cookie.name, cookie.domain, cookie.host_only, cookie.path, cookie.partition_key });
 }
 
 void Application::listen_for_host_cookie_changes(DevTools::TabDescription const& description, OnHostCookieChange on_host_cookie_change) const
