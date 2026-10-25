@@ -31,6 +31,7 @@
 #include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/WebAssembly.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
@@ -40,6 +41,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebAssembly/BindingsGlue.h>
+#include <LibWeb/WebAssembly/Builtins.h>
 #include <LibWeb/WebAssembly/Exception.h>
 #include <LibWeb/WebAssembly/Global.h>
 #include <LibWeb/WebAssembly/Instance.h>
@@ -55,10 +57,10 @@
 
 namespace Web::WebAssembly {
 
-static GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::Realm&, ByteBuffer, HTML::Task::Source = HTML::Task::Source::Unspecified);
+static GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::Realm&, ByteBuffer, Bindings::WebAssemblyCompileOptions const&, HTML::Task::Source = HTML::Task::Source::Unspecified);
 static GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::Realm&, GC::Ref<WebIDL::Promise>, GC::Ptr<JS::Object> import_object);
 static GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::Realm&, GC::Ref<Module>, GC::Ptr<JS::Object> import_object);
-static GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm&, GC::Ref<WebIDL::Promise>);
+static GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm&, GC::Ref<WebIDL::Promise>, Bindings::WebAssemblyCompileOptions const&);
 
 namespace Detail {
 
@@ -180,7 +182,7 @@ void initialize(JS::Object& self, JS::Realm& realm)
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-validate
-bool validate(JS::Realm& realm, WebIDL::BufferSource bytes)
+bool validate(JS::Realm& realm, WebIDL::BufferSource bytes, Bindings::WebAssemblyCompileOptions const& options)
 {
     // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
     auto stable_bytes = WebIDL::get_buffer_source_copy(bytes);
@@ -197,12 +199,23 @@ bool validate(JS::Realm& realm, WebIDL::BufferSource bytes)
     if (module.is_error())
         return false;
 
-    // 4. Return true.
+    // 4. Let builtinSetNames be options["builtins"].
+    auto const& builtin_set_names = options.builtins;
+
+    // 5. Let importedStringModule be options["importedStringConstants"].
+    auto const& imported_string_module = options.imported_string_constants;
+
+    // 6. If validating builtins and imported strings for module with builtinSetNames and importedStringModule returns
+    //    false, return false.
+    if (!Detail::validate_builtins_and_imported_strings(*module.value(), builtin_set_names, imported_string_module))
+        return false;
+
+    // 7. Return true.
     return true;
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-compile
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::Realm& realm, WebIDL::BufferSource bytes)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::Realm& realm, WebIDL::BufferSource bytes, Bindings::WebAssemblyCompileOptions const& options)
 {
     auto& vm = realm.vm();
 
@@ -213,20 +226,21 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::Realm& realm, WebIDL::
         return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
     }
 
-    // 2. Asynchronously compile a WebAssembly module from stableBytes and return the result.
-    return asynchronously_compile_webassembly_module(realm, stable_bytes.release_value());
+    // 2. Asynchronously compile a WebAssembly module from stableBytes using options and return the result.
+    return asynchronously_compile_webassembly_module(realm, stable_bytes.release_value(), options);
 }
 
 // https://webassembly.github.io/spec/web-api/index.html#dom-webassembly-compilestreaming
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::Realm& realm, GC::Ref<WebIDL::Promise> source)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::Realm& realm, GC::Ref<WebIDL::Promise> source, Bindings::WebAssemblyCompileOptions const& options)
 {
-    //  The compileStreaming(source) method, when invoked, returns the result of compiling a potential WebAssembly response with source.
-    return compile_potential_webassembly_response(realm, source);
+    // The compileStreaming(source, options) method, when invoked, returns the result of compiling a potential
+    // WebAssembly response with source using options.
+    return compile_potential_webassembly_response(realm, source, options);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate
 // https://webassembly.github.io/content-security-policy/js-api/#dom-webassembly-instantiate
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm& realm, WebIDL::BufferSource bytes, GC::Ptr<JS::Object> import_object)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm& realm, WebIDL::BufferSource bytes, GC::Ptr<JS::Object> import_object, Bindings::WebAssemblyCompileOptions const& options)
 {
     auto& vm = realm.vm();
 
@@ -240,27 +254,28 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm& realm, WebI
     // 2. Perform HostEnsureCanCompileWasmBytes()
     TRY(Detail::host_ensure_can_compile_wasm_bytes(realm));
 
-    // 3. Asynchronously compile a WebAssembly module from stableBytes and let promiseOfModule be the result.
-    auto promise_of_module = asynchronously_compile_webassembly_module(realm, stable_bytes.release_value());
+    // 3. Asynchronously compile a WebAssembly module from stableBytes using options and let promiseOfModule be the
+    //    result.
+    auto promise_of_module = asynchronously_compile_webassembly_module(realm, stable_bytes.release_value(), options);
 
     // 4. Instantiate promiseOfModule with imports importObject and return the result.
     return instantiate_promise_of_module(realm, promise_of_module, import_object);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate-moduleobject-importobject
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm& realm, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm& realm, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object, Optional<JS::Value> const&)
 {
     // 1. Asynchronously instantiate the WebAssembly module moduleObject importing importObject, and return the result.
     return asynchronously_instantiate_webassembly_module(realm, module_object, import_object);
 }
 
 // https://webassembly.github.io/spec/web-api/index.html#dom-webassembly-instantiatestreaming
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::Realm& realm, GC::Ref<WebIDL::Promise> source, GC::Ptr<JS::Object> import_object)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::Realm& realm, GC::Ref<WebIDL::Promise> source, GC::Ptr<JS::Object> import_object, Bindings::WebAssemblyCompileOptions const& options)
 {
-    // The instantiateStreaming(source, importObject) method, when invoked, performs the following steps:
+    // The instantiateStreaming(source, importObject, options) method, when invoked, performs the following steps:
 
-    // 1. Let promiseOfModule be the result of compiling a potential WebAssembly response with source.
-    auto promise_of_module = compile_potential_webassembly_response(realm, source);
+    // 1. Let promiseOfModule be the result of compiling a potential WebAssembly response with source using options.
+    auto promise_of_module = compile_potential_webassembly_response(realm, source, options);
 
     // 2. Return the result of instantiating the promise of a module promiseOfModule with imports importObject.
     return instantiate_promise_of_module(realm, promise_of_module, import_object);
@@ -584,7 +599,7 @@ Wasm::Runtime::FunctionType function_type_in_store(Wasm::Runtime::Module const& 
 }
 
 // https://webassembly.github.io/spec/js-api/#read-the-imports
-JS::ThrowCompletionOr<GC::ConservativeVector<Wasm::Runtime::Extern>> read_the_imports(JS::VM& vm, Wasm::Runtime::Module const& module, GC::Ptr<JS::Object> import_object)
+JS::ThrowCompletionOr<GC::ConservativeVector<Wasm::Runtime::Extern>> read_the_imports(JS::VM& vm, Wasm::Runtime::Module const& module, GC::Ptr<JS::Object> import_object, ReadonlySpan<Utf16String> builtin_set_names, Optional<Utf16String> const& imported_string_module)
 {
     auto& store = WebAssemblyCache::the().store();
 
@@ -593,16 +608,37 @@ JS::ThrowCompletionOr<GC::ConservativeVector<Wasm::Runtime::Extern>> read_the_im
     if (import_count != 0 && !import_object)
         return vm.throw_completion<JS::TypeError>("ImportObject must be provided when module has imports"_utf16);
 
-    // FIXME: 2. Let builtinOrStringImports be the ordered map «[ ]».
-    // FIXME: 3. For each builtinSetName of builtinSetNames,
-    //           1. Let builtinSetQualifiedName be builtinSetName prefixed with "wasm:"
-    //           2. Assert: builtinOrStringImports does not contain builtinSetQualifiedName
-    //           3. If builtinSetName does not refer to a builtin set, then continue.
-    //           4. Let exportsObject be the result of instantiate a builtin set with builtinSetName
-    //           5. Set builtinOrStringImports[builtinSetQualifiedName] to exportsObject
-    // FIXME: 4. If importedStringModule is not null,
-    //           1. Let exportsObject be the result of instantiate imported strings with module and importedStringModule
-    //           2. Set builtinOrStringImports[importedStringModule] to exportsObject
+    // 2. Let builtinOrStringImports be the ordered map «[ ]».
+    // NB: The keys are UTF-8, as the module names of imports are.
+    OrderedHashMap<String, GC::Root<JS::Object>> builtin_or_string_imports;
+
+    // 3. For each builtinSetName of builtinSetNames,
+    for (auto const& builtin_set_name : builtin_set_names) {
+        // 3.1. Let builtinSetQualifiedName be builtinSetName prefixed with "wasm:"
+        auto builtin_set_qualified_name = MUST(String::formatted("wasm:{}", builtin_set_name));
+
+        // 3.2. Assert: builtinOrStringImports does not contain builtinSetQualifiedName
+        VERIFY(!builtin_or_string_imports.contains(builtin_set_qualified_name));
+
+        // 3.3. If builtinSetName does not refer to a builtin set, then continue.
+        if (!refers_to_a_builtin_set(builtin_set_name))
+            continue;
+
+        // 3.4. Let exportsObject be the result of instantiate a builtin set with builtinSetName
+        auto exports_object = instantiate_a_builtin_set(vm, builtin_set_name);
+
+        // 3.5. Set builtinOrStringImports[builtinSetQualifiedName] to exportsObject
+        builtin_or_string_imports.set(builtin_set_qualified_name, GC::make_root(exports_object));
+    }
+
+    // 4. If importedStringModule is not null,
+    if (imported_string_module.has_value()) {
+        // 4.1. Let exportsObject be the result of instantiate imported strings with module and importedStringModule
+        auto exports_object = instantiate_imported_strings(vm, module, *imported_string_module);
+
+        // 4.2. Set builtinOrStringImports[importedStringModule] to exportsObject
+        builtin_or_string_imports.set(imported_string_module->to_utf8(), GC::make_root(exports_object));
+    }
 
     // 5. Let imports be « ».
     // NB: The host functions and globals made for the imports are referenced from here only until the instance
@@ -616,13 +652,26 @@ JS::ThrowCompletionOr<GC::ConservativeVector<Wasm::Runtime::Extern>> read_the_im
         auto import = module.import(import_index);
         dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve {}::{}", import.module, import.name);
 
-        // FIXME: 6.1. If builtinOrStringImports[moduleName] exists,
-        //            1. Let o be builtinOrStringImports[moduleName].
-        //            2. If o is not an Object or if ? HasProperty(o, componentName) is false,
-        //               1. Set o to ? Get(importObject, moduleName).
+        auto module_name = Utf16FlyString::from_utf8(import.module);
+        auto component_name = Utf16FlyString::from_utf8(import.name);
+        JS::Value value;
+
+        // 6.1. If builtinOrStringImports[moduleName] exists,
+        if (auto builtin_or_string_import = builtin_or_string_imports.get(MUST(String::from_utf8(import.module))); builtin_or_string_import.has_value()) {
+            // 6.1.1. Let o be builtinOrStringImports[moduleName].
+            value = builtin_or_string_import->ptr();
+
+            // 6.1.2. If o is not an Object or if ? HasProperty(o, componentName) is false,
+            if (!value.is_object() || !TRY(value.as_object().has_property(component_name))) {
+                // 6.1.2.1. Set o to ? Get(importObject, moduleName).
+                value = TRY(import_object->get(module_name));
+            }
+        }
         // 6.2. Else,
-        // 6.2.1. Let o be ? Get(importObject, moduleName).
-        auto value = TRY(import_object->get(Utf16FlyString::from_utf8(import.module)));
+        else {
+            // 6.2.1. Let o be ? Get(importObject, moduleName).
+            value = TRY(import_object->get(module_name));
+        }
 
         // 6.3. If o is not an Object, throw a TypeError exception.
         if (!value.is_object())
@@ -630,7 +679,7 @@ JS::ThrowCompletionOr<GC::ConservativeVector<Wasm::Runtime::Extern>> read_the_im
         auto const& object = value.as_object();
 
         // 6.4. Let v be ? Get(o, componentName).
-        auto import_ = TRY(object.get(Utf16FlyString::from_utf8(import.name)));
+        auto import_ = TRY(object.get(component_name));
 
         switch (import.type.kind) {
         // 6.5. If externtype is of the form func functype,
@@ -744,9 +793,9 @@ JS::ThrowCompletionOr<GC::ConservativeVector<Wasm::Runtime::Extern>> read_the_im
     return imports;
 }
 
-JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM& vm, Wasm::Runtime::Module const& module, GC::Ptr<JS::Object> import_object)
+JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM& vm, Wasm::Runtime::Module const& module, GC::Ptr<JS::Object> import_object, ReadonlySpan<Utf16String> builtin_set_names, Optional<Utf16String> const& imported_string_module)
 {
-    auto imports = TRY(read_the_imports(vm, module, import_object));
+    auto imports = TRY(read_the_imports(vm, module, import_object, builtin_set_names, imported_string_module));
     return instantiate_core_module(vm, module, imports);
 }
 
@@ -1228,31 +1277,46 @@ JS::ThrowCompletionOr<void> host_ensure_can_compile_wasm_bytes(JS::Realm& realm)
 }
 
 // https://webassembly.github.io/spec/js-api/#asynchronously-compile-a-webassembly-module
-GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::Realm& realm, ByteBuffer bytes, HTML::Task::Source task_source)
+GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::Realm& realm, ByteBuffer bytes, Bindings::WebAssemblyCompileOptions const& options, HTML::Task::Source task_source)
 {
     // 1. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
 
     // 2. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, bytes = move(bytes), promise, task_source]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, bytes = move(bytes), promise, options, task_source]() mutable {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 1. Compile the WebAssembly module bytes and store the result as module.
         auto module_or_error = Detail::compile_a_webassembly_module(realm, bytes);
 
-        // 2. Queue a task to perform the following steps. If taskSource was provided, queue the task on that task source.
-        HTML::queue_a_task(task_source, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, bytes = move(bytes), promise, module_or_error = move(module_or_error)]() mutable {
+        // 2. Queue a task on taskSource, if provided, to perform the following steps:
+        HTML::queue_a_task(task_source, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, bytes = move(bytes), promise, options = move(options), module_or_error = move(module_or_error)]() mutable {
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             auto& realm = HTML::relevant_realm(*promise->promise());
 
-            // 1. If module is error, reject promise with a CompileError exception.
+            // 1. If module is error, reject promise with a CompileError exception and return.
             if (module_or_error.is_error()) {
                 WebIDL::reject_promise(promise, module_or_error.error_value());
+                return;
+            }
+            auto module = module_or_error.release_value();
+
+            // 2. Let builtinSetNames be options["builtins"].
+            auto& builtin_set_names = options.builtins;
+
+            // 3. Let importedStringModule be options["importedStringConstants"].
+            auto& imported_string_module = options.imported_string_constants;
+
+            // 4. If validating builtins and imported strings for module with builtinSetNames and importedStringModule is
+            //    false, reject promise with a CompileError exception.
+            if (!Detail::validate_builtins_and_imported_strings(*module->module, builtin_set_names, imported_string_module)) {
+                WebIDL::reject_promise(promise, realm.vm().throw_completion<CompileError>("Invalid builtin or imported string"sv).value());
             }
 
-            // 2. Otherwise,
+            // 5. Otherwise,
             else {
-                // 1. Construct a WebAssembly module object from module and bytes, and let moduleObject be the result.
-                auto module_object = GC::Heap::the().allocate<Module>(module_or_error.release_value(), move(bytes));
+                // 1. Construct a WebAssembly module object from module, bytes, builtinSetNames, importedStringModule, and
+                //    let moduleObject be the result.
+                auto module_object = GC::Heap::the().allocate<Module>(move(module), move(bytes), move(builtin_set_names), move(imported_string_module));
 
                 // 2. Resolve promise with moduleObject.
                 Bindings::resolve_webassembly_module_promise(realm, promise, module_object);
@@ -1273,13 +1337,16 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::Realm
     // 2. Let module be moduleObject.[[Module]].
     auto module = module_object->compiled_module();
 
-    // FIXME: 3. Let builtinSetNames be moduleObject.[[BuiltinSets]].
-    // FIXME: 4. Let importedStringModule be moduleObject.[[ImportedStringModule]].
+    // 3. Let builtinSetNames be moduleObject.[[BuiltinSets]].
+    auto const& builtin_set_names = module_object->builtin_sets();
+
+    // 4. Let importedStringModule be moduleObject.[[ImportedStringModule]].
+    auto const& imported_string_module = module_object->imported_string_module();
 
     // 5. Read the imports of module with imports importObject, builtinSetNames and importedStringModule, and let imports
     //    be the result. If this operation throws an exception, catch it, reject promise with the exception, and return
     //    promise.
-    auto imports_or_error = Detail::read_the_imports(realm.vm(), *module->module, import_object);
+    auto imports_or_error = Detail::read_the_imports(realm.vm(), *module->module, import_object, builtin_set_names, imported_string_module);
     if (imports_or_error.is_error()) {
         WebIDL::reject_promise(promise, imports_or_error.error_value());
         return promise;
@@ -1374,7 +1441,7 @@ GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::Realm& realm, GC::Ref
 }
 
 // https://webassembly.github.io/spec/web-api/index.html#compile-a-potential-webassembly-response
-GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm& realm, GC::Ref<WebIDL::Promise> source)
+GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm& realm, GC::Ref<WebIDL::Promise> source, Bindings::WebAssemblyCompileOptions const& options)
 {
     auto& vm = realm.vm();
 
@@ -1388,7 +1455,7 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm& realm
     auto return_value = WebIDL::create_promise(realm);
 
     // 2. Upon fulfillment of source with value unwrappedSource:
-    auto fulfillment_steps = GC::create_function(GC::Heap::the(), [&vm, return_value](JS::Value unwrapped_source) -> WebIDL::ExceptionOr<JS::Value> {
+    auto fulfillment_steps = GC::create_function(GC::Heap::the(), [&vm, return_value, options](JS::Value unwrapped_source) -> WebIDL::ExceptionOr<JS::Value> {
         auto& realm = HTML::relevant_realm(*return_value->promise());
 
         // 1. Let response be unwrappedSource’s response.
@@ -1433,7 +1500,7 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm& realm
         auto body_promise = body_promise_or_error.release_value();
 
         // 9. Upon fulfillment of bodyPromise with value bodyArrayBuffer:
-        auto body_fulfillment_steps = GC::create_function(GC::Heap::the(), [&vm, return_value](JS::Value body_array_buffer) -> WebIDL::ExceptionOr<JS::Value> {
+        auto body_fulfillment_steps = GC::create_function(GC::Heap::the(), [&vm, return_value, options](JS::Value body_array_buffer) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Let stableBytes be a copy of the bytes held by the buffer bodyArrayBuffer.
             VERIFY(body_array_buffer.is_object());
             auto stable_bytes = WebIDL::get_buffer_source_copy(body_array_buffer.as_object());
@@ -1443,8 +1510,9 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm& realm
                 return JS::js_undefined();
             }
 
-            // 2. Asynchronously compile the WebAssembly module stableBytes using the networking task source and resolve returnValue with the result.
-            auto result = asynchronously_compile_webassembly_module(HTML::relevant_realm(*return_value->promise()), stable_bytes.release_value(), HTML::Task::Source::Networking);
+            // 2. Asynchronously compile the WebAssembly module stableBytes using the networking task source and options
+            //    and resolve returnValue with the result.
+            auto result = asynchronously_compile_webassembly_module(HTML::relevant_realm(*return_value->promise()), stable_bytes.release_value(), options, HTML::Task::Source::Networking);
 
             // Need to manually convert WebIDL promise to an ECMAScript value here to resolve
             WebIDL::resolve_promise(return_value, result->promise());

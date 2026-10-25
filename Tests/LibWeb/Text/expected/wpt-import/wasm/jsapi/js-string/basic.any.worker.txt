@@ -1,3 +1,10 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 5 tests
+
+5 Pass
+Pass	basic
+Pass	basic 1
+Pass	basic 2
+Pass	basic 3
+Pass	basic 4

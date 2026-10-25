@@ -23,6 +23,7 @@
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/URL.h>
 #include <LibWasm/Runtime.h>
+#include <LibWeb/Bindings/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -34,13 +35,13 @@ class Tag;
 
 WEB_API void initialize(JS::Object&, JS::Realm&);
 
-WEB_API bool validate(JS::Realm&, WebIDL::BufferSource bytes);
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::Realm&, WebIDL::BufferSource bytes);
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::Realm&, GC::Ref<WebIDL::Promise> source);
+WEB_API bool validate(JS::Realm&, WebIDL::BufferSource bytes, Bindings::WebAssemblyCompileOptions const&);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::Realm&, WebIDL::BufferSource bytes, Bindings::WebAssemblyCompileOptions const&);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::Realm&, GC::Ref<WebIDL::Promise> source, Bindings::WebAssemblyCompileOptions const&);
 
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm&, WebIDL::BufferSource bytes, GC::Ptr<JS::Object> import_object);
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm&, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object);
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::Realm&, GC::Ref<WebIDL::Promise> source, GC::Ptr<JS::Object> import_object);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm&, WebIDL::BufferSource bytes, GC::Ptr<JS::Object> import_object, Bindings::WebAssemblyCompileOptions const&);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm&, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object, Optional<JS::Value> const& ignored);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::Realm&, GC::Ref<WebIDL::Promise> source, GC::Ptr<JS::Object> import_object, Bindings::WebAssemblyCompileOptions const&);
 
 namespace Detail {
 
@@ -122,8 +123,8 @@ Optional<u64> exported_gc_object_address(JS::Object const&);
 
 // The function type at `type_index` of a module, in the store's terms (see Store::canonical_value_type()).
 Wasm::Runtime::FunctionType function_type_in_store(Wasm::Runtime::Module const&, u32 type_index);
-JS::ThrowCompletionOr<GC::ConservativeVector<Wasm::Runtime::Extern>> read_the_imports(JS::VM&, Wasm::Runtime::Module const&, GC::Ptr<JS::Object> import_object);
-JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM&, Wasm::Runtime::Module const&, GC::Ptr<JS::Object> import_object);
+JS::ThrowCompletionOr<GC::ConservativeVector<Wasm::Runtime::Extern>> read_the_imports(JS::VM&, Wasm::Runtime::Module const&, GC::Ptr<JS::Object> import_object, ReadonlySpan<Utf16String> builtin_set_names, Optional<Utf16String> const& imported_string_module);
+JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM&, Wasm::Runtime::Module const&, GC::Ptr<JS::Object> import_object, ReadonlySpan<Utf16String> builtin_set_names, Optional<Utf16String> const& imported_string_module);
 JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_core_module(JS::VM&, Wasm::Runtime::Module const&, ReadonlySpan<Wasm::Runtime::Extern> imports);
 Wasm::Runtime::Entity create_host_function(JS::VM&, JS::FunctionObject& function, Wasm::Runtime::FunctionType type, size_t function_index);
 JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::Realm&, ReadonlyBytes);
