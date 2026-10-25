@@ -213,6 +213,11 @@ void Console::report_exception(Utf16View name, Utf16View message, ErrorData cons
     js_console_report_exception(console_to_abi(*this), utf16_view_to_abi(name), utf16_view_to_abi(message), error_data_to_abi(error_data), in_promise);
 }
 
+void Console::report_exception(Utf16View name, Utf16View message, Utf16View filename, u32 line, u32 column, bool in_promise) const
+{
+    js_console_report_exception_with_location(console_to_abi(*this), utf16_view_to_abi(name), utf16_view_to_abi(message), utf16_view_to_abi(filename), line, column, in_promise);
+}
+
 static GC::Ref<EngineConsoleClient> create_engine_console_client(Console& console, ConsoleClient& client)
 {
     auto* engine_console_client = js_console_client_create(vm_to_abi(console.vm()), console_to_abi(console), &ConsoleClientMethodThunks::methods, static_cast<GC::Cell*>(&client));

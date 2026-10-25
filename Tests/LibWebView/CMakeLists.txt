@@ -325,6 +325,11 @@ if (BUILD_TESTING AND NOT WIN32)
         )
         set_tests_properties(TestDevToolsCatchUpLayout PROPERTIES TIMEOUT 120)
         add_test(
+            NAME TestWorkerErrorConsole
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-worker-error-console.py $<TARGET_FILE:ladybird>
+        )
+        set_tests_properties(TestWorkerErrorConsole PROPERTIES TIMEOUT 120)
+        add_test(
             NAME TestWindowSizeReachesEveryPage
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-window-size-reaches-every-page.py $<TARGET_FILE:ladybird>
         )

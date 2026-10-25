@@ -62,6 +62,7 @@ public:
     void output_debug_message(LogLevel log_level, StringView output) const;
     void output_debug_message(LogLevel log_level, Utf16View output) const;
     void report_exception(Utf16View name, Utf16View message, JS::ErrorData const&, bool) const;
+    void report_exception(Utf16View name, Utf16View message, Utf16View filename, u32 line, u32 column, bool in_promise) const;
 };
 
 // The cell of the Rust runtime that a console holds as its client. It forwards what the console logs to the virtual
