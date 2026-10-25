@@ -17,6 +17,7 @@ pub mod gc_ref_cell;
 pub mod heap;
 pub mod heap_function;
 pub mod interpreter_buffer;
+pub mod lint_markers;
 pub mod primitive_storage;
 pub mod root;
 pub mod shared_memory;

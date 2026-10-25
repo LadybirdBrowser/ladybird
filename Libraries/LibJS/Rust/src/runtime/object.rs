@@ -1190,6 +1190,13 @@ impl Object {
             return false;
         }
 
+        #[cfg_attr(
+            ladybird_gc_lints,
+            expect(
+                gc_container_on_stack,
+                reason = "the keys are those of `shape`, which keeps their symbols alive"
+            )
+        )]
         let mut properties = Vec::with_capacity(shape.property_count() as usize);
         let mut has_accessors = false;
         shape.for_each_property_in_insertion_order(|property_key, metadata| {
@@ -1448,6 +1455,13 @@ impl Object {
                     return false;
                 }
                 let mut copy_shape = new_object_shape;
+                #[cfg_attr(
+                    ladybird_gc_lints,
+                    expect(
+                        gc_container_on_stack,
+                        reason = "the keys are those of `from_shape`, which keeps their symbols alive"
+                    )
+                )]
                 let mut enumerable_keys = Vec::new();
                 from_shape.for_each_property_in_insertion_order(|property_key, metadata| {
                     if metadata.attributes.is_enumerable() {

@@ -13,6 +13,7 @@ use core::ptr::NonNull;
 
 use ak::{Utf16FlyString, Utf16String};
 
+use crate::gc::lint_markers::HoldsNoCells;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -266,6 +267,9 @@ unsafe impl Trace for PropertyKey {
 /// A key that is a string or a number, never a symbol, so that it holds no cell and needs no rooting.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct NonSymbolPropertyKey(PropertyKey);
+
+// SAFETY: new() takes no symbols, the only keys that hold a cell.
+unsafe impl HoldsNoCells for NonSymbolPropertyKey {}
 
 impl NonSymbolPropertyKey {
     pub fn new(key: PropertyKey) -> Option<Self> {

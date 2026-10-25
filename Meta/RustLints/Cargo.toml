@@ -1,0 +1,18 @@
+[package]
+name = "ladybird_rust_lints"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "ladybird-rust-lints"
+path = "src/main.rs"
+
+[[test]]
+name = "ui"
+harness = false
+
+[package.metadata.rust-analyzer]
+rustc_private = true
+
+# The driver links the compiler of the pinned nightly, so it cannot be a member of the stable workspace.
+[workspace]
