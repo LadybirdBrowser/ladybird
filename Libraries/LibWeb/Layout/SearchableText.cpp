@@ -52,7 +52,7 @@ SearchableText SearchableText::collect(Viewport& viewport)
 
     auto append_code_unit = [&](DOM::Text& dom_node, char16_t code_unit, size_t dom_start_offset, size_t dom_end_offset, Searchability searchability) {
         if (current_dom_node != &dom_node || dom_start_offset != expected_dom_offset) {
-            segments.empend(dom_node, builder_length_in_code_units, searchability, next_boundary, dom_node.is_inert());
+            segments.empend(dom_node, builder_length_in_code_units, searchability, next_boundary);
             next_boundary = Boundary::None;
         }
         builder.append_code_unit(code_unit);
@@ -346,114 +346,7 @@ SearchableText SearchableText::collect(Viewport& viewport)
         //         textNodeList.
     }
 
-    Optional<Vector<Block>> find_in_page_blocks;
-    auto contains_inert_text = false;
-    for (auto const& block : blocks) {
-        for (auto const& segment : block.segments) {
-            if (segment.is_inert) {
-                contains_inert_text = true;
-                break;
-            }
-        }
-        if (contains_inert_text)
-            break;
-    }
-
-    if (contains_inert_text) {
-        // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
-        // When a node is inert:
-        // - The user agent should ignore the node for the purposes of find-in-page.
-        Utf16StringBuilder find_in_page_builder;
-        Vector<Segment> find_in_page_segments;
-        Vector<RenderedTextOffset> find_in_page_offset_mapping;
-        Vector<Block> filtered_blocks;
-        GC::Ptr<DOM::Text> find_in_page_pending_space_dom_node = nullptr;
-        DOM::Text const* find_in_page_current_dom_node = nullptr;
-        size_t find_in_page_pending_space_dom_offset = 0;
-        size_t find_in_page_pending_space_dom_end_offset = 0;
-        Searchability find_in_page_pending_space_searchability = Searchability::Searchable;
-        size_t find_in_page_expected_dom_offset = 0;
-        size_t find_in_page_builder_length_in_code_units = 0;
-        Boundary find_in_page_next_boundary = Boundary::Block;
-
-        auto flush_find_in_page_block = [&] {
-            if (!find_in_page_builder.is_empty())
-                filtered_blocks.append({ find_in_page_builder.to_string(), move(find_in_page_segments), move(find_in_page_offset_mapping) });
-            find_in_page_segments.clear_with_capacity();
-            find_in_page_offset_mapping.clear_with_capacity();
-            find_in_page_builder.clear();
-            find_in_page_builder_length_in_code_units = 0;
-            find_in_page_pending_space_dom_node = nullptr;
-            find_in_page_current_dom_node = nullptr;
-            find_in_page_next_boundary = Boundary::Block;
-        };
-
-        auto append_find_in_page_code_unit = [&](DOM::Text& dom_node, char16_t code_unit, size_t dom_start_offset, size_t dom_end_offset, Searchability searchability) {
-            if (find_in_page_current_dom_node != &dom_node || dom_start_offset != find_in_page_expected_dom_offset) {
-                find_in_page_segments.empend(dom_node, find_in_page_builder_length_in_code_units, searchability, find_in_page_next_boundary, false);
-                find_in_page_next_boundary = Boundary::None;
-            }
-            find_in_page_builder.append_code_unit(code_unit);
-            find_in_page_offset_mapping.empend(dom_start_offset, dom_end_offset);
-            ++find_in_page_builder_length_in_code_units;
-            find_in_page_current_dom_node = &dom_node;
-            find_in_page_expected_dom_offset = dom_end_offset;
-        };
-
-        for (auto const& block : blocks) {
-            auto const block_text = block.text.utf16_view();
-            for (size_t segment_index = 0; segment_index < block.segments.size(); ++segment_index) {
-                auto const& segment = block.segments[segment_index];
-                if (segment.is_inert)
-                    continue;
-
-                auto dom_node = segment.dom_node.ptr();
-                if (!dom_node)
-                    continue;
-                auto* parent = dom_node->parent_or_shadow_host_element();
-                auto const* parent_inherited_text_values = parent ? parent->style_group<CSS::ComputedValues::InheritedTextValues>() : nullptr;
-                if (!parent_inherited_text_values)
-                    continue;
-
-                auto const segment_end = segment_index + 1 < block.segments.size()
-                    ? block.segments[segment_index + 1].start_offset
-                    : block_text.length_in_code_units();
-                auto const white_space_collapse = parent_inherited_text_values->white_space_collapse_value();
-                auto const should_collapse = first_is_one_of(
-                    white_space_collapse,
-                    CSS::WhiteSpaceCollapse::Collapse,
-                    CSS::WhiteSpaceCollapse::PreserveBreaks);
-
-                for (size_t offset = segment.start_offset; offset < segment_end; ++offset) {
-                    auto const code_unit = block_text.code_unit_at(offset);
-                    auto const& rendered_offset = block.offset_mapping[offset];
-                    auto const preserve_line_break = white_space_collapse == CSS::WhiteSpaceCollapse::PreserveBreaks && code_unit == '\n';
-                    if (should_collapse && is_ascii_space(code_unit) && !preserve_line_break) {
-                        if (!find_in_page_pending_space_dom_node) {
-                            find_in_page_pending_space_dom_node = dom_node;
-                            find_in_page_pending_space_dom_offset = rendered_offset.dom_start_offset;
-                            find_in_page_pending_space_dom_end_offset = rendered_offset.dom_end_offset;
-                            find_in_page_pending_space_searchability = segment.searchability;
-                        }
-                        continue;
-                    }
-
-                    if (find_in_page_pending_space_dom_node) {
-                        if (!find_in_page_segments.is_empty())
-                            append_find_in_page_code_unit(*find_in_page_pending_space_dom_node, ' ', find_in_page_pending_space_dom_offset, find_in_page_pending_space_dom_end_offset, find_in_page_pending_space_searchability);
-                        find_in_page_pending_space_dom_node = nullptr;
-                    }
-
-                    append_find_in_page_code_unit(*dom_node, code_unit, rendered_offset.dom_start_offset, rendered_offset.dom_end_offset, segment.searchability);
-                }
-            }
-            flush_find_in_page_block();
-        }
-
-        find_in_page_blocks = move(filtered_blocks);
-    }
-
-    return SearchableText { move(blocks), move(find_in_page_blocks) };
+    return SearchableText { move(blocks) };
 }
 
 Optional<DOM::BoundaryPoint> SearchableText::boundary_point_at_offset(Block const& block, size_t offset, bool is_end) const
