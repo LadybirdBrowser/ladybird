@@ -13,11 +13,6 @@
 
 namespace Web::CSS {
 
-// "UAs may have implementation-specific limits on the maximum or minimum value of a counter.
-// If a counter reset, set, or increment would push the value outside of that range, the value
-// must be clamped to that range." - https://drafts.csswg.org/css-lists-3/#auto-numbering
-using CounterValue = i32;
-
 // NB: The CSS counters sets live in the layout node arena, which resolves them during the layout tree build from the
 //     style each element installed, so whether an element's innermost list-item counter is its own forward one is
 //     read from that style.

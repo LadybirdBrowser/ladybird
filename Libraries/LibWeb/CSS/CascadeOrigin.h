@@ -15,8 +15,6 @@ enum class CascadeOrigin : u8 {
     AuthorPresentationalHint,
     User,
     UserAgent,
-    Animation,
-    Transition,
 };
 
 }
