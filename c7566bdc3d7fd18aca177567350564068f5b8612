@@ -1,0 +1,14 @@
+Ladybird rejects a bytecode cache blob unless it carries the fingerprint
+of the running build’s instruction set — a hash of the instruction types
+build.rs generates from interpreter.flap — besides the hand-bumped
+FORMAT_VERSION, the runtime, the program type, and the source hash. So
+it keeps a warm cache across rebuilds that leave the instructions alone,
+and drops it whenever an opcode or an operand changes.
+
+The other engines tie their caches to the whole build instead. V8’s
+SerializedCodeData::SanityCheck() rejects a code cache entry whose
+Version::Hash() or FlagList::Hash() differs from the running V8’s.
+JavaScriptCore stores computeJSCBytecodeCacheVersion(), a hash of the
+UUID of the JavaScriptCore binary, and its isUpToDate() rejects any
+other. And SpiderMonkey fails a stencil transcoded under another build
+ID than JS::GetScriptTranscodingBuildId() gives with Failure_BadBuildId.
