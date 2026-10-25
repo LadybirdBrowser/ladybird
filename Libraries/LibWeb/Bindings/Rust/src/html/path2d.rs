@@ -234,8 +234,8 @@ impl Path2D {
                 float(x),
                 float(y),
                 float(radius),
-                float(start_angle),
-                float(end_angle),
+                start_angle,
+                end_angle,
                 counterclockwise,
             )
         })?;
@@ -263,8 +263,8 @@ impl Path2D {
                 float(radius_x),
                 float(radius_y),
                 float(rotation),
-                float(start_angle),
-                float(end_angle),
+                start_angle,
+                end_angle,
                 counterclockwise,
             )
         })?;
