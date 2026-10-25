@@ -1,4 +1,7 @@
 == CSS property descriptors
+highlights writable: undefined
+highlights configurable: true
+highlights enumerable: true
 escape writable: true
 escape configurable: true
 escape enumerable: true

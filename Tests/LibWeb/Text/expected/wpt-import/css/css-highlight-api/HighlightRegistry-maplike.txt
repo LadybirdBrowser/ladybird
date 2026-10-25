@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	HighlightRegistry initializes as it should.
-Fail	HighlightRegistry has a maplike interface.
-Fail	HighlightRegistry.set() with an existing name preserves the insertion order (Map-like behavior)
+3 Pass
+Pass	HighlightRegistry initializes as it should.
+Pass	HighlightRegistry has a maplike interface.
+Pass	HighlightRegistry.set() with an existing name preserves the insertion order (Map-like behavior)

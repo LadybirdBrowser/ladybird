@@ -1,0 +1,15 @@
+// https://drafts.csswg.org/css-highlight-api-1/#enumdef-highlighttype
+enum HighlightType {
+    "highlight",
+    "spelling-error",
+    "grammar-error"
+};
+
+// https://drafts.csswg.org/css-highlight-api-1/#highlight
+[Exposed=Window]
+interface Highlight {
+    constructor(AbstractRange... initialRanges);
+    setlike<AbstractRange>;
+    attribute long priority;
+    attribute HighlightType type;
+};

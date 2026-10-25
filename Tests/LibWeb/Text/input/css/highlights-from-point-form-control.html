@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        font: 16px Arial, sans-serif;
+        margin: 0;
+    }
+</style>
+<input id="input" value="hello world"><textarea id="textarea">hello world</textarea>
+<script>
+    test(() => {
+        const range = document.createRange();
+        range.selectNode(input);
+        const textareaRange = document.createRange();
+        textareaRange.selectNode(textarea);
+        const highlight = new Highlight(range, textareaRange);
+        CSS.highlights.set("example", highlight);
+
+        for (const element of [input, textarea]) {
+            const rect = element.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            println(`${element.localName}: elementFromPoint is the control: ${document.elementFromPoint(x, y) === element}`);
+            const results = CSS.highlights.highlightsFromPoint(x, y);
+            println(`${element.localName}: results: ${results.length}`);
+            if (results.length)
+                println(`${element.localName}: highlight matches: ${results[0].highlight === highlight}, ranges: ${results[0].ranges.length}`);
+        }
+    });
+</script>

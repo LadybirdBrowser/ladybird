@@ -1,0 +1,6 @@
+input: elementFromPoint is the control: true
+input: results: 1
+input: highlight matches: true, ranges: 1
+textarea: elementFromPoint is the control: true
+textarea: results: 1
+textarea: highlight matches: true, ranges: 1

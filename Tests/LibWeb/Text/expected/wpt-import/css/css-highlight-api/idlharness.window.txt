@@ -1,6 +1,38 @@
 Harness status: OK
 
-Found 1 tests
+Found 33 tests
 
-1 Fail
-Fail	idl_test setup
+33 Pass
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial namespace CSS: original namespace defined
+Pass	Partial namespace CSS: member names are unique
+Pass	Partial interface HighlightRegistry: original interface defined
+Pass	Partial interface HighlightRegistry: member names are unique
+Pass	Highlight interface: existence and properties of interface object
+Pass	Highlight interface object length
+Pass	Highlight interface object name
+Pass	Highlight interface: existence and properties of interface prototype object
+Pass	Highlight interface: existence and properties of interface prototype object's "constructor" property
+Pass	Highlight interface: existence and properties of interface prototype object's @@unscopables property
+Pass	Highlight interface: setlike<AbstractRange>
+Pass	Highlight interface: attribute priority
+Pass	Highlight interface: attribute type
+Pass	Highlight must be primary interface of new Highlight(new Range())
+Pass	Stringification of new Highlight(new Range())
+Pass	Highlight interface: new Highlight(new Range()) must inherit property "priority" with the proper type
+Pass	Highlight interface: new Highlight(new Range()) must inherit property "type" with the proper type
+Pass	HighlightRegistry interface: existence and properties of interface object
+Pass	HighlightRegistry interface object length
+Pass	HighlightRegistry interface object name
+Pass	HighlightRegistry interface: existence and properties of interface prototype object
+Pass	HighlightRegistry interface: existence and properties of interface prototype object's "constructor" property
+Pass	HighlightRegistry interface: existence and properties of interface prototype object's @@unscopables property
+Pass	HighlightRegistry interface: maplike<DOMString, Highlight>
+Pass	HighlightRegistry interface: operation highlightsFromPoint(float, float, optional HighlightsFromPointOptions)
+Pass	HighlightRegistry must be primary interface of CSS.highlights
+Pass	Stringification of CSS.highlights
+Pass	HighlightRegistry interface: CSS.highlights must inherit property "highlightsFromPoint(float, float, optional HighlightsFromPointOptions)" with the proper type
+Pass	HighlightRegistry interface: calling highlightsFromPoint(float, float, optional HighlightsFromPointOptions) on CSS.highlights with too few arguments must throw TypeError
+Pass	CSS namespace: operation escape(CSSOMString)
+Pass	CSS namespace: attribute highlights

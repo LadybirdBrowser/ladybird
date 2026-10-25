@@ -1,0 +1,19 @@
+// https://drafts.csswg.org/css-highlight-api-1/#highlightregistry
+[Exposed=Window]
+interface HighlightRegistry {
+    maplike<DOMString, Highlight>;
+};
+
+// https://drafts.csswg.org/css-highlight-api-1/#interactions
+partial interface HighlightRegistry {
+    sequence<HighlightHitResult> highlightsFromPoint(float x, float y, optional HighlightsFromPointOptions options = {});
+};
+
+dictionary HighlightHitResult {
+    Highlight highlight;
+    sequence<AbstractRange> ranges;
+};
+
+dictionary HighlightsFromPointOptions {
+    sequence<ShadowRoot> shadowRoots = [];
+};

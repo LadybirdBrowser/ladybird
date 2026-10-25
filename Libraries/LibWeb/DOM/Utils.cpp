@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -36,6 +37,17 @@ EventTarget* retarget(EventTarget* a, EventTarget* b)
         auto& a_shadow_root = as<ShadowRoot>(a_root);
         a = a_shadow_root.host();
     }
+}
+
+Element* retarget_from_ua_internal_shadow_root(Element& element)
+{
+    auto* result = &element;
+    while (auto shadow_root = result->containing_shadow_root()) {
+        if (!shadow_root->is_user_agent_internal())
+            break;
+        result = shadow_root->host();
+    }
+    return result;
 }
 
 }

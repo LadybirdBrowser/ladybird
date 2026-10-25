@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Highlight is a setlike interface that works as expected even if Set.prototype is tampered.
+1 Pass
+Pass	Highlight is a setlike interface that works as expected even if Set.prototype is tampered.

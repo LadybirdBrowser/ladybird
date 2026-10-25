@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	CSS.highlights.highlightsFromPoint() returns HighlightHitResults with the Highlights and their corresponding Ranges and StaticRanges present at the given point in the right order on multi-line text.
+1 Pass
+Pass	CSS.highlights.highlightsFromPoint() returns HighlightHitResults with the Highlights and their corresponding Ranges and StaticRanges present at the given point in the right order on multi-line text.

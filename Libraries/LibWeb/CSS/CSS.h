@@ -30,6 +30,8 @@ WEB_API WebIDL::ExceptionOr<bool> supports(JS::VM&, Utf16View condition_text);
 
 WEB_API WebIDL::ExceptionOr<void> register_property(DOM::Document&, PropertyDefinition const&);
 
+WEB_API GC::Ref<HighlightRegistry> highlights(JS::VM&);
+
 // NB: Numeric factory functions (https://drafts.css-houdini.org/css-typed-om-1/#numeric-factory) are generated,
 //     see GenerateCSSNumericFactoryMethods.cpp
 
