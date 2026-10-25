@@ -1831,6 +1831,11 @@ impl Generator {
                     });
                 }
                 BlockBoundaryType::ReturnToFinally => {
+                    debug_assert_eq!(
+                        self.current_finally_context
+                            .and_then(|index| self.finally_contexts[index].lexical_environment_at_entry.as_ref()),
+                        Some(&self.lexical_environment_register_stack[env_stack_offset - 1])
+                    );
                     return;
                 }
                 _ => {}
