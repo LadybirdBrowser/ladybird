@@ -422,12 +422,12 @@ inline Web::HTML::StorageSerializationRecord frozen_image_data_record(ReadonlyBy
     return serializable_storage_record("ImageData"sv, 1, body);
 }
 
-// CryptoKey is [SecureContext], and WebAssembly module compilation consults Content Security Policy, so decode them through a principal realm.
-inline Web::WebIDL::ExceptionOr<JS::Value> principal_storage_deserialize(Web::HTML::StorageSerializationRecord const& record)
+// CryptoKey is [SecureContext], and WebAssembly module compilation consults Content Security Policy, so they need a principal realm.
+inline JS::Realm& principal_test_realm()
 {
     static GC::Root<JS::Realm> realm;
-    auto& vm = test_realm().vm();
     if (!realm) {
+        auto& vm = test_realm().vm();
         auto depth = vm.execution_context_stack().size();
         realm = Web::Bindings::create_a_principal_javascript_realm();
         while (vm.execution_context_stack().size() > depth)
@@ -445,27 +445,24 @@ inline Web::WebIDL::ExceptionOr<JS::Value> principal_storage_deserialize(Web::HT
         window->set_associated_document(document);
         document->set_window(*window);
     }
+    return *realm;
+}
 
-    auto& settings = Web::Bindings::principal_host_defined_environment_settings_object(*realm);
+inline Web::WebIDL::ExceptionOr<JS::Value> principal_storage_deserialize(Web::HTML::StorageSerializationRecord const& record)
+{
+    auto& realm = principal_test_realm();
+    auto& vm = realm.vm();
+    auto& settings = Web::Bindings::principal_host_defined_environment_settings_object(realm);
     auto depth = vm.execution_context_stack().size();
     vm.push_execution_context(settings.realm_execution_context());
 
     Web::HTML::StructuredSerializeReader reader { record };
     Web::HTML::DeserializationMemory memory;
-    auto result = Web::HTML::structured_deserialize_internal(vm, reader, *realm, memory, Web::HTML::CheckFullyConsumed::Yes);
+    auto result = Web::HTML::structured_deserialize_internal(vm, reader, realm, memory, Web::HTML::CheckFullyConsumed::Yes);
 
     while (vm.execution_context_stack().size() > depth)
         vm.pop_execution_context();
     return result;
-}
-
-constexpr inline auto s_minimal_webassembly_module_bytes = to_array<u8>({ 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00 });
-
-inline Web::HTML::StorageSerializationRecord webassembly_module_storage_record(ReadonlyBytes module_bytes)
-{
-    Vector<u8> body;
-    append_storage_bytes(body, module_bytes);
-    return serializable_storage_record("Module"sv, 1, body);
 }
 
 // `declared_handle_size` lets tests overstate the raw ByteBuffer handle length.

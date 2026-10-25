@@ -32,7 +32,6 @@
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
-#include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
 
@@ -584,16 +583,6 @@ TEST_CASE(image_data_over_a_shrunk_resizable_buffer_has_no_pixels)
     EXPECT(!image.is_detached());
     EXPECT_EQ(image.pixels(), nullptr);
     EXPECT(image.bitmap().is_error());
-}
-
-TEST_CASE(webassembly_module_decodes_from_frozen_bytes)
-{
-    auto value = MUST(principal_storage_deserialize(webassembly_module_storage_record(s_minimal_webassembly_module_bytes.span())));
-    auto module = GC::Ref { unwrap_wrappable<Web::WebAssembly::Module>(value) };
-
-    auto compiled_module = module->compiled_module();
-    EXPECT_EQ(compiled_module->module->import_count(), 0u);
-    EXPECT_EQ(compiled_module->module->export_count(), 0u);
 }
 
 TEST_CASE(crypto_key_algorithm_variants_decode_from_frozen_bytes)

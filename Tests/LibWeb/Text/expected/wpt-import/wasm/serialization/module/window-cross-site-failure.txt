@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	postMessaging a wasm module to a cross-site iframe fails
+Pass	postMessaging a wasm module to a sandboxed iframe fails

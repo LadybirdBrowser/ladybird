@@ -10,6 +10,8 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/Module.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
@@ -175,7 +177,8 @@ WebIDL::ExceptionOr<void> Module::serialization_steps(HTML::StructuredSerializeW
     // 2. Set serialized.[[Bytes]] to the sub-serialization of value.[[Bytes]].
     serialized.encode(m_bytes);
 
-    // FIXME: 3. Set serialized.[[AgentCluster]] to the current Realm’s corresponding agent cluster.
+    // 3. Set serialized.[[AgentCluster]] to the current Realm’s corresponding agent cluster.
+    serialized.encode(HTML::current_settings_object().agent_cluster_id());
 
     return {};
 }
@@ -189,7 +192,11 @@ WebIDL::ExceptionOr<void> Module::deserialization_steps(JS::Realm& realm, HTML::
     // 2. Set value.[[Bytes]] to bytes.
     m_bytes = move(bytes);
 
-    // FIXME: 3. If targetRealm’s corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+    // 3. If targetRealm’s corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+    auto agent_cluster = TRY(HTML::decode_or_throw_data_clone_error<Optional<u64>>(realm, serialized));
+    auto target_agent_cluster = Bindings::principal_host_defined_environment_settings_object(realm).agent_cluster_id();
+    if (!agent_cluster.has_value() || agent_cluster != target_agent_cluster)
+        return WebIDL::DataCloneError::create("Cannot deserialize WebAssembly Module outside its agent cluster"_utf16);
 
     // 4. Compile a WebAssembly module from bytes and set value.[[Module]] to the result.
     m_compiled_module = TRY(Detail::compile_a_webassembly_module(realm, m_bytes));

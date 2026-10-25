@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	postMessaging a wasm module to a same-site iframe on another host succeeds
+Pass	postMessaging a wasm module to a same-site iframe on another port succeeds
