@@ -1243,7 +1243,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         self.available_space = Some(available_space);
         self.layout_input = Some(input);
-        self.maximum_inline_size_resolved_by_caller = None;
+        self.maximum_inline_size_resolved_by_caller = input.sizing.maximum_inline_size_resolved_by_caller;
         self.column_lines.clear();
         self.row_lines.clear();
         self.columns.clear();
@@ -4493,13 +4493,8 @@ impl<'pass> GridFormattingContext<'pass> {
         self.container_used().rare_data_mut().grid_layout_data = Some(std::sync::Arc::new(data));
     }
 
-    pub(crate) fn content_inline_size(
-        &mut self,
-        input: LayoutInput,
-        maximum_inline_size_resolved_by_caller: Option<CssPixels>,
-    ) -> CssPixels {
+    pub(crate) fn content_inline_size(&mut self, input: LayoutInput) -> CssPixels {
         self.reset_for_run(input);
-        self.maximum_inline_size_resolved_by_caller = maximum_inline_size_resolved_by_caller;
         let grid_style = self.grid_style(self.run.box_);
         self.cache_subgrid_axes(grid_style);
         let (columns, rows) = self.initialize_lines(grid_style);

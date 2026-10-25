@@ -246,7 +246,6 @@ pub(crate) struct BlockFormattingContext<'pass> {
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
     trailing_collapsed_margin: Cell<Option<(Node, CssPixels)>>,
     table_box_in_wrapper_border_box_block_size: Cell<Option<CssPixels>>,
-    min_content_inline_size_from_max_content_layout: Cell<Option<CssPixels>>,
     is_line_clamp_container: bool,
     clamped_content_is_scrollable_overflow: bool,
     max_lines: Cell<Option<usize>>,
@@ -343,7 +342,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
             trailing_collapsed_margin: Cell::new(None),
             table_box_in_wrapper_border_box_block_size: Cell::new(None),
-            min_content_inline_size_from_max_content_layout: Cell::new(None),
             is_line_clamp_container,
             clamped_content_is_scrollable_overflow,
             // NB: Measurements at a definite inline size need the clamped block size, just like committed layout.
@@ -4411,10 +4409,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         context.run();
         let automatic_inline_size = context.automatic_content_inline_size;
         let automatic_block_size = context.automatic_content_block_size;
-        if block_container == self.run.box_ {
-            self.min_content_inline_size_from_max_content_layout
-                .set(context.min_content_inline_size_from_max_content_layout);
-        }
         if !self.used(block_container).has_definite_inline_size() {
             // NOTE: min-width or max-width for boxes with inline children can only be applied after inside layout
             //       is done and the inline size of the box content is known
@@ -4772,16 +4766,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .max(spanner_inline_size);
         }
         self.greatest_child_inline_size_including_floats(self.run.box_)
-    }
-
-    pub(crate) fn min_content_inline_size_from_max_content_layout(&self) -> Option<CssPixels> {
-        let minimum = self.min_content_inline_size_from_max_content_layout.get();
-        if self.is_multicol_container() {
-            return minimum.map(|minimum| {
-                fragmentation::multicol_intrinsic_inline_size(self.style(self.run.box_), minimum, true)
-            });
-        }
-        minimum
     }
 
     fn multicol_intrinsic_inline_size(&self, content_inline_size: CssPixels) -> CssPixels {

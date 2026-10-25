@@ -365,8 +365,6 @@ pub(crate) struct RunRecords<'arena> {
     // Wrapper sizing hands this state to the wrapper's child run, which consumes it while laying
     // out the table box. Keeping it on the run prevents measurement state from escaping a pass.
     table_inline_layouts: RefCell<HashMap<Node, table_formatting_context::TableInlineLayout>>,
-    // A paragraph measured from its items leaves block sizes and baselines unresolved.
-    omitted_line_layout: Cell<bool>,
     is_content_sizing: bool,
 }
 
@@ -428,7 +426,6 @@ impl<'arena> RunRecords<'arena> {
             stack_length_at_start: scratch.run_record_stack.length(),
             records_outside_table: RefCell::new(HashMap::default()),
             table_inline_layouts: RefCell::new(HashMap::default()),
-            omitted_line_layout: Cell::new(false),
             is_content_sizing,
         };
         run(&records, callbacks.for_run(root, root_containing_block))
@@ -453,14 +450,6 @@ impl<'arena> RunRecords<'arena> {
 
     pub(crate) fn is_content_sizing(&self) -> bool {
         self.is_content_sizing
-    }
-
-    pub(crate) fn note_omitted_line_layout(&self) {
-        self.omitted_line_layout.set(true);
-    }
-
-    pub(crate) fn omitted_line_layout(&self) -> bool {
-        self.omitted_line_layout.get()
     }
 
     pub(crate) fn register(&self, node: Node, used: UsedValues) -> &UsedValues {

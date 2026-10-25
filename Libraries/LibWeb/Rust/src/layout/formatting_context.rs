@@ -116,12 +116,11 @@ pub(crate) enum TableWrapperInlineSizeMode {
 pub(crate) enum LayoutPurpose {
     Commit,
     Measurement,
-    IntrinsicInlineMeasurement,
 }
 
 impl LayoutPurpose {
     pub(crate) fn is_measurement(self) -> bool {
-        matches!(self, Self::Measurement | Self::IntrinsicInlineMeasurement)
+        self == Self::Measurement
     }
 }
 
@@ -149,23 +148,12 @@ impl<'pass> MeasurementState<'pass> {
         layout_mode: LayoutMode,
         input: LayoutInput,
     ) -> ChildLayoutResult {
-        self.run_with_purpose(LayoutPurpose::Measurement, node, node_used, layout_mode, input)
-    }
-
-    pub(crate) fn run_with_purpose(
-        &self,
-        purpose: LayoutPurpose,
-        node: Node,
-        node_used: &UsedValues,
-        layout_mode: LayoutMode,
-        input: LayoutInput,
-    ) -> ChildLayoutResult {
         let fc_type = independent_formatting_context_type(node, &self.callbacks);
         let root_containing_block = self
             .callbacks
             .containing_block_for_child_run(node, &input.participation);
         run_formatting_context(
-            purpose,
+            LayoutPurpose::Measurement,
             None,
             node_used,
             node,
@@ -1020,9 +1008,7 @@ pub struct BorderData {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ChildLayoutResult {
-    pub omitted_line_layout: bool,
     pub automatic_content_inline_size: CssPixels,
-    pub min_content_inline_size_from_max_content_layout: Option<CssPixels>,
     pub automatic_content_block_size: CssPixels,
     pub automatic_line_clamp_max_lines: Option<usize>,
     pub baselines: DerivedBaselines,
@@ -1872,18 +1858,6 @@ pub(super) fn run_formatting_context(
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
 ) -> ChildLayoutResult {
-    // Independent children supply block sizes and baselines to their parent, so only paragraphs
-    // in the width query's own block flow may skip their line geometry.
-    // NB: A box that establishes an orthogonal flow contributes its block size to the inline size its parent
-    //     measures, which takes its line geometry.
-    let purpose = if purpose == LayoutPurpose::IntrinsicInlineMeasurement
-        && (input.participation != ParticipationInParentFormattingContext::Root
-            || frame_established_by(&callbacks, box_).is_orthogonal_to(callbacks.frame))
-    {
-        LayoutPurpose::Measurement
-    } else {
-        purpose
-    };
     if let Some(parent_fragments) = parent_fragments {
         // A later run for this root supersedes a hit recorded earlier in the same pass.
         parent_fragments.clear_reused_subtree_root(box_, parent_used);
@@ -2172,8 +2146,6 @@ fn execute_formatting_context_run(
                         context.run(body_run, body_input);
                         let mut result = ChildLayoutResult {
                             automatic_content_inline_size: context.automatic_content_inline_size(),
-                            min_content_inline_size_from_max_content_layout: context
-                                .min_content_inline_size_from_max_content_layout(),
                             automatic_content_block_size: context.automatic_content_block_size(),
                             automatic_line_clamp_max_lines: context.automatic_line_clamp_max_lines(),
                             baselines: context.derived_baselines_of_root_box(),
@@ -2335,7 +2307,6 @@ fn execute_formatting_context_run(
                     result.content_block_size_for_aspect_ratio_minimum,
                 );
             }
-            result.omitted_line_layout = run.records.omitted_line_layout();
             result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
 
             // NB: The root's descendants are laid out in the frame the root establishes.
@@ -2536,7 +2507,6 @@ fn leave_own_frame(
             used.rare_data_mut().orthogonal_flow_baselines = None;
         }
         result.automatic_content_inline_size = result.automatic_content_block_size;
-        result.min_content_inline_size_from_max_content_layout = None;
         result.automatic_content_block_size = content_inline_size;
         result.baselines = DerivedBaselines::default();
         result.content_block_size_for_aspect_ratio_minimum = None;

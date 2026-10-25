@@ -29,10 +29,9 @@ const layoutTraceLines = (() => {
         [`layout PARTIAL ${box}`, box => ({ event: "layout", partial: true, box })],
         [`${box} MEASURE CELL ${cache}`, (box, cache) => ({ event: "measure cell", box, cache })],
         [
-            `${box} MEASURE ((?:min|max)-content (?:inline|block)) ${cache}(?: FROM (ITEMS|FLEX ITEMS|GRID TRACKS|CHILDREN|COLUMNS|REPLACED CONTENT|MAX-CONTENT))?`,
+            `${box} MEASURE ((?:min|max)-content (?:inline|block)) ${cache}(?: FROM (ITEMS|FLEX ITEMS|GRID TRACKS|CHILDREN|COLUMNS|REPLACED CONTENT))?`,
             (box, size, cache, from) => ({ event: "measure", box, size, cache, from: from?.toLowerCase() }),
         ],
-        [`${box} INLINE SIZE FROM ITEMS`, box => ({ event: "inline size from items", box })],
         [`${box} REUSE IN-FLOW SUBTREE`, box => ({ event: "reuse in-flow subtree", box })],
         [
             `${box}/([a-z-]+)${runFlags} ([A-Z][A-Z -]*[A-Z])(?: ${cache})?`,
@@ -55,9 +54,8 @@ const layoutTraceLines = (() => {
 //   run                     `formattingContext`, `measurement`, `intrinsic`, `action`, `cache`
 //   reuse in-flow subtree
 //   measure                 `size` ("min-content inline", ...), `cache`, `from` ("items", "flex items",
-//                           "grid tracks", "children", "columns", "replaced content", "max-content")
+//                           "grid tracks", "children", "columns", "replaced content")
 //   measure cell            `cache`
-//   inline size from items
 function parseLayoutTrace(text) {
     const events = [];
     for (const line of text.replace(/\r/g, "").split("\n")) {

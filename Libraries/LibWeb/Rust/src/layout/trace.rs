@@ -166,11 +166,10 @@ impl LayoutTrace {
         drop(self.scope("", Some(node), || " REUSE IN-FLOW SUBTREE".into()));
     }
 
-    /// An intrinsic size of `node` that the measurement cache holds. `detail` says how the cache gave it, if not
-    /// from an entry for that size.
-    pub(super) fn intrinsic_size_hit(&self, node: NodeSlotId, kind: IntrinsicSizeCacheKind, detail: &'static str) {
+    /// An intrinsic size of `node` that the measurement cache holds.
+    pub(super) fn intrinsic_size_hit(&self, node: NodeSlotId, kind: IntrinsicSizeCacheKind) {
         drop(self.scope("", Some(node), || {
-            format!(" MEASURE {} (cache=hit){detail}", intrinsic_size_name(kind))
+            format!(" MEASURE {} (cache=hit)", intrinsic_size_name(kind))
         }));
     }
 
@@ -190,11 +189,6 @@ impl LayoutTrace {
     /// work that measures it nests under it.
     pub(super) fn table_cell_measurement_miss(&self, cell: NodeSlotId) -> Option<Scope<'_>> {
         self.scope("", Some(cell), || " MEASURE CELL (cache=miss)".into())
-    }
-
-    /// An inline formatting context in `node` that gives its intrinsic inline size from its items, without line boxes.
-    pub(super) fn inline_size_from_items(&self, node: NodeSlotId) {
-        drop(self.scope("", Some(node), || " INLINE SIZE FROM ITEMS".into()));
     }
 
     pub(super) fn run(
@@ -378,14 +372,10 @@ mod tests {
                 let miss = trace
                     .intrinsic_size_miss(NodeSlotId::new(1, 1), IntrinsicSizeCacheKind::MaxContentInline)
                     .unwrap();
-                trace.inline_size_from_items(NodeSlotId::new(2, 1));
+                drop(trace.intrinsic_size_miss(NodeSlotId::new(2, 1), IntrinsicSizeCacheKind::MaxContentInline));
                 miss.append(" FROM ITEMS");
             }
-            trace.intrinsic_size_hit(
-                NodeSlotId::new(1, 1),
-                IntrinsicSizeCacheKind::MinContentInline,
-                " FROM MAX-CONTENT",
-            );
+            trace.intrinsic_size_hit(NodeSlotId::new(1, 1), IntrinsicSizeCacheKind::MinContentInline);
             drop(trace.table_cell_measurement_miss(NodeSlotId::new(3, 1)));
             trace.table_cell_measurement_hit(NodeSlotId::new(3, 1));
         }
@@ -395,8 +385,8 @@ mod tests {
             concat!(
                 "layout FULL\n",
                 "   MEASURE max-content inline (cache=miss) FROM ITEMS\n",
-                "     INLINE SIZE FROM ITEMS\n",
-                "   MEASURE min-content inline (cache=hit) FROM MAX-CONTENT\n",
+                "     MEASURE max-content inline (cache=miss)\n",
+                "   MEASURE min-content inline (cache=hit)\n",
                 "   MEASURE CELL (cache=miss)\n",
                 "   MEASURE CELL (cache=hit)\n",
             )

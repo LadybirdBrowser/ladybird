@@ -978,7 +978,6 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                     .create_used_values(node, self.context().input.containing_block_constraints)
             };
             item.content_baselines = self.context_mut().dimension_box_on_line(node);
-            item.min_content_inline_size = self.context().paired_min_content_inline_size_for_atomic_root(node);
             item.inline_size = used.content_inline_size.get();
             item.padding_start = used.padding_left.get();
             item.padding_end = used.padding_right.get();
