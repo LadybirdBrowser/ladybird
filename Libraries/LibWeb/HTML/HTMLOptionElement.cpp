@@ -105,7 +105,7 @@ Utf16String HTMLOptionElement::value() const
 {
     // The value of an option element is the value of the value content attribute, if there is one.
     // ...or, if there is not, the value of the element's text IDL attribute.
-    if (auto value = attribute(HTML::AttributeNames::value); value.has_value())
+    if (auto value = get_attribute_ns({}, HTML::AttributeNames::value); value.has_value())
         return value.release_value();
     return text();
 }
@@ -133,7 +133,7 @@ Utf16String HTMLOptionElement::label() const
 {
     // The label IDL attribute, on getting, if there is a label content attribute,
     // must return that attribute's value; otherwise, it must return the element's label.
-    if (auto label = attribute(HTML::AttributeNames::label); label.has_value())
+    if (auto label = get_attribute_ns({}, HTML::AttributeNames::label); label.has_value())
         return label.release_value();
     return text();
 }
