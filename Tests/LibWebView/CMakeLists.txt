@@ -42,11 +42,13 @@ if (LINUX)
 endif()
 
 if (APPLE AND NOT IOS)
-    ladybird_test(TestWebDriverMachBootstrap.cpp LibWebView LIBS LibGfx LibIPC LibURL LibWebCommon OpenSSL::Crypto OpenSSL::SSL)
+    ladybird_test(TestWebDriverMachBootstrap.cpp LibWebView LIBS LibGfx LibIPC LibURL LibWebCommon LibWebSocket OpenSSL::Crypto OpenSSL::SSL)
     target_sources(TestWebDriverMachBootstrap PRIVATE
+        "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/BiDiSession.cpp"
         "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/BrowserConnection.cpp"
         "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/Client.cpp"
         "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/Session.cpp"
+        "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/WebSocket.cpp"
     )
     target_include_directories(TestWebDriverMachBootstrap PRIVATE "${LADYBIRD_SOURCE_DIR}/Services" "${CMAKE_BINARY_DIR}/Services")
     set_tests_properties(TestWebDriverMachBootstrap PROPERTIES TIMEOUT 30)
@@ -397,6 +399,17 @@ if (BUILD_TESTING AND NOT WIN32)
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-force-dark.py $<TARGET_FILE:WebDriver>
     )
     set_tests_properties(TestWebDriverForceDark PROPERTIES TIMEOUT 120)
+
+    add_test(
+        NAME TestWebDriverBiDi
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-bidi.py $<TARGET_FILE:WebDriver>
+    )
+    set_tests_properties(TestWebDriverBiDi PROPERTIES TIMEOUT 120)
+    add_test(
+        NAME TestWebDriverBiDiCleanup
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-bidi-cleanup.py
+    )
+    set_tests_properties(TestWebDriverBiDiCleanup PROPERTIES TIMEOUT 30)
 
     add_test(
         NAME TestWebDriverErrorKeepAlive

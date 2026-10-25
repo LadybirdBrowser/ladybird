@@ -97,6 +97,7 @@
 #include <LibWeb/UIEvents/InputEvent.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
+#include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/XHR/FormData.h>
 #include <LibWebCommon/CSS/SystemColor.h>
@@ -1097,7 +1098,7 @@ Vector<NonnullRefPtr<SessionHistoryEntry>> LocalNavigable::session_history_entri
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#initialize-the-navigable
-void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<Navigable> parent, GC::Ref<DOM::Document> document, VisibilityState system_visibility_state)
+void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<Navigable> parent, GC::Ref<DOM::Document> document, VisibilityState system_visibility_state, bool is_stand_in)
 {
     set_id(page().client().allocate_navigable_id());
 
@@ -1126,6 +1127,12 @@ void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_
 
     // 6. Set the initial visibility state of documentState's document to navigable's traversable navigable's system visibility state.
     document->set_initial_visibility_state(system_visibility_state);
+
+    // AD-HOC: A navigable's first document is active in it from the navigable's initialization, before scripts may run
+    //         for it, and WebDriver BiDi creates its realm and runs its preload scripts then. WebDriver BiDi names a
+    //         top-level traversable by the window handle it gets once it is created, so it does that once it has one.
+    if (WebDriver::BiDi::is_active() && !is_top_level_traversable() && !is_stand_in)
+        WebDriver::BiDi::document_is_ready_for_scripts(document);
 }
 
 // AD-HOC: The debug settings and the compositor tree are per page, so a child navigable starts from its parent's. A
@@ -2946,7 +2953,7 @@ void LocalNavigable::populate_session_history_entry_document(NavigationPopulatio
         source_snapshot_params,
         request.target_snapshot_params,
         request.user_involvement,
-        {},
+        request.navigation_id.is_empty() ? Optional<Utf16String> {} : Optional<Utf16String> { request.navigation_id },
         NullOrError {},
         request.csp_navigation_type,
         navigation_timing_type,
@@ -3047,7 +3054,9 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
     // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
     queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, url, source_allows_downloading, source_interface_origin, user_involvement, navigation_id, navigation_params, csp_navigation_type, navigation_timing_type, output, completion_steps]() mutable {
         // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
-        if (navigation_id.has_value() && ongoing_navigation() != navigation_id) {
+        // NB: A reload history job keeps the traversal marker while its document is populated.
+        auto is_reload_traversal = navigation_timing_type == Bindings::NavigationTimingType::Reload && ongoing_navigation().has<Traversal>();
+        if (navigation_id.has_value() && ongoing_navigation() != navigation_id && !is_reload_traversal) {
             stop_or_resume_response_body_delivery(navigation_params);
             if (completion_steps)
                 completion_steps->function()(nullptr);
@@ -3064,6 +3073,11 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             //    NOTE: This can result in setting entry's document state's document to null, e.g., when handing-off to
             //    external software.
             output->document = attempt_to_create_a_non_fetch_scheme_document(navigation_params.get<GC::Ref<NonFetchSchemeNavigationParams>>());
+
+            // INTEROP: A navigation that loads no document is reported as failed to WebDriver BiDi, which is what other
+            //          implementations do, so that the navigation's waiters learn it ended.
+            if (!output->document && WebDriver::BiDi::is_active())
+                WebDriver::BiDi::navigation_event(*this, "browsingContext.navigationFailed"sv, navigation_id, url);
 
             // 2. Set saveExtraDocumentState to false.
             output->save_extra_document_state = false;
@@ -3115,7 +3129,18 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
                     },
                     [](auto const&) { });
 
-                // FIXME: 2. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is navigationParams's response's URL.
+                // 2. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is navigationParams's response's URL.
+                if (WebDriver::BiDi::is_active()) {
+                    auto response_url = navigation_params.visit(
+                        [&](GC::Ref<NavigationParams> const& it) { return it->response->url().value_or(url); },
+                        [&](auto const&) { return url; });
+                    WebDriver::BiDi::navigation_event(*this, "browsingContext.navigationFailed"sv, navigation_id, response_url);
+                }
+            }
+            // INTEROP: A navigation whose fetch failed is reported as failed to WebDriver BiDi too, which is what other
+            //          implementations do.
+            else if (WebDriver::BiDi::is_active()) {
+                WebDriver::BiDi::navigation_event(*this, "browsingContext.navigationFailed"sv, navigation_id, error_url);
             }
         }
 
@@ -3504,8 +3529,8 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     //    then invoke WebDriver BiDi navigation failed with navigable and a WebDriver BiDi navigation status whose id
     //    is navigationId, status is "canceled", and url is url, and return.
     if (active_document.unload_counter() > 0) {
-        // FIXME: invoke WebDriver BiDi navigation failed with navigable and a WebDriver BiDi navigation status whose id
-        //        is navigationId, status is "canceled", and url is url
+        if (WebDriver::BiDi::is_active())
+            WebDriver::BiDi::navigation_event(*this, "browsingContext.navigationFailed"sv, navigation_id, url);
         return;
     }
 
@@ -3567,13 +3592,17 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     // 16. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
     auto target_snapshot_params = snapshot_target_snapshot_params(*this);
 
-    // FIXME: 17. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose id
-    //     is navigationId, status is "pending", and url is url.
+    // 17. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose id is
+    //     navigationId, status is "pending", and url is url.
+    if (WebDriver::BiDi::is_active())
+        WebDriver::BiDi::navigation_event(*this, "browsingContext.navigationStarted"sv, navigation_id, url);
 
     // 18. If navigable's ongoing navigation is "traversal", then:
     if (ongoing_navigation().has<Traversal>()) {
-        // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id
+        // 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id
         //    is navigationId, status is "canceled", and url is url.
+        if (WebDriver::BiDi::is_active())
+            WebDriver::BiDi::navigation_event(*this, "browsingContext.navigationFailed"sv, navigation_id, url);
 
         // 2. Return.
         return;
@@ -3933,9 +3962,10 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
     //    historyHandling, and userInvolvement.
     page().history_executor().finalize_same_document_navigation(*this, history_entry, entry_to_replace, history_handling, user_involvement, move(previous_entry_persisted_state));
 
-    // FIXME: Invoke WebDriver BiDi fragment navigated with navigable and a new WebDriver BiDi navigation status whose
-    //        id is navigationId, url is url, and status is "complete".
-    (void)navigation_id;
+    // Invoke WebDriver BiDi fragment navigated with navigable and a new WebDriver BiDi navigation status whose id is
+    // navigationId, url is url, and status is "complete".
+    if (WebDriver::BiDi::is_active())
+        WebDriver::BiDi::navigation_event(*this, "browsingContext.fragmentNavigated"sv, navigation_id, url);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#evaluate-a-javascript:-url
@@ -4414,7 +4444,10 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     //    historyHandling, and "none".
     navigable->page().history_executor().finalize_same_document_navigation(*navigable, new_entry, entry_to_replace, history_handling, UserNavigationInvolvement::None, move(previous_entry_persisted_state));
 
-    // FIXME: Invoke WebDriver BiDi history updated with navigable.
+    // 2. Invoke WebDriver BiDi history updated with navigable.
+    // NB: The browser process names the navigable and its URL, which is its active document's URL.
+    if (WebDriver::BiDi::is_active())
+        WebDriver::BiDi::navigation_event(*navigable, "browsingContext.historyUpdated"sv, {}, document.url());
 }
 
 void LocalNavigable::scroll_offset_did_change()
@@ -4523,7 +4556,7 @@ void LocalNavigable::initialize_stand_in(RemoteNavigable& remote_navigable, Sess
     document_state->set_about_base_url(document->about_base_url());
 
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
-    initialize_navigable(document_state, remote_navigable.parent(), document, visibility_state);
+    initialize_navigable(document_state, remote_navigable.parent(), document, visibility_state, true);
     set_id_for_session_history_reconstruction(remote_navigable.id());
 
     // The WindowProxy scripts hold keeps standing for the document the navigable displays, which another page hosts,

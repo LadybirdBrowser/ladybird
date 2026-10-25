@@ -155,6 +155,11 @@ public:
 
     [[nodiscard]] bool is_function() const { return has_engine_object_flag(JS_LAYOUT_OBJECT_FLAG_IS_FUNCTION); }
     bool is_date() const;
+    bool is_weak_map() const;
+    bool is_weak_set() const;
+    bool is_generator() const;
+    bool is_proxy() const;
+    bool is_array_buffer() const;
     [[nodiscard]] bool is_raw_native_function() const { return has_engine_object_flag(JS_LAYOUT_OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION); }
     [[nodiscard]] bool is_direct_getter_function() const { return has_engine_object_flag(JS_LAYOUT_OBJECT_FLAG_IS_DIRECT_GETTER_FUNCTION); }
     [[nodiscard]] bool has_global_object_flag() const { return has_engine_object_flag(JS_LAYOUT_OBJECT_FLAG_IS_GLOBAL_OBJECT); }

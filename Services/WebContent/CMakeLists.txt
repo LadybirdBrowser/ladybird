@@ -9,6 +9,7 @@ set(SOURCES
     TestConnection.cpp
     WebContentCompositorHost.cpp
     WebContentConsoleClient.cpp
+    WebDriverBiDi.cpp
     WebDriverConnection.cpp
     WebUIConnection.cpp
 )

@@ -328,12 +328,11 @@ static JsonValue match_capabilities(JsonObject const& capabilities, SessionFlags
             // https://w3c.github.io/webdriver-bidi/#type-session-CapabilityRequest
             if (name == "webSocketUrl"sv) {
                 // 1. If value is false, return success with data null.
+                // NB: This is the match value, which is then not set on matched capabilities.
                 if (!value.as_bool())
-                    return AK::Error::from_string_literal("webSocketUrl");
+                    return {};
 
                 // 2. Return success with data value.
-                // FIXME: Remove this when we support BIDI communication.
-                return AK::Error::from_string_literal("webSocketUrl");
             }
         }
 

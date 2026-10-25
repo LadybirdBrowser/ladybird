@@ -108,6 +108,7 @@
 #include <WebContent/TestConnection.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentCompositorHost.h>
+#include <WebContent/WebDriverBiDi.h>
 
 namespace WebContent {
 
@@ -396,6 +397,23 @@ void ConnectionFromClient::run_webdriver_command(Web::PageId page_id, u64 comman
     }
 
     page->run_webdriver_command(command_id, navigable_id, name, move(payload), move(arguments));
+}
+
+void ConnectionFromClient::run_webdriver_bidi_command(Web::PageId page_id, u64 command_id, Web::HTML::CrossProcessId navigable_id, String method, JsonValue params)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        // NB: A command the driver is waiting on must be answered even when its page is gone here.
+        async_webdriver_command_complete(page_id, command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchFrame, "Browsing context not found"sv));
+        return;
+    }
+
+    WebContent::run_webdriver_bidi_command(*page, command_id, navigable_id, method, move(params));
+}
+
+void ConnectionFromClient::set_webdriver_bidi_session_state(Web::WebDriver::BiDiSessionState state)
+{
+    WebContent::set_webdriver_bidi_session_state(move(state));
 }
 
 void ConnectionFromClient::set_webdriver_session_config(Web::PageId page_id, Web::WebDriver::UserPromptHandler user_prompt_handler, Web::WebDriver::PageLoadStrategy page_load_strategy, bool strict_file_interactability, JsonValue timeouts)

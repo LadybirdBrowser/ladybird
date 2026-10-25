@@ -1032,6 +1032,10 @@ public:
 
     // https://html.spec.whatwg.org/multipage/dom.html#is-initial-about:blank
     bool is_initial_about_blank() const { return m_is_initial_about_blank; }
+
+    // https://html.spec.whatwg.org/multipage/dom.html#concept-document-navigation-id
+    Optional<Utf16String> const& during_loading_navigation_id_for_webdriver_bidi() const { return m_navigation_id; }
+    void set_during_loading_navigation_id_for_webdriver_bidi(Optional<Utf16String> navigation_id) { m_navigation_id = move(navigation_id); }
     void set_is_initial_about_blank(bool b) { m_is_initial_about_blank = b; }
 
     bool iframe_load_in_progress() const { return m_iframe_load_in_progress; }

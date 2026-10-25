@@ -93,6 +93,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/HTMLIntegration.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
@@ -264,6 +265,7 @@
 #include <LibWeb/UIEvents/TextEvent.h>
 #include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
 #include <LibWeb/ViewTransition/ViewTransition.h>
+#include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -501,6 +503,11 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->m_permissions_policy = permissions_policy.release_value();
     document->m_active_sandboxing_flag_set = navigation_params.final_sandboxing_flag_set;
     document->m_navigation_id = navigation_params.id;
+
+    // INTEROP: A document that a reload or a traversal populates has no navigation ID, and other engines give its load
+    //          one for WebDriver BiDi.
+    if (!document->m_navigation_id.has_value() && WebDriver::BiDi::is_active())
+        document->m_navigation_id = Utf16String::from_utf8(Crypto::generate_random_uuid());
     document->set_load_timing_info(load_timing_info);
     document->m_was_created_via_cross_origin_redirects = navigation_params.response->redirect_taint() != Fetch::Infrastructure::RedirectTaint::SameOrigin;
     document->m_about_base_url = navigation_params.about_base_url;
@@ -1516,6 +1523,11 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<Utf16String> const&, Opti
 
     // 18. Update the current document readiness of document to "loading".
     update_readiness(HTML::DocumentReadyState::Loading);
+
+    // INTEROP: The HTML Standard leaves the during-loading navigation ID for WebDriver BiDi null for the contents that
+    //          document.open() loads. Other engines report the load of the contents as a navigation of its own.
+    if (WebDriver::BiDi::is_active())
+        m_navigation_id = Utf16String::from_utf8(Crypto::generate_random_uuid());
 
     // 19. Return document.
     return this;
@@ -6446,6 +6458,10 @@ void Document::run_unloading_cleanup_steps()
     FileAPI::run_unloading_cleanup_steps(*this);
     fully_exit_fullscreen();
     PictureInPicture::run_unloading_cleanup_steps(*this);
+
+    // https://w3c.github.io/webdriver-bidi/#event-script-realmDestroyed
+    if (WebDriver::BiDi::is_active())
+        WebDriver::BiDi::unloading_document_cleanup_steps(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document
@@ -6687,9 +6703,13 @@ void Document::abort()
 
     // 3. If document's during-loading navigation ID for WebDriver BiDi is non-null, then:
     if (m_navigation_id.has_value()) {
-        // FIXME: 1. Invoke WebDriver BiDi navigation aborted with document's node navigable and a new WebDriver BiDi
-        //           navigation status whose id is document's during-loading navigation ID for WebDriver BiDi, status
-        //           is "canceled", and url is document's URL.
+        // 1. Invoke WebDriver BiDi navigation aborted with document's node navigable and a new WebDriver BiDi navigation
+        //    status whose id is document's during-loading navigation ID for WebDriver BiDi, status is "canceled", and
+        //    url is document's URL.
+        if (WebDriver::BiDi::is_active()) {
+            if (auto navigable = this->navigable())
+                WebDriver::BiDi::navigation_event(*navigable, "browsingContext.navigationAborted"sv, m_navigation_id, url());
+        }
 
         // 2. Set document's during-loading navigation ID for WebDriver BiDi to null.
         m_navigation_id = {};
@@ -7929,8 +7949,18 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
     // 9. If documentIsNew is true, then:
     if (document_is_new) {
         // FIXME: 1. Assert: document's during-loading navigation ID for WebDriver BiDi is not null.
-        // FIXME: 2. Invoke WebDriver BiDi navigation committed with navigable and a new WebDriver BiDi navigation
-        //           status whose id is document's during-loading navigation ID for WebDriver BiDi, status is "committed", and url is document's URL
+        // 2. Invoke WebDriver BiDi navigation committed with navigable and a new WebDriver BiDi navigation status whose
+        //    id is document's during-loading navigation ID for WebDriver BiDi, status is "committed", and url is
+        //    document's URL
+        if (WebDriver::BiDi::is_active()) {
+            if (auto navigable = this->navigable()) {
+                WebDriver::BiDi::navigation_event(*navigable, "browsingContext.navigationCommitted"sv, m_navigation_id, url());
+
+                // AD-HOC: WebDriver BiDi creates the document's realm, and runs its preload scripts, once the document is
+                //         active in its navigable and before scripts may run for it.
+                WebDriver::BiDi::document_is_ready_for_scripts(*this);
+            }
+        }
 
         // 3. If scrollingBlockedInNewDocument is false, try to scroll to the fragment for document.
         if (!scrolling_blocked_in_new_document)

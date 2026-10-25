@@ -69,6 +69,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
+#include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
 #include <LibWebCommon/Infra/Strings.h>
@@ -915,7 +916,13 @@ void HTMLParserEndState::advance_to_dom_content_loaded_phase()
 
         // FIXME: 4. Enable the client message queue of the ServiceWorkerContainer object whose associated service worker client is the Document object's relevant settings object.
 
-        // FIXME: 5. Invoke WebDriver BiDi DOM content loaded with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's during-loading navigation ID for WebDriver BiDi, status is "pending", and url is the Document object's URL.
+        // 5. Invoke WebDriver BiDi DOM content loaded with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's during-loading navigation ID for WebDriver BiDi, status is "pending", and url is the Document object's URL.
+        // NB: The browsing context's active document's node navigable is the navigable the steps report on.
+        // NB: The initial about:blank document of a navigable is not loaded by a navigation.
+        if (WebDriver::BiDi::is_active() && !document->is_initial_about_blank()) {
+            if (auto navigable = document->navigable())
+                WebDriver::BiDi::navigation_event(*navigable, "browsingContext.domContentLoaded"sv, document->during_loading_navigation_id_for_webdriver_bidi(), document->url());
+        }
 
         // NB: Only advance the state machine after this task has run, so that anything the DOMContentLoaded event
         //     handlers did (e.g. starting loads that delay the load event) is visible to the remaining phases. This
@@ -1032,9 +1039,15 @@ void HTMLParserEndState::complete()
             }
         }
 
-        // FIXME: 6. Invoke WebDriver BiDi load complete with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's during-loading navigation ID for WebDriver BiDi, status is "complete", and url is the Document object's URL.
+        // 6. Invoke WebDriver BiDi load complete with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's during-loading navigation ID for WebDriver BiDi, status is "complete", and url is the Document object's URL.
+        // NB: The initial about:blank document of a navigable is not loaded by a navigation.
+        if (WebDriver::BiDi::is_active() && !document->is_initial_about_blank()) {
+            if (auto navigable = document->navigable())
+                WebDriver::BiDi::navigation_event(*navigable, "browsingContext.load"sv, document->during_loading_navigation_id_for_webdriver_bidi(), document->url());
+        }
 
-        // FIXME: 7. Set the Document object's during-loading navigation ID for WebDriver BiDi to null.
+        // 7. Set the Document object's during-loading navigation ID for WebDriver BiDi to null.
+        document->set_during_loading_navigation_id_for_webdriver_bidi({});
 
         // 8. Set the Document's load timing info's load event end time to the current high resolution time given window.
         document->load_timing_info().load_event_end_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(window));

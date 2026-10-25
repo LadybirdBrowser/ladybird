@@ -4,4 +4,7 @@ endpoint WebDriverBrowserServer {
     did_create_window(String handle) =|
     did_close_window(String handle) =|
     command_complete(u64 command_id, Web::WebDriver::Response response) =|
+
+    // https://w3c.github.io/webdriver-bidi/#events
+    bidi_event(String name, JsonValue params, Vector<String> top_level_traversable_ids, Vector<String> user_context_ids) =|
 }

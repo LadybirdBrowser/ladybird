@@ -25,6 +25,7 @@ public:
     Function<void(String)> on_did_create_window;
     Function<void(String)> on_did_close_window;
     Function<void(u64, Web::WebDriver::Response)> on_command_complete;
+    Function<void(String, JsonValue, Vector<String>, Vector<String>)> on_bidi_event;
 
 private:
     virtual void die() override;
@@ -32,6 +33,7 @@ private:
     virtual void did_create_window(String) override;
     virtual void did_close_window(String) override;
     virtual void command_complete(u64 command_id, Web::WebDriver::Response) override;
+    virtual void bidi_event(String name, JsonValue params, Vector<String> top_level_traversable_ids, Vector<String> user_context_ids) override;
 };
 
 }

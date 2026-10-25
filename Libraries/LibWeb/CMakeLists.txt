@@ -1034,6 +1034,9 @@ set(SOURCES
     WebAudio/StereoPannerNode.cpp
     WebAudio/WaveShaperNode.cpp
     WebDriver/Actions.cpp
+    WebDriver/BiDi/BiDi.cpp
+    WebDriver/BiDi/RemoteValue.cpp
+    WebDriver/BiDi/Script.cpp
     WebDriver/Contexts.cpp
     WebDriver/ElementLocationStrategies.cpp
     WebDriver/ElementReference.cpp

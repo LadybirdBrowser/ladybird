@@ -107,6 +107,8 @@ private:
     virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(Web::PageId page_id) override;
     virtual void set_window_handle(Web::PageId page_id, String handle) override;
     virtual void run_webdriver_command(Web::PageId page_id, u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String name, JsonValue payload, Vector<String> arguments) override;
+    virtual void run_webdriver_bidi_command(Web::PageId page_id, u64 command_id, Web::HTML::CrossProcessId navigable_id, String method, JsonValue params) override;
+    virtual void set_webdriver_bidi_session_state(Web::WebDriver::BiDiSessionState state) override;
     virtual void set_webdriver_session_config(Web::PageId page_id, Web::WebDriver::UserPromptHandler user_prompt_handler, Web::WebDriver::PageLoadStrategy page_load_strategy, bool strict_file_interactability, JsonValue timeouts) override;
     virtual void run_webdriver_user_prompt_handling(Web::PageId page_id, u64 request_id) override;
     virtual void did_handle_webdriver_mouse_event(Web::PageId page_id, u64 request_id) override;

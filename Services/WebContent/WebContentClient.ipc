@@ -215,6 +215,8 @@ endpoint WebContentClient routed by Web::PageId page_id
     webdriver_user_prompt_handling_complete(Web::PageId page_id, u64 request_id, Web::WebDriver::Response response) =|
     webdriver_did_set_current_browsing_context(Web::PageId page_id, u64 command_id, Web::HTML::CrossProcessId navigable_id) =|
     webdriver_command_complete(Web::PageId page_id, u64 command_id, Web::WebDriver::Response response) =|
+    webdriver_bidi_event(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, String name, JsonValue params) =|
+    webdriver_bidi_navigation_event(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, String name, Optional<Utf16String> navigation_id, URL::URL url) =|
     did_request_restore_window(Web::PageId page_id) =|
     did_request_reposition_window(Web::PageId page_id, Gfx::IntPoint position, u64 completion_id) =|
     did_request_resize_window(Web::PageId page_id, Gfx::IntSize size, u64 completion_id) =|
