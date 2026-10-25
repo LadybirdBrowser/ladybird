@@ -25,10 +25,8 @@ TextNode::TextNode(DOM::Document& document, BindToPreparedArenaSlot bind, Compos
 
 TextNode::~TextNode() = default;
 
-// The build stamped the row with its characters, which this layout node shares.
 GeneratedTextNode::GeneratedTextNode(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
     : TextNode(document, bind, slot, kind)
-    , m_text(Utf16String::adopt_raw(RustFFI::layout_row_generated_text(document_host(), slot)))
 {
 }
 

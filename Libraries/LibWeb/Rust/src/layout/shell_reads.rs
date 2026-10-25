@@ -303,18 +303,3 @@ pub extern "C" fn layout_row_has_css_transform(host: &DocumentHost, id: NodeSlot
             .is_some_and(|style| crate::painting::style_queries::has_css_transform(rows, id, style))
     })
 }
-
-/// The characters the generated text row `id` renders, as a raw `AK::Utf16String` representation for which the caller
-/// takes one reference.
-#[unsafe(no_mangle)]
-pub extern "C" fn layout_row_generated_text(host: &DocumentHost, id: NodeSlotId) -> usize {
-    let text = host.ask(node_read(), |state| {
-        state
-            .arena_mut()
-            .published_text_source(id, false)
-            .data
-            .to_utf16()
-            .into_owned()
-    });
-    ak::Utf16String::from_utf16(&text).into_raw()
-}
