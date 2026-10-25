@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../navigation-methods/return-value/resources/helpers.js"></script>
+<script src="resources/precommitHandler-helpers.js"></script>
+<body>
+<script>
+let start_index = navigation.currentEntry.index;
+
+// Note that `destinationIndex` is chosen relative to `start_index`, and the
+// tests begin at `start_index` + 4. So:
+// * "rejectBeforeCommit" will try to go back 4 steps and fail.
+// * "rejectAfterCommit" will go back 3 steps, then reject after commit.
+// * "success" will go forward 2 steps
+let tests = [
+  { mode: "rejectBeforeCommit", destinationIndex: start_index, description: "precommitHandler for a traverse navigation, reject before commit" },
+  { mode: "rejectAfterCommit",  destinationIndex: start_index + 1, description: "precommitHandler for a traverse navigation, reject after commit" },
+  { mode: "success",            destinationIndex: start_index + 3, description: "precommitHandler for a traverse navigation, success" }
+];
+
+// Push a bunch of history entries so each test case can target a unique entry.
+history.pushState("", "", "#1");
+history.pushState("", "", "#2");
+history.pushState("", "", "#3");
+history.pushState("", "", "#4");
+
+let onload_promise = new Promise(resolve => window.onload = resolve);
+for (let test of tests) {
+  promise_test(async t => {
+    await onload_promise;
+    await testDeferredCommit(t, "traverse", test.mode, test.destinationIndex);
+  }, test.description);
+}
+</script>
+</body>

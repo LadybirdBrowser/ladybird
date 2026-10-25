@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+async_test(t => {
+  const err = new TypeError("a message");
+  let start_href = location.href;
+
+  navigation.onnavigatesuccess = t.step_func_done(assert_unreached);
+  navigation.onnavigateerror = t.step_func_done(e => {
+    assert_equals(location.hash, "#1");
+    assert_equals(e.constructor, ErrorEvent);
+    assert_true(e.error === err);
+    assert_true(e.message.includes("TypeError: a message"));
+    assert_equals(e.filename, start_href);
+    assert_greater_than(e.colno, 0);
+    assert_greater_than(e.lineno, 0);
+  });
+  navigation.onnavigate = e => {
+    e.intercept({ handler: async () => {
+      await new Promise(r => t.step_timeout(r, 0));
+      return Promise.reject(err);
+    }});
+  };
+
+  location.href = "#1";
+  assert_equals(location.hash, "#1");
+}, "event.intercept() should abort if the given promise rejects");
+</script>

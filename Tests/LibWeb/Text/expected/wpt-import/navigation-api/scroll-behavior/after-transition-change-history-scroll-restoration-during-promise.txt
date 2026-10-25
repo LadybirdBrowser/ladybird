@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	scroll: after-transition should ignore history.scrollRestoration even if it changes in the middle of the navigation

@@ -1,0 +1,31 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<link rel="help" href="https://html.spec.whatwg.org/#process-scroll-behavior">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div style="height: 1000px; width: 200vw;"></div>
+<div id="frag"></div>
+<div style="height: 1000px; width: 200vw;"></div>
+<div id="other"></div>
+<div style="height: 2000px; width: 200vw;"></div>
+<script>
+promise_test(async t => {
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  await navigation.navigate("#frag").finished;
+  const frag_key = navigation.currentEntry.key;
+  const scrollY_frag = window.scrollY;
+  window.scrollBy(0, 10);
+  const scrollY_frag_plus_10 = window.scrollY;
+  assert_equals(scrollY_frag_plus_10, scrollY_frag + 10);
+
+  await navigation.navigate("#other").finished;
+  assert_not_equals(window.scrollY, scrollY_frag_plus_10);
+
+  navigation.onnavigate = e => e.intercept({ scroll: "after-transition" });
+  await navigation.traverseTo(frag_key).finished;
+  assert_equals(window.scrollY, scrollY_frag_plus_10,
+    `scroll position should be restored rather than scrolling to the fragment at ${scrollY_frag}`);
+}, "scroll: after-transition on a traverse to an entry with a fragment restores the scroll position");
+</script>
+</body>

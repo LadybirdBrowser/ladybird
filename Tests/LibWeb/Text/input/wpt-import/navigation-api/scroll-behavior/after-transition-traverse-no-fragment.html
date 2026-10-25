@@ -1,0 +1,25 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<link rel="help" href="https://html.spec.whatwg.org/#process-scroll-behavior">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div style="height: 200vh; width: 200vw;"></div>
+<div id="frag"></div>
+<div style="height: 200vh; width: 200vw;"></div>
+<script>
+promise_test(async t => {
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  const initial_key = navigation.currentEntry.key;
+  window.scrollTo(0, 500);
+  assert_equals(window.scrollY, 500);
+
+  await navigation.navigate("#frag").finished;
+  assert_not_equals(window.scrollY, 500);
+
+  navigation.onnavigate = e => e.intercept({ scroll: "after-transition" });
+  await navigation.traverseTo(initial_key).finished;
+  assert_equals(window.scrollY, 500, "scroll position should be restored");
+}, "scroll: after-transition on a traverse to an entry without a fragment restores the scroll position");
+</script>
+</body>

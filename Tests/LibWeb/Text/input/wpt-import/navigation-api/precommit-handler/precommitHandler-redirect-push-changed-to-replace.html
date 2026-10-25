@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  let start_length = navigation.entries().length;
+  let start_hash = location.hash;
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({
+      precommitHandler: t.step_func(controller => {
+        assert_equals(location.hash, start_hash);
+        assert_equals(new URL(e.destination.url).hash, "#push");
+
+        controller.redirect("#redirect1", { history: "replace" });
+        assert_equals(location.hash, start_hash);
+        assert_equals(new URL(e.destination.url).hash, "#redirect1");
+      }),
+    });
+  });
+  await navigation.navigate("#push").committed;
+  assert_equals(location.hash, "#redirect1");
+  assert_equals(navigation.entries().length, start_length);
+}, "precommitHandler redirect() push changed to replace");
+</script>
+</body>

@@ -1,0 +1,38 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div id="main" style="height: 200vh; width: 200vw;"></div>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  assert_equals(window.scrollY, 0);
+  window.scrollTo(0, 100);
+  assert_equals(window.scrollY, 100);
+  navigation.onnavigate = e => e.intercept(
+    { scroll: "after-transition",
+      handler: async () => {
+        if (e.navigationType == "push") {
+          // Inserting this <div> should scroll *after* the scroll position
+          // is saved, so that it doesn't break scroll restoration when going
+          // back.
+          let div = document.createElement("div");
+          div.style = "height: 1000px; width: 1000px;";
+          document.body.insertBefore(div, main);
+        }
+      }
+    }
+  );
+  await navigation.navigate("?go").finished;
+  // Ensure the layout changes and scroll position update from the first
+  // navigation are processed before navigating back, otherwise the restored
+  // scroll postion can be overwritten.
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  await navigation.back().finished;
+  assert_equals(window.scrollY, 100);
+}, "scroll: state should be saved before intercept handlers run");
+</script>
+</body>

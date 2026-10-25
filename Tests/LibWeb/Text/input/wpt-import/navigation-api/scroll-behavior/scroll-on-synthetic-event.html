@@ -1,0 +1,20 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<script>
+promise_test(async t => {
+  // We need to grab an NavigationDestination to construct the event.
+  navigation.onnavigate = t.step_func_done(e => {
+    const event = new NavigateEvent("navigate", {
+      destination: e.destination,
+      signal: (new AbortController()).signal
+    });
+
+    assert_throws_dom("SecurityError", () => event.scroll());
+  });
+  history.pushState(1, null, "#1");
+}, "scroll: scroll() should throw if invoked on a synthetic event.");
+</script>
+</body>

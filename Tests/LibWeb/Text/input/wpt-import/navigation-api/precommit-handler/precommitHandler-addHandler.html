@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+  <script>
+    promise_test(async (t) => {
+      let did_delay = false;
+      navigation.onnavigate = t.step_func((e) => {
+        e.intercept({
+          precommitHandler: (controller) =>
+            controller.addHandler(
+              t.step_func(
+                () =>
+                  new Promise((resolve) =>
+                    t.step_timeout(() => {
+                      did_delay = true;
+                      resolve();
+                    }, 1)
+                  )
+              )
+            ),
+        });
+      });
+      await navigation.navigate("#").finished;
+      assert_true(did_delay);
+    }, "handler added in addHandler() delays navigation finish");
+
+    promise_test(async (t) => {
+      const events = [];
+      navigation.onnavigate = t.step_func((e) => {
+        e.intercept({
+          precommitHandler: async (controller) => {
+            controller.addHandler(
+              t.step_func(() => {
+                events.push("added");
+              })
+            );
+          },
+          handler: t.step_func(() => {
+            events.push("handler1");
+          }),
+        });
+        e.intercept({
+          handler: t.step_func(() => {
+            events.push("handler2");
+          }),
+        });
+      });
+      await navigation.navigate("#").finished;
+      assert_array_equals(events, ["handler1", "handler2", "added"]);
+    }, "handler added in addHandler() is executed in the correct order");
+  </script>
+</body>

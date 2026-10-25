@@ -1,0 +1,41 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe id="i" src="../../common/blank.html"></iframe>
+<script>
+promise_test(async t => {
+  let start_length = navigation.entries().length;
+  let start_index = navigation.currentEntry.index;
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  assert_equals(navigation.entries().length, start_length);
+  assert_equals(i.contentWindow.navigation.entries().length, 1);
+  let initial_key = navigation.currentEntry.key;
+  await navigation.navigate("#top1").committed;
+  await navigation.navigate("#top2").committed;
+  assert_equals(navigation.entries().length, start_length+2);
+  assert_equals(i.contentWindow.navigation.entries().length, 1);
+  await i.contentWindow.navigation.navigate("#1").committed;
+  assert_equals(navigation.entries().length, start_length+2);
+  assert_equals(i.contentWindow.navigation.entries().length, 2);
+  assert_equals(navigation.currentEntry.index, start_index+2);
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 1);
+  assert_true(navigation.canGoBack);
+  assert_true(i.contentWindow.navigation.canGoBack);
+  let final_key = navigation.currentEntry.key;
+
+  await i.contentWindow.navigation.back().committed;
+  assert_equals(navigation.currentEntry.index, start_index+2);
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 0);
+  await navigation.traverseTo(initial_key).committed;
+  assert_equals(navigation.currentEntry.index, start_index);
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 0);
+  // There are 2 joint session history entries containing the top window's
+  // final key. Navigate to the nearest one (which navigates only the
+  // top window).
+  await navigation.traverseTo(final_key).committed;
+  assert_equals(navigation.currentEntry.index, start_index+2);
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 0);
+}, "navigation.traverseTo() goes to the nearest entry when going forward");
+</script>

@@ -1,0 +1,34 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div style="height: 200vh; width: 200vw;"></div>
+<div id="frag"></div>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  assert_equals(window.scrollY, 0);
+  await navigation.navigate("#frag").finished;
+  assert_not_equals(window.scrollY, 0);
+
+  let intercept_resolve;
+  let navigate_event;
+  navigation.onnavigate = e => {
+    navigate_event = e;
+    e.intercept({ handler: () => new Promise(r => intercept_resolve = r),
+                  scroll: "manual" });
+  };
+  let back_promises = navigation.back();
+  await back_promises.committed;
+  assert_not_equals(window.scrollY, 0);
+  navigate_event.scroll();
+  assert_equals(window.scrollY, 0);
+  intercept_resolve();
+  await back_promises.finished;
+  assert_equals(window.scrollY, 0);
+}, "scroll: scroll() should work after a navigate event dispatch");
+</script>
+</body>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	
+  Test that going back and forward during a precommitHandler ends up in the
+  correct entry

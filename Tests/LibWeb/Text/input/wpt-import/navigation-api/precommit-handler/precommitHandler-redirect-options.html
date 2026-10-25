@@ -1,0 +1,81 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  let start_length = navigation.entries().length;
+  let start_hash = location.hash;
+
+  let navInfo0 = { nav : "info0" };
+  let navState0 = { statevar: "state0" };
+
+  let navInfo1 = { nav : "info1" };
+  let navState1 = { statevar: "state1" };
+
+  let navInfo2 = { nav : "info2" };
+  let navState2 = { statevar: "state2" };
+
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({
+      precommitHandler: t.step_func(controller => {
+        assert_equals(location.hash, start_hash);
+        assert_equals(new URL(e.destination.url).hash, "#push");
+        assert_equals(e.info, navInfo0);
+        assert_not_equals(e.destination.getState(), navState0);
+        assert_equals(e.destination.getState().statevar, navState0.statevar);
+
+        // Redirect without options should not overwrite the original options.
+        controller.redirect("#redirect0");
+        assert_equals(location.hash, start_hash);
+        assert_equals(new URL(e.destination.url).hash, "#redirect0");
+        assert_equals(e.info, navInfo0);
+        assert_not_equals(e.destination.getState(), navState0);
+        assert_equals(e.destination.getState().statevar, navState0.statevar);
+
+        // Update both info and state.
+        controller.redirect("#redirect1", { info: navInfo1, state: navState1});
+        assert_equals(location.hash, start_hash);
+        assert_equals(new URL(e.destination.url).hash, "#redirect1");
+        assert_equals(e.info, navInfo1);
+        assert_not_equals(e.destination.getState(), navState1);
+        assert_equals(e.destination.getState().statevar, navState1.statevar);
+
+        // Update just info
+        controller.redirect("#redirect2", { info: navInfo2 });
+        assert_equals(location.hash, start_hash);
+        assert_equals(new URL(e.destination.url).hash, "#redirect2");
+        assert_equals(e.info, navInfo2);
+        assert_not_equals(e.destination.getState(), navState1);
+        assert_equals(e.destination.getState().statevar, navState1.statevar);
+
+        // Update just state - this also tests the case where the url does
+        // not change.
+        controller.redirect("#redirect2", { state: navState2 });
+        assert_equals(location.hash, start_hash);
+        assert_equals(new URL(e.destination.url).hash, "#redirect2");
+        assert_equals(e.info, navInfo2);
+        assert_not_equals(e.destination.getState(), navState2);
+        assert_equals(e.destination.getState().statevar, navState2.statevar);
+
+        // Explicit undefined is treated as absent.
+        controller.redirect("#redirect2", { info: undefined, state: undefined });
+        assert_equals(location.hash, start_hash);
+        assert_equals(new URL(e.destination.url).hash, "#redirect2");
+        assert_equals(e.info, navInfo2);
+        assert_not_equals(e.destination.getState(), navState2);
+        assert_equals(e.destination.getState().statevar, navState2.statevar);
+      }),
+    });
+  });
+  await navigation.navigate("#push", { info: navInfo0, state: navState0 }).committed;
+  assert_equals(location.hash, "#redirect2");
+  assert_equals(navigation.entries().length, start_length + 1);
+  assert_equals(navigation.currentEntry.getState().statevar, navState2.statevar);
+}, "precommitHandler redirect() with options dictionary");
+</script>
+</body>
