@@ -71,11 +71,11 @@ fn memory_fault_handler() -> usize {
     dispatch_table_entry(crate::abi::OPCODE_MEMORY_FAULT)
 }
 
-/// The CPU features the interpreter's code uses and that the target's baseline guarantees: x86-64-v3 on x86-64, and
-/// ARMv8.2-A on AArch64. A CPU without them would not fault but compute wrong results (lzcnt runs as bsr on older
-/// CPUs), so the engine refuses to start instead.
+/// The CPU features the interpreter's code uses: SSSE3, SSE4.1, SSE4.2 and POPCNT, and LZCNT and BMI1 where the build
+/// targets them (see build.rs), on x86-64, and NEON, LSE and RDM on AArch64. A CPU without them would not fault but compute wrong results (lzcnt
+/// runs as bsr on older CPUs), so the engine refuses to start instead.
 pub fn check_cpu_features() {
-    let missing = missing_cpu_features();
+    let missing = missing_interpreter_cpu_features();
     assert!(
         missing.is_empty(),
         "The WebAssembly engine needs CPU features this machine lacks: {}",
@@ -83,38 +83,65 @@ pub fn check_cpu_features() {
     );
 }
 
+/// Whether the CPU has the features the JIT's code uses: those of x86-64-v3 on x86-64, and those of the interpreter on
+/// AArch64. Without them, everything runs in the interpreter.
+pub fn cpu_supports_jit() -> bool {
+    missing_jit_cpu_features().is_empty()
+}
+
 #[cfg(target_arch = "x86_64")]
-fn missing_cpu_features() -> Vec<&'static str> {
-    let mut missing = Vec::new();
-    macro_rules! require {
-        ($($feature:tt),+) => {
-            $(if !std::arch::is_x86_feature_detected!($feature) {
-                missing.push($feature);
-            })+
-        };
+use std::arch::is_x86_feature_detected as is_cpu_feature_detected;
+
+#[cfg(target_arch = "aarch64")]
+use std::arch::is_aarch64_feature_detected as is_cpu_feature_detected;
+
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+macro_rules! missing_cpu_features {
+    ($($feature:tt),+) => {{
+        let mut missing = Vec::new();
+        $(if !is_cpu_feature_detected!($feature) {
+            missing.push($feature);
+        })+
+        missing
+    }};
+}
+
+#[cfg(target_arch = "x86_64")]
+fn missing_interpreter_cpu_features() -> Vec<&'static str> {
+    let mut missing = missing_cpu_features!("ssse3", "sse4.1", "sse4.2", "popcnt");
+    if cfg!(target_feature = "lzcnt") {
+        missing.extend(missing_cpu_features!("lzcnt"));
     }
-    require!(
-        "sse4.1", "sse4.2", "popcnt", "lzcnt", "bmi1", "bmi2", "avx2", "fma", "movbe"
-    );
+    if cfg!(target_feature = "bmi1") {
+        missing.extend(missing_cpu_features!("bmi1"));
+    }
     missing
+}
+
+#[cfg(target_arch = "x86_64")]
+fn missing_jit_cpu_features() -> Vec<&'static str> {
+    missing_cpu_features!(
+        "sse4.1", "sse4.2", "popcnt", "lzcnt", "bmi1", "bmi2", "avx", "avx2", "fma", "movbe"
+    )
 }
 
 #[cfg(target_arch = "aarch64")]
-fn missing_cpu_features() -> Vec<&'static str> {
-    let mut missing = Vec::new();
-    macro_rules! require {
-        ($($feature:tt),+) => {
-            $(if !std::arch::is_aarch64_feature_detected!($feature) {
-                missing.push($feature);
-            })+
-        };
-    }
-    require!("neon", "lse", "rdm");
-    missing
+fn missing_interpreter_cpu_features() -> Vec<&'static str> {
+    missing_cpu_features!("neon", "lse", "rdm")
+}
+
+#[cfg(target_arch = "aarch64")]
+fn missing_jit_cpu_features() -> Vec<&'static str> {
+    missing_interpreter_cpu_features()
 }
 
 #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-fn missing_cpu_features() -> Vec<&'static str> {
+fn missing_interpreter_cpu_features() -> Vec<&'static str> {
+    Vec::new()
+}
+
+#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+fn missing_jit_cpu_features() -> Vec<&'static str> {
     Vec::new()
 }
 
