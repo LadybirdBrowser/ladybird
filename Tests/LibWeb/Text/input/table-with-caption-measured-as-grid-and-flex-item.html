@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+    body { margin: 0; font: 20px/20px Ahem; }
+    .grid { display: grid; width: 300px; height: 200px; }
+    .column { display: flex; flex-direction: column; width: 300px; height: 200px; }
+    .row { display: flex; width: 300px; height: 200px; }
+    table { border-spacing: 0; }
+    td { padding: 0; }
+</style>
+<div class="grid"><table id="gridItem"><caption>aaa bbb ccc</caption><tr><td>x</td></tr></table></div>
+<div class="column"><table id="columnItem"><caption>aaa bbb ccc</caption><tr><td>x</td></tr></table></div>
+<div class="row"><table id="rowItem"><caption>aaa bbb ccc</caption><tr><td>x</td></tr></table></div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        for (const id of ["gridItem", "columnItem", "rowItem"]) {
+            const table = document.getElementById(id);
+            const caption = table.querySelector("caption").getBoundingClientRect();
+            const cell = table.querySelector("td").getBoundingClientRect();
+            println(`${id}: caption ${caption.width}x${caption.height}, cell ${cell.width}x${cell.height}`);
+        }
+        done();
+    });
+</script>

@@ -1,0 +1,1 @@
+PASS: laying out the row again reads the aspect-ratio minimum of its item from the cache (work + checks)

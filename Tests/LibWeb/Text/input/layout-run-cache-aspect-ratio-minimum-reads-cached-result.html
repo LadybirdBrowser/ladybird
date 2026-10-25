@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px SerenitySans; }
+    #row { display: flex; width: 300px; }
+    #ratio { width: 100px; aspect-ratio: 1; }
+    #tall { height: 150px; }
+</style>
+<div id="row"><div id="ratio"><div id="tall"></div></div><span id="sibling">text</span></div>
+<script>
+    layoutTest({
+        steps: [
+            {
+                name: "laying out the row again reads the aspect-ratio minimum of its item from the cache",
+                mutate: () => {
+                    sibling.firstChild.data = "other text";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#row/flex RUN (cache=miss)
+                            BlockContainer<SPAN>#sibling MEASURE max-content inline (cache=miss) FROM ITEMS
+                            BlockContainer<SPAN>#sibling MEASURE min-content inline (cache=hit)
+                            BlockContainer<DIV>#ratio/block READ RESULT
+                            BlockContainer<SPAN>#sibling/block RUN (cache=miss)
+                            BlockContainer<DIV>#ratio/block REUSE SUBTREE
+                            BlockContainer<SPAN>#sibling/block REPLAY FRAGMENTS
+                `,
+                check: equal => {
+                    equal(ratio.getBoundingClientRect().height, 150, "aspect-ratio item height");
+                },
+            },
+        ],
+    });
+</script>
