@@ -21,6 +21,11 @@ describe("normal behavior", () => {
         testHourCycles(new Intl.Locale("ha"), ["h23"]);
     });
 
+    test("subdivision region is used without a region subtag", () => {
+        expect(new Intl.Locale("en-u-sd-gbeng").getHourCycles()).toEqual(new Intl.Locale("en-GB").getHourCycles());
+        expect(new Intl.Locale("en-US-u-sd-gbeng").getHourCycles()).toEqual(new Intl.Locale("en-US").getHourCycles());
+    });
+
     test("extension keyword overrides default data", () => {
         testHourCycles(new Intl.Locale("en-u-hc-h24"), ["h24"]);
         testHourCycles(new Intl.Locale("en", { collation: "h24" }), ["h24"]);

@@ -17,8 +17,13 @@ describe("normal behavior", () => {
     };
 
     test("basic functionality", () => {
-        testNumberingSystems(new Intl.Locale("en"), ["latn"]);
-        testNumberingSystems(new Intl.Locale("ar"), ["arab", "latn"]);
+        expect(new Intl.Locale("en").getNumberingSystems()).toEqual(["latn"]);
+        expect(new Intl.Locale("ar-EG").getNumberingSystems()).toEqual(["arab"]);
+    });
+
+    test("unavailable locales use latn", () => {
+        expect(new Intl.Locale("und").getNumberingSystems()).toEqual(["latn"]);
+        expect(new Intl.Locale("qfz").getNumberingSystems()).toEqual(["latn"]);
     });
 
     test("extension keyword overrides default data", () => {
