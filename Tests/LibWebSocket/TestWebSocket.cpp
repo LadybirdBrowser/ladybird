@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibCore/Timer.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibWebSocket/Impl/WebSocketImpl.h>
@@ -26,6 +27,8 @@ public:
     }
     virtual bool send(ReadonlyBytes frame) override
     {
+        if (fail_writes)
+            return false;
         m_sent_frames.append(MUST(ByteBuffer::copy(frame)));
         return true;
     }
@@ -46,6 +49,7 @@ public:
     }
 
     Vector<ByteBuffer> const& sent_frames() const { return m_sent_frames; }
+    bool fail_writes { false };
 
 private:
     ByteBuffer m_pending_data;
@@ -542,4 +546,348 @@ TEST_CASE(close_reason_with_lone_surrogate_fails_connection)
     auto control = receive_frame(replacement_character);
     EXPECT(!control.reported_error);
     EXPECT(!control.closed);
+}
+
+namespace {
+
+struct ServerConnection {
+    NonnullRefPtr<TestWebSocketImpl> transport = adopt_ref(*new TestWebSocketImpl);
+    NonnullRefPtr<WebSocket::WebSocket> socket;
+    Vector<WebSocket::Message> messages;
+    u16 close_code { 0 };
+    bool was_clean { false };
+
+    explicit ServerConnection(WebSocket::WebSocket::ServerOptions options = {})
+        : socket(WebSocket::WebSocket::create_server(NonnullRefPtr<WebSocket::WebSocketImpl> { transport }, options))
+    {
+        socket->on_message = [this](auto message) { messages.append(move(message)); };
+        socket->on_close = [this](auto code, auto, auto clean) {
+            close_code = code;
+            was_clean = clean;
+        };
+        socket->start();
+    }
+
+    ~ServerConnection()
+    {
+        socket->on_message = nullptr;
+        socket->on_close = nullptr;
+        socket->on_client_handshake = nullptr;
+    }
+
+    void handshake(StringView extra_headers = {})
+    {
+        auto request = ByteString::formatted("GET /echo HTTP/1.1\r\nHost: example.test\r\nUpgrade: websocket\r\nConnection: keep-alive, Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n{}\r\n", extra_headers);
+        transport->receive(MUST(ByteBuffer::copy(request.bytes())));
+    }
+
+    void receive(u8 opcode, ReadonlyBytes payload, bool final = true, bool masked = true)
+    {
+        VERIFY(payload.size() < 126);
+        auto frame = MUST(ByteBuffer::create_uninitialized(2 + (masked ? 4 : 0) + payload.size()));
+        frame[0] = opcode | (final ? 0x80 : 0);
+        frame[1] = payload.size() | (masked ? 0x80 : 0);
+        Array<u8, 4> key { 0x12, 0x34, 0x56, 0x78 };
+        size_t offset = 2;
+        if (masked) {
+            frame.overwrite(offset, key.data(), key.size());
+            offset += key.size();
+        }
+        for (size_t i = 0; i < payload.size(); ++i)
+            frame[offset + i] = payload[i] ^ (masked ? key[i % 4] : 0);
+        transport->receive(move(frame));
+    }
+};
+
+}
+
+TEST_CASE(server_handshake_uses_http_validation_even_when_transport_has_client_shortcut)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server;
+    EXPECT(server.socket->ready_state() == WebSocket::ReadyState::Connecting);
+    server.handshake("Origin: https://example.test\r\n"sv);
+    EXPECT(server.socket->ready_state() == WebSocket::ReadyState::Open);
+    EXPECT_EQ(server.transport->sent_frames().size(), 1u);
+    auto response = StringView { server.transport->sent_frames()[0].bytes() };
+    EXPECT(response.starts_with("HTTP/1.1 101 Switching Protocols\r\n"sv));
+    EXPECT(response.contains("Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n"sv));
+}
+
+TEST_CASE(server_handshake_policy_receives_headers_and_resource)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server;
+    server.socket->on_client_handshake = [](auto const& request) -> Optional<ByteString> {
+        EXPECT_EQ(request.resource_name, "/echo");
+        EXPECT_EQ(request.headers->get("Host"sv).value(), "example.test");
+        return "403 Forbidden";
+    };
+    server.handshake();
+    EXPECT(server.socket->ready_state() == WebSocket::ReadyState::Closed);
+    EXPECT(StringView { server.transport->sent_frames()[0].bytes() }.starts_with("HTTP/1.1 403 Forbidden\r\n"sv));
+}
+
+TEST_CASE(server_handshake_and_masked_frame_can_share_a_read)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server;
+    auto bytes = MUST(ByteBuffer::copy("GET /echo HTTP/1.1\r\nHost: example.test\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"sv.bytes()));
+    Array<u8, 7> frame { 0x81, 0x81, 1, 2, 3, 4, 'A' ^ 1 };
+    bytes.append(frame);
+    server.transport->receive(move(bytes));
+    EXPECT_EQ(server.messages.size(), 1u);
+    EXPECT_EQ(StringView { server.messages[0].data().bytes() }, "A"sv);
+}
+
+TEST_CASE(server_receives_fragments_and_answers_interleaved_ping_without_masking)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server;
+    server.handshake();
+    server.receive(1, "hel"sv.bytes(), false);
+    server.receive(9, "ping"sv.bytes());
+    server.receive(0, "lo"sv.bytes());
+    EXPECT_EQ(server.messages.size(), 1u);
+    EXPECT(server.messages[0].is_text());
+    EXPECT_EQ(StringView { server.messages[0].data().bytes() }, "hello"sv);
+    auto const& pong = server.transport->sent_frames()[1];
+    EXPECT_EQ(pong[0], 0x8a);
+    EXPECT_EQ(pong[1], 4);
+    EXPECT_EQ(StringView { pong.bytes().slice(2) }, "ping"sv);
+    server.socket->send(WebSocket::Message("reply"));
+    auto const& reply = server.transport->sent_frames()[2];
+    EXPECT_EQ(reply[0], 0x81);
+    EXPECT_EQ(reply[1], 5);
+    EXPECT_EQ(StringView { reply.bytes().slice(2) }, "reply"sv);
+}
+
+TEST_CASE(server_rejects_unmasked_frames_and_unexpected_fragments)
+{
+    Core::EventLoop event_loop;
+    for (auto opcode : { 0, 1 }) {
+        ServerConnection server;
+        server.handshake();
+        server.receive(opcode, "A"sv.bytes(), true, opcode == 0);
+        EXPECT_EQ(server.close_code, 1002);
+        EXPECT(!server.was_clean);
+        auto const& close = server.transport->sent_frames()[1];
+        EXPECT_EQ(close[0], 0x88);
+        EXPECT_EQ(close[1], 2);
+        EXPECT_EQ(close[2], 0x03);
+        EXPECT_EQ(close[3], 0xea);
+    }
+}
+
+TEST_CASE(server_rejects_fragmented_control_and_overlapping_data_messages)
+{
+    Core::EventLoop event_loop;
+    for (auto opcode : { 1, 9 }) {
+        ServerConnection server;
+        server.handshake();
+        server.receive(1, "A"sv.bytes(), false);
+        server.receive(opcode, "B"sv.bytes(), false);
+        EXPECT_EQ(server.close_code, 1002);
+    }
+}
+
+TEST_CASE(server_rejects_nonminimal_and_unrepresentable_lengths_before_allocating)
+{
+    Core::EventLoop event_loop;
+    Array<u8, 4> nonminimal { 0x81, 0xfe, 0, 1 };
+    Array<u8, 10> high_bit { 0x81, 0xff, 0x80, 0, 0, 0, 0, 0, 0, 0 };
+    for (ReadonlyBytes frame : { nonminimal.span(), high_bit.span() }) {
+        ServerConnection server;
+        server.handshake();
+        server.transport->receive(MUST(ByteBuffer::copy(frame)));
+        EXPECT_EQ(server.close_code, 1002);
+    }
+}
+
+TEST_CASE(server_bounds_fragmented_messages_and_handshake_bytes)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server({ .maximum_message_size = 4 });
+    server.handshake();
+    server.receive(2, "abc"sv.bytes(), false);
+    server.receive(0, "de"sv.bytes());
+    EXPECT_EQ(server.close_code, 1009);
+
+    ServerConnection handshake_server({ .maximum_handshake_size = 16 });
+    handshake_server.transport->receive(MUST(ByteBuffer::copy("GET /too-long HTTP/1.1"sv.bytes())));
+    EXPECT(handshake_server.socket->ready_state() == WebSocket::ReadyState::Closed);
+}
+
+TEST_CASE(server_validates_text_and_close_payloads)
+{
+    Core::EventLoop event_loop;
+    Array<u8, 2> invalid_text { 0xc0, 0x80 };
+    Array<u8, 1> one_byte_close { 0x03 };
+    Array<u8, 2> reserved_close_code { 0x03, 0xed };
+    Array<u8, 4> invalid_close_reason { 0x03, 0xe8, 0xc0, 0x80 };
+    for (ReadonlyBytes payload : { one_byte_close.span(), reserved_close_code.span(), invalid_close_reason.span() }) {
+        ServerConnection server;
+        server.handshake();
+        server.receive(8, payload);
+        EXPECT_EQ(server.close_code, payload.size() == 4 ? 1007 : 1002);
+    }
+    ServerConnection text_server;
+    text_server.handshake();
+    text_server.receive(1, invalid_text);
+    EXPECT_EQ(text_server.close_code, 1007);
+}
+
+TEST_CASE(server_close_handshake_finishes_and_stops_delivering_messages)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server;
+    server.handshake();
+    server.socket->close(1000);
+    server.receive(1, "ignored"sv.bytes());
+    EXPECT(server.messages.is_empty());
+    Array<u8, 2> status { 0x03, 0xe8 };
+    server.receive(8, status);
+    EXPECT(server.socket->ready_state() == WebSocket::ReadyState::Closed);
+    EXPECT_EQ(server.close_code, 1000);
+    EXPECT(server.was_clean);
+    server.socket->close();
+}
+
+TEST_CASE(server_empty_and_default_close_never_send_reserved_status)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server;
+    server.handshake();
+    server.receive(8, {});
+    EXPECT_EQ(server.close_code, 1000);
+    EXPECT(server.was_clean);
+    auto const& reply = server.transport->sent_frames()[1];
+    EXPECT_EQ(reply.size(), 4u);
+    EXPECT_EQ(reply[2], 0x03);
+    EXPECT_EQ(reply[3], 0xe8);
+
+    ServerConnection default_close;
+    default_close.handshake();
+    default_close.socket->close();
+    auto const& frame = default_close.transport->sent_frames()[1];
+    EXPECT_EQ(frame[0], 0x88);
+    EXPECT_EQ(frame[1], 0);
+    EXPECT_EQ(frame.size(), 2u);
+}
+
+TEST_CASE(server_close_remains_safe_after_deferred_transport_discard)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server;
+    server.handshake();
+    server.receive(8, {});
+    // NB: The spin below runs the one-shot callback before this flag leaves scope.
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool discarded = false;
+    Core::deferred_invoke([&] { discarded = true; });
+    event_loop.spin_until([&] { return discarded; });
+    server.socket->close();
+    EXPECT(server.socket->ready_state() == WebSocket::ReadyState::Closed);
+}
+
+TEST_CASE(server_stops_parsing_after_malformed_frame_buffered_with_handshake)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server;
+    auto bytes = MUST(ByteBuffer::copy("GET /echo HTTP/1.1\r\nHost: example.test\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"sv.bytes()));
+    // An unmasked text frame followed by enough data to leave another transport chunk available.
+    bytes.append(Array<u8, 3> { 0x81, 1, 'A' });
+    auto following_data = MUST(ByteBuffer::create_zeroed(65536));
+    bytes.append(following_data);
+    server.transport->receive(move(bytes));
+    EXPECT_EQ(server.close_code, 1002);
+    EXPECT(server.messages.is_empty());
+}
+
+TEST_CASE(server_transport_failures_do_not_send_abnormal_closure_code)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server;
+    server.handshake();
+    server.transport->on_connection_error();
+    EXPECT_EQ(server.close_code, 1006);
+    EXPECT_EQ(server.transport->sent_frames().size(), 1u);
+
+    ServerConnection failed_write;
+    failed_write.handshake();
+    failed_write.transport->fail_writes = true;
+    failed_write.socket->send(WebSocket::Message("cannot send"));
+    EXPECT_EQ(failed_write.close_code, 1006);
+    EXPECT(!failed_write.was_clean);
+    EXPECT(failed_write.socket->ready_state() == WebSocket::ReadyState::Closed);
+    EXPECT_EQ(failed_write.transport->sent_frames().size(), 1u);
+}
+
+TEST_CASE(server_closing_handshake_timeout_closes_the_transport)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server({ .handshake_timeout = AK::Duration::from_milliseconds(1) });
+    server.handshake();
+    server.socket->close(1000);
+    bool deadline_expired = false;
+    auto deadline = Core::Timer::create_single_shot(AK::Duration::from_seconds(1), [&] { deadline_expired = true; });
+    deadline->start();
+    event_loop.spin_until([&] { return server.close_code != 0 || deadline_expired; });
+    EXPECT(!deadline_expired);
+    EXPECT_EQ(server.close_code, 1006);
+    EXPECT(!server.was_clean);
+    EXPECT(server.socket->ready_state() == WebSocket::ReadyState::Closed);
+    // Only the initial 1000 close was written. A timeout never sends internal-only 1006.
+    EXPECT_EQ(server.transport->sent_frames().size(), 2u);
+}
+
+TEST_CASE(server_opening_handshake_timeout_closes_without_sending_a_frame)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server({ .handshake_timeout = AK::Duration::from_milliseconds(1) });
+    bool deadline_expired = false;
+    auto deadline = Core::Timer::create_single_shot(AK::Duration::from_seconds(1), [&] { deadline_expired = true; });
+    deadline->start();
+    event_loop.spin_until([&] { return server.close_code != 0 || deadline_expired; });
+    EXPECT(!deadline_expired);
+    EXPECT_EQ(server.close_code, 1006);
+    EXPECT(server.transport->sent_frames().is_empty());
+}
+
+TEST_CASE(server_close_reply_write_failure_reports_one_unclean_close)
+{
+    Core::EventLoop event_loop;
+    ServerConnection server;
+    server.handshake();
+    size_t close_count = 0;
+    server.socket->on_close = [&](auto code, auto, auto clean) {
+        ++close_count;
+        server.close_code = code;
+        server.was_clean = clean;
+    };
+    server.transport->fail_writes = true;
+    Array<u8, 2> status { 0x03, 0xe8 };
+    server.receive(8, status);
+    EXPECT_EQ(close_count, 1u);
+    EXPECT_EQ(server.close_code, 1006);
+    EXPECT(!server.was_clean);
+    EXPECT_EQ(server.transport->sent_frames().size(), 1u);
+}
+
+TEST_CASE(client_empty_close_preserves_status_and_masks_its_reply)
+{
+    Core::EventLoop event_loop;
+    auto transport = adopt_ref(*new TestWebSocketImpl);
+    auto socket = WebSocket::WebSocket::create(WebSocket::ConnectionInfo(URL::Parser::basic_parse("ws://localhost/"sv).release_value()), transport);
+    u16 close_code = 0;
+    socket->on_close = [&](auto code, auto, auto) { close_code = code; };
+    socket->start();
+    Array<u8, 2> close { 0x88, 0 };
+    transport->receive(MUST(ByteBuffer::copy(close)));
+    transport->close_connection();
+    EXPECT_EQ(close_code, 1000);
+    auto const& reply = transport->sent_frames()[0];
+    EXPECT_EQ(reply[0], 0x88);
+    EXPECT_EQ(reply[1], 0x82);
+    EXPECT_EQ(reply[6] ^ reply[2], 0x03);
+    EXPECT_EQ(reply[7] ^ reply[3], 0xe8);
 }
