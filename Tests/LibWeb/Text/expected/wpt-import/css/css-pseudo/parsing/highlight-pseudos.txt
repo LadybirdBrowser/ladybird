@@ -2,17 +2,17 @@ Harness status: OK
 
 Found 40 tests
 
-28 Pass
-12 Fail
+32 Pass
+8 Fail
 Pass	"::selection" should be a valid selector
 Pass	".a::selection" should be a valid selector
 Pass	"div ::selection" should be a valid selector
 Pass	"::part(my-part)::selection" should be a valid selector
 Pass	"::before::selection" should be an invalid selector
-Fail	"::selection.a" should be an invalid selector
+Pass	"::selection.a" should be an invalid selector
 Pass	"::selection div" should be an invalid selector
 Pass	"::selection::after" should be an invalid selector
-Fail	"::selection:hover" should be an invalid selector
+Pass	"::selection:hover" should be an invalid selector
 Pass	":not(::selection)" should be an invalid selector
 Fail	"::target-text" should be a valid selector
 Fail	".a::target-text" should be a valid selector
@@ -29,10 +29,10 @@ Pass	".a::spelling-error" should be a valid selector
 Pass	"div ::spelling-error" should be a valid selector
 Pass	"::part(my-part)::spelling-error" should be a valid selector
 Pass	"::before::spelling-error" should be an invalid selector
-Fail	"::spelling-error.a" should be an invalid selector
+Pass	"::spelling-error.a" should be an invalid selector
 Pass	"::spelling-error div" should be an invalid selector
 Pass	"::spelling-error::after" should be an invalid selector
-Fail	"::spelling-error:hover" should be an invalid selector
+Pass	"::spelling-error:hover" should be an invalid selector
 Pass	":not(::spelling-error)" should be an invalid selector
 Fail	"::grammar-error" should be a valid selector
 Fail	".a::grammar-error" should be a valid selector
