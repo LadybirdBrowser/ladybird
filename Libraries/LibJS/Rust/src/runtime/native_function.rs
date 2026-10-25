@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::{Cell, OnceCell};
+use core::cell::Cell;
 use core::ops::Deref;
 use core::ptr::NonNull;
 
@@ -481,7 +481,7 @@ where
 #[derive(Trace)]
 struct CapturingNativeFunction {
     base: NativeFunction,
-    native_function: OnceCell<Box<dyn NativeFunctionBehaviour>>,
+    native_function: Box<dyn NativeFunctionBehaviour>,
 }
 
 static CAPTURING_NATIVE_FUNCTION_VIRTUAL_METHODS: NativeFunctionMethods = NativeFunctionMethods {
@@ -515,14 +515,8 @@ impl CapturingNativeFunction {
         };
         let function = allocate_object(vm, |_| CapturingNativeFunction {
             base,
-            native_function: OnceCell::new(),
+            native_function: Box::new(CapturingBehaviour { captures, behaviour }),
         });
-        // The captures stay on the stack, where the collector finds them, until the function that keeps them alive
-        // exists. Nothing allocates from the heap between allocating the function and storing them in it.
-        let behaviour: Box<dyn NativeFunctionBehaviour> = Box::new(CapturingBehaviour { captures, behaviour });
-        if function.native_function.set(behaviour).is_err() {
-            unreachable!("the behaviour is stored once");
-        }
         function.upcast()
     }
 
@@ -530,11 +524,7 @@ impl CapturingNativeFunction {
         let function: &CapturingNativeFunction = cast_ref(function);
         // NB: The behaviour is borrowed for the whole call. That is sound: the function is the [[Function]] of the
         //     running execution context, which keeps it and its behaviour alive, and the behaviour is never replaced.
-        function
-            .native_function
-            .get()
-            .expect("a capturing native function has its behaviour")
-            .call(vm)
+        function.native_function.call(vm)
     }
 }
 

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 use core::mem::MaybeUninit;
 use core::num::NonZeroU64;
@@ -847,7 +847,8 @@ pub struct ArrayBuffer {
     detach_key: Cell<Value>,
     /// The views that cache the offset of this buffer's data in the cage, which has to be invalidated once the data
     /// moves or goes away.
-    cached_views: GcRefCell<Vec<GcWeak<TypedArrayBase>>>,
+    #[gc(untraced)]
+    cached_views: RefCell<Vec<GcWeak<TypedArrayBase>>>,
 }
 
 define_cell!(
@@ -893,7 +894,7 @@ impl ArrayBuffer {
             data_block: GcRefCell::new(DataBlock::new(buffer, is_shared)),
             max_byte_length: Cell::new(None),
             detach_key: Cell::new(Value::UNDEFINED),
-            cached_views: GcRefCell::new(Vec::new()),
+            cached_views: RefCell::new(Vec::new()),
         }
     }
 
@@ -903,7 +904,7 @@ impl ArrayBuffer {
             data_block: GcRefCell::new(DataBlock::empty(is_shared)),
             max_byte_length: Cell::new(None),
             detach_key: Cell::new(Value::UNDEFINED),
-            cached_views: GcRefCell::new(Vec::new()),
+            cached_views: RefCell::new(Vec::new()),
         }
     }
 
@@ -1263,7 +1264,7 @@ impl ArrayBuffer {
 
     pub fn register_cached_typed_array_view(&self, vm: &Vm, view: Gc<TypedArrayBase>) {
         let view = GcWeak::new(vm.heap(), view);
-        let mut cached_views = self.cached_views.borrow_mut(vm);
+        let mut cached_views = self.cached_views.borrow_mut();
         // NB: Views that died stay in the list until it is full, which keeps registering amortized constant time.
         if cached_views.len() == cached_views.capacity() {
             cached_views.retain(|view| view.get().is_some());

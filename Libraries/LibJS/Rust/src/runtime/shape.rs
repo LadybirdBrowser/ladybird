@@ -156,8 +156,16 @@ unsafe impl Trace for ShapeStorage {
     fn trace(&self, visitor: &mut Visitor) {
         self.previous.trace(visitor);
         self.special_property_cache.trace(visitor);
+        self.property_storage.trace(visitor);
+        self.forward_transitions.trace(visitor);
+        self.rare_data.trace(visitor);
+    }
+}
 
-        match &*self.property_storage.borrow() {
+// SAFETY: Visits the descriptor array or the keys of the property table.
+unsafe impl Trace for PropertyStorage {
+    fn trace(&self, visitor: &mut Visitor) {
+        match self {
             PropertyStorage::Descriptors(descriptors) => descriptors.trace(visitor),
             // Descriptor arrays mark their own keys; dictionary tables are not cells, so Shape marks their keys directly.
             PropertyStorage::PropertyTable(property_table) => {
@@ -166,9 +174,14 @@ unsafe impl Trace for ShapeStorage {
                 }
             }
         }
+    }
+}
 
+// SAFETY: Visits the keys. The shapes of transitions are weak.
+unsafe impl Trace for ForwardTransitions {
+    fn trace(&self, visitor: &mut Visitor) {
         // FIXME: The forward transition keys should be weak, but we have to mark them for now in case they go stale.
-        match &*self.forward_transitions.borrow() {
+        match self {
             ForwardTransitions::Empty => {}
             ForwardTransitions::Single { property_key, .. } => property_key.trace(visitor),
             ForwardTransitions::Multiple(map) => {
@@ -177,8 +190,6 @@ unsafe impl Trace for ShapeStorage {
                 }
             }
         }
-
-        self.rare_data.trace(visitor);
     }
 }
 
@@ -490,6 +501,10 @@ impl Shape {
         let target = GcWeak::new(vm.heap(), shape);
 
         let mut forward_transitions = self.storage.forward_transitions.borrow_mut(vm);
+        if let ForwardTransitions::Multiple(map) = &mut *forward_transitions {
+            map.insert(key, target);
+            return;
+        }
         match core::mem::replace(&mut *forward_transitions, ForwardTransitions::Empty) {
             ForwardTransitions::Empty => {
                 *forward_transitions = ForwardTransitions::Single {
@@ -525,15 +540,12 @@ impl Shape {
                     property_key,
                     attributes: PropertyAttributes::new(attributes),
                 };
-                let mut map = Box::new(ForwardTransitionMap::default());
-                map.insert(existing_key, existing_target);
-                map.insert(key, target);
-                *forward_transitions = ForwardTransitions::Multiple(map);
+                *forward_transitions = ForwardTransitions::Multiple(Box::new(ForwardTransitionMap::from_iter([
+                    (existing_key, existing_target),
+                    (key, target),
+                ])));
             }
-            ForwardTransitions::Multiple(mut map) => {
-                map.insert(key, target);
-                *forward_transitions = ForwardTransitions::Multiple(map);
-            }
+            ForwardTransitions::Multiple(_) => unreachable!("the map takes the transition above"),
         }
     }
 

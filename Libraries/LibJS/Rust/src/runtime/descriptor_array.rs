@@ -9,6 +9,7 @@ use core::hash::BuildHasher;
 use core::ops::ControlFlow;
 
 use crate::gc::class::{GcCell, define_cell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
@@ -124,7 +125,7 @@ fn set_entry(
 }
 
 impl DescriptorArray {
-    fn from_parts(entries: Vec<Entry>, entry_indices_by_enum_index: Vec<u32>) -> Self {
+    fn from_parts(_: &DeferGc<'_>, entries: Vec<Entry>, entry_indices_by_enum_index: Vec<u32>) -> Self {
         Self {
             header: CellHeader::for_class(Self::CLASS),
             entries: GcRefCell::new(entries),
@@ -133,31 +134,32 @@ impl DescriptorArray {
     }
 
     pub fn create(vm: &Vm) -> Gc<DescriptorArray> {
-        vm.heap().allocate(|_| Self::from_parts(Vec::new(), Vec::new()))
+        vm.heap()
+            .allocate(|defer_gc| Self::from_parts(defer_gc, Vec::new(), Vec::new()))
     }
 
     /// The first `descriptor_count` properties of `other`, in its insertion order.
     pub fn create_copy(vm: &Vm, other: &DescriptorArray, descriptor_count: u32) -> Gc<DescriptorArray> {
         assert!(descriptor_count <= MAX_DESCRIPTOR_COUNT);
-        let mut entries = Vec::with_capacity(descriptor_count as usize);
-        let mut entry_indices_by_enum_index = Vec::with_capacity(descriptor_count as usize);
-        other.for_each_in_insertion_order(
-            |property_key, metadata| {
-                let enum_index = entries.len() as u32;
-                set_entry(
-                    &mut entries,
-                    &mut entry_indices_by_enum_index,
-                    property_key,
-                    metadata,
-                    enum_index,
-                );
-                ControlFlow::Continue(())
-            },
-            descriptor_count,
-        );
-        // The keys are clones of the keys `other` holds, which keeps their symbols alive while this allocates.
-        vm.heap()
-            .allocate(|_| Self::from_parts(entries, entry_indices_by_enum_index))
+        vm.heap().allocate(|defer_gc| {
+            let mut entries = Vec::with_capacity(descriptor_count as usize);
+            let mut entry_indices_by_enum_index = Vec::with_capacity(descriptor_count as usize);
+            other.for_each_in_insertion_order(
+                |property_key, metadata| {
+                    let enum_index = entries.len() as u32;
+                    set_entry(
+                        &mut entries,
+                        &mut entry_indices_by_enum_index,
+                        property_key,
+                        metadata,
+                        enum_index,
+                    );
+                    ControlFlow::Continue(())
+                },
+                descriptor_count,
+            );
+            Self::from_parts(defer_gc, entries, entry_indices_by_enum_index)
+        })
     }
 
     pub fn size(&self) -> u32 {

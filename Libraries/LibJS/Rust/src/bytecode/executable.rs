@@ -1065,7 +1065,7 @@ pub struct ObjectShapeCache {
 }
 
 /// The parts of an ObjectPropertyIteratorCacheData the interpreter does not read.
-#[derive(Default)]
+#[derive(Default, Trace)]
 pub struct ObjectPropertyIteratorCacheDataStorage {
     properties: Box<[PropertyKey]>,
 }
@@ -1078,7 +1078,7 @@ unsafe impl Trace for ObjectPropertyIteratorCacheData {
         self.shape.trace(visitor);
         self.prototype_chain_validity.trace(visitor);
         self.property_values.trace(visitor);
-        self.storage.properties.trace(visitor);
+        self.storage.trace(visitor);
     }
 }
 
