@@ -270,7 +270,8 @@ fn is_whitespace(c: u32) -> bool {
     matches!(c, 0x09 | 0x0A | 0x0C | 0x20)
 }
 
-/// Numeric character reference replacement table (spec section 13.2.5.5).
+/// Numeric character reference replacement table.
+/// https://html.spec.whatwg.org/multipage/parsing.html#table-charref-overrides
 fn numeric_char_ref_replacement(code: u32) -> Option<u32> {
     match code {
         0x80 => Some(0x20AC),
@@ -1114,7 +1115,8 @@ impl HtmlTokenizer {
                         continue;
                     }
                     Some(0x3F) => {
-                        // '?' - parse error
+                        // FIXME: Set the temporary buffer to the empty string. Switch to the processing instruction open state.
+                        // NB: Until processing instructions are supported, retain the bogus-comment fallback.
                         self.create_new_token(TokenType::Comment);
                         self.current_token.start_position = self.nth_last_position(2);
                         self.reconsume(State::BogusComment);
@@ -2602,7 +2604,8 @@ impl HtmlTokenizer {
                     }
                 },
 
-                // 13.2.5.72 Character reference state
+                // https://html.spec.whatwg.org/multipage/parsing.html#character-reference-state
+                // Character reference state
                 State::CharacterReference => {
                     self.temporary_buffer.clear();
                     self.temporary_buffer.push(0x26); // '&'
@@ -2629,7 +2632,8 @@ impl HtmlTokenizer {
                     }
                 }
 
-                // 13.2.5.73 Named character reference state
+                // https://html.spec.whatwg.org/multipage/parsing.html#named-character-reference-state
+                // Named character reference state
                 State::NamedCharacterReference => {
                     // Insertion-point path: feed one character at a time.
                     if self.stop_at_insertion_point && self.insertion_point.is_some() {
@@ -2712,7 +2716,8 @@ impl HtmlTokenizer {
                     }
                 }
 
-                // 13.2.5.74 Ambiguous ampersand state
+                // https://html.spec.whatwg.org/multipage/parsing.html#ambiguous-ampersand-state
+                // Ambiguous ampersand state
                 State::AmbiguousAmpersand => match current_input_character {
                     Some(cp) if is_ascii_alphanumeric(cp) => {
                         if self.consumed_as_part_of_an_attribute() {
@@ -2739,7 +2744,8 @@ impl HtmlTokenizer {
                     }
                 },
 
-                // 13.2.5.75 Numeric character reference state
+                // https://html.spec.whatwg.org/multipage/parsing.html#numeric-character-reference-state
+                // Numeric character reference state
                 State::NumericCharacterReference => {
                     self.character_reference_code = 0;
                     match current_input_character {
@@ -2750,13 +2756,15 @@ impl HtmlTokenizer {
                             continue;
                         }
                         _ => {
+                            // NB: DecimalCharacterReferenceStart implements the ASCII digit and anything-else cases of this state.
                             self.reconsume(State::DecimalCharacterReferenceStart);
                             continue;
                         }
                     }
                 }
 
-                // 13.2.5.76 Hexadecimal character reference start state
+                // https://html.spec.whatwg.org/multipage/parsing.html#hexadecimal-character-reference-start-state
+                // Hexadecimal character reference start state
                 State::HexadecimalCharacterReferenceStart => match current_input_character {
                     Some(cp) if is_ascii_hex_digit(cp) => {
                         self.reconsume(State::HexadecimalCharacterReference);
@@ -2773,14 +2781,16 @@ impl HtmlTokenizer {
                     }
                 },
 
-                // 13.2.5.77 Decimal character reference start state
+                // NB: This implementation-only state handles the non-X/x cases of the numeric character reference state.
                 State::DecimalCharacterReferenceStart => match current_input_character {
                     Some(cp) if is_ascii_digit(cp) => {
+                        // Reconsume in the decimal character reference state.
                         self.reconsume(State::DecimalCharacterReference);
                         continue;
                     }
                     _ => {
-                        // parse error
+                        // This is an absence-of-digits-in-numeric-character-reference parse error.
+                        // Flush code points consumed as a character reference. Reconsume in the return state.
                         self.flush_codepoints_consumed_as_character_reference();
                         self.reconsume_in_return_state(current_input_character);
                         if !self.queued_tokens.is_empty() {
@@ -2790,7 +2800,8 @@ impl HtmlTokenizer {
                     }
                 },
 
-                // 13.2.5.78 Hexadecimal character reference state
+                // https://html.spec.whatwg.org/multipage/parsing.html#hexadecimal-character-reference-state
+                // Hexadecimal character reference state
                 State::HexadecimalCharacterReference => match current_input_character {
                     Some(cp) if is_ascii_digit(cp) => {
                         self.character_reference_code =
@@ -2818,7 +2829,8 @@ impl HtmlTokenizer {
                     }
                 },
 
-                // 13.2.5.79 Decimal character reference state
+                // https://html.spec.whatwg.org/multipage/parsing.html#decimal-character-reference-state
+                // Decimal character reference state
                 State::DecimalCharacterReference => match current_input_character {
                     Some(cp) if is_ascii_digit(cp) => {
                         self.character_reference_code =
@@ -2836,7 +2848,8 @@ impl HtmlTokenizer {
                     }
                 },
 
-                // 13.2.5.80 Numeric character reference end state
+                // https://html.spec.whatwg.org/multipage/parsing.html#numeric-character-reference-end-state
+                // Numeric character reference end state
                 State::NumericCharacterReferenceEnd => {
                     // Don't consume
                     if current_input_character.is_some() {
