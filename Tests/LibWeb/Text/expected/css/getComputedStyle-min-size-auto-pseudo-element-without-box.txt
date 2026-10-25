@@ -1,0 +1,5 @@
+none::before: min-width=0px min-height=0px
+normal::before: min-width=0px min-height=0px
+after-without-content::after: min-width=0px min-height=0px
+flex::before: min-width=0px min-height=0px
+marker::marker: min-width=0px min-height=0px

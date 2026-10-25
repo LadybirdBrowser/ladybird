@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    .min-auto::before, .min-auto::after, .min-auto::marker {
+        display: block;
+        min-width: auto;
+        min-height: auto;
+    }
+    #none::before { content: none; }
+    #normal::before { content: normal; }
+    #after-without-content::after { }
+    #flex { display: flex; }
+    #flex::before { content: none; }
+    #marker::marker { content: none; }
+</style>
+<script src="../include.js"></script>
+<div class="min-auto" id="none"></div>
+<div class="min-auto" id="normal"></div>
+<div class="min-auto" id="after-without-content"></div>
+<div class="min-auto" id="flex"></div>
+<ul><li class="min-auto" id="marker">item</li></ul>
+<script>
+    test(() => {
+        for (const [id, pseudo] of [["none", "::before"], ["normal", "::before"], ["after-without-content", "::after"], ["flex", "::before"], ["marker", "::marker"]]) {
+            const style = getComputedStyle(document.getElementById(id), pseudo);
+            println(`${id}${pseudo}: min-width=${style.minWidth} min-height=${style.minHeight}`);
+        }
+    });
+</script>
