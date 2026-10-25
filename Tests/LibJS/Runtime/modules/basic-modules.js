@@ -200,6 +200,14 @@ describe("in- and exports", () => {
         expectedModuleToThrowSyntaxError("./duplicate-import-attribute-key.mjs", "Duplicate import attribute key");
     });
 
+    test("imported bindings cannot be redeclared", () => {
+        expectedModuleToThrowSyntaxError("./import-redeclared-by-let.mjs", "Identifier 'passed' already declared");
+        expectedModuleToThrowSyntaxError("./import-redeclared-by-var.mjs", "Identifier 'passed' already declared");
+        expectedModuleToThrowSyntaxError("./import-redeclared-by-function.mjs", "Identifier 'passed' already declared");
+        expectedModuleToThrowSyntaxError("./import-redeclaring-class.mjs", "Identifier 'passed' already declared");
+        expectedModuleToThrowSyntaxError("./duplicate-import-binding.mjs", "Identifier 'passed' already declared");
+    });
+
     test("namespace has expected ordering", () => {
         expectModulePassed("./namespace-order.mjs");
     });

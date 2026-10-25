@@ -1880,7 +1880,8 @@ impl Parser<'_> {
         self.consume_or_insert_semicolon();
 
         for entry in &entries {
-            self.scope_collector.add_import_binding(&entry.local_name);
+            self.scope_collector
+                .add_import_binding(&entry.local_name, start.line, start.column);
         }
 
         self.statement(
