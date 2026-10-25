@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	window.onerror - compile error in attribute
+Fail	window.onerror - compile error in attribute (column)
