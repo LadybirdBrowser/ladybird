@@ -14,6 +14,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -743,8 +745,54 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
         .agent_cluster_id = agent_cluster_id(),
         .agent_cluster_cross_origin_isolation_mode = agent_cluster_cross_origin_isolation_mode(),
         .time_origin = this->time_origin(),
+        .insecure_requests_policy = insecure_requests_policy(),
+        .upgrade_insecure_navigations_set = upgrade_insecure_navigations_set(),
         .global = move(serialized_global),
     };
+}
+
+// https://w3c.github.io/webappsec-upgrade-insecure-requests/#delivery
+// AD-HOC: Enforcing the upgrade-insecure-requests directive sets the protected resource's settings' insecure requests
+//         policy to "Upgrade", and inserts a tuple of the protected resource's URL's host and port into settings'
+//         upgrade insecure navigations set. We instead derive both from the policies enforced in settings' policy
+//         container's CSP list, whether they were delivered with a response or by a meta element, and use each
+//         policy's self-origin as the protected resource's URL. Monitoring the directive has no effect, so only
+//         enforced policies count. The stored values hold what settings inherited.
+template<typename Callback>
+static void for_each_enforced_policy_with_upgrade_insecure_requests(EnvironmentSettingsObject const& settings, Callback callback)
+{
+    for (auto const& policy : settings.policy_container()->csp_list->policies()) {
+        if (policy->disposition() != ContentSecurityPolicy::Policy::Disposition::Enforce)
+            continue;
+        if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::UpgradeInsecureRequests))
+            continue;
+        if (callback(*policy) == IterationDecision::Break)
+            return;
+    }
+}
+
+UpgradeInsecureRequests::InsecureRequestsPolicy EnvironmentSettingsObject::insecure_requests_policy() const
+{
+    auto result = m_insecure_requests_policy;
+    if (result == UpgradeInsecureRequests::InsecureRequestsPolicy::Upgrade)
+        return result;
+    for_each_enforced_policy_with_upgrade_insecure_requests(*this, [&](auto const&) {
+        result = UpgradeInsecureRequests::InsecureRequestsPolicy::Upgrade;
+        return IterationDecision::Break;
+    });
+    return result;
+}
+
+UpgradeInsecureRequests::UpgradeInsecureNavigationsSet EnvironmentSettingsObject::upgrade_insecure_navigations_set() const
+{
+    auto result = m_upgrade_insecure_navigations_set;
+    for_each_enforced_policy_with_upgrade_insecure_requests(*this, [&](ContentSecurityPolicy::Policy const& policy) {
+        auto const& self_origin = policy.self_origin();
+        if (!self_origin.is_opaque())
+            result.insert({ self_origin.host(), self_origin.port() });
+        return IterationDecision::Continue;
+    });
+    return result;
 }
 
 GC::Ref<StorageAPI::StorageManager> EnvironmentSettingsObject::storage_manager()

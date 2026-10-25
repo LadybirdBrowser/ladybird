@@ -14,6 +14,7 @@
 #include <LibWebCommon/HTML/CrossOriginIsolationMode.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/HTML/SerializedPolicyContainer.h>
+#include <LibWebCommon/UpgradeInsecureRequests/InsecureRequestsPolicy.h>
 
 namespace Web::HTML {
 
@@ -59,6 +60,13 @@ struct SerializedEnvironmentSettingsObject {
     Optional<u64> agent_cluster_id;
     CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode;
     double time_origin;
+
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#insecure-requests-policy
+    UpgradeInsecureRequests::InsecureRequestsPolicy insecure_requests_policy { UpgradeInsecureRequests::InsecureRequestsPolicy::DoNotUpgrade };
+
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-insecure-navigations-set
+    UpgradeInsecureRequests::UpgradeInsecureNavigationsSet upgrade_insecure_navigations_set {};
+
     SerializedGlobal global;
 };
 

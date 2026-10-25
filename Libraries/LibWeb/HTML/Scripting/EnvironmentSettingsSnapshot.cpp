@@ -26,6 +26,9 @@ EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(NonnullOwnPtr<JS::Execu
     this->id = serialized_settings.id;
     this->creation_url = serialized_settings.creation_url;
     this->top_level_creation_url = serialized_settings.top_level_creation_url;
+    set_insecure_requests_policy(serialized_settings.insecure_requests_policy);
+    for (auto const& tuple : serialized_settings.upgrade_insecure_navigations_set.tuples())
+        add_to_upgrade_insecure_navigations_set(tuple);
 }
 
 // Out of line to ensure this class has a key function

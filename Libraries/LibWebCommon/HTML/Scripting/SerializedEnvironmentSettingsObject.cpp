@@ -67,6 +67,8 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedEnvironmentSettingsO
     TRY(encoder.encode(object.agent_cluster_id));
     TRY(encoder.encode(object.agent_cluster_cross_origin_isolation_mode));
     TRY(encoder.encode(object.time_origin));
+    TRY(encoder.encode(object.insecure_requests_policy));
+    TRY(encoder.encode(object.upgrade_insecure_navigations_set));
     TRY(encoder.encode(object.global));
 
     return {};
@@ -88,6 +90,8 @@ ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder& decoder)
         .agent_cluster_id = TRY(decoder.decode<Optional<u64>>()),
         .agent_cluster_cross_origin_isolation_mode = TRY(decoder.decode<Web::HTML::CrossOriginIsolationMode>()),
         .time_origin = TRY(decoder.decode<double>()),
+        .insecure_requests_policy = TRY(decoder.decode<Web::UpgradeInsecureRequests::InsecureRequestsPolicy>()),
+        .upgrade_insecure_navigations_set = TRY(decoder.decode<Web::UpgradeInsecureRequests::UpgradeInsecureNavigationsSet>()),
         .global = TRY(decoder.decode<Web::HTML::SerializedGlobal>()),
     };
 }
