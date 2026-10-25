@@ -1,0 +1,14 @@
+text readonly script cut: PASS
+text readonly user cut: PASS
+textarea readonly script cut: PASS
+textarea readonly user cut: PASS
+password commands disabled: PASS
+selected password copy: PASS
+selected password cut: PASS
+native password cut unchanged: PASS
+text readonly canceled cut: PASS
+textarea readonly canceled cut: PASS
+cut listener disables editing: PASS
+cut listener enables editing: PASS
+fresh password document has no activation: PASS
+password without activation unchanged: PASS

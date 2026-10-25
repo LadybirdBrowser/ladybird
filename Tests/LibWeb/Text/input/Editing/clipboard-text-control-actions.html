@@ -1,0 +1,138 @@
+<!doctype html>
+<meta charset="utf-8" />
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const modifiers = internals.MOD_CTRL | internals.MOD_SUPER;
+        function check(label, actual, expected) {
+            println(
+                `${label}: ${JSON.stringify(actual) === JSON.stringify(expected) ? "PASS" : `FAIL ${JSON.stringify(actual)} expected ${JSON.stringify(expected)}`}`
+            );
+        }
+        function control(type, readOnly = false) {
+            const element = document.createElement(type === "textarea" ? "textarea" : "input");
+            if (type !== "textarea") element.type = type;
+            element.value = "abcd";
+            element.readOnly = readOnly;
+            document.body.append(element);
+            element.focus();
+            element.setSelectionRange(1, 3);
+            return element;
+        }
+        function activate() {
+            internals.dispatchUserActivatedEvent(document.body, new Event("mousedown"));
+        }
+        async function seed() {
+            activate();
+            await navigator.clipboard.writeText("seed");
+        }
+        async function clipboard() {
+            activate();
+            return navigator.clipboard.readText();
+        }
+        function events(element) {
+            const result = [];
+            for (const type of ["copy", "cut", "beforeinput", "input"]) {
+                element.addEventListener(type, event =>
+                    result.push(event.inputType ? `${type}:${event.inputType}` : type)
+                );
+            }
+            return result;
+        }
+        for (const type of ["text", "textarea"]) {
+            const element = control(type, true);
+            const recorded = events(element);
+            await seed();
+            const result = document.execCommand("cut");
+            check(
+                `${type} readonly script cut`,
+                [result, element.value, await clipboard(), recorded],
+                [true, "abcd", "seed", ["cut"]]
+            );
+            recorded.length = 0;
+            internals.sendKey(element, "X", modifiers);
+            check(`${type} readonly user cut`, [element.value, await clipboard(), recorded], ["abcd", "seed", ["cut"]]);
+            element.remove();
+        }
+        const password = control("password");
+        const recorded = events(password);
+        await seed();
+        check(
+            "password commands disabled",
+            [document.queryCommandEnabled("copy"), document.queryCommandEnabled("cut")],
+            [false, false]
+        );
+        const copied = document.execCommand("copy");
+        check(
+            "selected password copy",
+            [copied, password.value, await clipboard(), recorded],
+            [true, "abcd", "seed", []]
+        );
+        const cut = document.execCommand("cut");
+        check(
+            "selected password cut",
+            [cut, password.value, password.selectionStart, password.selectionEnd, await clipboard(), recorded],
+            [true, "abcd", 1, 3, "seed", []]
+        );
+        recorded.length = 0;
+        internals.sendKey(password, "X", modifiers);
+        check(
+            "native password cut unchanged",
+            [password.value, password.selectionStart, password.selectionEnd, await clipboard(), recorded],
+            ["abcd", 1, 3, "seed", ["cut"]]
+        );
+        password.remove();
+        for (const type of ["text", "textarea"]) {
+            const element = control(type, true);
+            const recorded = events(element);
+            element.addEventListener("cut", event => {
+                event.clipboardData.setData("text/plain", "custom");
+                event.preventDefault();
+            });
+            await seed();
+            const result = document.execCommand("cut");
+            check(
+                `${type} readonly canceled cut`,
+                [result, element.value, await clipboard(), recorded],
+                [true, "abcd", "custom", ["cut"]]
+            );
+            element.remove();
+        }
+        for (const readOnly of [false, true]) {
+            const element = control("text", readOnly);
+            const recorded = events(element);
+            element.addEventListener("cut", () => {
+                element.readOnly = !readOnly;
+            });
+            await seed();
+            const result = document.execCommand("cut");
+            check(
+                `cut listener ${readOnly ? "enables" : "disables"} editing`,
+                [result, element.value, await clipboard(), recorded],
+                readOnly ? [true, "ad", "bc", ["cut", "input:deleteByCut"]] : [true, "abcd", "seed", ["cut"]]
+            );
+            element.remove();
+        }
+        const iframe = document.createElement("iframe");
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = '<input type="password" value="abcd">';
+        document.body.append(iframe);
+        await loaded;
+        const frameDocument = iframe.contentDocument;
+        const framePassword = frameDocument.querySelector("input");
+        framePassword.focus();
+        framePassword.setSelectionRange(1, 3);
+        const frameEvents = events(framePassword);
+        check(
+            "fresh password document has no activation",
+            iframe.contentWindow.navigator.userActivation.isActive,
+            false
+        );
+        check(
+            "password without activation unchanged",
+            [frameDocument.execCommand("copy"), frameDocument.execCommand("cut"), framePassword.value, frameEvents],
+            [false, false, "abcd", ["copy", "cut"]]
+        );
+        iframe.remove();
+    });
+</script>

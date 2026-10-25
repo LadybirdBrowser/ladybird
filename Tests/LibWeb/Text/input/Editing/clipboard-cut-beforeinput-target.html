@@ -1,0 +1,102 @@
+<!doctype html>
+<meta charset="utf-8" />
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const modifiers = internals.MOD_CTRL | internals.MOD_SUPER;
+        function check(label, actual, expected) {
+            println(
+                `${label}: ${JSON.stringify(actual) === JSON.stringify(expected) ? "PASS" : `FAIL ${JSON.stringify(actual)} expected ${JSON.stringify(expected)}`}`
+            );
+        }
+        function control(value = "abcdef") {
+            const element = document.body.appendChild(document.createElement("textarea"));
+            element.value = value;
+            element.focus();
+            element.setSelectionRange(1, 3);
+            return element;
+        }
+        function cut(element) {
+            internals.sendKey(element, "X", modifiers);
+        }
+        let target = control();
+        const other = control("other");
+        target.focus();
+        let inputEvents = 0;
+        target.oninput = () => ++inputEvents;
+        target.onbeforeinput = () => {
+            other.focus();
+            internals.gc();
+        };
+        cut(target);
+        check("focus change", [target.value, other.value, inputEvents], ["abcdef", "other", 0]);
+        target.remove();
+        other.remove();
+        target = control();
+        inputEvents = 0;
+        target.oninput = () => ++inputEvents;
+        target.onbeforeinput = () => {
+            target.remove();
+            internals.gc();
+        };
+        cut(target);
+        check("removed control", [target.isConnected, target.value, inputEvents], [false, "abcdef", 0]);
+        target = control();
+        inputEvents = 0;
+        target.oninput = () => ++inputEvents;
+        target.onbeforeinput = () => target.setSelectionRange(3, 5);
+        cut(target);
+        check("same control selection change", [target.value, inputEvents], ["abcf", 1]);
+        target.remove();
+        const host = document.body.appendChild(document.createElement("div"));
+        host.contentEditable = "true";
+        host.textContent = "abcdef";
+        host.focus();
+        getSelection().setBaseAndExtent(host.firstChild, 1, host.firstChild, 3);
+        const replacement = document.createElement("div");
+        replacement.contentEditable = "true";
+        replacement.textContent = "replacement";
+        inputEvents = 0;
+        replacement.oninput = () => ++inputEvents;
+        host.onbeforeinput = () => {
+            host.replaceWith(replacement);
+            replacement.focus();
+            getSelection().setBaseAndExtent(replacement.firstChild, 1, replacement.firstChild, 3);
+            internals.gc();
+        };
+        cut(host);
+        check(
+            "editing host scope change",
+            [host.isConnected, host.textContent, replacement.textContent, inputEvents],
+            [false, "abcdef", "replacement", 0]
+        );
+        replacement.remove();
+        const sameHost = document.body.appendChild(document.createElement("div"));
+        sameHost.contentEditable = "true";
+        sameHost.textContent = "abcdef";
+        sameHost.focus();
+        getSelection().setBaseAndExtent(sameHost.firstChild, 1, sameHost.firstChild, 3);
+        inputEvents = 0;
+        sameHost.oninput = () => ++inputEvents;
+        sameHost.onbeforeinput = () => getSelection().setBaseAndExtent(sameHost.firstChild, 3, sameHost.firstChild, 5);
+        cut(sameHost);
+        check("same host selection change", [sameHost.textContent, inputEvents], ["abcf", 1]);
+        sameHost.remove();
+        const iframe = document.createElement("iframe");
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = "<textarea>abcdef</textarea>";
+        document.body.append(iframe);
+        await loaded;
+        const frameTarget = iframe.contentDocument.querySelector("textarea");
+        frameTarget.focus();
+        frameTarget.setSelectionRange(1, 3);
+        inputEvents = 0;
+        frameTarget.oninput = () => ++inputEvents;
+        frameTarget.onbeforeinput = () => {
+            iframe.remove();
+            internals.gc();
+        };
+        cut(frameTarget);
+        check("detached document", [iframe.isConnected, frameTarget.value, inputEvents], [false, "abcdef", 0]);
+    });
+</script>

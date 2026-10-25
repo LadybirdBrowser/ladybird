@@ -1,0 +1,13 @@
+rich script cut deletes and copies: PASS
+rich script cut event order: PASS
+rich cut undo: PASS
+rich cut redo: PASS
+cut callback recursive commands blocked: PASS
+rich input callback recursive commands blocked: PASS
+guarded rich cut completes: PASS
+text control input recursion remains blocked: PASS
+guarded text control cut completes: PASS
+canceled cut recursion remains blocked: PASS
+canceled cut writes custom data only: PASS
+copy callback recursive commands blocked: PASS
+guarded copy leaves content intact: PASS

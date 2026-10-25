@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 382 tests
+Found 422 tests
 
-378 Pass
+418 Pass
 4 Fail
 Pass	ChildDocument.execCommand(bold, false, bold) with a[b]c: calling execCommand
 Pass	ChildDocument.execCommand(bold, false, bold) with a[b]c: checking event on focused document
@@ -34,6 +34,26 @@ Pass	ChildDocument.execCommand(superscript, false, null) with a[b]c: checking ev
 Pass	ChildDocument.execCommand(superscript, false, null) with a[b]c: checking event on executed document
 Pass	ChildDocument.execCommand(superscript, false, null) with a[b]c: checking result content in focused document
 Pass	ChildDocument.execCommand(superscript, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(cut, false, null) with ab[]c: calling execCommand
+Pass	ChildDocument.execCommand(cut, false, null) with ab[]c: checking event on focused document
+Pass	ChildDocument.execCommand(cut, false, null) with ab[]c: checking event on executed document
+Pass	ChildDocument.execCommand(cut, false, null) with ab[]c: checking result content in focused document
+Pass	ChildDocument.execCommand(cut, false, null) with ab[]c: checking result content in executed document
+Pass	ChildDocument.execCommand(cut, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(cut, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(cut, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(cut, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(cut, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(copy, false, null) with ab[]c: calling execCommand
+Pass	ChildDocument.execCommand(copy, false, null) with ab[]c: checking event on focused document
+Pass	ChildDocument.execCommand(copy, false, null) with ab[]c: checking event on executed document
+Pass	ChildDocument.execCommand(copy, false, null) with ab[]c: checking result content in focused document
+Pass	ChildDocument.execCommand(copy, false, null) with ab[]c: checking result content in executed document
+Pass	ChildDocument.execCommand(copy, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(copy, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(copy, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(copy, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(copy, false, null) with a[b]c: checking result content in executed document
 Pass	ChildDocument.execCommand(delete, false, null) with a[b]c: calling execCommand
 Pass	ChildDocument.execCommand(delete, false, null) with a[b]c: checking event on focused document
 Pass	ChildDocument.execCommand(delete, false, null) with a[b]c: checking event on executed document
@@ -225,6 +245,26 @@ Pass	ParentDocument.execCommand(superscript, false, null) with a[b]c: checking e
 Pass	ParentDocument.execCommand(superscript, false, null) with a[b]c: checking event on executed document
 Pass	ParentDocument.execCommand(superscript, false, null) with a[b]c: checking result content in focused document
 Pass	ParentDocument.execCommand(superscript, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(cut, false, null) with ab[]c: calling execCommand
+Pass	ParentDocument.execCommand(cut, false, null) with ab[]c: checking event on focused document
+Pass	ParentDocument.execCommand(cut, false, null) with ab[]c: checking event on executed document
+Pass	ParentDocument.execCommand(cut, false, null) with ab[]c: checking result content in focused document
+Pass	ParentDocument.execCommand(cut, false, null) with ab[]c: checking result content in executed document
+Pass	ParentDocument.execCommand(cut, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(cut, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(cut, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(cut, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(cut, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(copy, false, null) with ab[]c: calling execCommand
+Pass	ParentDocument.execCommand(copy, false, null) with ab[]c: checking event on focused document
+Pass	ParentDocument.execCommand(copy, false, null) with ab[]c: checking event on executed document
+Pass	ParentDocument.execCommand(copy, false, null) with ab[]c: checking result content in focused document
+Pass	ParentDocument.execCommand(copy, false, null) with ab[]c: checking result content in executed document
+Pass	ParentDocument.execCommand(copy, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(copy, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(copy, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(copy, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(copy, false, null) with a[b]c: checking result content in executed document
 Pass	ParentDocument.execCommand(delete, false, null) with a[b]c: calling execCommand
 Pass	ParentDocument.execCommand(delete, false, null) with a[b]c: checking event on focused document
 Pass	ParentDocument.execCommand(delete, false, null) with a[b]c: checking event on executed document

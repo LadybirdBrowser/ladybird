@@ -24,9 +24,11 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputEvent.h>
 #include <LibWeb/UIEvents/InputTypes.h>
@@ -122,9 +124,58 @@ static bool exec_command_in_text_control(HTML::FormAssociatedTextControlElement&
     return true;
 }
 
+static bool is_clipboard_command(Utf16FlyString const& command)
+{
+    return command.is_one_of_ignoring_ascii_case(Editing::CommandNames::copy, Editing::CommandNames::cut);
+}
+
+// Whether the copy or cut command has selected content to act on.
+static bool clipboard_command_is_enabled(Document& document, Utf16FlyString const& command)
+{
+    if (auto* control = focused_text_control(document)) {
+        if (auto* input = as_if<HTML::HTMLInputElement>(control->text_control_to_html_element());
+            input && input->type_state() == HTML::HTMLInputElement::TypeAttributeState::Password)
+            return false;
+        if (control->selection_start() == control->selection_end())
+            return false;
+        return !command.equals_ignoring_ascii_case(Editing::CommandNames::cut)
+            || as<HTML::FormAssociatedElement>(control->text_control_to_html_element()).is_mutable();
+    }
+    auto range = Editing::active_range(document);
+    if (!range || range->collapsed())
+        return false;
+    return !command.equals_ignoring_ascii_case(Editing::CommandNames::cut)
+        || (range->start_container()->is_editable_or_editing_host() && range->end_container()->is_editable_or_editing_host());
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#execcommand()
 WebIDL::ExceptionOr<bool> Document::exec_command(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value)
 {
+    // NB: Clipboard actions can delete through the internal editing entry point, but their script callbacks must
+    //     not recursively execute public commands, including input listeners on text controls.
+    if (m_inside_clipboard_exec_command)
+        return false;
+
+    // https://w3c.github.io/clipboard-apis/#integration-with-rich-text-editing
+    // These are the steps to follow when triggering copy, cut or paste actions through a scripting API:
+    // 1. Execute the corresponding action synchronously.
+    // 2. Use the action's return value as the return value for the API call.
+    // NB: The actions also run when the command is not enabled, since they fire their clipboard event in any case.
+    if (is_clipboard_command(command) && is_html_document()) {
+        // NB: See the AD-HOC note about recursive calls in exec_command_internal().
+        if (m_inside_exec_command)
+            return false;
+        TemporaryChange guard_recursion { m_inside_clipboard_exec_command, true };
+
+        auto navigable = this->navigable();
+        if (!navigable || navigable->active_document().ptr() != this)
+            return false;
+        auto trigger = Web::EventHandler::ClipboardActionTrigger::Script;
+        if (command.equals_ignoring_ascii_case(Editing::CommandNames::copy))
+            return navigable->event_handler().perform_copy_action(trigger);
+        return navigable->event_handler().perform_cut_action(trigger);
+    }
+
     // NB: See the INTEROP note at focused_text_control(). exec_command_internal() checks whether the command is
     //     enabled for the active range only, so check whether it is enabled for the text control here.
     if (auto* control = focused_text_control(*this); control && is_html_document() && !m_inside_exec_command) {
@@ -159,8 +210,9 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
 
     // 3. If command is not supported or not enabled, return false.
     // NB: This does not use query_command_enabled(), which reports whether a command is enabled in a focused text
-    //     control. The commands below act on the active range, and rely on it being checked here.
-    if (!MUST(query_command_supported(command)) || !command_is_enabled(*this, command))
+    //     control. The commands below act on the active range, and rely on it being checked here. The clipboard
+    //     commands are handled by exec_command().
+    if (is_clipboard_command(command) || !MUST(query_command_supported(command)) || !command_is_enabled(*this, command))
         return false;
 
     // 4. If command is not in the Miscellaneous commands section:
@@ -417,6 +469,9 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(Utf16FlyString const& 
     if (!MUST(query_command_supported(command)))
         return false;
 
+    if (is_clipboard_command(command))
+        return clipboard_command_is_enabled(*this, command);
+
     // NB: See the INTEROP note at focused_text_control().
     if (auto command_definition = Editing::find_command_definition(command); command_definition.has_value()) {
         if (auto enabled = query_command_enabled_in_text_control(*this, command_definition->command); enabled.has_value())
@@ -632,7 +687,8 @@ WebIDL::ExceptionOr<bool> Document::query_command_supported(Utf16FlyString const
 
     // When the queryCommandSupported(command) method on the Document interface is invoked, the user agent must return
     // true if command is supported and available within the current script on the current site, and false otherwise.
-    return Editing::find_command_definition(command).has_value();
+    // NB: The copy and cut commands are defined by the clipboard API, and execCommand() triggers their actions.
+    return Editing::find_command_definition(command).has_value() || is_clipboard_command(command);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandvalue()
