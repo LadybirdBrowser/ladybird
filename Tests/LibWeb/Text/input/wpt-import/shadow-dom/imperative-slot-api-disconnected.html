@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://issues.chromium.org/issues/517322978">
+<link rel=help href="https://chromium-review.googlesource.google.com/c/chromium/src/+/7882176/comment/87ac253b_060f11fe/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+promise_test(async () => {
+  const host = document.body.appendChild(document.createElement('div'));
+  const sr = host.attachShadow({mode: 'open', slotAssignment: 'manual'});
+  const slot1 = sr.appendChild(document.createElement('slot'));
+  const div = host.appendChild(document.createElement('div'));
+
+  slot1.assign(div);
+  slot1.assignedNodes(); // Force recalc
+  await new Promise(queueMicrotask); // Flush slotchange
+
+  let slot1Fired = 0;
+  slot1.addEventListener('slotchange', () => { slot1Fired++; });
+
+  const slot2 = document.createElement('slot'); // Disconnected
+  slot2.assign(div); // Reassign to disconnected slot. Should not crash.
+
+  slot1.assignedNodes(); // Force recalc
+  slot2.assignedNodes(); // Force recalc
+  await new Promise(queueMicrotask);
+
+  assert_equals(slot1Fired, 1,
+    'slot1 should fire slotchange because it lost its node');
+  assert_equals(slot1.assignedNodes().length, 0,
+    'slot1 should be empty');
+  assert_equals(div.assignedSlot, null,
+    'div should not have assigned slot because slot2 is disconnected');
+}, 'Assigning to disconnected slot after connected slot should not crash and should trigger slotchange on previous slot');
+</script>
