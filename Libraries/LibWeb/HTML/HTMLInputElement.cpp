@@ -490,6 +490,11 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
         if (!is_connected())
             return {};
 
+        // INTEROP: Browsers do not fire input and change events at a radio button that was already checked before it
+        //          was activated.
+        if (type_state() == TypeAttributeState::RadioButton && m_before_legacy_pre_activation_behavior_checked)
+            return {};
+
         // 2. Fire an event named input at the element with the bubbles and composed attributes initialized to true.
         auto input_event = create_event_for_element(*this, HTML::EventNames::input);
         input_event->set_bubbles(true);
