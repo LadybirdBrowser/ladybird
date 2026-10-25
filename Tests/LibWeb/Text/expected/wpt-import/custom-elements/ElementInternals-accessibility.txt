@@ -1,0 +1,56 @@
+Harness status: OK
+
+Found 50 tests
+
+1 Pass
+49 Fail
+Fail	role is defined in ElementInternals
+Fail	ariaActiveDescendantElement is defined in ElementInternals
+Fail	ariaAtomic is defined in ElementInternals
+Fail	ariaAutoComplete is defined in ElementInternals
+Fail	ariaBrailleLabel is defined in ElementInternals
+Fail	ariaBrailleRoleDescription is defined in ElementInternals
+Fail	ariaBusy is defined in ElementInternals
+Fail	ariaChecked is defined in ElementInternals
+Fail	ariaColCount is defined in ElementInternals
+Fail	ariaColIndex is defined in ElementInternals
+Fail	ariaColSpan is defined in ElementInternals
+Fail	ariaControlsElements is defined in ElementInternals
+Fail	ariaCurrent is defined in ElementInternals
+Fail	ariaDescribedByElements is defined in ElementInternals
+Fail	ariaDetailsElements is defined in ElementInternals
+Fail	ariaDisabled is defined in ElementInternals
+Fail	ariaErrorMessageElements is defined in ElementInternals
+Fail	ariaExpanded is defined in ElementInternals
+Fail	ariaFlowToElements is defined in ElementInternals
+Fail	ariaHasPopup is defined in ElementInternals
+Fail	ariaHidden is defined in ElementInternals
+Fail	ariaInvalid is defined in ElementInternals
+Fail	ariaKeyShortcuts is defined in ElementInternals
+Fail	ariaLabel is defined in ElementInternals
+Fail	ariaLabelledByElements is defined in ElementInternals
+Fail	ariaLevel is defined in ElementInternals
+Fail	ariaLive is defined in ElementInternals
+Fail	ariaModal is defined in ElementInternals
+Fail	ariaMultiLine is defined in ElementInternals
+Fail	ariaMultiSelectable is defined in ElementInternals
+Fail	ariaOrientation is defined in ElementInternals
+Fail	ariaOwnsElements is defined in ElementInternals
+Fail	ariaPlaceholder is defined in ElementInternals
+Fail	ariaPosInSet is defined in ElementInternals
+Fail	ariaPressed is defined in ElementInternals
+Fail	ariaReadOnly is defined in ElementInternals
+Fail	ariaRelevant is defined in ElementInternals
+Fail	ariaRequired is defined in ElementInternals
+Fail	ariaRoleDescription is defined in ElementInternals
+Fail	ariaRowCount is defined in ElementInternals
+Fail	ariaRowIndex is defined in ElementInternals
+Fail	ariaRowSpan is defined in ElementInternals
+Fail	ariaSelected is defined in ElementInternals
+Fail	ariaSetSize is defined in ElementInternals
+Fail	ariaSort is defined in ElementInternals
+Fail	ariaValueMax is defined in ElementInternals
+Fail	ariaValueMin is defined in ElementInternals
+Fail	ariaValueNow is defined in ElementInternals
+Fail	ariaValueText is defined in ElementInternals
+Pass	ariaErrorMessageElement is not defined in ElementInternals

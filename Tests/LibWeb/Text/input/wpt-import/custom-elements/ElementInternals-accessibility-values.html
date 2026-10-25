@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>ElementInternals accessibility property values</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/custom-elements.html#the-elementinternals-interface">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+"use strict";
+
+class TestElement extends HTMLElement {
+  constructor() {
+    super();
+    this.internals = this.attachInternals();
+  }
+}
+customElements.define("test-element", TestElement);
+const element = document.createElement("test-element");
+document.body.append(element);
+
+const properties = [
+  "role",
+  "ariaActiveDescendantElement",
+  "ariaAtomic",
+  "ariaAutoComplete",
+  "ariaBrailleLabel",
+  "ariaBrailleRoleDescription",
+  "ariaBusy",
+  "ariaChecked",
+  "ariaColCount",
+  "ariaColIndex",
+  "ariaColSpan",
+  "ariaControlsElements",
+  "ariaCurrent",
+  "ariaDescribedByElements",
+  "ariaDetailsElements",
+  "ariaDisabled",
+  "ariaErrorMessageElements",
+  "ariaExpanded",
+  "ariaFlowToElements",
+  "ariaHasPopup",
+  "ariaHidden",
+  "ariaInvalid",
+  "ariaKeyShortcuts",
+  "ariaLabel",
+  "ariaLabelledByElements",
+  "ariaLevel",
+  "ariaLive",
+  "ariaModal",
+  "ariaMultiLine",
+  "ariaMultiSelectable",
+  "ariaOrientation",
+  "ariaOwnsElements",
+  "ariaPlaceholder",
+  "ariaPosInSet",
+  "ariaPressed",
+  "ariaReadOnly",
+  "ariaRelevant",
+  "ariaRequired",
+  "ariaRoleDescription",
+  "ariaRowCount",
+  "ariaRowIndex",
+  "ariaRowSpan",
+  "ariaSelected",
+  "ariaSetSize",
+  "ariaSort",
+  "ariaValueMax",
+  "ariaValueMin",
+  "ariaValueNow",
+  "ariaValueText"
+];
+
+for (const property of properties) {
+  test(() => {
+    assert_equals(element.internals[property], null, "null default value");
+
+    if (property.endsWith("Element")) {
+      element.internals[property] = document.body;
+
+      assert_equals(element.internals[property], document.body, "can be set to an Element");
+    } else if (property.endsWith("Elements")) {
+      const originalArray = [document.body];
+      element.internals[property] = originalArray;
+
+      assert_array_equals(element.internals[property], originalArray, "same contents");
+      assert_not_equals(element.internals[property], originalArray, "not equal to the original array");
+      assert_true(Object.isFrozen(element.internals[property]), "is frozen");
+      assert_equals(element.internals[property], element.internals[property], "getter returns the same value");
+    } else {
+      element.internals[property] = {
+        toString() {
+          return "a string";
+        }
+      };
+
+      assert_equals(element.internals[property], "a string", "can be set to a string");
+    }
+  }, property);
+}
+</script>

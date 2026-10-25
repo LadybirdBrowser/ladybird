@@ -1,0 +1,54 @@
+Harness status: OK
+
+Found 49 tests
+
+49 Fail
+Fail	role
+Fail	ariaActiveDescendantElement
+Fail	ariaAtomic
+Fail	ariaAutoComplete
+Fail	ariaBrailleLabel
+Fail	ariaBrailleRoleDescription
+Fail	ariaBusy
+Fail	ariaChecked
+Fail	ariaColCount
+Fail	ariaColIndex
+Fail	ariaColSpan
+Fail	ariaControlsElements
+Fail	ariaCurrent
+Fail	ariaDescribedByElements
+Fail	ariaDetailsElements
+Fail	ariaDisabled
+Fail	ariaErrorMessageElements
+Fail	ariaExpanded
+Fail	ariaFlowToElements
+Fail	ariaHasPopup
+Fail	ariaHidden
+Fail	ariaInvalid
+Fail	ariaKeyShortcuts
+Fail	ariaLabel
+Fail	ariaLabelledByElements
+Fail	ariaLevel
+Fail	ariaLive
+Fail	ariaModal
+Fail	ariaMultiLine
+Fail	ariaMultiSelectable
+Fail	ariaOrientation
+Fail	ariaOwnsElements
+Fail	ariaPlaceholder
+Fail	ariaPosInSet
+Fail	ariaPressed
+Fail	ariaReadOnly
+Fail	ariaRelevant
+Fail	ariaRequired
+Fail	ariaRoleDescription
+Fail	ariaRowCount
+Fail	ariaRowIndex
+Fail	ariaRowSpan
+Fail	ariaSelected
+Fail	ariaSetSize
+Fail	ariaSort
+Fail	ariaValueMax
+Fail	ariaValueMin
+Fail	ariaValueNow
+Fail	ariaValueText
