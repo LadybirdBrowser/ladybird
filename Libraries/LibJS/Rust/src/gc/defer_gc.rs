@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut};
+
 use super::capi;
 use super::heap::Heap;
 use crate::interpreter::vm::Vm;
@@ -20,10 +23,46 @@ impl<'heap> DeferGc<'heap> {
         capi::gc_heap_defer_gc(heap.handle());
         Self(heap)
     }
+
+    /// Ties `value`, whose cells only this deferral keeps alive, to the deferral.
+    pub fn cover<T>(&self, value: T) -> Deferred<'_, T> {
+        Deferred {
+            value,
+            _defer_gc: PhantomData,
+        }
+    }
 }
 
 impl Drop for DeferGc<'_> {
     fn drop(&mut self) {
         capi::gc_heap_undefer_gc(self.0.handle());
+    }
+}
+
+/// A value whose cells nothing keeps alive but a deferral, such as cells in a Vec that nothing traces yet. It cannot
+/// outlive the deferral.
+pub struct Deferred<'d, T> {
+    value: T,
+    _defer_gc: PhantomData<&'d ()>,
+}
+
+impl<T> Deferred<'_, T> {
+    /// Gives up the value, for moving it where the collector finds its cells.
+    pub fn into_inner(self) -> T {
+        self.value
+    }
+}
+
+impl<T> Deref for Deferred<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.value
+    }
+}
+
+impl<T> DerefMut for Deferred<'_, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.value
     }
 }

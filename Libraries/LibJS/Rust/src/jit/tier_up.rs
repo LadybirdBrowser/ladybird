@@ -13,7 +13,7 @@ use libjs_jit::code::CompiledCode;
 use super::code::{CompileState, JitCode, SnapshotExecutable};
 use super::compile_queue::CompileResult;
 use super::executable_memory::ExecutableMemory;
-use super::snapshot::capture_snapshot;
+use super::snapshot::{CapturedSnapshot, capture_snapshot};
 use super::{CompileJob, JitState};
 use crate::bytecode::executable::Executable;
 use crate::bytecode::feedback::tier_up_costs;
@@ -447,10 +447,14 @@ fn compile(
 
     // NB: Nothing may collect the cells the snapshot captured before something keeps them alive.
     let defer_gc = DeferGc::new(vm);
-    let captured = capture_snapshot(vm, executable, function, realm, osr_pc);
+    let CapturedSnapshot {
+        snapshot,
+        cells,
+        snapshot_executables,
+    } = capture_snapshot(vm, executable, function, realm, osr_pc, &defer_gc);
     if sync {
         // NB: Nothing collects garbage while compiling on this thread, so the snapshot's cells stay alive.
-        let result = libjs_jit::compile(&captured.snapshot);
+        let result = libjs_jit::compile(&snapshot);
         let memory = should_install(vm, &result).then(|| {
             let code = &result.as_ref().expect("the compile succeeded").code;
             let name = super::describe_executable(&executable);
@@ -463,18 +467,18 @@ fn compile(
             .pop()
             .expect("one code was allocated")
         });
-        finish_compile(vm, executable, result, memory, captured.snapshot_executables);
+        finish_compile(vm, executable, result, memory, snapshot_executables.into_inner());
         drop(defer_gc);
         return;
     }
 
     let job_id = vm.jit.add_job(CompileJob {
         executable,
-        cells: captured.cells,
-        snapshot_executables: captured.snapshot_executables,
+        cells: cells.into_inner(),
+        snapshot_executables: snapshot_executables.into_inner(),
     });
     drop(defer_gc);
-    vm.jit.compile_queue().submit(job_id, captured.snapshot);
+    vm.jit.compile_queue().submit(job_id, snapshot);
 }
 
 /// Compiles the executable of `function` right away, from the feedback it has, unless it has code, is being compiled or
