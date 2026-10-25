@@ -175,6 +175,24 @@ pub struct DecodedInstruction {
     pub instruction: Instruction,
 }
 
+impl OpCode {
+    /// Whether an instruction of this opcode costs nothing in inlined code:
+    /// entering the frame, moves between slots (which SSA values rename),
+    /// and jumps.
+    pub fn is_free_when_inlined(self) -> bool {
+        matches!(self, OpCode::Enter | OpCode::Mov | OpCode::Jump)
+    }
+}
+
+/// How many of a callee's instructions cost something in inlined code,
+/// which decides whether it is small enough to always inline.
+pub fn inlining_size(instructions: &[DecodedInstruction]) -> usize {
+    instructions
+        .iter()
+        .filter(|decoded| !decoded.instruction.opcode().is_free_when_inlined())
+        .count()
+}
+
 impl Instruction {
     /// The property lookup cache whose entries compiled code speculates on
     /// for this instruction, as shape checks that exit with

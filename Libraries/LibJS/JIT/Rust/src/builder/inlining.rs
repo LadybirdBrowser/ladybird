@@ -1398,7 +1398,7 @@ impl GraphBuilder<'_> {
         let instruction_count = decoded.instructions.len();
         // NB: Builtins are always inlined (see the snapshot's inlining rules).
         let within_budget = callee_executable.builtin
-            || instruction_count <= limits.always_inlined_instructions as usize
+            || crate::bytecode::inlining_size(&decoded.instructions) <= limits.always_inlined_instructions as usize
             || (construct.is_some() && instruction_count <= limits.max_construct_instructions as usize)
             || (instruction_count <= limits.max_instructions as usize
                 && self.inlined_instructions + instruction_count <= limits.budget_instructions as usize);
