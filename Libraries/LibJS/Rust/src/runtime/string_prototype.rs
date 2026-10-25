@@ -2203,8 +2203,7 @@ impl<'vm> SubstringList<'vm> {
         //     finds them there if the allocation collects.
         let array = Array::create(vm, realm, 0, None).must();
         let mut elements = self.first_substrings.to_vec();
-        self.other_substrings
-            .with_values(|others| elements.extend_from_slice(others));
+        elements.extend_from_slice(&self.other_substrings.values());
         array.set_indexed_property_elements(&elements);
         Value::from_object(array.upcast::<Object>())
     }

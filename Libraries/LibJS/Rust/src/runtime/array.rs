@@ -156,7 +156,7 @@ impl Array {
     /// CreateArrayFromList for a list that is kept alive while the array is allocated.
     pub fn create_from_list(vm: &Vm, realm: Gc<Realm>, elements: &MarkedVec<'_, Value>) -> Gc<Array> {
         let array = Self::create(vm, realm, 0, None).must();
-        elements.with_values(|elements| array.set_indexed_property_elements(elements));
+        array.set_indexed_property_elements(&elements.values());
         array
     }
 

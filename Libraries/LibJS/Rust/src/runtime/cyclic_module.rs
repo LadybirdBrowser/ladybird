@@ -819,18 +819,12 @@ impl CyclicModule {
 
         // 11. Let _sortedExecList_ be a List whose elements are the elements of _execList_, sorted by their
         //     [[AsyncEvaluationOrder]] field in ascending order.
-        // NB: The sorted copy holds the same modules as the list, which keeps them alive, and nothing collects while
-        //     it is sorted.
-        let mut sorted_exec_list = exec_list.to_vec();
-        sorted_exec_list.sort_by_key(|module| {
+        exec_list.values_mut().sort_by_key(|module| {
             module
                 .async_evaluation_order
                 .get()
                 .expect("the module has an async evaluation order")
         });
-        for (index, module) in sorted_exec_list.into_iter().enumerate() {
-            exec_list.set(index, module);
-        }
 
         // 12. For each Cyclic Module Record m of sortedExecList, do
         for index in 0..exec_list.len() {

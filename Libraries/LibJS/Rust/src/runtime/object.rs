@@ -4422,10 +4422,10 @@ impl Object {
     // For FunctionPrototype.apply fast path
     pub fn indexed_packed_elements<'vm>(&self, vm: &'vm Vm) -> MarkedVec<'vm, Value> {
         let count = self.indexed_packed_elements_span_size();
-        // NB: Reading the elements does not collect, so they need no root until they are copied out.
-        let values: Vec<Value> = (0..count).map(|index| self.indexed_element(index)).collect();
-        let elements = MarkedVec::new(vm);
-        elements.extend_from_slice(&values);
+        let elements = MarkedVec::with_capacity(vm, count as usize);
+        for index in 0..count {
+            elements.push(self.indexed_element(index));
+        }
         elements
     }
 

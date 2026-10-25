@@ -613,7 +613,7 @@ impl SourceTextModule {
             }
             _ => self.executable.set(Some(executable)),
         }
-        for function in existing_functions.to_vec() {
+        for function in existing_functions.values().iter() {
             function.clear_non_bytecode_cache_compile_inputs();
         }
         self.executable_backing.set(ExecutableBacking::MappedBytecodeCache);

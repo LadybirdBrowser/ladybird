@@ -224,8 +224,7 @@ impl FunctionPrototype {
                     return call_function_object(vm, function, this_arg, arguments);
                 }
                 let elements = arg_array_object.indexed_packed_elements(vm);
-                return elements
-                    .with_values(|elements| call_function_object(vm, function, this_arg, &elements[..length]));
+                return call_function_object(vm, function, this_arg, &elements.values()[..length]);
             }
         }
 
@@ -248,7 +247,7 @@ impl FunctionPrototype {
         // FIXME: 5. Perform PrepareForTailCall().
 
         // 6. Return ? Call(func, thisArg, argList).
-        arguments.with_values(|arguments| call_function_object(vm, function, this_arg, arguments))
+        call_function_object(vm, function, this_arg, &arguments.values())
     }
 
     // 20.2.3.2 Function.prototype.bind ( thisArg, ...args ), https://tc39.es/ecma262/#sec-function.prototype.bind
@@ -404,7 +403,7 @@ impl FunctionPrototype {
             return call_function_object(vm, function, this_arg, args);
         }
         let args = arguments_after_the_first(vm);
-        args.with_values(|args| call_function_object(vm, function, this_arg, args))
+        call_function_object(vm, function, this_arg, &args.values())
     }
 
     // 20.2.3.5 Function.prototype.toString ( ), https://tc39.es/ecma262/#sec-function.prototype.tostring
