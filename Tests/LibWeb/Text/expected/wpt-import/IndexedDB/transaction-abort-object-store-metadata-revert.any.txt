@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-2 Pass
-2 Fail
-Fail	Created stores get marked as deleted after their transaction aborts
+4 Pass
+Pass	Created stores get marked as deleted after their transaction aborts
 Pass	Deleted stores get marked as not-deleted after the transaction aborts
-Fail	Created+deleted stores are still marked as deleted after their transaction aborts
+Pass	Created+deleted stores are still marked as deleted after their transaction aborts
 Pass	Un-instantiated deleted stores get marked as not-deleted after the transaction aborts
