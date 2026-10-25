@@ -252,9 +252,7 @@ void HTMLScriptElement::prepare_script()
     // Otherwise, if el has a type attribute,
     else if (maybe_type_attribute.has_value()) {
         // then let the script block's type string be the value of that attribute.
-        // FIXME: Preserve whitespace in the type string; only the classic JavaScript MIME comparison strips it.
-        auto trimmed_type_attribute = maybe_type_attribute->trim(Infra::ASCII_WHITESPACE);
-        script_block_type = trimmed_type_attribute;
+        script_block_type = *maybe_type_attribute;
     }
     // Otherwise, el has a non-empty language attribute;
     else if (maybe_language_attribute.has_value() && !maybe_language_attribute->is_empty()) {
@@ -267,7 +265,8 @@ void HTMLScriptElement::prepare_script()
 
     // 9. If the script block's type string is a JavaScript MIME type essence match, or el has a type attribute whose
     //    value with leading and trailing ASCII whitespace stripped is a JavaScript MIME type essence match,
-    if (MimeSniff::is_javascript_mime_type_essence_match(script_block_type)) {
+    if (MimeSniff::is_javascript_mime_type_essence_match(script_block_type)
+        || (maybe_type_attribute.has_value() && MimeSniff::is_javascript_mime_type_essence_match(maybe_type_attribute->trim(Infra::ASCII_WHITESPACE)))) {
         // then set el's type to "classic".
         m_script_type = ScriptType::Classic;
     }
