@@ -70,7 +70,7 @@ block11:
   [ 1d8] JumpIf condition:reg13, true_target:block13, false_target:block14
 
 block12:
-  [ 1e8] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg13, completion_value:Undefined
+  [ 1e8] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
   [ 208] NewTypeError dst:reg17, yield* protocol violation: iterator must have a throw method
   [ 218] Throw src:reg17
 

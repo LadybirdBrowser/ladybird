@@ -1733,7 +1733,7 @@ fn generate_yield_from(
         generator.emit(Instruction::IteratorClose {
             iterator_object: iterator.operand(),
             iterator_next: next_method.operand(),
-            iterator_done: done.operand(),
+            iterator_done: iterator_done_property.operand(),
             completion_type: CompletionType::Normal as u32,
             completion_value: undef.operand(),
             cache,
