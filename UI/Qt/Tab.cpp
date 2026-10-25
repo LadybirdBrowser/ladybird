@@ -362,9 +362,13 @@ QToolButton* Tab::create_navigation_history_toolbar_button(QWidget& parent, QAct
 
 static constexpr int TOOLBAR_HORIZONTAL_MARGIN = 12;
 #ifdef AK_OS_MACOS
-static constexpr int WEB_VIEW_INSET = 6;
+static constexpr int WEB_VIEW_INSET = 5;
+// The sidebar has its own padding, so a narrower frame of the toolbar's color sets the page apart from it.
+static constexpr int WEB_VIEW_SIDEBAR_INSET = 4;
 #endif
 static constexpr int TOOLBAR_VERTICAL_MARGIN = 2;
+// NB: The location field gets a point more room below it than above it, where the page begins.
+static constexpr int TOOLBAR_BOTTOM_MARGIN = TOOLBAR_VERTICAL_MARGIN + 1;
 static constexpr int TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN = 4;
 static constexpr int DOWNLOADS_POPOVER_WIDTH = 380;
 static constexpr int DOWNLOADS_POPOVER_MAX_HEIGHT = 360;
@@ -733,7 +737,7 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
 
     auto* toolbar_layout = new QHBoxLayout(m_toolbar);
     toolbar_layout->setSpacing(6);
-    toolbar_layout->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN, TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
+    toolbar_layout->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN, TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_BOTTOM_MARGIN);
 
     m_location_edit = new LocationEdit(this, m_window->is_private());
     m_loading_animation_timer = new QTimer(this);
@@ -1591,10 +1595,9 @@ void Tab::update_web_view_frame(bool chrome_visible, Optional<WebView::VerticalT
         return;
     }
 
-    // Keep the web view's rounded corners clear of the window edges. The sidebar has its own padding, so a narrower frame
-    // of the toolbar's color sets the page apart from it.
-    auto left = sidebar_position == WebView::VerticalTabsPosition::Left ? WEB_VIEW_INSET / 2 : WEB_VIEW_INSET;
-    auto right = sidebar_position == WebView::VerticalTabsPosition::Right ? WEB_VIEW_INSET / 2 : WEB_VIEW_INSET;
+    // Keep the web view's rounded corners clear of the window edges.
+    auto left = sidebar_position == WebView::VerticalTabsPosition::Left ? WEB_VIEW_SIDEBAR_INSET : WEB_VIEW_INSET;
+    auto right = sidebar_position == WebView::VerticalTabsPosition::Right ? WEB_VIEW_SIDEBAR_INSET : WEB_VIEW_INSET;
     m_view_layout->setContentsMargins(left, 0, right, WEB_VIEW_INSET);
     m_view->set_has_rounded_corners(true);
 }
@@ -1629,7 +1632,7 @@ static int toolbar_extra_top_margin(bool window_controls_visible)
 
 int Tab::toolbar_height(bool window_controls_visible)
 {
-    return browser_chrome_layout_policy().toolbar_height + toolbar_extra_top_margin(window_controls_visible);
+    return browser_chrome_layout_policy().toolbar_height + toolbar_extra_top_margin(window_controls_visible) + (TOOLBAR_BOTTOM_MARGIN - TOOLBAR_VERTICAL_MARGIN);
 }
 
 void Tab::set_toolbar_window_controls_visible(bool visible)
@@ -1644,7 +1647,7 @@ void Tab::set_toolbar_window_controls_visible(bool visible)
     m_toolbar_window_controls_separator->setVisible(has_custom_window_controls);
     m_toolbar_window_controls->setVisible(has_native_window_controls || has_custom_window_controls);
     m_toolbar->setFixedHeight(toolbar_height(visible));
-    m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN + toolbar_extra_top_margin(visible), has_custom_window_controls ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
+    m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN + toolbar_extra_top_margin(visible), has_custom_window_controls ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_BOTTOM_MARGIN);
     m_toolbar->layout()->invalidate();
 }
 
@@ -1866,7 +1869,7 @@ void Tab::paintEvent(QPaintEvent*)
     // inset bends around that corner rather than meeting the sidebar in a square corner. At the top, the inset joins
     // the toolbar instead.
     // NB: The curve meets the sidebar's edge and the window's bottom edge in a tangent.
-    auto radius = m_view->viewport_corner_radius() + (WEB_VIEW_INSET / 2.0);
+    auto radius = m_view->viewport_corner_radius() + WEB_VIEW_SIDEBAR_INSET;
     auto left = *m_web_view_sidebar_position == WebView::VerticalTabsPosition::Right ? width() - radius : 0.0;
     auto curve_left = *m_web_view_sidebar_position == WebView::VerticalTabsPosition::Right ? width() - (2 * radius) : 0.0;
 

@@ -647,8 +647,9 @@ QString location_edit_style_sheet(QPalette const& palette)
     auto hover_color = mix(surface_color, chrome_background(palette), 0.35);
     auto focus_color = dark ? mix(surface_color, QColor(255, 255, 255), 0.035) : surface_color;
 
-    auto border_color = location_edit_border(palette);
-    auto hover_border_color = border_color;
+    // NB: In dark mode, the field is set apart from the toolbar by its darker fill alone, so its border takes its fill.
+    auto border_color = dark ? surface_color : location_edit_border(palette);
+    auto hover_border_color = dark ? hover_color : border_color;
     auto focus_border_color = location_edit_focus_border(palette);
 
     auto surface = style_sheet_color(surface_color);

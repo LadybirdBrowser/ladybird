@@ -144,13 +144,14 @@ void WebContentView::update_iosurface_layer_background_color()
     CGColorRelease(background_color);
 }
 
-// The rounded page is outlined like the location field, so that it stands apart from chrome of a similar color.
+// The rounded page is outlined like the location field, so that it stands apart from chrome of a similar color. In dark
+// mode, the page stands apart from the chrome around it without one, like the location field does.
 void WebContentView::update_iosurface_layer_border()
 {
     if (!m_iosurface_layer)
         return;
     auto* layer = as_layer(m_iosurface_layer);
-    if (viewport_corner_radius() <= 0) {
+    if (viewport_corner_radius() <= 0 || ChromeStyle::is_dark(window()->palette())) {
         layer.borderWidth = 0;
         return;
     }
