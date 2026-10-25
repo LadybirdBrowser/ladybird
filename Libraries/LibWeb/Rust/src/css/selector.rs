@@ -147,6 +147,7 @@ pub(crate) struct PseudoClassMetadata {
 pub(crate) enum PseudoElementParameterType {
     None,
     CompoundSelector,
+    HighlightNameSelector,
     IdentList,
     PTNameAndClassSelector,
 }

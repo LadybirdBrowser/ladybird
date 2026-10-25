@@ -201,6 +201,8 @@ Optional<StyleEngine::DemandedPseudoElement> StyleEngine::demanded_pseudo_elemen
     // The engine numbers each pseudo-element it answers as its kind: the synthetic ones, the ones an element in the
     // shadow tree backs, and the named view transition ones. ::part() and ::slotted() name other elements.
     switch (pseudo_element) {
+    // FIXME: Compute the styles of ::highlight() pseudo-elements for each custom highlight name.
+    case PseudoElement::Highlight:
     case PseudoElement::Part:
     case PseudoElement::Slotted:
     case PseudoElement::KnownPseudoElementCount:
