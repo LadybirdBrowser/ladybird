@@ -746,9 +746,15 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(Utf16FlySt
             // 1. Set eventHandler's value to null.
             event_handler->value = GC::Ptr<WebIDL::CallbackType> {};
 
-            // FIXME: 2. Report the error for the appropriate script and with the appropriate position (line number and column number) given by location, using settings object's global object.
+            // 2. Let syntaxError be a new SyntaxError exception associated with settings object's realm which describes
+            //    the error while parsing. It should be based on location, where the script body originated.
+            // FIXME: Base the error on location.
+            auto syntax_error = JS::SyntaxError::create(settings_object.realm(), compiled_function.release_error());
 
-            // 3. Return null.
+            // 3. Report an exception with syntaxError for settings object's global object.
+            HTML::report_an_exception(settings_object.global_object(), syntax_error);
+
+            // 4. Return null.
             return nullptr;
         }
 

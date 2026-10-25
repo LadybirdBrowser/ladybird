@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Invalid uncompiled raw handlers should only be compiled once
+1 Pass
+Pass	Invalid uncompiled raw handlers should only be compiled once

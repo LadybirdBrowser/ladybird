@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Compiling invalid uncompiled raw handlers should keep the position in event listener list
+1 Pass
+Pass	Compiling invalid uncompiled raw handlers should keep the position in event listener list
