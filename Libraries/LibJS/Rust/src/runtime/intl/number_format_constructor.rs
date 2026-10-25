@@ -22,11 +22,14 @@ use crate::runtime::intl::abstract_operations::{
     filter_locales, get_boolean_or_string_number_format_option, get_number_option, is_well_formed_currency_code,
     is_well_formed_unit_identifier, resolve_options, throw_option_is_not_valid_value,
 };
+use crate::runtime::intl::intl::Intl;
 use crate::runtime::intl::number_format::{ComputedRoundingPriority, NumberFormat, NumberFormatBase, currency_digits};
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::native_function::{NativeFunction, define_native_function_class, raw_native};
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
+use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::realm::Realm;
+use crate::runtime::value::ordinary_has_instance;
 use crate::unicode::number_format::{self as unicode, Notation, NumberFormatStyle, RoundingType};
 use crate::utf16::Utf16View;
 
@@ -102,9 +105,21 @@ impl NumberFormatConstructor {
 
     // 16.1.1 Intl.NumberFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.numberformat
     fn call(function: &NativeFunction, vm: &Vm) -> ThrowCompletionOr<Value> {
+        let this_value = vm.this_value();
+
         // 1. If NewTarget is undefined, let newTarget be the active function object, else let newTarget be NewTarget.
         let number_format = Self::construct(function, vm, function.as_function_object_gc())?;
-        Ok(Value::from_object(number_format))
+
+        // 26. If the implementation supports the normative optional constructor mode of 4.3 Note 1, then
+        //     a. Let this be the this value.
+        //     b. Return ? ChainNumberFormat(numberFormat, NewTarget, this).
+        // NB: ChainNumberFormat returns numberFormat when NewTarget is not undefined, so only [[Call]] performs it.
+        Ok(Value::from_object(chain_number_format(
+            vm,
+            number_format,
+            Value::UNDEFINED,
+            this_value,
+        )?))
     }
 
     // 16.1.1 Intl.NumberFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.numberformat
@@ -291,6 +306,37 @@ impl NumberFormatConstructor {
         // 3. Return ? FilterLocales(availableLocales, requestedLocales, options).
         Ok(Value::from_object(filter_locales(vm, &requested_locales, options)?))
     }
+}
+
+// 16.1.1.1 ChainNumberFormat ( numberFormat, newTarget, this ), https://tc39.es/ecma402/#sec-chainnumberformat
+fn chain_number_format(
+    vm: &Vm,
+    number_format: Gc<Object>,
+    new_target: Value,
+    this_value: Value,
+) -> ThrowCompletionOr<Gc<Object>> {
+    let realm = vm.current_realm().expect("a constructor runs in a realm");
+    let constructor = Value::from_object(realm.intrinsics().intl_number_format_constructor(vm));
+
+    // 1. If newTarget is undefined and ? OrdinaryHasInstance(%Intl.NumberFormat%, this) is true, then
+    if new_target.is_undefined() && ordinary_has_instance(vm, this_value, constructor)?.to_boolean() {
+        // a. Perform ? DefinePropertyOrThrow(this, %Intl%.[[FallbackSymbol]], PropertyDescriptor { [[Value]]: numberFormat, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
+        let this_object = this_value.as_object();
+        let mut descriptor = PropertyDescriptor {
+            value: Some(Value::from_object(number_format)),
+            writable: Some(false),
+            enumerable: Some(false),
+            configurable: Some(false),
+            ..Default::default()
+        };
+        this_object.define_property_or_throw(vm, &Intl::fallback_symbol(vm, realm), &mut descriptor)?;
+
+        // b. Return this.
+        return Ok(this_object);
+    }
+
+    // 2. Return numberFormat.
+    Ok(number_format)
 }
 
 // 16.1.2 SetNumberFormatDigitOptions ( intlObj, options, mnfdDefault, mxfdDefault, notation ), https://tc39.es/ecma402/#sec-setnfdigitoptions
