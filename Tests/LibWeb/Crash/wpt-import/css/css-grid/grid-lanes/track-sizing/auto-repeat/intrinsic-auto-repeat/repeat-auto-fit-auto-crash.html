@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<head>
+  <title>
+    repeat(auto-fit, auto) track size with no grid-lanes items should not crash.
+  </title>
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="help" href="https://issues.chromium.org/issues/432291718">
+  <link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+</head>
+<div style="display: grid-lanes; grid-template-columns: repeat(auto-fit, auto) 100px;"></div>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: subgrid item baseline alignment in the subgridded column axis in RTL</title>
+<link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-item-contribution">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/baseline/column-grid-lanes-item-baseline-subgrid-003-ref.html">
+<link rel="stylesheet" type="text/css" href="../../../../../../fonts/ahem.css">
+<style>
+  html, body { color: black; background: white; padding: 0; margin: 0; }
+  .grid-lanes {
+    display: grid-lanes;
+    grid-template-columns: auto;
+    font: 16px/1 Ahem;
+    border: 1px solid black;
+    place-content: start;
+    direction: rtl;
+    flow-tolerance: 0;
+    width: 80px;
+  }
+  .subgrid { display: grid; grid: auto / subgrid; justify-self: baseline; }
+  .b { text-decoration: underline; justify-self: baseline; writing-mode: vertical-rl; }
+  .big   { font-size: 40px; }
+  .small { font-size: 20px; }
+</style>
+<div class="grid-lanes">
+  <div class="b big">X</div>
+  <div class="subgrid"><div class="b small">X</div></div>
+</div>

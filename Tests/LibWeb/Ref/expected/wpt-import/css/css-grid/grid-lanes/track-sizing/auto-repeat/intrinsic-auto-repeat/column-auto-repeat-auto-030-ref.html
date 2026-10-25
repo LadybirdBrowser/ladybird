@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    grid-template-columns: 100px 200px;
+    grid-template-rows: 100px 100px;
+    width: 500px;
+    height: 300px;
+}
+
+.grid > div {
+    width: 300px;
+    height: 100px;
+    grid-column: span 2;
+}
+</style>
+<body>
+  <div class="grid">
+    <div style="background: lightskyblue;">
+      Number 1
+    </div>
+    <div style="background: lightcoral;">
+      Number 2
+    </div>
+  </div>
+</body>
+</html>

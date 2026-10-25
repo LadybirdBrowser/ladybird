@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<title>CSS Grid Lanes: automatic minimum size for grid-lanes containers respects single-axis scroll containers</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#masonry-layout-algorithm">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum">
+<link rel="author" title="Free Debreuil" href="mailto:freedebreuil@google.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<style>
+.flex {
+  display: flex;
+  flex-direction: column;
+}
+.masonry {
+  display: grid-lanes;
+  aspect-ratio: 1 / 1;
+  width: 100px;
+  height: auto;
+  flex-basis: 0px;
+}
+.rows {
+  grid-template-rows: auto;
+}
+.columns {
+  grid-template-columns: auto;
+}
+.content {
+  width: 100px;
+  height: 100px;
+}
+.clip {
+  overflow: clip;
+}
+.x-scroller {
+  overflow-x: hidden;
+  overflow-y: clip;
+}
+.y-scroller {
+  overflow-x: clip;
+  overflow-y: hidden;
+}
+</style>
+
+<p>
+  Within a column flex container, the grid-lanes container normally has an
+  automatic minimum block size that is equal to its min-content block size.
+  (100px, for our example) However, if the grid-lanes container has a scrollable
+  overflow value in the block axis, the automatic minimum block size is set to
+  zero.
+</p>
+
+<div class="flex">
+  <div class="masonry rows clip" data-expected-width="100" data-expected-height="100">
+    <div class="content"></div>
+  </div>
+  <div class="masonry rows y-scroller" data-expected-width="100" data-expected-height="0">
+    <div class="content"></div>
+  </div>
+  <div class="masonry rows x-scroller" data-expected-width="100" data-expected-height="100">
+    <div class="content"></div>
+  </div>
+
+  <div class="masonry columns clip" data-expected-width="100" data-expected-height="100">
+    <div class="content"></div>
+  </div>
+  <div class="masonry columns y-scroller" data-expected-width="100" data-expected-height="0">
+    <div class="content"></div>
+  </div>
+  <div class="masonry columns x-scroller" data-expected-width="100" data-expected-height="100">
+    <div class="content"></div>
+  </div>
+</div>
+
+<script>
+checkLayout('.masonry');
+</script>

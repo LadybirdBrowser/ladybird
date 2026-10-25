@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['grid-lanes-pack'] = "auto" should not set the property value
+Pass	e.style['grid-lanes-pack'] = "100px" should not set the property value
+Pass	e.style['grid-lanes-pack'] = "normal dense" should not set the property value
+Pass	e.style['grid-lanes-pack'] = "dense reverse" should not set the property value
+Pass	e.style['grid-lanes-pack'] = "pack" should not set the property value

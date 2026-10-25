@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf8">
+<title>CSS contain-intrinsic-size: unsized div, intrinsic-size is small</title>
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/../../../css-sizing/contain-intrinsic-size/contain-intrinsic-size-006-ref.html">
+<meta name="assert" content="content dimensions are ignored if intrinsic-size is specified">
+
+<style>
+#target {
+  display: grid-lanes;
+  background: lightblue;
+  contain-intrinsic-size: 5px 6px;
+  contain: size;
+}
+</style>
+
+<div id=target>Lorem ipsum</div>

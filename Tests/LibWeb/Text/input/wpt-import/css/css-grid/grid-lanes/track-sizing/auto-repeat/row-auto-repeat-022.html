@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<title>Auto-fit repeat tracks with fixed size and auto item placement</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    flow-tolerance: 0;
+    grid-template-rows: repeat(5, 100px) repeat(auto-fit, 100px);
+    width: 200px;
+    height: 1000px;
+}
+
+.grid-lanes > div {
+    height: 100%;
+    width: 100px;
+}
+</style>
+<div class="grid-lanes">
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+</div>
+<script>
+  test(function() {
+    const container = document.querySelector('.grid-lanes');
+    const computedStyle = window.getComputedStyle(container);
+    assert_equals(computedStyle.getPropertyValue('grid-template-rows'),
+      "100px 100px 100px 100px 100px 100px 0px 0px 0px 0px");
+  });
+</script>
+</html>

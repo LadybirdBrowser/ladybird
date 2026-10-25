@@ -1,0 +1,52 @@
+/* Basic Testing Setup */
+html,body {
+  color: black; background: white; font: 15px/1 monospace;
+  padding: 1em 0; margin: 0;
+  max-width: 800px; height: calc(600px - 2em);
+  border-bottom: 1px solid orange; /* Do Not Cross */
+}
+
+section {
+  float: left;
+}
+
+/* Visualization */
+grid {
+  margin: 0.5em;
+}
+item {
+  background-color: gray;
+  color: blue;
+}
+
+/* Debugging Aid */
+section {
+  border: 1px gray;
+  border-style: solid solid none none;
+  counter-reset: grid;
+}
+
+grid {
+  margin-inline-start: 1em;
+  counter-increment: grid;
+}
+grid::before {
+  position: absolute;
+  margin: 0 -1.1em;
+  font: smaller sans-serif;
+  content: counter(grid);
+  color: navy;
+}
+
+grid:hover {
+  outline: navy solid;
+}
+grid:hover item[style] {
+  color: navy;
+}
+grid:hover::after {
+  content: attr(title);
+  position: absolute;
+  inset: 0.1em auto auto 0.5rem;
+  font: bold smaller sans-serif;
+}

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .container {
+        border: 2px solid black;
+        margin: 10px;
+        height: 300px;
+        position: relative;
+    }
+
+    .grid {
+        display: grid;
+        border: 2px solid blue;
+        padding: 5px;
+        grid-template-columns: auto;
+        grid-template-rows: repeat(3, auto);
+    }
+
+    .oof-item {
+        position: absolute;
+        background: red;
+        color: white;
+        padding: 5px;
+        border: 1px solid darkred;
+    }
+
+    .oof-1 {
+        top: 50px;
+        left: 50px;
+        width: 60px;
+        height: 40px;
+    }
+
+    .oof-2 {
+        top: 150px;
+        left: 100px;
+        width: 70px;
+        height: 50px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="grid">
+    <div class="oof-item oof-1"></div>
+    <div class="oof-item oof-2"></div>
+  </div>
+</div>
+</body>
+</html>

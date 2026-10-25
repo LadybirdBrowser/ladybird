@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: leading stacking-axis padding is included in grid-lanes scrollable overflow</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/overflow/grid-lanes-overflowing-container-014-ref.html">
+  <meta name="assert" content="This test verifies that the inflow-bounds of a column-direction grid-lanes container are offset by the leading block padding, so the scrollable overflow accounts for both the leading and trailing stacking-axis padding.">
+  <style>
+    .grid-lanes {
+      display: grid-lanes;
+      flow-tolerance: 0;
+      grid-template-columns: 50px;
+      width: 100px;
+      height: 100px;
+      box-sizing: border-box;
+      padding: 20px 0 50px 0;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <p>Test passes if the container has a vertical scrollbar and the item starts after a small top gap.</p>
+  <div class="grid-lanes">
+    <div style="width:50px; height:60px; background:rgba(70,130,180,0.6);"></div>
+  </div>
+</body>
+</html>

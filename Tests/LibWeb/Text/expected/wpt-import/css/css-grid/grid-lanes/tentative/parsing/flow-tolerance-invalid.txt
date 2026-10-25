@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['flow-tolerance'] = "auto" should not set the property value
+Pass	e.style['flow-tolerance'] = "10" should not set the property value
+Pass	e.style['flow-tolerance'] = "10px 20px" should not set the property value
+Pass	e.style['flow-tolerance'] = "1fr" should not set the property value
+Pass	e.style['flow-tolerance'] = "-1px" should not set the property value
+Pass	e.style['flow-tolerance'] = "-10%" should not set the property value
+Pass	e.style['flow-tolerance'] = "normal 10px" should not set the property value
+Pass	e.style['flow-tolerance'] = "infinite 10px" should not set the property value
+Pass	e.style['flow-tolerance'] = "10px normal" should not set the property value
+Pass	e.style['flow-tolerance'] = "10px infinite" should not set the property value
+Pass	e.style['flow-tolerance'] = "normal infinite" should not set the property value
+Pass	e.style['flow-tolerance'] = "infinite normal" should not set the property value

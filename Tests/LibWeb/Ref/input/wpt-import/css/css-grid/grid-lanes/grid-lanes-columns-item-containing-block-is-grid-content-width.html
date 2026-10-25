@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#containing-block">
+<link rel="match" href="../../../../../expected/wpt-import//css/reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="Test passes if SVG uses grid's content logical width for its containing block size and get sized to 100px x 100px">
+<style>
+grid {
+    display: grid-lanes;
+    grid-template-rows: auto;
+}
+</style>
+</head>
+<body>
+<p>Test passes if there is a filled green square.</p>
+<grid>
+    <svg width="100" height="100" viewBox="0 0 1 1" style="width: 100%; max-width: 100px; background: green;"></svg>
+</grid>
+</body>
+</html>

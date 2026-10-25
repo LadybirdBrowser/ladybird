@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Grid Lanes Test: auto-fit rows and a single auto-placed subgrid</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<script src="../../../../../../resources/testharness.js"></script>
+<script src="../../../../../../resources/testharnessreport.js"></script>
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    flow-tolerance: 0;
+    grid-template-rows: repeat(auto-fit, 100px);
+    height: 400px;
+    width: 100px;
+}
+
+.subgrid {
+    display: grid;
+    grid-template-rows: subgrid;
+}
+
+.subgrid > div {
+    width: 100px;
+    height: 100px;
+}
+</style>
+<div class="grid-lanes">
+  <div class="subgrid" style="grid-row: span 1;">
+    <div></div>
+  </div>
+</div>
+<script>
+  test(function() {
+    const container = document.querySelector('.grid-lanes');
+    const computedStyle = window.getComputedStyle(container);
+    assert_equals(computedStyle.getPropertyValue('grid-template-rows'),
+      "100px 0px 0px 0px");
+  });
+</script>
+</html>

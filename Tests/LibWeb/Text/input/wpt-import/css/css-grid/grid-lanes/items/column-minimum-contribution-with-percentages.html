@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Layout Test: minimum contribution with percentages</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com" />
+<link rel="help" href="https://drafts.csswg.org/css-grid/#minimum-contribution">
+<meta name="assert" content="Checks that the minimum contribution is the minimum size when the preferred size is 'auto' or contains a percentage.">
+<style>
+#grid-lanes {
+  display: grid-lanes;
+  height: 50px;
+  width: 50px;
+  grid-template-columns: auto;
+}
+#item {
+  background: cyan;
+}
+#content {
+  height: 100px;
+  width: 100px;
+}
+.min {
+  min-height: calc(100% + 50px);
+  min-width: calc(100% + 50px);
+}
+.max {
+  max-height: calc(100% - 50px);
+  max-width: calc(100% - 50px);
+}
+.size {
+  height: calc(100% + 10px);
+  width: calc(100% + 10px);
+}
+</style>
+<div id="log"></div>
+<div id="grid-lanes">
+  <div id="item">
+    <div id="content"></div>
+  </div>
+</div>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+"use strict";
+const cs = getComputedStyle(document.getElementById("grid-lanes"));
+const item = document.getElementById("item");
+function check(name, size) {
+  item.className = name;
+  test(function() {
+    assert_equals(cs.gridTemplateColumns, size + "px", "grid-template-columns");
+  }, name + " - columns");
+}
+
+// The minimum contribution is the automatic minimum size (100px)
+// because the preferred size is 'auto'.
+check("auto", 100);
+
+// The minimum contribution is the minimum size (50px)
+// because the preferred size is 'auto'.
+check("min", 50);
+
+// The minimum contribution is the automatic minimum size (100px)
+// because the preferred size is 'auto'.
+check("max", 100);
+
+// The minimum contribution is the automatic minimum size (100px)
+// because the preferred size depends on the containing block.
+check("size", 100);
+
+// The minimum contribution is the minimum size (50px)
+// because the preferred size is 'auto'.
+check("min max", 50);
+
+// The minimum contribution is the minimum size (50px)
+// because the preferred size depends on the containing block.
+check("min size", 50);
+
+// The minimum contribution is the automatic minimum size (100px)
+// because the preferred size depends on the containing block.
+check("max size", 100);
+
+// The minimum contribution is the minimum size (50px)
+// because the preferred size depends on the containing block.
+check("min max size", 50);
+</script>

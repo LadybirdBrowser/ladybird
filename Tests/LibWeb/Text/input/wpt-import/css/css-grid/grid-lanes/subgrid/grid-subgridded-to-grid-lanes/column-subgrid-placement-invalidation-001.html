@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: column-direction subgridded item placement invalidation</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#track-sizing">
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+}
+#grid-lanes {
+  width: 200px;
+  display: grid-lanes;
+  background: lightgray;
+  grid-template-columns: [start] auto [end] 1fr;
+}
+#subgrid {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+#item {
+  width: 50px;
+  background: lightblue;
+  border: 5px solid gray;
+  grid-column: start / end;
+}
+</style>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="../../../../../resources/check-layout-th.js"></script>
+<div id="grid-lanes">
+  <div id="subgrid">
+    <div id="item" data-offset-x="140"></div>
+  </div>
+</div>
+<script>
+"use strict";
+
+let grid_lanes = document.getElementById("grid-lanes");
+let item = document.getElementById("item");
+
+// Computing an offset forces layout.
+let item_offset = item.offsetLeft;
+
+grid_lanes.style.gridTemplateColumns = "1fr [start] auto [end]";
+item_offset = item.offsetLeft;
+checkLayout("#item");
+</script>

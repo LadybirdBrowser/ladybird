@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>CSS Gap Decorations: between hides row rules beside a lane occupied only by a spanner</title>
+<link rel="author" title="Javier Contreras" href="mailto:javiercon@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/#visibility">
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/#segments">
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/#segment-endpoints">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-gaps/grid-lanes/row-gap-decorations-rule-visibility-items-between-006-ref.html">
+<style>
+  body { margin: 0; }
+  .lanes {
+    background: #cdd5e0;
+    display: grid-lanes;
+    gap: 20px;
+    grid-lanes-direction: row;
+    grid-template-rows: repeat(2, 60px);
+    row-rule: 4px solid blue;
+    row-rule-break: normal;
+    row-rule-visibility-items: between;
+    width: max-content;
+  }
+  .lanes > div {
+    background: #5b8def;
+    grid-row: 1;
+    width: 40px;
+  }
+  .lanes > .spanner {
+    background: #8a6df0;
+    grid-row: 1 / -1;
+  }
+</style>
+<div class="lanes">
+  <div></div>
+  <div class="spanner"></div>
+  <div></div>
+</div>

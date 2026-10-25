@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf8">
+
+<style>
+#grid {
+  display: grid;
+  grid-template-rows: repeat(2, 35px);
+  contain: size;
+  contain-intrinsic-block-size: 0px;
+  contain-intrinsic-inline-size: 10px;
+  width: max-content;
+  background: lightblue;
+}
+.item {
+  background: lightgreen;
+  opacity: 0.5;
+  width: 20px;
+  height: 20px;
+}
+</style>
+
+<div id=grid></div>

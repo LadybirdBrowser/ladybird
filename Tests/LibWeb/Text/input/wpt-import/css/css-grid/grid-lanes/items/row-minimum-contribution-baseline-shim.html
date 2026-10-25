@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Layout Test: minimum contribution with baseline-alignment shim</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#algo-content" title="11.5. Resolve Intrinsic Track Sizes">
+<meta name="assert" content="Checks that the minimum contribution takes the baseline-alignment shim into account when calculating the outer size that grid-lanes items would have if their preferred size were their minimum size. Also checks that the shim is used again when clamping the automatic minimum size to less than or equal to the stretch fit into the grid area.">
+<style>
+.grid-lanes {
+  display: grid-lanes;
+  position: relative;
+  font-size: 0;
+  height: 0;
+  width: 0;
+  margin-bottom: 125px;
+  align-items: baseline;
+}
+.item1 {
+  padding-top: 25px;
+  background: yellow;
+}
+.item2 {
+  padding-bottom: 25px;
+  background: magenta;
+}
+.item1::before, .item2::before {
+  content: '';
+  display: inline-block;
+  width: 50px;
+  height: 25px;
+  vertical-align: bottom;
+}
+.item2::before {
+  vertical-align: top;
+}
+.area {
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  grid-column: 1 / 3;
+  grid-row: 1 / 2;
+  background: cyan;
+}
+</style>
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/check-layout-th.js"></script>
+
+<div id="log"></div>
+
+<div class="grid-lanes" style="grid-template-rows: minmax(auto, 0px);">
+  <div class="item1" data-offset-x="0" data-offset-y="0"></div>
+  <div class="item2" data-offset-x="50" data-offset-y="50"></div>
+  <div class="area" data-expected-height="75"></div>
+</div>
+
+<div class="grid-lanes" style="grid-template-rows: minmax(auto, 75px);">
+  <div class="item1" data-offset-x="0" data-offset-y="0"></div>
+  <div class="item2" data-offset-x="50" data-offset-y="50"></div>
+  <div class="area" data-expected-height="75"></div>
+</div>
+
+<div class="grid-lanes" style="grid-template-rows: minmax(auto, 88px);">
+  <div class="item1" data-offset-x="0" data-offset-y="0"></div>
+  <div class="item2" data-offset-x="50" data-offset-y="50"></div>
+  <div class="area" data-expected-height="88"></div>
+</div>
+
+<div class="grid-lanes" style="grid-template-rows: minmax(auto, 100px);">
+  <div class="item1" data-offset-x="0" data-offset-y="0"></div>
+  <div class="item2" data-offset-x="50" data-offset-y="50"></div>
+  <div class="area" data-expected-height="100"></div>
+</div>
+
+<div class="grid-lanes" style="grid-template-rows: minmax(auto, 150px);">
+  <div class="item1" data-offset-x="0" data-offset-y="0"></div>
+  <div class="item2" data-offset-x="50" data-offset-y="50"></div>
+  <div class="area" data-expected-height="100"></div>
+</div>
+
+<div class="grid-lanes" style="grid-template-rows: minmax(auto, auto);">
+  <div class="item1" data-offset-x="0" data-offset-y="0"></div>
+  <div class="item2" data-offset-x="50" data-offset-y="50"></div>
+  <div class="area" data-expected-height="100"></div>
+</div>
+
+<script>
+checkLayout(".grid-lanes");
+</script>

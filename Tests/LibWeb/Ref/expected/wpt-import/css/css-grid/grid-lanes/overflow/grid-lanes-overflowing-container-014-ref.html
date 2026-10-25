@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .container {
+      display: grid;
+      grid-template-columns: 50px;
+      width: 100px;
+      height: 100px;
+      box-sizing: border-box;
+      padding: 20px 0 50px 0;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <p>Test passes if the container has a vertical scrollbar and the item starts after a small top gap.</p>
+  <div class="container">
+    <div style="width:50px; height:60px; background:rgba(70,130,180,0.6);"></div>
+  </div>
+</body>
+</html>

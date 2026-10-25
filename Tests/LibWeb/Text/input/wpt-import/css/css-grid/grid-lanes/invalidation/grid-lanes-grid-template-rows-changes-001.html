@@ -1,0 +1,76 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: grid-template-rows dynamic changes</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <meta name="assert" content="This test checks that items with percentage heights resolve against the updated track size when grid-template-rows changes dynamically in a grid-lanes container.">
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+  <script src="../../../../resources/check-layout-th.js"></script>
+  <style>
+    .grid-lanes {
+      display: grid-lanes;
+      grid-lanes-direction: row;
+      background-color: grey;
+    }
+    .item {
+      width: 30px;
+      height: 100%;
+      background: blue;
+    }
+  </style>
+</head>
+<body>
+<!-- Single item -->
+<div class="grid-lanes" id="gridLanes1">
+  <div class="item" data-expected-height="50"></div>
+</div>
+
+<!-- Two items for multi-row tests. -->
+<div class="grid-lanes" id="gridLanes2">
+  <div class="item" data-expected-height="60"></div>
+  <div class="item"></div>
+</div>
+
+<!-- Sized container for fr tests. -->
+<div class="grid-lanes" id="gridLanesSized" style="height: 300px">
+  <div class="item" data-expected-height="300"></div>
+</div>
+
+<script>
+setup({ explicit_done: true });
+
+function testLayout(gridElementID, rows, expectedHeight, last = false) {
+    var gridLanesElement = document.getElementById(gridElementID);
+    gridLanesElement.style.gridTemplateRows = rows;
+    var gridLanesItem = gridLanesElement.children[0];
+    gridLanesItem.setAttribute("data-expected-height", expectedHeight);
+    checkLayout("#" + gridElementID, last);
+}
+
+function updateRows() {
+    testLayout("gridLanes1", "50px", "50");
+    testLayout("gridLanes1", "100px", "100");
+    testLayout("gridLanes1", "200px", "200");
+
+    testLayout("gridLanes1", "minmax(30px, 80px)", "80");
+    testLayout("gridLanes1", "minmax(50px, 120px)", "120");
+
+    testLayout("gridLanes2", "60px 80px", "60");
+    testLayout("gridLanes2", "100px 50px", "100");
+    testLayout("gridLanes2", "40px 40px", "40");
+
+    testLayout("gridLanesSized", "1fr", "300");
+    testLayout("gridLanesSized", "1fr 1fr", "150");
+    testLayout("gridLanesSized", "1fr 2fr", "100");
+    testLayout("gridLanesSized", "100px 1fr", "100");
+
+    done();
+}
+
+updateRows();
+</script>
+</body>
+</html>

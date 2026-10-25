@@ -1,0 +1,25 @@
+<!DOCTYPE HTML>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#abspos">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/abspos/column-grid-lanes-out-of-flow-004-ref.html">
+<meta name="assert" content="Checks that scrollbars are included in calculating the grid-area.">
+<style>
+#container {
+  display: grid-lanes;
+  grid-template-columns: 1fr;
+  height: 100px;
+  width: 100px;
+  overflow: scroll;
+  border: solid 3px;
+  position: relative;
+}
+
+#container > div {
+  position: absolute;
+  background: green;
+  inset: 0;
+  grid-column-start: 1;
+}
+</style>
+<div id="container">
+  <div></div>
+</div>

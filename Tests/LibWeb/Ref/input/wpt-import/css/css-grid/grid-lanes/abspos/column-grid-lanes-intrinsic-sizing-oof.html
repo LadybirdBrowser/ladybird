@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: Grid Lanes layout intrinsic size with only OOF children</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#track-sizing">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#abspos">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/abspos/column-grid-lanes-intrinsic-sizing-oof-ref.html">
+  <style>
+    .container {
+        border: 2px solid black;
+        margin: 10px;
+        width: 300px;
+        position: relative;
+    }
+
+    .grid-lanes {
+        display: grid-lanes;
+        grid-template-columns: repeat(3, auto);
+        border: 2px solid blue;
+    }
+
+    .oof-item {
+        position: absolute;
+        background: red;
+        color: white;
+        padding: 5px;
+        border: 1px solid darkred;
+    }
+
+    .oof-1 {
+        top: 50px;
+        left: 50px;
+        width: 60px;
+        height: 40px;
+    }
+
+    .oof-2 {
+        top: 100px;
+        left: 150px;
+        width: 70px;
+        height: 50px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="grid-lanes">
+    <div class="oof-item oof-1"></div>
+    <div class="oof-item oof-2"></div>
+  </div>
+</div>
+</body>
+</html>

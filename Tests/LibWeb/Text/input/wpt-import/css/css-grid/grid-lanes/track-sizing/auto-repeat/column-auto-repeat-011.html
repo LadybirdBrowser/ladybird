@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<title>Auto repeat tracks and percentage max sizes</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<meta name="assert" content="This test checks that auto repeat tracks use percentage max size when size is indefinite to compute the number of tracks.">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<style>
+.grid-lanes {
+    position: relative;
+    display: grid-lanes;
+    grid-template-columns: repeat(auto-fill, 100px);
+    max-width: 50%;
+    max-height: 80%;
+    background: pink;
+}
+.wrapper {
+  width: 600px;
+  height: 250px;
+}
+.item {
+  background: lime;
+  /* Place item on the last column. */
+  grid-column: -2;
+  width: 100%;
+  height: 200px;
+}
+</style>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="../../../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.grid-lanes');">
+
+<div id="log"></div>
+
+<div class="wrapper">
+  <div class="grid-lanes" data-expected-width="300" data-expected-height="200">
+    <div class="item" data-offset-x="200" data-offset-y="0" data-expected-width="100" data-expected-height="200"></div>
+  </div>
+</div>
+
+<div class="wrapper">
+  <div class="grid-lanes" style="width: 200px; height: 100px;" data-expected-width="200" data-expected-height="100">
+    <div class="item" data-offset-x="100" data-offset-y="0" data-expected-width="100" data-expected-height="200"></div>
+  </div>
+</div>
+
+<div class="wrapper">
+  <div class="grid-lanes" style="width: min-content; height: min-content;" data-expected-width="300" data-expected-height="200">
+    <div class="item" data-offset-x="200" data-offset-y="0" data-expected-width="100" data-expected-height="200"></div>
+  </div>
+</div>
+
+<div class="wrapper">
+  <div class="grid-lanes" style="width: max-content; height: max-content;" data-expected-width="300" data-expected-height="200">
+    <div class="item" data-offset-x="200" data-offset-y="0" data-expected-width="100" data-expected-height="200"></div>
+  </div>
+</div>
+
+</body>

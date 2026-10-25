@@ -1,0 +1,40 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: nested subgrid item using line names from grid-lanes (rows)</title>
+  <link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/line-names/row-line-names-001-ref.html">
+  <style>
+html,body {
+  color:black; background-color:white; font:24px/1 monospace; padding:0; margin:0;
+}
+
+.grid-lanes {
+  display: inline-grid-lanes;
+  grid-template-rows: [a] 50px 50px [a] 50px 50px [a];
+  padding: 20px 10px;
+}
+
+.subgrid {
+  display: grid;
+  grid: subgrid / 50px;
+  grid-row: 1 / span 4;
+}
+
+x { background: grey; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid-lanes">
+  <div class="subgrid">
+    <div class="subgrid" style="grid-row: 1 / span 3">
+      <x style="grid-row: span a / a -1"></x>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

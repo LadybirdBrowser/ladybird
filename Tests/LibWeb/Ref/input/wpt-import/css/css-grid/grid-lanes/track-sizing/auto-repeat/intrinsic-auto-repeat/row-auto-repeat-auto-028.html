@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<title>Auto repeat tracks with auto track sizes and % sized children with auto sized container</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<!-- No content is produced because there is nothing to size the rows
+or items against in the block axis. -->
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/../../../../../reference/blank.html">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    background: gray;
+    flow-tolerance: 0;
+    grid-template-rows: repeat(auto-fill, auto);
+    width: auto;
+    height: auto;
+}
+
+.grid-lanes > div {
+    height: 100%;
+    width: 100px;
+}
+</style>
+<div class="grid-lanes">
+  <div style="background: lightskyblue;"></div>
+  <div style="background: lightcoral;"></div>
+  <div style="background: lightgreen;"></div>
+</div>
+</html>

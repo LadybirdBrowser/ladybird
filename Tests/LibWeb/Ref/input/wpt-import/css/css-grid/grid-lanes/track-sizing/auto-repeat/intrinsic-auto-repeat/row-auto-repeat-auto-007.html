@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>Checks that the min-height is reflected through the aspect-ratio for determining auto repeat tracks.</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/../../../../../reference/ref-filled-green-100px-square-only.html">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<style>
+.grid-lanes {
+    display: inline grid-lanes;
+    background: green;
+    aspect-ratio: 1/1;
+    grid-template-rows: repeat(auto-fill, auto);
+    min-height: 60%;
+}
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div style="width: 100px; height: 100px; background: green;">
+  <div style="height: 100%;">
+    <div class="grid-lanes">
+      <div style="width: 1px; height: 50px;"></div>
+    </div>
+  </div>
+</div>

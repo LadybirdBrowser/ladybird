@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .container {
+      display: grid;
+      grid-auto-flow: column;
+      grid-template-rows: 50px;
+      width: 100px;
+      height: 100px;
+      padding: 0 50px 0 0;
+      box-sizing: border-box;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <p>Test passes if the container has a horizontal scrollbar and the item fills the left portion.</p>
+  <div class="container">
+    <div style="width:80px; height:50px; background:rgba(70,130,180,0.6);"></div>
+  </div>
+</body>
+</html>

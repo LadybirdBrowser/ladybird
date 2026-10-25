@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="author" title="Javier Contreras"
+      href="mailto:javiercon@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#repeat-auto-fit">
+<style>
+  body { margin: 0; }
+  .lanes {
+    display: grid-lanes;
+    grid-template-columns: repeat(auto-fit, 50px);
+    gap: 10px;
+    width: 350px;
+    height: 90px;
+    background: #cdd5e0;
+  }
+</style>
+<div class="lanes"></div>

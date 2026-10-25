@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head>
+  <title>CSS Grid Lanes Test: grid-template-columns interpolation</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/animation/grid-template-columns-001-ref.html">
+  <meta name="assert" content="grid-template-columns interpolates from 20px to 100px, reaching 60px at 50% animation progress on a grid-lanes container.">
+  <style>
+    @keyframes anim {
+      from {
+        grid-template-columns: 20px 1fr;
+      }
+      to {
+        grid-template-columns: 100px 1fr;
+      }
+    }
+    .grid-lanes {
+      display: grid-lanes;
+      width: 400px;
+      gap: 10px;
+      animation: anim 10s -5s paused linear;
+    }
+    span { border: 1px solid; }
+  </style>
+</head>
+<body>
+  <div class="grid-lanes">
+    <span>column1</span>
+    <span>column2</span>
+  </div>
+  <script>
+    requestAnimationFrame(() => {
+      document.documentElement.classList.remove('reftest-wait');
+    });
+  </script>
+</body>
+</html>

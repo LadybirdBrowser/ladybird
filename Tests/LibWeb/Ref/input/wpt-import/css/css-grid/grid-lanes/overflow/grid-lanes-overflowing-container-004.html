@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: oversized item overflowing in one dimension</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/overflow/../../grid-model/reference/100x100-grey-box-with-horizontal-scrollbar.html">
+  <meta name="assert" content="This test verifies that a horizontal scrollbar is shown when an item is pushed past the right edge of the grid-lanes container via margin-left.">
+  <style>
+    .grid-lanes {
+      display: grid-lanes;
+      flow-tolerance: 0;
+      grid-template-columns: 100px;
+      width: 100px;
+      height: 100px;
+      background-color: grey;
+      overflow: auto;
+    }
+    .item {
+      margin-left: 100px;
+      width: 50px;
+      height: 50px;
+    }
+  </style>
+</head>
+<body>
+  <p>The test passes if you see a grey square below and only the horizontal scrollbar is visible.</p>
+  <div class="grid-lanes">
+    <div class="item"></div>
+  </div>
+</body>
+</html>

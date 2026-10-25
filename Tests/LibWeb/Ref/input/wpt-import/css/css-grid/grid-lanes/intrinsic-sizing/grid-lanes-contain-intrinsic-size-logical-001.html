@@ -1,0 +1,11 @@
+<!doctype html>
+<meta charset="utf8">
+<title>CSS contain-intrinsic-size: Logical versions</title>
+<link rel="author" title="Google LLC" href="https://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/../../../reference/ref-filled-green-100px-square-only.html">
+
+<p>Test passes if there is a filled green square.</p>
+
+<div style="display: grid-lanes; contain: size; contain-intrinsic-inline-size: 50px; contain-intrinsic-block-size: 100px; background: green; writing-mode: vertical-lr;"></div>
+<div style="width: 100px; height: 50px; background: green;"></div>

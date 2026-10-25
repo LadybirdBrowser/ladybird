@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf8">
+<title>CSS contain-intrinsic-size: grid definite size, large size</title>
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-row-005-ref.html">
+<meta name="assert" content="If contain:size is set, but intrinsic block size is 0 and border, scrollbar, padding is 0, block size should be zero, and the page should be empty.">
+
+<style>
+#grid {
+  display: grid-lanes;
+  grid-template-rows: repeat(2, 35px);
+  contain: size;
+  contain-intrinsic-block-size: 0;
+  contain-intrinsic-inline-size: 10px;
+  width: max-content;
+  background: lightblue;
+}
+.item {
+  background: lightgreen;
+  opacity: 0.5;
+  width: 20px;
+  height: 20px;
+}
+</style>
+
+<div id=grid></div>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/grid-lanes/column-empty-grid-lanes-container-002-ref.html">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    background: gray;
+    position: relative;
+    flow-tolerance: 0;
+    padding: 20px;
+}
+</style>
+<body>
+  <p>Test that an empty grid-lanes container still renders padding.</p>
+  <div class="grid-lanes"></div>
+</body>
+</html>

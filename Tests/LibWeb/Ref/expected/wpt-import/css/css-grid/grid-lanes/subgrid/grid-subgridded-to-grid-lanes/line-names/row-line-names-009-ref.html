@@ -1,0 +1,23 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace; padding:0; margin:0;
+}
+
+.grid-lanes > div { background: grey; grid-row:2 / span 2; }
+
+x { background: silver; }
+  </style>
+</head>
+<body>
+
+<div class="grid-lanes" style="display:inline-grid-lanes; grid-template-rows: repeat(4, 30px);">
+  <div style="display:grid; grid:auto / subgrid [a] [b] [c];">
+    <x style="grid-row: 3">x</x>
+  </div>
+</div>
+
+</body>
+</html>

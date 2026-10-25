@@ -1,0 +1,26 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace; padding:0; margin:0;
+}
+
+.grid-lanes > div { background: grey; grid-column:2 / span 2; }
+
+x { background: silver; }
+  </style>
+</head>
+<body>
+
+<div style="display:inline-grid-lanes; grid-template-columns: subgrid [a] [b] [c] [d];">
+  <x style="grid-column: 2 / 3">x</x>
+</div>
+
+<div style="display:inline-grid-lanes; grid-template-columns: repeat(4, 30px);">
+  <div style="display:grid; grid:subgrid [c] [d] [d] [e] / auto;">
+    <x style="grid-column: 3">x</x>
+  </div>
+</div>
+</body>
+</html>

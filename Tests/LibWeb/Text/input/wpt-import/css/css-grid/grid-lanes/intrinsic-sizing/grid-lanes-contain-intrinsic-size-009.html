@@ -1,0 +1,69 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS contain-intrinsic-size: select multiple</title>
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<meta name="assert" content="contain-intrinsic-size sizes select multiple">
+
+<style>
+.cis-both {
+  contain-intrinsic-size: 55px 66px;
+}
+
+.cis-width {
+  contain-intrinsic-size: 55px none;
+}
+
+.cis-height {
+  contain-intrinsic-size: none 66px;
+}
+
+select {
+  padding: 0;
+}
+
+.test {
+  display: grid-lanes;
+  contain: size;
+  background: lightblue;
+  border: 1px solid blue;
+  margin: 5px;
+}
+</style>
+
+<!-- To measure the size of an empty <select> without size containment -->
+<select id="reference" multiple size="2"></select>
+
+<select multiple class="test cis-both"
+data-expected-client-width="55" data-expected-client-height="66"></select>
+<select multiple class="test cis-width"
+data-expected-client-width="55"></select>
+<select multiple class="test cis-height"
+data-expected-client-height="66"></select>
+
+<select multiple size="2" class="test cis-width"
+data-expected-client-width="55"></select>
+<select multiple size="2" class="test cis-height"
+data-expected-client-height="66"></select>
+
+<select multiple size="10" class="test cis-width"
+data-expected-client-width="55"></select>
+<select multiple size="10" class="test cis-height"
+data-expected-client-height="66"></select>
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/check-layout-th.js"></script>
+<script>
+const reference = document.getElementById("reference");
+const normalWidth = reference.clientWidth;
+for (let test of document.querySelectorAll(".test.cis-width")) {
+  reference.size = test.size || 4;
+  test.dataset.expectedClientHeight = reference.clientHeight;
+}
+for (let test of document.querySelectorAll(".test.cis-height")) {
+  test.dataset.expectedClientWidth = normalWidth;
+ }
+
+checkLayout('.test');
+</script>

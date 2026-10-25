@@ -1,0 +1,51 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: adding child to grid-lanes container triggers relayout</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+  <script src="../../../../resources/check-layout-th.js"></script>
+  <style>
+    .grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: repeat(2, 50px);
+      position: relative;
+      flow-tolerance: 0;
+    }
+  </style>
+</head>
+<body>
+<div class="grid-lanes" id="gridLanes">
+  <div id="A" data-offset-x="0" data-offset-y="0" style="height: 40px; background: blue;"></div>
+  <div id="B" data-offset-x="50" data-offset-y="0" style="height: 20px; background: orange;"></div>
+  <div id="C" data-offset-x="50" data-offset-y="20" style="height: 30px; background: green;"></div>
+</div>
+
+<script>
+setup({ explicit_done: true });
+
+function testInsertChild() {
+    checkLayout("#gridLanes", false);
+
+    // Insert D(30) as the 3rd child (between B and C).
+    // C moves from col2 to col1 due to the insertion.
+    var newItem = document.createElement("div");
+    newItem.id = "D";
+    newItem.style.cssText = "height: 30px; background: purple;";
+    var grid = document.getElementById("gridLanes");
+    grid.insertBefore(newItem, document.getElementById("C"));
+
+    document.getElementById("D").setAttribute("data-offset-x", "50");
+    document.getElementById("D").setAttribute("data-offset-y", "20");
+    document.getElementById("C").setAttribute("data-offset-x", "0");
+    document.getElementById("C").setAttribute("data-offset-y", "40");
+    checkLayout("#gridLanes", true);
+}
+
+testInsertChild();
+</script>
+</body>
+</html>

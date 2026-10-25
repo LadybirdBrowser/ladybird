@@ -1,0 +1,13 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<title>Setting grid-lanes-direction on the attributeStyleMap should not crash</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://issues.chromium.org/issues/481737052">
+<div id="t"></div>
+<script>
+  t.attributeStyleMap.set("grid-lanes-direction", new CSSKeywordValue("row"));
+  t.attributeStyleMap.set("grid-lanes-direction", new CSSKeywordValue("column"));
+  t.attributeStyleMap.set("grid-lanes-direction", new CSSKeywordValue("normal"));
+  t.attributeStyleMap.set("grid-lanes-direction", new CSSKeywordValue("fill-reverse"));
+  t.attributeStyleMap.set("grid-lanes-direction", new CSSKeywordValue("track-reverse"));
+</script>

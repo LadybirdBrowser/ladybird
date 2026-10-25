@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Reference: subgrid inherits a named line</title>
+<link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+<style>
+body {
+  margin: 0;
+}
+
+.grid-lanes {
+  display: grid-lanes;
+  grid-template-columns: [before] 100px 100px 100px;
+  width: 300px;
+}
+
+.subgrid {
+  display: grid;
+  grid: 100px / subgrid;
+  grid-column: 1 / -1;
+}
+
+x {
+  background: green;
+  grid-column: before / span 1;
+}
+</style>
+<div class="grid-lanes">
+  <div class="subgrid">
+    <x></x>
+  </div>
+</div>

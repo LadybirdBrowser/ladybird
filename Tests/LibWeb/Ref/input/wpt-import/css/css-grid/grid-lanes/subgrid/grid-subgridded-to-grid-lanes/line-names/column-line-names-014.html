@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: Clamping a nested subgrid's grid-template-areas (columns)</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/line-names/../../../../../reference/ref-filled-green-100px-square.xht">
+<style>
+.grid-lanes {
+  background: red;
+  display: grid-lanes;
+  grid-template-columns: 50px 50px;
+  height: 100px;
+  width: 100px;
+}
+.subgrid {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-template-rows: 50px 50px;
+  grid-column: span 2;
+  grid-template-areas: "item item"
+                       "item item";
+}
+.item {
+  background: green;
+  grid-area: item;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="grid-lanes">
+  <div class="subgrid">
+    <div class="subgrid">
+      <div class="item"></div>
+    </div>
+  </div>
+</div>

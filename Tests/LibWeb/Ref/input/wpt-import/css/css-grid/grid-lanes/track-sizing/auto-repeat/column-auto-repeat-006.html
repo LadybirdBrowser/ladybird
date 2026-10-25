@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>Checks that a dynamic change in containing block width changes the number of auto repeat tracks.</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/auto-repeat/../../../../reference/ref-filled-green-100px-square-only.html">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<style>
+.grid-lanes {
+    display: inline grid-lanes;
+    background: green;
+    height: 100px;
+    min-width: 60%;
+    grid-template-columns: repeat(auto-fill, 50px);
+}
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div id="target" style="width: 0px; height: 100px;">
+  <div class="grid-lanes"></div>
+</div>
+<script>
+  document.body.offsetTop;
+  document.getElementById('target').style.width = '100px';
+</script>

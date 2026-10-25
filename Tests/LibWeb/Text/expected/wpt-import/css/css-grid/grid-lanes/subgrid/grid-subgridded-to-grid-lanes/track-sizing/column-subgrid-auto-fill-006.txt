@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 21 tests
+
+21 Fail
+Fail	Orthogonal (vertical-lr) named line placement (t1)
+Fail	Orthogonal (vertical-lr) named line placement (t2)
+Fail	Orthogonal (vertical-lr) named line placement (t3)
+Fail	Orthogonal (vertical-lr) named line placement (t4)
+Fail	Orthogonal (vertical-lr) named line placement (t5)
+Fail	Orthogonal (vertical-lr) named line placement (t6)
+Fail	Orthogonal (vertical-lr) named line placement (t7)
+Fail	Orthogonal (vertical-lr) named line placement (t8)
+Fail	Orthogonal (vertical-lr) named line placement (t9)
+Fail	Orthogonal (vertical-lr) named line placement (t10)
+Fail	Orthogonal (vertical-lr) named line placement (t11)
+Fail	Orthogonal (vertical-lr) named line placement (t12)
+Fail	Orthogonal (vertical-lr) named line placement (t13)
+Fail	Orthogonal (vertical-lr) named line placement (t14)
+Fail	Orthogonal (vertical-lr) named line placement (t15)
+Fail	Orthogonal (vertical-lr) named line placement (t16)
+Fail	Orthogonal (vertical-lr) named line placement (t17)
+Fail	Orthogonal (vertical-lr) named line placement (t18)
+Fail	Orthogonal (vertical-lr) named line placement (t19)
+Fail	Orthogonal (vertical-lr) named line placement (t20)
+Fail	Orthogonal (vertical-lr) named line placement (t21)
