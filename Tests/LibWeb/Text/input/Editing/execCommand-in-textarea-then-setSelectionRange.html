@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="textarea" style="height: 40px"></textarea>
+<script>
+    promiseTest(async () => {
+        textarea.focus();
+        for (let i = 0; i < 20; ++i)
+            document.execCommand("insertText", false, `\nline ${i}`);
+        textarea.setSelectionRange(0, 0);
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        println(`scrolled to the edit caret: ${textarea.scrollTop > 0}`);
+    });
+</script>

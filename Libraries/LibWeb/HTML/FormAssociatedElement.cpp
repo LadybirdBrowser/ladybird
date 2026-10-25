@@ -1195,6 +1195,12 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#set-the-selection-range
 void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, SelectionDirection direction, SelectionSource source)
 {
+    // NB: A cursor reveal that an earlier execCommand() edit left pending is for the cursor that edit placed, so reveal
+    //     it before the selection moves. Edits that execCommand() is making right now set the selection here too, and
+    //     they keep their reveal pending.
+    if (m_cursor_reveal_after_edit == CursorRevealAfterEdit::Immediately)
+        reveal_cursor_if_pending();
+
     // 1. If start is null, let start be 0.
     start = start.value_or(0);
 
@@ -1315,7 +1321,7 @@ void FormAssociatedTextControlElement::handle_insert(Utf16FlyString const& input
 
     did_edit_text_node(input_type, data_for_input_event);
     html_element.document().spell_check_controller().did_user_edit(html_element);
-    scroll_cursor_into_view();
+    reveal_cursor_after_edit();
 }
 
 GC::Ptr<DOM::StaticRange> FormAssociatedTextControlElement::deletion_target_range(Utf16FlyString const& input_type)
@@ -1404,7 +1410,7 @@ void FormAssociatedTextControlElement::handle_delete(Utf16FlyString const& input
 
     did_edit_text_node(input_type, {});
     html_element.document().spell_check_controller().did_user_edit(html_element);
-    scroll_cursor_into_view();
+    reveal_cursor_after_edit();
 }
 
 Optional<Utf16String> FormAssociatedTextControlElement::selected_text_for_stringifier() const
@@ -1440,8 +1446,27 @@ void FormAssociatedTextControlElement::move_selection_end_to(size_t offset, Text
         history->selection_changed();
 }
 
+void FormAssociatedTextControlElement::reveal_cursor_after_edit()
+{
+    // NB: Only the focused text control reveals its cursor in the rendering update, so a control that lost focus during
+    //     the edit reveals it right away.
+    if (m_cursor_reveal_after_edit == CursorRevealAfterEdit::InNextRenderingUpdate && text_control_to_html_element().is_focused()) {
+        m_has_pending_cursor_reveal = true;
+        return;
+    }
+    scroll_cursor_into_view();
+}
+
+void FormAssociatedTextControlElement::reveal_cursor_if_pending()
+{
+    if (m_has_pending_cursor_reveal)
+        scroll_cursor_into_view();
+}
+
 void FormAssociatedTextControlElement::scroll_cursor_into_view()
 {
+    m_has_pending_cursor_reveal = false;
+
     auto& element = text_control_to_html_element();
     Layout::ForcedReadScope read { element.document() };
     element.document().update_layout(DOM::UpdateLayoutReason::ScrollCursorIntoView);

@@ -310,6 +310,16 @@ public:
 
     GC::Ptr<DOM::Position> cursor_position() const;
 
+    // NB: Edits that script makes with execCommand() reveal the cursor in the next rendering update instead of right
+    //     away, so that a run of them lays out the text control once instead of after each edit. A pending reveal is
+    //     made right away if the control loses focus or script moves its selection before that rendering update.
+    enum class CursorRevealAfterEdit : u8 {
+        Immediately,
+        InNextRenderingUpdate,
+    };
+    void set_cursor_reveal_after_edit(CursorRevealAfterEdit reveal) { m_cursor_reveal_after_edit = reveal; }
+    void reveal_cursor_if_pending();
+
 protected:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     void relevant_value_was_changed();
@@ -323,6 +333,7 @@ private:
     void move_selection_end_to(size_t offset, TextAffinity, CollapseSelection);
     void move_cursor_by_page(bool forward, CollapseSelection);
     void scroll_cursor_into_view();
+    void reveal_cursor_after_edit();
     void selection_was_changed(SelectionSource);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-selection
@@ -335,6 +346,9 @@ private:
 
     // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
     bool m_has_scheduled_selectionchange_event { false };
+
+    CursorRevealAfterEdit m_cursor_reveal_after_edit { CursorRevealAfterEdit::Immediately };
+    bool m_has_pending_cursor_reveal { false };
 };
 
 }

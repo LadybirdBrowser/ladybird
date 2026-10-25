@@ -89,6 +89,13 @@ static Optional<bool> query_command_enabled_in_text_control(Document& document, 
 
 static bool exec_command_in_text_control(HTML::FormAssociatedTextControlElement& control, Utf16FlyString const& command, Utf16View value)
 {
+    // NB: See the note at CursorRevealAfterEdit.
+    using CursorRevealAfterEdit = HTML::FormAssociatedTextControlElement::CursorRevealAfterEdit;
+    control.set_cursor_reveal_after_edit(CursorRevealAfterEdit::InNextRenderingUpdate);
+    ScopeGuard reveal_cursor_immediately_again = [&] {
+        control.set_cursor_reveal_after_edit(CursorRevealAfterEdit::Immediately);
+    };
+
     if (command == Editing::CommandNames::delete_) {
         control.handle_delete(UIEvents::InputTypes::deleteContentBackward);
     } else if (command == Editing::CommandNames::forwardDelete) {

@@ -1607,6 +1607,8 @@ void HTMLInputElement::did_receive_focus()
 
 void HTMLInputElement::did_lose_focus()
 {
+    reveal_cursor_if_pending();
+
     if (m_text_node)
         m_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
