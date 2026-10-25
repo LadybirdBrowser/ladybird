@@ -11,14 +11,12 @@
 #include <LibCompositing/DisplayList/ContextRef.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCompositing/Export.h>
-#include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/CornerRadii.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
-#include <LibGfx/WindingRule.h>
 
 namespace Compositing {
 
@@ -50,7 +48,6 @@ public:
     SpatialNodeIndex append_scroll(SpatialNodeIndex parent);
     SpatialNodeIndex append_sticky(SpatialNodeIndex parent, StickyConstraints const&);
     ClipNodeIndex append_clip(ClipNodeIndex parent, SpatialNodeIndex spatial, Gfx::FloatRect, Gfx::CornerRadii = {}, ClipMode = ClipMode::Intersect);
-    // The frame a context names for recording under the given clip and effect.
 
     AccumulatedVisualContextTree finish();
 
