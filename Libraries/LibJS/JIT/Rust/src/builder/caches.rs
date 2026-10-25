@@ -82,6 +82,9 @@ pub(super) struct CacheEntry {
     pub holds_accessor: bool,
     /// Whether a `Set` writes a data property the object has.
     pub writes_data_property: bool,
+    /// Whether the property holds data while its holder keeps its shape (see
+    /// `PropertyCacheEntrySnapshot::property_holds_data`).
+    pub property_holds_data: bool,
     /// The function of the accessor the property held, which an access may
     /// call inline.
     pub accessor_function: Option<AccessorFunctionSnapshot>,
@@ -163,6 +166,7 @@ impl CacheEntry {
             action,
             holds_accessor: entry.holds_accessor,
             writes_data_property: entry.writes_data_property,
+            property_holds_data: entry.property_holds_data,
             accessor_function: entry.accessor_function,
             prototype_property: entry
                 .prototype_property
@@ -273,7 +277,11 @@ impl GraphBuilder<'_> {
     ) -> Option<NodeId> {
         let entries = self.entries_for_known_shape(object, entries);
         let shapes = entries.iter().map(|entry| self.shape_guard(entry)).collect::<Vec<_>>();
-        let one_action = entries.iter().all(|entry| entry.action == entries[0].action);
+        // NB: The action applies the first entry's, so entries that differ in whether the property holds data do not
+        //     share one.
+        let one_action = entries.iter().all(|entry| {
+            entry.action == entries[0].action && entry.property_holds_data == entries[0].property_holds_data
+        });
         self.dispatch_on_shapes(object, entries, &shapes, one_action, apply)
     }
 

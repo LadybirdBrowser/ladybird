@@ -703,6 +703,11 @@ pub struct PropertyCacheEntrySnapshot {
     /// for `GetOwnProperty` entries the getter of the accessor the property
     /// held when the interpreter last called it.
     pub accessor_function: Option<AccessorFunctionSnapshot>,
+    /// Whether the receiver's own property is writable in its shape: only
+    /// data properties are, so loads and stores of it need not check for an
+    /// accessor while the object keeps the shape. Always false for
+    /// properties of prototypes.
+    pub property_holds_data: bool,
     /// Whether the property held an accessor: for `GetOwnProperty` entries
     /// when the interpreter last called its getter, and for entries of a
     /// prototype when the snapshot was taken. Loads of the property as data

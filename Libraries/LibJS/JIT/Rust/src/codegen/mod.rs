@@ -1628,24 +1628,28 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.masm.move_imm64(scratch, function.0);
                 self.masm.branch64_memory(Condition::NotEqual, &field, scratch, exit);
             }
-            Op::LoadNamed { offset } => {
-                let exit = self.exit_site(node_id);
+            Op::LoadNamed { offset, holds_data } => {
+                let exit = (!holds_data).then(|| self.exit_site(node_id));
                 let output = self.output(node_id);
                 let slot = self.named_property_address(output, *offset)?;
                 let cell = self.cell_address_of(node_id, output, 1);
                 let storage = Address::new(cell, self.runtime.offsets.object_named_properties as i32);
                 self.masm.load64(output, &storage);
-                self.emit_exit_if_accessor(&slot, exit);
+                if let Some(exit) = exit {
+                    self.emit_exit_if_accessor(&slot, exit);
+                }
                 self.masm.load64(output, &slot);
             }
-            Op::StoreNamed { offset } => {
-                let exit = self.exit_site(node_id);
+            Op::StoreNamed { offset, holds_data } => {
+                let exit = (!holds_data).then(|| self.exit_site(node_id));
                 let storage = Gpr(self.allocation.node(node_id).temps[0]);
                 let slot = self.named_property_address(storage, *offset)?;
                 let cell = self.cell_address_of(node_id, storage, 2);
                 let storage_field = Address::new(cell, self.runtime.offsets.object_named_properties as i32);
                 self.masm.load64(storage, &storage_field);
-                self.emit_exit_if_accessor(&slot, exit);
+                if let Some(exit) = exit {
+                    self.emit_exit_if_accessor(&slot, exit);
+                }
                 self.masm.store64(&slot, self.input(node_id, 1));
             }
             Op::AddNamed { offset, shape, .. } => self.emit_add_named(node_id, *offset, *shape)?,

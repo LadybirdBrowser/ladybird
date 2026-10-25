@@ -150,13 +150,34 @@ impl GraphBuilder<'_> {
     }
 
     pub(super) fn load_named(&mut self, object: NodeId, offset: u32) -> NodeId {
+        self.load_named_holding(object, offset, false)
+    }
+
+    /// Loads the named property at `offset` of `object`, which checks before
+    /// ensure holds data if `holds_data`.
+    pub(super) fn load_named_holding(&mut self, object: NodeId, offset: u32, holds_data: bool) -> NodeId {
         let address = self.cell_address(object);
-        self.emit_checked(Op::LoadNamed { offset }, vec![object, address], Some(Repr::Tagged))
+        let op = Op::LoadNamed { offset, holds_data };
+        if holds_data {
+            return self.emit(op, vec![object, address], Some(Repr::Tagged));
+        }
+        self.emit_checked(op, vec![object, address], Some(Repr::Tagged))
     }
 
     pub(super) fn store_named(&mut self, object: NodeId, offset: u32, value: NodeId) {
+        self.store_named_holding(object, offset, value, false);
+    }
+
+    /// Stores into the named property at `offset` of `object`, which checks
+    /// before ensure holds data if `holds_data`.
+    pub(super) fn store_named_holding(&mut self, object: NodeId, offset: u32, value: NodeId, holds_data: bool) {
         let address = self.cell_address(object);
-        self.emit_checked(Op::StoreNamed { offset }, vec![object, value, address], None);
+        let op = Op::StoreNamed { offset, holds_data };
+        if holds_data {
+            self.emit(op, vec![object, value, address], None);
+            return;
+        }
+        self.emit_checked(op, vec![object, value, address], None);
     }
 
     /// Loads the property a `Get` entry describes, from the object itself or
@@ -171,7 +192,7 @@ impl GraphBuilder<'_> {
             valid,
         } = holder
         else {
-            return self.load_named(object, offset);
+            return self.load_named_holding(object, offset, entry.property_holds_data);
         };
         self.check_prototype_chain(validity, valid);
         self.embed(prototype);
@@ -769,7 +790,7 @@ impl GraphBuilder<'_> {
             let Action::Set { offset, .. } = entry.action else {
                 unreachable!("only sets store");
             };
-            builder.store_named(object, offset, value);
+            builder.store_named_holding(object, offset, value, entry.property_holds_data);
             None
         });
         Ok(true)
