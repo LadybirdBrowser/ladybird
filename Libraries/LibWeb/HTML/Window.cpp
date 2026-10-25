@@ -1403,12 +1403,20 @@ u32 Window::length()
     return associated_document().document_tree_child_navigables().size();
 }
 
+// INTEROP: Browsers discard the navigables of a removed navigable container right away, while the spec only destroys
+//          their documents in a later task. So we treat a navigable in a destroyed subtree as discarded, except while
+//          the document is being unloaded: browsers unload it during the removal, when it is not discarded yet.
+static bool has_been_discarded(Navigable const& navigable, DOM::Document const& document)
+{
+    return navigable.is_in_a_destroyed_subtree() && document.unload_counter() == 0;
+}
+
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-top
 GC::Ptr<WindowProxy const> Window::top() const
 {
     // 1. If this's navigable is null, then return null.
     auto navigable = this->navigable();
-    if (!navigable)
+    if (!navigable || has_been_discarded(*navigable, associated_document()))
         return {};
 
     // 2. Return this's navigable's top-level traversable's active WindowProxy.
@@ -1460,7 +1468,7 @@ GC::Ptr<WindowProxy const> Window::parent() const
     GC::Ptr<Navigable> navigable = this->navigable();
 
     // 2. If navigable is null, then return null.
-    if (!navigable)
+    if (!navigable || has_been_discarded(*navigable, associated_document()))
         return {};
 
     // 3. If navigable's parent is not null, then set navigable to navigable's parent.

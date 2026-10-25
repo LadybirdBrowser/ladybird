@@ -247,10 +247,11 @@ WebIDL::ExceptionOr<void> RemoteWindow::post_message(JS::Realm& realm, JS::Value
     //     process, which forwards it there. That process represents the source's navigable, which names the source.
     //     A source whose [[Window]] has no navigable is null there.
     Optional<CrossProcessId> source_navigable_id;
+    // NB: A navigable in a destroyed subtree is discarded, like it is for the source's window.parent.
     if (auto remote_window = prepared.source->remote_window()) {
-        if (auto source_navigable = remote_window->navigable())
+        if (auto source_navigable = remote_window->navigable(); source_navigable && !source_navigable->is_in_a_destroyed_subtree())
             source_navigable_id = source_navigable->id();
-    } else if (auto source_navigable = prepared.source->window()->navigable()) {
+    } else if (auto source_navigable = prepared.source->window()->navigable(); source_navigable && !source_navigable->is_in_a_destroyed_subtree()) {
         source_navigable_id = source_navigable->id();
     }
     PostedMessageDescriptor posted_message {
