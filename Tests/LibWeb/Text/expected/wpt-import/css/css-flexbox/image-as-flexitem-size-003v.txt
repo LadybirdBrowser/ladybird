@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 18 tests
 
-16 Pass
-2 Fail
+18 Pass
 Pass	.flexbox > img 1
 Pass	.flexbox > img 2
 Pass	.flexbox > img 3
@@ -19,6 +18,6 @@ Pass	.flexbox > img 12
 Pass	.flexbox > img 13
 Pass	.flexbox > img 14
 Pass	.flexbox > img 15
-Fail	.flexbox > img 16
+Pass	.flexbox > img 16
 Pass	.flexbox > img 17
-Fail	.flexbox > img 18
+Pass	.flexbox > img 18
