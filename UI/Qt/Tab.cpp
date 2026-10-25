@@ -49,6 +49,7 @@
 #include <QMimeData>
 #include <QMimeDatabase>
 #include <QPainter>
+#include <QPainterPath>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QResizeEvent>
@@ -364,7 +365,6 @@ static constexpr int TOOLBAR_HORIZONTAL_MARGIN = 12;
 static constexpr int WEB_VIEW_INSET = 6;
 #endif
 static constexpr int TOOLBAR_VERTICAL_MARGIN = 2;
-static constexpr int TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP = 8;
 static constexpr int TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN = 4;
 static constexpr int DOWNLOADS_POPOVER_WIDTH = 380;
 static constexpr int DOWNLOADS_POPOVER_MAX_HEIGHT = 360;
@@ -818,7 +818,6 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
     QObject::connect(m_stop_action, &QAction::triggered, this, [this] {
         view().stop_loading();
     });
-    m_toggle_vertical_tabs_expanded_action = create_application_action(*this, application.toggle_vertical_tabs_expanded_action());
     m_open_downloads_page_action = create_application_action(*this, application.open_downloads_page_action());
 
     m_downloads_button = new DownloadsButton(m_toolbar);
@@ -905,12 +904,6 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
     navigation_button_layout->setSpacing(2);
     navigation_button_layout->setContentsMargins(0, 0, 0, 0);
 
-    m_left_toggle_vertical_tabs_expanded_button = create_toolbar_button(*navigation_button_cluster, *m_toggle_vertical_tabs_expanded_action);
-    m_right_toggle_vertical_tabs_expanded_button = create_toolbar_button(*m_toolbar, *m_toggle_vertical_tabs_expanded_action);
-    m_sidebar_toggle_navigation_spacer = new QSpacerItem(0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
-
-    navigation_button_layout->addWidget(m_left_toggle_vertical_tabs_expanded_button);
-    navigation_button_layout->addItem(m_sidebar_toggle_navigation_spacer);
     navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_back_action, -1));
     navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action, 1));
     m_reload_button = create_toolbar_button<ReloadButton>(*navigation_button_cluster, *m_reload_action);
@@ -943,7 +936,6 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
     toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
     toolbar_layout->addWidget(m_private_badge, 0, Qt::AlignVCenter);
     toolbar_layout->addWidget(m_content_blocking_button, 0, Qt::AlignVCenter);
-    toolbar_layout->addWidget(m_right_toggle_vertical_tabs_expanded_button, 0, Qt::AlignVCenter);
     toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignVCenter);
 
     if constexpr (!use_native_macos_window_controls()) {
@@ -1489,7 +1481,6 @@ void Tab::ensure_loaded()
     // TabWidget pushed these while the tab had no toolbar to apply them to.
     set_vertical_tabs_enabled(m_vertical_tabs_enabled);
     recreate_toolbar_icons();
-    update_vertical_tabs_toolbar_button_placement();
     set_toolbar_window_controls_visible(toolbar_window_controls_visible);
 
     if (m_session_tab_id.has_value())
@@ -1580,24 +1571,7 @@ void Tab::set_vertical_tabs_enabled(bool enabled)
         return;
 
     m_toolbar->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
-    if (m_sidebar_toggle_navigation_spacer)
-        m_sidebar_toggle_navigation_spacer->changeSize(enabled ? TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP : 0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
-    update_vertical_tabs_toolbar_button_placement();
     update_bookmarks_bar_visibility();
-    m_toolbar->layout()->invalidate();
-}
-
-void Tab::set_vertical_tabs_position(WebView::VerticalTabsPosition position)
-{
-    if (m_vertical_tabs_position == position)
-        return;
-
-    m_vertical_tabs_position = position;
-    if (!is_loaded())
-        return;
-
-    recreate_toolbar_icons();
-    update_vertical_tabs_toolbar_button_placement();
     m_toolbar->layout()->invalidate();
 }
 
@@ -1606,6 +1580,7 @@ void Tab::update_web_view_frame(bool chrome_visible, Optional<WebView::VerticalT
 {
     m_web_view_chrome_visible = chrome_visible;
     m_web_view_sidebar_position = sidebar_position;
+    update();
     if (!is_loaded())
         return;
 
@@ -1616,9 +1591,10 @@ void Tab::update_web_view_frame(bool chrome_visible, Optional<WebView::VerticalT
         return;
     }
 
-    // Keep the web view's rounded corners clear of the window edges. The sidebar has its own padding.
-    auto left = sidebar_position == WebView::VerticalTabsPosition::Left ? 0 : WEB_VIEW_INSET;
-    auto right = sidebar_position == WebView::VerticalTabsPosition::Right ? 0 : WEB_VIEW_INSET;
+    // Keep the web view's rounded corners clear of the window edges. The sidebar has its own padding, so a narrower frame
+    // of the toolbar's color sets the page apart from it.
+    auto left = sidebar_position == WebView::VerticalTabsPosition::Left ? WEB_VIEW_INSET / 2 : WEB_VIEW_INSET;
+    auto right = sidebar_position == WebView::VerticalTabsPosition::Right ? WEB_VIEW_INSET / 2 : WEB_VIEW_INSET;
     m_view_layout->setContentsMargins(left, 0, right, WEB_VIEW_INSET);
     m_view->set_has_rounded_corners(true);
 }
@@ -1644,6 +1620,18 @@ void Tab::set_toolbar_container_in_tab_layout(bool in_tab_layout)
     }
 }
 
+// NB: The location field gets a point more room above it below the horizontal tab strip, where the selected tab flows
+//     into the toolbar, and at the top of a macOS window, whose outline covers the toolbar's first point.
+static int toolbar_extra_top_margin(bool window_controls_visible)
+{
+    return use_native_macos_window_controls() || !window_controls_visible ? 1 : 0;
+}
+
+int Tab::toolbar_height(bool window_controls_visible)
+{
+    return browser_chrome_layout_policy().toolbar_height + toolbar_extra_top_margin(window_controls_visible);
+}
+
 void Tab::set_toolbar_window_controls_visible(bool visible)
 {
     m_toolbar_window_controls_visible = visible;
@@ -1655,22 +1643,8 @@ void Tab::set_toolbar_window_controls_visible(bool visible)
 
     m_toolbar_window_controls_separator->setVisible(has_custom_window_controls);
     m_toolbar_window_controls->setVisible(has_native_window_controls || has_custom_window_controls);
-    auto top_margin = TOOLBAR_VERTICAL_MARGIN;
-    auto toolbar_height = browser_chrome_layout_policy().toolbar_height;
-    // NB: Below the horizontal tab strip, the selected tab flows into the toolbar, so the location field gets a point more
-    //     room above it.
-    if (!visible) {
-        ++top_margin;
-        ++toolbar_height;
-    }
-#ifdef AK_OS_MACOS
-    // NB: A toolbar holding the window controls is the top of the window, whose outline covers its first point.
-    auto window_outline_width = visible ? 1 : 0;
-    top_margin += window_outline_width;
-    toolbar_height += window_outline_width;
-#endif
-    m_toolbar->setFixedHeight(toolbar_height);
-    m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, top_margin, has_custom_window_controls ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
+    m_toolbar->setFixedHeight(toolbar_height(visible));
+    m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN + toolbar_extra_top_margin(visible), has_custom_window_controls ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
     m_toolbar->layout()->invalidate();
 }
 
@@ -1793,11 +1767,7 @@ void Tab::tab_settings_changed()
 
     auto const& tab_settings = WebView::Application::settings().tab_settings();
     m_vertical_tabs_enabled = tab_settings.vertical_tabs_enabled;
-    m_vertical_tabs_position = tab_settings.vertical_tabs_position;
-    if (m_sidebar_toggle_navigation_spacer)
-        m_sidebar_toggle_navigation_spacer->changeSize(m_vertical_tabs_enabled ? TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP : 0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
     recreate_toolbar_icons();
-    update_vertical_tabs_toolbar_button_placement();
     update_bookmarks_bar_visibility();
     m_toolbar->layout()->invalidate();
 }
@@ -1886,7 +1856,27 @@ void Tab::paintEvent(QPaintEvent*)
 {
     // The inset around the web view should match the chrome surrounding it.
     QPainter painter(this);
-    painter.fillRect(rect(), ChromeStyle::chrome_background(window()->palette()));
+    auto const& palette = window()->palette();
+    painter.fillRect(rect(), ChromeStyle::chrome_background(palette));
+
+    if (!m_web_view_chrome_visible || !m_web_view_sidebar_position.has_value() || !is_loaded())
+        return;
+
+    // At the bottom of the window, the sidebar's color reaches around the web view's rounded corner beside it, so the
+    // inset bends around that corner rather than meeting the sidebar in a square corner. At the top, the inset joins
+    // the toolbar instead.
+    // NB: The curve meets the sidebar's edge and the window's bottom edge in a tangent.
+    auto radius = m_view->viewport_corner_radius() + (WEB_VIEW_INSET / 2.0);
+    auto left = *m_web_view_sidebar_position == WebView::VerticalTabsPosition::Right ? width() - radius : 0.0;
+    auto curve_left = *m_web_view_sidebar_position == WebView::VerticalTabsPosition::Right ? width() - (2 * radius) : 0.0;
+
+    QPainterPath corner;
+    corner.addRect(left, height() - radius, radius, radius);
+    QPainterPath inside;
+    inside.addEllipse(curve_left, height() - (2 * radius), 2 * radius, 2 * radius);
+
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.fillPath(corner.subtracted(inside), ChromeStyle::chrome_tab_strip_background(palette));
 }
 #endif
 
@@ -1998,11 +1988,6 @@ void Tab::update_chrome_style()
 
 void Tab::recreate_toolbar_icons()
 {
-    auto vertical_tabs_are_expanded = WebView::Application::settings().tab_settings().vertical_tabs_expanded;
-    auto vertical_tabs_icon = m_vertical_tabs_position == WebView::VerticalTabsPosition::Right
-        ? (vertical_tabs_are_expanded ? ChromeIcon::VerticalTabBarCollapseRight : ChromeIcon::VerticalTabBarExpandRight)
-        : (vertical_tabs_are_expanded ? ChromeIcon::VerticalTabBarCollapse : ChromeIcon::VerticalTabBarExpand);
-    m_toggle_vertical_tabs_expanded_action->setIcon(create_chrome_icon(vertical_tabs_icon, palette()));
     m_navigate_back_action->setIcon(create_chrome_icon(ChromeIcon::Back, palette()));
     m_navigate_forward_action->setIcon(create_chrome_icon(ChromeIcon::Forward, palette()));
     m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, palette()));
@@ -2224,17 +2209,6 @@ void Tab::show_content_blocking_popover()
     move_popover_below(*m_content_blocking_popover, *m_content_blocking_button);
     m_content_blocking_popover->raise();
     m_content_blocking_popover->focus_switch();
-}
-
-void Tab::update_vertical_tabs_toolbar_button_placement()
-{
-    auto show_left_button = m_vertical_tabs_enabled && m_vertical_tabs_position == WebView::VerticalTabsPosition::Left;
-    auto show_right_button = m_vertical_tabs_enabled && m_vertical_tabs_position == WebView::VerticalTabsPosition::Right;
-
-    if (m_left_toggle_vertical_tabs_expanded_button)
-        m_left_toggle_vertical_tabs_expanded_button->setVisible(show_left_button);
-    if (m_right_toggle_vertical_tabs_expanded_button)
-        m_right_toggle_vertical_tabs_expanded_button->setVisible(show_right_button);
 }
 
 void Tab::show_private_session_popover()

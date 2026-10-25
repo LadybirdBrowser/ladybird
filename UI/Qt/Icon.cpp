@@ -159,23 +159,33 @@ static QPainterPath horizontally_flipped_path(QPainterPath const& path)
     return transform.map(path);
 }
 
+// The expanded sidebar's button shows the sidebar with an arrow into it. The collapsed sidebar's button is a double
+// chevron pointing away from the sidebar's edge of the window.
 static void draw_vertical_tab_bar_icon(QPainter& painter, QColor const& color, bool expanded, bool right_side)
 {
+    if (!expanded) {
+        QPainterPath chevrons;
+        chevrons.moveTo(6.0, 6.3);
+        chevrons.lineTo(9.7, 10.0);
+        chevrons.lineTo(6.0, 13.7);
+        chevrons.moveTo(10.6, 6.3);
+        chevrons.lineTo(14.3, 10.0);
+        chevrons.lineTo(10.6, 13.7);
+        if (right_side)
+            chevrons = horizontally_flipped_path(chevrons);
+        draw_stroked_icon_path(painter, chevrons, color, 1.7);
+        return;
+    }
+
     QPainterPath tab_bar;
     tab_bar.addRoundedRect(QRectF(3.8, 4.2, 12.4, 11.6), 1.6, 1.6);
     tab_bar.moveTo(7.8, 4.6);
     tab_bar.lineTo(7.8, 15.4);
 
     QPainterPath arrow;
-    if (expanded) {
-        arrow.moveTo(13.1, 7.8);
-        arrow.lineTo(10.3, 10.0);
-        arrow.lineTo(13.1, 12.2);
-    } else {
-        arrow.moveTo(10.7, 7.8);
-        arrow.lineTo(13.5, 10.0);
-        arrow.lineTo(10.7, 12.2);
-    }
+    arrow.moveTo(13.1, 7.8);
+    arrow.lineTo(10.3, 10.0);
+    arrow.lineTo(13.1, 12.2);
 
     if (right_side) {
         tab_bar = horizontally_flipped_path(tab_bar);
