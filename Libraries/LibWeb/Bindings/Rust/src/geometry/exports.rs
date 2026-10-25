@@ -115,8 +115,7 @@ pub extern "C" fn web_dom_rect_list_create(vm: &Vm, rects: ak::Span<'_, [f64; 4]
     for &[x, y, width, height] in rects.as_slice() {
         created.push(allocate(vm, |_| DOMRect::new(x, y, width, height)));
     }
-    let list = DOMRectList::new(&created.values());
-    cell_into_abi(allocate(vm, |_| list))
+    cell_into_abi(allocate(vm, |defer_gc| DOMRectList::new(defer_gc, &created.values())))
 }
 
 /// A new DOMMatrix whose elements m11, m12, m13, m14, m21, ..., m44 are the values, in that order.

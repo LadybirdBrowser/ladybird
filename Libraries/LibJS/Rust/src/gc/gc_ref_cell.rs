@@ -41,6 +41,10 @@ impl<T> GcRefCell<T> {
     pub fn replace(&self, value: T) -> T {
         self.0.replace(value)
     }
+
+    pub fn swap(&self, other: &Self) {
+        self.0.swap(&other.0);
+    }
 }
 
 impl<T: Default> Default for GcRefCell<T> {

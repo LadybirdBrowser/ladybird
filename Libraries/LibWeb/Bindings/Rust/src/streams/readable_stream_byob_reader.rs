@@ -8,7 +8,7 @@
 
 use std::collections::VecDeque;
 
-use libjs_rust::api::{GcRefCell, MarkedVec, Trace, Value, Vm};
+use libjs_rust::api::{DeferGc, GcRefCell, MarkedVec, Trace, Value, Vm};
 
 use crate::bindings::conversions::{ArrayBufferView, BufferSource};
 use crate::bindings::interface::{Ref, Wrappable, allocate};
@@ -44,7 +44,7 @@ pub(crate) struct ReadableStreamBYOBReader {
 impl Wrappable for ReadableStreamBYOBReader {}
 
 impl ReadableStreamBYOBReader {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(_: &DeferGc<'_>) -> Self {
         Self {
             generic: ReadableStreamGenericReader::default(),
             read_into_requests: GcRefCell::new(VecDeque::new()),
@@ -87,7 +87,7 @@ impl ReadableStreamBYOBReader {
 
     // https://streams.spec.whatwg.org/#byob-reader-constructor
     pub(crate) fn construct(cx: &mut CallContext, stream: Ref<ReadableStream>) -> WebIdlResult<Ref<Self>> {
-        let reader = allocate(cx.vm(), |_| Self::new());
+        let reader = allocate(cx.vm(), Self::new);
 
         // 1. Perform ? SetUpReadableStreamBYOBReader(this, stream).
         set_up_readable_stream_byob_reader(cx, reader, stream)?;

@@ -165,8 +165,8 @@ impl HostModule {
     ) -> Gc<HostModule> {
         let (class, allocator) = runtime_class_and_allocator_of_host_class(vm, host_class, JS_HOST_CLASS_MODULE);
         module_hooks_of(host_class);
-        vm.heap().allocate_in(allocator, |_| HostModule {
-            base: CyclicModule::new(class, realm, filename, false, requested_modules, host_defined),
+        vm.heap().allocate_in(allocator, |defer_gc| HostModule {
+            base: CyclicModule::new(defer_gc, class, realm, filename, false, requested_modules, host_defined),
             host_class,
             host_data,
         })

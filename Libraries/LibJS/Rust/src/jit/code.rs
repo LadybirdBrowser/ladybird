@@ -18,6 +18,7 @@ use super::entry_table::{JIT_ENTRY_SLOT_MASK, JitEntryTable, NO_JIT_ENTRY_SLOT};
 use super::executable_memory::ExecutableMemory;
 use crate::bytecode::executable::{Executable, PropertyLookupCache, PropertyLookupCacheTier};
 use crate::gc::defer_gc::DeferGc;
+use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -220,10 +221,9 @@ impl JitCode {
     }
 
     /// Gives the code where its frames keep the index of a site and the register dump the runtime reads.
-    pub fn with_frame_offsets(mut self, site_index_frame_offset: i32, register_dump_frame_offset: i32) -> Self {
+    pub fn set_frame_offsets(&mut self, site_index_frame_offset: i32, register_dump_frame_offset: i32) {
         self.site_index_frame_offset = site_index_frame_offset;
         self.register_dump_frame_offset = register_dump_frame_offset;
-        self
     }
 
     pub fn register_dump_frame_offset(&self) -> i32 {
@@ -271,21 +271,18 @@ impl JitCode {
     }
 
     /// Gives the code its id among all code the VM installed, and the bytes that invalidate it.
-    pub fn with_invalidation(mut self, id: u64, invalidation_patches: Vec<(u32, Vec<u8>)>) -> Self {
+    pub fn set_invalidation(&mut self, id: u64, invalidation_patches: Vec<(u32, Vec<u8>)>) {
         self.id = id;
         self.invalidation_patches = invalidation_patches;
-        self
     }
 
     /// Gives the code the loop back edges in the loops around those of its on-stack replacement entries.
-    pub fn with_osr_outer_loop_back_edges(mut self, osr_outer_loop_back_edges: Vec<u32>) -> Self {
+    pub fn set_osr_outer_loop_back_edges(&mut self, osr_outer_loop_back_edges: Vec<u32>) {
         self.osr_outer_loop_back_edges = osr_outer_loop_back_edges;
-        self
     }
 
-    pub fn with_uncaught_handlers(mut self, uncaught_handlers: Vec<u32>) -> Self {
+    pub fn set_uncaught_handlers(&mut self, uncaught_handlers: Vec<u32>) {
         self.uncaught_handlers = uncaught_handlers;
-        self
     }
 
     /// Whether the handler whose `Catch` is at `pc` has no catch entry only because it never caught an exception
@@ -495,11 +492,15 @@ impl Executable {
     }
 
     /// Frees the slot of the executable, which died, and drops its JIT code.
-    pub fn free_jit_entry_slot(&self, vm: &Vm) {
+    pub fn free_jit_entry_slot(&self, vm: &Vm, sweep: &Sweep<'_>) {
         let Some(table) = vm.jit.entry_table.as_ref() else {
             return;
         };
-        let Some(mut code) = table.free(self.head.jit_entry_slot.get(), core::ptr::from_ref(&self.head) as u64) else {
+        let Some(mut code) = table.free(
+            self.head.jit_entry_slot.get(),
+            core::ptr::from_ref(&self.head) as u64,
+            sweep,
+        ) else {
             return;
         };
         // OPTIMIZATION: The compile threads allocated the sites, so one of them frees them, outside the collection
@@ -625,12 +626,12 @@ impl Executable {
 
     /// Makes new frames of the executable run in its JIT code. Frames of it that run in the interpreter count down
     /// `tier_up_budget` from here, and continue in the code at an on-stack replacement entry once it runs out.
-    pub fn install_jit_code(&self, vm: &Vm, code: JitCode, tier_up_budget: i32) {
+    pub fn install_jit_code(&self, vm: &Vm, code: JitCode, tier_up_budget: i32, defer_gc: &DeferGc<'_>) {
         let (table, slot) = self
             .jit_entry_table_slot(vm)
             .expect("only executables with a JIT entry slot are compiled");
         table.set_entry(slot, Some(code.entry() as *const c_void));
-        table.attach_code(slot, code);
+        table.attach_code(slot, code, defer_gc);
         self.set_jit_compile_state(CompileState::Installed);
         self.head.tier_up_budget.set(tier_up_budget);
     }

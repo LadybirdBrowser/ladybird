@@ -83,7 +83,7 @@ impl WeakSetConstructor {
             realm,
             new_target,
             Intrinsics::weak_set_prototype,
-            |_, prototype| WeakSet::new(vm, prototype),
+            |defer_gc, prototype| WeakSet::new(defer_gc, vm, prototype),
         )?;
 
         // 4. If iterable is either undefined or null, return set.

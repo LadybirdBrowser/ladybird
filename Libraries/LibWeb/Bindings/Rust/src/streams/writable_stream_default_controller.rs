@@ -9,7 +9,7 @@
 
 use core::cell::Cell;
 
-use libjs_rust::api::{GcRefCell, Trace, Value, Vm};
+use libjs_rust::api::{DeferGc, GcRefCell, Trace, Value, Vm};
 
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::{Ref, Wrappable, allocate, wrap};
@@ -70,11 +70,11 @@ pub(crate) struct WritableStreamDefaultController {
 impl Wrappable for WritableStreamDefaultController {}
 
 impl WritableStreamDefaultController {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(defer_gc: &DeferGc<'_>) -> Self {
         Self {
             abort_algorithm: GcRefCell::new(None),
             close_algorithm: GcRefCell::new(None),
-            queue: QueueWithSizes::default(),
+            queue: QueueWithSizes::new(defer_gc),
             signal: GcRefCell::new(None),
             started: Cell::new(false),
             strategy_hwm: Cell::new(0.0),
@@ -280,7 +280,7 @@ pub(crate) fn set_up_writable_stream_default_controller_from_underlying_sink(
     size_algorithm: SizeAlgorithm,
 ) -> WebIdlResult<()> {
     // 1. Let controller be a new WritableStreamDefaultController.
-    let controller = allocate(cx.vm(), |_| WritableStreamDefaultController::new());
+    let controller = allocate(cx.vm(), WritableStreamDefaultController::new);
 
     // 2. Let startAlgorithm be an algorithm that returns undefined.
     let mut start_algorithm = StartAlgorithm::ReturnsUndefined;

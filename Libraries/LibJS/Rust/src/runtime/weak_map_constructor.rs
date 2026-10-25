@@ -85,7 +85,7 @@ impl WeakMapConstructor {
             realm,
             new_target,
             Intrinsics::weak_map_prototype,
-            |_, prototype| WeakMap::new(vm, prototype),
+            |defer_gc, prototype| WeakMap::new(defer_gc, vm, prototype),
         )?;
 
         // 4. If iterable is either undefined or null, return map.

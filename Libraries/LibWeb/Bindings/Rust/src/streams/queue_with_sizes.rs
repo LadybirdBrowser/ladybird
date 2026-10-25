@@ -10,7 +10,7 @@ use std::collections::VecDeque;
 
 use core::cell::Cell;
 
-use libjs_rust::api::{GcRefCell, Trace, Value, Vm};
+use libjs_rust::api::{DeferGc, GcRefCell, Trace, Value, Vm};
 
 use crate::bindings::{Exception, WebIdlResult};
 use crate::streams::abstract_operations::is_non_negative_number;
@@ -34,8 +34,8 @@ pub(crate) struct QueueWithSizes {
     queue_total_size: Cell<f64>,
 }
 
-impl Default for QueueWithSizes {
-    fn default() -> Self {
+impl QueueWithSizes {
+    pub(crate) fn new(_: &DeferGc<'_>) -> Self {
         Self {
             queue: GcRefCell::new(VecDeque::new()),
             queue_total_size: Cell::new(0.0),

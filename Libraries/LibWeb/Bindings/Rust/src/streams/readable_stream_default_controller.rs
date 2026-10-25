@@ -9,7 +9,7 @@
 
 use core::cell::Cell;
 
-use libjs_rust::api::{GcRefCell, Throw, Trace, Value, Vm};
+use libjs_rust::api::{DeferGc, GcRefCell, Throw, Trace, Value, Vm};
 
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::promise::{WebIdlPromise, create_resolved_promise, exception_value, react_to_promise};
@@ -55,14 +55,14 @@ pub(crate) struct ReadableStreamDefaultController {
 impl Wrappable for ReadableStreamDefaultController {}
 
 impl ReadableStreamDefaultController {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(defer_gc: &DeferGc<'_>) -> Self {
         Self {
             cancel_algorithm: GcRefCell::new(None),
             close_requested: Cell::new(false),
             pull_again: Cell::new(false),
             pull_algorithm: GcRefCell::new(None),
             pulling: Cell::new(false),
-            queue: QueueWithSizes::default(),
+            queue: QueueWithSizes::new(defer_gc),
             started: Cell::new(false),
             strategy_hwm: Cell::new(0.0),
             strategy_size_algorithm: GcRefCell::new(None),
@@ -557,7 +557,7 @@ pub(crate) fn set_up_readable_stream_default_controller_from_underlying_source(
     size_algorithm: SizeAlgorithm,
 ) -> WebIdlResult<()> {
     // 1. Let controller be a new ReadableStreamDefaultController.
-    let controller = allocate(cx.vm(), |_| ReadableStreamDefaultController::new());
+    let controller = allocate(cx.vm(), ReadableStreamDefaultController::new);
 
     // 2. Let startAlgorithm be an algorithm that returns undefined.
     let mut start_algorithm = StartAlgorithm::ReturnsUndefined;

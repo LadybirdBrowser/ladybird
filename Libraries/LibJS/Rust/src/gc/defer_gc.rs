@@ -18,6 +18,11 @@ impl<'heap> DeferGc<'heap> {
         Self::of_heap(vm.heap())
     }
 
+    /// Runs `body` while nothing collects garbage, so that what it holds by value needs no root.
+    pub fn scope<R>(vm: &Vm, body: impl FnOnce(&DeferGc<'_>) -> R) -> R {
+        body(&DeferGc::new(vm))
+    }
+
     pub(super) fn of_heap(heap: &'heap Heap) -> Self {
         heap.defer_gc();
         Self(heap)

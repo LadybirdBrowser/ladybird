@@ -6,7 +6,7 @@
 
 //! https://drafts.fxtf.org/geometry/#domrectlist
 
-use libjs_rust::api::Trace;
+use libjs_rust::api::{DeferGc, Trace};
 
 use super::dom_rect::DOMRect;
 use crate::bindings::interface::{Ref, Wrappable};
@@ -21,7 +21,7 @@ pub(crate) struct DOMRectList {
 impl Wrappable for DOMRectList {}
 
 impl DOMRectList {
-    pub(crate) fn new(rects: &[Ref<DOMRect>]) -> Self {
+    pub(crate) fn new(_: &DeferGc<'_>, rects: &[Ref<DOMRect>]) -> Self {
         Self { rects: rects.to_vec() }
     }
 

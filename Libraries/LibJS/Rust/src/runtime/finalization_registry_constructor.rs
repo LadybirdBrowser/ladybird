@@ -99,7 +99,9 @@ impl FinalizationRegistryConstructor {
             realm,
             new_target,
             Intrinsics::finalization_registry_prototype,
-            |_, prototype| FinalizationRegistry::new(vm, function_realm, cleanup_job_callback, prototype),
+            |defer_gc, prototype| {
+                FinalizationRegistry::new(defer_gc, vm, function_realm, cleanup_job_callback, prototype)
+            },
         )?;
         Ok(finalization_registry.upcast())
     }

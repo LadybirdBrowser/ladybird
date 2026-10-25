@@ -335,7 +335,7 @@ pub(crate) fn set_up_cross_realm_transform_readable(
     initialize_readable_stream(stream);
 
     // 2. Let controller be a new ReadableStreamDefaultController.
-    let controller = allocate(cx.vm(), |_| ReadableStreamDefaultController::new());
+    let controller = allocate(cx.vm(), ReadableStreamDefaultController::new);
     let state = ReadableHandlerState {
         port: PORT_CELL_CLASS.allocate(cx.vm(), |_| PortCell(port.clone())),
         controller,
@@ -511,7 +511,7 @@ pub(crate) fn set_up_cross_realm_transform_writable(
     initialize_writable_stream(cx.vm(), stream);
 
     // 2. Let controller be a new WritableStreamDefaultController.
-    let controller = allocate(cx.vm(), |_| WritableStreamDefaultController::new());
+    let controller = allocate(cx.vm(), WritableStreamDefaultController::new);
 
     // 3. Let backpressurePromise be a new promise.
     let state = CROSS_REALM_WRITABLE_STATE_CLASS.allocate(cx.vm(), |_| CrossRealmWritableState {

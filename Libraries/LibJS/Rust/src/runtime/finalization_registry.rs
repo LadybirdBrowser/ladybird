@@ -9,6 +9,7 @@ use core::ops::Deref;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Finalize, GcCell, define_cell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
@@ -81,6 +82,7 @@ impl Finalize for FinalizationRegistry {
 
 impl FinalizationRegistry {
     pub fn new(
+        _: &DeferGc<'_>,
         vm: &Vm,
         realm: Gc<Realm>,
         cleanup_callback: Gc<JobCallback>,

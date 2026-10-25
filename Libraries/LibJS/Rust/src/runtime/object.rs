@@ -90,8 +90,8 @@ impl PrivateElements {
 
     fn ensure(&self) -> &GcRefCell<Vec<PrivateElement>> {
         if self.0.get().is_none() {
-            let elements = Box::new(GcRefCell::new(Vec::new()));
-            self.0.set(Some(NonNull::from(Box::leak(elements))));
+            self.0
+                .set(Some(NonNull::from(Box::leak(Box::new(GcRefCell::new(Vec::new()))))));
         }
         self.get().expect("the private elements were just allocated")
     }
@@ -3910,27 +3910,29 @@ impl Object {
     }
 
     fn transition_to_dictionary(&self) {
-        let mut dictionary = GenericIndexedPropertyStorage::default();
+        DeferGc::scope(self.vm(), |_| {
+            let mut dictionary = GenericIndexedPropertyStorage::default();
 
-        let kind = self.indexed_storage_kind();
-        if kind == IndexedStorageKind::Packed || kind == IndexedStorageKind::Holey {
-            // Transfer existing elements
-            let count = self.indexed_packed_element_count();
-            for index in 0..count {
-                let value = self.indexed_element(index);
-                if !value.is_empty() {
-                    dictionary.put(index, value, DEFAULT_ATTRIBUTES);
+            let kind = self.indexed_storage_kind();
+            if kind == IndexedStorageKind::Packed || kind == IndexedStorageKind::Holey {
+                // Transfer existing elements
+                let count = self.indexed_packed_element_count();
+                for index in 0..count {
+                    let value = self.indexed_element(index);
+                    if !value.is_empty() {
+                        dictionary.put(index, value, DEFAULT_ATTRIBUTES);
+                    }
                 }
+                self.release_indexed_elements();
             }
-            self.release_indexed_elements();
-        }
 
-        // Set the array_like_size on the dictionary
-        dictionary.set_array_like_size(self.indexed_array_like_size() as usize);
+            // Set the array_like_size on the dictionary
+            dictionary.set_array_like_size(self.indexed_array_like_size() as usize);
 
-        let dictionary = Box::into_raw(Box::new(GcRefCell::new(dictionary)));
-        self.indexed_elements.set(dictionary.cast::<Value>());
-        self.indexed_storage_kind.set(IndexedStorageKind::Dictionary);
+            let dictionary = Box::into_raw(Box::new(GcRefCell::new(dictionary)));
+            self.indexed_elements.set(dictionary.cast::<Value>());
+            self.indexed_storage_kind.set(IndexedStorageKind::Dictionary);
+        });
     }
 
     #[cold]

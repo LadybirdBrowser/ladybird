@@ -101,8 +101,8 @@ impl AsyncFunctionDriverWrapper {
         let generator_object = GeneratorObject::create(vm, realm, generating_function, context.copy());
         generator_object.set_generator_state(GeneratorState::SuspendedYield);
         // Note: The top_level_promise is also kept alive by this Wrapper
-        let wrapper = realm.create_object(vm, |_| AsyncFunctionDriverWrapper {
-            base: Promise::new(vm, Self::CLASS, realm.intrinsics().promise_prototype(vm)),
+        let wrapper = realm.create_object(vm, |defer_gc| AsyncFunctionDriverWrapper {
+            base: Promise::new(defer_gc, vm, Self::CLASS, realm.intrinsics().promise_prototype(vm)),
             generator_object: Cell::new(generator_object),
             top_level_promise: Cell::new(top_level_promise),
             current_promise: Cell::new(None),

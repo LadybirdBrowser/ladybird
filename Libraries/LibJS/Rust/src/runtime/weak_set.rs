@@ -10,6 +10,7 @@ use hashbrown::HashSet;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
@@ -74,7 +75,7 @@ impl Finalize for WeakSet {
 }
 
 impl WeakSet {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> WeakSet {
+    pub fn new(_: &DeferGc<'_>, vm: &Vm, prototype: Gc<Object>) -> WeakSet {
         WeakSet {
             base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
             values: GcRefCell::new(WeakSetValues::default()),
@@ -82,7 +83,9 @@ impl WeakSet {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WeakSet> {
-        realm.create_object(vm, |_| WeakSet::new(vm, realm.intrinsics().weak_set_prototype(vm)))
+        realm.create_object(vm, |defer_gc| {
+            WeakSet::new(defer_gc, vm, realm.intrinsics().weak_set_prototype(vm))
+        })
     }
 
     /// Registers the new WeakSet as a weak container.

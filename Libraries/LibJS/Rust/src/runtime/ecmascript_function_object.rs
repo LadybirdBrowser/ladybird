@@ -157,8 +157,15 @@ impl EcmascriptFunctionObject {
         prototype: Gc<Object>,
     ) -> Gc<EcmascriptFunctionObject> {
         shared_data.note_closure_created();
-        let function = allocate_object(vm, |_| {
-            Self::new(vm, shared_data, parent_environment, private_environment, prototype)
+        let function = allocate_object(vm, |defer_gc| {
+            Self::new(
+                defer_gc,
+                vm,
+                shared_data,
+                parent_environment,
+                private_environment,
+                prototype,
+            )
         });
         function.initialize(vm, realm);
         function
@@ -183,6 +190,7 @@ impl EcmascriptFunctionObject {
     }
 
     fn new(
+        _: &DeferGc<'_>,
         vm: &Vm,
         shared_data: Gc<SharedFunctionInstanceData>,
         parent_environment: Option<Gc<Environment>>,

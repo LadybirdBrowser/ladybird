@@ -353,7 +353,7 @@ fn install(
         })
         .collect();
     let id = vm.jit.next_code_id();
-    let code = JitCode::new(
+    let mut code = JitCode::new(
         memory,
         compiled.entry_offset,
         &compiled.osr_entries,
@@ -362,17 +362,17 @@ fn install(
         embedded_cells,
         snapshot,
         defer_gc,
-    )
-    .with_invalidation(id, compiled.invalidation_patches)
-    .with_frame_offsets(compiled.site_index_frame_offset, compiled.register_dump_frame_offset)
-    .with_osr_outer_loop_back_edges(compiled.osr_outer_loop_back_edges)
-    .with_uncaught_handlers(compiled.uncaught_handlers);
+    );
+    code.set_invalidation(id, compiled.invalidation_patches);
+    code.set_frame_offsets(compiled.site_index_frame_offset, compiled.register_dump_frame_offset);
+    code.set_osr_outer_loop_back_edges(compiled.osr_outer_loop_back_edges);
+    code.set_uncaught_handlers(compiled.uncaught_handlers);
     vm.jit.dependents.register(vm, executable, id, &compiled.dependencies);
     // NB: Code may be installed while frames of the executable loop in the interpreter, because the compile was
     //     queued (from the tier-up check of another executable, like a callee's), or because they exited from the
     //     code before. Those frames keep counting, so that they continue in the code at its on-stack replacement
     //     entry rather than run in the interpreter until they return.
-    executable.install_jit_code(vm, code, compile_wait_budget(&vm.jit.options));
+    executable.install_jit_code(vm, code, compile_wait_budget(&vm.jit.options), defer_gc);
 }
 
 type SnapshotExecutables = Vec<SnapshotExecutable>;

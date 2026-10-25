@@ -334,11 +334,11 @@ impl DeclarativeEnvironment {
 
     fn ensure_rare_data(&self) -> &DeclarativeEnvironmentRareData {
         if self.rare_data.get().is_null() {
-            let rare_data = Box::new(DeclarativeEnvironmentRareData {
-                binding_flags: InterpreterBuffer::new(),
-                storage: DeclarativeEnvironmentRareDataStorage::default(),
-            });
-            self.rare_data.set(Box::into_raw(rare_data));
+            self.rare_data
+                .set(Box::into_raw(Box::new(DeclarativeEnvironmentRareData {
+                    binding_flags: InterpreterBuffer::new(),
+                    storage: DeclarativeEnvironmentRareDataStorage::default(),
+                })));
         }
         self.rare_data().expect("the rare data was just allocated")
     }
@@ -355,8 +355,7 @@ impl DeclarativeEnvironment {
             return;
         }
         // SAFETY: ensure_rare_data allocated the rare data as a Box, and nothing refers to it anymore.
-        let rare_data = unsafe { Box::from_raw(rare_data) };
-        rare_data.binding_flags.clear();
+        unsafe { Box::from_raw(rare_data) }.binding_flags.clear();
     }
 
     fn increment_environment_serial_number(&self, vm: &Vm) {

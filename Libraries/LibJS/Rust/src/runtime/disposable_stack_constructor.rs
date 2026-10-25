@@ -87,7 +87,7 @@ impl DisposableStackConstructor {
             realm,
             new_target,
             Intrinsics::disposable_stack_prototype,
-            |_, prototype| DisposableStack::new(vm, prototype),
+            |defer_gc, prototype| DisposableStack::new(defer_gc, vm, prototype),
         )?;
         Ok(disposable_stack.upcast())
     }

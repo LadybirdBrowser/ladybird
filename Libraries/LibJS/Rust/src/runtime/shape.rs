@@ -11,6 +11,7 @@ use std::collections::{HashMap, HashSet};
 use indexmap::IndexMap;
 
 use crate::gc::class::{GcCell, define_cell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::gc::sweep::Sweep;
@@ -137,8 +138,8 @@ pub struct ShapeStorage {
     special_property_cache: Cell<Option<Gc<SpecialPropertyCache>>>,
 }
 
-impl Default for ShapeStorage {
-    fn default() -> Self {
+impl ShapeStorage {
+    fn new(_: &DeferGc<'_>) -> Self {
         Self {
             property_storage: GcRefCell::new(PropertyStorage::Descriptors(None)),
             forward_transitions: GcRefCell::new(ForwardTransitions::Empty),
@@ -297,7 +298,7 @@ impl Default for PrototypeTransitionCache {
 }
 
 impl Shape {
-    fn new(realm: Gc<Realm>) -> Self {
+    fn new(defer_gc: &DeferGc<'_>, realm: Gc<Realm>) -> Self {
         Self {
             header: CellHeader::for_class(Self::CLASS),
             flags: Cell::new(0),
@@ -307,12 +308,16 @@ impl Shape {
             property_iterator_cache: Cell::new(None),
             property_count: Cell::new(0),
             dictionary_generation: Cell::new(0),
-            storage: ShapeStorage::default(),
+            storage: ShapeStorage::new(defer_gc),
         }
     }
 
-    fn new_from_previous_shape(previous_shape: &Shape, property_count_change: PropertyCountChange) -> Self {
-        let shape = Self::new(previous_shape.realm());
+    fn new_from_previous_shape(
+        defer_gc: &DeferGc<'_>,
+        previous_shape: &Shape,
+        property_count_change: PropertyCountChange,
+    ) -> Self {
+        let shape = Self::new(defer_gc, previous_shape.realm());
         shape
             .flags
             .set(previous_shape.flags.get() & shape_flag::HAS_PARAMETER_MAP);
@@ -335,11 +340,12 @@ impl Shape {
     }
 
     fn new_from_previous_shape_with_prototype(
+        defer_gc: &DeferGc<'_>,
         previous_shape: &Shape,
         realm: Gc<Realm>,
         new_prototype: Option<Gc<Object>>,
     ) -> Self {
-        let shape = Self::new(realm);
+        let shape = Self::new(defer_gc, realm);
         shape
             .flags
             .set(previous_shape.flags.get() & shape_flag::HAS_PARAMETER_MAP);
@@ -353,7 +359,7 @@ impl Shape {
 
     /// A new unique shape with no properties and no prototype.
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Shape> {
-        vm.heap().allocate(|_| Self::new(realm))
+        vm.heap().allocate(|defer_gc| Self::new(defer_gc, realm))
     }
 
     fn as_gc(&self) -> Gc<Shape> {
@@ -578,7 +584,7 @@ impl Shape {
         }
         let new_shape = vm
             .heap()
-            .allocate(|_| Self::new_from_previous_shape(self, PropertyCountChange::Increment));
+            .allocate(|defer_gc| Self::new_from_previous_shape(defer_gc, self, PropertyCountChange::Increment));
 
         let property_count = self.property_count();
         let metadata = PropertyMetadata {
@@ -619,7 +625,7 @@ impl Shape {
         }
         let new_shape = vm
             .heap()
-            .allocate(|_| Self::new_from_previous_shape(self, PropertyCountChange::Preserve));
+            .allocate(|defer_gc| Self::new_from_previous_shape(defer_gc, self, PropertyCountChange::Preserve));
         let descriptors = self.copy_descriptors(vm);
         new_shape.set_descriptors(Some(descriptors));
         descriptors.set_attributes(vm, property_key, attributes, self.property_count());
@@ -675,7 +681,7 @@ impl Shape {
         }
         let new_shape = vm
             .heap()
-            .allocate(|_| Self::new_from_previous_shape_with_prototype(self, realm, new_prototype));
+            .allocate(|defer_gc| Self::new_from_previous_shape_with_prototype(defer_gc, self, realm, new_prototype));
         if self.is_dictionary() && self.property_count() > MAX_DESCRIPTOR_COUNT {
             new_shape.become_dictionary_shape();
             self.copy_properties_to_dictionary_shape(vm, &new_shape);
@@ -695,7 +701,7 @@ impl Shape {
         }
         let new_shape = vm
             .heap()
-            .allocate(|_| Self::new_from_previous_shape(self, PropertyCountChange::Decrement));
+            .allocate(|defer_gc| Self::new_from_previous_shape(defer_gc, self, PropertyCountChange::Decrement));
         let descriptors = self.copy_descriptors(vm);
         new_shape.set_descriptors(Some(descriptors));
         descriptors.remove(vm, property_key, self.property_count());

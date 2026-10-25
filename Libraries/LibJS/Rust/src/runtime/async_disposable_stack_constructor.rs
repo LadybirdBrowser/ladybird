@@ -87,7 +87,7 @@ impl AsyncDisposableStackConstructor {
             realm,
             new_target,
             Intrinsics::async_disposable_stack_prototype,
-            |_, prototype| AsyncDisposableStack::new(vm, prototype),
+            |defer_gc, prototype| AsyncDisposableStack::new(defer_gc, vm, prototype),
         )?;
         Ok(async_disposable_stack.upcast())
     }

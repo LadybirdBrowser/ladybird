@@ -11,8 +11,8 @@ use std::collections::VecDeque;
 use core::cell::Cell;
 
 use libjs_rust::api::{
-    EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, MarkedVec, Realm, Trace, TypedArrayBase, TypedArrayKind,
-    Value, Vm,
+    DeferGc, EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, MarkedVec, Realm, Trace, TypedArrayBase,
+    TypedArrayKind, Value, Vm,
 };
 
 use crate::bindings::conversions::BufferSource;
@@ -56,7 +56,7 @@ pub(crate) struct ReadableStreamDefaultReader {
 impl Wrappable for ReadableStreamDefaultReader {}
 
 impl ReadableStreamDefaultReader {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(_: &DeferGc<'_>) -> Self {
         Self {
             generic: ReadableStreamGenericReader::default(),
             read_requests: GcRefCell::new(VecDeque::new()),
@@ -104,7 +104,7 @@ impl ReadableStreamDefaultReader {
 
     // https://streams.spec.whatwg.org/#default-reader-constructor
     pub(crate) fn construct(cx: &mut CallContext, stream: Ref<ReadableStream>) -> WebIdlResult<Ref<Self>> {
-        let reader = allocate(cx.vm(), |_| Self::new());
+        let reader = allocate(cx.vm(), Self::new);
 
         // 1. Perform ? SetUpReadableStreamDefaultReader(this, stream).
         set_up_readable_stream_default_reader(cx, reader, stream)?;

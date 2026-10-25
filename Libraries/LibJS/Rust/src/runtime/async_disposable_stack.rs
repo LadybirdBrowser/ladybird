@@ -10,6 +10,7 @@ use core::ops::Deref;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Finalize, GcCell, define_cell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -49,7 +50,7 @@ impl Finalize for AsyncDisposableStack {
 
 impl AsyncDisposableStack {
     /// A pending stack with a new dispose capability.
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> AsyncDisposableStack {
+    pub fn new(_: &DeferGc<'_>, vm: &Vm, prototype: Gc<Object>) -> AsyncDisposableStack {
         AsyncDisposableStack {
             base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
             async_disposable_state: Cell::new(AsyncDisposableState::Pending),
