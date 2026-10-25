@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	PerformanceObserver with durationThreshold of 300 and processingDelay of 0 doesn't see any entries in the observer

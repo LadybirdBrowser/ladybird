@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=../resources/testdriver-actions.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<body>
+<div id='host'>
+</div>
+<script>
+promise_test(async t => {
+  assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+
+  const host = document.getElementById('host');
+  const shadowRoot = host.attachShadow({mode: "closed"});
+
+  const durationThreshold = 16;
+
+  const innerSpan1 = document.createElement("span");
+  innerSpan1.textContent = "Span1";
+  const innerSpan2 = document.createElement("span");
+  innerSpan2.textContent = "Span2";
+
+  shadowRoot.append(innerSpan1);
+  shadowRoot.append(innerSpan2);
+
+  innerSpan2.addEventListener("mouseover", function(e) {
+    // To make this is a slow event
+    mainThreadBusy(durationThreshold + 4);
+  });
+
+  const span1Rect = innerSpan1.getBoundingClientRect();
+  const span2Rect = innerSpan2.getBoundingClientRect();
+
+  const actions = new test_driver.Actions();
+  // Move the pointer to innerSpan1
+  await actions.pointerMove(
+    Math.ceil(span1Rect.x + span1Rect.width / 2),
+    Math.ceil(span1Rect.y + span1Rect.height / 2)
+  ).send();
+
+  await afterNextPaint();
+
+  const observerPromise = new Promise(resolve => {
+    new PerformanceObserver(t.step_func(entryList => {
+      let mouseOverEntries = entryList.getEntriesByName("mouseover");
+      assert_equals(mouseOverEntries.length, 1);
+      assert_equals(mouseOverEntries[0].target, null);
+      resolve();
+    })).observe({type: 'event', durationThreshold: durationThreshold});
+  });
+
+  // Move the pointer to innerSpan2
+  // Here we move the pointer within the shadow DOM
+  await actions.pointerMove(
+    Math.ceil(span2Rect.x + span2Rect.width / 2),
+    Math.ceil(span2Rect.y + span2Rect.height / 2)
+  ).send();
+
+  await afterNextPaint();
+
+  await observerPromise;
+}, "Event Timing: Move pointer within shadow DOM should create event-timing entry with null target.");
+</script>
+</body>
+</html>

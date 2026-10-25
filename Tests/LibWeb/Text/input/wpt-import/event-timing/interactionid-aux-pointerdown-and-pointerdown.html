@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: interactionId-aux-pointerdown-and-pointerdown</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-actions.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<div id='target'>Right click me to bring up OS level contextmenu popup.</div>
+
+<script>
+  let platformSupported = false;
+  const map = new Map();
+  const events = ['pointerdown'];
+
+  // This test replicates a real world scenario that - on triggering contextmenu
+  // with a pointer, pointerdown is captured but not pointerup. (crbug/1413096)
+  // In this case, we need to make sure event timing will correctly report the
+  // pointerdown entry with a valid/non-trivial interactionId.
+  promise_test(async t => {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+    // Workaround https://bugs.webkit.org/show_bug.cgi?id=213060, which causes
+    // WebKit-based browsers to never release the pointerdown, breaking
+    // subsequent tests.
+    t.add_cleanup(() => orphanAuxPointerup(document.getElementById('target')).catch(() => {}));
+    // This test is not applicable to platforms like Windows where contextmenu
+    // is triggered on aux pointerup. So we do a platform behavior test first to
+    // distinguish and skip those platforms who do not dispatch contextmenu on
+    // aux pointerdown.
+    document.getElementById('target').addEventListener('contextmenu', () => { platformSupported = true; });
+    await auxPointerdown(document.getElementById('target'));
+    // 2000ms is a magic number picked to wait for contextmenu being observed
+    // from the performance observer. Consider enlarge it if flaky.
+    await t.step_timeout(() => { }, 2000);
+    if (!platformSupported) {
+      return;
+    }
+
+    // Perform test on qualified platforms
+    const callback = (entryList) => { entryList.getEntries().filter(filterAndAddToMap(events, map)); };
+    const readyToResolve = () => { return map.has('pointerdown'); };
+    const observerPromise = createPerformanceObserverPromise(['event'], callback, readyToResolve);
+
+    await interactAndObserve('aux-pointerdown-and-pointerdown', document.getElementById('target'), observerPromise);
+
+    assert_greater_than(map.get('pointerdown'), 0, 'The pointerdown entry should have a non-trivial interactionId');
+  }, "Event Timing: verify pointerdown reporting for mouse aux pointerdown only triggered contextmenu followed immediately by another pointerdown event.");
+
+</script>
+
+</html>

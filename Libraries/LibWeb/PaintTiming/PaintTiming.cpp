@@ -460,4 +460,28 @@ void report_paint_timing(DOM::Document& document, Utf16String const& paint_type,
     document.paint_timing_state().set_of_previously_reported_paints.set(paint_type);
 }
 
+// https://w3c.github.io/paint-timing/#exposed-for-paint-timing
+bool is_exposed_for_paint_timing(DOM::Element const& element, GC::Ptr<DOM::Document const> document)
+{
+    // 1. If element is not connected, return false.
+    if (!element.is_connected())
+        return false;
+
+    // 2. If document is null, let document be element's relevant settings object's relevant global object's
+    //    associated document.
+    if (!document)
+        document = HTML::relevant_window(element).associated_document();
+
+    // 3. If document is not fully active, return false.
+    if (!document->is_fully_active())
+        return false;
+
+    // 4. If element's root is not equal to document, return false.
+    if (&element.root() != document.ptr())
+        return false;
+
+    // 5. Return true.
+    return true;
+}
+
 }

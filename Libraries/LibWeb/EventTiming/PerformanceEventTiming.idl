@@ -5,12 +5,19 @@ interface PerformanceEventTiming : PerformanceEntry {
     readonly attribute DOMHighResTimeStamp processingEnd;
     readonly attribute boolean cancelable;
     readonly attribute Node? target;
+    readonly attribute DOMString targetSelector;
     readonly attribute unsigned long long interactionId;
     [Default] object toJSON();
 };
 
-
-// Potential fixme: This spec has some more IDLs
-// https://w3c.github.io/event-timing/#sec-event-counts
 // https://w3c.github.io/event-timing/#sec-extensions
+[Exposed=Window]
+partial interface Performance {
+    [SameObject] readonly attribute EventCounts eventCounts;
+    readonly attribute unsigned long long interactionCount;
+};
+
 // https://w3c.github.io/event-timing/#sec-modifications-perf-timeline
+partial dictionary PerformanceObserverInit {
+    DOMHighResTimeStamp durationThreshold;
+};

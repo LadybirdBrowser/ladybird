@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: pointerdown/up gap.</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-actions.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<div id='target'>Click me</div>
+<script>
+  promise_test(async t => {
+    const pointerDowns = []
+    const pointerUps = []
+    blockNextEventListener(window, 'pointerdown', 30)
+    blockNextEventListener(window, 'pointerup', 30)
+
+    // A keydown is used as an interleaving event, to make sure the pointerdown's
+    // timing entry had it's duration set before triggering the pointerup. Using
+    // only `await afterNextPaint()` after the first event is not enough to
+    // guarantee this in all browsers. See discussion in
+    // https://github.com/web-platform-tests/wpt/pull/55577#discussion_r2466579023
+    blockNextEventListener(window, 'keydown', 30)
+    const {promise: interleavingEventTimingEntryObserved, resolve: resolveInterleaving } = Promise.withResolvers();
+    new PerformanceObserver( (entries) => {
+      entries.getEntries().forEach(  (e) => {
+        if (e.name == 'pointerdown')
+          pointerDowns.push(e)
+        if (e.name =='pointerup')
+          pointerUps.push(e)
+        if (e.name == 'keydown')
+          resolveInterleaving()
+      })
+    }).observe({type: 'event', durationThreshold: 16})
+    const pointerDownHandled = new Promise( resolve => window.addEventListener('pointerdown', e => resolve(), true) )
+    const pointerUpHandled = new Promise( resolve => window.addEventListener('pointerup', e => resolve(), true) )
+
+    await new test_driver.Actions()
+      .pointerMove(0, 0)
+      .pointerDown()
+      .send()
+    await pointerDownHandled
+    await afterNextPaint()
+    await new test_driver.Actions()
+      .keyDown('k')
+      .keyUp('k')
+      .send()
+    await interleavingEventTimingEntryObserved
+    const waitStart = performance.now()
+    await t.step_wait(() => (performance.now() - waitStart > 50))
+    await new test_driver.Actions()
+      .pointerUp()
+      .send()
+    await pointerUpHandled
+    await t.step_wait(() => (pointerDowns.length != 0 && pointerUps.length != 0), 'Wait for the event timing entries to be processed.')
+    assert_equals(pointerDowns.length, 1)
+    assert_equals(pointerUps.length, 1)
+    assert_greater_than(pointerUps[0].startTime, pointerDowns[0].startTime + pointerDowns[0].duration)
+  }, "pointerdown duration shouldn't wait for pointerup.")
+</script>
+</html>

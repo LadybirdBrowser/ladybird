@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: interactionCount-click</title>
+<div id='div'>Click me</div>
+<button id='button'>Click me</button>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<script>
+  interactionCount_test('click', [div, button, div]);
+</script>
+
+</html>

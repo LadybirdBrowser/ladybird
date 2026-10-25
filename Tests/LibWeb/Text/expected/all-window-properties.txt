@@ -164,6 +164,7 @@ Error
 ErrorEvent
 EvalError
 Event
+EventCounts
 EventSource
 EventTarget
 External

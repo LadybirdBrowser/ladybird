@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: supportedEntryTypes should be consistent with `'PerformanceEventTiming' in Self`
+</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script>
+test(() => {
+  const isFirstInputSupportedInEntryTypes = PerformanceObserver.supportedEntryTypes.includes('first-input');
+  const isEventSupportedInEntryTypes = PerformanceObserver.supportedEntryTypes.includes('event');
+
+  const isEventTimingSupportedInSelf = 'PerformanceEventTiming' in self;
+
+  assert_equals(isFirstInputSupportedInEntryTypes, isEventTimingSupportedInSelf)
+  assert_equals(isEventSupportedInEntryTypes, isEventTimingSupportedInSelf)
+}, "supportedEntryTypes should be consistent with `'PerformanceEventTiming' in Self`");
+</script>
+</html>

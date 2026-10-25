@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: only observe the first input</title>
+<button id='button'>Generate a 'click' event</button>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+
+<script src=resources/event-timing-test-utils.js></script>
+
+<script>
+  /* Test:
+     PerformanceObserver for first-input is registered
+     Click 1
+     Click 2
+     Wait
+     Expected result:
+     PerformanceObserver should observe one and only one entry.
+  */
+  async_test(function(t) {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+    let hasObservedFirstInput = false;
+    new PerformanceObserver(t.step_func((entryList) => {
+        assert_false(hasObservedFirstInput);
+        hasObservedFirstInput = true;
+        const observedEntries = entryList.getEntries().filter(
+            entry => entry.name === 'pointerdown');
+        assert_equals(observedEntries.length, 1);
+        assert_equals(observedEntries[0].entryType, 'first-input');
+        assert_equals(observedEntries[0].name, 'pointerdown');
+    })).observe({ entryTypes: ['first-input'] });
+    on_event(window, 'load', () => {
+      clickAndBlockMain('button').then(() => {
+        clickAndBlockMain('button').then(wait).then( () => {
+          // After some wait, the PerformanceObserver should have processed both clicks.
+          // One and only one first-input entry should have been dispatched, so
+          // |hasObservedFirstInput| should be true.
+          t.step_timeout( () => {
+            assert_true(hasObservedFirstInput);
+            t.done();
+          }, 10);
+        });
+      });
+    });
+  },
+  "Event Timing: check first-input for a PerformanceObserver observing only first-input."
+  );
+</script>
+</html>

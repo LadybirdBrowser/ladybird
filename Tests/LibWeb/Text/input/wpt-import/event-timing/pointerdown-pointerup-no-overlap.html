@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: pointerdown and pointerup should not overlap when there is a paint in between</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=../resources/testdriver-actions.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<button id='button'>Click me.</button>
+<script>
+  promise_test(async t => {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+    const button = document.getElementById('button');
+    const observedEntries = [];
+
+    button.addEventListener('pointerdown', () => {
+      mainThreadBusy(30);
+    });
+    button.addEventListener('pointerup', () => {
+      mainThreadBusy(30);
+    });
+    button.addEventListener('click', () => {
+      mainThreadBusy(150);
+    });
+
+    const observerPromise = new Promise(resolve => {
+      new PerformanceObserver(entryList => {
+        observedEntries.push(...entryList.getEntries().filter(entry =>
+          entry.name === 'pointerdown' || entry.name === 'pointerup' || entry.name === 'click'
+        ));
+
+        // We expect pointerdown, pointerup, and click.
+        if (observedEntries.length >= 3) {
+          resolve();
+        }
+      }).observe({type: 'event', durationThreshold: 16, buffered: true});
+    });
+
+    const actions1 = new test_driver.Actions();
+    await actions1
+      .addPointer("testPointer", "mouse")
+      .pointerMove(0, 0, {origin: button})
+      .pointerDown({button: actions1.ButtonType.LEFT})
+      .pause(50)
+      .send();
+
+    // Wait for a paint to occur
+    await afterNextPaint();
+
+    // Perform pointerup
+    const actions2 = new test_driver.Actions();
+    await actions2
+      .addPointer("testPointer", "mouse")
+      .pointerMove(0, 0, {origin: button})
+      .pointerUp({button: actions2.ButtonType.LEFT})
+      .send();
+
+    await observerPromise;
+
+    const pointerdownEntry = observedEntries.find(e => e.name === 'pointerdown');
+    const pointerupEntry = observedEntries.find(e => e.name === 'pointerup');
+    const clickEntry = observedEntries.find(e => e.name === 'click');
+
+    assert_true(!!pointerdownEntry, 'Should have pointerdown entry');
+    assert_true(!!pointerupEntry, 'Should have pointerup entry');
+    assert_true(!!clickEntry, 'Should have click entry');
+
+    // Calculate end times: startTime + duration.
+    const pointerdownEndTime = pointerdownEntry.startTime + pointerdownEntry.duration;
+    const pointerupStartTime = pointerupEntry.startTime;
+
+    // pointerdown should complete BEFORE pointerup starts.
+    assert_less_than_equal(pointerdownEndTime, pointerupStartTime,
+      'pointerdown should end before or when pointerup starts (no overlap)');
+  }, 'pointerdown and pointerup should not overlap when there is no pointerdown handler');
+</script>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: interactionId-orphan-pointerup.</title>
+<button id='testButtonId'>Orphan Pointerup</button>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-actions.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+
+<script>
+  let observedEntries = [];
+  const map = new Map();
+  // keydown is being sent right after a pointerup to see if pointerup is present.
+  const events = ['pointerup', 'keydown'];
+
+  promise_test(async t => {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+
+    const callback = (entryList) => { observedEntries = observedEntries.concat(entryList.getEntries().filter(filterAndAddToMap(events, map))); };
+    const readyToResolve = () => { return observedEntries.length >= 1; };
+    const observerPromise = createPerformanceObserverPromise(['event'], callback, readyToResolve);
+
+    await interactAndObserve('orphan-pointerup', document.getElementById('testButtonId'), observerPromise);
+
+    // This test passes when either:
+    // - There is no orphan pointerup triggered by the browser.
+    // - The orphan pointerup doesn't have an interactionId.
+    assert_true(!map.has('pointerup') || map.get('pointerup') === 0, 'Should either have no triggered orphan pointerup event or have a trivial interactionId for orphan pointerup event.');
+  }, "Event Timing: Orphan pointerup should not be measured as an interaction.");
+
+</script>
+
+</html>

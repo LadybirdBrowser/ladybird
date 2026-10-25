@@ -21,12 +21,15 @@
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/DOM/Utils.h>
+#include <LibWeb/EventTiming/EventTiming.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 
 namespace Web::DOM {
@@ -221,6 +224,22 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
 {
     // 1. Set event’s dispatch flag.
     event.set_dispatched(true);
+
+    // https://w3c.github.io/event-timing/#sec-modifications-DOM
+    // OPTIMIZATION: Only trusted events of some types are timed, so nothing else needs to look up the window.
+    GC::Ptr<EventTiming::PerformanceEventTiming> timing_entry;
+    GC::Ptr<HTML::Window> timing_window;
+    if (EventTiming::is_considered_for_event_timing(event)) {
+        timing_window = EventTiming::relevant_window_of_event_target(*target);
+        if (timing_window) {
+            // 1. Let interactionId be the result of computing interactionId given event.
+            auto interaction_id = EventTiming::compute_interaction_id(event, *timing_window);
+
+            // 2. Let timingEntry be the result of initializing event timing given event, the current high resolution
+            //    time, and interactionId.
+            timing_entry = EventTiming::initialize_event_timing(event, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*timing_window)), interaction_id);
+        }
+    }
 
     // 2. Let targetOverride be target, if legacy target override flag is not given, and target’s associated Document otherwise. [HTML]
     // NOTE: legacy target override flag is only used by HTML and only when target is a Window object.
@@ -464,6 +483,9 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
         }
     }
 
+    // NB: The last target of the event, which finalizing event timing below uses, is cleared by the next steps.
+    GC::Ptr<EventTarget> last_event_target = event.target() ? event.target() : target.ptr();
+
     // 7. Set event’s eventPhase attribute to NONE.
     event.set_phase(Event::Phase::None);
 
@@ -502,6 +524,11 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
             activation_target->legacy_cancelled_activation_behavior();
         }
     }
+
+    // https://w3c.github.io/event-timing/#sec-modifications-DOM
+    // 1. Finalize event timing passing timingEntry, event, target, and the current high resolution time as inputs.
+    if (timing_entry)
+        EventTiming::finalize_event_timing(timing_entry, event, *last_event_target, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*timing_window)));
 
     // 13. Return false if event’s canceled flag is set; otherwise true.
     return !event.cancelled();

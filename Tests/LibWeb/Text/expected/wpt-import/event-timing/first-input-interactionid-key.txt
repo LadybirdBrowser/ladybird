@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	The interactionId of the first input entry should match the same keydown entry of event timing when press a key.

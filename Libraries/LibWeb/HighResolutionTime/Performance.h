@@ -46,6 +46,9 @@ public:
     GC::Ptr<NavigationTiming::PerformanceTiming> timing();
     GC::Ptr<NavigationTiming::PerformanceNavigation> navigation();
 
+    GC::Ref<EventTiming::EventCounts> event_counts();
+    WebIDL::UnsignedLongLong interaction_count();
+
 private:
     explicit Performance(GC::Ref<DOM::EventTarget> relevant_global_object);
 

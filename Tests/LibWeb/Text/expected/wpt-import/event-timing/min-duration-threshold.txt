@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	PerformanceObserver with durationThreshold of 0 sees events of duration >= 16

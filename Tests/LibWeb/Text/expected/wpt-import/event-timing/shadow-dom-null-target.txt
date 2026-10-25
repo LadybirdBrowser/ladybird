@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Event Timing: Move pointer within shadow DOM should create event-timing entry with null target.

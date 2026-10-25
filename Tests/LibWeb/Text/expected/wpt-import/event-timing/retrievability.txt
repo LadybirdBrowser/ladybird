@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Event Timing: make sure event-timing entries are not retrievable by performance.getEntries*.
