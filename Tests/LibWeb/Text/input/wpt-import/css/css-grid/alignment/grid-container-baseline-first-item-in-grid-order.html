@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid: first baseline is exported from the first baseline-participating item in grid order</title>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#baseline-export">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-baselines">
+<meta name="assert" content="A grid container exports the first baseline of the first grid item that participates in baseline alignment in grid order. When more than one column in the baseline-determining row participates, the earlier column wins.">
+<meta name="flags" content="ahem">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+.wrapper {
+    display: inline-flex;
+    align-items: baseline;
+    font: 20px/1 Ahem;
+}
+.grid {
+    display: inline-grid;
+    grid-template-columns: 50px 50px;
+    grid-template-rows: 100px;
+}
+.first { align-self: baseline; }
+.last { align-self: last baseline; }
+</style>
+
+<div class="wrapper">
+    <span id="ref">X</span>
+    <div class="grid">
+        <div class="first" id="firstItem">A</div>
+        <div class="last" id="lastItem">B</div>
+    </div>
+</div>
+
+<script>
+const ASCENT = 16;
+
+function baselineOf(element) {
+    return element.getBoundingClientRect().top + ASCENT;
+}
+
+test(() => {
+    const refBaseline = baselineOf(document.getElementById("ref"));
+    const firstItemBaseline = baselineOf(document.getElementById("firstItem"));
+    const lastItemBaseline = baselineOf(document.getElementById("lastItem"));
+
+    assert_not_equals(firstItemBaseline, lastItemBaseline,
+        "the two participating items must sit at different baselines for this test to be meaningful");
+    assert_equals(firstItemBaseline, refBaseline,
+        "grid first baseline should be exported from the first baseline-participating item in grid order");
+}, "Grid container first baseline uses the first baseline-participating item in grid order");
+
+document.querySelector(".wrapper").remove();
+</script>
