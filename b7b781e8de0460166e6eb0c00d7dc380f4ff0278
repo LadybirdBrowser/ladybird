@@ -1,0 +1,16 @@
+Ladybird binds Reload Without Cache to Option-Command-R and Command-
+Shift-R on macOS, and to Ctrl-Shift-R and Ctrl-F5 on other platforms.
+And a Shift-click on the Reload button runs it too. But on the Stop
+button that takes its place while a page loads, a Shift-click stops the
+load, the same as in Chrome.
+
+Option-Command-R is Safari’s binding. Chrome binds Command-Shift-R on
+macOS (accelerators_cocoa.mm), and Ctrl-Shift-R, Ctrl-F5, and Shift-F5
+elsewhere (accelerator_table.cc), and ReloadButton::ButtonPressed()
+turns a Shift-click or Ctrl-click into IDC_RELOAD_BYPASSING_CACHE.
+Firefox’s browser-sets.inc.xhtml binds accel-Shift-R everywhere, and
+accel-F5 outside macOS (key_reload_skip_cache, key_reload_skip_cache2),
+and BrowserCommands.reloadOrDuplicate() skips the cache on a Shift-
+click. The WebKitGTK MiniBrowser binds Ctrl-F5 and Ctrl-Shift-R to its
+reload-no-cache action. Ladybird leaves out the Shift-F5 only Chrome
+binds, and Chrome’s Ctrl-click on the Reload button.
