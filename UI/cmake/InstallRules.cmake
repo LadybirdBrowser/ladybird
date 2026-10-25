@@ -74,6 +74,9 @@ if (APPLE)
     endif()
   "
             COMPONENT ladybird_Runtime)
+
+    install(FILES "${LADYBIRD_SOURCE_DIR}/Meta/Entitlements.plist" DESTINATION entitlements
+        RENAME Ladybird.release.entitlements COMPONENT ladybird_Runtime)
 endif()
 
 install(TARGETS ${all_required_lagom_libraries}
@@ -117,7 +120,7 @@ if (LADYBIRD_GENERATE_SYMBOL_FILES)
     add_custom_target(ladybird_symbol_files ALL DEPENDS ${symbol_files})
 
     install(DIRECTORY "${symbol_files_dir}/"
-        DESTINATION .
+        DESTINATION symbols
         COMPONENT ladybird_Symbols
         EXCLUDE_FROM_ALL
     )
