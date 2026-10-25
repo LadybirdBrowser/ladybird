@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Dynamically imported module should eval when imported from script w/ a valid nonce.
