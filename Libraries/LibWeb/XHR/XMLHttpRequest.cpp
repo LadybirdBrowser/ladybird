@@ -723,8 +723,8 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
 
         // 5. If originalAuthorContentType is non-null, then:
         if (original_author_content_type.has_value()) {
-            // 1. If body is a Document or a USVString, then:
-            if (body.has<GC::Ref<DOM::Document>>() || body.has<Utf16String>()) {
+            // 1. If body is a Document object, a URLSearchParams object, or a string:
+            if (body.has<GC::Ref<DOM::Document>>() || body.has<GC::Ref<DOMURL::URLSearchParams>>() || body.has<Utf16String>()) {
                 // 1. Let contentTypeRecord be the result of parsing originalAuthorContentType.
                 auto content_type_record = MimeSniff::MimeType::parse(original_author_content_type.value());
 
