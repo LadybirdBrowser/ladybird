@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	XMLHttpRequest: The send() method: Fire a progress event named progress on the XMLHttpRequestUpload (synchronous flag is unset)

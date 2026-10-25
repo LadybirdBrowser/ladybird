@@ -2503,6 +2503,65 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         network_request->set_body_delivery_paused(true);
     fetch_params.controller()->set_pending_request(network_request);
 
+    // To transmit request’s body body, run these steps:
+    // 1. If body is null and fetchParams’s process request end-of-body is non-null, then queue a fetch task given
+    //    fetchParams’s process request end-of-body and fetchParams’s task destination.
+    if (request->body().has<Empty>()) {
+        if (fetch_params.algorithms()->process_request_end_of_body()) {
+            Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(GC::Heap::the(), [&fetch_params]() {
+                fetch_params.algorithms()->process_request_end_of_body()();
+            }));
+        }
+    }
+    // 2. Otherwise, if body is non-null:
+    else if (auto const* body = request->body().get_pointer<GC::Ref<Infrastructure::Body>>()) {
+        // 1. Let processBodyChunk given bytes be these steps:
+        auto process_body_chunk = GC::create_function(GC::Heap::the(), [&fetch_params](ByteBuffer bytes) {
+            // 1. If fetchParams is canceled, then abort these steps.
+            if (fetch_params.is_canceled())
+                return;
+
+            // 2. Run this step in parallel: transmit bytes.
+            // NB: The whole body was handed to RequestServer above, from body's source.
+
+            // 3. If fetchParams’s process request body chunk length is non-null, then run fetchParams’s process
+            //    request body chunk length given bytes’s length.
+            if (fetch_params.algorithms()->process_request_body_chunk_length())
+                fetch_params.algorithms()->process_request_body_chunk_length()(bytes.size());
+        });
+
+        // 2. Let processEndOfBody be these steps:
+        auto process_end_of_body = GC::create_function(GC::Heap::the(), [&fetch_params]() {
+            // 1. If fetchParams is canceled, then abort these steps.
+            if (fetch_params.is_canceled())
+                return;
+
+            // 2. If fetchParams’s process request end-of-body is non-null, then run fetchParams’s process request
+            //    end-of-body.
+            if (fetch_params.algorithms()->process_request_end_of_body())
+                fetch_params.algorithms()->process_request_end_of_body()();
+        });
+
+        // 3. Let processBodyError given e be these steps:
+        auto process_body_error = GC::create_function(GC::Heap::the(), [&realm, &fetch_params](JS::Value error) {
+            // 1. If fetchParams is canceled, then abort these steps.
+            if (fetch_params.is_canceled())
+                return;
+
+            // 2. If e is an "AbortError" DOMException, then abort fetchParams’s controller.
+            auto const* exception = error.is_object() ? Bindings::dom_exception_from_object(error.as_object()) : nullptr;
+            if (exception && exception->name() == "AbortError"_utf16_fly_string)
+                fetch_params.controller()->abort(realm, {});
+            // 3. Otherwise, terminate fetchParams’s controller.
+            else
+                fetch_params.controller()->terminate();
+        });
+
+        // 4. Incrementally read request’s body given processBodyChunk, processEndOfBody, processBodyError, and
+        //    fetchParams’s task destination.
+        (void)(*body)->incrementally_read(realm, process_body_chunk, process_end_of_body, process_body_error, fetch_params.task_destination());
+    }
+
     return pending_response;
 }
 

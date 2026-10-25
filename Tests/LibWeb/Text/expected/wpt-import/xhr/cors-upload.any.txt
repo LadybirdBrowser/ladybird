@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Cross-Origin POST FormData body but no preflight
+Pass	Cross-Origin POST with preflight and FormData body
