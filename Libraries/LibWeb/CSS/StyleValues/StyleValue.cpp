@@ -20,7 +20,6 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
@@ -31,7 +30,6 @@
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
-#include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
@@ -45,12 +43,9 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
-#include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -129,7 +124,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::BorderRadiusRect:
         return adopt_ref(*new (nothrow) StyleValue(Type::BorderRadiusRect, data));
     case StyleValueFFI::StyleValueData::Tag::BorderImageSlice:
-        return adopt_ref(*new (nothrow) BorderImageSliceStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::BorderImageSlice, data));
     case StyleValueFFI::StyleValueData::Tag::Calculated:
         return adopt_ref(*new (nothrow) CalculatedStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::ColorFunction:
@@ -161,7 +156,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::Content:
         return adopt_ref(*new (nothrow) ContentStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Edge:
-        return adopt_ref(*new (nothrow) EdgeStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::Edge, data));
     case StyleValueFFI::StyleValueData::Tag::EmptyOptional:
         return adopt_ref(*new (nothrow) StyleValue(Type::EmptyOptional, data));
     case StyleValueFFI::StyleValueData::Tag::Easing:
@@ -230,11 +225,11 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::PendingSubstitution:
         return adopt_ref(*new (nothrow) PendingSubstitutionStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::OpenTypeTagged:
-        return adopt_ref(*new (nothrow) OpenTypeTaggedStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::OpenTypeTagged, data));
     case StyleValueFFI::StyleValueData::Tag::OverflowClipMargin:
         return adopt_ref(*new (nothrow) StyleValue(Type::OverflowClipMargin, data));
     case StyleValueFFI::StyleValueData::Tag::Position:
-        return adopt_ref(*new (nothrow) PositionStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::Position, data));
     case StyleValueFFI::StyleValueData::Tag::Ratio:
         return adopt_ref(*new (nothrow) RatioStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Ray:
@@ -242,7 +237,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::Rect:
         return adopt_ref(*new (nothrow) StyleValue(Type::Rect, data));
     case StyleValueFFI::StyleValueData::Tag::RepeatStyle:
-        return adopt_ref(*new (nothrow) RepeatStyleStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::RepeatStyle, data));
     case StyleValueFFI::StyleValueData::Tag::RandomValueSharing:
         return adopt_ref(*new (nothrow) StyleValue(Type::RandomValueSharing, data));
     case StyleValueFFI::StyleValueData::Tag::RadialSize:
