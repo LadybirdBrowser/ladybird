@@ -50,7 +50,9 @@ use crate::compile::CompiledProgramBytecode;
 use crate::u32_from_usize;
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 30;
+const FORMAT_VERSION: u32 = 31;
+// A blob's instructions are only good for the instruction set they were encoded with; see build.rs.
+include!(concat!(env!("OUT_DIR"), "/instruction_set_fingerprint.rs"));
 /// The size of the source hash a blob is keyed by.
 pub(crate) const SOURCE_HASH_SIZE: usize = 32;
 const BYTECODE_ALIGNMENT: usize = 8;
@@ -626,6 +628,7 @@ impl Encode for CacheBlob<'_> {
     fn encode(&self, encoder: &mut Encoder) {
         encoder.bytes(MAGIC);
         FORMAT_VERSION.encode(encoder);
+        INSTRUCTION_SET_FINGERPRINT.encode(encoder);
         self.runtime.tag().encode(encoder);
         self.program_type.encode(encoder);
         encoder.bytes(self.source_hash);
@@ -650,6 +653,7 @@ impl CacheBlob<'_> {
     ) -> Option<DecodedCacheBlob> {
         decoder.expect_bytes(MAGIC)?;
         (u32::decode(decoder)? == FORMAT_VERSION).then_some(())?;
+        (u64::decode(decoder)? == INSTRUCTION_SET_FINGERPRINT).then_some(())?;
         (u8::decode(decoder)? == expected_runtime.tag()).then_some(())?;
         let program_type = ast::ProgramType::decode(decoder)?;
         (program_type == expected_program_type).then_some(())?;
@@ -3298,12 +3302,30 @@ mod tests {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(MAGIC);
         bytes.extend_from_slice(&FORMAT_VERSION.to_le_bytes());
+        bytes.extend_from_slice(&INSTRUCTION_SET_FINGERPRINT.to_le_bytes());
         bytes.push(BytecodeCacheRuntime::Rust.tag());
         bytes.push(ast::ProgramType::Script as u8);
         bytes.extend_from_slice(&stored_source_hash);
 
         let releases = Rc::default();
         assert!(decode_test_blob(&bytes, ast::ProgramType::Script, &expected_source_hash, &releases).is_none());
+        assert_eq!(releases.get(), 1);
+    }
+
+    #[test]
+    fn decode_rejects_another_instruction_set() {
+        let source_hash = [1u8; SOURCE_HASH_SIZE];
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(MAGIC);
+        bytes.extend_from_slice(&FORMAT_VERSION.to_le_bytes());
+        bytes.extend_from_slice(&(INSTRUCTION_SET_FINGERPRINT ^ 1).to_le_bytes());
+        bytes.push(BytecodeCacheRuntime::Rust.tag());
+        bytes.push(ast::ProgramType::Script as u8);
+        bytes.extend_from_slice(&source_hash);
+
+        let releases = Rc::default();
+        assert!(decode_test_blob(&bytes, ast::ProgramType::Script, &source_hash, &releases).is_none());
         assert_eq!(releases.get(), 1);
     }
 
