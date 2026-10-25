@@ -357,17 +357,6 @@ static void paint_load_sheen(QPainter& painter, QPalette const& palette, QPainte
     painter.restore();
 }
 
-static QFont tab_title_font(QFont font)
-{
-#if defined(AK_OS_MACOS)
-    // The macOS style gives tab bars a small font when it polishes them, so tab titles are drawn a point larger than
-    // the tab bar's font rather than by setting the tab bar's font.
-    if (font.pointSizeF() > 0)
-        font.setPointSizeF(font.pointSizeF() + 1);
-#endif
-    return font;
-}
-
 static QColor tab_hover_surface(QPalette const& palette, qreal hover_progress)
 {
     auto dark = ChromeStyle::is_dark(palette);
@@ -472,7 +461,7 @@ private:
         if (hovered || isDown())
             text_color = ChromeStyle::chrome_button_text(palette());
         painter.setPen(text_color);
-        auto text_font = tab_title_font(m_tab_bar.font());
+        auto text_font = ChromeStyle::chrome_title_font(m_tab_bar.font());
         painter.setFont(text_font);
 
         QFontMetrics font_metrics(text_font);
@@ -956,7 +945,7 @@ void TabBar::paintEvent(QPaintEvent*)
 
     // Titles are shaped once and kept for as long as some tab shows them, since resizing the window repaints the tab
     // bar on every step without changing any title.
-    auto title_font = tab_title_font(font());
+    auto title_font = ChromeStyle::chrome_title_font(font());
     if (m_tab_title_texts_font != title_font) {
         m_tab_title_texts.clear();
         m_tab_title_texts_font = title_font;
@@ -1046,8 +1035,16 @@ void TabBar::paintEvent(QPaintEvent*)
             paint_load_sheen(painter, palette(), tab_path, tab_path.boundingRect(), *progress);
 
         auto icon = tabIcon(index);
-        if (icon.isNull())
-            icon = m_fallback_tab_icon;
+        auto paint_icon = [&](QRect const& icon_rect) {
+            if (!icon.isNull()) {
+                icon.paint(&painter, icon_rect);
+                return;
+            }
+            // NB: The fallback globe is drawn on a chrome icon's larger canvas, with room around it, so it is painted at
+            //     that size to be about as large as a favicon.
+            auto overhang = (CHROME_ICON_CANVAS_SIZE - TAB_ICON_SIZE) / 2;
+            m_fallback_tab_icon.paint(&painter, icon_rect.adjusted(-overhang, -overhang, overhang, overhang));
+        };
 
         if (is_collapsed_vertical || is_pinned_tile) {
             // The audio button takes the favicon's place on a pinned tile.
@@ -1064,7 +1061,7 @@ void TabBar::paintEvent(QPaintEvent*)
             };
             if (!is_selected)
                 painter.setOpacity(is_hovered ? 0.92 : (dark ? 0.88 : 0.84));
-            icon.paint(&painter, icon_rect);
+            paint_icon(icon_rect);
             painter.setOpacity(1.0);
             continue;
         }
@@ -1088,7 +1085,7 @@ void TabBar::paintEvent(QPaintEvent*)
             };
             if (!is_selected)
                 painter.setOpacity(is_hovered ? 0.92 : (dark ? 0.88 : 0.84));
-            icon.paint(&painter, icon_rect);
+            paint_icon(icon_rect);
             painter.setOpacity(1.0);
             continue;
         }
@@ -1101,7 +1098,7 @@ void TabBar::paintEvent(QPaintEvent*)
         };
         if (!is_selected)
             painter.setOpacity(is_hovered ? 0.92 : (dark ? 0.88 : 0.84));
-        icon.paint(&painter, icon_rect);
+        paint_icon(icon_rect);
         painter.setOpacity(1.0);
         contents_rect.setLeft(icon_rect.right() + 8);
 

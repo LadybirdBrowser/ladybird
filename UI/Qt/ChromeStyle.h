@@ -10,6 +10,7 @@
 #include <QString>
 
 class QAbstractButton;
+class QFont;
 class QPainter;
 class QPainterPath;
 class QPalette;
@@ -37,6 +38,7 @@ QColor chrome_separator(QPalette const&);
 QColor chrome_window_outline(QPalette const&);
 QColor chrome_accent();
 QColor chrome_muted_text(QPalette const&);
+QFont chrome_title_font(QFont);
 
 QString style_sheet_color(QColor const&);
 QString application_style_sheet(QPalette const&);

@@ -225,7 +225,7 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         break;
     case WebView::ActionID::BookmarkItem:
         if (auto icon = action.png_icon(); icon.has_value())
-            qaction.setIcon(icon_from_png(icon->bytes(), MENU_ICON_SIZE));
+            qaction.setIcon(favicon_with_rounded_corners(icon_from_png(icon->bytes(), MENU_ICON_SIZE), MENU_ICON_SIZE));
         else
             qaction.setIcon(create_chrome_icon(ChromeIcon::Globe, palette));
         break;

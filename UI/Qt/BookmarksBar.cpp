@@ -38,6 +38,11 @@ static constexpr int BOOKMARK_BUTTON_TEXT_ELISION_PADDING = 2;
 static constexpr char const* BOOKMARK_ITEM_PROPERTY = "bookmark_item";
 static constexpr char const* BOOKMARK_CONTEXT_MENU_OPEN_PROPERTY = "bookmark_context_menu_open";
 
+static QFont bookmark_title_font(QToolButton const& button)
+{
+    return ChromeStyle::chrome_title_font(button.font());
+}
+
 static int bookmark_button_height(QFontMetrics const& font_metrics, int icon_height)
 {
     return max(BOOKMARK_BUTTON_MIN_HEIGHT, max(font_metrics.height(), icon_height) + BOOKMARK_BUTTON_VERTICAL_PADDING);
@@ -125,7 +130,7 @@ static BookmarkButtonLayout bookmark_button_layout(QToolButton const& button, QS
     auto preferred_width = (BOOKMARK_BUTTON_HORIZONTAL_PADDING * 2)
         + layout.icon_width
         + layout.icon_text_spacing
-        + button.fontMetrics().horizontalAdvance(text)
+        + QFontMetrics(bookmark_title_font(button)).horizontalAdvance(text)
         + BOOKMARK_BUTTON_TEXT_ELISION_PADDING
         + layout.menu_indicator_width;
     layout.preferred_width = min(preferred_width, button_rect.width());
@@ -153,16 +158,13 @@ static void paint_bookmark_button(QToolButton& button)
         option.icon.paint(&painter, layout.icon_rect, Qt::AlignCenter, mode, button.isChecked() ? QIcon::On : QIcon::Off);
     }
 
-    auto elided_text = button.fontMetrics().elidedText(option.text, Qt::ElideRight, layout.available_text_width);
+    auto title_font = bookmark_title_font(button);
+    auto elided_text = QFontMetrics(title_font).elidedText(option.text, Qt::ElideRight, layout.available_text_width);
 
-    button.style()->drawItemText(
-        &painter,
-        layout.text_rect,
-        Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine,
-        option.palette,
-        button.isEnabled(),
-        elided_text,
-        QPalette::ButtonText);
+    // NB: The style would draw the title in the button's own font, so draw it here.
+    painter.setFont(title_font);
+    painter.setPen(option.palette.color(button.isEnabled() ? QPalette::Active : QPalette::Disabled, QPalette::ButtonText));
+    painter.drawText(layout.text_rect, Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine, elided_text);
 }
 
 static void install_menu_event_filter(QObject* filter, QMenu* menu)
@@ -214,13 +216,14 @@ void BookmarksBar::rebuild()
 
         auto option = bookmark_button_style_option(*button);
 
-        auto height = bookmark_button_height(button->fontMetrics(), button->iconSize().height());
+        QFontMetrics title_font_metrics(bookmark_title_font(*button));
+        auto height = bookmark_button_height(title_font_metrics, button->iconSize().height());
         auto max_size_rect = QRect { 0, 0, BOOKMARK_BUTTON_MAX_WIDTH, height };
 
         auto layout = bookmark_button_layout(*button, option, title, max_size_rect);
 
         auto available_title_width = max(layout.available_text_width - BOOKMARK_BUTTON_TEXT_ELISION_PADDING, 0);
-        auto text = button->fontMetrics().elidedText(title, Qt::ElideRight, available_title_width);
+        auto text = title_font_metrics.elidedText(title, Qt::ElideRight, available_title_width);
         button->setText(text);
 
         layout = bookmark_button_layout(*button, option, text, max_size_rect);

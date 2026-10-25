@@ -51,9 +51,13 @@ enum class ChromeIcon {
 };
 
 constexpr inline auto ICON_DEVICE_PIXEL_RATIOS = to_array({ 1, 2, 3 });
+// Chrome icons are drawn on a canvas of this size, with room around their shapes.
+constexpr inline int CHROME_ICON_CANVAS_SIZE = 20;
 
 QIcon load_icon_from_uri(StringView);
 QIcon icon_from_png(ReadonlyBytes, int logical_size);
+QPixmap favicon_with_rounded_corners(QPixmap const&);
+QIcon favicon_with_rounded_corners(QIcon const&, int logical_size);
 QIcon create_chrome_icon(ChromeIcon, QPalette const&);
 QPixmap create_chrome_icon_pixmap(ChromeIcon, QColor, qreal device_pixel_ratio);
 QIcon loading_spinner_icon(QPalette const& palette, int frame);

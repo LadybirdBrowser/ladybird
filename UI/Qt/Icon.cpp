@@ -46,6 +46,39 @@ QIcon icon_from_png(ReadonlyBytes favicon_png, int logical_size)
     return icon;
 }
 
+// Favicons get slightly rounded corners, so that square ones sit well in the round shapes of the chrome around them.
+static constexpr qreal FAVICON_CORNER_RADIUS_FRACTION = 3.0 / 16.0;
+
+QPixmap favicon_with_rounded_corners(QPixmap const& favicon)
+{
+    auto image = favicon.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    image.setDevicePixelRatio(1);
+
+    QImage rounded(image.size(), QImage::Format_ARGB32_Premultiplied);
+    rounded.fill(Qt::transparent);
+    {
+        QPainter painter(&rounded);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QBrush(image));
+        auto radius = image.width() * FAVICON_CORNER_RADIUS_FRACTION;
+        painter.drawRoundedRect(QRectF(image.rect()), radius, radius);
+    }
+    rounded.setDevicePixelRatio(favicon.devicePixelRatio());
+    return QPixmap::fromImage(rounded);
+}
+
+QIcon favicon_with_rounded_corners(QIcon const& favicon, int logical_size)
+{
+    if (favicon.isNull())
+        return {};
+
+    QIcon rounded;
+    for (auto device_pixel_ratio : ICON_DEVICE_PIXEL_RATIOS)
+        rounded.addPixmap(favicon_with_rounded_corners(favicon.pixmap(QSize(logical_size, logical_size), device_pixel_ratio)));
+    return rounded;
+}
+
 static QPen chrome_icon_pen(QColor const& color, qreal width)
 {
     return QPen(color, width, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
@@ -255,7 +288,7 @@ static QPixmap create_transparent_icon_pixmap(QSize logical_size, qreal device_p
 
 QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal device_pixel_ratio)
 {
-    auto pixmap = create_transparent_icon_pixmap({ 20, 20 }, device_pixel_ratio);
+    auto pixmap = create_transparent_icon_pixmap({ CHROME_ICON_CANVAS_SIZE, CHROME_ICON_CANVAS_SIZE }, device_pixel_ratio);
 
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing, true);
