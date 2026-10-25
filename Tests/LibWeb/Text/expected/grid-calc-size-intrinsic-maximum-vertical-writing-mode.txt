@@ -1,0 +1,2 @@
+min-content-maximum: grid 20x30, holder 20x30
+max-content-maximum: grid 20x30, holder 20x30

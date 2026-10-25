@@ -6,7 +6,7 @@
 
 use super::*;
 
-/// The complete identity of a memoizable run: the layout input plus the
+/// The complete identity of a cacheable run: the layout input plus the
 /// pre-run root input cells the dispatch seam captures anyway, so every
 /// value a parent hands a spawned run that the run reads is part of the
 /// key. Viewport changes reach a run through that input or through the
@@ -15,7 +15,6 @@ use super::*;
 #[derive(Clone, Copy, PartialEq)]
 pub(super) struct FcRunCacheKey {
     fc_type: formatting_context::FormattingContextType,
-    layout_mode: LayoutMode,
     input: LayoutInput,
     root_cells: used_values::RootInputCells,
 }
@@ -96,7 +95,6 @@ fn root_input_cells_match_ignoring_unobserved_own_block_size_and_block_margins(
 impl FcRunCacheKey {
     pub(super) fn new(
         fc_type: formatting_context::FormattingContextType,
-        layout_mode: LayoutMode,
         mut input: LayoutInput,
         root_cells: used_values::RootInputCells,
     ) -> Self {
@@ -106,7 +104,6 @@ impl FcRunCacheKey {
         }
         Self {
             fc_type,
-            layout_mode,
             input,
             root_cells,
         }
@@ -139,7 +136,6 @@ impl FcRunCacheKey {
             return false;
         }
         self.fc_type == probe.fc_type
-            && self.layout_mode == probe.layout_mode
             && root_input_cells_match_ignoring_unobserved_own_block_size_and_block_margins(
                 self.root_cells,
                 probe.root_cells,
@@ -1028,7 +1024,6 @@ mod tests {
     fn key(available_inline: AvailableSize, percentage_basis_inline_size: Option<CssPixels>) -> FcRunCacheKey {
         FcRunCacheKey {
             fc_type: formatting_context::FormattingContextType::Block,
-            layout_mode: LayoutMode::Normal,
             input: LayoutInput::new(
                 AvailableSpace {
                     inline_size: available_inline,
@@ -1354,14 +1349,7 @@ mod tests {
             ContainingBlockConstraints::default(),
             ParticipationInParentFormattingContext::Item,
         );
-        let key_of = |fc_type, input| {
-            FcRunCacheKey::new(
-                fc_type,
-                LayoutMode::Normal,
-                input,
-                used_values::RootInputCells::capture(&record),
-            )
-        };
+        let key_of = |fc_type, input| FcRunCacheKey::new(fc_type, input, used_values::RootInputCells::capture(&record));
         let stored_block_key = key_of(formatting_context::FormattingContextType::Block, item_input);
         let stored_flex_key = key_of(formatting_context::FormattingContextType::Flex, item_input);
 
@@ -1478,7 +1466,6 @@ mod tests {
         record.content_inline_size.set(px(300));
         FcRunCacheKey::new(
             formatting_context::FormattingContextType::Block,
-            LayoutMode::Normal,
             LayoutInput::new(
                 AvailableSpace {
                     inline_size: AvailableSize::definite(px(300)),

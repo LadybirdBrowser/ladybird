@@ -957,7 +957,6 @@ impl FragmentainerLineLimit {
 pub(crate) struct InlineFormattingContext<'context> {
     pub(crate) run: &'context FormattingContextRun<'context>,
     pub(crate) containing_block: Node,
-    pub(crate) layout_mode: LayoutMode,
     pub(crate) input: LayoutInput,
     pub(crate) callbacks: LayoutPass<'context>,
     pub(crate) parent: &'context block_formatting_context::BlockFormattingContext<'context>,
@@ -975,7 +974,6 @@ impl<'context> InlineFormattingContext<'context> {
     pub(crate) fn new_with_rust_parent(
         run: &'context FormattingContextRun<'context>,
         containing_block: Node,
-        layout_mode: LayoutMode,
         input: LayoutInput,
         callbacks: LayoutPass<'context>,
         parent: &'context block_formatting_context::BlockFormattingContext<'context>,
@@ -985,7 +983,6 @@ impl<'context> InlineFormattingContext<'context> {
         Self {
             run,
             containing_block,
-            layout_mode,
             input,
             callbacks,
             parent,
@@ -1271,15 +1268,7 @@ impl<'context> InlineFormattingContext<'context> {
             self.input.containing_block_constraints,
             ParticipationInParentFormattingContext::AtomicInline,
         );
-        match formatting_context::layout_inside_child(
-            self.run,
-            Some(self.parent),
-            None,
-            node,
-            self.layout_mode,
-            input,
-            false,
-        ) {
+        match formatting_context::layout_inside_child(self.run, Some(self.parent), None, node, input, false) {
             ChildLayoutOutcome::Created(result) => result.baselines,
             ChildLayoutOutcome::ReenterCurrent => {
                 self.parent.run(self.run, input);
@@ -2117,62 +2106,60 @@ impl<'context> InlineFormattingContext<'context> {
             }
         }
 
-        if self.layout_mode == LayoutMode::Normal {
-            for box_ in absolute_boxes {
-                if lines_are_fragmented
-                    && !self
-                        .line_data()
-                        .line_boxes
-                        .iter()
-                        .any(|line| line.static_position_markers.iter().any(|marker| marker.box_ == box_))
-                {
-                    continue;
-                }
-                let mut static_position = abspos_inputs::StaticPositionRect {
-                    rect: Default::default(),
-                    inline_alignment: StaticPositionAlignment::Start,
-                    block_alignment: StaticPositionAlignment::Start,
-                    alignment_derives_from_own_computed_values: false,
-                    is_known: true,
-                };
-                'lines: for line in &self.line_data().line_boxes {
-                    for marker in &line.static_position_markers {
-                        if marker.box_ != box_ {
-                            continue;
-                        }
-                        if self
-                            .facts(box_)
-                            .display_before_box_type_transformation_is_block_outside()
-                        {
-                            let block_position = if marker.preceded_by_in_flow_content {
-                                line.physical_vertical_end()
-                            } else {
-                                marker.offset().1
-                            };
-                            let inline_size = self.input.containing_block_constraints.inline_basis();
-                            static_position.rect.offset.inline_offset = CssPixels::default();
-                            static_position.rect.offset.block_offset = block_position;
-                            static_position.rect.size.inline_size = inline_size;
-                        } else {
-                            let (x, y) = marker.offset();
-                            static_position.rect.offset.inline_offset = x;
-                            static_position.rect.offset.block_offset = y;
-                        }
-                        if containing_style.direction() == direction::RTL {
-                            static_position.inline_alignment = StaticPositionAlignment::End;
-                        }
-                        break 'lines;
-                    }
-                }
-                formatting_context::register_contained_abspos_child(
-                    &self.callbacks,
-                    self.run.fragments.as_deref(),
-                    self.containing_block,
-                    box_,
-                    static_position,
-                    None,
-                );
+        for box_ in absolute_boxes {
+            if lines_are_fragmented
+                && !self
+                    .line_data()
+                    .line_boxes
+                    .iter()
+                    .any(|line| line.static_position_markers.iter().any(|marker| marker.box_ == box_))
+            {
+                continue;
             }
+            let mut static_position = abspos_inputs::StaticPositionRect {
+                rect: Default::default(),
+                inline_alignment: StaticPositionAlignment::Start,
+                block_alignment: StaticPositionAlignment::Start,
+                alignment_derives_from_own_computed_values: false,
+                is_known: true,
+            };
+            'lines: for line in &self.line_data().line_boxes {
+                for marker in &line.static_position_markers {
+                    if marker.box_ != box_ {
+                        continue;
+                    }
+                    if self
+                        .facts(box_)
+                        .display_before_box_type_transformation_is_block_outside()
+                    {
+                        let block_position = if marker.preceded_by_in_flow_content {
+                            line.physical_vertical_end()
+                        } else {
+                            marker.offset().1
+                        };
+                        let inline_size = self.input.containing_block_constraints.inline_basis();
+                        static_position.rect.offset.inline_offset = CssPixels::default();
+                        static_position.rect.offset.block_offset = block_position;
+                        static_position.rect.size.inline_size = inline_size;
+                    } else {
+                        let (x, y) = marker.offset();
+                        static_position.rect.offset.inline_offset = x;
+                        static_position.rect.offset.block_offset = y;
+                    }
+                    if containing_style.direction() == direction::RTL {
+                        static_position.inline_alignment = StaticPositionAlignment::End;
+                    }
+                    break 'lines;
+                }
+            }
+            formatting_context::register_contained_abspos_child(
+                &self.callbacks,
+                self.run.fragments.as_deref(),
+                self.containing_block,
+                box_,
+                static_position,
+                None,
+            );
         }
         line_builder.remove_last_line_if_empty();
         self.parent.append_floating_boxes(floating_boxes_after_clamp_point);

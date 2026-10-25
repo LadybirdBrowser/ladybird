@@ -3116,7 +3116,6 @@ impl<'pass> AbsposEngine<'pass> {
             None,
             None,
             node,
-            LayoutMode::Normal,
             LayoutInput::new(
                 available_space,
                 constraints,
@@ -3447,10 +3446,10 @@ impl<'pass> AbsposEngine<'pass> {
         //    abspos's inset-modified containing block, when laid out with adjusted styles.
         let used = used_values::create_used_values(&self.callbacks, node, ContainingBlockConstraints::default());
         let (available_space, constraints) = out_of_flow_root_space(inputs);
-        formatting_context::MeasurementState::create(self.callbacks).run_with_layout_mode(
+        formatting_context::run_root_without_parent_fragments(
+            self.callbacks,
             node,
             &used,
-            LayoutMode::Normal,
             LayoutInput::new(
                 available_space,
                 constraints,
@@ -3798,7 +3797,6 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
     let run = FormattingContextRun {
         records,
         box_: accumulator_root,
-        layout_mode: LayoutMode::Normal,
         callbacks,
         should_collect_devtools_layout_data,
         treat_block_axis_percentage_insets_as_auto_beyond_root: false,

@@ -87,7 +87,7 @@ use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
 pub(crate) use abspos_inputs::{AbsposAlignment, StaticPositionAlignment};
 pub(crate) use formatting_context::{
-    ChildLayoutOutcome, DerivedBaselines, FfiLayoutHostCallbacks, FormattingContextRun, LayoutMode, Node, SizingAxis,
+    ChildLayoutOutcome, DerivedBaselines, FfiLayoutHostCallbacks, FormattingContextRun, Node, SizingAxis,
     SizingProperty,
 };
 pub(crate) use fragment_tree::FragmentLink;
@@ -112,4 +112,4 @@ pub(crate) use style_values::StyleValues;
 pub(crate) use tree_builder::build_keeps_box;
 pub(crate) use update_layout::MainThreadFfiEntry as UpdateMainThreadFfiEntry;
 pub(crate) use update_layout::{ClockRound, ClockRoundDeclined, FlownRound, SealedRound};
-pub(crate) use used_values::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, SizeConstraint, UsedValues};
+pub(crate) use used_values::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, UsedValues};

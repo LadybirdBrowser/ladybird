@@ -1,0 +1,126 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        margin: 0;
+        font: 10px/10px Ahem;
+    }
+
+    .case {
+        position: relative;
+        height: 300px;
+    }
+
+    .shrink {
+        writing-mode: vertical-rl;
+    }
+
+    .inline-block {
+        display: inline-block;
+    }
+
+    .abspos {
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    .float {
+        float: left;
+    }
+
+    .bar {
+        width: 10px;
+        height: 30px;
+    }
+
+    .horizontal {
+        writing-mode: horizontal-tb;
+    }
+
+    .table {
+        min-width: 80px;
+        border-spacing: 0;
+    }
+
+    .table td {
+        padding: 0;
+    }
+
+    .multicol {
+        column-count: 2;
+        column-gap: 10px;
+    }
+
+    .fixed-grid {
+        display: grid;
+        width: 40px;
+        height: 60px;
+    }
+
+    .list {
+        margin: 0;
+        padding: 0;
+        list-style-position: outside;
+    }
+
+    .column-flex {
+        display: flex;
+        flex-direction: column;
+        height: 50px;
+    }
+
+    .column-flex > div {
+        aspect-ratio: 2 / 1;
+        width: 20px;
+    }
+
+    .parent-grid {
+        display: grid;
+        grid-template-rows: 30px 40px;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-row: span 2;
+        grid-template-rows: subgrid;
+    }
+</style>
+<div id="cases"></div>
+<template id="table"><table class="table horizontal"><tr><td><div class="bar"></div></td><td><div class="bar"></div></td></tr></table></template>
+<template id="multicol"><div class="multicol horizontal"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></template>
+<template id="fixed-grid"><div class="fixed-grid"><div class="bar"></div></div></template>
+<template id="list"><ul class="list"><li><div class="bar"></div></li></ul></template>
+<template id="column-flex"><div class="column-flex"><div></div></div></template>
+<template id="subgrid"><div class="parent-grid horizontal"><div class="subgrid"><div class="bar"></div><div class="bar"></div></div></div></template>
+<script>
+    test(() => {
+        const contents = ["table", "multicol", "fixed-grid", "list", "column-flex", "subgrid"];
+        const shrinkToFitKinds = ["inline-block", "abspos", "float"];
+        const rows = [];
+        for (const content of contents) {
+            for (const kind of shrinkToFitKinds) {
+                const holder = document.createElement("div");
+                holder.className = "case";
+                const box = document.createElement("div");
+                box.className = `shrink ${kind}`;
+                box.append(document.getElementById(content).content.cloneNode(true));
+                holder.append(box);
+                cases.append(holder);
+                rows.push([content, kind, box]);
+            }
+        }
+        for (const [content, kind, box] of rows) {
+            const outer = box.getBoundingClientRect();
+            const inner = box.firstElementChild.getBoundingClientRect();
+            println(
+                `${content} in ${kind}: box ${Math.round(outer.width)}x${Math.round(outer.height)}, content ${Math.round(inner.width)}x${Math.round(inner.height)}`
+            );
+        }
+    });
+</script>

@@ -273,7 +273,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     broken_child_token: RefCell<Option<std::rc::Rc<fragmentation::BlockBreakToken>>>,
     unbreakable_line_roots: RefCell<HashSet<Node>>,
     break_before_child_is_avoided: Cell<Option<Node>>,
-    intrinsic_inline_size_constraint: Cell<AvailableSize>,
+    available_inline_size_of_run: Cell<AvailableSize>,
 }
 
 #[derive(Default)]
@@ -396,7 +396,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             broken_child_token: RefCell::new(None),
             unbreakable_line_roots: RefCell::new(HashSet::default()),
             break_before_child_is_avoided: Cell::new(None),
-            intrinsic_inline_size_constraint: Cell::new(AvailableSize::Indefinite),
+            available_inline_size_of_run: Cell::new(AvailableSize::Indefinite),
         }
     }
 
@@ -1750,9 +1750,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         if marker_facts.list_marker_is_inside() {
             return;
         }
-        if self.run.layout_mode == LayoutMode::IntrinsicSizing {
-            return;
-        }
         // Animations can make `float` or `position` apply to ::marker.
         if marker_facts.is_floating() || marker_facts.is_absolutely_positioned() {
             return;
@@ -1778,7 +1775,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             None,
             None,
             marker,
-            self.run.layout_mode,
             LayoutInput {
                 available_space: inner_available_space,
                 containing_block_constraints: marker_constraints,
@@ -1834,15 +1830,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         input: LayoutInput,
         force_independent_context_run: bool,
     ) -> Option<formatting_context::ChildLayoutResult> {
-        match formatting_context::layout_inside_child(
-            run,
-            Some(self),
-            None,
-            node,
-            self.run.layout_mode,
-            input,
-            force_independent_context_run,
-        ) {
+        match formatting_context::layout_inside_child(run, Some(self), None, node, input, force_independent_context_run)
+        {
             ChildLayoutOutcome::Skipped => None,
             ChildLayoutOutcome::Created(child_layout) => Some(child_layout),
             ChildLayoutOutcome::ReenterCurrent => {
@@ -1891,23 +1880,21 @@ impl<'pass> BlockFormattingContext<'pass> {
         let facts = self.facts(node);
 
         if facts.is_absolutely_positioned() {
-            if self.run.layout_mode == LayoutMode::Normal {
-                // The static position sits where the next in-flow box would be placed, so the
-                // collapsed margin pending from preceding siblings applies to it as well.
-                let pending_margin = self.margin_state.borrow().pending_margin_for_next_box();
-                // NB: An originally-inline absolutely positioned box never reaches this path; the tree
-                //     builder keeps out-of-flow boxes in inline context, where static position markers
-                //     pin them at their exact flow position.
-                self.register_contained_abspos_child(
-                    node,
-                    pending_margin
-                        + self
-                            .block_offset_of_current_block_container
-                            .get()
-                            .expect("a block container flow cursor is active"),
-                    block_container,
-                );
-            }
+            // The static position sits where the next in-flow box would be placed, so the
+            // collapsed margin pending from preceding siblings applies to it as well.
+            let pending_margin = self.margin_state.borrow().pending_margin_for_next_box();
+            // NB: An originally-inline absolutely positioned box never reaches this path; the tree
+            //     builder keeps out-of-flow boxes in inline context, where static position markers
+            //     pin them at their exact flow position.
+            self.register_contained_abspos_child(
+                node,
+                pending_margin
+                    + self
+                        .block_offset_of_current_block_container
+                        .get()
+                        .expect("a block container flow cursor is active"),
+                block_container,
+            );
             return;
         }
 
@@ -3279,8 +3266,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn lays_out_multicol_container(&self, input: LayoutInput) -> bool {
         self.run.fragmentainer.is_none()
-            && (self.run.layout_mode == LayoutMode::Normal
-                || matches!(input.available_space.inline_size, AvailableSize::Definite(_)))
+            && !input.available_space.inline_size.is_intrinsic_sizing_constraint()
             && self.is_multicol_container()
     }
 
@@ -3869,7 +3855,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     pub(crate) fn run(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         let available_space = input.available_space;
-        self.intrinsic_inline_size_constraint.set(available_space.inline_size);
+        self.available_inline_size_of_run.set(available_space.inline_size);
         self.used(self.run.box_)
             .clamped_content_is_scrollable_overflow
             .set(self.clamped_content_is_scrollable_overflow);
@@ -4281,7 +4267,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut context = inline_formatting_context::InlineFormattingContext::new_with_rust_parent(
             run,
             block_container,
-            self.run.layout_mode,
             inline_input,
             self.run.callbacks,
             self,
@@ -4622,7 +4607,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let root_facts = self.facts(self.run.box_);
         if root_facts.children_are_inline() {
             let content_inline_size = self.used(self.run.box_).content_inline_size.get();
-            if self.run.layout_mode == LayoutMode::IntrinsicSizing && self.is_multicol_container() {
+            if self.lays_out_under_intrinsic_inline_size() && self.is_multicol_container() {
                 return self.multicol_intrinsic_inline_size(content_inline_size);
             }
             return content_inline_size;
@@ -4639,7 +4624,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
             unreachable!("a table wrapper contains its table box");
         }
-        if self.run.layout_mode == LayoutMode::IntrinsicSizing && self.is_multicol_container() {
+        if self.lays_out_under_intrinsic_inline_size() && self.is_multicol_container() {
             let (column_content_inline_size, spanner_inline_size) =
                 self.greatest_child_inline_sizes_including_floats(self.run.box_);
             return self
@@ -4649,11 +4634,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.greatest_child_inline_size_including_floats(self.run.box_)
     }
 
+    fn lays_out_under_intrinsic_inline_size(&self) -> bool {
+        self.available_inline_size_of_run.get().is_intrinsic_sizing_constraint()
+    }
+
     fn multicol_intrinsic_inline_size(&self, content_inline_size: CssPixels) -> CssPixels {
         fragmentation::multicol_intrinsic_inline_size(
             self.style(self.run.box_),
             content_inline_size,
-            self.intrinsic_inline_size_constraint.get() == AvailableSize::MinContent,
+            self.available_inline_size_of_run.get() == AvailableSize::MinContent,
         )
     }
 

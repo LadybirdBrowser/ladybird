@@ -932,8 +932,15 @@ enum TrackAxis {
     Column,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum AutoTableInlineSize {
+    FillsAvailableInlineSize,
+    ShrinksToFitAvailableInlineSize,
+}
+
 pub(super) struct TableFormattingContext<'pass> {
     run: FormattingContextRun<'pass>,
+    auto_table_inline_size: AutoTableInlineSize,
     table_constraints: ContainingBlockConstraints,
     participant_constraints: ContainingBlockConstraints,
     available_space: AvailableSpace,
@@ -1035,12 +1042,13 @@ impl<'pass> TableFormattingContext<'pass> {
         StyleValues::for_node(&self.run.callbacks, node)
     }
 
-    pub(super) fn new(run: &FormattingContextRun<'pass>) -> Self {
+    pub(super) fn new(run: &FormattingContextRun<'pass>, auto_table_inline_size: AutoTableInlineSize) -> Self {
         Self {
             run: FormattingContextRun {
                 previous_line_data: None,
                 ..run.clone()
             },
+            auto_table_inline_size,
             table_constraints: ContainingBlockConstraints::default(),
             participant_constraints: ContainingBlockConstraints::default(),
             available_space: AvailableSpace::default(),
@@ -2325,7 +2333,9 @@ impl<'pass> TableFormattingContext<'pass> {
             let mut value = match available_inline {
                 AvailableSize::MinContent => grid_min,
                 AvailableSize::MaxContent => grid_max,
-                AvailableSize::Definite(available) if self.run.layout_mode == LayoutMode::Normal => {
+                AvailableSize::Definite(available)
+                    if self.auto_table_inline_size == AutoTableInlineSize::FillsAvailableInlineSize =>
+                {
                     available.max(used_min)
                 }
                 AvailableSize::Definite(available) => grid_max.min(available).max(used_min),
@@ -2575,15 +2585,7 @@ impl<'pass> TableFormattingContext<'pass> {
             },
             participation: ParticipationInParentFormattingContext::Item,
         };
-        match formatting_context::layout_inside_child(
-            run,
-            None,
-            None,
-            cell.box_,
-            self.run.layout_mode,
-            layout_input,
-            false,
-        ) {
+        match formatting_context::layout_inside_child(run, None, None, cell.box_, layout_input, false) {
             ChildLayoutOutcome::Created(result) => result.baselines,
             ChildLayoutOutcome::ReenterCurrent => {
                 self.run(run, layout_input, None);
@@ -2643,24 +2645,16 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     /// Measures a cell's content ahead of its committing layout, with everything that layout will be handed but the
-    /// intrinsic block padding, so that the committing run of a cell in a normal-mode table can replay the measuring
-    /// one (see table_cell_run_shape_ahead_of_its_intrinsic_block_padding).
+    /// intrinsic block padding, so that the committing run of the cell can replay the measuring one (see
+    /// table_cell_run_shape_ahead_of_its_intrinsic_block_padding).
     fn measure_cell(
         &self,
         run: &FormattingContextRun<'pass>,
         cell: TableCell,
-        used: &UsedValues,
         inner: AvailableSpace,
         adopt_automatic_content_block_size: bool,
     ) -> Option<TableCellMeasurement> {
         let facts = NodeFacts::new(&self.run.callbacks, cell.box_);
-        if self.run.layout_mode == LayoutMode::IntrinsicSizing
-            && !facts.is_inline()
-            && used.has_definite_inline_size()
-            && used.has_definite_block_size()
-        {
-            return None;
-        }
         if !facts.can_have_children() {
             return None;
         }
@@ -2678,7 +2672,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 participation: ParticipationInParentFormattingContext::Item,
             },
         )?;
-        let result = formatting_context::lay_out_shape_for_its_result(run.callbacks, shape, self.run.layout_mode);
+        let result = formatting_context::lay_out_shape_for_its_result(run.callbacks, shape);
         Some(TableCellMeasurement {
             automatic_content_block_size: result.automatic_content_block_size,
             baselines: result.baselines,
@@ -2769,7 +2763,7 @@ impl<'pass> TableFormattingContext<'pass> {
             if defer_inside_layout {
                 // This cell's final inside layout happens once row heights are final; measure its
                 // content ahead of its intrinsic padding instead of laying out the committing state twice.
-                if let Some(measured) = self.measure_cell(run, cell, used, inner, true) {
+                if let Some(measured) = self.measure_cell(run, cell, inner, true) {
                     self.cell_measurements[cell_index] = Some(measured);
                     used.set_content_block_size(measured.automatic_content_block_size);
                     content_baselines = Some(measured.baselines);
@@ -2897,7 +2891,7 @@ impl<'pass> TableFormattingContext<'pass> {
             // The first pass measured this cell at its automatic block size; measure it again at
             // the percentage-resolved size to preserve the baseline its final inside layout will use.
             let content_baselines = self
-                .measure_cell(run, cell, used, inner, false)
+                .measure_cell(run, cell, inner, false)
                 .map(|measured| measured.baselines);
             let baseline = self.cell_baseline(cell.box_, content_baselines);
             self.cells[cell_index].baseline = baseline;

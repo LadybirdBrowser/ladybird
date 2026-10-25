@@ -52,7 +52,6 @@ impl ContentSizingScope {
                 size_content(&FormattingContextRun {
                     records,
                     box_: self.node,
-                    layout_mode: LayoutMode::IntrinsicSizing,
                     callbacks,
                     should_collect_devtools_layout_data: false,
                     treat_block_axis_percentage_insets_as_auto_beyond_root: false,
@@ -124,7 +123,6 @@ pub(super) fn content_sizes_of_inline_content(
             let mut context = inline_formatting_context::InlineFormattingContext::new_with_rust_parent(
                 run,
                 run.box_,
-                LayoutMode::IntrinsicSizing,
                 input,
                 run.callbacks,
                 &parent,
@@ -459,7 +457,11 @@ pub(super) fn content_sizes_of_table(
     Some(scope.enter(callbacks, |run| {
         let sizing = run.sizing();
         let sizes = if is_table_box {
-            table_formatting_context::TableFormattingContext::new(run).content_inline_sizes(LayoutInput::new(
+            table_formatting_context::TableFormattingContext::new(
+                run,
+                table_formatting_context::AutoTableInlineSize::FillsAvailableInlineSize,
+            )
+            .content_inline_sizes(LayoutInput::new(
                 AvailableSpace {
                     inline_size: AvailableSize::MaxContent,
                     block_size: scope.available_block_size(),
@@ -498,7 +500,7 @@ pub(super) fn content_sizes_of_flex_container(
         constraints,
         block_size,
         depends_on_block_size,
-        SizeConstraint::None,
+        None,
         |run, input| flex_formatting_context::FlexFormattingContext::new(run).content_inline_size(input),
     ))
 }
@@ -534,17 +536,44 @@ fn container_content_is_sized_without_layout(
         && !establishes_orthogonal_flow(callbacks, node)
 }
 
-pub(super) fn content_size_named_by_maximum_inline_size(callbacks: &LayoutPass<'_>, node: Node) -> SizeConstraint {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ContentSizeNamedByMaximum {
+    MinContent,
+    MaxContent,
+}
+
+impl ContentSizeNamedByMaximum {
+    pub(super) fn available_inline_size(self) -> AvailableSize {
+        match self {
+            Self::MinContent => AvailableSize::MinContent,
+            Self::MaxContent => AvailableSize::MaxContent,
+        }
+    }
+}
+
+pub(super) fn content_size_named_by_maximum_inline_size(
+    callbacks: &LayoutPass<'_>,
+    node: Node,
+) -> Option<ContentSizeNamedByMaximum> {
     let maximum = StyleValues::for_node(callbacks, node).max_width();
     if maximum.calc_size().is_some() {
-        SizeConstraint::None
+        None
     } else if maximum.is_min_content() {
-        SizeConstraint::MinContent
+        Some(ContentSizeNamedByMaximum::MinContent)
     } else if maximum.is_max_content() {
-        SizeConstraint::MaxContent
+        Some(ContentSizeNamedByMaximum::MaxContent)
     } else {
-        SizeConstraint::None
+        None
     }
+}
+
+pub(super) fn available_inline_size_under_content_size_named_by_maximum(
+    content_size_named_by_maximum_inline_size: Option<ContentSizeNamedByMaximum>,
+) -> AvailableSize {
+    content_size_named_by_maximum_inline_size.map_or(
+        AvailableSize::MaxContent,
+        ContentSizeNamedByMaximum::available_inline_size,
+    )
 }
 
 fn content_sizes_of_container_under_each_inline_size_constraint(
@@ -553,21 +582,17 @@ fn content_sizes_of_container_under_each_inline_size_constraint(
     constraints: ContainingBlockConstraints,
     block_size: Option<CssPixels>,
     depends_on_block_size: bool,
-    content_size_named_by_maximum_inline_size: SizeConstraint,
+    content_size_named_by_maximum_inline_size: Option<ContentSizeNamedByMaximum>,
     content_inline_size: impl Fn(&FormattingContextRun<'_>, LayoutInput) -> CssPixels,
 ) -> sizing_context::ContentInlineSizes {
-    let available_inline_size_under = |inline_size_constraint: SizeConstraint| match inline_size_constraint {
-        SizeConstraint::MinContent => AvailableSize::MinContent,
-        _ => AvailableSize::MaxContent,
-    };
     let content_inline_size_under =
-        |inline_size_constraint: SizeConstraint, content_size_named_by_maximum: Option<CssPixels>| {
+        |available_inline_size: AvailableSize, content_size_named_by_maximum: Option<CssPixels>| {
             let scope = ContentSizingScope::new(&callbacks, node, constraints, block_size);
             scope.enter(callbacks, |run| {
                 let sizing = run.sizing();
                 let mut input = LayoutInput::new(
                     AvailableSpace {
-                        inline_size: available_inline_size_under(inline_size_constraint),
+                        inline_size: available_inline_size,
                         block_size: scope.available_block_size(),
                     },
                     constraints,
@@ -578,7 +603,9 @@ fn content_sizes_of_container_under_each_inline_size_constraint(
                         sizing.apply_transferred_limits_to_intrinsic_inline_size(
                             node,
                             clamp_to_max_dimension_value(content_size),
-                            available_inline_size_under(content_size_named_by_maximum_inline_size),
+                            available_inline_size_under_content_size_named_by_maximum(
+                                content_size_named_by_maximum_inline_size,
+                            ),
                             constraints,
                         )
                     });
@@ -605,24 +632,24 @@ fn content_sizes_of_container_under_each_inline_size_constraint(
 }
 
 pub(super) fn measure_under_each_inline_size_constraint_named_maximum_first<Measurement>(
-    content_size_named_by_maximum_inline_size: SizeConstraint,
-    measure_under: impl Fn(SizeConstraint, Option<CssPixels>) -> Measurement,
+    content_size_named_by_maximum_inline_size: Option<ContentSizeNamedByMaximum>,
+    measure_under: impl Fn(AvailableSize, Option<CssPixels>) -> Measurement,
     content_inline_size_of: impl Fn(&Measurement) -> CssPixels,
 ) -> (Measurement, Measurement) {
     match content_size_named_by_maximum_inline_size {
-        SizeConstraint::MinContent => {
-            let min_content = measure_under(SizeConstraint::MinContent, None);
-            let max_content = measure_under(SizeConstraint::MaxContent, Some(content_inline_size_of(&min_content)));
+        Some(ContentSizeNamedByMaximum::MinContent) => {
+            let min_content = measure_under(AvailableSize::MinContent, None);
+            let max_content = measure_under(AvailableSize::MaxContent, Some(content_inline_size_of(&min_content)));
             (min_content, max_content)
         }
-        SizeConstraint::MaxContent => {
-            let max_content = measure_under(SizeConstraint::MaxContent, None);
-            let min_content = measure_under(SizeConstraint::MinContent, Some(content_inline_size_of(&max_content)));
+        Some(ContentSizeNamedByMaximum::MaxContent) => {
+            let max_content = measure_under(AvailableSize::MaxContent, None);
+            let min_content = measure_under(AvailableSize::MinContent, Some(content_inline_size_of(&max_content)));
             (min_content, max_content)
         }
-        SizeConstraint::None => (
-            measure_under(SizeConstraint::MinContent, None),
-            measure_under(SizeConstraint::MaxContent, None),
+        None => (
+            measure_under(AvailableSize::MinContent, None),
+            measure_under(AvailableSize::MaxContent, None),
         ),
     }
 }

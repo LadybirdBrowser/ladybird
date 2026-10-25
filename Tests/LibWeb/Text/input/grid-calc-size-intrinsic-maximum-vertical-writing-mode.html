@@ -1,0 +1,41 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .holder {
+        display: inline-block;
+    }
+
+    .grid {
+        display: grid;
+        writing-mode: vertical-rl;
+    }
+
+    #min-content-maximum {
+        max-height: calc-size(min-content, size * 1000);
+    }
+
+    #max-content-maximum {
+        max-height: calc-size(max-content, size * 1000);
+    }
+
+    .item {
+        width: 20px;
+        height: 30px;
+    }
+</style>
+<div class="holder"><div class="grid" id="min-content-maximum"><div class="item"></div></div></div>
+<div class="holder"><div class="grid" id="max-content-maximum"><div class="item"></div></div></div>
+<script>
+    test(() => {
+        for (const id of ["min-content-maximum", "max-content-maximum"]) {
+            const grid = document.getElementById(id);
+            const rect = grid.getBoundingClientRect();
+            const holder = grid.parentElement.getBoundingClientRect();
+            println(`${id}: grid ${Math.round(rect.width)}x${Math.round(rect.height)}, holder ${Math.round(holder.width)}x${Math.round(holder.height)}`);
+        }
+    });
+</script>

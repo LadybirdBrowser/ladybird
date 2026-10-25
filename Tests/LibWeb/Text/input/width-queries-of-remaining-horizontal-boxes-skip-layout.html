@@ -99,10 +99,9 @@
                     if (event.event === "run") ++nestedRuns;
                 }
             });
-            const intrinsicRuns = work.count(event => event.event === "run" && isTarget(event.box) && event.intrinsic);
             const width = document.getElementById(id).getBoundingClientRect().width;
             println(
-                `${id}: ${misses} inline misses answered from ${[...answers].join(", ") || "nothing"}, ${nestedRuns} runs under them, ${intrinsicRuns} intrinsic runs of the box, width ${width}`
+                `${id}: ${misses} inline misses answered from ${[...answers].join(", ") || "nothing"}, ${nestedRuns} runs under them, width ${width}`
             );
         }
         done();

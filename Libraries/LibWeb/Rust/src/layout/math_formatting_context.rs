@@ -1429,7 +1429,7 @@ pub(super) fn layout_operator(run: &FormattingContextRun<'_>, input: &LayoutInpu
         first: Some(ascent),
         last: Some(ascent),
     };
-    if run.layout_mode != LayoutMode::Normal {
+    if run.fragments.is_none() {
         return;
     }
     let content = MathContent {
@@ -2137,11 +2137,10 @@ impl<'pass> MathFormattingContext<'pass> {
         );
         input.sizing.math_stretch_size_constraint = stretch_size_constraint;
         let used = run.records.used_values(child);
-        let baselines =
-            match formatting_context::layout_inside_child(run, None, None, child, run.layout_mode, input, true) {
-                ChildLayoutOutcome::Created(result) => result.baselines,
-                ChildLayoutOutcome::ReenterCurrent | ChildLayoutOutcome::Skipped => used.content_baselines_from_cells(),
-            };
+        let baselines = match formatting_context::layout_inside_child(run, None, None, child, input, true) {
+            ChildLayoutOutcome::Created(result) => result.baselines,
+            ChildLayoutOutcome::ReenterCurrent | ChildLayoutOutcome::Skipped => used.content_baselines_from_cells(),
+        };
         let collapsed = used.uses_collapsing_borders_model.get();
         let block_size = used.margin_box_block_size(collapsed);
         // NB: A box without a baseline is aligned by its line-under margin edge.
@@ -2245,7 +2244,7 @@ impl<'pass> MathFormattingContext<'pass> {
             MathLayoutKind::Mfrac | MathLayoutKind::Munder | MathLayoutKind::Mover | MathLayoutKind::Munderover => true,
             _ => false,
         };
-        let content_box_is_known = run.layout_mode == LayoutMode::Normal && root_used.has_definite_inline_size();
+        let content_box_is_known = root_used.has_definite_inline_size();
         let is_rtl = root_style.direction() == direction::RTL;
         let mut math_content_line_left = CssPixels::default();
         if content_box_is_known {
@@ -2272,7 +2271,7 @@ impl<'pass> MathFormattingContext<'pass> {
             formatting_context::place_child(run, child.node, offset, None);
         }
 
-        if run.layout_mode == LayoutMode::Normal && (!content.rules.is_empty() || !content.glyph_runs.is_empty()) {
+        if run.fragments.is_some() && (!content.rules.is_empty() || !content.glyph_runs.is_empty()) {
             let bar_inline_size = if content_box_is_known {
                 content_box_inline_size
             } else {
@@ -2573,9 +2572,6 @@ impl<'pass> MathFormattingContext<'pass> {
     }
 
     pub(super) fn parent_did_dimension(&self) {
-        if self.run.layout_mode != LayoutMode::Normal {
-            return;
-        }
         let root_used = self.run.records.used_values(self.run.box_);
         for child in self.run.callbacks.children(self.run.box_) {
             let facts = self.facts(child);
