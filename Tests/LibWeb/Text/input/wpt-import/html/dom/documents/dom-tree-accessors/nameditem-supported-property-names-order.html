@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Named items: id values precede name values from the same element</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/dom.html#dom-document-nameditem">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<img id="id-value" name="name-value">
+
+<script>
+"use strict";
+
+test(() => {
+  const names = Object.getOwnPropertyNames(document);
+
+  assert_array_equals(
+    names.filter(name => name === "id-value" || name === "name-value"),
+    ["id-value", "name-value"]
+  );
+}, "Values from id attributes precede values from name attributes when the same element contributes both");
+</script>
