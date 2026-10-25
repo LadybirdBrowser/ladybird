@@ -6888,6 +6888,7 @@ fn generate_class_expression(
         is_catch_environment: false,
     });
     generator.push_static_lexical_environment(class_env.clone());
+    generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
 
     // https://tc39.es/ecma262/#sec-runtime-semantics-classdefinitionevaluation
     // If _classBinding_ is not *undefined*, then
@@ -7219,6 +7220,7 @@ fn generate_class_expression(
     generator.emit(Instruction::SetLexicalEnvironment {
         environment: parent_env.operand(),
     });
+    generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
     generator.pop_tracked_lexical_environment();
 
     // Allocate dst after element keys.
@@ -7435,6 +7437,7 @@ fn enter_for_in_of_head_tdz(generator: &mut Generator, lhs: &ForInOfLhs) -> bool
         }
         if !names.is_empty() {
             generator.push_new_lexical_environment(u32_from_usize(names.len()));
+            generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
             for (name, _) in &names {
                 let id = generator.intern_identifier(name);
                 generator.emit(Instruction::CreateVariable {
@@ -7453,6 +7456,7 @@ fn enter_for_in_of_head_tdz(generator: &mut Generator, lhs: &ForInOfLhs) -> bool
 
 /// Tear down the TDZ environment after RHS evaluation.
 fn leave_for_in_of_head_tdz(generator: &mut Generator) {
+    generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
     generator.pop_tracked_lexical_environment();
     if !generator.is_current_block_terminated() {
         let parent = generator.current_lexical_environment();
@@ -7579,9 +7583,6 @@ fn generate_for_in_statement(
         create_for_in_of_lexical_env(generator, lhs);
     }
 
-    // Assign to LHS
-    assign_to_for_in_of_lhs(generator, lhs, &next_value);
-
     // Body — break/continue handle environment restoration via LeaveLexicalEnvironment boundary.
     let labels = std::mem::take(&mut generator.pending_labels);
     generator.begin_continuable_scope(update_block, labels.clone(), completion.clone());
@@ -7589,6 +7590,9 @@ fn generate_for_in_statement(
     if needs_lexical_env {
         generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
     }
+
+    // Assign to LHS
+    assign_to_for_in_of_lhs(generator, lhs, &next_value);
 
     if !generator.is_current_block_terminated() {
         generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
@@ -7834,13 +7838,14 @@ fn generate_for_of_statement_inner(
         _ => None,
     };
 
+    generator.begin_continuable_scope(update_block, labels, completion.clone());
+    if needs_lexical_env {
+        generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
+    }
+
     if let Some(disposal_kind) = disposal_kind {
         // NB: The resource of a `using` or `await using` declaration is disposed of at the end of each iteration,
         //     including when the declaration is abrupt, and before the iterator is closed.
-        generator.begin_continuable_scope(update_block, labels, completion.clone());
-        if needs_lexical_env {
-            generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
-        }
         generate_with_disposable_resource_stack(generator, disposal_kind, |generator| {
             assign_to_for_in_of_lhs(generator, lhs, &next_value);
             if !generator.is_current_block_terminated() {
@@ -7853,11 +7858,6 @@ fn generate_for_of_statement_inner(
         assign_to_for_in_of_lhs(generator, lhs, &next_value);
 
         // Body
-        generator.begin_continuable_scope(update_block, labels, completion.clone());
-        if needs_lexical_env {
-            generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
-        }
-
         if !generator.is_current_block_terminated() {
             generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
         }
