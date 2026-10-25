@@ -6,12 +6,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 4, rect: [12.609375,8 30.078125x16] baseline: 12.796875
               "Well"
           TextNode <#text> (not painted)
-        BlockContainer <div.inner> at [51.921875,8] flex-item [0+0+0 36.84375 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [51.921875,8 36.84375x16] baseline: 12.796875
+        BlockContainer <div.inner> at [51.9375,8] flex-item [0+0+0 36.84375 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [51.9375,8 36.84375x16] baseline: 12.796875
               "hello"
           TextNode <#text> (not painted)
-        BlockContainer <div.inner> at [98,8] flex-item [0+0+0 55.359375 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 7, rect: [98,8 55.359375x16] baseline: 12.796875
+        BlockContainer <div.inner> at [98.015625,8] flex-item [0+0+0 55.359375 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 7, rect: [98.015625,8 55.359375x16] baseline: 12.796875
               "friends"
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,158] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
@@ -21,12 +21,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 4, rect: [123.3125,158 30.078125x16] baseline: 12.796875
               "Well"
           TextNode <#text> (not painted)
-        BlockContainer <div.inner> at [77.234375,158] flex-item [0+0+0 36.84375 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [77.234375,158 36.84375x16] baseline: 12.796875
+        BlockContainer <div.inner> at [77.21875,158] flex-item [0+0+0 36.84375 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [77.21875,158 36.84375x16] baseline: 12.796875
               "hello"
           TextNode <#text> (not painted)
-        BlockContainer <div.inner> at [12.640625,158] flex-item [0+0+0 55.359375 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 7, rect: [12.640625,158 55.359375x16] baseline: 12.796875
+        BlockContainer <div.inner> at [12.625,158] flex-item [0+0+0 55.359375 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 7, rect: [12.625,158 55.359375x16] baseline: 12.796875
               "friends"
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,308] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline

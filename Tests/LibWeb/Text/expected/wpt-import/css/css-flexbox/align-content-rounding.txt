@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	The last item should match the end edge.
+1 Pass
+Pass	The last item should match the end edge.

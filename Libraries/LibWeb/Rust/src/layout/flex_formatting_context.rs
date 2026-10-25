@@ -1603,15 +1603,22 @@ impl<'pass> FlexFormattingContext<'pass> {
                     // For every unfrozen item on the line,
                     // find the ratio of the item’s flex grow factor to the sum of the flex grow factors of all unfrozen items on the line.
                     let sum = self.sum_of_unfrozen_flex_factors(line_index);
+                    // NB: Each item takes the part of the free space between the running sums of the ratios before and
+                    //     after it, so that rounding the fractions does not make the items overflow or underfill the
+                    //     line.
+                    let mut cumulative_factor = 0.0;
+                    let mut distributed = CssPixels::default();
                     for item_position in 0..item_count {
                         let index = self.flex_lines[line_index].items[item_position];
                         if self.flex_items[index].frozen {
                             continue;
                         }
-                        let ratio = self.flex_items[index].flex_factor / sum;
+                        cumulative_factor += self.flex_items[index].flex_factor;
+                        let distributed_including_item = arithmetic_free_space.scaled(cumulative_factor / sum);
                         // Set the item’s target main size to its flex base size plus a fraction of the remaining free space proportional to the ratio.
                         self.flex_items[index].target_main_size =
-                            self.flex_items[index].flex_base_size + arithmetic_free_space.scaled(ratio);
+                            self.flex_items[index].flex_base_size + (distributed_including_item - distributed);
+                        distributed = distributed_including_item;
                     }
                 } else {
                     // If using the flex shrink factor
@@ -1626,22 +1633,29 @@ impl<'pass> FlexFormattingContext<'pass> {
                             self.flex_items[index].flex_factor * self.flex_items[index].flex_base_size.to_double();
                     }
                     let sum = self.sum_of_unfrozen_scaled_shrink_factors(line_index);
+                    // NB: As when growing, each item takes the part of the free space between the running sums of the
+                    //     ratios before and after it.
+                    let mut cumulative_ratio = 0.0;
+                    let mut distributed = CssPixels::default();
                     for item_position in 0..item_count {
                         let index = self.flex_lines[line_index].items[item_position];
                         if self.flex_items[index].frozen {
                             continue;
                         }
-                        let ratio = if sum == 0.0 {
-                            1.0
-                        } else {
-                            self.flex_items[index].scaled_flex_shrink_factor / sum
-                        };
                         // Find the ratio of the item’s scaled flex shrink factor to the sum of the scaled flex shrink factors of all unfrozen items on the line.
 
                         // Set the item’s target main size to its flex base size minus a fraction of the absolute value of the remaining free space proportional to the ratio.
                         // (Note this may result in a negative inner main size; it will be corrected in the next step.)
+                        if sum == 0.0 {
+                            self.flex_items[index].target_main_size =
+                                self.flex_items[index].flex_base_size - abs(arithmetic_free_space);
+                            continue;
+                        }
+                        cumulative_ratio += self.flex_items[index].scaled_flex_shrink_factor / sum;
+                        let distributed_including_item = abs(arithmetic_free_space).scaled(cumulative_ratio);
                         self.flex_items[index].target_main_size =
-                            self.flex_items[index].flex_base_size - abs(arithmetic_free_space).scaled(ratio);
+                            self.flex_items[index].flex_base_size - (distributed_including_item - distributed);
+                        distributed = distributed_including_item;
                     }
                 }
             }
@@ -2186,14 +2200,17 @@ impl<'pass> FlexFormattingContext<'pass> {
 
             let remaining = self.flex_lines[line_index].remaining_free_space;
             if remaining.is_some_and(|value| value > CssPixels::default()) && auto_margins > 0 {
-                let size = remaining.unwrap() / auto_margins;
+                let distribution = SpaceDistribution::new(remaining.unwrap(), auto_margins, 0, 1);
+                let mut auto_margin_index = 0;
                 for item_position in 0..item_count {
                     let index = self.flex_lines[line_index].items[item_position];
                     if self.flex_items[index].margins.main_before_is_auto {
-                        self.set_main_axis_first_margin(index, size);
+                        self.set_main_axis_first_margin(index, distribution.space_after(auto_margin_index));
+                        auto_margin_index += 1;
                     }
                     if self.flex_items[index].margins.main_after_is_auto {
-                        self.set_main_axis_second_margin(index, size);
+                        self.set_main_axis_second_margin(index, distribution.space_after(auto_margin_index));
+                        auto_margin_index += 1;
                     }
                 }
             } else {
@@ -2209,7 +2226,8 @@ impl<'pass> FlexFormattingContext<'pass> {
             }
 
             // 12.2.
-            let mut space_between_items = CssPixels::default();
+            // NB: The free space that justify-content distributes around the items.
+            let mut space_distribution = SpaceDistribution::default();
             let mut initial_offset = CssPixels::default();
             let number_of_items = item_count;
             let justify = self.style(self.run.box_).justify_content();
@@ -2240,30 +2258,27 @@ impl<'pass> FlexFormattingContext<'pass> {
                         if self.is_direction_reverse() {
                             initial_offset = self.inner_main_size_used(self.container_used());
                         }
-                        if let Some(free_space) = remaining
-                            && number_of_items > 1
-                        {
-                            space_between_items = (free_space / (number_of_items - 1)).max(CssPixels::default());
-                        }
+                        let free_space = remaining.unwrap_or_default().max(CssPixels::default());
+                        space_distribution = SpaceDistribution::new(free_space, number_of_items - 1, 0, 1);
                     }
                     justify_content::SPACE_AROUND => {
-                        if let Some(free_space) = remaining {
-                            space_between_items = (free_space / number_of_items).max(CssPixels::default());
-                        }
+                        let free_space = remaining.unwrap_or_default().max(CssPixels::default());
+                        space_distribution = SpaceDistribution::new(free_space, number_of_items * 2, 1, 2);
+                        let leading_space = space_distribution.space_before(0);
                         initial_offset = if self.is_direction_reverse() {
-                            self.inner_main_size_used(self.container_used()) - space_between_items / 2
+                            self.inner_main_size_used(self.container_used()) - leading_space
                         } else {
-                            space_between_items / 2
+                            leading_space
                         };
                     }
                     justify_content::SPACE_EVENLY => {
-                        if let Some(free_space) = remaining {
-                            space_between_items = (free_space / (number_of_items + 1)).max(CssPixels::default());
-                        }
+                        let free_space = remaining.unwrap_or_default().max(CssPixels::default());
+                        space_distribution = SpaceDistribution::new(free_space, number_of_items + 1, 1, 1);
+                        let leading_space = space_distribution.space_before(0);
                         initial_offset = if self.is_direction_reverse() {
-                            self.inner_main_size_used(self.container_used()) - space_between_items
+                            self.inner_main_size_used(self.container_used()) - leading_space
                         } else {
-                            space_between_items
+                            leading_space
                         };
                     }
                     _ => unreachable!("invalid justify-content"),
@@ -2311,7 +2326,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                     + item.margins.main_after
                     + item.borders.main_after
                     + item.padding.main_after
-                    + space_between_items;
+                    + space_distribution.space_after(iteration_position);
                 if !direction_reverse && cursor_right {
                     if position < item_count - 1 {
                         amount += main_gap;
@@ -2483,7 +2498,8 @@ impl<'pass> FlexFormattingContext<'pass> {
         // CSS-FLEXBOX-2: Account for gap between flex lines.
         sum += self.cross_gap() * self.flex_lines.len().wrapping_sub(1);
         let mut start = CssPixels::default();
-        let mut gap_size = CssPixels::default();
+        // NB: The leftover free space that align-content distributes around the lines.
+        let mut space_distribution = SpaceDistribution::default();
         let mut place_backwards = false;
         let mut iterate_backwards = false;
         match self.style(self.run.box_).align_content() {
@@ -2519,7 +2535,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 }
                 let leftover = container_cross_size - sum;
                 if leftover >= CssPixels::default() && self.flex_lines.len() > 1 {
-                    gap_size = leftover / (self.flex_lines.len() - 1);
+                    space_distribution = SpaceDistribution::new(leftover, self.flex_lines.len() - 1, 0, 1);
                 }
             }
             align_content::SPACE_AROUND => {
@@ -2529,9 +2545,9 @@ impl<'pass> FlexFormattingContext<'pass> {
                     // If the leftover free-space is negative this value is identical to center.
                     start = container_cross_size / 2 - sum / 2;
                 } else {
-                    gap_size = leftover / self.flex_lines.len();
+                    space_distribution = SpaceDistribution::new(leftover, self.flex_lines.len() * 2, 1, 2);
                     // The spacing between the first/last lines and the flex container edges is half the size of the spacing between flex lines.
-                    start = gap_size / 2;
+                    start = space_distribution.space_before(0);
                 }
             }
             align_content::SPACE_EVENLY => {
@@ -2541,9 +2557,9 @@ impl<'pass> FlexFormattingContext<'pass> {
                     // If the leftover free-space is negative this value is identical to center.
                     start = container_cross_size / 2 - sum / 2;
                 } else {
-                    gap_size = leftover / (self.flex_lines.len() + 1);
+                    space_distribution = SpaceDistribution::new(leftover, self.flex_lines.len() + 1, 1, 1);
                     // The spacing between the first/last lines and the flex container edges is the size of the spacing between flex lines.
-                    start = gap_size;
+                    start = space_distribution.space_before(0);
                 }
             }
             align_content::NORMAL | align_content::STRETCH => {
@@ -2572,7 +2588,8 @@ impl<'pass> FlexFormattingContext<'pass> {
                 self.flex_items[index].cross_offset += center;
             }
             // CSS-FLEXBOX-2: Account for gap between flex lines.
-            let amount = self.flex_lines[line_index].cross_size + gap_size + cross_gap;
+            let amount =
+                self.flex_lines[line_index].cross_size + space_distribution.space_after(iteration_index) + cross_gap;
             if place_backwards {
                 start -= amount;
             } else {
@@ -3716,6 +3733,42 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     pub(super) fn automatic_content_block_size(&self) -> CssPixels {
         self.container_used().content_block_size.get()
+    }
+}
+
+/// Free space split into equal shares, placed before a run of boxes and between them. Each share is rounded such that
+/// the shares add up to the whole space, instead of losing the rounding remainder of every share.
+#[derive(Clone, Copy, Default)]
+struct SpaceDistribution {
+    space: CssPixels,
+    shares: usize,
+    shares_before_first_box: usize,
+    shares_between_boxes: usize,
+}
+
+impl SpaceDistribution {
+    fn new(space: CssPixels, shares: usize, shares_before_first_box: usize, shares_between_boxes: usize) -> Self {
+        Self {
+            space,
+            shares,
+            shares_before_first_box,
+            shares_between_boxes,
+        }
+    }
+
+    /// The space placed before the box at the given position in the run.
+    fn space_before(self, position: usize) -> CssPixels {
+        if self.shares == 0 {
+            return CssPixels::default();
+        }
+        let count = (self.shares_before_first_box + position * self.shares_between_boxes).min(self.shares);
+        let raw = i64::from(self.space.raw_value()) * count as i64 / self.shares as i64;
+        CssPixels::from_raw(raw as i32)
+    }
+
+    /// The space placed between the box at the given position and the next one.
+    fn space_after(self, position: usize) -> CssPixels {
+        self.space_before(position + 1) - self.space_before(position)
     }
 }
 
