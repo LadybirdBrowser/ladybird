@@ -9,14 +9,9 @@
 #include <LibGC/Ptr.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/UpgradeInsecureRequests/InsecureRequestsPolicy.h>
 
 namespace Web::UpgradeInsecureRequests {
-
-// https://w3c.github.io/webappsec-upgrade-insecure-requests/#insecure-requests-policy
-enum class InsecureRequestsPolicy {
-    DoNotUpgrade,
-    Upgrade,
-};
 
 WEB_API void upgrade_request_to_a_potentially_trustworthy_url_if_appropriate(Fetch::Infrastructure::Request&);
 

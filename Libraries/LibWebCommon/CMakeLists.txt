@@ -61,6 +61,7 @@ set(SOURCES
     SecureContexts/AbstractOperations.cpp
     StorageAPI/StorageEndpoint.cpp
     StorageAPI/StorageKey.cpp
+    UpgradeInsecureRequests/InsecureRequestsPolicy.cpp
     WebDriver/Capabilities.cpp
     WebDriver/Client.cpp
     WebDriver/Error.cpp

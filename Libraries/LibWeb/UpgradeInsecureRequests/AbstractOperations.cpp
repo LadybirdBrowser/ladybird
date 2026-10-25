@@ -4,67 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
-#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
 #include <LibWebCommon/SecureContexts/AbstractOperations.h>
 
 namespace Web::UpgradeInsecureRequests {
-
-// https://w3c.github.io/webappsec-upgrade-insecure-requests/#delivery
-// AD-HOC: Enforcing the upgrade-insecure-requests directive sets the protected resource's settings' insecure requests
-//         policy to "Upgrade", and inserts a tuple of the protected resource's URL's host and port into settings'
-//         upgrade insecure navigations set. The spec then copies both into nested browsing contexts, their documents
-//         and workers. We instead derive both from settings' policy container's CSP list, which HTML already
-//         inherits into documents and workers with local scheme URLs, and use each policy's self-origin as the
-//         protected resource's URL. Monitoring the directive has no effect, so only enforced policies count.
-// FIXME: Nested browsing contexts whose documents do not inherit their embedding document's policy container, and
-//        workers that do not inherit their owner's, should also inherit its insecure requests policy and upgrade
-//        insecure navigations set.
-template<typename Callback>
-static void for_each_enforced_policy_with_upgrade_insecure_requests(HTML::EnvironmentSettingsObject const& settings, Callback callback)
-{
-    for (auto const& policy : settings.policy_container()->csp_list->policies()) {
-        if (policy->disposition() != ContentSecurityPolicy::Policy::Disposition::Enforce)
-            continue;
-        if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::UpgradeInsecureRequests))
-            continue;
-        if (callback(*policy) == IterationDecision::Break)
-            return;
-    }
-}
-
-static InsecureRequestsPolicy insecure_requests_policy(HTML::EnvironmentSettingsObject const& settings)
-{
-    auto result = InsecureRequestsPolicy::DoNotUpgrade;
-    for_each_enforced_policy_with_upgrade_insecure_requests(settings, [&](auto const&) {
-        result = InsecureRequestsPolicy::Upgrade;
-        return IterationDecision::Break;
-    });
-    return result;
-}
-
-static bool upgrade_insecure_navigations_set_contains(HTML::EnvironmentSettingsObject const& settings, URL::URL const& url)
-{
-    auto const& host = url.host();
-    if (!host.has_value())
-        return false;
-
-    bool result = false;
-    for_each_enforced_policy_with_upgrade_insecure_requests(settings, [&](ContentSecurityPolicy::Policy const& policy) {
-        auto const& self_origin = policy.self_origin();
-        if (!self_origin.is_opaque() && self_origin.host() == *host && self_origin.port() == url.port()) {
-            result = true;
-            return IterationDecision::Break;
-        }
-        return IterationDecision::Continue;
-    });
-    return result;
-}
 
 // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-request
 void upgrade_request_to_a_potentially_trustworthy_url_if_appropriate(Fetch::Infrastructure::Request& request)
@@ -93,7 +39,8 @@ void upgrade_request_to_a_potentially_trustworthy_url_if_appropriate(Fetch::Infr
             // 3. Let tuple be a tuple of request's URL's host and port.
             // 4. If tuple is contained in client's upgrade insecure navigations set, then skip the remaining
             //    substeps, and continue upgrading request.
-            if (!request.client() || !upgrade_insecure_navigations_set_contains(*request.client(), url)) {
+            auto const& host = url.host();
+            if (!request.client() || !host.has_value() || !request.client()->upgrade_insecure_navigations_set().contains({ *host, url.port() })) {
                 // 5. Return without further modifying request.
                 return;
             }
@@ -128,9 +75,9 @@ InsecureRequestsPolicy should_insecure_requests_be_upgraded_for_client(GC::Ptr<H
     // 1. If client has a responsible document, return the value of its insecure requests policy.
     // 2. If client has a responsible browsing context, return the value of its insecure requests policy.
     // 3. Return Do Not Upgrade.
-    // NB: See for_each_enforced_policy_with_upgrade_insecure_requests() for how we determine client's insecure
-    //     requests policy.
-    return insecure_requests_policy(*client);
+    // NB: A client's responsible document's insecure requests policy is the client's own, which includes what it
+    //     inherited from its responsible browsing context. See EnvironmentSettingsObject::insecure_requests_policy().
+    return client->insecure_requests_policy();
 }
 
 }

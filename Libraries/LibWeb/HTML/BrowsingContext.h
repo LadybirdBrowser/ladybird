@@ -17,6 +17,7 @@
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/UpgradeInsecureRequests/InsecureRequestsPolicy.h>
 
 namespace Web::HTML {
 
@@ -82,6 +83,14 @@ public:
     SandboxingFlagSet popup_sandboxing_flag_set() const { return m_popup_sandboxing_flag_set; }
     void set_popup_sandboxing_flag_set(SandboxingFlagSet value) { m_popup_sandboxing_flag_set = value; }
 
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#insecure-requests-policy
+    UpgradeInsecureRequests::InsecureRequestsPolicy insecure_requests_policy() const { return m_insecure_requests_policy; }
+    void set_insecure_requests_policy(UpgradeInsecureRequests::InsecureRequestsPolicy policy) { m_insecure_requests_policy = policy; }
+
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-insecure-navigations-set
+    UpgradeInsecureRequests::UpgradeInsecureNavigationsSet const& upgrade_insecure_navigations_set() const { return m_upgrade_insecure_navigations_set; }
+    void add_to_upgrade_insecure_navigations_set(UpgradeInsecureRequests::HostAndPort tuple) { m_upgrade_insecure_navigations_set.insert(move(tuple)); }
+
 private:
     explicit BrowsingContext(GC::Ref<Page>);
 
@@ -114,6 +123,14 @@ private:
 
     // https://html.spec.whatwg.org/multipage/browsers.html#tlbc-group
     Optional<u64> m_browsing_context_group_id;
+
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#insecure-requests-policy
+    // It is set to Do Not Upgrade unless otherwise specified.
+    UpgradeInsecureRequests::InsecureRequestsPolicy m_insecure_requests_policy { UpgradeInsecureRequests::InsecureRequestsPolicy::DoNotUpgrade };
+
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-insecure-navigations-set
+    // Its value is the empty set unless otherwise specified.
+    UpgradeInsecureRequests::UpgradeInsecureNavigationsSet m_upgrade_insecure_navigations_set;
 };
 
 SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&, GC::Ptr<DOM::Element> embedder);
