@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>text field selection: setRangeText</title>
+<link rel="author" title="Denis Ah-Kang" href="mailto:denis@w3.org">
+<link rel=help href="https://html.spec.whatwg.org/multipage/#textFieldSelection">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style>
+  #display_none {display:none;}
+</style>
+<div id="log"></div>
+<input type=text id=text value="foobar">
+<input type=search id=search value="foobar">
+<input type=tel id=tel value="foobar">
+<input type=url id=url value="foobar">
+<input type=password id=password value="foobar">
+<input id=display_none value="foobar">
+<textarea id=textarea>foobar</textarea>
+<script>
+  var input = document.createElement("input");
+  input.id = "input_not_in_doc";
+  input.value = "foobar";
+
+  var elements = [
+    document.getElementById("text"),
+    document.getElementById("search"),
+    document.getElementById("tel"),
+    document.getElementById("url"),
+    document.getElementById("password"),
+    document.getElementById("display_none"),
+    document.getElementById("textarea"),
+    input,
+  ]
+
+  function untilEvent(element, eventName) {
+    return new Promise((resolve) => {
+      element.addEventListener(eventName, resolve, { once: true });
+    });
+  }
+
+  elements.forEach(function(element) {
+    test(function() {
+      element.value = "foobar";
+      element.selectionStart = 0;
+      element.selectionEnd = 3;
+      assert_equals(element.selectionStart, 0);
+      assert_equals(element.selectionEnd, 3);
+      element.setRangeText("foobar2");
+      assert_equals(element.value, "foobar2bar");
+      assert_equals(element.selectionStart, 0);
+      assert_equals(element.selectionEnd, 7);
+      element.setRangeText("foobar3", 7, 10);
+      assert_equals(element.value, "foobar2foobar3");
+    }, element.id + " setRangeText with only one argument replaces the value between selectionStart and selectionEnd, otherwise replaces the value between 2nd and 3rd arguments");
+
+    test(function(){
+      element.value = "foobar";
+      element.selectionStart = 0;
+      element.selectionEnd = 0;
+
+      element.setRangeText("foobar2", 0, 3); // no 4th arg, default "preserve"
+      assert_equals(element.value, "foobar2bar");
+      assert_equals(element.selectionStart, 0);
+      assert_equals(element.selectionEnd, 0);
+    }, element.id + " selectionMode missing");
+
+    test(function(){
+      element.value = "foobar"
+      element.setRangeText("foo", 3, 6, "select");
+      assert_equals(element.value, "foofoo");
+      assert_equals(element.selectionStart, 3);
+      assert_equals(element.selectionEnd, 6);
+    }, element.id + " selectionMode 'select'");
+
+    test(function(){
+      element.value = "foobar"
+      element.setRangeText("foo", 3, 6, "start");
+      assert_equals(element.value, "foofoo");
+      assert_equals(element.selectionStart, 3);
+      assert_equals(element.selectionEnd, 3);
+    }, element.id + " selectionMode 'start'");
+
+    test(function(){
+      element.value = "foobar"
+      element.setRangeText("foobar", 3, 6, "end");
+      assert_equals(element.value, "foofoobar");
+      assert_equals(element.selectionStart, 9);
+      assert_equals(element.selectionEnd, 9);
+    }, element.id + " selectionMode 'end'");
+
+    test(function(){
+      element.value = "foobar"
+      element.selectionStart = 0;
+      element.selectionEnd = 5;
+      assert_equals(element.selectionStart, 0);
+      element.setRangeText("", 3, 6, "preserve");
+      assert_equals(element.value, "foo");
+      assert_equals(element.selectionStart, 0);
+      assert_equals(element.selectionEnd, 3);
+    }, element.id + " selectionMode 'preserve'");
+
+    test(function(){
+      assert_throws_dom("INDEX_SIZE_ERR", function() {
+        element.setRangeText("barfoo", 2, 1);
+      });
+    }, element.id + " setRangeText with 3rd argument greater than 2nd argument throws an IndexSizeError exception");
+
+    test(function(){
+      assert_throws_js(TypeError, function() {
+        element.setRangeText();
+      });
+    }, element.id + " setRangeText without argument throws a type error");
+
+    promise_test(async (t) => {
+      // At this point there are already "select" events queued up on
+      // "element".  Give them time to fire; otherwise we can get spurious
+      // passes.
+      //
+      // This is unfortunately racy in that we might _still_ get spurious
+      // passes.  I'm not sure how best to handle that.
+      t.step_timeout(function() {
+        var q = false;
+        element.onselect = t.step_func_done(function(e) {
+          assert_true(q, "event should be queued");
+          assert_true(e.isTrusted, "event is trusted");
+          assert_true(e.bubbles, "event bubbles");
+          assert_false(e.cancelable, "event is not cancelable");
+        });
+        element.setRangeText("foobar2", 0, 6);
+        q = true;
+      }, 10);
+    }, element.id + " setRangeText fires a select event");
+
+    promise_test(async () => {
+      element.value = "XXXXXXXXXXXXXXXXXXX";
+      const { length } = element.value;
+      element.setSelectionRange(0, length);
+      await untilEvent(element, "select");
+      element.setRangeText("foo", 2, 2);
+      await untilEvent(element, "select");
+      assert_equals(element.selectionStart, 0, ".selectionStart");
+      assert_equals(element.selectionEnd, length + 3, ".selectionEnd");
+    }, element.id + " setRangeText fires a select event when fully selected");
+
+    promise_test(async () => {
+      element.value = "XXXXXXXXXXXXXXXXXXX";
+      element.select();
+      await untilEvent(element, "select");
+      element.setRangeText("foo", 2, 2);
+      await untilEvent(element, "select");
+      assert_equals(element.selectionStart, 0, ".selectionStart");
+      assert_equals(element.selectionEnd, element.value.length, ".selectionEnd");
+    }, element.id + " setRangeText fires a select event after select()");
+  })
+</script>

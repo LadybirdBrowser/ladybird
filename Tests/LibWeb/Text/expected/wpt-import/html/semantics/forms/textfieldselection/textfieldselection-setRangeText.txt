@@ -1,0 +1,94 @@
+Harness status: OK
+
+Found 88 tests
+
+87 Pass
+1 Fail
+Pass	text setRangeText with only one argument replaces the value between selectionStart and selectionEnd, otherwise replaces the value between 2nd and 3rd arguments
+Pass	text selectionMode missing
+Pass	text selectionMode 'select'
+Pass	text selectionMode 'start'
+Pass	text selectionMode 'end'
+Pass	text selectionMode 'preserve'
+Pass	text setRangeText with 3rd argument greater than 2nd argument throws an IndexSizeError exception
+Pass	text setRangeText without argument throws a type error
+Pass	text setRangeText fires a select event
+Pass	text setRangeText fires a select event when fully selected
+Pass	text setRangeText fires a select event after select()
+Pass	search setRangeText with only one argument replaces the value between selectionStart and selectionEnd, otherwise replaces the value between 2nd and 3rd arguments
+Pass	search selectionMode missing
+Pass	search selectionMode 'select'
+Pass	search selectionMode 'start'
+Pass	search selectionMode 'end'
+Pass	search selectionMode 'preserve'
+Pass	search setRangeText with 3rd argument greater than 2nd argument throws an IndexSizeError exception
+Pass	search setRangeText without argument throws a type error
+Pass	search setRangeText fires a select event
+Pass	search setRangeText fires a select event when fully selected
+Pass	search setRangeText fires a select event after select()
+Pass	tel setRangeText with only one argument replaces the value between selectionStart and selectionEnd, otherwise replaces the value between 2nd and 3rd arguments
+Pass	tel selectionMode missing
+Pass	tel selectionMode 'select'
+Pass	tel selectionMode 'start'
+Pass	tel selectionMode 'end'
+Pass	tel selectionMode 'preserve'
+Pass	tel setRangeText with 3rd argument greater than 2nd argument throws an IndexSizeError exception
+Pass	tel setRangeText without argument throws a type error
+Pass	tel setRangeText fires a select event
+Pass	tel setRangeText fires a select event when fully selected
+Pass	tel setRangeText fires a select event after select()
+Pass	url setRangeText with only one argument replaces the value between selectionStart and selectionEnd, otherwise replaces the value between 2nd and 3rd arguments
+Pass	url selectionMode missing
+Pass	url selectionMode 'select'
+Pass	url selectionMode 'start'
+Pass	url selectionMode 'end'
+Pass	url selectionMode 'preserve'
+Pass	url setRangeText with 3rd argument greater than 2nd argument throws an IndexSizeError exception
+Pass	url setRangeText without argument throws a type error
+Pass	url setRangeText fires a select event
+Pass	url setRangeText fires a select event when fully selected
+Pass	url setRangeText fires a select event after select()
+Pass	password setRangeText with only one argument replaces the value between selectionStart and selectionEnd, otherwise replaces the value between 2nd and 3rd arguments
+Pass	password selectionMode missing
+Pass	password selectionMode 'select'
+Pass	password selectionMode 'start'
+Pass	password selectionMode 'end'
+Pass	password selectionMode 'preserve'
+Pass	password setRangeText with 3rd argument greater than 2nd argument throws an IndexSizeError exception
+Pass	password setRangeText without argument throws a type error
+Pass	password setRangeText fires a select event
+Pass	password setRangeText fires a select event when fully selected
+Pass	password setRangeText fires a select event after select()
+Pass	display_none setRangeText with only one argument replaces the value between selectionStart and selectionEnd, otherwise replaces the value between 2nd and 3rd arguments
+Pass	display_none selectionMode missing
+Pass	display_none selectionMode 'select'
+Pass	display_none selectionMode 'start'
+Pass	display_none selectionMode 'end'
+Pass	display_none selectionMode 'preserve'
+Pass	display_none setRangeText with 3rd argument greater than 2nd argument throws an IndexSizeError exception
+Pass	display_none setRangeText without argument throws a type error
+Pass	display_none setRangeText fires a select event
+Pass	display_none setRangeText fires a select event when fully selected
+Pass	display_none setRangeText fires a select event after select()
+Fail	textarea setRangeText with only one argument replaces the value between selectionStart and selectionEnd, otherwise replaces the value between 2nd and 3rd arguments
+Pass	textarea selectionMode missing
+Pass	textarea selectionMode 'select'
+Pass	textarea selectionMode 'start'
+Pass	textarea selectionMode 'end'
+Pass	textarea selectionMode 'preserve'
+Pass	textarea setRangeText with 3rd argument greater than 2nd argument throws an IndexSizeError exception
+Pass	textarea setRangeText without argument throws a type error
+Pass	textarea setRangeText fires a select event
+Pass	textarea setRangeText fires a select event when fully selected
+Pass	textarea setRangeText fires a select event after select()
+Pass	input_not_in_doc setRangeText with only one argument replaces the value between selectionStart and selectionEnd, otherwise replaces the value between 2nd and 3rd arguments
+Pass	input_not_in_doc selectionMode missing
+Pass	input_not_in_doc selectionMode 'select'
+Pass	input_not_in_doc selectionMode 'start'
+Pass	input_not_in_doc selectionMode 'end'
+Pass	input_not_in_doc selectionMode 'preserve'
+Pass	input_not_in_doc setRangeText with 3rd argument greater than 2nd argument throws an IndexSizeError exception
+Pass	input_not_in_doc setRangeText without argument throws a type error
+Pass	input_not_in_doc setRangeText fires a select event
+Pass	input_not_in_doc setRangeText fires a select event when fully selected
+Pass	input_not_in_doc setRangeText fires a select event after select()
