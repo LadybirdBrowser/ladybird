@@ -3282,7 +3282,7 @@ fn serialize_shorthand(
         let Some(serialized_longhand) = sub_properties
             .first()
             .and_then(|&longhand_id| longhand(longhand_id))
-            .map(&sub_sink)
+            .map(sub_sink)
         else {
             unreachable!("Shorthand style values must have valid value graphs");
         };
@@ -3302,9 +3302,9 @@ fn serialize_shorthand(
     }
     if shorthand_property == property_id::COLUMNS {
         let (Some(width), Some(count), Some(height)) = (
-            longhand(property_id::COLUMN_WIDTH).map(&sub_sink),
-            longhand(property_id::COLUMN_COUNT).map(&sub_sink),
-            longhand(property_id::COLUMN_HEIGHT).map(&sub_sink),
+            longhand(property_id::COLUMN_WIDTH).map(sub_sink),
+            longhand(property_id::COLUMN_COUNT).map(sub_sink),
+            longhand(property_id::COLUMN_HEIGHT).map(sub_sink),
         ) else {
             unreachable!("Shorthand style values must have valid value graphs");
         };
