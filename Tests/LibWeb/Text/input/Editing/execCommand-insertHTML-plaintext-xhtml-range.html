@@ -1,0 +1,43 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const xhtml = new DOMParser().parseFromString(
+            '<html xmlns="http://www.w3.org/1999/xhtml"><body contenteditable="plaintext-only">abcd</body></html>',
+            "application/xhtml+xml"
+        );
+        try {
+            xhtml.execCommand("insertHTML", false, "<b>");
+            println("XHTML front door: unexpectedly succeeded");
+        } catch (error) {
+            println(`XHTML front door: ${error.name}`);
+        }
+
+        const host = document.createElement("div");
+        host.contentEditable = "plaintext-only";
+        host.textContent = "HTML";
+        document.body.append(host);
+        const selection = getSelection();
+        selection.removeAllRanges();
+        const range = document.createRange();
+        range.setStart(host.firstChild, 0);
+        range.collapse(true);
+        selection.addRange(range);
+
+        // Mutating an already-associated live range can move its boundaries to a different document.
+        // The HTML caller still has an active range, whose plaintext host needs the XML fragment parser.
+        const xhtmlHost = xhtml.documentElement.firstElementChild;
+        range.setStart(xhtmlHost.firstChild, 2);
+        println(`Foreign range: ${selection.anchorNode === xhtmlHost.firstChild}`);
+        println(`Command enabled: ${document.queryCommandEnabled("insertHTML")}`);
+        println(`Unclosed tag: ${document.execCommand("insertHTML", false, "<b>")}`);
+        println(`Unbound prefix: ${document.execCommand("insertHTML", false, "<unbound:span/>")}`);
+        println(`XHTML text: ${xhtmlHost.textContent}`);
+        println(`HTML text: ${host.textContent}`);
+
+        // A failed parse must also release the editing-command recursion and history guards.
+        selection.collapse(host.firstChild, host.firstChild.length);
+        println(`Following command: ${document.execCommand("insertText", false, "!")}`);
+        println(`Following text: ${host.textContent}`);
+    });
+</script>

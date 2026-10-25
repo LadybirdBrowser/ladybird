@@ -1,0 +1,9 @@
+XHTML front door: InvalidStateError
+Foreign range: true
+Command enabled: true
+Unclosed tag: false
+Unbound prefix: false
+XHTML text: abcd
+HTML text: HTML
+Following command: true
+Following text: HTML!

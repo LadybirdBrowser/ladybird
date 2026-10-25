@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/ConservativeVector.h>
 #include <LibGC/RootVector.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
@@ -1274,6 +1275,96 @@ bool command_insert_horizontal_rule_action(DOM::Document& document, Utf16View)
     return true;
 }
 
+enum class InsertTextContext {
+    Typing,
+    TextReplacement,
+    OtherReplacement,
+};
+
+static bool insert_text(DOM::Document&, Utf16View, InsertTextContext);
+
+// INTEROP: In a plaintext-only editing host, browsers insert the text that HTML renders as instead of its nodes. This
+//          returns that text for a parsed fragment. Content that is not rendered by default, such as scripts and the
+//          head, is left out. Block-level elements and br elements separate lines, and white-space collapses outside
+//          of preformatted elements.
+static Utf16String plain_text_of_fragment(DOM::DocumentFragment& fragment)
+{
+    Utf16StringBuilder builder;
+    bool at_line_start = true;
+    bool pending_space = false;
+    bool pending_line_break = false;
+
+    auto flush_line_break = [&] {
+        if (pending_line_break && !builder.is_empty()) {
+            builder.append_code_unit(u'\n');
+            at_line_start = true;
+            pending_space = false;
+        }
+        pending_line_break = false;
+    };
+
+    // NB: This walks the tree with a stack instead of recursion, since script can insert deeply nested HTML.
+    struct PendingNode {
+        GC::Ref<DOM::Node> node;
+        bool preserves_white_space;
+        bool is_block_end;
+    };
+    GC::ConservativeVector<PendingNode> pending_nodes;
+    pending_nodes.append({ fragment, false, false });
+    while (!pending_nodes.is_empty()) {
+        auto [node, preserves_white_space, is_block_end] = pending_nodes.take_last();
+        if (is_block_end) {
+            pending_line_break = true;
+            continue;
+        }
+
+        if (auto* text = as_if<DOM::Text>(*node)) {
+            for (auto code_unit : text->data().utf16_view()) {
+                bool is_white_space = code_unit == ' ' || code_unit == '\t' || code_unit == '\n' || code_unit == '\r' || code_unit == '\f';
+                if (!preserves_white_space && is_white_space) {
+                    pending_space = !at_line_start;
+                    continue;
+                }
+                flush_line_break();
+                if (pending_space) {
+                    builder.append_code_unit(u' ');
+                    pending_space = false;
+                }
+                builder.append_code_unit(code_unit);
+                at_line_start = code_unit == u'\n';
+            }
+            continue;
+        }
+
+        auto* element = as_if<DOM::Element>(*node);
+        if (element) {
+            if (element->local_name().is_one_of(HTML::TagNames::head, HTML::TagNames::title, HTML::TagNames::script,
+                    HTML::TagNames::style, HTML::TagNames::noscript, HTML::TagNames::noframes, HTML::TagNames::template_,
+                    HTML::TagNames::meta, HTML::TagNames::link, HTML::TagNames::base))
+                continue;
+            if (is<HTML::HTMLBRElement>(*element)) {
+                flush_line_break();
+                builder.append_code_unit(u'\n');
+                at_line_start = true;
+                pending_space = false;
+                continue;
+            }
+            preserves_white_space = preserves_white_space
+                || element->local_name().is_one_of(HTML::TagNames::pre, HTML::TagNames::listing, HTML::TagNames::xmp,
+                    HTML::TagNames::plaintext, HTML::TagNames::textarea);
+        }
+
+        bool is_block = element && is_prohibited_paragraph_child_name(element->local_name());
+        if (is_block) {
+            pending_line_break = true;
+            pending_nodes.append({ node, preserves_white_space, true });
+        }
+        for (auto* child = node->last_child(); child; child = child->previous_sibling())
+            pending_nodes.append({ *child, preserves_white_space, false });
+    }
+    return builder.to_string();
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-inserthtml-command
 bool command_insert_html_action(DOM::Document& document, Utf16View value)
 {
@@ -1294,6 +1385,28 @@ bool command_insert_html_action(DOM::Document& document, Utf16View value)
     auto range = active_range(document);
     if (!range->start_container()->is_editable_or_editing_host())
         return true;
+
+    // NB: See the INTEROP note at plain_text_of_fragment(). Insert the lines as text, separated by line breaks.
+    if (auto editing_host = range->start_container()->editing_host(); is<HTML::HTMLElement>(editing_host.ptr())
+        && as<HTML::HTMLElement>(*editing_host).content_editable_state() == HTML::ContentEditableState::PlaintextOnly) {
+        GC::Ptr<DOM::DocumentFragment> fragment;
+        {
+            EditingHistory::ProxyMutationScope mutation_scope { *range->start_container() };
+            auto result = range->create_contextual_fragment(resulting_value);
+            if (result.is_exception())
+                return false;
+            fragment = result.release_value();
+        }
+        auto text = plain_text_of_fragment(*fragment);
+        auto lines = text.utf16_view().split_view(u'\n', SplitBehavior::KeepEmpty);
+        for (size_t i = 0; i < lines.size(); ++i) {
+            if (i > 0)
+                command_insert_linebreak_action(document, {});
+            if (!lines[i].is_empty())
+                insert_text(document, lines[i], InsertTextContext::Typing);
+        }
+        return true;
+    }
 
     // INTEROP: Blink and WebKit route both inline and block rich paste through their selection-replacement command.
     //          Keeping fragment parsing, inserted-range tracking, and completion in that command prevents the two
@@ -1987,12 +2100,6 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
     // 35. Return true
     return true;
 }
-
-enum class InsertTextContext {
-    Typing,
-    TextReplacement,
-    OtherReplacement,
-};
 
 // https://w3c.github.io/editing/docs/execCommand/#the-inserttext-command
 static bool insert_text(DOM::Document& document, Utf16View value, InsertTextContext context)
