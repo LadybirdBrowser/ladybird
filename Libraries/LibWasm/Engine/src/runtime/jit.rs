@@ -123,6 +123,7 @@ pub fn options() -> Options {
             all(any(target_os = "linux", target_os = "macos"), target_arch = "x86_64"),
             all(any(target_os = "linux", target_os = "macos"), target_arch = "aarch64")
         ));
+        options.enabled &= super::interpreter::cpu_supports_jit();
         options
     })
 }
@@ -269,8 +270,8 @@ pub fn initial_native_entry() -> u64 {
     native::stubs().adapter
 }
 
-/// Whether the JIT runs: if `LIBWASM_JIT` wants it and the process has executable memory for its stubs, which a
-/// hardened runtime without the JIT entitlement does not give it.
+/// Whether the JIT runs: if `LIBWASM_JIT` wants it, the CPU has the features its code uses, and the process has
+/// executable memory for its stubs, which a hardened runtime without the JIT entitlement does not give it.
 pub(crate) fn enabled() -> bool {
     options().enabled && native::try_stubs().is_some()
 }

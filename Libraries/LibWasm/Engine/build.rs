@@ -62,6 +62,13 @@ fn main() {
     let layout_path = output_directory.join("layout.conf");
     write_if_changed(&layout_path, &layout);
 
+    // The interpreter counts zeros with LZCNT and TZCNT where the build targets CPUs that have them (see
+    // `check_cpu_features()`), and with bit scans everywhere else.
+    let target_features = env::var("CARGO_CFG_TARGET_FEATURE").unwrap_or_default();
+    let has_target_feature = |feature: &str| target_features.split(',').any(|candidate| candidate == feature);
+    let has_lzcnt = architecture == flapc::Architecture::X86_64 && has_target_feature("lzcnt");
+    let has_bmi1 = architecture == flapc::Architecture::X86_64 && has_target_feature("bmi1");
+
     let source = fs::read_to_string(&interpreter_source).expect("read interpreter.flap");
     let source_name = interpreter_source.display().to_string();
     let compiler = flapc::Compiler::new(flapc::CompileOptions {
@@ -70,8 +77,8 @@ fn main() {
             object_format,
         },
         has_jscvt: false,
-        has_lzcnt: false,
-        has_bmi1: false,
+        has_lzcnt,
+        has_bmi1,
         enable_assertions: true,
         profiling: false,
         profile: flapc::Profile::WebAssembly,
