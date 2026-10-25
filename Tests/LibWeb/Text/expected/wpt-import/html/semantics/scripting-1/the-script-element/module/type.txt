@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-3 Pass
-3 Fail
+6 Pass
 Pass	type="module"
 Pass	type="MODULE"
 Pass	type="Module"
-Fail	type="module "
-Fail	type=" module"
-Fail	type=" module "
+Pass	type="module "
+Pass	type=" module"
+Pass	type=" module "
