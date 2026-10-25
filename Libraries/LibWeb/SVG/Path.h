@@ -11,9 +11,27 @@
 
 #include <AK/String.h>
 #include <AK/Utf16View.h>
-#include <LibGfx/Forward.h>
+#include <AK/Vector.h>
+#include <LibGfx/Point.h>
+#include <LibGfx/Vector2.h>
+
+namespace Web::Layout::RustFFI {
+
+struct FfiPathVertex;
+
+}
 
 namespace Web::SVG {
+
+// A vertex of polylines through a path, at `distance` along it, where the path heads in `direction`.
+struct PathVertex {
+    Gfx::FloatPoint point;
+    float distance { 0 };
+    Gfx::FloatVector2 direction;
+};
+
+// Appends the `count` vertices of a path that Rust measured to the Vector<PathVertex> `context` points to.
+void append_path_vertices(void* context, Layout::RustFFI::FfiPathVertex const*, size_t count);
 
 class Path;
 Path parse_path_data(Utf16View);
@@ -28,7 +46,8 @@ public:
     Path& operator=(Path const&);
     Path& operator=(Path&&);
 
-    [[nodiscard]] Gfx::Path to_gfx_path() const;
+    // The vertices of polylines through the path, as close to its curves as its length is measured.
+    Vector<PathVertex> vertices() const;
     String serialize() const;
 
     bool operator==(Path const&) const;

@@ -1071,111 +1071,212 @@ impl SvgShapeGeometry {
     }
 }
 
-/// The geometry a shape element draws, in the user units of a viewport of `viewport_size`, from
-/// the shape `geometry` names and the computed style in `payloads`. The DOM's geometry queries
-/// measure this path. Only the `geometry_kind` and `line_*` fields of `geometry` are read.
-/// Calls `append` once with the byte form of the path, which `Gfx::Path` reads.
+/// A shape element whose geometry the DOM measures: the shape `geometry` names, the computed style in `payloads`, the
+/// points of a polyline or polygon, and the size of the viewport the element sits in. Only the `geometry_kind` and
+/// `line_*` fields of `geometry` are read.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiSvgGeometryElementShape {
+    pub geometry: FfiSvgAttributeFacts,
+    pub payloads: *const *const c_void,
+    pub payload_count: usize,
+    pub points: *const FfiFloatPoint,
+    pub point_count: usize,
+    pub viewport_size: FfiCssPixelSize,
+}
+
+impl FfiSvgGeometryElementShape {
+    /// What `measure` answers of the geometry the element draws, in the user units of its viewport, built by the same
+    /// shape builders layout uses, and of the element's style.
+    ///
+    /// # Safety
+    /// `payloads` must point to `payload_count` live style group payloads, and `points` to `point_count` points.
+    unsafe fn measure<R>(&self, measure: impl FnOnce(&libgfx_rust::path::Path, StyleValues<'_>) -> R) -> R {
+        assert!(!self.payloads.is_null(), "style group payload array is null");
+        let mut style_payloads = FfiStylePayloads::default();
+        // SAFETY: Guaranteed by the caller.
+        style_payloads
+            .groups
+            .copy_from_slice(unsafe { ak::slice_from_raw_parts(self.payloads, self.payload_count) });
+        // SAFETY: Guaranteed by the caller.
+        let points = unsafe { ak::slice_from_raw_parts(self.points, self.point_count) };
+        let shape_geometry = SvgShapeGeometry {
+            viewport_width: self.viewport_size.width,
+            viewport_height: self.viewport_size.height,
+        };
+        let style = StyleValues::new(&style_payloads);
+        measure(&shape_geometry.path(self.geometry, style, Some(points)), style)
+    }
+}
+
+/// A vertex of polylines through a path, at `distance` along it, where the path heads in `direction`.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct FfiPathVertex {
+    pub point: FfiFloatPoint,
+    pub distance: f32,
+    pub direction: FfiFloatPoint,
+}
+
+/// Calls `push` once with the vertices of polylines through `path`, as close to its curves as its length is measured.
 ///
 /// # Safety
-///
-/// `payloads` must point at `payload_count` live style group payloads, and `points` at
-/// `point_count` points. `context` must be valid for `append` for the duration of this call.
-#[allow(clippy::too_many_arguments)]
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn svg_geometry_element_encode_path(
-    geometry: FfiSvgAttributeFacts,
-    payloads: *const *const c_void,
-    payload_count: usize,
-    points: *const FfiFloatPoint,
-    point_count: usize,
-    viewport_size: FfiCssPixelSize,
+/// `context` must be valid for `push` for the duration of this call.
+unsafe fn push_path_vertices(
+    path: &libgfx_rust::path::Path,
     context: *mut c_void,
-    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+    push: unsafe extern "C" fn(*mut c_void, *const FfiPathVertex, usize),
 ) {
-    assert!(!payloads.is_null(), "style group payload array is null");
-    let mut style_payloads = FfiStylePayloads::default();
+    let vertices: Vec<FfiPathVertex> = path
+        .vertices()
+        .into_iter()
+        .map(|vertex| FfiPathVertex {
+            point: FfiFloatPoint {
+                x: vertex.point.x,
+                y: vertex.point.y,
+            },
+            distance: vertex.distance,
+            direction: FfiFloatPoint {
+                x: vertex.direction.x,
+                y: vertex.direction.y,
+            },
+        })
+        .collect();
     // SAFETY: Guaranteed by the caller.
-    style_payloads
-        .groups
-        .copy_from_slice(unsafe { ak::slice_from_raw_parts(payloads, payload_count) });
+    unsafe { push(context, vertices.as_ptr(), vertices.len()) };
+}
+
+/// Whether the point is inside the geometry of a shape element, as the winding rule its `fill-rule` names counts it.
+/// Open subpaths are closed for the test, and points on the path count as inside.
+///
+/// # Safety
+/// As for [`FfiSvgGeometryElementShape::measure`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn svg_geometry_element_fill_contains(
+    shape: &FfiSvgGeometryElementShape,
+    x: f32,
+    y: f32,
+) -> bool {
     // SAFETY: Guaranteed by the caller.
-    let points = unsafe { ak::slice_from_raw_parts(points, point_count) };
-    let shape_geometry = SvgShapeGeometry {
-        viewport_width: viewport_size.width,
-        viewport_height: viewport_size.height,
+    unsafe {
+        shape.measure(|path, style| {
+            let winding_rule = if style.inherited_svg().fill_rule == crate::css::css_enums::fill_rule::EVENODD {
+                libgfx_rust::WindingRule::EvenOdd
+            } else {
+                libgfx_rust::WindingRule::Nonzero
+            };
+            path.contains(x, y, winding_rule)
+        })
+    }
+}
+
+/// The length of the geometry of a shape element.
+///
+/// # Safety
+/// As for [`FfiSvgGeometryElementShape::measure`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn svg_geometry_element_total_length(shape: &FfiSvgGeometryElementShape) -> f32 {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { shape.measure(|path, _| path.length()) }
+}
+
+/// Writes the point at `distance` along the geometry of a shape element to `point`, with the distance clamped to the
+/// ends of the geometry. Answers false, writing nothing, for a geometry without segments.
+///
+/// # Safety
+/// As for [`FfiSvgGeometryElementShape::measure`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn svg_geometry_element_point_at_length(
+    shape: &FfiSvgGeometryElementShape,
+    distance: f32,
+    point: &mut FfiFloatPoint,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    let Some([x, y, _, _]) = (unsafe { shape.measure(|path, _| path.point_at_length(distance)) }) else {
+        return false;
     };
-    let bytes = shape_geometry
-        .path(geometry, StyleValues::new(&style_payloads), Some(points))
-        .serialize_to_bytes();
+    *point = FfiFloatPoint { x, y };
+    true
+}
+
+/// Calls `push` once with the vertices of polylines through the geometry of a shape element (see
+/// [`push_path_vertices`]).
+///
+/// # Safety
+/// As for [`FfiSvgGeometryElementShape::measure`]. `context` must be valid for `push` for the duration of this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn svg_geometry_element_vertices(
+    shape: &FfiSvgGeometryElementShape,
+    context: *mut c_void,
+    push: unsafe extern "C" fn(*mut c_void, *const FfiPathVertex, usize),
+) {
     // SAFETY: Guaranteed by the caller.
-    unsafe { append(context, bytes.as_ptr(), bytes.len()) };
+    unsafe { shape.measure(|path, _| push_path_vertices(path, context, push)) }
+}
+
+/// Calls `push` once with the vertices of polylines through the path that `path` draws (see [`push_path_vertices`]).
+///
+/// # Safety
+/// `context` must be valid for `push` for the duration of this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn svg_path_data_vertices(
+    path: &crate::svg::ParsedPath,
+    context: *mut c_void,
+    push: unsafe extern "C" fn(*mut c_void, *const FfiPathVertex, usize),
+) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { push_path_vertices(&path.to_gfx_path(), context, push) }
 }
 
 /// Whether the point is inside the area that stroking the geometry of a shape element covers, with the stroke drawn
-/// from the element's computed style, in the user units of the viewport of the given size. Distances along the path are
-/// scaled by the dash scale. The host scale is the scale from the element's user space to its host coordinate space,
-/// in which a non-scaling stroke is drawn.
+/// from the element's computed style. Distances along the path are scaled by the dash scale. The host scale is the
+/// scale from the element's user space to its host coordinate space, in which a non-scaling stroke is drawn.
 ///
 /// # Safety
-/// `payloads` must point to `payload_count` style group payloads, and `points` to `point_count` points.
+/// As for [`FfiSvgGeometryElementShape::measure`].
 #[unsafe(no_mangle)]
-#[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn svg_geometry_element_stroke_contains(
-    geometry: FfiSvgAttributeFacts,
-    payloads: *const *const c_void,
-    payload_count: usize,
-    points: *const FfiFloatPoint,
-    point_count: usize,
-    viewport_size: FfiCssPixelSize,
+    shape: &FfiSvgGeometryElementShape,
     dash_scale: f32,
     host_scale: f32,
     x: f32,
     y: f32,
 ) -> bool {
-    assert!(!payloads.is_null(), "style group payload array is null");
-    let mut style_payloads = FfiStylePayloads::default();
+    let viewport_size = shape.viewport_size;
     // SAFETY: Guaranteed by the caller.
-    style_payloads
-        .groups
-        .copy_from_slice(unsafe { ak::slice_from_raw_parts(payloads, payload_count) });
-    // SAFETY: Guaranteed by the caller.
-    let points = unsafe { ak::slice_from_raw_parts(points, point_count) };
-    let shape_geometry = SvgShapeGeometry {
-        viewport_width: viewport_size.width,
-        viewport_height: viewport_size.height,
-    };
-    let style = StyleValues::new(&style_payloads);
-    let path = shape_geometry.path(geometry, style, Some(points));
-
-    // The same basis that layout resolves the stroke's percentages against.
-    // FIXME: The spec formula is the normalized diagonal sqrt((width² + height²) / 2), as for layout.
-    let basis = (viewport_size.width + viewport_size.height) * CssPixels::nearest_value_for(0.5);
-    let stroke = crate::painting::record::paint::svg::svg_stroke_style_for_percentage_basis(&style, basis);
-    // https://svgwg.org/svg2-draft/painting.html#PaintingVectorEffects
-    // With the non-scaling-stroke vector effect, stroke outline shall be calculated in the "host" coordinate space
-    // instead of user coordinate system.
-    let stroke_scale = if stroke.non_scaling_stroke && host_scale > 0.0 {
-        1.0 / host_scale
-    } else {
-        1.0
-    };
-    let stroke_style = libgfx_rust::path::StrokeStyle {
-        thickness: stroke.width * stroke_scale,
-        cap_style: stroke.cap_style,
-        join_style: stroke.join_style,
-        miter_limit: stroke.miter_limit,
-        dash_array: stroke
-            .dash_array
-            .iter()
-            .map(|dash| dash * dash_scale * stroke_scale)
-            .collect(),
-        dash_offset: stroke.dash_offset * dash_scale * stroke_scale,
-    };
-    if stroke_style.thickness <= 0.0 {
-        return false;
+    unsafe {
+        shape.measure(|path, style| {
+            // The same basis that layout resolves the stroke's percentages against.
+            // FIXME: The spec formula is the normalized diagonal sqrt((width² + height²) / 2), as for layout.
+            let basis = (viewport_size.width + viewport_size.height) * CssPixels::nearest_value_for(0.5);
+            let stroke = crate::painting::record::paint::svg::svg_stroke_style_for_percentage_basis(&style, basis);
+            // https://svgwg.org/svg2-draft/painting.html#PaintingVectorEffects
+            // With the non-scaling-stroke vector effect, stroke outline shall be calculated in the "host" coordinate
+            // space instead of user coordinate system.
+            let stroke_scale = if stroke.non_scaling_stroke && host_scale > 0.0 {
+                1.0 / host_scale
+            } else {
+                1.0
+            };
+            let stroke_style = libgfx_rust::path::StrokeStyle {
+                thickness: stroke.width * stroke_scale,
+                cap_style: stroke.cap_style,
+                join_style: stroke.join_style,
+                miter_limit: stroke.miter_limit,
+                dash_array: stroke
+                    .dash_array
+                    .iter()
+                    .map(|dash| dash * dash_scale * stroke_scale)
+                    .collect(),
+                dash_offset: stroke.dash_offset * dash_scale * stroke_scale,
+            };
+            if stroke_style.thickness <= 0.0 {
+                return false;
+            }
+            path.stroke_to_fill(&stroke_style)
+                .contains(x, y, libgfx_rust::WindingRule::Nonzero)
+        })
     }
-    path.stroke_to_fill(&stroke_style)
-        .contains(x, y, libgfx_rust::WindingRule::Nonzero)
 }
 
 impl<'pass> SvgFormattingContext<'pass> {

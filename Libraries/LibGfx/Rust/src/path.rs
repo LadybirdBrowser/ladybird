@@ -11,6 +11,7 @@ use crate::geometry::{FloatPoint, FloatSize};
 use crate::matrix::AffineTransform;
 use crate::paint_enums::WindingRule;
 use geometry::PathGeometry;
+pub use measure::PathVertex;
 
 mod arcs;
 mod curves;
@@ -212,6 +213,11 @@ impl Path {
     pub fn point_at_length(&self, distance: f32) -> Option<[f32; 4]> {
         measure::point_at_length(&self.geometry, distance)
             .map(|(point, tangent)| [point.x, point.y, tangent.x, tangent.y])
+    }
+
+    /// The vertices of polylines through the path, with their distance along it (see [`measure::vertices`]).
+    pub fn vertices(&self) -> Vec<PathVertex> {
+        measure::vertices(&self.geometry)
     }
 
     pub fn contains(&self, x: f32, y: f32, winding_rule: WindingRule) -> bool {

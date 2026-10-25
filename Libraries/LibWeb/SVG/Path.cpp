@@ -8,7 +8,7 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <LibGfx/Path.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/SVG/ParserRustFFI.h>
 #include <LibWeb/SVG/Path.h>
 
@@ -21,6 +21,14 @@ static RustFFI::FfiUtf16View ffi_svg_input(Utf16View input)
         .utf16 = input.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(input.utf16_span().data()),
         .length = input.length_in_code_units(),
     };
+}
+
+void append_path_vertices(void* context, Layout::RustFFI::FfiPathVertex const* vertices, size_t count)
+{
+    auto& path_vertices = *static_cast<Vector<PathVertex>*>(context);
+    path_vertices.ensure_capacity(path_vertices.size() + count);
+    for (auto const& vertex : ReadonlySpan<Layout::RustFFI::FfiPathVertex> { vertices, count })
+        path_vertices.unchecked_append({ { vertex.point.x, vertex.point.y }, vertex.distance, { vertex.direction.x, vertex.direction.y } });
 }
 
 Path parse_path_data(Utf16View input)
@@ -72,14 +80,11 @@ Path& Path::operator=(Path&& other)
     return *this;
 }
 
-Gfx::Path Path::to_gfx_path() const
+Vector<PathVertex> Path::vertices() const
 {
-    Vector<u8> bytes;
-    auto append = [](void* context, u8 const* data, size_t length) {
-        static_cast<Vector<u8>*>(context)->append(data, length);
-    };
-    RustFFI::rust_svg_path_encode_gfx_path(m_rust_path, &bytes, append);
-    return Gfx::Path::from_serialized_bytes(bytes);
+    Vector<PathVertex> vertices;
+    Layout::RustFFI::svg_path_data_vertices(m_rust_path, &vertices, append_path_vertices);
+    return vertices;
 }
 
 String Path::serialize() const
