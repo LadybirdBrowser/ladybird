@@ -31,7 +31,7 @@ namespace Web::FileAPI {
 struct BlobBytes {
     AK_ALLOC_WITH_KMALLOC;
 
-    Variant<ByteBuffer, Core::AnonymousBuffer> bytes;
+    Variant<ByteBuffer, Core::AnonymousBuffer, Core::ImmutableBytes> bytes;
 };
 
 // The bytes as Bindings/Rust/src/file_api/blob.rs takes them over.
@@ -41,7 +41,7 @@ struct BlobBytesABI {
     size_t length { 0 };
 };
 
-static BlobBytesABI hand_over(Variant<ByteBuffer, Core::AnonymousBuffer> bytes)
+static BlobBytesABI hand_over(Variant<ByteBuffer, Core::AnonymousBuffer, Core::ImmutableBytes> bytes)
 {
     auto* owner = new BlobBytes { move(bytes) };
     auto data = owner->bytes.visit([](auto const& bytes) { return bytes.bytes(); });
@@ -103,6 +103,20 @@ ErrorOr<Core::AnonymousBuffer> Blob::shared_bytes()
     }
     web_blob_set_foreign_bytes(this, hand_over(buffer));
     return buffer;
+}
+
+ErrorOr<Core::ImmutableBytes> Blob::immutable_bytes()
+{
+    if (auto* owner = web_blob_foreign_bytes_owner(this)) {
+        if (auto const* bytes = owner->bytes.get_pointer<Core::ImmutableBytes>())
+            return *bytes;
+        if (auto const* buffer = owner->bytes.get_pointer<Core::AnonymousBuffer>())
+            return Core::ImmutableBytes::adopt_anonymous_buffer(*buffer);
+    }
+
+    auto bytes = TRY(Core::ImmutableBytes::copy(raw_bytes()));
+    web_blob_set_foreign_bytes(this, hand_over(bytes));
+    return bytes;
 }
 
 GC::Ref<Blob> Blob::slice_blob(Optional<i64> start, Optional<i64> end, Optional<Utf16String> content_type) const

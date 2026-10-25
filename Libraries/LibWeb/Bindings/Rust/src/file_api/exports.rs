@@ -66,7 +66,8 @@ pub unsafe extern "C" fn web_blob_create(vm: *mut c_void, bytes: ForeignBytesAbi
     cell_into_abi(allocate(vm, |_| blob))
 }
 
-/// The byte sequence of the Blob or File, which lives until the object dies or its bytes move to shared memory.
+/// The byte sequence of the Blob or File, which lives until the object dies or C++ moves its bytes into immutable
+/// bytes or shared memory.
 ///
 /// # Safety
 ///

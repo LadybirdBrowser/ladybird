@@ -9,6 +9,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Utf16String.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibWeb/Bindings/Blob.h>
 #include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
@@ -34,6 +35,9 @@ public:
 
     ReadonlyBytes raw_bytes() const LIFETIME_BOUND;
     ErrorOr<Core::AnonymousBuffer> shared_bytes();
+
+    // The Blob's bytes, which are in shared memory only if they already were.
+    ErrorOr<Core::ImmutableBytes> immutable_bytes();
 
     // https://w3c.github.io/FileAPI/#slice-blob
     GC::Ref<Blob> slice_blob(Optional<i64> start, Optional<i64> end, Optional<Utf16String> content_type) const;
