@@ -20,6 +20,7 @@
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/EventDispatcher.h>
@@ -840,6 +841,36 @@ JS::Value convert_a_key_to_a_value(JS::Realm& realm, GC::Ref<Key> key)
     VERIFY_NOT_REACHED();
 }
 
+// https://tc39.es/ecma262/#prod-IdentifierName
+static bool is_identifier_name(Utf16View const& string)
+{
+    // FIXME: Accept the UnicodeEscapeSequences that IdentifierStart and IdentifierPart allow.
+    if (string.is_empty())
+        return false;
+
+    bool is_first_code_point = true;
+    for (auto code_point : string) {
+        // IdentifierStartChar ::
+        //     UnicodeIDStart
+        //     $
+        //     _
+        // IdentifierPartChar ::
+        //     UnicodeIDContinue
+        //     $
+        //     <ZWNJ>
+        //     <ZWJ>
+        bool is_valid = code_point == '$' || code_point == '_';
+        if (is_first_code_point)
+            is_valid = is_valid || Unicode::code_point_has_identifier_start_property(code_point);
+        else
+            is_valid = is_valid || code_point == 0x200C || code_point == 0x200D || Unicode::code_point_has_identifier_continue_property(code_point);
+        if (!is_valid)
+            return false;
+        is_first_code_point = false;
+    }
+    return true;
+}
+
 // https://w3c.github.io/IndexedDB/#valid-key-path
 bool is_valid_key_path(KeyPath const& path)
 {
@@ -850,13 +881,19 @@ bool is_valid_key_path(KeyPath const& path)
             if (value.is_empty())
                 return true;
 
-            // FIXME: * An identifier, which is a string matching the IdentifierName production from the ECMAScript Language Specification [ECMA-262].
+            // * An identifier, which is a string matching the IdentifierName production from the ECMAScript Language
+            //   Specification [ECMA-262].
+            // * A string consisting of two or more identifiers separated by periods (U+002E FULL STOP).
+            auto view = value.utf16_view();
+            size_t identifier_start = 0;
+            for (size_t index = 0; index <= view.length_in_code_units(); ++index) {
+                if (index < view.length_in_code_units() && view.code_unit_at(index) != '.')
+                    continue;
+                if (!is_identifier_name(view.substring_view(identifier_start, index - identifier_start)))
+                    return false;
+                identifier_start = index + 1;
+            }
             return true;
-
-            // FIXME: * A string consisting of two or more identifiers separated by periods (U+002E FULL STOP).
-            return true;
-
-            return false;
         },
         [](Vector<Utf16String> const& values) -> bool {
             // * A non-empty list containing only strings conforming to the above requirements.
