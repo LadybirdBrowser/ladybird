@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	CSS Selector Invalidation: :has() with nesting parent containing :hover
+1 Pass
+Pass	CSS Selector Invalidation: :has() with nesting parent containing :hover
