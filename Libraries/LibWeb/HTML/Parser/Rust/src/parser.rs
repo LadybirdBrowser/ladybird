@@ -169,6 +169,7 @@ unsafe extern "C" {
     ) -> usize;
     fn ladybird_html_parser_set_template_content(element: usize, content: usize);
     fn ladybird_html_parser_is_shadow_host(node: usize) -> bool;
+    fn ladybird_html_parser_set_script_text_from_parser(element: usize);
 }
 
 /// Opaque handle for the Rust HTML parser, passed across the FFI boundary.
@@ -2823,6 +2824,10 @@ impl TreeBuilder {
             // The Fragment scripting mode treats parser-inserted scripts as if they were not parser-inserted, allowing,
             // for example, executing scripts when applying a fragment created by createContextualFragment().
             if self.parsing_fragment {
+                // https://w3c.github.io/trusted-types/dist/spec/#setting-slot-values-from-parser
+                // NB: The parser does not prepare scripts in the fragment case, but their script text value still
+                //     has to be set to their child text content, so that they can run once inserted into a document.
+                unsafe { ladybird_html_parser_set_script_text_from_parser(script) };
                 return;
             }
             self.pending_script = Some(script);
