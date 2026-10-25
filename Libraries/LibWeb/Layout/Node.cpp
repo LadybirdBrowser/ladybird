@@ -529,11 +529,7 @@ void NodeWithStyle::set_style_record_identity(CSS::InstalledStyle const& install
             ? held_before.view()
             : document().style_computer().style_engine().style_record_view(held_read(), m_style_record_identity);
     }
-    // NB: SVG geometry can depend on animation composition. Keep its conservative reset.
-    bool svg_animation_may_affect_intrinsic_sizes = is_svg_box()
-        && (old_record_view.animation_overlay_identity != 0 || new_record_view.animation_overlay_identity != 0);
     bool changes_layout_affecting_style = !old_record_view.present
-        || svg_animation_may_affect_intrinsic_sizes
         || !CSS::ComputedValuesFFI::rust_style_payloads_layout_inputs_equal(old_record_view.payloads, new_record_view.payloads, is_svg_box());
 
     release_pinned_style_record();

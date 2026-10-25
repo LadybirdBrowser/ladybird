@@ -1,0 +1,9 @@
+rect sample changes geometry: true
+circle sample changes geometry: true
+path sample changes geometry: true
+opacity sample changes geometry: false
+animated SVG layout stays consistent: true
+rect geometry matches fresh layout: true
+circle geometry matches fresh layout: true
+path geometry matches fresh layout: true
+opacity geometry matches fresh layout: true
