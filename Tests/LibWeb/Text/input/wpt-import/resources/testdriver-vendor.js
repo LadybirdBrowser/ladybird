@@ -29,6 +29,8 @@ window.test_driver_internal.delete_all_cookies = function(context) {
     return window.internals.deleteAllCookies();
 };
 
+const pointerStates = new Map();
+
 window.test_driver_internal.action_sequence = async function(actions, context) {
     // Modifier key codes from WebDriver spec
     const SHIFT = "\uE008";
@@ -45,39 +47,78 @@ window.test_driver_internal.action_sequence = async function(actions, context) {
     let modifiers = 0;
     const target = document.activeElement;
 
-    // Collect all key actions with their tick index
-    const tickActions = [];
-    for (const source of actions) {
-        if (source.type !== "key" || !source.actions) {
-            continue;
+    // The state of each mouse pointer source, which WebDriver keeps across action sequences.
+    const pointerStateFor = source => {
+        const id = source.id ?? "";
+        if (!pointerStates.has(id))
+            pointerStates.set(id, { x: 0, y: 0, lastUp: null, clickCount: 0 });
+        return pointerStates.get(id);
+    };
+
+    const pointerActionPosition = (state, action) => {
+        let x = action.x ?? 0;
+        let y = action.y ?? 0;
+        if (action.origin instanceof Element) {
+            const centerPoint = elementCenter(action.origin);
+            x += centerPoint.x;
+            y += centerPoint.y;
+        } else if (action.origin === "pointer") {
+            x += state.x;
+            y += state.y;
         }
-        for (let tick = 0; tick < source.actions.length; tick++) {
+        return { x, y };
+    };
+
+    const tickCount = Math.max(0, ...actions.map(source => source.actions ? source.actions.length : 0));
+    for (let tick = 0; tick < tickCount; tick++) {
+        for (const source of actions) {
+            if (!source.actions || tick >= source.actions.length)
+                continue;
             const action = source.actions[tick];
-            if (action.type !== "pause") {
-                tickActions.push({ tick, action });
+
+            if (source.type === "key") {
+                if (action.type === "pause")
+                    continue;
+                const key = action.value;
+                const isKeyDown = action.type === "keyDown";
+
+                // Update modifier state
+                if (key === SHIFT) {
+                    modifiers = isKeyDown ? (modifiers | MOD_SHIFT) : (modifiers & ~MOD_SHIFT);
+                } else if (key === CTRL) {
+                    modifiers = isKeyDown ? (modifiers | MOD_CTRL) : (modifiers & ~MOD_CTRL);
+                } else if (key === ALT) {
+                    modifiers = isKeyDown ? (modifiers | MOD_ALT) : (modifiers & ~MOD_ALT);
+                } else if (key === META) {
+                    modifiers = isKeyDown ? (modifiers | MOD_SUPER) : (modifiers & ~MOD_SUPER);
+                } else if (isKeyDown) {
+                    // For non-modifier keys, only send on keyDown
+                    window.internals.sendText(target, key, modifiers);
+                }
+                continue;
             }
-        }
-    }
 
-    // Sort by tick index and process
-    tickActions.sort((a, b) => a.tick - b.tick);
+            // Only mouse pointers can be driven through internals.
+            if (source.type !== "pointer" || (source.parameters?.pointerType ?? "mouse") !== "mouse")
+                continue;
 
-    for (const { action } of tickActions) {
-        const key = action.value;
-        const isKeyDown = action.type === "keyDown";
-
-        // Update modifier state
-        if (key === SHIFT) {
-            modifiers = isKeyDown ? (modifiers | MOD_SHIFT) : (modifiers & ~MOD_SHIFT);
-        } else if (key === CTRL) {
-            modifiers = isKeyDown ? (modifiers | MOD_CTRL) : (modifiers & ~MOD_CTRL);
-        } else if (key === ALT) {
-            modifiers = isKeyDown ? (modifiers | MOD_ALT) : (modifiers & ~MOD_ALT);
-        } else if (key === META) {
-            modifiers = isKeyDown ? (modifiers | MOD_SUPER) : (modifiers & ~MOD_SUPER);
-        } else if (isKeyDown) {
-            // For non-modifier keys, only send on keyDown
-            window.internals.sendText(target, key, modifiers);
+            const state = pointerStateFor(source);
+            if (action.type === "pointerMove") {
+                const position = pointerActionPosition(state, action);
+                state.x = position.x;
+                state.y = position.y;
+                window.internals.mouseMove(state.x, state.y, modifiers);
+            } else if (action.type === "pointerDown") {
+                const button = action.button ?? 0;
+                // A press at the place of the last release with the same button continues its click sequence.
+                const continuesClick = state.lastUp && state.lastUp.button === button && state.lastUp.x === state.x && state.lastUp.y === state.y;
+                state.clickCount = continuesClick ? state.clickCount + 1 : 1;
+                window.internals.mouseDown(state.x, state.y, state.clickCount, button, modifiers);
+            } else if (action.type === "pointerUp") {
+                const button = action.button ?? 0;
+                window.internals.mouseUp(state.x, state.y, button, modifiers);
+                state.lastUp = { x: state.x, y: state.y, button };
+            }
         }
     }
 
