@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<title>position:sticky elements should not affect the flow position of other elements</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos" />
+<meta name="assert" content="This test checks that position:sticky elements do not affect the flow position of other elements" />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+.scroller {
+  position: relative;
+  height: 200px;
+  width: 100px;
+  overflow: scroll;
+}
+
+#sticky {
+  background-color: green;
+  position: sticky;
+  top: 150px;
+}
+
+#before {
+  background-color: fuchsia;
+}
+
+#after {
+  background-color: orange;
+}
+
+.box {
+  height: 50px;
+  width: 50px;
+}
+
+.padding {
+  height: 500px;
+}
+</style>
+
+<div class="scroller">
+  <div id="before" class="box"></div>
+  <div id="sticky" class="box"></div>
+  <div id="after" class="box"></div>
+  <div class="padding"></div>
+</div>
+
+<script>
+test(() => {
+  // The sticky element is pushed to be stuck 150 pixels from the top.
+  assert_equals(sticky.offsetTop, 150);
+
+  // Neither 'before' or 'after' should be affected by the change in the sticky
+  // element's location.
+  assert_equals(before.offsetTop, 0);
+  assert_equals(after.offsetTop, before.clientHeight + sticky.clientHeight);
+}, 'sticky offset should not affect the position of other elements.');
+</script>

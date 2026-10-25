@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Pass	before reaching the sticking point the sticky box should not be offset
+Fail	after reaching the sticking point the sticky box should be offset
+Fail	the sticky box should not be pushed outside its containing block

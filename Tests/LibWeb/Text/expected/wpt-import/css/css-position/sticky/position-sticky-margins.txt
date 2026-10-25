@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Pass	Before sticking, the margin should be obeyed.
+Fail	Whilst stuck, the margin is irrelevant.
+Fail	The margin is taken into account when making sure the sticky element does not escape its container

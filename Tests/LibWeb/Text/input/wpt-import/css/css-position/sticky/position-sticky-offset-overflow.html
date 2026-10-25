@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<title>Sticky positioning can cause overflow but must be accessible.</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos" />
+<meta name="assert" content="This test checks that a sticky positioned element
+does not extend overflow" />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+.container {
+  overflow-y: scroll;
+  width: 100px;
+  height: 100px;
+}
+
+.box {
+  background-color: green;
+  height: 50px;
+  width: 50px;
+}
+
+.sticky {
+  position: sticky;
+  top: 200px; /* Forces the sticky position element below the overflow. */
+}
+</style>
+
+<div id="scroller1" class="container">
+  <div class="sticky box"></div>
+</div>
+
+<script>
+test(() => {
+    var scroller = document.getElementById('scroller1');
+    var sticky = scroller.querySelector('.sticky');
+
+    var stickyOffset = sticky.offsetTop -
+        scroller.scrollTop - scroller.offsetTop;
+    assert_equals(stickyOffset, 50);
+    assert_equals(scroller.scrollHeight, 100);
+}, 'sticky position offset should be contained by scrolling box');
+
+</script>

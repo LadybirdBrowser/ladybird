@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>position:sticky elements should respect the right constraint</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos" />
+<meta name="assert" content="This test checks that position:sticky elements obey their right anchor after scrolling" />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<script src="../resources/sticky-util.js"></script>
+
+<body></body>
+
+<script>
+test(() => {
+  const elements = setupStickyTest('right', 25);
+  elements.scroller.scrollLeft = 200;
+  const nonStickyLeftX = elements.container.offsetLeft +
+    elements.filler.clientWidth;
+  assert_equals(elements.sticky.offsetLeft, nonStickyLeftX);
+}, 'before reaching the sticking point the sticky box should not be offset');
+
+test(() => {
+  const elements = setupStickyTest('right', 25);
+  elements.scroller.scrollLeft = 75;
+
+  const nonStickyLeftX = elements.container.offsetLeft +
+      elements.filler.clientWidth;
+  const nonStickyRightX = nonStickyLeftX + elements.sticky.clientWidth;
+  const targetRightX = elements.scroller.clientWidth +
+      elements.scroller.scrollLeft - 25;
+  const stickyOffset = nonStickyRightX - targetRightX;
+
+  assert_equals(elements.sticky.offsetLeft, nonStickyLeftX - stickyOffset);
+}, 'after reaching the sticking point the sticky box should be offset');
+
+test(() => {
+  const elements = setupStickyTest('right', 25);
+  elements.scroller.scrollLeft = 15;
+  assert_equals(elements.sticky.offsetLeft, elements.container.offsetLeft);
+}, 'the sticky box should not be pushed outside its containing block');
+</script>

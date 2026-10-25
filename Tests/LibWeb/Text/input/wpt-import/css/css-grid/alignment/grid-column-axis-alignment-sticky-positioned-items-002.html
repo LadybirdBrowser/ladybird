@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Self-Alignment along column axis of stcky positioned items</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#column-align">
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-align-self">
+<link rel="stylesheet" href="../../support/alignment.css">
+<meta name="assert" content="Sticky positioned grid items are aligned correcly, but preserving non-static positions when required.">
+<style>
+.container {
+  border: solid 1px;
+  overflow: auto;
+  height: 500px;
+}
+.grid {
+  position: relative;
+  float: left;
+  display: grid;
+  grid-template-columns: 75px 75px 75px 75px;
+  grid-template-rows: 100px 100px 100px 300px;
+  background: grey;
+  height: 400px;
+  margin-right: 20px;
+}
+.sticky {
+  position: -webkit-sticky;
+  position: sticky;
+  width: 20px;
+  height: 20px;
+  background-color: #cae8ca;
+}
+.item1 {
+  top: 40px;
+  grid-column: 1;
+  grid-row: 1;
+}
+.item2 {
+  top: 100px;
+  grid-column: 2;
+  grid-row: 2;
+}
+.item3 {
+  top: 290px;
+  grid-column: 3;
+  grid-row: 3;
+}
+.item4 {
+  grid-column: 4;
+  grid-row: 4;
+  background: lightgrey;
+}
+.scroll { overflow: auto; }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.grid')">
+<div class="container">
+    <div style="height:30px"></div>
+    <div class="grid">
+        <div class="item1 sticky alignSelfStart"  data-offset-x="0"   data-offset-y="10"></div>
+        <div class="item2 sticky alignSelfCenter" data-offset-x="75"  data-offset-y="140"></div>
+        <div class="item3 sticky alignSelfEnd"    data-offset-x="150" data-offset-y="280"></div>
+        <div class="item4"></div>
+    </div>
+    <div class="grid scroll">
+        <div class="item1 sticky alignSelfStart"  data-offset-x="0"   data-offset-y="40"></div>
+        <div class="item2 sticky alignSelfCenter" data-offset-x="75"  data-offset-y="140"></div>
+        <div class="item3 sticky alignSelfEnd"    data-offset-x="150" data-offset-y="290"></div>
+        <div class="item4"></div>
+    </div>
+    <div style="height:2000px"></div>
+</div>
+</body>
