@@ -395,6 +395,10 @@ function(_rust_crate_common_setup)
         list(APPEND cargo_env "CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true")
     endif()
 
+    if (LADYBIRD_GENERATE_SYMBOL_FILES)
+        list(APPEND cargo_env "CARGO_PROFILE_RELEASE_DEBUG=line-tables-only")
+    endif()
+
     if (RUSTC_WRAPPER)
         list(APPEND cargo_env
             "RUSTC_WRAPPER=${RUSTC_WRAPPER}"

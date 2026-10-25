@@ -233,6 +233,13 @@ endif()
 if (APPLE)
     list(APPEND CMAKE_PREFIX_PATH /opt/homebrew)
     add_cxx_link_options(LINKER:-dead_strip)
+
+    # The debug info of LTO code lives in the objects the linker generates, which it deletes after linking unless told
+    # where to keep them; dsymutil reads it from there.
+    if (LADYBIRD_GENERATE_SYMBOL_FILES)
+        file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/lto")
+        add_cxx_link_options("LINKER:-object_path_lto,${CMAKE_BINARY_DIR}/lto/$<TARGET_PROPERTY:NAME>")
+    endif()
 endif()
 
 if (HAIKU)
@@ -244,6 +251,7 @@ endif()
 
 if (NOT WIN32)
     add_cxx_link_option_if_supported(LINKER:--gdb-index)
+    add_cxx_link_option_if_supported(LINKER:--build-id)
 
     if (NOT ENABLE_FUZZERS)
         add_cxx_link_option_if_supported(LINKER:-Bsymbolic-non-weak-functions)
@@ -287,6 +295,11 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
     if (NOT MSVC)
         add_cxx_compile_options(-O3)
+
+        # Line tables, inlined frames included, are what symbolicating a crash report needs.
+        if (LADYBIRD_GENERATE_SYMBOL_FILES)
+            add_cxx_compile_options(-g1)
+        endif()
     else()
         add_cxx_compile_options(/O2)
     endif()
