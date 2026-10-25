@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
+#include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/Parser/Entities.h>
@@ -140,6 +142,15 @@ void XMLDocumentBuilder::element_start(Utf16FlyString const& name, Vector<XML::L
         script_element.set_parser_document(Badge<XMLDocumentBuilder> {}, m_document);
         script_element.set_force_async(Badge<XMLDocumentBuilder> {}, false);
     }
+
+    // AD-HOC: Let <link> elements know which document they were originally parsed for.
+    //         This is used for the script-blocking and render-blocking logic.
+    if (auto* link_element = as_if<HTML::HTMLLinkElement>(*node)) {
+        link_element->set_parser_document(Badge<XMLDocumentBuilder> {}, m_document);
+        auto has_disabled_attribute = any_of(attributes, [](auto const& attribute) { return attribute.name == "disabled"sv; });
+        link_element->set_was_enabled_when_created_by_parser(Badge<XMLDocumentBuilder> {}, !has_disabled_attribute);
+    }
+
     if (m_current_node->is_html_template_element()) {
         // When an XML parser would append a node to a template element, it must instead append it to the template element's template contents (a DocumentFragment node).
         m_template_node_stack.append(*m_current_node);

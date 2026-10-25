@@ -60,6 +60,8 @@ public:
 
     void set_parser_document(Badge<HTMLParser>, GC::Ref<DOM::Document> document) { m_parser_document = document; }
     void set_was_enabled_when_created_by_parser(Badge<HTMLParser>, bool was_enabled_when_created_by_parser) { m_was_enabled_when_created_by_parser = was_enabled_when_created_by_parser; }
+    void set_parser_document(Badge<XMLDocumentBuilder>, GC::Ref<DOM::Document> document) { m_parser_document = document; }
+    void set_was_enabled_when_created_by_parser(Badge<XMLDocumentBuilder>, bool was_enabled_when_created_by_parser) { m_was_enabled_when_created_by_parser = was_enabled_when_created_by_parser; }
 
     void set_media(Utf16View);
     Utf16String media() const;

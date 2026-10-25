@@ -1123,8 +1123,8 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
     //         This is used for the render-blocking logic.
     if (!m_parsing_fragment && local_name == HTML::TagNames::link && namespace_ == Namespace::HTML) {
         auto& link_element = as<HTMLLinkElement>(*element);
-        link_element.set_parser_document({}, document);
-        link_element.set_was_enabled_when_created_by_parser({}, !attribute_value(HTML::AttributeNames::disabled).has_value());
+        link_element.set_parser_document(Badge<HTMLParser> {}, document);
+        link_element.set_was_enabled_when_created_by_parser(Badge<HTMLParser> {}, !attribute_value(HTML::AttributeNames::disabled).has_value());
     }
 
     // AD-HOC: Let style elements know which document they were originally parsed for.
