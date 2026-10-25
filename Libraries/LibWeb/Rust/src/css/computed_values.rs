@@ -2072,26 +2072,6 @@ pub(crate) fn release_group_payload(group_index: usize, payload: *const c_void) 
     }
 }
 
-/// See [`style_payloads_layout_inputs_equal`].
-///
-/// # Safety
-/// `a` and `b` must each point to a record's array of live group payloads.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_payloads_layout_inputs_equal(
-    a: *const *const c_void,
-    b: *const *const c_void,
-    is_svg_box: bool,
-) -> bool {
-    // SAFETY: The caller guarantees two arrays of live group payloads.
-    unsafe {
-        style_payloads_layout_inputs_equal(
-            ak::slice_from_raw_parts(a, group_index::COUNT),
-            ak::slice_from_raw_parts(b, group_index::COUNT),
-            is_svg_box,
-        )
-    }
-}
-
 /// Clamps a border box size by the min and max sizes of a sizing group that resolve against the given basis, as
 /// resizing an element by its resizer does.
 #[unsafe(no_mangle)]

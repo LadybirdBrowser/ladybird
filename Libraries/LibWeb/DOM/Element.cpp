@@ -5460,7 +5460,7 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
     // what it moves from, and everything below that compares against the old record is read from it, before the
     // element lets go of it. The engine may free the old record's payloads as soon as it is no longer held.
     if (auto* layout_node = unsafe_layout_node(read))
-        layout_node->set_style_record_identity(m_installed_style, held_before);
+        layout_node->set_style_record_identity(m_installed_style.record());
     bool const was_display_none = !held_before || held_before.display_is_none();
     // https://drafts.csswg.org/scroll-animations-1/#timeline-scoping
     bool const timeline_declarations_changed = timeline_declarations_differ(held_before, m_installed_style);

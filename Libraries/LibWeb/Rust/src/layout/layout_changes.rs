@@ -29,11 +29,6 @@ pub(crate) enum LayoutChange {
     },
     /// The whole layout tree is built again.
     SetNeedsFullLayoutTreeUpdate,
-    /// What the node's content is sized from changed: its fragment caches and intrinsic sizes, and those of its
-    /// ancestors, are stale.
-    ResetCachedIntrinsicSizesOfSelfAndAncestors {
-        node: NodeSlotId,
-    },
     /// The box takes `marks`.
     MarkBox {
         target: super::tree_update_marks::MarkedBox,
@@ -123,7 +118,8 @@ pub(crate) enum LayoutChange {
         kind: super::node_data::CompositorAnimationFrameKind,
         value: bool,
     },
-    /// The row takes the style record `record`, whose payloads `payloads` holds.
+    /// The row takes the style record `record`, whose payloads `payloads` holds. Where the move changes what layout reads
+    /// of the row's style, the sizes the row and its ancestors cached are measured again.
     SetNodeStyle {
         node: NodeSlotId,
         record: u64,
@@ -170,7 +166,6 @@ impl LayoutChange {
             Self::SetNodeStyle { .. } => RowWrite::NamedStyles,
             Self::SetNeedsLayoutUpdate { .. }
             | Self::SetNeedsFullLayoutTreeUpdate
-            | Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { .. }
             | Self::MarkBox { .. }
             | Self::ApplyLayoutTreeUpdateMark { .. }
             | Self::RecordPartialRelayoutEscape
@@ -236,12 +231,6 @@ impl LayoutChange {
                 }
             }
             Self::SetNeedsFullLayoutTreeUpdate => arena.set_needs_full_layout_tree_update(true),
-            Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { node } => {
-                if arena.slot_is_live(node) {
-                    arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
-                    arena.reset_cached_intrinsic_sizes_of_self_and_ancestors(node);
-                }
-            }
             Self::MarkBox { target, marks } => marks.apply(arena, target),
             Self::ApplyLayoutTreeUpdateMark { node, mark } => arena.apply_layout_tree_update_mark(node, mark),
             Self::RecordPartialRelayoutEscape => arena.record_partial_relayout_escape(),
@@ -303,11 +292,20 @@ impl LayoutChange {
                 arena.set_node_needs_compositor_animation_frame(node, kind, value);
             }
             Self::SetNodeStyle { node, record, payloads } => {
+                // A style the arena derived is replaced only to be derived again, which decides the relayout itself.
+                let previous_payloads = (arena.slot_is_live(node) && !arena.node_style_record_is_derived(node))
+                    .then(|| arena.data(node).style.get());
                 if arena.set_node_style(node, record, payloads) {
                     arena.refresh_style_flags(node);
                 }
                 arena.publish_new_size_container_geometry(node);
                 arena.enroll_node_for_svg_paint_resources_sync(node);
+                if previous_payloads
+                    .is_some_and(|previous| !arena.style_move_keeps_layout_inputs(node, previous, payloads))
+                {
+                    arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+                    arena.reset_cached_intrinsic_sizes_of_self_and_ancestors(node);
+                }
             }
             Self::PinBoundBoxStyleRecordForDetachment {
                 style_node,
@@ -477,14 +475,6 @@ pub extern "C" fn render_state_detach_remaining_rows_for_removal(host: &Document
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_set_needs_full_layout_tree_update(host: &DocumentHost) {
     queue(host, LayoutChange::SetNeedsFullLayoutTreeUpdate);
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_reset_cached_intrinsic_sizes_of_self_and_ancestors(
-    host: &DocumentHost,
-    node: NodeSlotId,
-) {
-    queue(host, LayoutChange::ResetCachedIntrinsicSizesOfSelfAndAncestors { node });
 }
 
 #[unsafe(no_mangle)]
