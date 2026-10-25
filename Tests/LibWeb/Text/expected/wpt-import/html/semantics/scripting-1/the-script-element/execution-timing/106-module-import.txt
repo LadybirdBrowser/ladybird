@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	 scheduler: stylesheets blocking module scripts
+1 Pass
+Pass	 scheduler: stylesheets blocking module scripts

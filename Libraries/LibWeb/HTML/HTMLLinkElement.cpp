@@ -182,7 +182,25 @@ RefPtr<CSS::StyleSheetState> HTMLLinkElement::sheet() const
 
 void HTMLLinkElement::finished_loading_critical_style_subresources(AnyFailed)
 {
+    // NB: The style sheet of an older fetch stays associated until a newer fetch's response is processed. That newer
+    //     fetch owns the document load event delayer, so the old sheet's imports must not release it.
+    if (m_loaded_style_sheet_fetch_generation != m_current_fetch_generation)
+        return;
+
     m_document_load_event_delayer.clear();
+
+    auto fetch_generation = exchange(m_fetch_generation_waiting_for_critical_subresources, {});
+    if (!fetch_generation.has_value())
+        return;
+
+    queue_an_element_task(Task::Source::Networking, [link = GC::Ref { *this }, fetch_generation = *fetch_generation] {
+        if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
+            return;
+
+        // 2. Fire an event named load at el.
+        link->dispatch_event(create_event_for_element(*link, HTML::EventNames::load));
+        link->finish_processing_stylesheet_resource(fetch_generation);
+    });
 }
 
 bool HTMLLinkElement::has_loaded_icon() const
@@ -1495,6 +1513,13 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                                 sheet->set_base_url(move(base_url));
                             link->associate_style_sheet(*sheet, origin_clean);
 
+                            // NB: The sheet has to be associated before its critical subresources (@import rules)
+                            //     get fetched. Wait for them before firing load and unblocking scripts.
+                            if (sheet->loading_state() == CSS::StyleSheetState::LoadingState::Loading) {
+                                link->m_fetch_generation_waiting_for_critical_subresources = fetch_generation;
+                                return;
+                            }
+
                             // 2. Fire an event named load at el.
                             link->dispatch_event(create_event_for_element(*link, HTML::EventNames::load));
                             link->finish_processing_stylesheet_resource(fetch_generation);
@@ -1522,6 +1547,7 @@ void HTMLLinkElement::associate_style_sheet(CSS::StyleSheetState& sheet, CSS::St
         (m_relationship & Relationship::Alternate && !m_explicitly_enabled) ? CSS::StyleScope::Alternate::Yes : CSS::StyleScope::Alternate::No,
         origin_clean, nullptr, nullptr);
     m_loaded_style_sheet = sheet;
+    m_loaded_style_sheet_fetch_generation = m_current_fetch_generation;
 
     // NB: Removing disabled explicitly enables the sheet, even if its title would disable it.
     if (m_explicitly_enabled)
@@ -1543,6 +1569,7 @@ void HTMLLinkElement::associate_empty_style_sheet(Fetch::Infrastructure::Respons
 
 void HTMLLinkElement::cancel_pending_stylesheet_processing()
 {
+    m_fetch_generation_waiting_for_critical_subresources = {};
     if (!m_stylesheet_processing_pending)
         return;
     m_stylesheet_processing_pending = false;
