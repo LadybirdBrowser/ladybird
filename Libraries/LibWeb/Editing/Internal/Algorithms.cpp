@@ -4400,6 +4400,12 @@ void set_the_selections_value(DOM::Document& document, Utf16FlyString const& com
         // 1. Push down values on node.
         push_down_values(command, node, new_value);
 
+        // INTEROP: Browsers do not change the font size of a br that is the only child of a block, which is the line
+        //          break of an empty line.
+        if (command == CommandNames::fontSize && is<HTML::HTMLBRElement>(*node) && node->parent()
+            && node->parent()->child_count() == 1 && is_block_node(*node->parent()))
+            continue;
+
         // 2. If node is an allowed child of "span", force the value of node.
         if (is_allowed_child_of_node(node, HTML::TagNames::span))
             force_the_value(node, command, new_value);
@@ -5070,8 +5076,27 @@ bool values_are_loosely_equivalent(Utf16FlyString const& command, Optional<Utf16
                            .value_or_lazy_evaluated_optional([&] { return size_quantities.first_index_of(a.value()); });
         auto b_index = named_quantities.first_index_of(b.value())
                            .value_or_lazy_evaluated_optional([&] { return size_quantities.first_index_of(b.value()); });
+        if (a_index.has_value() && a_index == b_index)
+            return true;
 
-        return a_index.has_value() && a_index == b_index;
+        // NB: Compare the resolved value of "font-size" with the font sizes of font elements with each size attribute.
+        auto resolved_value_index = [](Utf16View quantity) -> Optional<size_t> {
+            if (!quantity.ends_with(u"px"sv))
+                return {};
+            auto pixel_size = font_size_to_pixel_size(quantity).to_float();
+            for (size_t index = 0; index < 7; ++index) {
+                if (fabsf(font_size_to_pixel_size(Utf16String::number(index + 1)).to_float() - pixel_size) < 0.05f)
+                    return index;
+            }
+            return {};
+        };
+        auto a_named_index = named_quantities.first_index_of(a.value());
+        auto b_named_index = named_quantities.first_index_of(b.value());
+        if (a_named_index.has_value() && a_named_index == resolved_value_index(b.value()))
+            return true;
+        if (b_named_index.has_value() && b_named_index == resolved_value_index(a.value()))
+            return true;
+        return false;
     }
 
     return false;

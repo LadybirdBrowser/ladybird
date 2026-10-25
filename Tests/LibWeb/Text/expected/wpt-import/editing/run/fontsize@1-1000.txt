@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-961 Pass
-39 Fail
+997 Pass
+3 Fail
 Pass	[["fontsize","4"]] "foo[]bar": execCommand("fontsize", false, "4") return value
 Pass	[["fontsize","4"]] "foo[]bar" checks for modifications to non-editable content
 Pass	[["fontsize","4"]] "foo[]bar" compare innerHTML
@@ -32,7 +32,7 @@ Pass	[["stylewithcss","true"],["fontsize","4"]] "<p>[foo</p> <p>bar]</p>" queryC
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p> <p>bar]</p>": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p> <p>bar]</p>": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p> <p>bar]</p>" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p> <p>bar]</p>" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p> <p>bar]</p>" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p> <p>bar]</p>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p> <p>bar]</p>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p> <p>bar]</p>" queryCommandValue("stylewithcss") before
@@ -48,7 +48,7 @@ Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p> <p>bar]</p>" query
 Pass	[["stylewithcss","true"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","true"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>" compare innerHTML
+Pass	[["stylewithcss","true"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>" compare innerHTML
 Pass	[["stylewithcss","true"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>" queryCommandValue("stylewithcss") before
@@ -64,7 +64,7 @@ Pass	[["stylewithcss","true"],["fontsize","4"]] "<span>[foo</span> <span>bar]</s
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<span>[foo</span> <span>bar]</span>" queryCommandValue("stylewithcss") before
@@ -80,7 +80,7 @@ Pass	[["stylewithcss","false"],["fontsize","4"]] "<span>[foo</span> <span>bar]</
 Pass	[["stylewithcss","true"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","true"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>" compare innerHTML
+Pass	[["stylewithcss","true"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>" compare innerHTML
 Pass	[["stylewithcss","true"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>" queryCommandValue("stylewithcss") before
@@ -96,7 +96,7 @@ Pass	[["stylewithcss","true"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span>
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo</p><p> <span>bar</span> </p><p>baz]</p>" queryCommandValue("stylewithcss") before
@@ -128,7 +128,7 @@ Pass	[["stylewithcss","true"],["fontsize","4"]] "<p>[foo<p><br><p>bar]" queryCom
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo<p><br><p>bar]": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo<p><br><p>bar]": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo<p><br><p>bar]" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo<p><br><p>bar]" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo<p><br><p>bar]" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo<p><br><p>bar]" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo<p><br><p>bar]" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<p>[foo<p><br><p>bar]" queryCommandValue("stylewithcss") before
@@ -196,7 +196,7 @@ Pass	[["stylewithcss","true"],["fontsize","4"]] "foo[bar]baz" queryCommandValue(
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar]baz": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","4"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -228,7 +228,7 @@ Pass	[["stylewithcss","true"],["fontsize","4"]] "foo[bar<b>baz]qoz</b>quz" query
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<b>baz]qoz</b>quz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<b>baz]qoz</b>quz": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<b>baz]qoz</b>quz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<b>baz]qoz</b>quz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<b>baz]qoz</b>quz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<b>baz]qoz</b>quz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<b>baz]qoz</b>quz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<b>baz]qoz</b>quz" queryCommandValue("stylewithcss") before
@@ -260,7 +260,7 @@ Pass	[["stylewithcss","true"],["fontsize","4"]] "foo[bar<i>baz]qoz</i>quz" query
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<i>baz]qoz</i>quz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<i>baz]qoz</i>quz": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<i>baz]qoz</i>quz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<i>baz]qoz</i>quz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<i>baz]qoz</i>quz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<i>baz]qoz</i>quz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<i>baz]qoz</i>quz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "foo[bar<i>baz]qoz</i>quz" queryCommandValue("stylewithcss") before
@@ -292,7 +292,7 @@ Pass	[["stylewithcss","true"],["fontsize","4"]] "{<p><p> <p>foo</p>}" queryComma
 Pass	[["stylewithcss","false"],["fontsize","4"]] "{<p><p> <p>foo</p>}": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "{<p><p> <p>foo</p>}": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "{<p><p> <p>foo</p>}" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","4"]] "{<p><p> <p>foo</p>}" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"]] "{<p><p> <p>foo</p>}" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"]] "{<p><p> <p>foo</p>}" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "{<p><p> <p>foo</p>}" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "{<p><p> <p>foo</p>}" queryCommandValue("stylewithcss") before
@@ -324,7 +324,7 @@ Pass	[["stylewithcss","true"],["fontsize","1"]] "foo[bar]baz" queryCommandValue(
 Pass	[["stylewithcss","false"],["fontsize","1"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","1"]] "foo[bar]baz": execCommand("fontsize", false, "1") return value
 Pass	[["stylewithcss","false"],["fontsize","1"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","1"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","1"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","1"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","1"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","1"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -356,7 +356,7 @@ Pass	[["stylewithcss","true"],["fontsize","0"]] "foo[bar]baz" queryCommandValue(
 Pass	[["stylewithcss","false"],["fontsize","0"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","0"]] "foo[bar]baz": execCommand("fontsize", false, "0") return value
 Pass	[["stylewithcss","false"],["fontsize","0"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","0"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","0"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","0"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","0"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","0"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -388,7 +388,7 @@ Pass	[["stylewithcss","true"],["fontsize","-5"]] "foo[bar]baz" queryCommandValue
 Pass	[["stylewithcss","false"],["fontsize","-5"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","-5"]] "foo[bar]baz": execCommand("fontsize", false, "-5") return value
 Pass	[["stylewithcss","false"],["fontsize","-5"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","-5"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","-5"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","-5"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","-5"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","-5"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -420,7 +420,7 @@ Pass	[["stylewithcss","true"],["fontsize","6"]] "foo[bar]baz" queryCommandValue(
 Pass	[["stylewithcss","false"],["fontsize","6"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","6"]] "foo[bar]baz": execCommand("fontsize", false, "6") return value
 Pass	[["stylewithcss","false"],["fontsize","6"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","6"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","6"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","6"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","6"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","6"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -436,7 +436,7 @@ Pass	[["stylewithcss","false"],["fontsize","6"]] "foo[bar]baz" queryCommandValue
 Pass	[["stylewithcss","true"],["fontsize","7"]] "foo[bar]baz": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["fontsize","7"]] "foo[bar]baz": execCommand("fontsize", false, "7") return value
 Pass	[["stylewithcss","true"],["fontsize","7"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["fontsize","7"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","true"],["fontsize","7"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","true"],["fontsize","7"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["fontsize","7"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["fontsize","7"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -452,7 +452,7 @@ Pass	[["stylewithcss","true"],["fontsize","7"]] "foo[bar]baz" queryCommandValue(
 Pass	[["stylewithcss","false"],["fontsize","7"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","7"]] "foo[bar]baz": execCommand("fontsize", false, "7") return value
 Pass	[["stylewithcss","false"],["fontsize","7"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","7"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","7"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","7"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","7"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","7"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -468,7 +468,7 @@ Pass	[["stylewithcss","false"],["fontsize","7"]] "foo[bar]baz" queryCommandValue
 Pass	[["stylewithcss","true"],["fontsize","8"]] "foo[bar]baz": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["fontsize","8"]] "foo[bar]baz": execCommand("fontsize", false, "8") return value
 Pass	[["stylewithcss","true"],["fontsize","8"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["fontsize","8"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","true"],["fontsize","8"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","true"],["fontsize","8"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["fontsize","8"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["fontsize","8"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -484,7 +484,7 @@ Pass	[["stylewithcss","true"],["fontsize","8"]] "foo[bar]baz" queryCommandValue(
 Pass	[["stylewithcss","false"],["fontsize","8"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","8"]] "foo[bar]baz": execCommand("fontsize", false, "8") return value
 Pass	[["stylewithcss","false"],["fontsize","8"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","8"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","8"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","8"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","8"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","8"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -500,7 +500,7 @@ Pass	[["stylewithcss","false"],["fontsize","8"]] "foo[bar]baz" queryCommandValue
 Pass	[["stylewithcss","true"],["fontsize","100"]] "foo[bar]baz": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["fontsize","100"]] "foo[bar]baz": execCommand("fontsize", false, "100") return value
 Pass	[["stylewithcss","true"],["fontsize","100"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["fontsize","100"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","true"],["fontsize","100"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","true"],["fontsize","100"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["fontsize","100"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["fontsize","100"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -516,7 +516,7 @@ Pass	[["stylewithcss","true"],["fontsize","100"]] "foo[bar]baz" queryCommandValu
 Pass	[["stylewithcss","false"],["fontsize","100"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","100"]] "foo[bar]baz": execCommand("fontsize", false, "100") return value
 Pass	[["stylewithcss","false"],["fontsize","100"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","100"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","100"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","100"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","100"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","100"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -575,7 +575,7 @@ Pass	[["stylewithcss","true"],["fontsize"," 1 "]] "foo[bar]baz" queryCommandValu
 Pass	[["stylewithcss","false"],["fontsize"," 1 "]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize"," 1 "]] "foo[bar]baz": execCommand("fontsize", false, " 1 ") return value
 Pass	[["stylewithcss","false"],["fontsize"," 1 "]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize"," 1 "]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize"," 1 "]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize"," 1 "]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize"," 1 "]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize"," 1 "]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -616,7 +616,7 @@ Pass	[["stylewithcss","true"],["fontsize","1.0"]] "foo[bar]baz" queryCommandValu
 Pass	[["stylewithcss","false"],["fontsize","1.0"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","1.0"]] "foo[bar]baz": execCommand("fontsize", false, "1.0") return value
 Pass	[["stylewithcss","false"],["fontsize","1.0"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","1.0"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","1.0"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","1.0"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","1.0"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","1.0"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -648,7 +648,7 @@ Pass	[["stylewithcss","true"],["fontsize","1.0e2"]] "foo[bar]baz" queryCommandVa
 Pass	[["stylewithcss","false"],["fontsize","1.0e2"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","1.0e2"]] "foo[bar]baz": execCommand("fontsize", false, "1.0e2") return value
 Pass	[["stylewithcss","false"],["fontsize","1.0e2"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","1.0e2"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","1.0e2"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","1.0e2"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","1.0e2"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","1.0e2"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -680,7 +680,7 @@ Pass	[["stylewithcss","true"],["fontsize","1.1"]] "foo[bar]baz" queryCommandValu
 Pass	[["stylewithcss","false"],["fontsize","1.1"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","1.1"]] "foo[bar]baz": execCommand("fontsize", false, "1.1") return value
 Pass	[["stylewithcss","false"],["fontsize","1.1"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","1.1"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","1.1"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","1.1"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","1.1"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","1.1"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -712,7 +712,7 @@ Pass	[["stylewithcss","true"],["fontsize","1.9"]] "foo[bar]baz" queryCommandValu
 Pass	[["stylewithcss","false"],["fontsize","1.9"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","1.9"]] "foo[bar]baz": execCommand("fontsize", false, "1.9") return value
 Pass	[["stylewithcss","false"],["fontsize","1.9"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","1.9"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","1.9"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","1.9"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","1.9"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","1.9"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -727,7 +727,7 @@ Pass	[["stylewithcss","false"],["fontsize","1.9"]] "foo[bar]baz" queryCommandSta
 Pass	[["stylewithcss","false"],["fontsize","1.9"]] "foo[bar]baz" queryCommandValue("fontsize") after
 Pass	[["fontsize","+0"]] "foo[bar]baz": execCommand("fontsize", false, "+0") return value
 Pass	[["fontsize","+0"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["fontsize","+0"]] "foo[bar]baz" compare innerHTML
+Pass	[["fontsize","+0"]] "foo[bar]baz" compare innerHTML
 Pass	[["fontsize","+0"]] "foo[bar]baz" queryCommandIndeterm("fontsize") before
 Pass	[["fontsize","+0"]] "foo[bar]baz" queryCommandState("fontsize") before
 Pass	[["fontsize","+0"]] "foo[bar]baz" queryCommandValue("fontsize") before
@@ -753,7 +753,7 @@ Pass	[["stylewithcss","true"],["fontsize","+1"]] "foo[bar]baz" queryCommandValue
 Pass	[["stylewithcss","false"],["fontsize","+1"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","+1"]] "foo[bar]baz": execCommand("fontsize", false, "+1") return value
 Pass	[["stylewithcss","false"],["fontsize","+1"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","+1"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","+1"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","+1"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","+1"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","+1"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -769,7 +769,7 @@ Pass	[["stylewithcss","false"],["fontsize","+1"]] "foo[bar]baz" queryCommandValu
 Pass	[["stylewithcss","true"],["fontsize","+9"]] "foo[bar]baz": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["fontsize","+9"]] "foo[bar]baz": execCommand("fontsize", false, "+9") return value
 Pass	[["stylewithcss","true"],["fontsize","+9"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["fontsize","+9"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","true"],["fontsize","+9"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","true"],["fontsize","+9"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["fontsize","+9"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["fontsize","+9"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -785,7 +785,7 @@ Pass	[["stylewithcss","true"],["fontsize","+9"]] "foo[bar]baz" queryCommandValue
 Pass	[["stylewithcss","false"],["fontsize","+9"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","+9"]] "foo[bar]baz": execCommand("fontsize", false, "+9") return value
 Pass	[["stylewithcss","false"],["fontsize","+9"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","+9"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","+9"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","+9"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","+9"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","+9"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -800,7 +800,7 @@ Pass	[["stylewithcss","false"],["fontsize","+9"]] "foo[bar]baz" queryCommandStat
 Pass	[["stylewithcss","false"],["fontsize","+9"]] "foo[bar]baz" queryCommandValue("fontsize") after
 Pass	[["fontsize","-0"]] "foo[bar]baz": execCommand("fontsize", false, "-0") return value
 Pass	[["fontsize","-0"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["fontsize","-0"]] "foo[bar]baz" compare innerHTML
+Pass	[["fontsize","-0"]] "foo[bar]baz" compare innerHTML
 Pass	[["fontsize","-0"]] "foo[bar]baz" queryCommandIndeterm("fontsize") before
 Pass	[["fontsize","-0"]] "foo[bar]baz" queryCommandState("fontsize") before
 Pass	[["fontsize","-0"]] "foo[bar]baz" queryCommandValue("fontsize") before
@@ -826,7 +826,7 @@ Pass	[["stylewithcss","true"],["fontsize","-1"]] "foo[bar]baz" queryCommandValue
 Pass	[["stylewithcss","false"],["fontsize","-1"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","-1"]] "foo[bar]baz": execCommand("fontsize", false, "-1") return value
 Pass	[["stylewithcss","false"],["fontsize","-1"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","-1"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","-1"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","-1"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","-1"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","-1"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -858,7 +858,7 @@ Pass	[["stylewithcss","true"],["fontsize","-9"]] "foo[bar]baz" queryCommandValue
 Pass	[["stylewithcss","false"],["fontsize","-9"]] "foo[bar]baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","-9"]] "foo[bar]baz": execCommand("fontsize", false, "-9") return value
 Pass	[["stylewithcss","false"],["fontsize","-9"]] "foo[bar]baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","-9"]] "foo[bar]baz" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","-9"]] "foo[bar]baz" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","-9"]] "foo[bar]baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","-9"]] "foo[bar]baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","-9"]] "foo[bar]baz" queryCommandValue("stylewithcss") before
@@ -899,7 +899,7 @@ Pass	[["stylewithcss","true"],["fontsize","4"]] "<table><tbody><tr><td>foo<td>b[
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr><td>foo<td>b[a]r<td>baz</table>": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr><td>foo<td>b[a]r<td>baz</table>": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr><td>foo<td>b[a]r<td>baz</table>" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr><td>foo<td>b[a]r<td>baz</table>" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr><td>foo<td>b[a]r<td>baz</table>" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr><td>foo<td>b[a]r<td>baz</table>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr><td>foo<td>b[a]r<td>baz</table>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr><td>foo<td>b[a]r<td>baz</table>" queryCommandValue("stylewithcss") before
@@ -931,7 +931,7 @@ Pass	[["stylewithcss","true"],["fontsize","4"]] "<table><tbody><tr data-start=1 
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=1 data-end=2><td>foo<td>bar<td>baz</table>": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=1 data-end=2><td>foo<td>bar<td>baz</table>": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=1 data-end=2><td>foo<td>bar<td>baz</table>" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=1 data-end=2><td>foo<td>bar<td>baz</table>" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=1 data-end=2><td>foo<td>bar<td>baz</table>" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=1 data-end=2><td>foo<td>bar<td>baz</table>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=1 data-end=2><td>foo<td>bar<td>baz</table>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=1 data-end=2><td>foo<td>bar<td>baz</table>" queryCommandValue("stylewithcss") before
@@ -963,7 +963,7 @@ Pass	[["stylewithcss","true"],["fontsize","4"]] "<table><tbody><tr data-start=0 
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=0 data-end=2><td>foo<td>bar<td>baz</table>": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=0 data-end=2><td>foo<td>bar<td>baz</table>": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=0 data-end=2><td>foo<td>bar<td>baz</table>" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=0 data-end=2><td>foo<td>bar<td>baz</table>" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=0 data-end=2><td>foo<td>bar<td>baz</table>" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=0 data-end=2><td>foo<td>bar<td>baz</table>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=0 data-end=2><td>foo<td>bar<td>baz</table>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody><tr data-start=0 data-end=2><td>foo<td>bar<td>baz</table>" queryCommandValue("stylewithcss") before
@@ -995,7 +995,7 @@ Pass	[["stylewithcss","true"],["fontsize","4"]] "<table><tbody data-start=0 data
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody data-start=0 data-end=1><tr><td>foo<td>bar<td>baz</table>": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody data-start=0 data-end=1><tr><td>foo<td>bar<td>baz</table>": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody data-start=0 data-end=1><tr><td>foo<td>bar<td>baz</table>" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody data-start=0 data-end=1><tr><td>foo<td>bar<td>baz</table>" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody data-start=0 data-end=1><tr><td>foo<td>bar<td>baz</table>" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody data-start=0 data-end=1><tr><td>foo<td>bar<td>baz</table>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody data-start=0 data-end=1><tr><td>foo<td>bar<td>baz</table>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody data-start=0 data-end=1><tr><td>foo<td>bar<td>baz</table>" queryCommandValue("stylewithcss") before
