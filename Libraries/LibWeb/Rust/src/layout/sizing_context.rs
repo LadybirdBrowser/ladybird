@@ -2253,6 +2253,20 @@ impl<'pass> SizingContext<'pass> {
         }
     }
 
+    pub(crate) fn outer_inline_contributions_of_legend_whose_fit_content_size_ignores_its_limits(
+        &self,
+        legend: Node,
+        available_block_size: AvailableSize,
+        constraints: ContainingBlockConstraints,
+    ) -> OuterInlineContributions {
+        let content_sizes = self.content_inline_sizes(legend, constraints, None).sizes;
+        OuterInlineContributions {
+            min_content_inline_size: content_sizes.min,
+            max_content_inline_size: content_sizes.max,
+            ..self.outer_inline_contributions(legend, available_block_size, constraints)
+        }
+    }
+
     pub(crate) fn block_level_table_wrapper_outer_inline_contributions(
         &self,
         wrapper: Node,
@@ -2688,7 +2702,7 @@ impl<'pass> SizingContext<'pass> {
     // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
     // NB: When the block size of a box with a preferred aspect ratio is indefinite, its intrinsic inline sizes honor the
     //     min/max block sizes transferred through the ratio.
-    fn apply_transferred_limits_to_intrinsic_inline_size(
+    pub(super) fn apply_transferred_limits_to_intrinsic_inline_size(
         &self,
         node: Node,
         inline_size: CssPixels,
@@ -2763,9 +2777,6 @@ impl<'pass> SizingContext<'pass> {
             )
         {
             return answered_from_style(fallback);
-        }
-        if let Some(answer) = self.content_inline_size_ignoring_content(node) {
-            return answer;
         }
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(
             node,
@@ -2973,9 +2984,6 @@ impl<'pass> SizingContext<'pass> {
                 return answered_from_style(max_content_inline_size);
             }
         }
-        if let Some(answer) = self.content_inline_size_ignoring_content(node) {
-            return answer;
-        }
         self.measure_intrinsic_inline_size(node, constraints, block_size, IntrinsicSizeCacheKind::MaxContentInline)
     }
 
@@ -2987,6 +2995,9 @@ impl<'pass> SizingContext<'pass> {
         block_size: Option<CssPixels>,
         kind: IntrinsicSizeCacheKind,
     ) -> ContentInlineSizeAnswer {
+        if let Some(answer) = self.content_inline_size_ignoring_content(node) {
+            return answer;
+        }
         let (size_constraint, available_inline_size) = match kind {
             IntrinsicSizeCacheKind::MinContentInline => (SizeConstraint::MinContent, AvailableSize::MinContent),
             IntrinsicSizeCacheKind::MaxContentInline => (SizeConstraint::MaxContent, AvailableSize::MaxContent),
@@ -3053,6 +3064,14 @@ impl<'pass> SizingContext<'pass> {
         ) {
             if let Some(trace) = &trace {
                 trace.append(" FROM GRID TRACKS");
+            }
+            return self.cache_content_sizes_measured_without_layout(node, kind, key, sizes);
+        }
+        if let Some(sizes) =
+            intrinsic_sizing::content_sizes_of_replaced_content(self.callbacks, &scope, depends_on_block_size)
+        {
+            if let Some(trace) = &trace {
+                trace.append(" FROM REPLACED CONTENT");
             }
             return self.cache_content_sizes_measured_without_layout(node, kind, key, sizes);
         }

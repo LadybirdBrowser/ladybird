@@ -1106,6 +1106,7 @@ pub(crate) struct GridFormattingContext<'pass> {
     // Whether the Column and Row axes run from right to left and from bottom to top, respectively.
     columns_are_reversed: bool,
     rows_are_reversed: bool,
+    maximum_inline_size_resolved_by_caller: Option<CssPixels>,
 }
 
 #[derive(Clone, Copy)]
@@ -1221,6 +1222,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 container_style.direction(),
                 false,
             ),
+            maximum_inline_size_resolved_by_caller: None,
         }
     }
 
@@ -1241,6 +1243,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         self.available_space = Some(available_space);
         self.layout_input = Some(input);
+        self.maximum_inline_size_resolved_by_caller = None;
         self.column_lines.clear();
         self.row_lines.clear();
         self.columns.clear();
@@ -2738,6 +2741,11 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn calculate_grid_container_maximum_size(&self, axis: Axis) -> CssPixels {
+        if axis.is_column()
+            && let Some(maximum_inline_size) = self.maximum_inline_size_resolved_by_caller
+        {
+            return maximum_inline_size;
+        }
         let available = self.container_available_space();
         let constraints = self.layout_input.unwrap().containing_block_constraints;
         self.sizing().calculate_inner_size_for_property(
@@ -4485,8 +4493,13 @@ impl<'pass> GridFormattingContext<'pass> {
         self.container_used().rare_data_mut().grid_layout_data = Some(std::sync::Arc::new(data));
     }
 
-    pub(crate) fn content_inline_size(&mut self, input: LayoutInput) -> CssPixels {
+    pub(crate) fn content_inline_size(
+        &mut self,
+        input: LayoutInput,
+        maximum_inline_size_resolved_by_caller: Option<CssPixels>,
+    ) -> CssPixels {
         self.reset_for_run(input);
+        self.maximum_inline_size_resolved_by_caller = maximum_inline_size_resolved_by_caller;
         let grid_style = self.grid_style(self.run.box_);
         self.cache_subgrid_axes(grid_style);
         let (columns, rows) = self.initialize_lines(grid_style);
