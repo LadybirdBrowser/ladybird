@@ -218,7 +218,6 @@ public:
     StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;
 
     void set_style_sheet(StyleSheetState*);
-    bool has_style_sheet_context() const { return m_has_style_sheet_context; }
 
     bool equals(StyleValue const& other) const;
 
@@ -242,7 +241,6 @@ protected:
 
 private:
     Type m_type;
-    bool m_has_style_sheet_context { false };
 };
 
 template<typename T>
@@ -251,7 +249,6 @@ struct StyleValueWithDefaultOperators : public StyleValue {
     using Base = StyleValue;
 };
 
-i32 int_from_style_value(NonnullRefPtr<StyleValue const> const& style_value);
 double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<double> percentage_basis);
 Utf16FlyString string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value);
 

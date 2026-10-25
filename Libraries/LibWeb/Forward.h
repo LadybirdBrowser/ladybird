@@ -329,7 +329,6 @@ class IntegerStyleValue;
 class KeywordStyleValue;
 class Length;
 class LengthBox;
-class LengthOrAuto;
 class LengthPercentage;
 class LengthPercentageOrAuto;
 class LengthStyleValue;
