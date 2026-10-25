@@ -318,17 +318,19 @@ fn script_type_from_attributes(attributes: &[Attribute]) -> Option<ScriptType> {
     //    - el has no type attribute but it has a language attribute and that attribute's value is the empty string; or
     //    - el has neither a type attribute nor a language attribute,
     //    then let the script block's type string for this script element be "text/javascript".
-    //    Otherwise, if el has a type attribute, then let the script block's type string be the value of that attribute
-    //    with leading and trailing ASCII whitespace stripped.
+    //    Otherwise, if el has a type attribute, then let the script block's type string be the value of that attribute.
     //    Otherwise, el has a non-empty language attribute; let the script block's type string be the concatenation of
     //    "text/" and the value of el's language attribute.
+    // FIXME: Preserve whitespace in the type string; only the classic JavaScript MIME comparison strips it.
     let type_string: Cow<'_, [u8]> = match (type_attribute, language_attribute) {
         (Some(""), _) | (None, Some("")) | (None, None) => Cow::Borrowed(b"text/javascript"),
         (Some(type_attribute), _) => Cow::Borrowed(type_attribute.as_bytes().trim_ascii()),
         (None, Some(language)) => Cow::Owned([b"text/".as_slice(), language.as_bytes()].concat()),
     };
 
-    // 9. If the script block's type string is a JavaScript MIME type essence match, then set el's type to "classic".
+    // 9. If the script block's type string is a JavaScript MIME type essence match, or el has a type attribute whose
+    //    value with leading and trailing ASCII whitespace stripped is a JavaScript MIME type essence match, then set
+    //    el's type to "classic".
     if JAVASCRIPT_MIME_TYPE_ESSENCES
         .iter()
         .any(|essence| type_string.eq_ignore_ascii_case(essence))

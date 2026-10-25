@@ -419,16 +419,18 @@ impl ParserState {
         if fragment_context.form_element != 0 {
             self.form_element = Some(fragment_context.form_element);
         }
-        // 14. If context is a template element, then push "in template" onto the stack of template insertion modes
+        // 16. If context is a template element, then push "in template" onto the stack of template insertion modes
         //     so that it is the new current template insertion mode.
         if context_namespace == RustFfiHtmlNamespace::Html && context_local_name == tag_name!("template") {
             self.stack_of_template_insertion_modes.push(InsertionMode::InTemplate);
         }
-        // 15. Create a start tag token whose name is the local name of context and whose attributes are the attributes
+        // 17. Create a start tag token whose name is the local name of context and whose attributes are the attributes
         //     of context.
-        // The synthetic context token is represented by ParserState::context_element.
+        //     Let this start tag token be the start tag token of context; e.g. for the purposes of determining if it is
+        //     an HTML integration point.
+        // NB: The synthetic context token is represented by ParserState::context_element.
 
-        // 16. Reset the parser's insertion mode appropriately.
+        // 18. Reset the parser's insertion mode appropriately.
         self.reset_the_insertion_mode_appropriately();
         self.original_insertion_mode = self.insertion_mode;
     }
@@ -625,8 +627,9 @@ impl TreeBuilder {
                 let has_fast_data_run = unsafe { self.tokenizer.as_ref().has_fast_data_run() };
                 if has_fast_data_run {
                     self.reconstruct_the_active_formatting_elements();
-                    // SAFETY: See above. Reconstructing the active formatting elements does not
-                    // run the tokenizer, so the same Data-state run is still available.
+                    // SAFETY: See above.
+                    // FIXME: Recheck the tokenizer state after reconstruction; custom element reactions can abort
+                    //        the parser, invalidating the previously available Data-state run.
                     let contains_non_whitespace = unsafe {
                         self.tokenizer
                             .as_mut()
@@ -764,10 +767,12 @@ impl TreeBuilder {
                 self.parse_error("unexpected DOCTYPE token");
             }
 
-            // Append a DocumentType node to the Document node, with its name set to the name given in the DOCTYPE token,
-            // or the empty string if the name was missing; its public ID set to the public identifier given in the DOCTYPE token,
-            // or the empty string if the public identifier was missing; and its system ID set to the system identifier
-            // given in the DOCTYPE token, or the empty string if the system identifier was missing.
+            // Let doctype be the result of creating a doctype given the Document node, the name given in the DOCTYPE
+            // token (or the empty string if the name was missing), the public identifier given in the DOCTYPE token
+            // (or the empty string if the public identifier was missing), and the system identifier given in the DOCTYPE
+            // token (or the empty string if the system identifier was missing). Then, if the Document node has neither
+            // a DocumentType child nor an element child, append doctype to the Document node.
+            // FIXME: Check for an existing DocumentType or element child before appending the new doctype.
             let name = if doctype.missing_name {
                 ""
             } else {
@@ -1006,34 +1011,35 @@ impl TreeBuilder {
         if token.is_start_tag_named(tag_name!("script")) {
             // Run these steps:
             //
-            // 1. Let the adjustedInsertionLocation be the appropriate place for inserting a node.
-            // 2. Create an element for the token in the HTML namespace, with the intended parent being the element in
-            //    which the adjustedInsertionLocation finds itself.
-            // 3. If the scripting mode is not Fragment, then set the element's parser document to the Document.
-            // NOTE: The Fragment scripting mode treats parser-inserted scripts as if they were not parser-inserted,
-            //       allowing, for example, executing scripts when applying a fragment created by
-            //       createContextualFragment().
-            // 4. Set the element's force async to false.
-            // NOTE: This ensures that, if the script is external, any document.write() calls in the script will execute
-            //       in-line, instead of blowing the document away, as would happen in most other cases. It also
-            //       prevents the script from executing until the end tag is seen.
-            // 5. If the parser's scripting mode is Inert, then set the script element's already started to true.
+            // 1. Create an element for the token in the HTML namespace, with the intended parent being the target parent
+            //    of the appropriate place for inserting a node.
+            // 2. If the scripting mode is not Fragment, then set the element's parser document to the Document and set
+            //    its force async to false.
+            // NOTE: The Fragment scripting mode treats parser-inserted scripts as if they were not parser-inserted
+            //       (so external scripts execute asynchronously), allowing, for example, executing scripts when applying
+            //       a fragment created by createContextualFragment().
+            // FIXME: Keep force async true in Fragment mode; the C++ element configuration currently clears it.
+            // NOTE: Setting force async to false ensures that, if the script is external, any document.write() calls
+            //       in the script will execute in-line, instead of blowing the document away, as would happen in most
+            //       other cases. It also prevents the script from executing until the end tag is seen.
+            // 3. If the parser's scripting mode is Inert, then set the script element's already started to true.
             //    (fragment case)
-            // 6. If the parser was invoked via the document.write() or document.writeln() methods, then optionally set
+            // 4. If the parser was invoked via the document.write() or document.writeln() methods, then optionally set
             //    the script element's already started to true. (For example, the user agent might use this clause to
             //    prevent execution of cross-origin scripts inserted via document.write() under slow network conditions,
             //    or when the page has already taken a long time to load.)
-            // 7. Insert the newly created element at the adjusted insertion location given adjustedInsertionLocation.
-            // 8. Push the element onto the stack of open elements so that it is the new current node.
+            // 5. Insert an element at the adjusted insertion location with the newly created element.
+            // 6. Push the newly created element onto the stack of open elements so that it is the new current node.
+            // NB: Creation, configuration, insertion, and the stack push are performed by the insertion helper.
             self.insert_html_element_for(&token);
 
-            // 9. Switch the tokenizer to the script data state.
+            // 7. Switch the tokenizer to the script data state.
             self.switch_tokenizer_to(State::ScriptData);
 
-            // 10. Set the original insertion mode to the current insertion mode.
+            // 8. Set the original insertion mode to the current insertion mode.
             self.original_insertion_mode = self.insertion_mode;
 
-            // 11. Switch the insertion mode to "text".
+            // 9. Switch the insertion mode to "text".
             self.insertion_mode = InsertionMode::Text;
             return;
         }
@@ -1213,6 +1219,8 @@ impl TreeBuilder {
 
         // An end tag whose tag name is one of: "body", "html", "br"
         if token.is_end_tag_one_of(&[tag_name!("body"), tag_name!("html"), tag_name!("br")]) {
+            // Act as described in the "anything else" entry below.
+            // FIXME: Set the frameset-ok flag to "ok" after inserting the implicit body element.
             self.insert_html_element_named("body");
             self.insertion_mode = InsertionMode::InBody;
             self.process_using_the_rules_for(InsertionMode::InBody, token);
@@ -1231,6 +1239,7 @@ impl TreeBuilder {
         {
             // Insert an HTML element for a "body" start tag token with no attributes.
             self.insert_html_element_named("body");
+            // FIXME: Set the frameset-ok flag to "ok".
             // Switch the insertion mode to "in body".
             self.insertion_mode = InsertionMode::InBody;
             // Reprocess the current token.
@@ -1459,6 +1468,8 @@ impl TreeBuilder {
         }
 
         if token.is_start_tag_named(tag_name!("form")) {
+            // FIXME: Use "parsing template contents", which also includes a template fragment context element.
+            // https://html.spec.whatwg.org/multipage/parsing.html#parsing-template-contents
             let has_template_element_on_stack = self.has_template_element_on_stack_of_open_elements();
             if self.form_element.is_some() && !has_template_element_on_stack {
                 // Parse error. Ignore the token.
@@ -1476,6 +1487,8 @@ impl TreeBuilder {
         }
 
         if token.is_end_tag_named(tag_name!("form")) {
+            // FIXME: The current rule branches on whether the parser is parsing template contents, including the
+            //        template fragment-context case, rather than only checking the stack of open elements.
             if !self.has_template_element_on_stack_of_open_elements() {
                 let node = self.form_element.take();
                 if let Some(node) = node {
@@ -1603,7 +1616,8 @@ impl TreeBuilder {
             return;
         }
 
-        // A start tag whose tag name is "ruby"
+        // FIXME: A "ruby" start tag belongs to the "any other start tag" rule: reconstruct the active formatting
+        //        elements, then insert an HTML element for the token. It must not close an open paragraph here.
         if token.is_start_tag_named(tag_name!("ruby")) {
             if self.has_in_button_scope(tag_name!("p")) {
                 self.close_a_p_element();
@@ -2068,8 +2082,8 @@ impl TreeBuilder {
             // Otherwise, pop the current node from the stack of open elements.
             self.pop_current_node();
 
-            // If the parser was not created as part of the HTML fragment parsing algorithm (fragment case), and the
-            // current node is no longer a frameset element, then switch the insertion mode to "after frameset".
+            // If the parser's fragment context element is null and the current node is no longer a frameset element,
+            // then switch the insertion mode to "after frameset".
             if !self.parsing_fragment && !self.current_node_named(tag_name!("frameset")) {
                 self.insertion_mode = InsertionMode::AfterFrameset;
             }
@@ -2223,6 +2237,9 @@ impl TreeBuilder {
         if token.is_start_tag_named(tag_name!("form")) {
             // Parse error.
             self.parse_error("form start tag in in table insertion mode");
+            // FIXME: If the form element pointer is not null and the parser is not parsing template contents, ignore
+            //        the token. Otherwise, insert an HTML element for the token, and, if the parser is not parsing
+            //        template contents, set the form element pointer to point to the element created.
             if self.form_element.is_some() || self.has_template_element_on_stack_of_open_elements() {
                 return;
             }
@@ -2683,7 +2700,7 @@ impl TreeBuilder {
     fn handle_in_cell(&mut self, token: Token) {
         // -> An end tag whose tag name is one of: "td", "th"
         if token.is_end_tag_one_of(&[tag_name!("td"), tag_name!("th")]) {
-            // If the stack of open elements does not have an element in table scope that is an HTML element with th
+            // If the stack of open elements does not have an element in table scope that is an HTML element with the
             // same tag name as that of the token, then this is a parse error; ignore the token.
             if !self.has_in_table_scope(token.tag_name()) {
                 self.parse_error("cell end tag without matching element in table scope");
@@ -2987,8 +3004,8 @@ impl TreeBuilder {
 
         // -> An end tag whose tag name is "html"
         if token.is_end_tag_named(tag_name!("html")) {
-            // If the parser was created as part of the HTML fragment parsing algorithm, this is a parse error;
-            // ignore the token. (fragment case)
+            // If the parser's fragment context element is non-null, this is a parse error; ignore the token.
+            // (fragment case)
             if self.parsing_fragment {
                 // Parse error. Ignore the token.
                 self.parse_error("html end tag in after body insertion mode for fragment");
@@ -3002,7 +3019,7 @@ impl TreeBuilder {
 
         // -> An end-of-file token
         if token.token_type == TokenType::EndOfFile {
-            // Process the token using the rules for the "in body" insertion mode.
+            // Stop parsing.
             self.stop_parsing();
             return;
         }
@@ -3139,7 +3156,9 @@ impl TreeBuilder {
         // -> A start tag whose tag name is one of: "b", "big", "blockquote", "body", "br", "center", "code", "dd", "div",
         //    "dl", "dt", "em", "embed", "h1", "h2", "h3", "h4", "h5", "h6", "head", "hr", "i", "img", "li", "listing",
         //    "menu", "meta", "nobr", "ol", "p", "pre", "ruby", "s", "small", "span", "strong", "strike", "sub", "sup",
-        //    "table", "tt", "u", "ul", "var".
+        //    "table", "tt", "u", "ul", "var"
+        // -> A start tag whose tag name is "font", if the token has any attributes named "color", "face", or "size"
+        // -> An end tag whose tag name is "br", "p"
         if is_foreign_content_breakout_token(&token) {
             // Parse error.
             self.parse_error("HTML breakout token in foreign content");
@@ -3159,29 +3178,27 @@ impl TreeBuilder {
             return;
         }
 
-        // FIXME: -> A start tag whose tag name is "font", if the token has any attributes named "color", "face", or "size"
-        // FIXME: -> An end tag whose tag name is "br", "p"
-
         // -> Any other start tag
         if token.is_start_tag() {
-            // FIXME: If the adjusted current node is an element in the MathML namespace, adjust MathML attributes for the token.
+            // If the adjusted current node is an element in the MathML namespace, adjust MathML attributes for the token.
             // (This fixes the case of MathML attributes that are not all lowercase.)
 
-            // FIXME: If the adjusted current node is an element in the SVG namespace, and the token's tag name is one of
+            // If the adjusted current node is an element in the SVG namespace, and the token's tag name is one of
             // the ones in the first column of the following table, change the tag name to the name given in the
             // corresponding cell in the second column. (This fixes the case of SVG elements that are not all lowercase.)
 
-            // FIXME: If the adjusted current node is an element in the SVG namespace, adjust SVG attributes for the token.
+            // If the adjusted current node is an element in the SVG namespace, adjust SVG attributes for the token.
             // (This fixes the case of SVG attributes that are not all lowercase.)
 
-            // FIXME: Adjust foreign attributes for the token. (This fixes the use of namespaced attributes, in particular
+            // Adjust foreign attributes for the token. (This fixes the use of namespaced attributes, in particular
             // XLink in SVG.)
             let namespace_ = self
                 .adjusted_current_node()
                 .map(|node| node.namespace_)
                 .unwrap_or(RustFfiHtmlNamespace::Html);
 
-            // Insert a foreign element for the token, with the adjusted current node's namespace and false.
+            // Insert a foreign element for the token, with the adjusted current node's namespace.
+            // NB: The insertion helper applies the tag-name and attribute adjustments described above.
             let element = self.insert_foreign_element_for(&token, namespace_, false);
 
             // If the token has its self-closing flag set, then run the appropriate steps from the following list:
@@ -3191,7 +3208,7 @@ impl TreeBuilder {
                 //        "script" end tag below.
                 // -> Otherwise
                 //        Pop the current node off the stack of open elements and acknowledge the token's self-closing flag.
-                // FIXME: This is not equivalent to acting as described as steps for "script" end tag below.
+                // NB: Self-closing and explicit SVG script end tags use the same pending-script helper.
                 self.pop_current_node();
                 if namespace_ == RustFfiHtmlNamespace::Svg && *token.tag_name() == tag_name!("script") {
                     self.process_svg_script(element);
@@ -3364,9 +3381,9 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#adjusted-current-node
     fn adjusted_current_node(&self) -> Option<&StackNode> {
-        // The adjusted current node is the context element if the parser was created as part of the HTML fragment parsing
-        // algorithm and the stack of open elements has only one element in it (fragment case); otherwise, the adjusted
-        // current node is the current node.
+        // The adjusted current node is the parser's fragment context element if that element is non-null and the stack
+        // of open elements has only one element in it (fragment case); otherwise, the adjusted current node is the
+        // current node.
         if self.parsing_fragment && self.stack_of_open_elements.len() == 1 {
             return self.context_element.as_ref();
         }
@@ -3375,7 +3392,7 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-an-html-element
     fn insert_html_element_named(&mut self, name: &str) -> usize {
-        // To insert an HTML element given a token token: insert a foreign element given token, the HTML namespace, and false.
+        // To insert an HTML element given a token token: insert a foreign element given token and the HTML namespace.
         self.insert_foreign_element_for(&Token::synthetic_start_tag(name), RustFfiHtmlNamespace::Html, false)
     }
 
@@ -3407,12 +3424,13 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-an-html-element
     fn insert_html_element_for(&mut self, token: &Token) -> usize {
-        // To insert an HTML element given a token token: insert a foreign element given token, the HTML namespace, and false.
+        // To insert an HTML element given a token token: insert a foreign element given token and the HTML namespace.
         self.insert_foreign_element_for(token, RustFfiHtmlNamespace::Html, false)
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-foreign-element
-    // To insert a foreign element, given a token token, a string namespace, and a boolean onlyAddToElementStack:
+    // To insert a foreign element, given a token token and a string namespace:
+    // NB: only_add_to_element_stack is an implementation parameter used to defer template insertion.
     fn insert_foreign_element_for(
         &mut self,
         token: &Token,
@@ -3420,7 +3438,8 @@ impl TreeBuilder {
         only_add_to_element_stack: bool,
     ) -> usize {
         self.flush_character_insertions();
-        // 1. Let the adjustedInsertionLocation be the appropriate place for inserting a node.
+        // 1. Let element be the result of creating an element for the token given token, namespace, and the target
+        //    parent of the appropriate place for inserting a node.
         let adjusted_insertion_location = self.appropriate_place_for_inserting_node(None);
         let local_name = adjusted_foreign_tag_name(token.tag_name(), namespace_);
         let mut attributes = std::mem::take(&mut self.attribute_buffers);
@@ -3438,8 +3457,6 @@ impl TreeBuilder {
         } else {
             None
         };
-        // 2. Let element be the result of creating an element for the token given token, namespace, and the element in
-        //    which the adjustedInsertionLocation finds itself.
         let element = self.create_element(
             adjusted_insertion_location.parent,
             namespace_,
@@ -3457,8 +3474,10 @@ impl TreeBuilder {
             }
         }
         self.recycle_attribute_buffers(attributes);
-        // 3. If onlyAddToElementStack is false, then run insert an element at the adjusted insertion location with
-        //    element.
+        // 2. Insert an element at the adjusted insertion location with element.
+        // NOTE: The location is computed anew in that algorithm, since creating element can run script that changes
+        //       the DOM.
+        // NB: Deferred template insertion skips this step using the implementation parameter.
         if !only_add_to_element_stack {
             self.insert_element_at_adjusted_insertion_location(element, None);
         }
@@ -3467,7 +3486,7 @@ impl TreeBuilder {
         } else {
             None
         };
-        // 4. Push element onto the stack of open elements so that it is the new current node.
+        // 3. Push element onto the stack of open elements so that it is the new current node.
         self.stack_of_open_elements.push(StackNode {
             handle: element,
             local_name: local_name.clone(),
@@ -3476,7 +3495,7 @@ impl TreeBuilder {
             attributes: owned_attributes,
             template_content,
         });
-        // 5. Return element.
+        // 4. Return element.
         element
     }
 
@@ -3651,10 +3670,24 @@ impl TreeBuilder {
         element: usize,
         insertion_location: Option<AdjustedInsertionLocation>,
     ) {
-        // 1. Set insertionLocation to the adjusted insertion location given insertionLocation.
+        // 1. Let (targetParent, referenceChild) be the adjusted insertion location given overrideLocation.
+        // NB: The implementation names overrideLocation insertion_location.
         let insertion_location = self.adjusted_insertion_location(insertion_location);
 
-        // NB: Remaining steps implemented on C++ side.
+        // FIXME: 2. If any of the following are true:
+        //           - element's parent is non-null;
+        //           - element is a host-including inclusive ancestor of targetParent; or
+        //           - targetParent is a Document node that already has an element child,
+        //           then return.
+        // FIXME: 3. If alreadySanitized is false and the parser's parser sanitizer configuration is not null:
+        // FIXME: Implement the sanitizer action, attribute assertions, and insertion-target redirection for this step.
+        // FIXME: 4. Assert: ensure pre-insert validity given element, targetParent, referenceChild, and « » does not throw.
+        // 5. If the parser's fragment context element is null, then push a new element queue onto element's relevant
+        //    agent's custom element reactions stack.
+        // 6. Insert element into targetParent before referenceChild.
+        // 7. If the parser's fragment context element is null, then pop the element queue from element's relevant agent's
+        //    custom element reactions stack, and invoke custom element reactions in that queue.
+        // NB: Steps 5 through 7 are implemented on the C++ side.
         let queue_custom_element_reactions = !self.parsing_fragment;
         unsafe {
             ladybird_html_parser_insert_node(
@@ -3737,21 +3770,40 @@ impl TreeBuilder {
         // 5. Push "in template" onto the stack of template insertion modes so that it is the new current template insertion mode.
         self.stack_of_template_insertion_modes.push(InsertionMode::InTemplate);
 
-        // 6. Let the adjustedInsertionLocation be the appropriate place for inserting a node.
+        // FIXME: 6. Let declarativeShadowHostElement be the current node.
+        // 7. Let hostIsRoot be true if declarativeShadowHostElement is the topmost element in the stack of open elements;
+        //    otherwise false.
+        // FIXME: 8. Let template be the result of creating an element for the token given templateStartTag, the HTML
+        //           namespace, and the target parent of the appropriate place for inserting a node.
+        // 9. Let insertionLocation be the appropriate place for inserting a node.
+        // FIXME: Create template before computing insertionLocation and inspecting its attributes.
+        // NB: The implementation still selects a host and mode before the deferred template-creation helper below.
         let adjusted_insertion_location = self.appropriate_place_for_inserting_node(None);
 
-        // 7. If any of the following are false:
-        //    - templateStartTag's shadowrootmode is not in the None state;
+        // 10. Push template onto the stack of open elements so that it is the new current node.
+        // NB: The deferred template-creation helper below performs this push.
+        // 11. Let sanitizerAction be "Keep".
+        // FIXME: 12. If the parser's parser sanitizer configuration is not null, then set sanitizerAction to the result of
+        //            getting the sanitizer action for an element name given template's local name, template's namespace,
+        //            and the parser's parser sanitizer configuration.
+        // 13. Switch on sanitizerAction:
+        // FIXME: -> "Remove"
+        //        -> "Replace with children"
+        //           Return.
+        // -> "Keep"
+        //    If template's shadowrootmode attribute is not in the None state:
+        // FIXME: Read the mode and flags from the created template, rather than from templateStartTag.
         let mode = match token.attribute(attribute_name!("shadowrootmode")) {
             Some(value) if value.eq_ignore_ascii_case("open") => Some(RustFfiHtmlShadowRootMode::Open),
             Some(value) if value.eq_ignore_ascii_case("closed") => Some(RustFfiHtmlShadowRootMode::Closed),
             _ => None,
         };
 
-        //    - document's allow declarative shadow roots is true; or
+        // NB: The mode and allow-declarative-shadow-roots checks are combined with the host check below.
         let parser_allows_declarative_shadow_roots = self.allow_declarative_shadow_roots;
 
-        //    - the adjusted current node is not the topmost element in the stack of open elements,
+        // FIXME: Use the current node for declarativeShadowHostElement (step 6), rather than the adjusted current node.
+        //        A top-level template in a fragment must not attach a shadow root to its fragment context element.
         let adjusted_current_node = self.adjusted_current_node().map(|node| node.handle);
         let adjusted_current_node_is_not_topmost_element = adjusted_current_node.is_some_and(|adjusted_current_node| {
             self.stack_of_open_elements
@@ -3759,26 +3811,38 @@ impl TreeBuilder {
                 .is_none_or(|topmost_element| topmost_element.handle != adjusted_current_node)
         });
 
-        // then insert an HTML element for the token.
+        // If any of the following are true:
+        // - the parser's allow declarative shadow roots is false;
+        // - hostIsRoot is true; or
+        // - the parser's insertion target redirection map[declarativeShadowHostElement] exists,
+        // then insert an element at the adjusted insertion location with template, insertionLocation, and true, and return.
+        // FIXME: Check the insertion target redirection map when sanitizer redirection is supported.
+        // NB: The ordinary-template case is also handled by this combined fallback.
         if mode.is_none() || !parser_allows_declarative_shadow_roots || !adjusted_current_node_is_not_topmost_element {
+            // FIXME: Otherwise, if template has a for attribute:
+            //        1. Let scope be the target parent of the adjusted insertion location given insertionLocation.
+            //        2. If scope is the body element of its node document, then set scope to its parent.
+            //        3. Let success be the result of preparing content patching given scope and template.
+            //        4. If success is false, then insert an element at the adjusted insertion location with template,
+            //           insertionLocation, and true.
+            // NB: Templates currently fall back to ordinary insertion without content-patching support.
             self.insert_html_element_for(token);
             return;
         }
 
-        // 8. Otherwise:
-        // 1. Let declarativeShadowHostElement be adjusted current node.
+        // NB: Continue with the host selected by the checks above.
         let declarative_shadow_host_element = adjusted_current_node.unwrap();
 
-        // 2. Let template be the result of insert a foreign element for templateStartTag, with HTML namespace and true.
+        // NB: This helper creates template (step 8) and pushes it (step 10) without inserting it into the DOM.
         let template = self.insert_foreign_element_for(token, RustFfiHtmlNamespace::Html, true);
 
-        // 3. Let mode be templateStartTag's shadowrootmode attribute's value.
+        // Let mode be template's shadowrootmode attribute's value.
         let mode = mode.unwrap();
 
-        // 4. Let slotAssignment be "named".
+        // Let slotAssignment be "named".
         let mut slot_assignment = RustFfiHtmlSlotAssignmentMode::Named;
 
-        // 5. If templateStartTag's shadowrootslotassignment attribute is in the Manual state, then set slotAssignment to "manual".
+        // If template's shadowrootslotassignment attribute is in the Manual state, then set slotAssignment to "manual".
         if token
             .attribute(attribute_name!("shadowrootslotassignment"))
             .is_some_and(|value| value.eq_ignore_ascii_case("manual"))
@@ -3786,25 +3850,29 @@ impl TreeBuilder {
             slot_assignment = RustFfiHtmlSlotAssignmentMode::Manual;
         }
 
-        // 6. Let clonable be true if templateStartTag has a shadowrootclonable attribute; otherwise false.
+        // Let clonable be true if template has a shadowrootclonable attribute; otherwise false.
         let clonable = token.has_attribute(attribute_name!("shadowrootclonable"));
 
-        // 7. Let serializable be true if templateStartTag has a shadowrootserializable attribute; otherwise false.
+        // Let serializable be true if template has a shadowrootserializable attribute; otherwise false.
         let serializable = token.has_attribute(attribute_name!("shadowrootserializable"));
 
-        // 8. Let delegatesFocus be true if templateStartTag has a shadowrootdelegatesfocus attribute; otherwise false.
+        // Let delegatesFocus be true if template has a shadowrootdelegatesfocus attribute; otherwise false.
+        // NB: The spec reads delegatesFocus, serializable, slotAssignment, then clonable; these independent reads are
+        //     currently grouped in the order of the host helper's initialization fields.
         let delegates_focus = token.has_attribute(attribute_name!("shadowrootdelegatesfocus"));
 
-        // 9. If declarativeShadowHostElement is a shadow host, then insert an element at the adjusted insertion location with template and adjustedInsertionLocation.
+        // If declarativeShadowHostElement is a shadow host, then insert an element at the adjusted insertion location
+        // with template, insertionLocation, and true.
         if self.is_shadow_host(declarative_shadow_host_element) {
             self.insert_element_at_adjusted_insertion_location(template, Some(adjusted_insertion_location));
         }
-        // 10. Otherwise:
+        // Otherwise:
         else {
-            // 1. Let registry be null if templateStartTag has a shadowrootcustomelementregistry attribute;
-            //    otherwise declarativeShadowHostElement's node document's custom element registry.
+            // 1. Let registry be null if template has a shadowrootcustomelementregistry attribute; otherwise
+            //    declarativeShadowHostElement's node document's custom element registry.
 
-            // 2. Attach a shadow root with declarativeShadowHostElement, mode, clonable, serializable, delegatesFocus, slotAssignment, and registry.
+            // 2. Attach a shadow root with declarativeShadowHostElement, mode, delegatesFocus, serializable,
+            //    slotAssignment, clonable, and registry.
             let shadow_root = self.attach_declarative_shadow_root(DeclarativeShadowRootInit {
                 host: declarative_shadow_host_element,
                 mode,
@@ -3818,7 +3886,7 @@ impl TreeBuilder {
 
             // If an exception is thrown, then catch it and:
             if shadow_root == 0 {
-                // 1. Insert an element at the adjusted insertion location with template and adjustedInsertionLocation.
+                // 1. Insert an element at the adjusted insertion location with template, insertionLocation, and true.
                 self.insert_element_at_adjusted_insertion_location(template, Some(adjusted_insertion_location));
 
                 // 2. The user agent may report an error to the developer console.
@@ -3829,15 +3897,18 @@ impl TreeBuilder {
 
             // 3. Let shadow be declarativeShadowHostElement's shadow root.
 
-            // 4. Set shadow's declarative to true.
+            // 4. Set shadow's available to element internals to true.
 
-            // 5. Set template's template contents to shadow.
+            // 5. Set shadow's declarative to true.
+            // NB: The C++ attachment helper performs steps 3 through 5.
+
+            // 6. Set template's template contents to shadow.
             self.set_template_content(template, shadow_root);
             self.stack_of_open_elements.last_mut().unwrap().template_content = Some(shadow_root);
 
-            // 6. Set shadow's available to element internals to true.
-
-            // 7. If templateStartTag has a shadowrootcustomelementregistry attribute, then set shadow's keep custom element registry null to true.
+            // 7. If template has a shadowrootcustomelementregistry attribute, then set shadow's keep custom element
+            //    registry null to true.
+            // NB: The C++ attachment helper also sets this flag, using the value supplied from the original token.
         }
     }
 
@@ -3858,13 +3929,23 @@ impl TreeBuilder {
             self.parse_error("template end tag with different current node");
         }
 
-        // 3. Pop elements from the stack of open elements until a template element has been popped from the stack.
+        // FIXME: 3. Let template be the last template element in the stack of open elements.
+        // FIXME: 4. If template's insertion target is not null:
+        //           1. Let start be template's insertion start marker.
+        //           2. Let end be template's insertion end marker.
+        //           3. Assert: start is not null.
+        //           4. If start's parent is not null, then remove start.
+        //           5. If end is not null and end's parent is not null, then remove end.
+        //           6. Set template's insertion target to null.
+        //           7. Set template's insertion start marker to null.
+        //           8. Set template's insertion end marker to null.
+        // 5. Pop elements from the stack of open elements until a template element has been popped from the stack.
         self.pop_until_tag_name_has_been_popped(tag_name!("template"));
-        // 4. Clear the list of active formatting elements up to the last marker.
+        // 6. Clear the list of active formatting elements up to the last marker.
         self.clear_the_list_of_active_formatting_elements_up_to_the_last_marker();
-        // 5. Pop the current template insertion mode off the stack of template insertion modes.
+        // 7. Pop the current template insertion mode off the stack of template insertion modes.
         self.stack_of_template_insertion_modes.pop();
-        // 6. Reset the insertion mode appropriately.
+        // 8. Reset the insertion mode appropriately.
         self.reset_the_insertion_mode_appropriately();
     }
 
@@ -3879,17 +3960,19 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-comment
     fn insert_comment(&mut self, data: &str, insertion_location: Option<AdjustedInsertionLocation>) {
-        // 1. Let data be the data given in the comment token being processed.
+        // FIXME: 1. If the parser's parser sanitizer configuration is non-null and the parser's parser sanitizer
+        //           configuration does not allow comments, then return.
+        // 2. Let data be the data given in the comment token being processed.
         self.flush_character_insertions();
 
-        // 2. Set insertionLocation to the adjusted insertion location given insertionLocation.
+        // 3. Let (targetParent, referenceChild) be the adjusted insertion location given insertionLocation.
         let insertion_location = self.adjusted_insertion_location(insertion_location);
 
-        // 3. Create a Comment node whose data attribute is set to data and whose node document is the same as that of
-        //    the node in which the adjusted insertion location finds itself.
+        // 4. Let comment be the result of creating a comment node given targetParent's node document and data.
+        // NB: The host creates the comment in the parser document; insertion adopts it into targetParent's document.
         let comment = self.create_comment(data);
 
-        // 4. Insert the newly created node at insertionLocation.
+        // 5. Insert comment into targetParent before referenceChild.
         self.insert_node_at_insertion_location(insertion_location, comment);
     }
 
@@ -3966,7 +4049,8 @@ impl TreeBuilder {
         let node = self.stack_of_open_elements.pop();
         if let Some(node) = node.as_ref() {
             // https://html.spec.whatwg.org/multipage/parsing.html#stack-of-open-elements
-            // When the current node is removed from the stack of open elements, process internal resource links.
+            // FIXME: When the current node is removed from the stack of open elements, process internal resource links
+            //        given the current node's node document.
             //
             // AD-HOC: Callers flush buffered text before popping so option selectedcontent cloning sees up-to-date text.
             self.handle_element_popped(node);
@@ -4228,11 +4312,10 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#appropriate-place-for-inserting-a-node
-    // The appropriate place for inserting a node, optionally using a particular override target, is the position in an
-    // element returned by running the following steps:
+    // To find the appropriate place for inserting a node, given an optional Node overrideTarget (default null), perform
+    // the following steps. They return an insertion location.
     fn appropriate_place_for_inserting_node(&self, override_target: Option<usize>) -> AdjustedInsertionLocation {
-        // 1. If there was an override target specified, then let target be the override target.
-        //    Otherwise, let target be the current node.
+        // 1. Let targetParent be overrideTarget if it is not null; otherwise the current node.
         let target = override_target.unwrap_or_else(|| self.current_node_handle());
         let Some(target_node) = self.stack_of_open_elements.iter().find(|node| node.handle == target) else {
             return AdjustedInsertionLocation {
@@ -4241,10 +4324,11 @@ impl TreeBuilder {
             };
         };
 
-        // 2. Determine the adjusted insertion location using the first matching steps from the following list:
+        // 2. Let referenceChild be null.
+        // NB: A null referenceChild is represented by APPEND_CHILD_OFFSET; otherwise offset is the child's index.
         let mut adjusted_insertion_location;
 
-        //   -> If foster parenting is enabled and target is a table, tbody, tfoot, thead, or tr element
+        // 3. If foster parenting is enabled and targetParent is a table, tbody, tfoot, thead, or tr element:
         //  NOTE: Foster parenting happens when content is misnested in tables.
         if self.foster_parenting_enabled
             && target_node.namespace_ == RustFfiHtmlNamespace::Html
@@ -4256,19 +4340,18 @@ impl TreeBuilder {
                 tag_name!("tr"),
             ])
         {
-            // 1. Let last template be the last template element in the stack of open elements, if any.
+            // 1. Let lastTemplateOrTable be the last template or table element in the stack of open elements if there
+            //    is one; otherwise null.
+            // NB: Separate template and table searches find which is last in the stack.
             let last_template_index = self.stack_of_open_elements.iter().rposition(|node| {
                 node.local_name == tag_name!("template") && node.namespace_ == RustFfiHtmlNamespace::Html
             });
 
-            // 2. Let last table be the last table element in the stack of open elements, if any.
             let last_table_index = self.stack_of_open_elements.iter().rposition(|node| {
                 node.local_name == tag_name!("table") && node.namespace_ == RustFfiHtmlNamespace::Html
             });
 
-            // 3. If there is a last template and either there is no last table, or there is one, but last template is
-            //    lower (more recently added) than last table in the stack of open elements, then let adjusted insertion
-            //    location be inside last template's template contents, after its last child (if any), and abort these steps.
+            // 3. If lastTemplateOrTable is a template element, then set targetParent to lastTemplateOrTable.
             if let Some(template_index) = last_template_index
                 && last_table_index.is_none_or(|table_index| template_index > table_index)
             {
@@ -4279,9 +4362,9 @@ impl TreeBuilder {
                 };
             } else {
                 match last_table_index {
-                    // 4. If there is no last table, then let adjusted insertion location be inside the first element in
-                    //    the stack of open elements (the html element), after its last child (if any), and abort these
-                    //    steps. (fragment case)
+                    // 2. If lastTemplateOrTable is null, then return (the first element in the stack of open elements
+                    //    (the html element), null). (fragment case)
+                    // NB: The common return below produces this insertion location.
                     None => {
                         let parent = self.stack_of_open_elements.first().map(|node| node.handle).unwrap_or(0);
                         adjusted_insertion_location = AdjustedInsertionLocation {
@@ -4292,19 +4375,18 @@ impl TreeBuilder {
                     Some(table_index) => {
                         let table = self.stack_of_open_elements[table_index].handle;
                         let parent = self.parent_node(table);
-                        // 5. If last table has a parent node, then let adjusted insertion location be inside last table's
-                        //    parent node, immediately before last table, and abort these steps.
+                        // 4. Otherwise, if lastTemplateOrTable's parent is not null, then set targetParent to
+                        //    lastTemplateOrTable's parent and set referenceChild to lastTemplateOrTable.
                         if parent != 0 {
                             adjusted_insertion_location = AdjustedInsertionLocation {
                                 parent,
                                 offset: self.node_index(table),
                             };
                         } else {
-                            // 6. Let previous element be the element immediately above last table in the stack of open
-                            //    elements.
+                            // 5. Otherwise, set targetParent to the element immediately above lastTemplateOrTable in
+                            //    the stack of open elements.
                             let previous_element = &self.stack_of_open_elements[table_index - 1];
 
-                            // 7. Let adjusted insertion location be inside previous element, after its last child (if any).
                             adjusted_insertion_location = AdjustedInsertionLocation {
                                 parent: previous_element.handle,
                                 offset: APPEND_CHILD_OFFSET,
@@ -4317,18 +4399,21 @@ impl TreeBuilder {
             // NOTE: These steps are involved in part because it's possible for elements, the table element in this case
             //       in particular, to have been moved by a script around in the DOM, or indeed removed from the DOM entirely,
             //       after the element was inserted by the parser.
-        }
-        //   -> Otherwise
-        else {
-            // Let adjusted insertion location be inside target, after its last child (if any).
+        } else {
+            // NB: When foster parenting does not apply, keep targetParent and the null referenceChild.
             adjusted_insertion_location = AdjustedInsertionLocation {
                 parent: target_node.handle,
                 offset: APPEND_CHILD_OFFSET,
             };
         }
 
-        // 3. If the adjusted insertion location is inside a template element, let it instead be inside the template
-        //    element's template contents, after its last child (if any).
+        // 4. If targetParent is not a template element, then return (targetParent, referenceChild).
+        // 5. Let patchInsertionTarget be targetParent's insertion target.
+        // 6. If patchInsertionTarget is null, then return (targetParent's template contents, null).
+        // FIXME: 7. If targetParent's insertion end marker is not null and its parent is patchInsertionTarget, then
+        //           return (patchInsertionTarget, targetParent's insertion end marker).
+        // FIXME: 8. Return (patchInsertionTarget, null).
+        // NB: Templates currently always use their template contents; content-patching insertion targets are not stored.
         if let Some(node) = self
             .stack_of_open_elements
             .iter()
@@ -4339,7 +4424,6 @@ impl TreeBuilder {
             adjusted_insertion_location.offset = APPEND_CHILD_OFFSET;
         }
 
-        // 4. Return the adjusted insertion location.
         adjusted_insertion_location
     }
 
@@ -4349,19 +4433,21 @@ impl TreeBuilder {
         &self,
         insertion_location: Option<AdjustedInsertionLocation>,
     ) -> AdjustedInsertionLocation {
-        // 1. Let overrideTarget be null if insertionLocation is null; otherwise the node in which insertionLocation finds itself.
+        // 1. Let location be insertionLocation if insertionLocation is non-null; otherwise the appropriate place for
+        //    inserting a node.
+        // FIXME: Preserve a supplied insertion location, including its reference child, instead of recomputing it.
         let override_target = insertion_location.map(|insertion_location| insertion_location.parent);
 
-        // 2. Let the adjustedInsertionLocation be the appropriate place for inserting a node given overrideTarget.
+        // 2. Let (targetParent, refChild) be location.
+        // NB: The implementation currently recomputes the location using only the supplied parent.
         let adjusted_insertion_location = self.appropriate_place_for_inserting_node(override_target);
 
-        // 3. If the node in which the adjustedInsertionLocation finds itself is the first element in the stack of open
-        //    elements and the parser's root insertion target is non-null, then set the adjustedInsertionLocation to the
-        //    parser's root insertion target, after its last child (if any).
-        let adjusted_insertion_location = self.apply_root_insertion_target(adjusted_insertion_location);
-
-        // 4. Return the adjustedInsertionLocation.
-        adjusted_insertion_location
+        // 3. If the parser's insertion target redirection map[targetParent] does not exist, then return location.
+        // 4. Assert: refChild is null.
+        // 5. Return the parser's insertion target redirection map[targetParent].
+        // FIXME: Replace the root-only redirection with the insertion target redirection map, which also handles
+        //        elements replaced with children during sanitization.
+        self.apply_root_insertion_target(adjusted_insertion_location)
     }
 
     fn apply_root_insertion_target(
@@ -4403,7 +4489,7 @@ impl TreeBuilder {
 
         // 1. If there are already three elements in the list of active formatting elements after the last marker, if any, or anywhere in the list if there are no markers,
         //    that have the same tag name, namespace, and attributes as element, then remove the earliest such element from the list of active formatting elements.
-        //    For these purposes, the attributes must be compared as they were when the elements were created by the parser; two elements have the same attributes if all their parsed attributes
+        //    For these purposes, the attributes must be compared as they were on the tokens for which the elements were created; two elements have the same attributes if all their parsed attributes
         //    can be paired such that the two attributes in each pair have identical names, namespaces, and values (the order of the attributes does not matter).
         let first_index_after_last_marker = self.active_formatting_elements_after_last_marker_start_index();
         let matching_entries = self.list_of_active_formatting_elements[first_index_after_last_marker..]
@@ -4604,10 +4690,20 @@ impl TreeBuilder {
             let mut node_index = furthest_block_index;
             let mut last_node = furthest_block.handle;
 
-            // 12. Let innerLoopCounter be 0.
+            // FIXME: 12. Let pendingRedirects be an empty list.
+            // FIXME: 13. If the parser's parser sanitizer configuration is not null:
+            //            1. Let action be the result of getting the sanitizer action for an element name given
+            //               lastNode's local name, lastNode's namespace, and the parser's parser sanitizer configuration.
+            //            2. If action is not "Keep", then set lastNode to null.
+            //            3. If action is "Replace with children", then append furthestBlock to pendingRedirects.
+
+            // 14. Let innerLoopCounter be 0.
             let mut inner_loop_counter: u8 = 0;
 
-            // 13. While true:
+            // 15. Let bookmarkMoved be false.
+            // NB: Without sanitization, last_node == furthest_block.handle tracks whether the bookmark has moved.
+
+            // 16. While true:
             loop {
                 // 1. Increment innerLoopCounter by 1.
                 inner_loop_counter += 1;
@@ -4665,30 +4761,48 @@ impl TreeBuilder {
                     template_content: None,
                 };
 
-                // 7. If lastNode is furthestBlock,
+                // 7. If bookmarkMoved is false, then move the aforementioned bookmark to be immediately after the new
+                //    node in the list of active formatting elements, and set bookmarkMoved to true.
                 if last_node == furthest_block.handle {
-                    // then move the aforementioned bookmark to be immediately after the new node in the list of active formatting elements.
                     bookmark = active_index + 1;
                 }
 
-                // 8. Append lastNode to node.
+                // 8. Let nodeAction be "Keep".
+                // FIXME: 9. If the parser's parser sanitizer configuration is not null, then set nodeAction to the result
+                //           of getting the sanitizer action for an element name given node's local name, node's namespace,
+                //           and the parser's parser sanitizer configuration.
+                // FIXME: 10. If nodeAction is not "Replace with children":
+                //             1. For each replacedElement of pendingRedirects: set the parser's insertion target
+                //                redirection map[replacedElement] to (node, null).
+                //             2. Empty pendingRedirects.
+                // 11. Switch on nodeAction:
+                // -> "Keep"
+                //    If lastNode is non-null, then append lastNode to node. Set lastNode to node.
+                // NB: The unsanitized path keeps lastNode non-null and always takes the "Keep" branch.
                 self.append_child(new_element, last_node);
-
-                // 9. Set lastNode to node.
                 last_node = new_element;
+                // FIXME: -> "Remove"
+                //           If lastNode is non-null and lastNode's parent is non-null, then remove lastNode. Set lastNode
+                //           to null.
+                // FIXME: -> "Replace with children"
+                //           Append node to pendingRedirects.
             }
 
-            // 14. Let (target, refNode) be the adjusted insertion location given (commonAncestor, null).
+            // 17. Let insertionLocation be the appropriate place for inserting a node given commonAncestor.
+            // 18. Let (target, refNode) be the adjusted insertion location given insertionLocation.
+            // NB: The adjusted-insertion-location helper currently performs the appropriate-place computation too.
             let adjusted_insertion_location = self.adjusted_insertion_location(Some(AdjustedInsertionLocation {
                 parent: common_ancestor,
                 offset: APPEND_CHILD_OFFSET,
             }));
 
-            // NB: Steps 15 and 16 implemented on C++ side.
+            // FIXME: 19. For each replacedElement of pendingRedirects: set the parser's insertion target redirection
+            //            map[replacedElement] to (target, refNode).
+            // NB: Steps 20 and 21 implemented on C++ side.
             self.reinsert_last_node_at_insertion_location(adjusted_insertion_location, last_node);
 
-            // 17. Create an element for the token for which formattingElement was created,
-            //     in the HTML namespace, with furthestBlock as the intended parent.
+            // 22. Let newElement be the result of creating an element for the token for which formattingElement was
+            //     created, in the HTML namespace, with furthestBlock as the intended parent.
             let Some(formatting_element_index) = self
                 .list_of_active_formatting_elements
                 .iter()
@@ -4699,14 +4813,29 @@ impl TreeBuilder {
             let entry = self.list_of_active_formatting_elements[formatting_element_index].clone();
             let new_element = self.create_html_element_for_active_formatting_element(&entry, furthest_block.handle);
 
-            // 18. Take all of the child nodes of furthestBlock and append them to the element created in the last step.
+            // FIXME: Perform steps 23 and 24 before the child mutations in step 27.
+            // 25. Let sanitizerAction be "Keep".
+            // FIXME: 26. If the parser's parser sanitizer configuration is not null, then set sanitizerAction to the result
+            //            of getting the sanitizer action for an element name given newElement's local name,
+            //            newElement's namespace, and the parser's parser sanitizer configuration.
+            // 27. Switch on sanitizerAction:
+            // FIXME: -> "Replace with children"
+            //           Set the parser's insertion target redirection map[newElement] to the adjusted insertion location
+            //           given (furthestBlock, null).
+            // FIXME: -> "Remove"
+            //           Take all of the child nodes of furthestBlock and append them to newElement.
+            // -> "Keep"
+            //    1. Take all of the child nodes of furthestBlock and append them to newElement.
             self.move_all_children(furthest_block.handle, new_element);
 
-            // 19. Append that new element to furthestBlock.
+            // FIXME: 2. Let (newElementParent, newElementRefNode) be the adjusted insertion location given
+            //           (furthestBlock, null).
+            // 3. Insert newElement into newElementParent before newElementRefNode.
+            // NB: The current unsanitized path appends directly to furthestBlock.
             self.append_child(furthest_block.handle, new_element);
 
-            // 20. Remove formattingElement from the list of active formatting elements,
-            //     and insert the new element into the list of active formatting elements at the position of the aforementioned bookmark.
+            // 23. Remove formattingElement from the list of active formatting elements, and insert newElement into the
+            //     list of active formatting elements at the position of the aforementioned bookmark.
             if formatting_element_index < bookmark {
                 bookmark -= 1;
             }
@@ -4722,8 +4851,8 @@ impl TreeBuilder {
                 },
             );
 
-            // 21. Remove formattingElement from the stack of open elements, and insert the new element
-            //     into the stack of open elements immediately below the position of furthestBlock in that stack.
+            // 24. Remove formattingElement from the stack of open elements, and insert newElement into the stack of
+            //     open elements immediately below the position of furthestBlock in that stack.
             if let Some(formatting_element_stack_index) = self
                 .stack_of_open_elements
                 .iter()
@@ -4749,6 +4878,13 @@ impl TreeBuilder {
                     template_content: None,
                 },
             );
+            // FIXME: 28. Let belowNode be the element immediately below newElement in the stack of open elements, if any;
+            //            otherwise null.
+            // FIXME: 29. While belowNode is non-null and the parser's insertion target redirection map[belowNode] exists:
+            //            1. Set the parser's insertion target redirection map[belowNode] to the adjusted insertion location
+            //               given (newElement, null).
+            //            2. Set belowNode to the element immediately below belowNode in the stack of open elements, if any;
+            //               otherwise null.
         }
     }
 

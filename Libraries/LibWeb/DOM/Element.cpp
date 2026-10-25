@@ -4055,15 +4055,18 @@ bool Element::is_actually_disabled() const
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-parsing-algorithm-steps
 WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target, Utf16View markup, HTML::ParserScriptingMode scripting_mode, HTML::FragmentFastPath fast_path)
 {
-    // 1. Assert: scriptingMode is either Inert or Fragment.
+    // NB: This helper implements Legacy mode with no sanitizer configuration; callers supply scriptingMode.
+    //     The HTML fragment parser requires scriptingMode to be either Inert or Fragment.
     VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
 
-    // 2. If target's node document is an XML document, then return the result of invoking the XML fragment parsing
-    //    algorithm given target and markup.
+    // 1. If mode is Legacy and target's node document is an XML document, then return the result of invoking the
+    //    XML fragment parsing algorithm given target and markup.
     if (target.visit([](auto node) { return node->document().is_xml_document(); }))
         return XMLFragmentParser::parse_xml_fragment(target, markup);
 
-    // 3. If context's node document is an XML document, then set newChildren to the result of invoking the XML fragment parsing algorithm given context and markup.
+    // 8. Return the result of the HTML fragment parsing algorithm given target, markup, allowDeclarativeShadowRoots,
+    //    scriptingMode, and sanitizerConfig.
+    // NB: Legacy mode sets allowDeclarativeShadowRoots to false and uses a null sanitizerConfig.
     return HTML::HTMLParser::parse_html_fragment(target, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No, scripting_mode, fast_path);
 }
 

@@ -1503,13 +1503,14 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<Utf16String> const&, Opti
     // 17. Set the insertion point to point at just before the end of the input stream (which at this point will be empty).
     m_parser->tokenizer().update_insertion_point();
 
-    // 18. Set the parser's allow declarative shadow roots to true.
+    // FIXME: Preserve the parser's inherited allow declarative shadow roots value; the document open steps do not
+    //        override it.
     m_parser->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
 
-    // 19. Update the current document readiness of document to "loading".
+    // 18. Update the current document readiness of document to "loading".
     update_readiness(HTML::DocumentReadyState::Loading);
 
-    // 20. Return document.
+    // 19. Return document.
     return this;
 }
 

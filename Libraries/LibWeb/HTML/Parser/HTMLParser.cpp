@@ -349,6 +349,13 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for_rust_parser(Utf16FlyString 
     if (had_duplicate_attribute)
         element->set_had_duplicate_attribute_during_tokenization({});
 
+    // 21. If element is a form-associated element and not a form-associated custom element, the form element pointer
+    //     is not null, the parser is not parsing template contents, the parser's fragment context element is null,
+    //     element is either not listed or doesn't have a form attribute, the intendedParent is in the same tree as
+    //     the element pointed to by the form element pointer, and the parser's insertion target redirection map[the
+    //     element pointed to by the form element pointer] does not exist, then associate element with the form
+    //     element pointed to by the form element pointer and set element's parser inserted flag.
+    // FIXME: Check the fragment context element, the full parsing-template-contents predicate, and the redirection map.
     if (form_element && !has_template_element_on_stack) {
         auto* html_element = as_if<HTML::HTMLElement>(*element);
         if (html_element && html_element->is_form_associated_element() && !html_element->is_form_associated_custom_element()) {
@@ -907,7 +914,7 @@ void HTMLParserEndState::advance_to_dom_content_loaded_phase()
 
         // FIXME: 4. Enable the client message queue of the ServiceWorkerContainer object whose associated service worker client is the Document object's relevant settings object.
 
-        // FIXME: 5. Invoke WebDriver BiDi DOM content loaded with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's navigation id, status is "pending", and url is the Document object's URL.
+        // FIXME: 5. Invoke WebDriver BiDi DOM content loaded with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's during-loading navigation ID for WebDriver BiDi, status is "pending", and url is the Document object's URL.
 
         // NB: Only advance the state machine after this task has run, so that anything the DOMContentLoaded event
         //     handlers did (e.g. starting loads that delay the load event) is visible to the remaining phases. This
@@ -1028,9 +1035,9 @@ void HTMLParserEndState::complete()
             }
         }
 
-        // FIXME: 6. Invoke WebDriver BiDi load complete with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's navigation id, status is "complete", and url is the Document object's URL.
+        // FIXME: 6. Invoke WebDriver BiDi load complete with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's during-loading navigation ID for WebDriver BiDi, status is "complete", and url is the Document object's URL.
 
-        // FIXME: 7. Set the Document object's navigation id to null.
+        // FIXME: 7. Set the Document object's during-loading navigation ID for WebDriver BiDi to null.
 
         // 8. Set the Document's load timing info's load event end time to the current high resolution time given window.
         document->load_timing_info().load_event_end_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(window));
@@ -1068,7 +1075,8 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
     // The active speculative HTML parser runs synchronously to completion, so it is null whenever the real parser
     // invokes this algorithm. It emits speculative fetch candidates directly instead of producing mock elements.
 
-    // 2. Otherwise, optionally create a speculative mock element given namespace, token's tag name, and token's attributes.
+    // 2. Otherwise, if the parser's parser sanitizer configuration is null, optionally create a speculative mock
+    //    element given namespace, token's tag name, and token's attributes.
     // We deliberately skip step 2, the active speculative parser already issues these fetches, so doing it again here
     // would be redundant.
 
@@ -1085,23 +1093,35 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
         return {};
     };
 
-    // 5. Let is be the value of the "is" attribute in token, if such an attribute exists; otherwise null.
+    // FIXME: 5. Let sanitizerConfig be the parser's parser sanitizer configuration.
+    // FIXME: 6. Let sanitizerAction be "Keep".
+    // FIXME: 7. If sanitizerConfig is not null, then set sanitizerAction to the result of getting the sanitizer action
+    //           for an element name given localName, namespace, and sanitizerConfig.
+
+    // 8. Let is be the value of the "is" attribute in token, if such an attribute exists; otherwise null.
     Optional<Utf16FlyString> is_value;
     if (auto is_attribute = attribute_value(AttributeNames::is); is_attribute.has_value())
         is_value = Utf16FlyString::from_utf8_without_validation(*is_attribute);
 
-    // 6. Let registry be the result of looking up a custom element registry given intendedParent.
+    // FIXME: 9. If is is non-null, sanitizerConfig is non-null, and the result of checking if a sanitizer config allows
+    //           an attribute given "is", null, is, localName, namespace, and sanitizerConfig is false, then set is to null.
+
+    // 10. Let registry be the result of looking up a custom element registry given intendedParent.
     auto registry = look_up_a_custom_element_registry(intended_parent);
 
-    // 7. Let definition be the result of looking up a custom element definition given registry, namespace, localName,
-    //    and is.
+    // 11. Let creationRegistry be registry if sanitizerAction is "Keep"; otherwise null.
+    // NB: Without a sanitizer configuration, creationRegistry is registry.
+
+    // 12. Let definition be null if sanitizerAction is not "Keep"; otherwise the result of looking up a custom element
+    //     definition given registry, namespace, localName, and is.
+    // FIXME: Handle sanitizer actions other than "Keep".
     auto definition = look_up_a_custom_element_definition(registry, namespace_, local_name, is_value);
 
-    // 8. Let willExecuteScript be true if definition is non-null and the parser was not created as part of the HTML
-    //    fragment parsing algorithm; otherwise false.
+    // 13. Let willExecuteScript be true if definition is non-null and the parser's fragment context element is null;
+    //     otherwise false.
     bool will_execute_script = definition && !m_parsing_fragment;
 
-    // 9. If willExecuteScript is true:
+    // 14. If willExecuteScript is true:
     if (will_execute_script) {
         // 1. Increment document's throw-on-dynamic-markup-insertion counter.
         document->increment_throw_on_dynamic_markup_insertion_counter({});
@@ -1115,8 +1135,9 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
         relevant_similar_origin_window_agent(document).custom_element_reactions_stack.element_queue_stack.append({});
     }
 
-    // 10. Let element be the result of creating an element given document, localName, namespace, null, is,
-    //     willExecuteScript, and registry.
+    // 15. Let element be the result of creating an element given document, localName, namespace, prefix, is,
+    //     willExecuteScript, and creationRegistry.
+    // NB: This helper currently implements only the default null prefix and the unsanitized creation registry.
     auto element = DOM::create_element(*document, local_name, namespace_, {}, is_value, will_execute_script, registry).release_value_but_fixme_should_propagate_errors();
 
     // AD-HOC: Let <link> elements know which document they were originally parsed for.
@@ -1132,13 +1153,22 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
     if (auto* style_element = as_if<DOM::StyleElementBase>(*element))
         style_element->set_parser_document({}, document);
 
-    // 11. Append each attribute in the given token to element.
+    // FIXME: 16. If sanitizerAction is "Replace with children", then set element's custom element registry to registry.
+
+    // 17. For each attribute of token's attributes:
     element->ensure_attribute_capacity(attributes.size());
     for (auto const& attribute : attributes) {
+        // FIXME: 1. If sanitizerConfig is not null:
+        //           1. Let attrLocalName be attribute's local name if attribute is a namespaced attribute; otherwise
+        //              attribute's name.
+        //           2. Let attrNamespace be attribute's namespace if attribute is a namespaced attribute; otherwise null.
+        //           3. If the result of checking if a sanitizer config allows an attribute given attrLocalName,
+        //              attrNamespace, attribute's value, localName, namespace, and sanitizerConfig is false, then continue.
         Optional<Utf16FlyString> prefix;
         if (attribute.prefix_len != 0)
             prefix = Utf16FlyString::from_utf8_without_validation({ reinterpret_cast<char const*>(attribute.prefix_ptr), attribute.prefix_len });
         DOM::QualifiedName qualified_name { Utf16FlyString::from_raw(attribute.local_name), move(prefix), attribute_namespace_from_html_parser_ffi(attribute.namespace_) };
+        // 2. Append attribute to element.
         element->append_attribute(move(qualified_name), utf8_string_from_ffi(attribute.value_ptr, attribute.value_len));
     }
 
@@ -1153,7 +1183,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
         }
     }
 
-    // 12. If willExecuteScript is true:
+    // 18. If willExecuteScript is true:
     if (will_execute_script) {
         // 1. Let queue be the result of popping from document's relevant agent's custom element reactions stack.
         //    (This will be the same element queue as was pushed above.)
@@ -1166,19 +1196,21 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
         document->decrement_throw_on_dynamic_markup_insertion_counter({});
     }
 
-    // FIXME: 13. If element has an xmlns attribute in the XMLNS namespace whose value is not exactly the same as the element's namespace, that is a parse error.
+    // FIXME: 19. If element has an xmlns attribute in the XMLNS namespace whose value is not exactly the same as the element's namespace, that is a parse error.
     //            Similarly, if element has an xmlns:xlink attribute in the XMLNS namespace whose value is not the XLink Namespace, that is a parse error.
 
     if (auto* html_element = as_if<HTML::HTMLElement>(*element)) {
         if (html_element->is_form_associated_element() && !html_element->is_form_associated_custom_element()) {
-            // 14. If element is a resettable element and not a form-associated custom element, then invoke its reset algorithm.
+            // 20. If element is a resettable element and not a form-associated custom element, then invoke its reset algorithm.
             //     (This initializes the element's value and checkedness based on the element's attributes.)
             if (html_element->is_resettable())
                 html_element->reset_algorithm();
         }
     }
 
-    // 16. Return element.
+    // NB: Step 21 (parser form association) is performed by create_element_for_rust_parser().
+
+    // 22. Return element.
     return element;
 }
 
@@ -1756,6 +1788,8 @@ GC::Ptr<DOM::DocumentFragment> HTMLParser::try_parse_html_fragment_fast(DOM::Ele
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-html-fragments
 WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragment(Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target, Utf16View input, AllowDeclarativeShadowRoots allow_declarative_shadow_roots, ParserScriptingMode scripting_mode, FragmentFastPath fast_path)
 {
+    // FIXME: Support the optional sanitizer configuration argument.
+
     // 1. Assert: scriptingMode is either Inert or Fragment.
     VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
 
@@ -1781,12 +1815,14 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
     // 6. If contextDocument is in quirks mode, then set document's mode to "quirks".
     // 7. Otherwise, if contextDocument is in limited-quirks mode, then set document's mode to "limited-quirks".
 
-    // 8. Create a new HTML parser whose allow declarative shadow roots is allowDeclarativeShadowRoots, and associate it with document.
-    // 9. If contextDocument's scripting is disabled, then set scriptingMode to Disabled.
-    // 10. Set the parser's scripting mode to scriptingMode.
+    // 8. If contextDocument's scripting is disabled, then set scriptingMode to Disabled.
     if (context_document.is_scripting_disabled())
         scripting_mode = HTML::ParserScriptingMode::Disabled;
 
+    // 9. Create a new HTML parser whose parser sanitizer configuration is configuration, allow declarative shadow
+    //    roots is allowDeclarativeShadowRoots, scripting mode is scriptingMode, and fragment context element is
+    //    context, and associate it with document.
+    // NB: The currently supported calls use a null sanitizer configuration.
     // OPTIMIZATION: Use the context document directly while keeping the parser detached from its document parser state.
     //               The detached root below supplies the temporary tree-builder state, while all output nodes are
     //               created for their final document. This avoids initializing a complete Document for every fragment.
@@ -1795,7 +1831,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
     parser->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots);
     parser->m_context_element = context; // FIXME: Is this needed?
 
-    // 11. Set the state of the HTML parser's tokenization stage as follows, switching on context:
+    // 10. Set the state of the HTML parser's tokenization stage as follows, switching on context:
     bool const context_element_is_html = context->namespace_uri() == Namespace::HTML;
     // - title
     // - textarea
@@ -1837,31 +1873,33 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
 
     auto target_node = target.visit([](auto node) -> GC::Ref<DOM::Node> { return node; });
 
-    // 12. Let root be the result of creating an element given document, "html", the HTML namespace, null, null, false,
+    // 11. Let root be the result of creating an element given document, "html", the HTML namespace, null, null, false,
     //     and the result of looking up a custom element registry given target.
     auto root_registry = look_up_a_custom_element_registry(target_node);
     auto root = MUST(DOM::create_element(context_document, HTML::TagNames::html, Namespace::HTML, {}, {}, false, root_registry));
 
-    // 13. Append root to document.
+    // 12. Append root to document.
     // OPTIMIZATION: Keep the root detached. It is only a sentinel for the tree builder, whose root insertions are
     //               redirected to the output fragment.
 
-    // 14. Set up the HTML parser's stack of open elements so that it contains just the single element root.
-    // 15. Let fragment be a new DocumentFragment whose node document is target's node document.
+    // 13. Set up the HTML parser's stack of open elements so that it contains just the single element root.
+    // 14. Let fragment be the result of creating a document fragment given document if configuration is non-null;
+    //     otherwise target's node document.
     auto fragment = DOM::DocumentFragment::create(target_node->document());
 
-    // 16. Set the parser's root insertion target to fragment.
+    // 15. Set the parser's insertion target redirection map[root] to (fragment, null).
+    // NB: m_root_insertion_target represents the root entry of the insertion target redirection map.
     parser->m_root_insertion_target = fragment;
 
-    // 17. If context is a template element, then push "in template" onto the stack of template insertion modes so that
+    // 16. If context is a template element, then push "in template" onto the stack of template insertion modes so that
     //     it is the new current template insertion mode.
-    // 18. Create a start tag token whose name is the local name of context and whose attributes are the attributes of context.
+    // 17. Create a start tag token whose name is the local name of context and whose attributes are the attributes of context.
     //     Let this start tag token be the start tag token of context; e.g. for the purposes of determining if it is an
     //     HTML integration point.
-    // 19. Reset the parser's insertion mode appropriately.
+    // 18. Reset the parser's insertion mode appropriately.
     // NB: The parser will reference the context element as part of that algorithm.
 
-    // 20. Set the HTML parser's form element pointer to the nearest node to context that is a form element
+    // 19. Set the HTML parser's form element pointer to the nearest node to context that is a form element
     //     (going straight up the ancestor chain, and including the element itself, if it is a form element), if any.
     //     (If there is no such form element, the form element pointer keeps its initial value, null.)
     parser->m_form_element = as_if<HTMLFormElement>(context);
@@ -1916,10 +1954,15 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
         allow_declarative_shadow_roots == AllowDeclarativeShadowRoots::Yes,
         parser->m_form_element ? reinterpret_cast<size_t>(parser->m_form_element.ptr()) : 0);
 
-    // 22. Place the input into the input stream for the HTML parser just created. The encoding confidence is irrelevant.
-    // 23. Start the HTML parser and let it run until it has consumed all the characters just inserted into the input stream.
+    // 20. Place the input into the input stream for the HTML parser just created. The encoding confidence is irrelevant.
+    // NB: The input was supplied when constructing the parser above.
+    // 21. Start the HTML parser and let it run until it has consumed all the characters just inserted into the input stream.
     parser->run_until_completion();
 
+    // 22. Adopt fragment into target's node document.
+    // NB: The fragment is already in the target's node document.
+
+    // 23. Return fragment.
     return fragment;
 }
 
@@ -2241,8 +2284,9 @@ Utf16String HTMLParser::serialize_html_fragment(DOM::Node const& node, Serializa
             // -> If current node is a ProcessingInstruction
             auto& processing_instruction_node = as<DOM::ProcessingInstruction>(current_node);
 
-            // Append the literal string "<?" (U+003C LESS-THAN SIGN, U+003F QUESTION MARK), followed by the value of current node's target IDL attribute,
-            // followed by a single U+0020 SPACE character, followed by the value of current node's data IDL attribute, followed by a single U+003E GREATER-THAN SIGN character (>).
+            // Append "<?", followed by the value of current node's target, U+0020 SPACE, the value of
+            // current node's data, and "?>".
+            // FIXME: Use "?>" as the processing instruction terminator.
             builder.append_ascii("<?"sv);
             builder.append(processing_instruction_node.target().view());
             builder.append_ascii(' ');
@@ -2872,7 +2916,7 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u
     auto insertion_location = node_and_offset_from_html_parser_ffi(parent, offset);
     auto& parent_node = *insertion_location.node;
 
-    // 3. If insertionLocation is in a Document node, then return.
+    // 3. If targetParent is a Document node, then return.
     // NOTE: The DOM will not let Document nodes have Text node children, so they are dropped on the floor.
     if (parent_node.is_document())
         return;
@@ -2987,7 +3031,8 @@ extern "C" void ladybird_html_parser_insert_node(size_t parent, size_t offset, s
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#adoptionAgency
-// NB: Steps 15 and 16, given the (target, refNode) pair computed by step 14.
+// NB: Steps 20 and 21 of the outer loop, given the (target, refNode) pair computed by step 18.
+//     This callback implements the unsanitized case, in which lastNode is non-null.
 extern "C" void ladybird_html_parser_reinsert_last_node(size_t parent, size_t offset, size_t last_node)
 {
     auto insertion_location = node_and_offset_from_html_parser_ffi(parent, offset);
@@ -2995,11 +3040,12 @@ extern "C" void ladybird_html_parser_reinsert_last_node(size_t parent, size_t of
     GC::Ptr<DOM::Node> ref_node = insertion_location.child_at_offset();
     auto& last_node_to_insert = node_from_html_parser_ffi(last_node);
 
-    // 15. If lastNode's parent is non-null, then remove lastNode.
+    // 20. If lastNode is non-null and lastNode's parent is non-null, then remove lastNode.
     if (last_node_to_insert.parent())
         last_node_to_insert.remove();
 
-    // 16. If all of the following are true:
+    // 21. If all of the following are true:
+    //     - lastNode is non-null;
     //     - lastNode's parent is null;
     //     - lastNode is not a host-including inclusive ancestor of target;
     //     - target is not a Document node, or it does not have an element child; and
