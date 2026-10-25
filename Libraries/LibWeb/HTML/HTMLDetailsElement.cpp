@@ -283,17 +283,18 @@ void HTMLDetailsElement::update_shadow_tree_slots()
     if (summary != nullptr)
         summary_assignment.append(GC::Ref { static_cast<DOM::Element&>(*summary) });
 
-    for_each_in_subtree([&](auto& child) {
+    // NB: Only the details element's children can be assigned to its slots.
+    for_each_child([&](auto& child) {
         if (&child == summary)
-            return TraversalDecision::Continue;
+            return IterationDecision::Continue;
         if (!child.is_slottable())
-            return TraversalDecision::Continue;
+            return IterationDecision::Continue;
 
         child.as_slottable().visit([&](auto& node) {
             descendants_assignment.append(node);
         });
 
-        return TraversalDecision::Continue;
+        return IterationDecision::Continue;
     });
 
     m_summary_slot->assign(move(summary_assignment));
