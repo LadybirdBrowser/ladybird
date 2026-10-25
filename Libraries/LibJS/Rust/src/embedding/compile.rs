@@ -32,7 +32,7 @@ use crate::compile::{
 use crate::embedding::abi_types::{JSRealm, JSSourceCode, JSUtf16View, cell_from_abi, cell_into_abi, vm_from_abi};
 use crate::embedding::script::{JSParserErrorSink, JSScript, append_to_parser_error_sink, host_defined_slot_from_abi};
 use crate::embedding::source_code::{shared_source_code_from_abi, source_code_into_abi};
-use crate::gc::root::Root;
+use crate::gc::root::{MarkedVec, Root};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{JSModule, JSVM};
@@ -590,18 +590,18 @@ const _: fn() = || {
 /// Has a worker compile copies of the ASTs of the functions, and installs the results on the VM's thread.
 fn compile_lazy_functions_off_thread(
     vm: &'static Vm,
-    functions: Vec<(Gc<SharedFunctionInstanceData>, Box<FunctionPayload>)>,
+    shared_function_data: &MarkedVec<'_, Gc<SharedFunctionInstanceData>>,
+    function_asts: impl IntoIterator<Item = Box<FunctionPayload>>,
     source_length_in_code_units: usize,
     callbacks: Arc<SharedOffThreadCompilationCallbacks>,
 ) {
-    let (shared_function_data, function_asts): (Vec<_>, Vec<_>) = functions.into_iter().unzip();
     let awaiting_compilation = LazyFunctionsAwaitingCompilation {
         vm,
-        shared_function_data: Root::new(vm, shared_function_data),
+        shared_function_data: Root::new(vm, shared_function_data.to_vec()),
         callbacks: callbacks.clone(),
     };
     let work = Box::new(LazyFunctionCompilation {
-        function_asts,
+        function_asts: function_asts.into_iter().collect(),
         source_length_in_code_units,
         callbacks: callbacks.clone(),
         awaiting_compilation: OnlyForTheVmsThread(Box::new(awaiting_compilation)),
@@ -663,8 +663,9 @@ fn compile_remaining_functions_of_executable_off_thread(
     executable: Gc<Executable>,
     callbacks: Arc<SharedOffThreadCompilationCallbacks>,
 ) {
-    let functions = SharedFunctionInstanceData::uncompiled_functions_of(executable);
-    if functions.is_empty() {
+    let shared_function_data = MarkedVec::new(vm);
+    let function_asts = SharedFunctionInstanceData::uncompiled_functions_of(executable, &shared_function_data);
+    if function_asts.is_empty() {
         return;
     }
     // NB: The frontend checks that nested functions lie within the source, which is unknown without a source code.
@@ -672,7 +673,13 @@ fn compile_remaining_functions_of_executable_off_thread(
         .source_code
         .as_ref()
         .map_or(usize::MAX, |source_code| source_code.length_in_code_units());
-    compile_lazy_functions_off_thread(vm, functions, source_length_in_code_units, callbacks);
+    compile_lazy_functions_off_thread(
+        vm,
+        &shared_function_data,
+        function_asts,
+        source_length_in_code_units,
+        callbacks,
+    );
 }
 
 /// # Safety

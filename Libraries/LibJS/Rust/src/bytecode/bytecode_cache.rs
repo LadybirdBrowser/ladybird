@@ -132,21 +132,24 @@ pub fn functions_created_by(
 ) -> MarkedVec<'_, Gc<SharedFunctionInstanceData>> {
     let functions = MarkedVec::new(vm);
     let mut seen = HashSet::new();
-    let mut executables_to_visit: Vec<Gc<Executable>> = executable.into_iter().collect();
-    let mut add_function = |function: Gc<SharedFunctionInstanceData>,
-                            executables_to_visit: &mut Vec<Gc<Executable>>| {
-        if seen.insert(function) {
+    let executables_to_visit = MarkedVec::new(vm);
+    if let Some(executable) = executable {
+        executables_to_visit.push(executable);
+    }
+    let mut add_function = |function: Gc<SharedFunctionInstanceData>| {
+        if seen.insert(function.as_ptr().addr()) {
             functions.push(function);
-            executables_to_visit.extend(function.executable());
+            if let Some(executable) = function.executable() {
+                executables_to_visit.push(executable);
+            }
         }
     };
     for function in declared_functions {
-        add_function(function, &mut executables_to_visit);
+        add_function(function);
     }
     while let Some(executable) = executables_to_visit.pop() {
         for index in 0..executable.shared_function_data_count() {
-            let function = executable.shared_function_data(u32::try_from(index).expect("the index fits in u32"));
-            add_function(function, &mut executables_to_visit);
+            add_function(executable.shared_function_data(u32::try_from(index).expect("the index fits in u32")));
         }
     }
     functions

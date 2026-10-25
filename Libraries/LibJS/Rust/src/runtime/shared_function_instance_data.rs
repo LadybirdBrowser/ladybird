@@ -21,6 +21,7 @@ use crate::compile::FunctionPrecompileMode;
 use crate::compile::SharedFunctionDescription;
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
+use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::run::should_dump_bytecode;
 use crate::interpreter::vm::Vm;
@@ -596,22 +597,26 @@ impl SharedFunctionInstanceData {
         self.storage.cached_bytecode_executable.borrow().is_some()
     }
 
-    /// The functions that `executable` creates and that have not been compiled yet, with a copy of the AST of each, so
-    /// that they can be compiled elsewhere, such as on another thread, while their own ASTs stay in place for a first
-    /// call that comes sooner.
+    /// Appends the functions that `executable` creates and that have not been compiled yet to `functions`, and returns
+    /// a copy of the AST of each, so that they can be compiled elsewhere, such as on another thread, while their own
+    /// ASTs stay in place for a first call that comes sooner.
     pub fn uncompiled_functions_of(
         executable: Gc<Executable>,
-    ) -> Vec<(Gc<SharedFunctionInstanceData>, Box<FunctionPayload>)> {
-        (0..executable.shared_function_data_count())
-            .filter_map(|index| {
-                let shared_data = executable.shared_function_data(u32::try_from(index).expect("the index fits in u32"));
-                if shared_data.executable().is_some() {
-                    return None;
-                }
-                let function_ast = shared_data.storage.rust_function_ast.borrow().clone()?;
-                Some((shared_data, function_ast))
-            })
-            .collect()
+        functions: &MarkedVec<'_, Gc<SharedFunctionInstanceData>>,
+    ) -> Vec<Box<FunctionPayload>> {
+        let mut function_asts = Vec::new();
+        for index in 0..executable.shared_function_data_count() {
+            let shared_data = executable.shared_function_data(u32::try_from(index).expect("the index fits in u32"));
+            if shared_data.executable().is_some() {
+                continue;
+            }
+            let Some(function_ast) = shared_data.storage.rust_function_ast.borrow().clone() else {
+                continue;
+            };
+            functions.push(shared_data);
+            function_asts.push(function_ast);
+        }
+        function_asts
     }
 
     /// Records what scope analysis found out about the function's body, as rust_sfd_set_metadata does.

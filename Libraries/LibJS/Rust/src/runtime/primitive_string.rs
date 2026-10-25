@@ -10,6 +10,7 @@ use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell};
+use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::{StringToAtomCacheEntry, Vm};
 use crate::layout::cell::{CellHeader, Gc};
@@ -778,15 +779,15 @@ impl RopeString {
     }
 
     fn concatenate_many_pieces(&self) -> Utf16String {
-        // This vector will hold all the pieces of the rope that need to be assembled
+        let vm = Vm::of_cell(self);
+
+        // This list will hold all the pieces of the rope that need to be assembled
         // into the resolved string.
-        // NB: Resolving takes no VM, so it cannot allocate cells or collect garbage while these vectors hold strings
-        //     that only the rope keeps alive.
-        let mut pieces: Vec<Gc<PrimitiveString>> = Vec::with_capacity(2);
+        let pieces = MarkedVec::with_capacity(vm, 2);
 
         // NOTE: We traverse the rope tree without using recursion, since we'd run out of
         //       stack space quickly when handling a long sequence of unresolved concatenations.
-        let mut stack: Vec<Gc<PrimitiveString>> = Vec::with_capacity(2);
+        let stack = MarkedVec::with_capacity(vm, 2);
         stack.push(self.rhs());
         stack.push(self.lhs());
         while let Some(current) = stack.pop() {
@@ -800,6 +801,7 @@ impl RopeString {
             pieces.push(current);
         }
 
+        let pieces = pieces.values();
         let views: Vec<Utf16View<'_>> = pieces.iter().map(|piece| piece.utf16_string_view()).collect();
         concatenate(&views)
     }
