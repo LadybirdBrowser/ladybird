@@ -162,6 +162,8 @@ private:
         out.write("    JS_DECLARE_NATIVE_FUNCTION(get);\n")
         out.write("    JS_DECLARE_NATIVE_FUNCTION(has);\n")
         if not interface.maplike.readonly:
+            if "set" not in operation_callbacks:
+                out.write("    JS_DECLARE_NATIVE_FUNCTION(set);\n")
             out.write("    JS_DECLARE_NATIVE_FUNCTION(delete_);\n")
             out.write("    JS_DECLARE_NATIVE_FUNCTION(clear);\n")
     if interface.setlike is not None:
