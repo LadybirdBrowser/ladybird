@@ -1633,7 +1633,9 @@ void resolve_webassembly_instance_promise(JS::Realm& realm, WebIDL::Promise& pro
 
 GC::Ref<JS::Object> create_webassembly_instantiated_source(JS::Realm& realm, GC::Ref<WebAssembly::Module> module, GC::Ref<WebAssembly::Instance> instance)
 {
-    auto result = JS::Object::create(realm, nullptr);
+    // NB: The WebAssemblyInstantiatedSource dictionary converts to an ordinary object, whose prototype is
+    //     %Object.prototype%.
+    auto result = JS::Object::create(realm, realm.intrinsics().object_prototype());
     result->define_direct_property("module"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, module), JS::default_attributes);
     result->define_direct_property("instance"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, instance), JS::default_attributes);
     return result;
