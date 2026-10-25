@@ -16,8 +16,12 @@
         <string>Ladybird</string>
         <key>CFBundleIdentifier</key>
         <string>org.ladybird.Ladybird</string>
-        <key>NSPrincipalClass</key>
-        <string>NSApplication</string>
+        <key>CFBundleShortVersionString</key>
+        <string>${MACOSX_BUNDLE_SHORT_VERSION_STRING}</string>
+        <key>CFBundleVersion</key>
+        <string>${MACOSX_BUNDLE_BUNDLE_VERSION}</string>
+        <key>LSMinimumSystemVersion</key>
+        <string>${CMAKE_OSX_DEPLOYMENT_TARGET}</string>
         <key>NSHighResolutionCapable</key>
         <string>True</string>
         <key>NSLocationUsageDescription</key>
@@ -33,8 +37,6 @@
                 <string>Web documents</string>
                 <key>CFBundleTypeRole</key>
                 <string>Viewer</string>
-                <key>CFBundleTypeIconFile</key>
-                <string>document.icns</string>
                 <key>LSItemContentTypes</key>
                 <array>
                     <string>public.html</string>
@@ -47,8 +49,6 @@
                 <string>Other documents</string>
                 <key>CFBundleTypeRole</key>
                 <string>Viewer</string>
-                <key>CFBundleTypeIconFile</key>
-                <string>document.icns</string>
                 <key>CFBundleTypeExtensions</key>
                 <array>
                     <string>md</string>
