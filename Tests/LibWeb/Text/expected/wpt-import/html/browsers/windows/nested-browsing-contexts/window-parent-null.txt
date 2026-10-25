@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	`window.parent` is null when browsing context container element removed
+Fail	`window.parent` null when parent browsing context container removed

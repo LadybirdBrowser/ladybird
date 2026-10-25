@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>window.parent: `null`</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+async_test(t => {
+  var iframe = document.createElement('iframe');
+  iframe.onload  = t.step_func_done(() => {
+    var iWindow = iframe.contentWindow;
+    assert_equals(iWindow.parent, window);
+    document.body.removeChild(iframe);
+    assert_equals(iWindow.parent, null);
+  });
+
+  document.body.appendChild(iframe);
+}, '`window.parent` is null when browsing context container element removed');
+
+async_test(t => {
+  var iframe = document.createElement('iframe');
+  var iframe2, removedEl;
+
+  var testFunc = t.step_func(() => {
+    var frameWindow = iframe.contentWindow;
+    var frame2Window = iframe2.contentWindow;
+
+    assert_equals(frameWindow.parent, window);
+    assert_equals(frame2Window.parent, frameWindow);
+
+    iframe.removeEventListener('load', nestFrame);
+    iframe2.removeEventListener('load', testFunc);
+    removedEl = document.body.removeChild(iframe);
+
+    assert_equals(frameWindow.parent, null);
+    assert_equals(frame2Window.parent, null);
+
+    removedEl.addEventListener('load', t.step_func_done(() => {
+      // reattached iframe's browsing context will report window.parent again
+      assert_equals(removedEl.contentWindow.parent, window);
+      // The following window s are no longer referenced by active browsing contexts
+      assert_equals(frameWindow.parent, null);
+      assert_equals(frame2Window.parent, null);
+      // Per #the-iframe-element, reattaching a removed iframe will result in the
+      // browser creating a new browsing context once again, with a fresh
+      // document in our case, so the second iframe or any other elements
+      // previously added to iframe.contentDocument will be gone
+      assert_equals(removedEl.contentDocument.querySelector('iframe'), null);
+      assert_equals(removedEl.contentDocument.querySelector('hr'), null);
+    }));
+    document.body.appendChild(removedEl);
+  });
+
+  var nestFrame = function () {
+    iframe.contentDocument.body.appendChild(document.createElement('hr'));
+    iframe2 = iframe.contentDocument.createElement('iframe');
+    // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1229707
+    iframe2.src = '../../../../common/blank.html';
+    iframe2.addEventListener('load', testFunc);
+    iframe.contentDocument.body.appendChild(iframe2);
+  };
+
+  iframe.addEventListener('load', nestFrame);
+  document.body.appendChild(iframe);
+}, '`window.parent` null when parent browsing context container removed');
+</script>

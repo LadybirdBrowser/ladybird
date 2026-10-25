@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>window.top: `null`</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+async_test(function (t) {
+  var iframe = document.createElement('iframe');
+  iframe.onload  = t.step_func_done(() => {
+    var iWindow = iframe.contentWindow;
+    /**
+     * `top` should return the top-level browsing context but will return
+     * `null` if none exists, such as when any of the BC's ancestor browsing
+     *  context container's document elements are disconnected/removed.
+     */
+    assert_equals(iWindow.top, window);
+    document.body.removeChild(iframe);
+    assert_equals(iWindow.top, null);
+  });
+
+  document.body.appendChild(iframe);
+}, '`window.top` is null when browsing context container element removed');
+
+async_test(t => {
+  var iframe = document.createElement('iframe');
+  var iframe2, removedEl;
+
+  var testFunc = t.step_func(() => {
+    var frameWindow = iframe.contentWindow;
+    var frame2Window = iframe2.contentWindow;
+
+    assert_equals(frameWindow.top, window);
+    assert_equals(frame2Window.top, window);
+
+    iframe.removeEventListener('load', nestFrame);
+    iframe2.removeEventListener('load', testFunc);
+
+    removedEl = document.body.removeChild(iframe);
+
+    assert_equals(frameWindow.top, null);
+    assert_equals(frame2Window.top, null);
+
+    removedEl.addEventListener('load', t.step_func_done(() => {
+      // reattached iframe's browsing context will report window.top
+      assert_equals(removedEl.contentWindow.top, window);
+      // removed/re-added iframes will have new browsing context / window
+      assert_equals(frameWindow.top, null);
+      assert_equals(frame2Window.top, null);
+    }));
+
+    document.body.appendChild(removedEl);
+  });
+
+  var nestFrame = function () {
+    iframe2 = iframe.contentDocument.createElement('iframe');
+    // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1229707
+    iframe2.src = '../../../../common/blank.html';
+    iframe2.addEventListener('load', testFunc);
+    iframe.contentDocument.body.appendChild(iframe2);
+  };
+
+  iframe.addEventListener('load', nestFrame);
+  document.body.appendChild(iframe);
+}, '`window.top`null when any ancestor browsing context container removed');
+</script>
