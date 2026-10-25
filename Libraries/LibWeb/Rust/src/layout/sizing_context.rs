@@ -3127,6 +3127,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             && let Some(shape) = child_run_shapes.child_run_shape_at(node, inline_size, constraints)
         {
             formatting_context::lay_out_shape_for_its_result(self.callbacks, shape, LayoutMode::Normal)
+        } else if kind == IntrinsicSizeCacheKind::MaxContentBlock
+            && self.block_size_is_measured_with_normal_layout(node)
+        {
+            let _trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
+            self.measure_block_size_with_normal_layout(node, inline_size, constraints)
         } else {
             let _trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
             let measurement = formatting_context::MeasurementState::create(self.callbacks);
@@ -3163,6 +3168,38 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             },
         );
         value
+    }
+
+    fn block_size_is_measured_with_normal_layout(&self, node: Node) -> bool {
+        let facts = self.facts(node);
+        !facts.document_in_quirks_mode()
+            && !facts.is_table_wrapper()
+            && formatting_context::independent_formatting_context_type(node, &self.callbacks)
+                == formatting_context::FormattingContextType::Block
+    }
+
+    fn measure_block_size_with_normal_layout(
+        &self,
+        node: Node,
+        inline_size: CssPixels,
+        constraints: ContainingBlockConstraints,
+    ) -> formatting_context::ChildLayoutResult {
+        let root = used_values::create_used_values(&self.callbacks, node, constraints);
+        root.has_definite_block_size.set(false);
+        root.set_content_inline_size(inline_size);
+        formatting_context::lay_out_measurement_root_for_its_result(
+            self.callbacks,
+            node,
+            used_values::RootInputCells::capture(&root),
+            LayoutInput::new(
+                AvailableSpace {
+                    inline_size: AvailableSize::definite(inline_size),
+                    block_size: AvailableSize::Indefinite,
+                },
+                constraints,
+                ParticipationInParentFormattingContext::Root,
+            ),
+        )
     }
 
     /// The min-content or max-content block size of a box that establishes an orthogonal flow: its block axis here is

@@ -1,0 +1,1 @@
+PASS: measuring the block again after its text changes reuses its flow-root child (work + checks)

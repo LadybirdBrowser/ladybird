@@ -1,0 +1,3 @@
+auto: 50
+maxContent: 50
+fitContent: 50
