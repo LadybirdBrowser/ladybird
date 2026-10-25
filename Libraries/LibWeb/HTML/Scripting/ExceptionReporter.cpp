@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::HTML {
@@ -144,6 +145,11 @@ void report_an_exception(JS::Object& global, JS::Value exception, OmitError omit
 
     // 7. If notHandled is true, then:
     if (not_handled) {
+        // https://w3c.github.io/webdriver-bidi/#event-log-entryAdded
+        // NB: WebDriver BiDi defines error reporting steps for an error that is not handled.
+        if (WebDriver::BiDi::is_active())
+            WebDriver::BiDi::error_reporting_steps(principal_realm_settings_object(realm), exception);
+
         // 1. Set errorInfo[error] to null.
         error_info.error = JS::js_null();
 

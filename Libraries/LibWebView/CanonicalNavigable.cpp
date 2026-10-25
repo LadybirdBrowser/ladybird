@@ -26,6 +26,7 @@
 #include <LibWebView/PictureInPictureManager.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebDriverBiDi.h>
 
 namespace WebView {
 
@@ -192,8 +193,11 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
     // 9. If navigable's active document's unload counter is greater than 0, then invoke WebDriver BiDi navigation failed
     //    with navigable and a WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url
     //    is url, and return.
-    if (active_document().unload_counter() > 0)
+    if (active_document().unload_counter() > 0) {
+        if (auto* webdriver_bidi = WebDriverBiDi::the())
+            webdriver_bidi->navigation_failed(*this, { .id = navigation_id, .status = WebDriverBiDi::NavigationStatusType::Canceled, .url = url });
         return;
+    }
 
     // NB: The page hosting navigable's active document, which has its container if any process does, runs steps 10,
     //     11, and 15.
@@ -243,14 +247,18 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
     // 16. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
     auto target_snapshot_params = snapshot_target_snapshot_params();
 
-    // FIXME: 17. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose
-    //            id is navigationId, status is "pending", and url is url.
+    // 17. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose id is
+    //     navigationId, status is "pending", and url is url.
+    if (auto* webdriver_bidi = WebDriverBiDi::the())
+        webdriver_bidi->navigation_started(*this, { .id = navigation_id, .status = WebDriverBiDi::NavigationStatusType::Pending, .url = url });
 
     // 18. If navigable's ongoing navigation is "traversal", then:
     // AD-HOC: A navigation from the browser's UI goes on, and takes the navigable over from the traversal.
     if (m_ongoing_navigation.has<Traversal>() && user_involvement != Web::HTML::UserNavigationInvolvement::BrowserUI) {
-        // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status
-        //           whose id is navigationId, status is "canceled", and url is url.
+        // 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id
+        //    is navigationId, status is "canceled", and url is url.
+        if (auto* webdriver_bidi = WebDriverBiDi::the())
+            webdriver_bidi->navigation_failed(*this, { .id = navigation_id, .status = WebDriverBiDi::NavigationStatusType::Canceled, .url = url });
 
         // 2. Return.
         return;
@@ -259,8 +267,11 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
     // NB: The process hosting navigable's active document evaluates a javascript: URL at step 20. A lost document is
     //     not there to evaluate it against, and the navigation does nothing.
     auto is_javascript_url = url.scheme() == "javascript"sv;
-    if (is_javascript_url && !host)
+    if (is_javascript_url && !host) {
+        if (auto* webdriver_bidi = WebDriverBiDi::the())
+            webdriver_bidi->navigation_failed(*this, { .id = navigation_id, .status = WebDriverBiDi::NavigationStatusType::Canceled, .url = url });
         return;
+    }
 
     // 19. Set the ongoing navigation for navigable to navigationId.
     // NB: It is set with the navigation's steps: evaluating a javascript: URL from step 20, or those step 23 runs.
@@ -293,6 +304,8 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
     auto worker = traversable.page_hosting(*this);
     if (!worker || !worker->is_open()) {
         clear_ongoing_navigation();
+        if (auto* webdriver_bidi = WebDriverBiDi::the())
+            webdriver_bidi->navigation_failed(*this, { .id = navigation_id, .status = WebDriverBiDi::NavigationStatusType::Canceled, .url = url });
         return;
     }
     auto start_request = Web::HTML::NavigationStartRequest {
@@ -1470,6 +1483,10 @@ void CanonicalNavigable::set_ongoing_navigation(CanonicalNavigation::Start navig
     ongoing_navigation->blob_url = move(blob_url);
     m_navigations.append(move(ongoing_navigation));
     set_the_ongoing_navigation(move(navigation_id));
+
+    // NB: An admitted navigation supersedes a pending BiDi reload. Late events from an older navigation do not.
+    if (auto* bidi = WebDriverBiDi::the())
+        bidi->navigation_superseded_reload(*this);
 }
 
 // Navigate, step 20, in the page hosting navigable's active document.

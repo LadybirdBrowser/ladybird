@@ -39,4 +39,10 @@ void BrowserConnection::command_complete(u64 command_id, Web::WebDriver::Respons
         on_command_complete(command_id, move(response));
 }
 
+void BrowserConnection::bidi_event(String name, JsonValue params, Vector<String> top_level_traversable_ids, Vector<String> user_context_ids)
+{
+    if (on_bidi_event)
+        on_bidi_event(move(name), move(params), move(top_level_traversable_ids), move(user_context_ids));
+}
+
 }

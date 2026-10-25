@@ -28,6 +28,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 
 namespace Web::HTML {
@@ -127,6 +128,12 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_for_new_web
     traversable->active_browsing_context()->set_browsing_context_group_id(new_web_view.browsing_context_group_id);
     new_web_view.page->set_top_level_traversable(traversable);
     traversable->set_window_handle(Utf16String::from_ascii_without_validation(new_web_view.window_handle.bytes()));
+
+    // AD-HOC: WebDriver BiDi creates the realm of the traversable's first document, and runs its preload scripts, once
+    //         the traversable is named by its window handle.
+    if (WebDriver::BiDi::is_active())
+        WebDriver::BiDi::document_is_ready_for_scripts(*traversable->active_document());
+
     return traversable;
 }
 

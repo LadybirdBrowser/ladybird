@@ -73,6 +73,7 @@
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebDriverBiDi.h>
 #include <LibWebView/WebDriverBrowserConnection.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
@@ -1159,6 +1160,10 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
     client->async_set_site_compatibility_data(m_site_compatibility_data);
     connect_to_image_decoder(*client, move(image_decoder));
 
+    // NB: A WebDriver BiDi session gives its state to every process hosting web content when it changes.
+    if (auto* webdriver_bidi = WebDriverBiDi::the(); webdriver_bidi && webdriver_bidi->session_state().is_active)
+        client->async_set_webdriver_bidi_session_state(webdriver_bidi->session_state());
+
     if (m_content_blocker_list_buffer.has_value())
         client->async_set_content_blockers(*m_content_blocker_list_buffer);
 
@@ -1340,6 +1345,9 @@ Optional<u64> Application::webdriver_page_load_timeout() const
 
 void Application::complete_webdriver_content_command(u64 command_id, Web::WebDriver::Response response)
 {
+    if (auto* webdriver_bidi = WebDriverBiDi::the(); webdriver_bidi && webdriver_bidi->did_complete_content_command(command_id, response))
+        return;
+
     if (m_webdriver_browser_connection)
         m_webdriver_browser_connection->async_command_complete(command_id, move(response));
 }

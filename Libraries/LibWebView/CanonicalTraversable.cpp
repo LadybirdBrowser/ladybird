@@ -7,6 +7,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <AK/StringBuilder.h>
+#include <AK/TemporaryChange.h>
 #include <LibCore/EventLoop.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
@@ -19,6 +20,7 @@
 #include <LibWebView/StorageJar.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebDriverBiDi.h>
 
 namespace WebView {
 
@@ -152,6 +154,13 @@ CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> r
     for_each_page_representing(navigable_ref, [&](WebContentPage& page) {
         page.async_insert_remote_navigable({ .id = navigable_ref.id(), .parent_id = parent.id(), .replicated_state = *navigable_ref.replicated_state() });
     });
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
+    // 13. Invoke WebDriver BiDi navigable created with traversable.
+    // NB: This means the navigable that was created.
+    if (auto* webdriver_bidi = WebDriverBiDi::the())
+        webdriver_bidi->navigable_created(navigable_ref);
+
     return navigable_ref;
 }
 
@@ -499,8 +508,26 @@ Optional<CanonicalNavigable const&> CanonicalTraversable::find(Web::HTML::CrossP
 void CanonicalTraversable::remove(CanonicalNavigable& navigable)
 {
     VERIFY(&navigable != this);
-    while (!navigable.children().is_empty())
-        remove(*navigable.children().last());
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-child-navigable
+    // 10. Invoke WebDriver BiDi navigable destroyed with navigable.
+    // NB: Only the navigable whose container went away is destroyed, while the documents of its descendants are. It is
+    //     reported before its descendants are removed, as it was. The navigables of a closing traversable go away with
+    //     it, which reports its own destruction.
+    if (auto* webdriver_bidi = WebDriverBiDi::the(); webdriver_bidi && !m_removing_navigable_descendants) {
+        auto const& traversable_state = hosted_state();
+        if (!traversable_state.has_value() || !traversable_state->is_closing)
+            webdriver_bidi->navigable_destroyed(navigable);
+        else
+            webdriver_bidi->top_level_traversable_is_closing(*this);
+    }
+
+    {
+        TemporaryChange removing_descendants { m_removing_navigable_descendants, true };
+        while (!navigable.children().is_empty())
+            remove(*navigable.children().last());
+    }
+
     end_history_jobs(navigable);
     navigable.clear_ongoing_navigation();
     navigable.discard_pending_host();
@@ -662,7 +689,7 @@ ByteString CanonicalTraversable::queued_same_document_session_history_entries_fo
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
 // NB: This is a reload from the browser's UI. One by script fires the navigate event in the process hosting the active
 //     document, which then asks for the reload history step.
-void CanonicalTraversable::reload(BypassCache bypass_cache)
+void CanonicalTraversable::reload(BypassCache bypass_cache, Optional<Utf16String> navigation_id)
 {
     auto user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI;
 
@@ -684,7 +711,10 @@ void CanonicalTraversable::reload(BypassCache bypass_cache)
         .navigable_id = id(),
         .user_involvement = user_involvement,
     };
-    enqueue_history_operation(Application::the().allocate_ui_process_cross_process_id(), parameters, {});
+    auto operation_id = Application::the().allocate_ui_process_cross_process_id();
+    if (navigation_id.has_value())
+        m_reload_navigation_ids.set(operation_id, { navigation_id.release_value() });
+    enqueue_history_operation(operation_id, parameters, {});
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#nav-stop
@@ -783,7 +813,10 @@ CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(W
     auto& traversable_ref = *traversable;
     user_agent_top_level_traversable_set().append(move(traversable));
 
-    // FIXME: 12. Invoke WebDriver BiDi navigable created with traversable and openerNavigableForWebDriver.
+    // 12. Invoke WebDriver BiDi navigable created with traversable and openerNavigableForWebDriver.
+    // NB: openerNavigableForWebDriver is the opener of a traversable that has one.
+    if (auto* webdriver_bidi = WebDriverBiDi::the())
+        webdriver_bidi->navigable_created(traversable_ref, opener);
 
     // 13. Return traversable.
     return traversable_ref;
@@ -1417,6 +1450,8 @@ bool CanonicalTraversable::run_changing_navigable_history_step_job(ApplyHistoryS
     }
 
     Optional<Utf16String> finalized_navigation_id;
+    if (auto const* reload = operation.parameters.get_pointer<Web::ReloadHistoryOperationParameters>(); reload && reload->navigable_id == navigable_id)
+        finalized_navigation_id = reload_navigation_id(operation.operation_id);
     if (auto const* parameters = operation.parameters.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>(); parameters && parameters->navigable_id == navigable_id) {
         finalized_navigation_id = parameters->navigation_id;
         if (auto const& populated_document = changing_navigable.target_entry->document_state->populated_document; populated_document.has_value())
@@ -1559,6 +1594,10 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
     Optional<Utf16String const&> navigation_id;
     if (auto navigation = finalized_navigation(operation))
         navigation_id = navigation->navigation_id;
+    else if (auto reload = m_reload_navigation_ids.find(operation.operation_id); reload != m_reload_navigation_ids.end() && navigable.is_top_level_traversable()) {
+        navigation_id = reload->value.id;
+        reload->value.activated = true;
+    }
     auto const* replaced_document = &navigable.active_document();
     // NB: The page that activated the document hosts it: the job's, which hosts the document the job populated, or else
     //     the navigable's.
@@ -2103,6 +2142,11 @@ void CanonicalTraversable::apply_the_reload_history_step(HistoryOperation& opera
     // 1. Let step be traversable's current session history step.
     auto step = m_session_history.current_step();
 
+    if (auto navigation_id = reload_navigation_id(operation.operation_id); navigation_id.has_value()) {
+        if (auto* bidi = WebDriverBiDi::the())
+            bidi->navigation_started(*this, { .id = navigation_id, .status = WebDriverBiDi::NavigationStatusType::Pending, .url = active_document_url() });
+    }
+
     // 2. Return the result of applying the history step step to traversable given true, null, null, userInvolvement, and "reload".
     apply_history_step(operation, step, true, {}, user_involvement, Web::Bindings::NavigationType::Reload);
 }
@@ -2517,7 +2561,15 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
     apply_the_push_or_replace_history_step(operation, *target_step, parameters.history_handling, parameters.user_involvement);
 }
 
-void CanonicalTraversable::did_not_apply_reload(Web::HTML::CrossProcessId navigable_id)
+Optional<Utf16String> CanonicalTraversable::reload_navigation_id(Web::HTML::CrossProcessId operation_id) const
+{
+    auto it = m_reload_navigation_ids.find(operation_id);
+    if (it == m_reload_navigation_ids.end())
+        return {};
+    return it->value.id;
+}
+
+void CanonicalTraversable::did_not_apply_reload(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> const& navigation_id)
 {
     // AD-HOC: The spec leaves reload pending set when the reload does not apply, so a later history step would reload
     //         the document anyway.
@@ -2530,6 +2582,8 @@ void CanonicalTraversable::did_not_apply_reload(Web::HTML::CrossProcessId naviga
 
     if (navigable_id != id())
         return;
+    if (auto* webdriver_bidi = WebDriverBiDi::the())
+        webdriver_bidi->reload_did_not_apply(*this, navigation_id);
     if (auto view = this->view(); view.has_value())
         view->did_not_apply_reload();
 }
@@ -2564,7 +2618,13 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
         if (operation->requesting_page)
             operation->requesting_page->async_history_step_applied(operation_id, *result);
         if (auto const* reload = operation->parameters.get_pointer<Web::ReloadHistoryOperationParameters>(); reload && result != Web::HTML::HistoryStepResult::Applied)
-            did_not_apply_reload(reload->navigable_id);
+            did_not_apply_reload(reload->navigable_id, reload_navigation_id(operation_id));
+    }
+
+    // NB: A skipped or stale reload job can finish with "applied" without activating a document.
+    if (auto reload = m_reload_navigation_ids.take(operation_id); reload.has_value() && !reload->activated) {
+        if (auto* bidi = WebDriverBiDi::the())
+            bidi->reload_did_not_apply(*this, reload->id);
     }
 
     auto committed_step = operation->algorithm ? operation->algorithm->committed_step() : Optional<i32> {};

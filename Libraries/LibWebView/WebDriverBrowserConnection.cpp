@@ -31,6 +31,7 @@ ErrorOr<NonnullRefPtr<WebDriverBrowserConnection>> WebDriverBrowserConnection::c
 
 WebDriverBrowserConnection::WebDriverBrowserConnection(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<WebDriverBrowserClientEndpoint, WebDriverBrowserServerEndpoint>(*this, move(transport))
+    , m_webdriver_bidi(make<WebDriverBiDi>(*this))
 {
 }
 
@@ -307,6 +308,26 @@ void WebDriverBrowserConnection::get_session_history(u64 command_id, String wind
     JsonObject result;
     result.set("ui"sv, view->webdriver_session_history());
     async_command_complete(command_id, JsonValue { move(result) });
+}
+
+void WebDriverBrowserConnection::bidi_command(u64 command_id, String method, JsonValue params)
+{
+    m_webdriver_bidi->run_command(command_id, method, move(params));
+}
+
+void WebDriverBrowserConnection::bidi_get_top_level_traversables(u64 command_id, Vector<String> navigable_ids)
+{
+    m_webdriver_bidi->get_top_level_traversables(command_id, navigable_ids);
+}
+
+void WebDriverBrowserConnection::bidi_run_subscribe_steps(u64 command_id, String event_name, Vector<String> top_level_traversable_ids)
+{
+    m_webdriver_bidi->run_subscribe_steps(command_id, event_name, top_level_traversable_ids);
+}
+
+void WebDriverBrowserConnection::set_bidi_enabled_events(Vector<String> event_names)
+{
+    m_webdriver_bidi->set_enabled_events(event_names);
 }
 
 }

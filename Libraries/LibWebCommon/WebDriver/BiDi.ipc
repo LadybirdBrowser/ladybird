@@ -1,0 +1,23 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+// NB: The IPC compiler cannot check that each struct here lists every field of its C++ type. A field left out
+//     here does not cross IPC.
+
+#include <LibWebCommon/WebDriver/BiDi.h>
+
+[ExistingCpp]
+struct Web::WebDriver::BiDiPreloadScript {
+    String id;
+    String function_declaration;
+    JsonValue arguments;
+    Optional<Vector<String>> contexts;
+    Optional<String> sandbox;
+    Vector<String> user_contexts;
+}
+
+[ExistingCpp]
+struct Web::WebDriver::BiDiSessionState {
+    bool is_active;
+    Vector<String> enabled_events;
+    Vector<Web::WebDriver::BiDiPreloadScript> preload_scripts;
+}

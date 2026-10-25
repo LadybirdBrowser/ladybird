@@ -20,4 +20,10 @@ endpoint WebDriverBrowserClient {
     set_page_load_strategy(Web::WebDriver::PageLoadStrategy page_load_strategy) =|
     set_strict_file_interactability(bool strict_file_interactability) =|
     set_timeouts_configuration(JsonValue timeouts) =|
+
+    // https://w3c.github.io/webdriver-bidi/
+    bidi_command(u64 command_id, String method, JsonValue params) =|
+    bidi_get_top_level_traversables(u64 command_id, Vector<String> navigable_ids) =|
+    bidi_run_subscribe_steps(u64 command_id, String event_name, Vector<String> top_level_traversable_ids) =|
+    set_bidi_enabled_events(Vector<String> event_names) =|
 }

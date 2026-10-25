@@ -1,4 +1,5 @@
 set(SOURCES
+    BiDiSession.cpp
     BrowserConnection.cpp
     Client.cpp
     Session.cpp

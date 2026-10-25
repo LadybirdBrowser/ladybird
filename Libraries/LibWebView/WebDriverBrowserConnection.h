@@ -9,6 +9,7 @@
 #include <AK/Error.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/Transport.h>
+#include <LibWebView/WebDriverBiDi.h>
 #include <WebDriver/WebDriverBrowserClientEndpoint.h>
 #include <WebDriver/WebDriverBrowserServerEndpoint.h>
 
@@ -40,6 +41,13 @@ private:
     virtual void set_page_load_strategy(Web::WebDriver::PageLoadStrategy page_load_strategy) override;
     virtual void set_strict_file_interactability(bool strict_file_interactability) override;
     virtual void set_timeouts_configuration(JsonValue timeouts) override;
+
+    virtual void bidi_command(u64 command_id, String method, JsonValue params) override;
+    virtual void bidi_get_top_level_traversables(u64 command_id, Vector<String> navigable_ids) override;
+    virtual void bidi_run_subscribe_steps(u64 command_id, String event_name, Vector<String> top_level_traversable_ids) override;
+    virtual void set_bidi_enabled_events(Vector<String> event_names) override;
+
+    NonnullOwnPtr<WebDriverBiDi> m_webdriver_bidi;
 };
 
 }

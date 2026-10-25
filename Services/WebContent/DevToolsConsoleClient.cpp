@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <WebContent/ConsoleGlobalEnvironmentExtensions.h>
 #include <WebContent/DevToolsConsoleClient.h>
 #include <WebContent/PageClient.h>
@@ -144,6 +145,10 @@ void DevToolsConsoleClient::send_console_output(WebView::ConsoleOutput console_o
 // 2.3. Printer(logLevel, args[, options]), https://console.spec.whatwg.org/#printer
 JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::LogLevel log_level, PrinterArguments arguments)
 {
+    // https://w3c.github.io/webdriver-bidi/#event-log-entryAdded
+    if (Web::WebDriver::BiDi::is_active())
+        Web::WebDriver::BiDi::console_steps(Web::HTML::principal_realm_settings_object(m_console->realm()), log_level, arguments);
+
     if (log_level == JS::Console::LogLevel::Trace) {
         auto const& trace = arguments.get<JS::Console::Trace>();
 

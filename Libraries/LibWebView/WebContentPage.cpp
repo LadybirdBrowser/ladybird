@@ -38,6 +38,7 @@
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
 #include <LibWebView/WebContentTestClient.h>
+#include <LibWebView/WebDriverBiDi.h>
 #include <LibWebView/WebUI.h>
 #include <LibWebView/WorkerProcessManager.h>
 
@@ -1344,6 +1345,18 @@ void WebContentPage::webdriver_did_set_current_browsing_context(u64 command_id, 
 void WebContentPage::webdriver_command_complete(u64 command_id, Web::WebDriver::Response response)
 {
     view().did_complete_webdriver_content_command(*this, command_id, move(response));
+}
+
+void WebContentPage::webdriver_bidi_event(Web::HTML::CrossProcessId navigable_id, String name, JsonValue params)
+{
+    if (auto* webdriver_bidi = WebDriverBiDi::the())
+        webdriver_bidi->did_receive_event(*this, navigable_id, name, move(params));
+}
+
+void WebContentPage::webdriver_bidi_navigation_event(Web::HTML::CrossProcessId navigable_id, String name, Optional<Utf16String> navigation_id, URL::URL url)
+{
+    if (auto* webdriver_bidi = WebDriverBiDi::the())
+        webdriver_bidi->did_receive_navigation_event(*this, navigable_id, name, move(navigation_id), move(url));
 }
 
 void WebContentPage::did_update_resource_count(i32 count_waiting)

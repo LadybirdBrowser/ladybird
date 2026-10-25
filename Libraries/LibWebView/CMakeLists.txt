@@ -76,6 +76,7 @@ set(SOURCES
     WebContentClient.cpp
     WebContentPage.cpp
     WebContentTestClient.cpp
+    WebDriverBiDi.cpp
     WebDriverBrowserConnection.cpp
     WebUI.cpp
     WebUI/BookmarksUI.cpp

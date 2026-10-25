@@ -162,6 +162,7 @@ public:
     void load_navigation_error_page(StringView);
 
     void reload(BypassCache = BypassCache::No);
+    void reload_for_webdriver_bidi(BypassCache, Utf16String navigation_id);
     void stop_loading();
     bool is_loading() const { return m_is_loading; }
     // Whether the most recent load ran to completion, rather than being stopped or canceled.
@@ -432,6 +433,8 @@ public:
     JsonValue webdriver_session_history() const;
     void wait_for_webdriver_navigation_completion(Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)>);
     void run_webdriver_content_command(u64 command_id, Web::WebDriver::SessionBrowsingContext, String const& name, JsonValue payload, Vector<String> arguments);
+    // https://w3c.github.io/webdriver-bidi/#commands
+    void run_webdriver_bidi_content_command(u64 command_id, Web::HTML::CrossProcessId navigable_id, String const& method, JsonValue params);
     void run_webdriver_commands_waiting_for_a_document(Badge<CanonicalTraversable>);
     void did_complete_webdriver_content_command(WebContentPage&, u64 command_id, Web::WebDriver::Response);
     void did_set_webdriver_current_browsing_context(Badge<WebContentPage>, u64 command_id, Web::HTML::CrossProcessId navigable_id);
@@ -972,10 +975,15 @@ protected:
         Function<void(bool)> on_complete;
     };
     HashMap<u64, PendingClosePreflightRequest> m_pending_close_preflight_requests;
+    enum class WebDriverProtocol : u8 {
+        Classic,
+        BiDi,
+    };
     struct PendingWebDriverCommand {
         NonnullRefPtr<WebContentPage> page;
         String name;
         Optional<Web::HTML::CrossProcessId> navigable_id;
+        WebDriverProtocol protocol { WebDriverProtocol::Classic };
     };
     HashMap<u64, PendingWebDriverCommand> m_pending_webdriver_commands;
     HashMap<u64, PendingWebDriverCommand> m_pending_webdriver_crash_commands;
@@ -984,9 +992,10 @@ protected:
         String name;
         JsonValue payload;
         Vector<String> arguments;
+        WebDriverProtocol protocol { WebDriverProtocol::Classic };
     };
     HashMap<u64, WebDriverCommandWaitingForADocument> m_webdriver_commands_waiting_for_a_document;
-    void run_webdriver_content_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments);
+    void run_webdriver_content_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments, WebDriverProtocol = WebDriverProtocol::Classic);
     static bool webdriver_content_command_outlives_its_page(StringView name);
     bool complete_webdriver_content_command_after_navigation(u64 command_id, PendingWebDriverCommand const&);
     void complete_webdriver_content_commands_after_process_replacement(HashMap<u64, PendingWebDriverCommand> const&);

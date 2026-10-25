@@ -163,7 +163,7 @@ public:
     Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> queued_same_document_session_history_entries(CanonicalNavigable const&) const;
     ByteString queued_same_document_session_history_entries_for_debug() const;
 
-    void reload(BypassCache);
+    void reload(BypassCache, Optional<Utf16String> navigation_id = {});
     void stop_loading();
     static CanonicalTraversable& create_a_new_top_level_traversable(Web::HTML::CrossProcessId id, Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::CrossProcessId document_id);
     static bool is_origin_held_by_a_document(URL::Origin const&);
@@ -228,7 +228,8 @@ private:
     void resume_applying_the_traverse_history_step(HistoryOperation&, i32 step, Web::HTML::UserNavigationInvolvement);
     void update_for_navigable_creation_or_destruction(HistoryOperation&);
     void finish_history_operation(Web::HTML::CrossProcessId operation_id, Optional<Web::HTML::HistoryStepResult> = {});
-    void did_not_apply_reload(Web::HTML::CrossProcessId navigable_id);
+    void did_not_apply_reload(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> const& navigation_id);
+    Optional<Utf16String> reload_navigation_id(Web::HTML::CrossProcessId operation_id) const;
     HistoryOperation* ongoing_browser_history_traversal();
 
     void run_browser_ui_traversal_at_queue_position(Function<Optional<i32>()> select_target_step, CheckForCancelation, Function<void()> on_ready, NonnullRefPtr<Core::Promise<Empty>>);
@@ -250,6 +251,12 @@ private:
     TraversableApplyHistoryStepState m_apply_history_step_traversable_state;
     u64 m_next_sequence_number { 1 };
     HashMap<Web::HTML::CrossProcessId, NonnullOwnPtr<HistoryOperation>> m_history_operations;
+    // NB: Navigation IDs for BiDi reloads belong to their queued history operations.
+    struct ReloadNavigation {
+        Utf16String id;
+        bool activated { false };
+    };
+    HashMap<Web::HTML::CrossProcessId, ReloadNavigation> m_reload_navigation_ids;
     // The traversal from the browser's UI among the operations, if any.
     HistoryOperation* m_browser_history_traversal { nullptr };
     RefPtr<WebContentPage> m_page_standing_in_for_lost_document;
@@ -286,6 +293,9 @@ private:
     bool m_has_system_focus { true };
 
     Optional<Web::HTML::CrossProcessId> m_focused_navigable_id;
+
+    // NB: Whether the navigables being removed are the descendants of a removed navigable.
+    bool m_removing_navigable_descendants { false };
 };
 
 }

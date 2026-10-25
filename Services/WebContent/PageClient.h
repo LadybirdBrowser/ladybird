@@ -63,6 +63,8 @@ public:
     void webdriver_did_set_current_browsing_context(u64 command_id, Web::HTML::CrossProcessId navigable_id);
     void did_handle_webdriver_mouse_event(u64 request_id);
     void webdriver_command_complete(u64 command_id, Web::WebDriver::Response);
+    void webdriver_bidi_event(Web::HTML::CrossProcessId navigable_id, String const& name, JsonValue params);
+    void webdriver_bidi_navigation_event(Web::HTML::CrossProcessId navigable_id, StringView name, Optional<Utf16String> const& navigation_id, URL::URL const&);
     void set_webdriver_session_config(Web::WebDriver::UserPromptHandler, Web::WebDriver::PageLoadStrategy, bool strict_file_interactability, JsonValue const& timeouts);
     ErrorOr<void> connect_to_web_ui(IPC::TransportHandle);
 

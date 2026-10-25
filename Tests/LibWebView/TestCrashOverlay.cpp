@@ -8,6 +8,7 @@
 #include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
+#include <LibCore/ArgsParser.h>
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
@@ -16,6 +17,7 @@
 #include <LibMain/Main.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/Utilities.h>
 #include <stdlib.h>
@@ -38,7 +40,16 @@ public:
         web_content_options.is_test_mode = WebView::IsTestMode::Yes;
     }
 
+    virtual void create_platform_arguments(Core::ArgsParser& parser) override
+    {
+        parser.add_option(m_bidi_reload_only, "Run only the BiDi reload crash recovery case", "bidi-reload-only");
+    }
+
+    bool bidi_reload_only() const { return m_bidi_reload_only; }
     virtual bool should_coordinate_browser_process() const override { return false; }
+
+private:
+    bool m_bidi_reload_only { false };
 };
 
 }
@@ -49,6 +60,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     TRY(Core::Directory::create(test_directory, Core::Directory::CreateDirectories::Yes));
     ScopeGuard cleanup = [&] { MUST(FileSystem::remove(test_directory, FileSystem::RecursionMode::Allowed)); };
     VERIFY(setenv("XDG_CONFIG_HOME", test_directory.characters(), 1) == 0);
+    VERIFY(setenv("XDG_DATA_HOME", test_directory.characters(), 1) == 0);
 #if defined(LADYBIRD_BINARY_PATH)
     auto app = TRY(TestApplication::create(arguments, LADYBIRD_BINARY_PATH));
 #else
@@ -90,6 +102,42 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         VERIFY(view->crash_overlay_failed_url() == failed_url.serialize());
     };
 
+    auto const& session_history = view->traversable().session_history();
+    auto crash_and_load = [&](auto load) {
+        Core::EventLoop::current().spin_until([&] { return !view->crash_overlay_active(); });
+        view->debug_request("crash-current-page"sv);
+        Core::EventLoop::current().spin_until([&] { return view->crash_overlay_active(); });
+        auto loads_before = loads_finished;
+        load();
+        Core::EventLoop::current().spin_until([&] { return loads_finished > loads_before; });
+    };
+
+    auto check_bidi_reload = [&] {
+        // A BiDi reload recovers the active document with its command's navigation ID, and dismisses the crash screen
+        // once the replacement document paints.
+        auto document_before_crash = view->traversable().active_document().id();
+        // NB: The callback is cleared below before its captured state leaves scope.
+        IGNORE_USE_IN_ESCAPING_LAMBDA bool recovered_document_painted = false;
+        view->on_ready_to_paint = [view = view->make_weak_ptr(), document_before_crash, &recovered_document_painted] {
+            if (view && view->traversable().active_document().id() != document_before_crash)
+                recovered_document_painted = true;
+        };
+        auto navigation_id = Utf16String::from_utf8(generate_random_uuid());
+        crash_and_load([view = view.ptr(), navigation_id] { view->reload_for_webdriver_bidi(WebView::BypassCache::No, navigation_id); });
+        Core::EventLoop::current().spin_until([&] { return recovered_document_painted; });
+        VERIFY(!view->crash_overlay_active());
+        view->on_ready_to_paint = nullptr;
+    };
+
+    if (app->bidi_reload_only()) {
+        check_bidi_reload();
+        VERIFY(view->url() == failed_url);
+        VERIFY(evaluate("document.body.textContent === 'original-page-content'"sv).as_bool());
+        VERIFY(session_history.used_step_count() == 2);
+        outln("PASS: BiDi reload recovers the crash overlay");
+        return 0;
+    }
+
     crash_and_wait_for_screen();
     view->reload();
     Core::EventLoop::current().spin_until([&] { return loads_finished >= 4; });
@@ -112,15 +160,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     // A load from the browser's UI navigates the tab whose document was lost as it would the document: to its URL, it
     // replaces its entry, to another it pushes one, and to a fragment of its URL it loads the URL again.
-    auto const& session_history = view->traversable().session_history();
-    auto crash_and_load = [&](auto load) {
-        Core::EventLoop::current().spin_until([&] { return !view->crash_overlay_active(); });
-        view->debug_request("crash-current-page"sv);
-        Core::EventLoop::current().spin_until([&] { return view->crash_overlay_active(); });
-        auto loads_before = loads_finished;
-        load();
-        Core::EventLoop::current().spin_until([&] { return loads_finished > loads_before; });
-    };
     crash_and_load([&] { view->load(failed_url); });
     VERIFY(session_history.current_step() == history_step);
     VERIFY(session_history.used_step_count() == 2);
@@ -140,6 +179,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     crash_and_load([&] { view->load_html("<title>HTML</title>loaded-html"sv); });
     VERIFY(session_history.used_step_count() == 5);
     VERIFY(evaluate("document.body.textContent === 'loaded-html'"sv).as_bool());
+
+    check_bidi_reload();
+    VERIFY(evaluate("document.body.textContent === 'loaded-html'"sv).as_bool());
+    VERIFY(session_history.used_step_count() == 5);
     outln("PASS: native crash overlay state, reload and history");
     return 0;
 }

@@ -41,6 +41,7 @@
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebDriverBiDi.h>
 #include <math.h>
 
 namespace WebView {
@@ -51,10 +52,16 @@ static HashMap<u64, ViewImplementation*>& all_views()
     return *views;
 }
 
+// NB: WebDriver BiDi names the navigable that is gone a browsing context, whose error code is no such frame.
+static Web::WebDriver::ErrorCode error_code_for_a_navigable_that_is_gone(auto protocol)
+{
+    return protocol == decltype(protocol)::BiDi ? Web::WebDriver::ErrorCode::NoSuchFrame : Web::WebDriver::ErrorCode::NoSuchWindow;
+}
+
 static void fail_webdriver_content_commands_after_window_close(auto const& commands)
 {
     for (auto const& command : commands)
-        Application::the().complete_webdriver_content_command(command.key, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window closed while executing the command"sv));
+        Application::the().complete_webdriver_content_command(command.key, Web::WebDriver::Error::from_code(error_code_for_a_navigable_that_is_gone(command.value.protocol), "Window closed while executing the command"sv));
 }
 
 static u64 s_view_count = 1; // This has to start at 1 for Firefox DevTools.
@@ -105,6 +112,12 @@ ViewImplementation::~ViewImplementation()
 
     reset_spell_checking();
     all_views().remove(m_view_id);
+
+    // NB: WebDriver BiDi may activate another top-level traversable, which must not be this one that is going away.
+    if (!m_window_handle.is_empty() && !m_owner_view_id.has_value()) {
+        if (auto* webdriver_bidi = WebDriverBiDi::the())
+            webdriver_bidi->top_level_traversable_did_close(m_window_handle);
+    }
 
     if (m_top_level_traversable) {
         m_top_level_traversable->discard_pending_host();
@@ -512,6 +525,21 @@ void ViewImplementation::reload(BypassCache bypass_cache)
     }
 
     traversable().reload(bypass_cache);
+    update_navigation_action_state();
+    dump_session_history("reload-mark-current-entry-reload-pending"sv);
+}
+
+void ViewImplementation::reload_for_webdriver_bidi(BypassCache bypass_cache, Utf16String navigation_id)
+{
+    m_history_visit_transition_for_next_load = HistoryVisitTransition::Reload;
+    if (on_before_browser_initiated_navigation)
+        on_before_browser_initiated_navigation();
+
+    // NB: BiDi reloads the active document, rather than retrying a stopped or failed navigation.
+    m_last_stopped_navigation.clear();
+    prepare_for_navigation_after_crash();
+    set_loading_state(true);
+    traversable().reload(bypass_cache, move(navigation_id));
     update_navigation_action_state();
     dump_session_history("reload-mark-current-entry-reload-pending"sv);
 }
@@ -2760,8 +2788,14 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
 
     if (m_window_handle.is_empty()) {
         m_window_handle = generate_random_uuid();
-        if (!m_owner_view_id.has_value())
+        if (!m_owner_view_id.has_value()) {
             Application::the().notify_webdriver_window_created(m_window_handle);
+
+            // NB: WebDriver BiDi names a top-level traversable by its window handle, so the traversable is reported as
+            //     created once it has one.
+            if (auto* webdriver_bidi = WebDriverBiDi::the())
+                webdriver_bidi->top_level_traversable_did_get_window_handle(*traversable);
+        }
     }
     prepare_page_for_tab(page());
     display_page_changed({});
@@ -2973,7 +3007,12 @@ void ViewImplementation::run_webdriver_content_command(u64 command_id, Web::WebD
     run_webdriver_content_command(command_id, navigable_id, name, move(payload), move(arguments));
 }
 
-void ViewImplementation::run_webdriver_content_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments)
+void ViewImplementation::run_webdriver_bidi_content_command(u64 command_id, Web::HTML::CrossProcessId navigable_id, String const& method, JsonValue params)
+{
+    run_webdriver_content_command(command_id, navigable_id, method, move(params), {}, WebDriverProtocol::BiDi);
+}
+
+void ViewImplementation::run_webdriver_content_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments, WebDriverProtocol protocol)
 {
     if (m_crash_state.has_value() && !m_crash_state->recovery_started) {
         Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent has crashed"sv));
@@ -2988,7 +3027,7 @@ void ViewImplementation::run_webdriver_content_command(u64 command_id, Optional<
         // A browsing context is said to be no longer open if its navigable has been destroyed.
         navigable = traversable().find(*navigable_id);
         if (!navigable.has_value()) {
-            Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+            Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(error_code_for_a_navigable_that_is_gone(protocol), "Window not found"sv));
             return;
         }
         target = traversable().page_hosting(*navigable);
@@ -2997,12 +3036,18 @@ void ViewImplementation::run_webdriver_content_command(u64 command_id, Optional<
     // No page holds the navigable's document between the displayed document's unload and the activation of the
     // document another page populated to replace it, so the command waits for that document.
     if (traversable().is_handing_navigable_to_another_page(*navigable)) {
-        m_webdriver_commands_waiting_for_a_document.set(command_id, { navigable_id, name, move(payload), move(arguments) });
+        m_webdriver_commands_waiting_for_a_document.set(command_id, { navigable_id, name, move(payload), move(arguments), protocol });
         return;
     }
 
     if (!target || !target->is_open()) {
-        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(error_code_for_a_navigable_that_is_gone(protocol), "Window not found"sv));
+        return;
+    }
+
+    if (protocol == WebDriverProtocol::BiDi) {
+        m_pending_webdriver_commands.set(command_id, { *target, name, navigable_id, protocol });
+        target->async_run_webdriver_bidi_command(command_id, *navigable_id, name, move(payload));
         return;
     }
 
@@ -3017,7 +3062,7 @@ void ViewImplementation::run_webdriver_commands_waiting_for_a_document(Badge<Can
 {
     auto commands = move(m_webdriver_commands_waiting_for_a_document);
     for (auto& [command_id, command] : commands)
-        run_webdriver_content_command(command_id, command.navigable_id, command.name, move(command.payload), move(command.arguments));
+        run_webdriver_content_command(command_id, command.navigable_id, command.name, move(command.payload), move(command.arguments), command.protocol);
 }
 
 void ViewImplementation::prepare_page_for_navigable(WebContentPage& page)
@@ -3162,7 +3207,7 @@ void ViewImplementation::did_lose_page(Badge<CanonicalTraversable>, WebContentPa
             return false;
         if (process_lost == WebContentProcessLost::No && complete_webdriver_content_command_after_navigation(command_id, command))
             return true;
-        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Browsing context was discarded while executing the command"sv));
+        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(error_code_for_a_navigable_that_is_gone(command.protocol), "Browsing context was discarded while executing the command"sv));
         return true;
     });
 }
@@ -3310,6 +3355,12 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
 {
     reject_pending_selection_requests();
 
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-top-level-traversable
+    // 6. Invoke WebDriver BiDi navigable destroyed with traversable.
+    auto* webdriver_bidi = WebDriverBiDi::the();
+    if (webdriver_bidi && !m_window_handle.is_empty() && !m_owner_view_id.has_value())
+        webdriver_bidi->navigable_destroyed(traversable());
+
     auto window_handle = move(m_window_handle);
 
     // Headless views retain their closed children. Remove the view from routing immediately so a command racing
@@ -3318,8 +3369,11 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
     traversable().discard_pending_host();
     traversable().discard_representing_pages();
 
-    if (!window_handle.is_empty() && !m_owner_view_id.has_value())
+    if (!window_handle.is_empty() && !m_owner_view_id.has_value()) {
         Application::the().notify_webdriver_window_closed(window_handle);
+        if (webdriver_bidi)
+            webdriver_bidi->top_level_traversable_did_close(window_handle);
+    }
 
     auto pending_user_prompt_requests = move(m_pending_webdriver_user_prompt_requests);
     for (auto& request : pending_user_prompt_requests)
@@ -3711,6 +3765,8 @@ void ViewImplementation::handle_web_content_process_crash()
     auto pending_crash_commands = move(m_pending_webdriver_crash_commands);
     for (auto const& command : pending_commands)
         Application::the().complete_webdriver_content_command(command.key, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent crashed while executing the command"sv));
+    if (auto* webdriver_bidi = WebDriverBiDi::the())
+        webdriver_bidi->top_level_traversable_did_crash(traversable());
 
     auto crashed_during_recovery = m_webdriver_navigation_observation.has_value()
         && m_webdriver_navigation_observation->completion_source == WebDriverNavigationCompletionSource::CrashRecovery;

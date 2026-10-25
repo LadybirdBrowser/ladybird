@@ -361,6 +361,31 @@ bool Object::is_date() const
     return is_of_engine_class_or_subclass(JS_LAYOUT_CLASS_ID_DATE);
 }
 
+bool Object::is_weak_map() const
+{
+    return engine_class_id() == JS_LAYOUT_CLASS_ID_WEAK_MAP;
+}
+
+bool Object::is_weak_set() const
+{
+    return engine_class_id() == JS_LAYOUT_CLASS_ID_WEAK_SET;
+}
+
+bool Object::is_generator() const
+{
+    return engine_class_id() == JS_LAYOUT_CLASS_ID_GENERATOR_OBJECT || engine_class_id() == JS_LAYOUT_CLASS_ID_ASYNC_GENERATOR;
+}
+
+bool Object::is_proxy() const
+{
+    return engine_class_id() == JS_LAYOUT_CLASS_ID_PROXY_OBJECT;
+}
+
+bool Object::is_array_buffer() const
+{
+    return is_of_engine_class_or_subclass(JS_LAYOUT_CLASS_ID_ARRAY_BUFFER);
+}
+
 ErrorData* Object::error_data()
 {
     return reinterpret_cast<ErrorData*>(const_cast<JSErrorData*>(js_error_data_of(object_to_abi(*this))));
