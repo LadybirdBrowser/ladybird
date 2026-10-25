@@ -114,6 +114,7 @@
 #include <LibWeb/DOM/ElementByIdMap.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/FragmentDirective.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/InputEventsTarget.h>
@@ -6818,13 +6819,10 @@ void Document::unload(GC::Ptr<Document> new_document)
     // 12. If oldDocument's salvageable state is false, then fire an event named unload at oldDocument's relevant global
     //     object, with legacy target override flag set.
     if (!m_salvageable) {
-        // then fire an event named unload at document's relevant global object, with legacy target override flag set.
-        // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()
-        //        We should reorganize this so that the flag appears explicitly here instead.
         auto event = DOM::Event::create(
             HTML::EventNames::unload,
             HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
-        HTML::relevant_window(*this).dispatch_event(event);
+        EventDispatcher::dispatch(HTML::relevant_window(*this), event, true);
     }
 
     // 13. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event end time to the current high

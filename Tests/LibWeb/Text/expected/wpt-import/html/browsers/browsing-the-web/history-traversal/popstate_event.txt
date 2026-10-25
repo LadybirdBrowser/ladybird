@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Queue a task to fire popstate event
+1 Pass
+Pass	Queue a task to fire popstate event
