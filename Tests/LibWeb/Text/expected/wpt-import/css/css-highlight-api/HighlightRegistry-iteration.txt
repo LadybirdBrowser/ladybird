@@ -1,3 +1,20 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 15 tests
+
+15 Pass
+Pass	HighlightRegistry can be iterated when it's empty initializing the iterator with CSS.highlights.keys()
+Pass	HighlightRegistry can be iterated over all of its highlight names after adding one of them initializing the iterator with CSS.highlights.keys()
+Pass	HighlightRegistry can be iterated over all of its highlight names after adding two of them initializing the iterator with CSS.highlights.keys()
+Pass	HighlightRegistry can be iterated when it's empty initializing the iterator with CSS.highlights.values()
+Pass	HighlightRegistry can be iterated over all of its Highlights after adding one of them initializing the iterator with CSS.highlights.values()
+Pass	HighlightRegistry can be iterated over all of its Highlights after adding two of them initializing the iterator with CSS.highlights.values()
+Pass	HighlightRegistry can be iterated when it's empty initializing the iterator with CSS.highlights[Symbol.iterator]()
+Pass	HighlightRegistry can be iterated over all of its Highlights after adding one of them initializing the iterator with CSS.highlights[Symbol.iterator]()
+Pass	HighlightRegistry can be iterated over all of its Highlights after adding two of them initializing the iterator with CSS.highlights[Symbol.iterator]()
+Pass	HighlightRegistry can be iterated when it's empty initializing the iterator with CSS.highlights.entries()
+Pass	HighlightRegistry can be iterated over all of its Highlights after adding one of them initializing the iterator with CSS.highlights.entries()
+Pass	HighlightRegistry can be iterated over all of its Highlights after adding two of them initializing the iterator with CSS.highlights.entries()
+Pass	HighlightRegistry can be iterated through when it's empty using forEach.
+Pass	HighlightRegistry can be iterated through when it has one Highlight using forEach.
+Pass	HighlightRegistry can be iterated through when it has two Highlights using forEach.

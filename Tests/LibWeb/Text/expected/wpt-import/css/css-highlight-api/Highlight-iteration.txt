@@ -2,29 +2,29 @@ Harness status: OK
 
 Found 25 tests
 
-25 Fail
-Fail	Highlight can be iterated when it's empty initializing the iterator with customHighlight[Symbol.iterator]()
-Fail	Highlight can be iterated when it's empty initializing the iterator with customHighlight.values()
-Fail	Highlight can be iterated when it's empty initializing the iterator with customHighlight.keys()
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight[Symbol.iterator]() and adding a range by passing it to the constructor
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight[Symbol.iterator]() and adding two ranges by passing them to the constructor
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.values() and adding a range by passing it to the constructor
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.values() and adding two ranges by passing them to the constructor
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.keys() and adding a range by passing it to the constructor
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.keys() and adding two ranges by passing them to the constructor
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight[Symbol.iterator]() and adding a range by passing it to the add function
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight[Symbol.iterator]() and adding two ranges by passing them to the add function
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.values() and adding a range by passing it to the add function
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.values() and adding two ranges by passing them to the add function
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.keys() and adding a range by passing it to the add function
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.keys() and adding two ranges by passing them to the add function
-Fail	Highlight can be iterated when it's empty initializing the iterator with .entries()
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with .entries() and adding a range by passing it to the constructor
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with .entries() and adding two ranges by passing them to the constructor
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with .entries() and adding a range by passing it to the add function
-Fail	Highlight can be iterated over all of its ranges initializing the iterator with .entries() and adding two ranges by passing them to the add function
-Fail	Highlight can be iterated through when it's empty using forEach.
-Fail	Highlight can be iterated through using forEach when it has one range that was added by passing it to the constructor
-Fail	Highlight can be iterated through using forEach when it has two ranges that were added by passing them to the constructor
-Fail	Highlight can be iterated through using forEach when it has one range that was added by passing it to the add function
-Fail	Highlight can be iterated through using forEach when it has two ranges that were added by passing them to the add function
+25 Pass
+Pass	Highlight can be iterated when it's empty initializing the iterator with customHighlight[Symbol.iterator]()
+Pass	Highlight can be iterated when it's empty initializing the iterator with customHighlight.values()
+Pass	Highlight can be iterated when it's empty initializing the iterator with customHighlight.keys()
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight[Symbol.iterator]() and adding a range by passing it to the constructor
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight[Symbol.iterator]() and adding two ranges by passing them to the constructor
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.values() and adding a range by passing it to the constructor
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.values() and adding two ranges by passing them to the constructor
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.keys() and adding a range by passing it to the constructor
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.keys() and adding two ranges by passing them to the constructor
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight[Symbol.iterator]() and adding a range by passing it to the add function
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight[Symbol.iterator]() and adding two ranges by passing them to the add function
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.values() and adding a range by passing it to the add function
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.values() and adding two ranges by passing them to the add function
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.keys() and adding a range by passing it to the add function
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with customHighlight.keys() and adding two ranges by passing them to the add function
+Pass	Highlight can be iterated when it's empty initializing the iterator with .entries()
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with .entries() and adding a range by passing it to the constructor
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with .entries() and adding two ranges by passing them to the constructor
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with .entries() and adding a range by passing it to the add function
+Pass	Highlight can be iterated over all of its ranges initializing the iterator with .entries() and adding two ranges by passing them to the add function
+Pass	Highlight can be iterated through when it's empty using forEach.
+Pass	Highlight can be iterated through using forEach when it has one range that was added by passing it to the constructor
+Pass	Highlight can be iterated through using forEach when it has two ranges that were added by passing them to the constructor
+Pass	Highlight can be iterated through using forEach when it has one range that was added by passing it to the add function
+Pass	Highlight can be iterated through using forEach when it has two ranges that were added by passing them to the add function

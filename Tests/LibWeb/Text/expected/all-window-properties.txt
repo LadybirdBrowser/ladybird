@@ -273,6 +273,8 @@ HTMLUnknownElement
 HTMLVideoElement
 HashChangeEvent
 Headers
+Highlight
+HighlightRegistry
 History
 IDBCursor
 IDBCursorWithValue

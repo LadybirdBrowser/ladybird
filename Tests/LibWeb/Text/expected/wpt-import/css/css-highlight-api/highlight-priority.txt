@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Highlight priority attribute is mutable
+1 Pass
+Pass	Highlight priority attribute is mutable

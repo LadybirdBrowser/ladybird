@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/StaticRange.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DocumentType.h>
+#include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/StaticRange.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -36,6 +37,27 @@ WebIDL::ExceptionOr<GC::Ref<StaticRange>> StaticRange::create(Bindings::StaticRa
 
     // 2. Set this’s start to (init["startContainer"], init["startOffset"]) and end to (init["endContainer"], init["endOffset"]).
     return GC::Heap::the().allocate<StaticRange>(*init.start_container, init.start_offset, *init.end_container, init.end_offset);
+}
+
+// https://dom.spec.whatwg.org/#staticrange-valid
+bool StaticRange::is_valid() const
+{
+    // A StaticRange is valid if all of the following are true:
+
+    // - Its start and end are in the same node tree.
+    if (&start_container()->root() != &end_container()->root())
+        return false;
+
+    // - Its start offset is between 0 and its start node’s length, inclusive.
+    if (start_offset() > start_container()->length())
+        return false;
+
+    // - Its end offset is between 0 and its end node’s length, inclusive.
+    if (end_offset() > end_container()->length())
+        return false;
+
+    // - Its start is before or equal to its end.
+    return position_of_boundary_point_relative_to_other_boundary_point(start(), end()) != RelativeBoundaryPointPosition::After;
 }
 
 }

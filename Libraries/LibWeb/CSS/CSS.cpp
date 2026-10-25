@@ -10,12 +10,15 @@
 #include <LibWeb/CSS/CSS.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
+#include <LibWeb/CSS/HighlightRegistry.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
 
@@ -148,6 +151,15 @@ WebIDL::ExceptionOr<void> register_property(DOM::Document& document, PropertyDef
     document.did_change_custom_property_registrations(property_name);
 
     return {};
+}
+
+// https://drafts.csswg.org/css-highlight-api-1/#dom-css-highlights
+GC::Ref<HighlightRegistry> highlights(JS::VM&)
+{
+    // The highlight registry is accessed via the highlights attribute of the CSS namespace, and represents all the
+    // custom highlights registered for the current global object’s associated Document.
+    auto& window = HTML::relevant_window(HTML::current_global_object());
+    return window.associated_document().highlight_registry();
 }
 
 }

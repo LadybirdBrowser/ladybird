@@ -182,6 +182,7 @@ enum class InvalidateLayoutTreeReason {
     X(HTMLInputElementHeight, true)                 \
     X(HTMLInputElementWidth, true)                  \
     X(HTMLLabelElementActivationBehavior, false)    \
+    X(HighlightRegistryHighlightsFromPoint, false)  \
     X(InspectAccessibilityTree, false)              \
     X(InspectDOMTree, false)                        \
     X(InspectDevToolsLayoutData, false)             \
@@ -656,6 +657,7 @@ public:
 
     // https://drafts.csswg.org/css-font-loading/#font-source
     GC::Ref<CSS::FontFaceSet> fonts();
+    GC::Ref<CSS::HighlightRegistry> highlight_registry();
 
     void clear();
     void capture_events();
@@ -2094,6 +2096,9 @@ private:
 
     // https://drafts.csswg.org/css-font-loading/#font-source
     GC::Ref<CSS::FontFaceSet> m_fonts;
+
+    // https://drafts.csswg.org/css-highlight-api-1/#highlight-registry
+    GC::Ptr<CSS::HighlightRegistry> m_highlight_registry;
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#completely-loaded-time
     Optional<AK::UnixDateTime> m_completely_loaded_time;

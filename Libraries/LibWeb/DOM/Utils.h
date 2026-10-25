@@ -8,9 +8,11 @@
 #pragma once
 
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::DOM {
 
 EventTarget* retarget(EventTarget* a, EventTarget* b);
+Element* retarget_from_ua_internal_shadow_root(Element&);
 
 }

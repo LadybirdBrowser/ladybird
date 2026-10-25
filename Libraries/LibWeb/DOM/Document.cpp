@@ -59,6 +59,7 @@
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/CSS/HighlightRegistry.h>
 #include <LibWeb/CSS/HypotheticalElement.h>
 #include <LibWeb/CSS/Invalidation/AdoptedStyleSheetInvalidator.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
@@ -986,6 +987,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_scripts);
     visitor.visit(m_all);
     visitor.visit(m_fonts);
+    visitor.visit(m_highlight_registry);
     visitor.visit(m_selection);
     visitor.visit(m_find_in_page_active_match);
     visitor.visit(m_find_in_page_highlighted_matches);
@@ -3588,6 +3590,13 @@ GC::Ref<HTML::HTMLAllCollection> Document::all()
 GC::Ref<CSS::FontFaceSet> Document::fonts()
 {
     return m_fonts;
+}
+
+GC::Ref<CSS::HighlightRegistry> Document::highlight_registry()
+{
+    if (!m_highlight_registry)
+        m_highlight_registry = CSS::HighlightRegistry::create(*this);
+    return *m_highlight_registry;
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-document-clear
@@ -9507,17 +9516,6 @@ WebIDL::ExceptionOr<void> Document::set_design_mode(Utf16View design_mode)
         set_design_mode_enabled_state(false);
     }
     return {};
-}
-
-static Element* retarget_from_ua_internal_shadow_root(Element& element)
-{
-    auto* result = &element;
-    while (auto shadow_root = result->containing_shadow_root()) {
-        if (!shadow_root->is_user_agent_internal())
-            break;
-        result = shadow_root->host();
-    }
-    return result;
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-document-elementfrompoint

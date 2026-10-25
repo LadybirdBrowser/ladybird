@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	HighlightRegistry is a maplike interface that works as expected even if Map.prototype is tampered.
+1 Pass
+Pass	HighlightRegistry is a maplike interface that works as expected even if Map.prototype is tampered.
