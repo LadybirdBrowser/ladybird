@@ -201,6 +201,7 @@ extern "C" size_t ladybird_html_parser_template_content(size_t);
 extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t, RustFfiHtmlShadowRootMode, RustFfiHtmlSlotAssignmentMode, bool, bool, bool, bool);
 extern "C" void ladybird_html_parser_set_template_content(size_t, size_t);
 extern "C" bool ladybird_html_parser_is_shadow_host(size_t);
+extern "C" void ladybird_html_parser_set_script_text_from_parser(size_t);
 
 HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding, EncodingConfidence encoding_confidence)
     : m_tokenizer(decode_html_parser_input(input, encoding))
@@ -3128,6 +3129,14 @@ extern "C" bool ladybird_html_parser_is_shadow_host(size_t node)
 {
     auto* element = as_if<DOM::Element>(&node_from_html_parser_ffi(node));
     return element && element->is_shadow_host();
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#setting-slot-values-from-parser
+extern "C" void ladybird_html_parser_set_script_text_from_parser(size_t element)
+{
+    // Set script's script text value to its child text content.
+    auto& script = as<HTMLScriptElement>(node_from_html_parser_ffi(element));
+    script.set_string_text(script.child_text_content());
 }
 
 }

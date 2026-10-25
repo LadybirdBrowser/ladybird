@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const policy = trustedTypes.createPolicy("policy", { createHTML: s => s });
+        window.didRun = false;
+        const target = document.getElementById("target");
+        const range = document.createRange();
+        range.selectNodeContents(target);
+        const fragment = range.createContextualFragment(policy.createHTML("<script>window.didRun = true;<\/script>"));
+        target.appendChild(fragment);
+        println(`Script ran: ${window.didRun}`);
+    });
+</script>
