@@ -12,7 +12,7 @@ use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::cell_is_dead;
 use crate::gc::visitor::{Trace, Visitor};
-use crate::gc::weak_container::WeakContainer;
+use crate::gc::weak_container::{Sweep, WeakContainer};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::object::Object;
@@ -149,7 +149,7 @@ impl FinalizationRegistry {
         self.records.borrow().0.iter().any(|record| record.target.is_none())
     }
 
-    fn remove_dead_cells(object: &Object, vm: &Vm) {
+    fn remove_dead_cells(object: &Object, sweep: &Sweep<'_>) {
         let finalization_registry = object
             .as_gc()
             .downcast::<FinalizationRegistry>()
@@ -168,7 +168,7 @@ impl FinalizationRegistry {
         if any_cells_were_removed {
             // NOTE: The VM keeps the FinalizationRegistry alive even if a subsequent GC is triggered before the
             //       callback has a chance to run.
-            vm.enqueue_finalization_registry_cleanup_job_after_collection(finalization_registry);
+            sweep.enqueue_finalization_registry_cleanup_job(finalization_registry);
         }
     }
 
