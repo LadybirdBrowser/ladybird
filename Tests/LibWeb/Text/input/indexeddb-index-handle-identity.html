@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        if (document.readyState !== "complete") {
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        }
+        spoofCurrentURL("https://example.com/indexeddb-index-handle-identity.html");
+        const name = `index-handle-identity-${Date.now()}-${Math.random()}`;
+        const request = indexedDB.open(name, 1);
+        request.onupgradeneeded = () => {
+            const store = request.result.createObjectStore("store");
+            const created = store.createIndex("index", "key");
+            println(`createIndex returns the cached handle: ${created === store.index("index")}`);
+            println(`index returns the same handle: ${store.index("index") === store.index("index")}`);
+            created.name = "renamed";
+            println(`the handle survives renaming: ${created === store.index("renamed")}`);
+            store.deleteIndex("renamed");
+            const recreated = store.createIndex("renamed", "otherKey");
+            println(`recreating the index makes a new handle: ${recreated !== created}`);
+            println(`the new handle is cached: ${recreated === store.index("renamed")}`);
+        };
+        request.onsuccess = () => {
+            request.result.close();
+            const deletion = indexedDB.deleteDatabase(name);
+            deletion.onsuccess = done;
+            deletion.onerror = () => {
+                println(`delete error: ${deletion.error.name}`);
+                done();
+            };
+        };
+        request.onerror = () => {
+            println(`open error: ${request.error.name}`);
+            done();
+        };
+    });
+</script>

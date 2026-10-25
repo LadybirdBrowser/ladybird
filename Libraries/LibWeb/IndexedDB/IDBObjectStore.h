@@ -81,6 +81,10 @@ private:
 
     // NB: The keyPath getter returns the same Array every time it is inspected in the same realm.
     HashMap<GC::Ref<JS::Object>, GC::Ref<JS::Object>> m_key_path_arrays;
+
+    // NB: Each call to index() on the same IDBObjectStore instance with the same name returns the same IDBIndex
+    //     instance. These are keyed by index so that they survive renames.
+    HashMap<GC::Ref<Index>, GC::Ref<IDBIndex>> m_index_handles;
 };
 
 }
