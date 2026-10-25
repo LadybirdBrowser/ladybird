@@ -48,11 +48,12 @@ impl Finalize for AsyncDisposableStack {
 }
 
 impl AsyncDisposableStack {
-    pub fn new(vm: &Vm, dispose_capability: DisposeCapability, prototype: Gc<Object>) -> AsyncDisposableStack {
+    /// A pending stack with a new dispose capability.
+    pub fn new(vm: &Vm, prototype: Gc<Object>) -> AsyncDisposableStack {
         AsyncDisposableStack {
             base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
             async_disposable_state: Cell::new(AsyncDisposableState::Pending),
-            dispose_capability: GcRefCell::new(dispose_capability),
+            dispose_capability: GcRefCell::new(new_dispose_capability()),
         }
     }
 

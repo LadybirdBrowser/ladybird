@@ -11,7 +11,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
-use crate::runtime::abstract_operations::{new_dispose_capability, ordinary_create_from_constructor_of};
+use crate::runtime::abstract_operations::ordinary_create_from_constructor_of;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::disposable_stack::DisposableStack;
 use crate::runtime::error::ErrorKind;
@@ -90,7 +90,7 @@ impl DisposableStackConstructor {
             realm,
             new_target,
             Intrinsics::disposable_stack_prototype,
-            |prototype| DisposableStack::new(vm, new_dispose_capability(), prototype),
+            |prototype| DisposableStack::new(vm, prototype),
         )?;
         Ok(disposable_stack.upcast())
     }

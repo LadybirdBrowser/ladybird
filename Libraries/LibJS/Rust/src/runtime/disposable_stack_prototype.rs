@@ -253,7 +253,7 @@ impl DisposableStackPrototype {
             realm,
             realm.intrinsics().disposable_stack_constructor(vm).upcast(),
             Intrinsics::disposable_stack_prototype,
-            |prototype| DisposableStack::new(vm, new_dispose_capability(), prototype),
+            |prototype| DisposableStack::new(vm, prototype),
         )?;
 
         // 6. Set newDisposableStack.[[DisposeCapability]] to disposableStack.[[DisposeCapability]].

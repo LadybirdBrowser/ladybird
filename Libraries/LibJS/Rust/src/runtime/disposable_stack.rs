@@ -48,11 +48,12 @@ impl Finalize for DisposableStack {
 }
 
 impl DisposableStack {
-    pub fn new(vm: &Vm, dispose_capability: DisposeCapability, prototype: Gc<Object>) -> DisposableStack {
+    /// A pending stack with a new dispose capability.
+    pub fn new(vm: &Vm, prototype: Gc<Object>) -> DisposableStack {
         DisposableStack {
             base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
             disposable_state: Cell::new(DisposableState::Pending),
-            dispose_capability: GcRefCell::new(dispose_capability),
+            dispose_capability: GcRefCell::new(new_dispose_capability()),
         }
     }
 
