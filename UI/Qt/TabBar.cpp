@@ -148,6 +148,7 @@ static constexpr auto FULL_WIDTH_TOOLBAR_PROPERTY = "fullWidthToolbar";
 static constexpr auto VERTICAL_TABS_EXPANDED_PROPERTY = "verticalTabsExpanded";
 static constexpr auto VERTICAL_TABS_BUTTON_PROPERTY = "verticalTabsButton";
 static constexpr auto VERTICAL_TABS_POSITION_PROPERTY = "verticalTabsPosition";
+static constexpr auto WINDOW_INACTIVE_PROPERTY = "windowInactive";
 static constexpr auto VERTICAL_TABS_RESIZE_HANDLE_HOVERED_PROPERTY = "hovered";
 static constexpr auto VERTICAL_TABS_RESIZE_HANDLE_ACTIVE_PROPERTY = "active";
 
@@ -365,10 +366,12 @@ static QColor tab_hover_surface(QPalette const& palette, qreal hover_progress)
     return color;
 }
 
-static QColor horizontal_tab_separator(QPalette const& palette)
+static QColor horizontal_tab_separator(QWidget const& widget)
 {
+    auto const& palette = widget.palette();
     auto dark = ChromeStyle::is_dark(palette);
-    return ChromeStyle::mix(ChromeStyle::chrome_tab_strip_background(palette), ChromeStyle::chrome_text(palette), dark ? 0.18 : 0.25);
+    auto background = ChromeStyle::chrome_tab_strip_background(palette, ChromeStyle::window_activity(widget));
+    return ChromeStyle::mix(background, ChromeStyle::chrome_text(palette), dark ? 0.18 : 0.25);
 }
 
 static QRectF collapsed_vertical_tab_shape_rect(QRectF const& rect)
@@ -900,6 +903,10 @@ void TabBar::tabLayoutChange()
 
 bool TabBar::event(QEvent* event)
 {
+    // The separators between tabs are mixed from the tab strip's color, which follows the window's activity.
+    if (event->type() == QEvent::WindowActivate || event->type() == QEvent::WindowDeactivate)
+        update();
+
     // The swirl stops while the tab bar is hidden, so it has to start again for tabs still loading when it is shown.
     if (event->type() == QEvent::Show)
         update_loading_swirl_animation();
@@ -1009,7 +1016,7 @@ void TabBar::paintEvent(QPaintEvent*)
                 QRectF separator_rect { separator_x, separator_center_y - (HORIZONTAL_TAB_SEPARATOR_HEIGHT / 2.0), HORIZONTAL_TAB_SEPARATOR_WIDTH, HORIZONTAL_TAB_SEPARATOR_HEIGHT };
                 painter.save();
                 painter.setOpacity(separator_opacity);
-                painter.fillRect(separator_rect, horizontal_tab_separator(palette()));
+                painter.fillRect(separator_rect, horizontal_tab_separator(*this));
                 painter.restore();
             }
         }
@@ -2674,6 +2681,11 @@ bool TabWidget::event(QEvent* event)
         update_chrome_style();
     } else if (type == QEvent::WindowStateChange) {
         update_window_button_icons();
+    } else if (type == QEvent::WindowActivate || type == QEvent::WindowDeactivate) {
+        // The tab strip and the sidebar are lighter while the window is inactive.
+        auto inactive = type == QEvent::WindowDeactivate;
+        set_dynamic_property_if_needed(*m_tab_bar_row, WINDOW_INACTIVE_PROPERTY, inactive);
+        set_dynamic_property_if_needed(*m_vertical_tab_bar_column, WINDOW_INACTIVE_PROPERTY, inactive);
     } else if (type == QEvent::Leave) {
         defer_update_vertical_tabs_hover_expanded();
     }

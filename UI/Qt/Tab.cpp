@@ -1880,7 +1880,7 @@ void Tab::paintEvent(QPaintEvent*)
     inside.addEllipse(curve_left, height() - (2 * radius), 2 * radius, 2 * radius);
 
     painter.setRenderHint(QPainter::Antialiasing, true);
-    painter.fillPath(corner.subtracted(inside), ChromeStyle::chrome_tab_strip_background(palette));
+    painter.fillPath(corner.subtracted(inside), ChromeStyle::chrome_tab_strip_background(palette, ChromeStyle::window_activity(*this)));
 }
 #endif
 
@@ -1934,6 +1934,10 @@ void Tab::hide_hover_label()
 
 bool Tab::event(QEvent* event)
 {
+    // The sidebar's color, which the frame around the page bends around, follows the window's activity.
+    if (event->type() == QEvent::WindowActivate || event->type() == QEvent::WindowDeactivate)
+        update();
+
     if (event->type() == QEvent::PaletteChange && is_loaded()) {
         update_chrome_style();
         recreate_toolbar_icons();

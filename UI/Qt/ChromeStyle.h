@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Types.h>
 #include <QColor>
 #include <QString>
 
@@ -15,6 +16,7 @@ class QFont;
 class QPainter;
 class QPainterPath;
 class QPalette;
+class QWidget;
 
 namespace Ladybird::ChromeStyle {
 
@@ -25,7 +27,13 @@ bool is_dark(QPalette const&);
 QColor mix(QColor const& from, QColor const& to, double amount);
 QColor chrome_text(QPalette const&);
 QColor chrome_button_text(QPalette const&);
-QColor chrome_tab_strip_background(QPalette const&);
+enum class WindowActivity : u8 {
+    Active,
+    Inactive,
+};
+WindowActivity window_activity(QWidget const&);
+
+QColor chrome_tab_strip_background(QPalette const&, WindowActivity = WindowActivity::Active);
 QColor chrome_background(QPalette const&);
 QColor chrome_surface(QPalette const&);
 QColor chrome_surface_recessed(QPalette const&);
