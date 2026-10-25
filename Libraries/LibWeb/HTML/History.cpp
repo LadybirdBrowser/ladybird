@@ -86,14 +86,19 @@ WebIDL::ExceptionOr<void> History::delta_traverse(WebIDL::Long delta)
     if (!document.is_fully_active())
         return WebIDL::SecurityError::create("Cannot perform go on a document that isn't fully active."_utf16);
 
-    // 3. If delta is 0, then reload document's node navigable, and return.
+    // 3. If history's relevant global object's navigable's allowed to perform a navigation or history update returns
+    //    blocked, then return.
+    if (auto navigable = document.navigable(); navigable && navigable->allowed_to_perform_a_navigation_or_history_update() == LocalNavigable::NavigationOrHistoryUpdatePermission::Blocked)
+        return {};
+
+    // 4. If delta is 0, then reload document's node navigable, and return.
     if (delta == 0) {
         VERIFY(document.navigable());
         document.navigable()->reload();
         return {};
     }
 
-    // 4. Traverse the history by a delta given document's node navigable's traversable navigable, delta, and with
+    // 5. Traverse the history by a delta given document's node navigable's traversable navigable, delta, and with
     //    sourceDocument set to document.
     // NB: The UI process queues the operation on the traversable that hosts this page.
     document.page().history_executor().traverse_the_history_by_delta(delta, document);
@@ -172,36 +177,32 @@ WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Realm& 
     if (!document.is_fully_active())
         return WebIDL::SecurityError::create("Cannot perform pushState or replaceState on a document that isn't fully active."_utf16);
 
-    // 3. Optionally, throw a "SecurityError" DOMException. (For example, the user agent might disallow calls to these
-    //    methods that are invoked on a timer, or from event listeners that are not triggered in response to a clear
-    //    user action, or that are invoked in rapid succession.)
+    // 3. Let serializedData be StructuredSerializeForStorage(data). Rethrow any exceptions.
+    auto serialized_data = TRY(structured_serialize_for_storage(realm.vm(), data));
 
-    // 4. Let serializedData be StructuredSerializeForStorage(data). Rethrow any exceptions.
-    //    FIXME: Actually rethrow exceptions here once we start using the serialized data.
-    //           Throwing here on data types we don't yet serialize will regress sites that use push/replaceState.
-    auto serialized_data_or_error = structured_serialize_for_storage(realm.vm(), data);
-    auto serialized_data = serialized_data_or_error.is_error() ? MUST(structured_serialize_for_storage(realm.vm(), JS::js_null())) : serialized_data_or_error.release_value();
-
-    // 5. Let newURL be document's URL.
+    // 4. Let newURL be document's URL.
     auto new_url = document.url();
 
-    // 6. If url is not null or the empty string, then:
+    // 5. If url is not null or the empty string:
     if (url.has_value() && !url->is_empty()) {
-
-        // 1. Parse url, relative to the relevant settings object of history.
+        // 1. Set newURL to the result of encoding-parsing a URL given url, relative to the relevant settings object of
+        //    history.
         auto parsed_url = document.relevant_settings_object().encoding_parse_url(url->utf16_view());
 
-        // 2. If that fails, then throw a "SecurityError" DOMException.
+        // 2. If newURL is failure, then throw a "SecurityError" DOMException.
         if (!parsed_url.has_value())
             return WebIDL::SecurityError::create("Cannot pushState or replaceState to incompatible URL"_utf16);
-
-        // 3. Set newURL to the resulting URL record.
         new_url = parsed_url.release_value();
 
-        // 4. If document cannot have its URL rewritten to newURL, then throw a "SecurityError" DOMException.
+        // 3. If document cannot have its URL rewritten to newURL, then throw a "SecurityError" DOMException.
         if (!can_have_its_url_rewritten(document, new_url))
             return WebIDL::SecurityError::create("Cannot pushState or replaceState to incompatible URL"_utf16);
     }
+
+    // 6. If history's relevant global object's navigable's allowed to perform a navigation or history update returns
+    //    blocked, then return.
+    if (auto navigable = document.navigable(); navigable && navigable->allowed_to_perform_a_navigation_or_history_update() == LocalNavigable::NavigationOrHistoryUpdatePermission::Blocked)
+        return {};
 
     // 7. Let navigation be history's relevant global object's navigation API.
     auto navigation = document.window()->navigation();
