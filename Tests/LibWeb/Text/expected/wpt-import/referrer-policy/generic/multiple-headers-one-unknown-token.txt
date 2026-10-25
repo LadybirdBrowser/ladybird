@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Image uses last recognized referrer policy token from Referrer-Policy headers
+1 Pass
+Pass	Image uses last recognized referrer policy token from Referrer-Policy headers
