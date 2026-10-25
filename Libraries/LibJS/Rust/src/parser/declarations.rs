@@ -958,7 +958,11 @@ impl Parser<'_> {
                     self.flags.allow_super_property_lookup = true;
                     self.flags.new_target_is_valid = true;
                     self.scope_collector.open_static_init_scope(None);
+                    // Save pattern_bound_names so that destructuring patterns in the
+                    // static block don't steal names from an outer binding context.
+                    let saved_pattern_bound_names = std::mem::take(&mut self.pattern_bound_names);
                     let children = self.parse_statement_list(false);
+                    self.pattern_bound_names = saved_pattern_bound_names;
                     self.flags = saved_flags;
                     self.consume_token(TokenType::CurlyClose);
                     let scope = self.make_scope(children);
