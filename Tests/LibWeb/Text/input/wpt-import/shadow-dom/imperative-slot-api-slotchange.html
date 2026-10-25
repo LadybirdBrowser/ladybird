@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<title>Shadow DOM: Imperative Slot API slotchange event</title>
+<meta name="author" title="Yu Han" href="mailto:yuzhehan@chromium.org">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<link rel="help" href="https://dom.spec.whatwg.org/#signaling-slot-change">
+<script src="resources/shadow-dom.js"></script>
+
+<div id="test_slotchange">
+  <div id="host">
+    <template id="shadow_root" data-mode="open" data-slot-assignment="manual">
+      <slot id="s1"><div id="fb">fallback</div></slot>
+      <slot id="s2"></slot>
+      <div>
+        <slot id="s2.5"></slot>
+      </div>
+      <slot id="s3"></slot>
+    </template>
+    <div id="c1"></div>
+    <div id="c2"></div>
+  </div>
+  <div id="c4"></div>
+</div>
+
+<script>
+function getDataCollection() {
+  return {
+    s1EventCount: 0,
+    s2EventCount: 0,
+    s3EventCount: 0,
+    s1ResolveFn: null,
+    s2ResolveFn: null,
+    s3ResolveFn: null,
+  }
+}
+
+function setupShadowDOM(id, test, data) {
+  let tTree = createTestTree(id);
+  tTree.s1.addEventListener('slotchange', (event) => {
+    if (!event.isFakeEvent) {
+      test.step(function () {
+          assert_equals(event.type, 'slotchange', 'slotchange event\'s type must be "slotchange"');
+          assert_equals(event.target, tTree.s1, 'slotchange event\'s target must be the slot element');
+          assert_equals(event.relatedTarget, undefined, 'slotchange must not set relatedTarget');
+      });
+      data.s1EventCount++;
+    }
+    data.s1ResolveFn();
+  });
+  tTree.s2.addEventListener('slotchange', (event) => {
+    if (!event.isFakeEvent) {
+      test.step(function () {
+          assert_equals(event.type, 'slotchange', 'slotchange event\'s type must be "slotchange"');
+          assert_equals(event.target, tTree.s2, 'slotchange event\'s target must be the slot element');
+          assert_equals(event.relatedTarget, undefined, 'slotchange must not set relatedTarget');
+      });
+      data.s2EventCount++;
+    }
+    data.s2ResolveFn();
+  });
+  tTree.s3.addEventListener('slotchange', (event) => {
+    if (!event.isFakeEvent) {
+      test.step(function () {
+        assert_equals(event.type, 'slotchange', 'slotchange event\'s type must be "slotchange"');
+        // listen to bubbling events.
+        assert_equals(event.relatedTarget, undefined, 'slotchange must not set relatedTarget');
+      });
+      data.s3EventCount++;
+    }
+    data.s3ResolveFn();
+  });
+  return tTree;
+}
+
+function monitorSlots(data) {
+    const s1Promise = new Promise((resolve, reject) => {
+      data.s1ResolveFn = resolve;
+    });
+    const s2Promise = new Promise((resolve, reject) => {
+      data.s2ResolveFn = resolve;
+    });
+    const s3Promise = new Promise((resolve, reject) => {
+      data.s3ResolveFn = resolve;
+    });
+    return [s1Promise, s2Promise, s3Promise];
+}
+</script>
+
+<script>
+// Tests:
+async_test((test) => {
+  const data = getDataCollection();
+  let tTree = setupShadowDOM(test_slotchange, test, data);
+  let [s1Promise, s2Promise] = monitorSlots(data);
+
+  tTree.s1.assign(tTree.c1);
+  tTree.s2.assign(tTree.c2);
+
+  assert_equals(data.s1EventCount, 0, 'slotchange event must not be fired synchronously');
+  assert_equals(data.s2EventCount, 0);
+
+  Promise.all([s1Promise, s2Promise]).then(test.step_func_done(() => {
+    assert_equals(data.s1EventCount, 1);
+    assert_equals(data.s2EventCount, 1);
+  }));
+}, 'slotchange event must not fire synchronously.');
+
+async_test((test) => {
+  const data = getDataCollection();
+  let tTree = setupShadowDOM(test_slotchange, test, data);
+  let [s1Promise, s2Promise] = monitorSlots(data);
+
+  tTree.s1.assign();;
+  tTree.s2.assign();
+  tTree.host.insertBefore(tTree.c4, tTree.c1);
+
+  Promise.all([s1Promise, s2Promise]).then(test.step_func_done(() => {
+    assert_equals(data.s1EventCount, 0);
+    assert_equals(data.s2EventCount, 0);
+  }));
+
+  // use fake event to trigger event handler.
+  let fakeEvent = new Event('slotchange');
+  fakeEvent.isFakeEvent = true;
+  tTree.s1.dispatchEvent(fakeEvent);
+  tTree.s2.dispatchEvent(fakeEvent);
+}, 'slotchange event should not fire when assignments do not change assignedNodes.');
+
+async_test((test) => {
+  const data = getDataCollection();
+  let tTree = setupShadowDOM(test_slotchange,test, data);
+  let [s1Promise] = monitorSlots(data);
+
+  tTree.s1.assign(tTree.c1, tTree.c2);
+
+  s1Promise.then(test.step_func(() => {
+    assert_equals(data.s1EventCount, 1);
+
+    [s1Promise] = monitorSlots(data);
+    tTree.s1.assign(tTree.c1, tTree.c2);
+    tTree.s1.assign(tTree.c1, tTree.c2, tTree.c1, tTree.c2, tTree.c2);
+
+    s1Promise.then(test.step_func_done(() => {
+      assert_equals(data.s1EventCount, 1);
+    }));
+
+    let fakeEvent = new Event('slotchange');
+    fakeEvent.isFakeEvent = true;
+    tTree.s1.dispatchEvent(fakeEvent);
+  }));
+
+}, 'slotchange event should not fire when same node is assigned.');
+
+async_test((test) => {
+  const data = getDataCollection();
+  let tTree = setupShadowDOM(test_slotchange, test, data);
+  let [s1Promise, s2Promise] = monitorSlots(data);
+
+  tTree.s1.assign(tTree.c1);
+  tTree.s2.assign(tTree.c2);
+
+  Promise.all([s1Promise, s2Promise]).then(test.step_func_done(() => {
+    assert_equals(data.s1EventCount, 1);
+    assert_equals(data.s2EventCount, 1);
+  }));
+}, "Fire slotchange event when slot's assigned nodes changes.");
+
+async_test((test) => {
+  const data = getDataCollection();
+  let tTree = setupShadowDOM(test_slotchange, test, data);
+  let [s1Promise, s2Promise] = monitorSlots(data);
+
+  tTree.s1.assign(tTree.c1);
+
+  s1Promise.then(test.step_func(() => {
+    assert_equals(data.s1EventCount, 1);
+
+    [s1Promise, s2Promise] = monitorSlots(data);
+    tTree.s2.assign(tTree.c1);
+
+    Promise.all([s1Promise, s2Promise]).then(test.step_func_done(() => {
+      assert_equals(data.s1EventCount, 2);
+      assert_equals(data.s2EventCount, 1);
+    }));
+  }));
+}, "Fire slotchange event on previous slot and new slot when node is reassigned.");
+
+async_test((test) => {
+  const data = getDataCollection();
+  let tTree = setupShadowDOM(test_slotchange, test, data);
+  let [s1Promise] = monitorSlots(data);
+
+  tTree.s1.assign(tTree.c1);
+
+  s1Promise.then(test.step_func(() => {
+    assert_equals(data.s1EventCount, 1);
+
+    [s1Promise] = monitorSlots(data);
+    tTree.s1.assign();
+
+    s1Promise.then(test.step_func_done(() => {
+      assert_equals(data.s1EventCount, 2);
+    }));
+  }));
+}, "Fire slotchange event on node assignment and when assigned node is removed.");
+
+async_test((test) => {
+  const data = getDataCollection();
+  let tTree = setupShadowDOM(test_slotchange, test, data);
+  let [s1Promise] = monitorSlots(data);
+
+  tTree.s1.assign(tTree.c1, tTree.c2);
+
+  s1Promise.then(test.step_func(() => {
+    assert_equals(data.s1EventCount, 1);
+
+    [s1Promise] = monitorSlots(data);
+    tTree.s1.assign(tTree.c2, tTree.c1);
+
+    s1Promise.then(test.step_func_done(() => {
+      assert_equals(data.s1EventCount, 2);
+    }));
+  }));
+}, "Fire slotchange event when order of assigned nodes changes.");
+
+promise_test((test) => {
+  const data = getDataCollection();
+  let tTree = setupShadowDOM(test_slotchange, test, data);
+  let [s1Promise] = monitorSlots(data);
+
+  tTree.s1.assign(tTree.c1);
+
+  return s1Promise.then(test.step_func(() => {
+    assert_equals(data.s1EventCount, 1);
+
+    [s1Promise] = monitorSlots(data);
+    tTree.c1.remove();
+
+    return s1Promise;
+  }))
+  .then(test.step_func(() => {
+      assert_equals(data.s1EventCount, 2);
+  }));
+}, "Fire slotchange event when assigned node is removed.");
+
+promise_test((test) => {
+  const data = getDataCollection();
+  let tTree = setupShadowDOM(test_slotchange, test, data);
+  [s1Promise] = monitorSlots(data);
+
+  tTree.s1.assign(tTree.c1);
+
+  return s1Promise.then(test.step_func(() => {
+    assert_equals(data.s1EventCount, 1);
+
+    [s1Promise] = monitorSlots(data);
+    tTree.s1.remove();
+
+    return s1Promise;
+  }))
+  .then(test.step_func(() => {
+      assert_equals(data.s1EventCount, 2);
+  }));
+}, "Fire slotchange event when removing a slot from Shadows Root that changes its assigned nodes.");
+
+async_test((test) => {
+  const data = getDataCollection();
+  let tTree = setupShadowDOM(test_slotchange, test, data);
+  let [s1Promise] = monitorSlots(data);
+
+  tTree.s1.remove();
+
+  let fakeEvent = new Event('slotchange');
+  fakeEvent.isFakeEvent = true;
+  tTree.s1.dispatchEvent(fakeEvent);
+
+  s1Promise.then(test.step_func(() => {
+    assert_equals(data.s2EventCount, 0);
+
+    [s1Promise, s2Promise] = monitorSlots(data);
+    tTree.shadow_root.insertBefore(tTree.s1, tTree.s2);
+
+    tTree.s1.dispatchEvent(fakeEvent);
+    tTree.s2.dispatchEvent(fakeEvent);
+
+    Promise.all([s1Promise, s2Promise]).then(test.step_func_done(() => {
+      assert_equals(data.s1EventCount, 0);
+      assert_equals(data.s2EventCount, 0);
+    }));
+  }));
+
+}, "No slotchange event when adding or removing an empty slot.");
+
+async_test((test) => {
+  const data = getDataCollection();
+  let tTree = setupShadowDOM(test_slotchange, test, data);
+  let [s1Promise, s2Promise] = monitorSlots(data);
+
+  tTree.host.appendChild(document.createElement("div"));
+
+  let fakeEvent = new Event('slotchange');
+  fakeEvent.isFakeEvent = true;
+  tTree.s1.dispatchEvent(fakeEvent);
+  tTree.s2.dispatchEvent(fakeEvent);
+
+  Promise.all([s1Promise, s2Promise]).then(test.step_func(() => {
+    assert_equals(data.s1EventCount, 0);
+    assert_equals(data.s2EventCount, 0);
+
+    [s1Promise, s2Promise] = monitorSlots(data);
+    tTree.shadow_root.insertBefore(document.createElement("div"), tTree.s2);
+
+    tTree.s1.dispatchEvent(fakeEvent);
+    tTree.s2.dispatchEvent(fakeEvent);
+
+    Promise.all([s1Promise, s2Promise]).then(test.step_func_done(() => {
+      assert_equals(data.s1EventCount, 0);
+      assert_equals(data.s2EventCount, 0);
+    }));
+  }));
+
+}, "No slotchange event when adding another slotable.");
+
+</script>
+
+<div id="test_nested_slotchange">
+  <div>
+    <template data-mode="open" data-slot-assignment="manual">
+      <div>
+        <template data-mode="open" data-slot-assignment="manual">
+          <slot id="s2"></slot>
+          <slot id="s3"></slot>
+        </template>
+        <slot id="s1"></slot>
+      </div>
+    </template>
+    <div id="c1"></div>
+  </div>
+</div>
+
+<script>
+async_test((test) => {
+  const data = getDataCollection();
+  let tTree = setupShadowDOM(test_nested_slotchange, test, data);
+  let [s1Promise, s2Promise, s3Promise] = monitorSlots(data);
+
+  tTree.s3.assign(tTree.s1);
+
+  s3Promise.then(test.step_func(() => {
+    assert_equals(data.s3EventCount, 1);
+    [s1Promise, s2Promise, s3Promise] = monitorSlots(data);
+
+    tTree.s1.assign(tTree.c1);
+
+    Promise.all([s1Promise, s3Promise]).then(test.step_func_done(() => {
+      assert_equals(data.s1EventCount, 1);
+      assert_equals(data.s3EventCount, 2);
+    }));
+  }));
+}, "Fire slotchange event when assign node to nested slot, ensure event bubbles ups.");
+
+promise_test(async t => {
+  async function mutationObserversRun() {
+    return new Promise(r => {
+      t.step_timeout(r, 0);
+    });
+  }
+  let tTree = createTestTree(test_slotchange);
+
+  tTree.s1.assign(tTree.c1);
+  tTree["s2.5"].assign(tTree.c2);
+
+  let slotChangedOrder = [];
+
+  // Clears out pending mutation observers
+  await mutationObserversRun();
+
+  tTree.s1.addEventListener("slotchange", function() {
+    slotChangedOrder.push("s1");
+  });
+
+  tTree.s3.addEventListener("slotchange", function() {
+    slotChangedOrder.push("s3");
+  });
+
+  tTree["s2.5"].addEventListener("slotchange", function() {
+    slotChangedOrder.push("s2.5");
+  });
+
+  tTree.s3.assign(tTree.c2, tTree.c1);
+  await mutationObserversRun();
+  assert_array_equals(slotChangedOrder, ["s1", "s2.5", "s3"]);
+}, 'Signal a slot change should be done in tree order.');
+</script>
