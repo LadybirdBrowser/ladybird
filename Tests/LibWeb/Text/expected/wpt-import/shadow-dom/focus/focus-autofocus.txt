@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+2 Pass
+3 Fail
+Fail	The second input should be focused since it has autofocus
+Pass	Focus should not be delegated to the autofocus element because the inner host doesn't have delegates focus
+Fail	Focus should be delegated to the autofocus element when the inner host has delegates focus
+Pass	Focus should not be delegated to the slotted elements
+Fail	Focus should be delegated to the nested div which has autofocus based on the tree order
