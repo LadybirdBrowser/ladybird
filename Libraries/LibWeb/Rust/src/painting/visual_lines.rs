@@ -43,6 +43,16 @@ fn for_each_empty_visual_line_position(
             segments.push((node, &content.text));
         }
     }
+    // A text that starts with a newline starts with an empty line.
+    if let Some(&(node, text)) = segments.first()
+        && text.first() == Some(&u16::from(b'\n'))
+    {
+        let dom_offset =
+            layout_arena.dom_offset_for_rendered_text_offset(node, 0, crate::layout::RenderedTextBoundary::Start);
+        if !callback(dom_offset) {
+            return;
+        }
+    }
     for (segment_index, &(node, text)) in segments.iter().enumerate() {
         for (rendered_offset, code_unit) in text.iter().enumerate() {
             if *code_unit != u16::from(b'\n') {
