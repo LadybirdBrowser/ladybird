@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	RadicalKernBeforeDegree = -1em < 0
-Fail	RadicalKernBeforeAfterDegree = -5em < -3em = -degree's inline size
+2 Pass
+Pass	RadicalKernBeforeDegree = -1em < 0
+Pass	RadicalKernBeforeAfterDegree = -5em < -3em = -degree's inline size

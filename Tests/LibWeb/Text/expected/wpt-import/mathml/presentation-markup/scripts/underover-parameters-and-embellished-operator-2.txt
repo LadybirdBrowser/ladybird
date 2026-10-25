@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	StretchStackBottomShiftDown
+2 Pass
+2 Fail
+Pass	StretchStackBottomShiftDown
 Fail	StretchStackGapBelowMin
-Fail	StretchStackTopShiftUp
+Pass	StretchStackTopShiftUp
 Fail	StretchStackGapAboveMin

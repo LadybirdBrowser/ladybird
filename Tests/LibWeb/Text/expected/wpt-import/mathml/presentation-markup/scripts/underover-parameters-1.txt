@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	LowerLimitBaselineDropMin
-Fail	LowerLimitGapMin
-Fail	UpperLimitBaselineRiseMin
-Fail	UpperLimitGapMin
+4 Pass
+Pass	LowerLimitBaselineDropMin
+Pass	LowerLimitGapMin
+Pass	UpperLimitBaselineRiseMin
+Pass	UpperLimitGapMin

@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	RadicalDegreeBottomRaisePercent
-Fail	RadicalDisplayStyleVerticalGap
-Fail	RadicalExtraAscender
-Fail	RadicalKernAfterDegree
-Fail	RadicalKernBeforeDegree
-Fail	RadicalRuleThickness
-Fail	RadicalVerticalGap
+7 Pass
+Pass	RadicalDegreeBottomRaisePercent
+Pass	RadicalDisplayStyleVerticalGap
+Pass	RadicalExtraAscender
+Pass	RadicalKernAfterDegree
+Pass	RadicalKernBeforeDegree
+Pass	RadicalRuleThickness
+Pass	RadicalVerticalGap

@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-2 Pass
-4 Fail
+6 Pass
 Pass	Positive
 Pass	Negative
-Fail	Percentage
-Fail	Named space
-Fail	Calc() expression
-Fail	Dynamic linethickness
+Pass	Percentage
+Pass	Named space
+Pass	Calc() expression
+Pass	Dynamic linethickness

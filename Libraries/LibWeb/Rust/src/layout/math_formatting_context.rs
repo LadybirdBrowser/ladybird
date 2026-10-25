@@ -7,6 +7,7 @@
 // https://w3c.github.io/mathml-core/#layout-algorithms
 
 use super::*;
+use libgfx_rust::math_table::{FfiMathData, MathConstant, StretchAxis};
 
 /// The layout algorithm a MathML element's tag name selects when its computed display is block math or inline math.
 /// Mirrors the C++ `MathMLLayoutKind`, which the element's construction facts carry.
@@ -129,6 +130,16 @@ impl FfiMathLength {
 /// that is absent or invalid and 2 for false.
 pub(crate) mod math_boolean {
     pub(crate) const TRUE: u8 = 1;
+    pub(crate) const FALSE: u8 = 2;
+}
+
+/// The value of a boolean MathML attribute, or `default` if it is absent or invalid.
+fn math_boolean_or(value: u8, default: bool) -> bool {
+    match value {
+        math_boolean::TRUE => true,
+        math_boolean::FALSE => false,
+        _ => default,
+    }
 }
 
 /// The MathML attributes of an element that its layout reads, as the host parsed them. Every element publishes all
@@ -194,7 +205,54 @@ enum OperatorCategory {
     M,
 }
 
+/// The boolean properties of an operator, which its category and its attributes set.
+// https://w3c.github.io/mathml-core/#dictionary-based-attributes
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct OperatorFlags {
+    stretchy: bool,
+    symmetric: bool,
+    largeop: bool,
+    movablelimits: bool,
+}
+
+/// The properties of an embellished operator that its layout and the layout of its parent read.
+#[derive(Clone, Copy)]
+struct OperatorProperties {
+    core_operator: Node,
+    lspace: CssPixels,
+    rspace: CssPixels,
+    flags: OperatorFlags,
+}
+
 impl OperatorCategory {
+    /// The properties the category lists.
+    // https://w3c.github.io/mathml-core/#operator-dictionary-categories-values
+    fn flags(self) -> OperatorFlags {
+        match self {
+            Self::A | Self::I => OperatorFlags {
+                stretchy: true,
+                ..OperatorFlags::default()
+            },
+            Self::F | Self::G => OperatorFlags {
+                stretchy: true,
+                symmetric: true,
+                ..OperatorFlags::default()
+            },
+            Self::H => OperatorFlags {
+                symmetric: true,
+                largeop: true,
+                ..OperatorFlags::default()
+            },
+            Self::J => OperatorFlags {
+                symmetric: true,
+                largeop: true,
+                movablelimits: true,
+                ..OperatorFlags::default()
+            },
+            _ => OperatorFlags::default(),
+        }
+    }
+
     /// The lspace and rspace of the category, in eighteenths of an em.
     fn spacing_in_eighteenths_of_em(self) -> (u8, u8) {
         match self {
@@ -512,6 +570,41 @@ fn operator_category(content: &[u16], form: OperatorForm) -> OperatorCategory {
     }
 }
 
+// https://w3c.github.io/mathml-core/#dfn-intrinsic-stretch-axis
+// The code points corresponding to operators with inline stretch axis.
+static INLINE_STRETCH_AXIS_CODE_POINTS: [u32; 246] = [
+    0x003D, 0x005E, 0x005F, 0x007E, 0x00AF, 0x02C6, 0x02C7, 0x02C9, 0x02CD, 0x02DC, 0x02F7, 0x0302, 0x0332, 0x203E,
+    0x20D0, 0x20D1, 0x20D6, 0x20D7, 0x20E1, 0x2190, 0x2192, 0x2194, 0x2198, 0x2199, 0x219A, 0x219B, 0x219C, 0x219D,
+    0x219E, 0x21A0, 0x21A2, 0x21A3, 0x21A4, 0x21A6, 0x21A9, 0x21AA, 0x21AB, 0x21AC, 0x21AD, 0x21AE, 0x21B4, 0x21B9,
+    0x21BC, 0x21BD, 0x21C0, 0x21C1, 0x21C4, 0x21C6, 0x21C7, 0x21C9, 0x21CB, 0x21CC, 0x21CD, 0x21CE, 0x21CF, 0x21D0,
+    0x21D2, 0x21D4, 0x21DA, 0x21DB, 0x21DC, 0x21DD, 0x21E0, 0x21E2, 0x21E4, 0x21E5, 0x21E6, 0x21E8, 0x21F0, 0x21F4,
+    0x21F6, 0x21F7, 0x21F8, 0x21F9, 0x21FA, 0x21FB, 0x21FC, 0x21FD, 0x21FE, 0x21FF, 0x2322, 0x2323, 0x23B4, 0x23B5,
+    0x23DC, 0x23DD, 0x23DE, 0x23DF, 0x23E0, 0x23E1, 0x2500, 0x2794, 0x2799, 0x279B, 0x279C, 0x279D, 0x279E, 0x279F,
+    0x27A0, 0x27A1, 0x27A5, 0x27A6, 0x27A8, 0x27A9, 0x27AA, 0x27AB, 0x27AC, 0x27AD, 0x27AE, 0x27AF, 0x27B1, 0x27B3,
+    0x27B5, 0x27B8, 0x27BA, 0x27BB, 0x27BC, 0x27BD, 0x27BE, 0x27F4, 0x27F5, 0x27F6, 0x27F7, 0x27F8, 0x27F9, 0x27FA,
+    0x27FB, 0x27FC, 0x27FD, 0x27FE, 0x27FF, 0x2900, 0x2901, 0x2902, 0x2903, 0x2904, 0x2905, 0x2906, 0x2907, 0x290C,
+    0x290D, 0x290E, 0x290F, 0x2910, 0x2911, 0x2914, 0x2915, 0x2916, 0x2917, 0x2918, 0x2919, 0x291A, 0x291B, 0x291C,
+    0x291D, 0x291E, 0x291F, 0x2920, 0x2942, 0x2943, 0x2944, 0x2945, 0x2946, 0x2947, 0x2948, 0x294A, 0x294B, 0x294E,
+    0x2950, 0x2952, 0x2953, 0x2956, 0x2957, 0x295A, 0x295B, 0x295E, 0x295F, 0x2962, 0x2964, 0x2966, 0x2967, 0x2968,
+    0x2969, 0x296A, 0x296B, 0x296C, 0x296D, 0x2970, 0x2971, 0x2972, 0x2973, 0x2974, 0x2975, 0x297C, 0x297D, 0x2B04,
+    0x2B05, 0x2B0C, 0x2B30, 0x2B31, 0x2B32, 0x2B33, 0x2B34, 0x2B35, 0x2B36, 0x2B37, 0x2B38, 0x2B39, 0x2B3A, 0x2B3B,
+    0x2B3C, 0x2B3D, 0x2B3E, 0x2B40, 0x2B41, 0x2B42, 0x2B43, 0x2B44, 0x2B45, 0x2B46, 0x2B47, 0x2B48, 0x2B49, 0x2B4A,
+    0x2B4B, 0x2B4C, 0x2B60, 0x2B62, 0x2B64, 0x2B6A, 0x2B6C, 0x2B70, 0x2B72, 0x2B7A, 0x2B7C, 0x2B80, 0x2B82, 0x2B84,
+    0x2B86, 0x2B95, 0xFE35, 0xFE36, 0xFE37, 0xFE38, 0x1EEF0, 0x1EEF1,
+];
+
+/// The intrinsic stretch axis of a Unicode character.
+// https://w3c.github.io/mathml-core/#dfn-intrinsic-stretch-axis
+fn intrinsic_stretch_axis(code_point: u32) -> StretchAxis {
+    // The intrinsic stretch axis a Unicode character c is inline if it belongs to the list below. Otherwise, the
+    // intrinsic stretch axis of c is block.
+    if INLINE_STRETCH_AXIS_CODE_POINTS.binary_search(&code_point).is_ok() {
+        StretchAxis::Inline
+    } else {
+        StretchAxis::Block
+    }
+}
+
 /// An in-flow child box after its layout. The ascent and descent are measured from the alphabetic baseline to the
 /// line-over and line-under edges of the child's margin box.
 #[derive(Clone, Copy)]
@@ -539,10 +632,10 @@ struct MathContent {
     positions: Vec<ChildPosition>,
 }
 
-/// Font parameters used by math layout. Without an OpenType MATH table, these are the fallback values described in
-/// https://w3c.github.io/mathml-core/#layout-constants-mathconstants
+/// The layout constants of the first available font of a box.
+// https://w3c.github.io/mathml-core/#layout-constants-mathconstants
 struct MathConstants {
-    axis_height: CssPixels,
+    data: FfiMathData,
     default_rule_thickness: CssPixels,
     x_height: CssPixels,
     em: CssPixels,
@@ -550,20 +643,324 @@ struct MathConstants {
 
 impl MathConstants {
     fn for_style(style: &StyleValues<'_>) -> Self {
+        let data = *style.first_available_font().math_data();
         let em = style.font_size();
-        let x_height = CssPixels::nearest_value_for_f32(style.font_x_height());
+        // Default rule thickness: post.underlineThickness or Default fallback constant if the constant is not
+        // available.
+        // AD-HOC: Use 0.05em, a typical underline thickness, rather than the Default fallback constant of 0, which
+        //         would make every gap based on the rule thickness disappear.
+        let default_rule_thickness = data
+            .underline_thickness()
+            .map_or_else(|| em.scaled(0.05), CssPixels::nearest_value_for_f32);
         Self {
-            // axisHeight: MATH.MathConstants.axisHeight or half OS/2.sxHeight if the constant is not available.
-            axis_height: x_height / 2,
-            // Default rule thickness: post.underlineThickness or Default fallback constant if the constant is not
-            // available.
-            // FIXME: Use post.underlineThickness of the first available font.
-            // AD-HOC: Until then, use 0.05em, a typical underline thickness, rather than the Default fallback constant
-            //         of 0, which would make every gap based on the rule thickness disappear.
-            default_rule_thickness: em.scaled(0.05),
-            x_height,
+            data,
+            default_rule_thickness,
+            x_height: CssPixels::nearest_value_for_f32(style.font_x_height()),
             em,
         }
+    }
+
+    /// MATH.MathConstants.`constant`, or `fallback` if the constant is not available.
+    fn constant_or(&self, constant: MathConstant, fallback: CssPixels) -> CssPixels {
+        self.data
+            .constant(constant)
+            .map_or(fallback, CssPixels::nearest_value_for_f32)
+    }
+
+    /// MATH.MathConstants.`constant`, or the Default fallback constant of 0 if the constant is not available.
+    fn constant_or_zero(&self, constant: MathConstant) -> CssPixels {
+        self.constant_or(constant, CssPixels::default())
+    }
+
+    // axisHeight: MATH.MathConstants.axisHeight or half OS/2.sxHeight if the constant is not available.
+    fn axis_height(&self) -> CssPixels {
+        self.constant_or(MathConstant::AxisHeight, self.x_height / 2)
+    }
+
+    // accentBaseHeight: MATH.MathConstants.accentBaseHeight or OS/2.sxHeight if the constant is not available.
+    fn accent_base_height(&self) -> CssPixels {
+        self.constant_or(MathConstant::AccentBaseHeight, self.x_height)
+    }
+
+    // subscriptShiftDown: MATH.MathConstants.subscriptShiftDown or OS/2.ySubscriptYOffset if the constant is not
+    // available.
+    // FIXME: Fall back to OS/2.ySubscriptYOffset rather than 0.
+    fn subscript_shift_down(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::SubscriptShiftDown)
+    }
+
+    // subscriptTopMax: MATH.MathConstants.subscriptTopMax or ⅘ × OS/2.sxHeight if the constant is not available.
+    fn subscript_top_max(&self) -> CssPixels {
+        self.constant_or(MathConstant::SubscriptTopMax, self.x_height.scaled(0.8))
+    }
+
+    // subscriptBaselineDropMin: MATH.MathConstants.subscriptBaselineDropMin or Default fallback constant if the
+    // constant is not available.
+    fn subscript_baseline_drop_min(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::SubscriptBaselineDropMin)
+    }
+
+    // superscriptShiftUp: MATH.MathConstants.superscriptShiftUp or OS/2.ySuperscriptYOffset if the constant is not
+    // available.
+    // FIXME: Fall back to OS/2.ySuperscriptYOffset rather than 0.
+    fn superscript_shift_up(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::SuperscriptShiftUp)
+    }
+
+    // superscriptShiftUpCramped: MATH.MathConstants.superscriptShiftUpCramped or Default fallback constant if the
+    // constant is not available.
+    fn superscript_shift_up_cramped(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::SuperscriptShiftUpCramped)
+    }
+
+    // superscriptBottomMin: MATH.MathConstants.superscriptBottomMin or ¼ × OS/2.sxHeight if the constant is not
+    // available.
+    fn superscript_bottom_min(&self) -> CssPixels {
+        self.constant_or(MathConstant::SuperscriptBottomMin, self.x_height.scaled(0.25))
+    }
+
+    // superscriptBaselineDropMax: MATH.MathConstants.superscriptBaselineDropMax or Default fallback constant if the
+    // constant is not available.
+    fn superscript_baseline_drop_max(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::SuperscriptBaselineDropMax)
+    }
+
+    // subSuperscriptGapMin: MATH.MathConstants.subSuperscriptGapMin or 4 × default rule thickness if the constant is
+    // not available.
+    fn sub_superscript_gap_min(&self) -> CssPixels {
+        self.constant_or(MathConstant::SubSuperscriptGapMin, self.default_rule_thickness * 4usize)
+    }
+
+    // superscriptBottomMaxWithSubscript: MATH.MathConstants.superscriptBottomMaxWithSubscript or ⅘ × OS/2.sxHeight if
+    // the constant is not available.
+    fn superscript_bottom_max_with_subscript(&self) -> CssPixels {
+        self.constant_or(
+            MathConstant::SuperscriptBottomMaxWithSubscript,
+            self.x_height.scaled(0.8),
+        )
+    }
+
+    // spaceAfterScript: MATH.MathConstants.spaceAfterScript or 1/24em if the constant is not available.
+    fn space_after_script(&self) -> CssPixels {
+        self.constant_or(MathConstant::SpaceAfterScript, self.em.scaled(1.0 / 24.0))
+    }
+
+    // upperLimitGapMin: MATH.MathConstants.upperLimitGapMin or Default fallback constant if the constant is not
+    // available.
+    fn upper_limit_gap_min(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::UpperLimitGapMin)
+    }
+
+    // upperLimitBaselineRiseMin: MATH.MathConstants.upperLimitBaselineRiseMin or Default fallback constant if the
+    // constant is not available.
+    fn upper_limit_baseline_rise_min(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::UpperLimitBaselineRiseMin)
+    }
+
+    // lowerLimitGapMin: MATH.MathConstants.lowerLimitGapMin or Default fallback constant if the constant is not
+    // available.
+    fn lower_limit_gap_min(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::LowerLimitGapMin)
+    }
+
+    // lowerLimitBaselineDropMin: MATH.MathConstants.lowerLimitBaselineDropMin or Default fallback constant if the
+    // constant is not available.
+    fn lower_limit_baseline_drop_min(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::LowerLimitBaselineDropMin)
+    }
+
+    // stackTopShiftUp: MATH.MathConstants.stackTopShiftUp or Default fallback constant if the constant is not
+    // available.
+    fn stack_top_shift_up(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::StackTopShiftUp)
+    }
+
+    // stackTopDisplayStyleShiftUp: MATH.MathConstants.stackTopDisplayStyleShiftUp or Default fallback constant if the
+    // constant is not available.
+    fn stack_top_display_style_shift_up(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::StackTopDisplayStyleShiftUp)
+    }
+
+    // stackBottomShiftDown: MATH.MathConstants.stackBottomShiftDown or Default fallback constant if the constant is
+    // not available.
+    fn stack_bottom_shift_down(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::StackBottomShiftDown)
+    }
+
+    // stackBottomDisplayStyleShiftDown: MATH.MathConstants.stackBottomDisplayStyleShiftDown or Default fallback
+    // constant if the constant is not available.
+    fn stack_bottom_display_style_shift_down(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::StackBottomDisplayStyleShiftDown)
+    }
+
+    // stackGapMin: MATH.MathConstants.stackGapMin or 3 × default rule thickness if the constant is not available.
+    fn stack_gap_min(&self) -> CssPixels {
+        self.constant_or(MathConstant::StackGapMin, self.default_rule_thickness * 3usize)
+    }
+
+    // stackDisplayStyleGapMin: MATH.MathConstants.stackDisplayStyleGapMin or 7 × default rule thickness if the
+    // constant is not available.
+    fn stack_display_style_gap_min(&self) -> CssPixels {
+        self.constant_or(
+            MathConstant::StackDisplayStyleGapMin,
+            self.default_rule_thickness * 7usize,
+        )
+    }
+
+    // stretchStackTopShiftUp: MATH.MathConstants.stretchStackTopShiftUp or Default fallback constant if the constant
+    // is not available.
+    fn stretch_stack_top_shift_up(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::StretchStackTopShiftUp)
+    }
+
+    // stretchStackBottomShiftDown: MATH.MathConstants.stretchStackBottomShiftDown or Default fallback constant if the
+    // constant is not available.
+    fn stretch_stack_bottom_shift_down(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::StretchStackBottomShiftDown)
+    }
+
+    // stretchStackGapAboveMin: MATH.MathConstants.stretchStackGapAboveMin or Default fallback constant if the
+    // constant is not available.
+    fn stretch_stack_gap_above_min(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::StretchStackGapAboveMin)
+    }
+
+    // stretchStackGapBelowMin: MATH.MathConstants.stretchStackGapBelowMin or Default fallback constant if the
+    // constant is not available.
+    fn stretch_stack_gap_below_min(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::StretchStackGapBelowMin)
+    }
+
+    // fractionNumeratorShiftUp: MATH.MathConstants.fractionNumeratorShiftUp or Default fallback constant if the
+    // constant is not available.
+    fn fraction_numerator_shift_up(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::FractionNumeratorShiftUp)
+    }
+
+    // fractionNumeratorDisplayStyleShiftUp: MATH.MathConstants.fractionNumeratorDisplayStyleShiftUp or Default
+    // fallback constant if the constant is not available.
+    fn fraction_numerator_display_style_shift_up(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::FractionNumeratorDisplayStyleShiftUp)
+    }
+
+    // fractionDenominatorShiftDown: MATH.MathConstants.fractionDenominatorShiftDown or Default fallback constant if
+    // the constant is not available.
+    fn fraction_denominator_shift_down(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::FractionDenominatorShiftDown)
+    }
+
+    // fractionDenominatorDisplayStyleShiftDown: MATH.MathConstants.fractionDenominatorDisplayStyleShiftDown or
+    // Default fallback constant if the constant is not available.
+    fn fraction_denominator_display_style_shift_down(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::FractionDenominatorDisplayStyleShiftDown)
+    }
+
+    // fractionNumeratorGapMin: MATH.MathConstants.fractionNumeratorGapMin or default rule thickness if the constant is
+    // not available.
+    fn fraction_numerator_gap_min(&self) -> CssPixels {
+        self.constant_or(MathConstant::FractionNumeratorGapMin, self.default_rule_thickness)
+    }
+
+    // fractionNumDisplayStyleGapMin: MATH.MathConstants.fractionNumDisplayStyleGapMin or 3 × default rule thickness if
+    // the constant is not available.
+    fn fraction_num_display_style_gap_min(&self) -> CssPixels {
+        self.constant_or(
+            MathConstant::FractionNumDisplayStyleGapMin,
+            self.default_rule_thickness * 3usize,
+        )
+    }
+
+    // fractionRuleThickness: MATH.MathConstants.fractionRuleThickness or default rule thickness if the constant is not
+    // available.
+    fn fraction_rule_thickness(&self) -> CssPixels {
+        self.constant_or(MathConstant::FractionRuleThickness, self.default_rule_thickness)
+    }
+
+    // fractionDenominatorGapMin: MATH.MathConstants.fractionDenominatorGapMin or default rule thickness if the
+    // constant is not available.
+    fn fraction_denominator_gap_min(&self) -> CssPixels {
+        self.constant_or(MathConstant::FractionDenominatorGapMin, self.default_rule_thickness)
+    }
+
+    // fractionDenomDisplayStyleGapMin: MATH.MathConstants.fractionDenomDisplayStyleGapMin or 3 × default rule
+    // thickness if the constant is not available.
+    fn fraction_denom_display_style_gap_min(&self) -> CssPixels {
+        self.constant_or(
+            MathConstant::FractionDenomDisplayStyleGapMin,
+            self.default_rule_thickness * 3usize,
+        )
+    }
+
+    // overbarVerticalGap: MATH.MathConstants.overbarVerticalGap or 3 × default rule thickness if the constant is not
+    // available.
+    fn overbar_vertical_gap(&self) -> CssPixels {
+        self.constant_or(MathConstant::OverbarVerticalGap, self.default_rule_thickness * 3usize)
+    }
+
+    // overbarExtraAscender: MATH.MathConstants.overbarExtraAscender or default rule thickness if the constant is not
+    // available.
+    fn overbar_extra_ascender(&self) -> CssPixels {
+        self.constant_or(MathConstant::OverbarExtraAscender, self.default_rule_thickness)
+    }
+
+    // underbarVerticalGap: MATH.MathConstants.underbarVerticalGap or 3 × default rule thickness if the constant is not
+    // available.
+    fn underbar_vertical_gap(&self) -> CssPixels {
+        self.constant_or(MathConstant::UnderbarVerticalGap, self.default_rule_thickness * 3usize)
+    }
+
+    // underbarExtraDescender: MATH.MathConstants.underbarExtraDescender or default rule thickness if the constant is
+    // not available.
+    fn underbar_extra_descender(&self) -> CssPixels {
+        self.constant_or(MathConstant::UnderbarExtraDescender, self.default_rule_thickness)
+    }
+
+    // radicalVerticalGap: MATH.MathConstants.radicalVerticalGap or 1¼ × default rule thickness if the constant is not
+    // available.
+    fn radical_vertical_gap(&self) -> CssPixels {
+        self.constant_or(
+            MathConstant::RadicalVerticalGap,
+            self.default_rule_thickness.scaled(1.25),
+        )
+    }
+
+    // radicalDisplayStyleVerticalGap: MATH.MathConstants.radicalDisplayStyleVerticalGap or default rule thickness + ¼
+    // OS/2.sxHeight if the constant is not available.
+    fn radical_display_style_vertical_gap(&self) -> CssPixels {
+        self.constant_or(
+            MathConstant::RadicalDisplayStyleVerticalGap,
+            self.default_rule_thickness + self.x_height.scaled(0.25),
+        )
+    }
+
+    // radicalRuleThickness: MATH.MathConstants.radicalRuleThickness or default rule thickness if the constant is not
+    // available.
+    fn radical_rule_thickness(&self) -> CssPixels {
+        self.constant_or(MathConstant::RadicalRuleThickness, self.default_rule_thickness)
+    }
+
+    // radicalExtraAscender: MATH.MathConstants.radicalExtraAscender or default rule thickness if the constant is not
+    // available.
+    fn radical_extra_ascender(&self) -> CssPixels {
+        self.constant_or(MathConstant::RadicalExtraAscender, self.default_rule_thickness)
+    }
+
+    // radicalKernBeforeDegree: MATH.MathConstants.radicalKernBeforeDegree or 5/18em if the constant is not available.
+    fn radical_kern_before_degree(&self) -> CssPixels {
+        self.constant_or(MathConstant::RadicalKernBeforeDegree, self.em.scaled(5.0 / 18.0))
+    }
+
+    // radicalKernAfterDegree: MATH.MathConstants.radicalKernAfterDegree or −10/18em if the constant is not available.
+    fn radical_kern_after_degree(&self) -> CssPixels {
+        self.constant_or(MathConstant::RadicalKernAfterDegree, self.em.scaled(-10.0 / 18.0))
+    }
+
+    // radicalDegreeBottomRaisePercent: MATH.MathConstants.radicalDegreeBottomRaisePercent / 100.0 or 0.6 if the
+    // constant is not available.
+    fn radical_degree_bottom_raise_percent(&self) -> f64 {
+        self.data
+            .constant(MathConstant::RadicalDegreeBottomRaisePercent)
+            .map_or(0.6, |percent| f64::from(percent) / 100.0)
     }
 }
 
@@ -697,6 +1094,21 @@ impl<'pass> MathFormattingContext<'pass> {
         Some(content[start..end].to_vec())
     }
 
+    /// The character c of an operator whose content is made of a single character.
+    fn operator_character(&self, operator: Node) -> Option<u32> {
+        let content = self.operator_text_content(operator)?;
+        let mut characters = char::decode_utf16(content.iter().copied());
+        let character = characters.next()?.ok()?;
+        characters.next().is_none().then_some(u32::from(character))
+    }
+
+    /// The stretch axis of an operator, which is the intrinsic stretch axis of its character.
+    // https://w3c.github.io/mathml-core/#dfn-stretch-axis
+    fn stretch_axis(&self, operator: Node) -> StretchAxis {
+        self.operator_character(operator)
+            .map_or(StretchAxis::Block, intrinsic_stretch_axis)
+    }
+
     /// The indices of the first and last of `siblings` that are not space-like, if there are at least two such
     /// siblings and their parent is a grouping element, <mpadded> or <msqrt>.
     fn first_and_last_non_space_like(&self, siblings: &[Node], parent_kind: MathLayoutKind) -> Option<(usize, usize)> {
@@ -740,16 +1152,16 @@ impl<'pass> MathFormattingContext<'pass> {
         OperatorForm::Infix
     }
 
-    /// The lspace and rspace of the in-flow child at `index` of the box being laid out, if it is an embellished
+    /// The properties of the in-flow child at `index` of a box of kind `parent_kind`, if it is an embellished
     /// operator.
     // https://w3c.github.io/mathml-core/#dfn-algorithm-for-determining-the-properties-of-an-embellished-operator
-    fn embellished_operator_spacing(
+    fn embellished_operator_properties(
         &self,
         siblings: &[Node],
         index: usize,
         parent_kind: MathLayoutKind,
         first_and_last_non_space_like: Option<(usize, usize)>,
-    ) -> Option<(CssPixels, CssPixels)> {
+    ) -> Option<OperatorProperties> {
         let core_operator = self.core_operator(siblings[index])?;
         let attributes = self.run.callbacks.arena().math_attribute_facts(core_operator);
         // 2. Otherwise, run the algorithm for determining the form of an embellished operator.
@@ -784,9 +1196,12 @@ impl<'pass> MathFormattingContext<'pass> {
         let (lspace, rspace) = category.spacing_in_eighteenths_of_em();
         let dictionary_lspace = core_style.font_size().scaled(f64::from(lspace) / 18.0);
         let dictionary_rspace = core_style.font_size().scaled(f64::from(rspace) / 18.0);
-        // 1. If the corresponding lspace or rspace attribute is present and valid on the core operator, then the
-        //    ASCII lowercased value of this property is used.
-        // NB: Percentage values for lspace and rspace are interpreted relative to the value read from the dictionary.
+        // 1. If the corresponding stretchy, symmetric, largeop, movablelimits, lspace, rspace, maxsize or minsize
+        //    attribute is present and valid on the core operator, then the ASCII lowercased value of this property is
+        //    used.
+        // NB: This step is applied last, as the dictionary gives the values for the attributes that are absent or
+        //     invalid. Percentage values for lspace and rspace are interpreted relative to the value read from the
+        //     dictionary.
         let lspace = attributes
             .lspace
             .resolve(&core_style, dictionary_lspace)
@@ -795,7 +1210,19 @@ impl<'pass> MathFormattingContext<'pass> {
             .rspace
             .resolve(&core_style, dictionary_rspace)
             .unwrap_or(dictionary_rspace);
-        Some((lspace, rspace))
+        let dictionary_flags = category.flags();
+        let flags = OperatorFlags {
+            stretchy: math_boolean_or(attributes.stretchy, dictionary_flags.stretchy),
+            symmetric: math_boolean_or(attributes.symmetric, dictionary_flags.symmetric),
+            largeop: math_boolean_or(attributes.largeop, dictionary_flags.largeop),
+            movablelimits: math_boolean_or(attributes.movablelimits, dictionary_flags.movablelimits),
+        };
+        Some(OperatorProperties {
+            core_operator,
+            lspace,
+            rspace,
+            flags,
+        })
     }
 
     fn layout_child(&self, child: Node, constraints: ContainingBlockConstraints) -> Child {
@@ -845,25 +1272,30 @@ impl<'pass> MathFormattingContext<'pass> {
 
         let root_style = self.style(root);
         let constants = MathConstants::for_style(&root_style);
+        let is_cramped = root_style.math_shift() == math_shift::COMPACT;
         let content = match (kind, children.len()) {
             (MathLayoutKind::Mfrac, 2) => self.layout_fraction(&children, &constants, &root_style),
-            (MathLayoutKind::Msub, 2) => layout_scripts(&children[0], Some(&children[1]), None, &constants),
-            (MathLayoutKind::Msup, 2) => layout_scripts(&children[0], None, Some(&children[1]), &constants),
-            (MathLayoutKind::Msubsup, 3) => {
-                layout_scripts(&children[0], Some(&children[1]), Some(&children[2]), &constants)
-            }
-            (MathLayoutKind::Munder, 2) => {
-                layout_underover(&children[0], Some(&children[1]), None, &constants, self.accents(root))
-            }
-            (MathLayoutKind::Mover, 2) => {
-                layout_underover(&children[0], None, Some(&children[1]), &constants, self.accents(root))
-            }
-            (MathLayoutKind::Munderover, 3) => layout_underover(
+            (MathLayoutKind::Msub, 2) => layout_scripts(&children[0], Some(&children[1]), None, &constants, is_cramped),
+            (MathLayoutKind::Msup, 2) => layout_scripts(&children[0], None, Some(&children[1]), &constants, is_cramped),
+            (MathLayoutKind::Msubsup, 3) => layout_scripts(
                 &children[0],
                 Some(&children[1]),
                 Some(&children[2]),
                 &constants,
-                self.accents(root),
+                is_cramped,
+            ),
+            (MathLayoutKind::Munder, 2) => {
+                self.layout_underover_element(&children[0], Some(&children[1]), None, &constants, &root_style)
+            }
+            (MathLayoutKind::Mover, 2) => {
+                self.layout_underover_element(&children[0], None, Some(&children[1]), &constants, &root_style)
+            }
+            (MathLayoutKind::Munderover, 3) => self.layout_underover_element(
+                &children[0],
+                Some(&children[1]),
+                Some(&children[2]),
+                &constants,
+                &root_style,
             ),
             (MathLayoutKind::Mspace, _) => self.layout_space(&root_style),
             (MathLayoutKind::Mpadded, _) => {
@@ -872,9 +1304,12 @@ impl<'pass> MathFormattingContext<'pass> {
                 let inner = self.layout_row_with_operator_spacing(&children, kind, add_space);
                 self.layout_padded(inner, &root_style)
             }
-            (MathLayoutKind::Mmultiscripts, _) if self.is_valid_multiscripts(&children) => {
-                layout_multiscripts(&children, self.prescripts_separator_index(&children), &constants)
-            }
+            (MathLayoutKind::Mmultiscripts, _) if self.is_valid_multiscripts(&children) => layout_multiscripts(
+                &children,
+                self.prescripts_separator_index(&children),
+                &constants,
+                is_cramped,
+            ),
             (MathLayoutKind::Mroot, 2) => {
                 let radical = RadicalMetrics::new(&root_style, &constants);
                 layout_root(&children[0], &children[1], &radical, &constants)
@@ -984,11 +1419,53 @@ impl<'pass> MathFormattingContext<'pass> {
         let spacing: Vec<Option<(CssPixels, CssPixels)>> = (0..nodes.len())
             .map(|index| {
                 add_space
-                    .then(|| self.embellished_operator_spacing(&nodes, index, kind, first_and_last_non_space_like))
+                    .then(|| self.embellished_operator_properties(&nodes, index, kind, first_and_last_non_space_like))
                     .flatten()
+                    .map(|properties| (properties.lspace, properties.rspace))
             })
             .collect();
         layout_row(children, &spacing)
+    }
+
+    // https://w3c.github.io/mathml-core/#children-of-munder-mover-munderover
+    fn layout_underover_element(
+        &self,
+        base: &Child,
+        underscript: Option<&Child>,
+        overscript: Option<&Child>,
+        constants: &MathConstants,
+        style: &StyleValues<'_>,
+    ) -> MathContent {
+        let base_properties = self.embellished_operator_properties(&[base.node], 0, self.kind(self.run.box_), None);
+        // If the <munder>, <mover> or <munderover> elements have a computed math-style property equal to compact and
+        // their base is an embellished operator with the movablelimits property, then their layout algorithms are
+        // respectively the same as the ones described for <msub>, <msup> and <msubsup> in 3.4.1.2 Base with
+        // subscript, 3.4.1.3 Base with superscript and 3.4.1.4 Base with subscript and superscript.
+        if style.math_style() == math_style::COMPACT
+            && base_properties.is_some_and(|properties| properties.flags.movablelimits)
+        {
+            let is_cramped = style.math_shift() == math_shift::COMPACT;
+            return layout_scripts(base, underscript, overscript, constants, is_cramped);
+        }
+        // Otherwise, the <munder>, <mover> and <munderover> layout algorithms are respectively described in 3.4.2.3
+        // Base with underscript, 3.4.2.4 Base with overscript and 3.4.2.5 Base with underscript and overscript.
+        let base_kind = match base_properties {
+            Some(properties) if properties.flags.largeop => UnderOverBase::LargeOperator,
+            Some(properties)
+                if properties.flags.stretchy && self.stretch_axis(properties.core_operator) == StretchAxis::Inline =>
+            {
+                UnderOverBase::InlineStretchyOperator
+            }
+            _ => UnderOverBase::Other,
+        };
+        layout_underover(
+            base,
+            underscript,
+            overscript,
+            constants,
+            base_kind,
+            self.accents(self.run.box_),
+        )
     }
 
     /// Whether the accentunder and accent attributes of an <munder>, <mover> or <munderover> are a match to true.
@@ -1083,50 +1560,70 @@ impl<'pass> MathFormattingContext<'pass> {
             .arena()
             .math_attribute_facts(self.run.box_)
             .linethickness
-            .resolve(style, constants.default_rule_thickness)
-            .unwrap_or(constants.default_rule_thickness)
+            .resolve(style, constants.fraction_rule_thickness())
+            .unwrap_or(constants.fraction_rule_thickness())
             .max(CssPixels::default());
         if line_thickness == CssPixels::default() {
             return layout_fraction_without_bar(numerator, denominator, constants, is_display_style);
         }
         let half_thickness = line_thickness / 2;
-        let axis_height = constants.axis_height;
-        // NB: FractionNumeratorShiftUp and FractionDenominatorShiftDown fall back to 0.
-        let (numerator_gap_min, denominator_gap_min) = if is_display_style {
-            (
-                constants.default_rule_thickness * 3usize,
-                constants.default_rule_thickness * 3usize,
-            )
-        } else {
-            (constants.default_rule_thickness, constants.default_rule_thickness)
-        };
+        let axis_height = constants.axis_height();
 
         // The inline size of the math content is the maximum between the inline size of the numerator's margin box
         // and the inline size of the denominator's margin box.
         let inline_size = numerator.inline_size.max(denominator.inline_size);
 
-        // NumeratorShift is the maximum between FractionNumeratorShiftUp and the AxisHeight + half the fraction line
-        // thickness + FractionNumeratorGapMin + the ink line-descent of the numerator's margin box.
+        // NumeratorShift is the maximum between:
+        // - FractionNumeratorShiftUp (respectively FractionNumeratorDisplayStyleShiftUp) if the math-style is compact
+        //   (respectively normal).
+        // - The AxisHeight + half the fraction line thickness + FractionNumeratorGapMin (respectively
+        //   FractionNumDisplayStyleGapMin) if the math-style is compact (respectively normal) + the ink line-descent of
+        //   the numerator's margin box.
+        let (numerator_shift_up, numerator_gap_min) = if is_display_style {
+            (
+                constants.fraction_numerator_display_style_shift_up(),
+                constants.fraction_num_display_style_gap_min(),
+            )
+        } else {
+            (
+                constants.fraction_numerator_shift_up(),
+                constants.fraction_numerator_gap_min(),
+            )
+        };
         let numerator_shift =
-            CssPixels::default().max(axis_height + half_thickness + numerator_gap_min + numerator.descent);
-        // DenominatorShift is the maximum between FractionDenominatorShiftDown and half the fraction line thickness +
-        // FractionDenominatorGapMin + the ink line-ascent of the denominator's margin box − the AxisHeight.
+            numerator_shift_up.max(axis_height + half_thickness + numerator_gap_min + numerator.descent);
+        // DenominatorShift is the maximum between:
+        // - FractionDenominatorShiftDown (respectively FractionDenominatorDisplayStyleShiftDown) if the math-style is
+        //   compact (respectively normal).
+        // - Half the fraction line thickness + FractionDenominatorGapMin (respectively FractionDenomDisplayStyleGapMin)
+        //   if the math-style is compact (respectively normal) + the ink line-ascent of the denominator's margin box −
+        //   the AxisHeight.
+        let (denominator_shift_down, denominator_gap_min) = if is_display_style {
+            (
+                constants.fraction_denominator_display_style_shift_down(),
+                constants.fraction_denom_display_style_gap_min(),
+            )
+        } else {
+            (
+                constants.fraction_denominator_shift_down(),
+                constants.fraction_denominator_gap_min(),
+            )
+        };
         let denominator_shift =
-            CssPixels::default().max(half_thickness + denominator_gap_min + denominator.ascent - axis_height);
+            denominator_shift_down.max(half_thickness + denominator_gap_min + denominator.ascent - axis_height);
 
         // The line-ascent of the math content is the maximum between:
         // - Numerator Shift + the line-ascent of the numerator's margin box.
-        // - Denominator Shift + the line-ascent of the denominator's margin box
+        // - −Denominator Shift + the line-ascent of the denominator's margin box
         // - AxisHeight plus half the fraction line thickness.
-        // The line-descent of the math content is the maximum between:
-        // - Numerator Shift + the line-descent of the numerator's margin box.
-        // - Denominator Shift + the line-descent of the denominator's margin box.
-        // - AxisHeight plus half the fraction line thickness.
-        // NB: The shifts are applied in the directions the numerator and denominator are moved in, and the fraction
-        //     bar extends below the alphabetic baseline by half the fraction line thickness minus the AxisHeight.
         let ascent = (numerator_shift + numerator.ascent)
             .max(denominator.ascent - denominator_shift)
             .max(axis_height + half_thickness);
+        // The line-descent of the math content is the maximum between:
+        // - −Numerator Shift + the line-descent of the numerator's margin box.
+        // - Denominator Shift + the line-descent of the denominator's margin box.
+        // - −AxisHeight plus half the fraction line thickness.
+        // - 0
         let descent = (numerator.descent - numerator_shift)
             .max(denominator_shift + denominator.descent)
             .max(half_thickness - axis_height)
@@ -1252,20 +1749,23 @@ fn layout_fraction_without_bar(
     // If the math-style is compact then TopShift and BottomShift are respectively set to StackTopShiftUp and
     // StackBottomShiftDown. Otherwise math-style is normal and they are respectively set to
     // StackTopDisplayStyleShiftUp and StackBottomDisplayStyleShiftDown.
-    // NB: These constants fall back to the Default fallback constant, which is 0.
-    let mut top_shift = CssPixels::default();
-    let mut bottom_shift = CssPixels::default();
+    let (mut top_shift, mut bottom_shift) = if is_display_style {
+        (
+            constants.stack_top_display_style_shift_up(),
+            constants.stack_bottom_display_style_shift_down(),
+        )
+    } else {
+        (constants.stack_top_shift_up(), constants.stack_bottom_shift_down())
+    };
 
-    // Gap is defined to be (BottomShift − the ink line-ascent of the denominator's margin box) + (TopShift − the ink
-    // line-descent of the numerator's margin box). If math-style is compact then GapMin is StackGapMin, otherwise
+    // The Gap is defined to be (BottomShift − the ink line-ascent of the denominator's margin box) + (TopShift − the
+    // ink line-descent of the numerator's margin box). If math-style is compact then GapMin is StackGapMin, otherwise
     // math-style is normal and it is StackDisplayStyleGapMin.
-    // NB: stackGapMin falls back to 3 × default rule thickness, and stackDisplayStyleGapMin to 7 × default rule
-    //     thickness.
     let gap = (bottom_shift - denominator.ascent) + (top_shift - numerator.descent);
     let gap_min = if is_display_style {
-        constants.default_rule_thickness * 7usize
+        constants.stack_display_style_gap_min()
     } else {
-        constants.default_rule_thickness * 3usize
+        constants.stack_gap_min()
     };
     // If Δ = GapMin − Gap is positive then TopShift and BottomShift are respectively increased by Δ/2 and Δ − Δ/2.
     let delta = gap_min - gap;
@@ -1313,55 +1813,58 @@ fn script_shifts(
     subscript: Option<&Child>,
     superscript: Option<&Child>,
     constants: &MathConstants,
+    is_cramped: bool,
 ) -> (Option<CssPixels>, Option<CssPixels>) {
-    // FIXME: Use the italic correction of the base and the MATH table constants of the font.
-    // subscriptTopMax: ⅘ × OS/2.sxHeight if the constant is not available.
-    let subscript_top_max = constants.x_height.scaled(0.8);
-    // superscriptBottomMin: ¼ × OS/2.sxHeight if the constant is not available.
-    let superscript_bottom_min = constants.x_height.scaled(0.25);
-    // superscriptBottomMaxWithSubscript: ⅘ × OS/2.sxHeight if the constant is not available.
-    let superscript_bottom_max_with_subscript = constants.x_height.scaled(0.8);
-    // subSuperscriptGapMin: 4 × default rule thickness if the constant is not available.
-    let sub_superscript_gap_min = constants.default_rule_thickness * 4usize;
-    // FIXME: SubscriptShiftDown and SuperscriptShiftUp fall back to OS/2.ySubscriptYOffset and
-    //        OS/2.ySuperscriptYOffset, which are not available, so they are 0 here.
-    // NB: SuperscriptShiftUpCramped, SubscriptBaselineDropMin and SuperscriptBaselineDropMax fall back to the Default
-    //     fallback constant, which is 0.
-
-    // SubShift is the maximum between SubscriptShiftDown, the ink line-ascent of the subscript's margin box −
-    // SubscriptTopMax, and SubscriptBaselineDropMin + the ink line-descent of the msub base's margin box.
+    // FIXME: Use the italic correction of the base.
+    // SubShift is the maximum between:
+    // - SubscriptShiftDown
+    // - the ink line-ascent of the subscript's margin box − SubscriptTopMax
+    // - SubscriptBaselineDropMin + the ink line-descent of the msub base's margin box
     let mut sub_shift = subscript.map(|subscript| {
-        CssPixels::default()
-            .max(subscript.ascent - subscript_top_max)
-            .max(base.descent)
+        constants
+            .subscript_shift_down()
+            .max(subscript.ascent - constants.subscript_top_max())
+            .max(constants.subscript_baseline_drop_min() + base.descent)
     });
-    // SuperShift is the maximum between SuperscriptShiftUp (or SuperscriptShiftUpCramped), SuperscriptBottomMin +
-    // the ink line-descent of the superscript's margin box, and the ink line-ascent of the msup base's margin box −
-    // SuperscriptBaselineDropMax.
+    // SuperShift is the maximum between:
+    // - The value SuperscriptShiftUpCramped if the element has a computed math-shift property equal to compact, or
+    //   SuperscriptShiftUp otherwise.
+    // - SuperscriptBottomMin + the ink line-descent of the superscript's margin box
+    // - The ink line-ascent of the msup base's margin box − SuperscriptBaselineDropMax
+    let superscript_shift_up = if is_cramped {
+        constants.superscript_shift_up_cramped()
+    } else {
+        constants.superscript_shift_up()
+    };
     let mut super_shift = superscript.map(|superscript| {
-        CssPixels::default()
-            .max(superscript_bottom_min + superscript.descent)
-            .max(base.ascent)
+        superscript_shift_up
+            .max(constants.superscript_bottom_min() + superscript.descent)
+            .max(base.ascent - constants.superscript_baseline_drop_max())
     });
 
     if let (Some(subscript), Some(superscript), Some(sub), Some(sup)) =
         (subscript, superscript, sub_shift.as_mut(), super_shift.as_mut())
     {
-        // SubSuperGap is the gap between the two scripts along the block axis.
-        let sub_super_gap = (*sub - subscript.ascent) + (*sup - superscript.descent);
+        let sub_superscript_gap_min = constants.sub_superscript_gap_min();
+        // SubSuperGap is the gap between the two scripts along the block axis and is defined by (SubShift − the ink
+        // line-ascent of the msubsup subscript's margin box) + (SuperShift − the ink line-descent of the msubsup
+        // superscript's margin box).
+        let mut sub_super_gap = (*sub - subscript.ascent) + (*sup - superscript.descent);
+        // If SubSuperGap is not at least SubSuperscriptGapMin then the following steps are performed to ensure that
+        // the condition holds:
         if sub_super_gap < sub_superscript_gap_min {
-            // Let Δ be SuperscriptBottomMaxWithSubscript − (SuperShift − the ink line-descent of the msubsup
-            // superscript's margin box). If Δ > 0 then set Δ to the minimum between Δ and SubSuperscriptGapMin −
-            // SubSuperGap and increase SuperShift (and so SubSuperGap too) by Δ.
-            let mut delta = superscript_bottom_max_with_subscript - (*sup - superscript.descent);
-            let mut gap = sub_super_gap;
+            // 1. Let Δ be SuperscriptBottomMaxWithSubscript − (SuperShift − the ink line-descent of the msubsup
+            //    superscript's margin box). If Δ > 0 then set Δ to the minimum between Δ set SubSuperscriptGapMin −
+            //    SubSuperGap and increase SuperShift (and so SubSuperGap too) by Δ.
+            let mut delta = constants.superscript_bottom_max_with_subscript() - (*sup - superscript.descent);
             if delta > CssPixels::default() {
-                delta = delta.min(sub_superscript_gap_min - gap);
+                delta = delta.min(sub_superscript_gap_min - sub_super_gap);
                 *sup += delta;
-                gap += delta;
+                sub_super_gap += delta;
             }
-            // Let Δ be SubSuperscriptGapMin − SubSuperGap. If Δ > 0 then increase SubscriptShift by Δ.
-            let delta = sub_superscript_gap_min - gap;
+            // 2. Let Δ be SubSuperscriptGapMin − SubSuperGap. If Δ > 0 then increase SubscriptShift (and so
+            //    SubSuperGap too) by Δ.
+            let delta = sub_superscript_gap_min - sub_super_gap;
             if delta > CssPixels::default() {
                 *sub += delta;
             }
@@ -1375,10 +1878,10 @@ fn layout_scripts(
     subscript: Option<&Child>,
     superscript: Option<&Child>,
     constants: &MathConstants,
+    is_cramped: bool,
 ) -> MathContent {
-    // spaceAfterScript: MATH.MathConstants.spaceAfterScript or 1/24em if the constant is not available.
-    let space_after_script = constants.em.scaled(1.0 / 24.0);
-    let (sub_shift, super_shift) = script_shifts(base, subscript, superscript, constants);
+    let space_after_script = constants.space_after_script();
+    let (sub_shift, super_shift) = script_shifts(base, subscript, superscript, constants, is_cramped);
 
     let mut ascent = base.ascent;
     let mut descent = base.descent;
@@ -1411,9 +1914,14 @@ fn layout_scripts(
 }
 
 // https://w3c.github.io/mathml-core/#base-with-prescripts-and-postscripts
-fn layout_multiscripts(children: &[Child], separator: Option<usize>, constants: &MathConstants) -> MathContent {
+fn layout_multiscripts(
+    children: &[Child],
+    separator: Option<usize>,
+    constants: &MathConstants,
+    is_cramped: bool,
+) -> MathContent {
     // FIXME: Use the italic correction of the postscripts' base.
-    let space_after_script = constants.em.scaled(1.0 / 24.0);
+    let space_after_script = constants.space_after_script();
     let base = &children[0];
     let postscripts = &children[1..separator.unwrap_or(children.len())];
     let prescripts = separator.map_or(&children[0..0], |separator| &children[separator + 1..]);
@@ -1423,7 +1931,8 @@ fn layout_multiscripts(children: &[Child], separator: Option<usize>, constants: 
     let mut sub_shift = CssPixels::default();
     let mut super_shift = CssPixels::default();
     for pair in postscripts.chunks(2).chain(prescripts.chunks(2)) {
-        let (pair_sub_shift, pair_super_shift) = script_shifts(base, Some(&pair[0]), Some(&pair[1]), constants);
+        let (pair_sub_shift, pair_super_shift) =
+            script_shifts(base, Some(&pair[0]), Some(&pair[1]), constants, is_cramped);
         sub_shift = sub_shift.max(pair_sub_shift.unwrap_or_default());
         super_shift = super_shift.max(pair_super_shift.unwrap_or_default());
     }
@@ -1502,36 +2011,105 @@ fn layout_multiscripts(children: &[Child], separator: Option<usize>, constants: 
     }
 }
 
+/// What the base of an <munder>, <mover> or <munderover> is, which selects the parameters the scripts are placed with.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum UnderOverBase {
+    /// An embellished operator with the largeop property.
+    LargeOperator,
+    /// An embellished operator with the stretchy property and stretch axis inline.
+    InlineStretchyOperator,
+    Other,
+}
+
 // https://w3c.github.io/mathml-core/#underscripts-and-overscripts-munder-mover-munderover
 fn layout_underover(
     base: &Child,
     underscript: Option<&Child>,
     overscript: Option<&Child>,
     constants: &MathConstants,
+    base_kind: UnderOverBase,
     (accentunder, accent): (bool, bool),
 ) -> MathContent {
-    // FIXME: Handle large operators, operators stretchy along the inline axis, and bases that are embellished
-    //        operators with the movablelimits property when the math-style is compact, which are laid out as scripts.
-    // UnderShift is equal to UnderbarVerticalGap if the accentunder attribute is not an ASCII case-insensitive match
-    // to true and to zero otherwise.
-    // NB: underbarVerticalGap and overbarVerticalGap fall back to 3 × default rule thickness, and accentBaseHeight
-    //     to OS/2.sxHeight.
-    let under_shift = if accentunder {
-        CssPixels::default()
-    } else {
-        constants.default_rule_thickness * 3usize
+    // FIXME: Use the LargeOpItalicCorrection of the base and the TopAccentAttachment of the overscript.
+    // Parameters UnderShift and UnderExtraDescender are determined by considering three cases in the following order:
+    // NB: For the first two cases, UnderShift accounts for the line-ascent of the underscript, so it is the distance
+    //     from the line-under edge of the base to the alphabetic baseline of the underscript.
+    let under_parameters = |underscript: &Child| match base_kind {
+        // 1. The munder base is an embellished operator with the largeop property. UnderShift is the maximum of
+        //    - LowerLimitBaselineDropMin
+        //    - LowerLimitGapMin + the ascent of the munder underscript.
+        //    UnderExtraDescender is 0.
+        UnderOverBase::LargeOperator => (
+            constants
+                .lower_limit_baseline_drop_min()
+                .max(constants.lower_limit_gap_min() + underscript.ascent),
+            CssPixels::default(),
+        ),
+        // 2. The munder base is an embellished operator with the stretchy property and stretch axis inline. UnderShift
+        //    is the maximum of:
+        //    - StretchStackBottomShiftDown
+        //    - StretchStackGapAboveMin + the ascent of the munder underscript.
+        //    UnderExtraDescender is 0.
+        UnderOverBase::InlineStretchyOperator => (
+            constants
+                .stretch_stack_bottom_shift_down()
+                .max(constants.stretch_stack_gap_above_min() + underscript.ascent),
+            CssPixels::default(),
+        ),
+        // 3. Otherwise, UnderShift is equal to UnderbarVerticalGap if the accentunder attribute is not an ASCII
+        //    case-insensitive match to true and to zero otherwise. UnderExtraAscender is UnderbarExtraDescender.
+        // AD-HOC: The underscript's margin box is placed UnderShift below the base's margin box, so that UnderShift is
+        //         the gap between them, rather than placing the alphabetic baseline of the underscript UnderShift
+        //         below the line-under edge of the base, which would make it overlap the base.
+        UnderOverBase::Other => (
+            if accentunder {
+                CssPixels::default()
+            } else {
+                constants.underbar_vertical_gap()
+            } + underscript.ascent,
+            constants.underbar_extra_descender(),
+        ),
     };
-    // Otherwise, OverShift is equal to OverbarVerticalGap if the accent attribute is not an ASCII case-insensitive
-    // match to true. Or AccentBaseHeight minus the line-ascent of the mover base's margin box if this difference is
-    // nonnegative. Or 0 otherwise.
-    let over_shift = if accent {
-        (constants.x_height - base.ascent).max(CssPixels::default())
-    } else {
-        constants.default_rule_thickness * 3usize
+    // Parameters OverShift and OverExtraDescender are determined by considering three cases in the following order:
+    // NB: For the first two cases, OverShift accounts for the line-descent of the overscript, so it is the distance
+    //     from the line-over edge of the base to the alphabetic baseline of the overscript.
+    let over_parameters = |overscript: &Child| match base_kind {
+        // 1. The mover base is an embellished operator with the largeop property. OverShift is the maximum of
+        //    - UpperLimitBaselineRiseMin
+        //    - UpperLimitGapMin + the descent of the mover overscript.
+        //    OverExtraAscender is 0.
+        UnderOverBase::LargeOperator => (
+            constants
+                .upper_limit_baseline_rise_min()
+                .max(constants.upper_limit_gap_min() + overscript.descent),
+            CssPixels::default(),
+        ),
+        // 2. The mover base is an embellished operator with the stretchy property and stretch axis inline. OverShift
+        //    is the maximum of:
+        //    - StretchStackTopShiftUp
+        //    - StretchStackGapBelowMin + the descent of the mover overscript.
+        //    OverExtraDescender is 0.
+        UnderOverBase::InlineStretchyOperator => (
+            constants
+                .stretch_stack_top_shift_up()
+                .max(constants.stretch_stack_gap_below_min() + overscript.descent),
+            CssPixels::default(),
+        ),
+        // 3. Otherwise, OverShift is equal to OverbarVerticalGap if the accent attribute is not an ASCII
+        //    case-insensitive match to true. Or AccentBaseHeight minus the line-ascent of the mover base's margin box
+        //    if this difference is nonnegative. Or 0 otherwise. OverExtraAscender is OverbarExtraAscender.
+        // AD-HOC: The overscript's margin box is placed OverShift above the base's margin box, so that OverShift is
+        //         the gap between them, rather than placing the alphabetic baseline of the overscript OverShift above
+        //         the line-over edge of the base, which would make it overlap the base.
+        UnderOverBase::Other => (
+            if accent {
+                (constants.accent_base_height() - base.ascent).max(CssPixels::default())
+            } else {
+                constants.overbar_vertical_gap()
+            } + overscript.descent,
+            constants.overbar_extra_ascender(),
+        ),
     };
-    // underbarExtraDescender and overbarExtraAscender: default rule thickness if the constant is not available.
-    let under_extra_descender = constants.default_rule_thickness;
-    let over_extra_ascender = constants.default_rule_thickness;
 
     // NB: The children are centered on the same vertical axis.
     let inline_size = [Some(base), underscript, overscript]
@@ -1549,10 +2127,10 @@ fn layout_underover(
         baseline_shift: CssPixels::default(),
     }];
     if let Some(underscript) = underscript {
-        // AD-HOC: The underscript's margin box is placed UnderShift below the base's margin box, so that UnderShift is
-        //         the gap between them, rather than placing the alphabetic baseline of the underscript UnderShift
-        //         below the line-under edge of the base, which would make it overlap the base.
-        let shift = base.descent + under_shift + underscript.ascent;
+        // The alphabetic baseline of the munder underscript is shifted away from the alphabetic baseline and towards
+        // the line-under by a distance equal to the ink line-descent of the munder base's margin box + UnderShift.
+        let (under_shift, under_extra_descender) = under_parameters(underscript);
+        let shift = base.descent + under_shift;
         descent = descent.max(shift + underscript.descent + under_extra_descender);
         positions.push(ChildPosition {
             line_left_offset: centered(underscript),
@@ -1560,10 +2138,10 @@ fn layout_underover(
         });
     }
     if let Some(overscript) = overscript {
-        // AD-HOC: The overscript's margin box is placed OverShift above the base's margin box, so that OverShift is
-        //         the gap between them, rather than placing the alphabetic baseline of the overscript OverShift above
-        //         the line-over edge of the base, which would make it overlap the base.
-        let shift = base.ascent + over_shift + overscript.descent;
+        // The alphabetic baseline of the mover overscript is shifted away from the alphabetic baseline and towards the
+        // line-over by a distance equal to the ink line-ascent of the base + OverShift.
+        let (over_shift, over_extra_ascender) = over_parameters(overscript);
+        let shift = base.ascent + over_shift;
         ascent = ascent.max(shift + overscript.ascent + over_extra_ascender);
         positions.push(ChildPosition {
             line_left_offset: centered(overscript),
@@ -1602,21 +2180,18 @@ impl RadicalMetrics {
         let facts = font.facts();
         // The radical gap is given by RadicalVerticalGap if the math-style is compact and
         // RadicalDisplayStyleVerticalGap if the math-style is normal.
-        // NB: radicalVerticalGap falls back to 1¼ × default rule thickness, radicalDisplayStyleVerticalGap to default
-        //     rule thickness + ¼ OS/2.sxHeight, and radicalRuleThickness and radicalExtraAscender to default rule
-        //     thickness.
         let gap = if style.math_style() == math_style::NORMAL {
-            constants.default_rule_thickness + constants.x_height.scaled(0.25)
+            constants.radical_display_style_vertical_gap()
         } else {
-            constants.default_rule_thickness.scaled(1.25)
+            constants.radical_vertical_gap()
         };
         Self {
             glyph_advance: CssPixels::nearest_value_for_f32(font.glyph_width(SQUARE_ROOT)),
             glyph_ascent: CssPixels::nearest_value_for_f32(facts.ascent),
             glyph_descent: CssPixels::nearest_value_for_f32(facts.descent),
             gap,
-            rule_thickness: constants.default_rule_thickness,
-            extra_ascender: constants.default_rule_thickness,
+            rule_thickness: constants.radical_rule_thickness(),
+            extra_ascender: constants.radical_extra_ascender(),
         }
     }
 }
@@ -1672,11 +2247,9 @@ fn layout_root(base: &Child, index: &Child, radical: &RadicalMetrics, constants:
         radical,
     );
     let b_block_size = b.ascent + b.descent;
-    // NB: radicalKernBeforeDegree falls back to 5/18em, radicalKernAfterDegree to −10/18em and
-    //     radicalDegreeBottomRaisePercent to 0.6.
-    let kern_before_degree = constants.em.scaled(5.0 / 18.0);
-    let kern_after_degree = constants.em.scaled(-10.0 / 18.0);
-    let degree_bottom_raise = b_block_size.scaled(0.6);
+    let kern_before_degree = constants.radical_kern_before_degree();
+    let kern_after_degree = constants.radical_kern_after_degree();
+    let degree_bottom_raise = b_block_size.scaled(constants.radical_degree_bottom_raise_percent());
     // AdjustedRadicalKernBeforeDegree and AdjustedRadicalKernAfterDegree are respectively defined as
     // max(0, RadicalKernBeforeDegree) and max(−inline size of the index's margin box, RadicalKernAfterDegree).
     let adjusted_kern_before_degree = kern_before_degree.max(CssPixels::default());
