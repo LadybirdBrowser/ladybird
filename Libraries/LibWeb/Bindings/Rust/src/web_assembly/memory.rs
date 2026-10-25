@@ -58,30 +58,44 @@ impl Memory {
     // https://webassembly.github.io/spec/js-api/#dom-memory-memory
     pub(crate) fn construct(cx: &mut CallContext, descriptor: MemoryDescriptor) -> WebIdlResult<Ref<Self>> {
         // https://webassembly.github.io/threads/js-api/index.html#dom-memory-memory
+        // 1. Let initial be descriptor["initial"].
+        let initial = descriptor.initial;
+
+        // 2. If descriptor["maximum"] exists, let maximum be descriptor["maximum"]; otherwise, let maximum be empty.
+        let maximum = descriptor.maximum;
+
         // 3. If maximum is not empty and maximum < initial, throw a RangeError exception.
-        if descriptor.maximum.is_some_and(|maximum| maximum < descriptor.initial) {
+        if maximum.is_some_and(|maximum| maximum < initial) {
             return Err(Exception::range_error("Initial is larger than maximum."));
         }
 
         // 4. Let share be shared if descriptor["shared"] is true and unshared otherwise.
+        let share = descriptor.shared;
+
         // 5. If share is shared and maximum is empty, throw a TypeError exception.
-        if descriptor.shared && descriptor.maximum.is_none() {
+        if share && maximum.is_none() {
             return Err(Exception::type_error("Maximum has to be specified for shared memory."));
         }
 
+        // 6. Let memtype be ({ min initial, max maximum }, share).
+        let memtype = MemoryType {
+            limits: Limits {
+                min: u64::from(initial),
+                max: maximum.map(u64::from),
+                address_type: AddressType::I32,
+                shared: share,
+            },
+        };
+
+        // 7. Let store be the surrounding agent's associated store.
+        // 8. Let (store, memaddr) be mem_alloc(store, memtype). If allocation fails, throw a RangeError exception.
         // 9. Set the surrounding agent's associated store to store.
         let memory = Agent::the(cx.vm())
             .store()
-            .allocate_memory(MemoryType {
-                limits: Limits {
-                    min: u64::from(descriptor.initial),
-                    max: descriptor.maximum.map(u64::from),
-                    address_type: AddressType::I32,
-                    shared: descriptor.shared,
-                },
-            })
-            .ok_or_else(|| Exception::type_error("Wasm Memory allocation failed"))?;
+            .allocate_memory(memtype)
+            .ok_or_else(|| Exception::range_error("Wasm Memory allocation failed"))?;
 
+        // 10. Initialize this from memaddr.
         Ok(Self::initialize(cx.vm(), memory))
     }
 

@@ -1,0 +1,12 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            new WebAssembly.Memory({ initial: 65537 });
+            println("no exception");
+        } catch (e) {
+            println(`${e.name}: ${e.message}`);
+        }
+    });
+</script>
