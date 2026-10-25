@@ -1524,6 +1524,11 @@ void Request::handle_fetch_state()
             m_request_headers->set({ "If-Modified-Since"sv, *revalidation_attributes.last_modified });
     }
 
+    // INTEROP: Like other engines, ask HTTP/1.x servers to keep the connection alive. curl leaves this header out of
+    //          HTTP/2 and HTTP/3 requests, which have no Connection header.
+    if (!m_request_headers->contains("Connection"sv))
+        curl_headers = curl_slist_append(curl_headers, "Connection: keep-alive");
+
     // NB: Send each header name once, with the combined value of all headers of that name, as other engines do.
     Vector<StringView> sent_header_names;
     for (auto const& header : *m_request_headers) {

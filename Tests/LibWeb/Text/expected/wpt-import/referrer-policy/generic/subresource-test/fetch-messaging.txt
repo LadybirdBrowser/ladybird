@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	Fetch is supported by the browser.
-Fail	Fetch is responding with HTTP headers
+Pass	Fetch is responding with HTTP headers

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Iframe is responding with HTTP headers
+1 Pass
+Pass	Iframe is responding with HTTP headers
