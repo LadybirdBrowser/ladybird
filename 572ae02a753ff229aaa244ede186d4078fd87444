@@ -1,0 +1,36 @@
+A reload that bypasses the HTTP cache fetches the document with the
+“reload” cache mode in Ladybird. And until the document has completely
+loaded, so do its requests still in the “default” mode, and the
+navigations of its child navigables.
+
+Blink does the same. NavigationRequest gives a RELOAD_BYPASSING_CACHE
+navigation net::LOAD_BYPASS_CACHE, which skips reading the HTTP cache
+but still writes it. And for a kReloadBypassingCache load, Blink’s
+DetermineFrameCacheMode() returns kBypassCache until the document’s
+LoadEventFinished() — a mode that PrepareResourceRequestForCacheAccess()
+applies only to requests still in kDefault. And HTMLFrameOwnerElement
+gives a child frame’s load kReloadBypassingCache while its parent’s is.
+
+WebKit’s FrameLoader::reload() makes the load ReloadFromOrigin, for
+which FrameLoader::subresourceCachePolicy() returns CachePolicy::Reload
+until the frame’s load completes, a child frame taking its parent’s
+policy. CachedResourceRequest::updateCacheModeIfNeeded() applies that
+only to requests in the default cache mode. Its plain reload already
+ignores the cache for the document itself: FrameLoader::reload() sets
+ReloadIgnoringCacheData for every reload.
+
+Gecko’s skip-cache reload gives the document channel nsIRequest::
+LOAD_BYPASS_CACHE in nsDocShellLoadState::CalculateChannelLoadFlags(),
+and nsLoadGroup passes it on to every channel the document’s load group
+adds. And nsDocShell::MaybeHandleSubframeHistory() gives a child
+docshell its parent’s force-reload load type. But Ladybird doesn’t
+follow Gecko in two respects: The load group keeps the flag after the
+load ends, so a late fetch() bypasses the cache too. And each channel
+gets the flag ORed into its own, so a request that names a cache mode
+bypasses the cache anyway.
+
+Blink and Gecko also skip service workers for such a reload; Ladybird
+doesn’t run a service worker’s fetch handling at all yet. And all three
+engines fetch a URL only once per load, where Ladybird fetches the URL
+of each script or stylesheet element on its own (its images already
+share one request per document).
