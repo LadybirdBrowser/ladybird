@@ -36,6 +36,9 @@ public:
     [[nodiscard]] bool is_deleted() const { return m_deleted; }
     void set_deleted(bool deleted) { m_deleted = deleted; }
 
+    [[nodiscard]] bool is_pending_creation() const { return m_pending_creation; }
+    void set_pending_creation(bool pending_creation) { m_pending_creation = pending_creation; }
+
     [[nodiscard]] bool has_record_with_key(GC::Ref<Key> key);
     void clear_records();
     Optional<IndexRecord&> first_in_range(GC::Ref<IDBKeyRange> range);
@@ -73,6 +76,10 @@ private:
     KeyPath m_key_path;
 
     bool m_deleted { false };
+
+    // NB: Whether the request that creates the index in its upgrade transaction has yet to be processed. Until then,
+    //     storing records into the object store leaves the index alone.
+    bool m_pending_creation { false };
 };
 
 }

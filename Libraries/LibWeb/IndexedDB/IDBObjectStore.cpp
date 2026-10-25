@@ -201,6 +201,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(Utf16String 
     // AD-HOC: Log the creation for potential revert on abort.
     store->mutation_log()->note_index_created(index);
 
+    // AD-HOC: Fill the index with the records of store, as a request after the ones made before.
+    queue_the_creation_of_an_index(*this, index);
+
     // 13. Return a new index handle associated with index and this.
     return IDBIndex::create(index, *this);
 }

@@ -1525,6 +1525,79 @@ JS::Value delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Re
 }
 
 // https://w3c.github.io/IndexedDB/#store-a-record-into-an-object-store
+// NB: The steps of storing a record into an object store for one index which references store, as step 5 runs them for
+//     each such index.
+static WebIDL::ExceptionOr<void> store_a_record_into_an_index(JS::Object& global_object, Index& index, JS::Value value, GC::Ref<Key> key)
+{
+    auto& realm = HTML::relevant_realm(global_object);
+
+    // 1. Let index key be the result of extracting a key from a value using a key path with value, index’s key path, and index’s multiEntry flag.
+    auto completion_index_key = extract_a_key_from_a_value_using_a_key_path(realm, value, index.key_path(), index.multi_entry());
+
+    // 2. If index key is an exception, or invalid, or failure, take no further actions for index, and continue these steps for the next index.
+    if (completion_index_key.is_error())
+        return {};
+
+    auto failure_index_key = completion_index_key.release_value();
+    if (failure_index_key.is_error())
+        return {};
+
+    auto index_key = failure_index_key.release_value();
+    if (index_key->is_invalid())
+        return {};
+
+    auto index_multi_entry = index.multi_entry();
+    auto index_key_is_array = index_key->type() == Key::KeyType::Array;
+    auto index_is_unique = index.unique();
+
+    // 3. If index’s multiEntry flag is false, or if index key is not an array key,
+    //    and if index already contains a record with key equal to index key,
+    //    and index’s unique flag is true,
+    //    then this operation failed with a "ConstraintError" DOMException.
+    //    Abort this algorithm without taking any further steps.
+    if ((!index_multi_entry || !index_key_is_array) && index_is_unique && index.has_record_with_key(index_key))
+        return WebIDL::ConstraintError::create("Record already exists in index"_utf16);
+
+    // 4. If index’s multiEntry flag is true and index key is an array key,
+    //    and if index already contains a record with key equal to any of the subkeys of index key,
+    //    and index’s unique flag is true,
+    //    then this operation failed with a "ConstraintError" DOMException.
+    //    Abort this algorithm without taking any further steps.
+    if (index_multi_entry && index_key_is_array && index_is_unique) {
+        for (auto const& subkey : index_key->subkeys()) {
+            if (index.has_record_with_key(*subkey))
+                return WebIDL::ConstraintError::create("Record already exists in index"_utf16);
+        }
+    }
+
+    // 5. If index’s multiEntry flag is false, or if index key is not an array key
+    //    then store a record in index containing index key as its key and key as its value.
+    //    The record is stored in index’s list of records such that the list is sorted primarily on the records keys,
+    //    and secondarily on the records values, in ascending order.
+    if (!index_multi_entry || !index_key_is_array) {
+        IndexRecord index_record = {
+            .key = *index_key,
+            .value = key,
+        };
+        index.store_a_record(index_record);
+    }
+
+    // 6. If index’s multiEntry flag is true and index key is an array key,
+    //    then for each subkey of the subkeys of index key store a record in index containing subkey as its key and key as its value.
+    if (index_multi_entry && index_key_is_array) {
+        for (auto const& subkey : index_key->subkeys()) {
+            IndexRecord index_record = {
+                .key = *subkey,
+                .value = key,
+            };
+            index.store_a_record(index_record);
+        }
+    }
+
+    return {};
+}
+
+// https://w3c.github.io/IndexedDB/#store-a-record-into-an-object-store
 WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, JS::Value value, GC::Ptr<Key> key, bool no_overwrite)
 {
     // 1. If store uses a key generator, then:
@@ -1570,72 +1643,77 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
 
     // 5. For each index which references store:
     for (auto const& [name, index] : store->index_set()) {
-        // 1. Let index key be the result of extracting a key from a value using a key path with value, index’s key path, and index’s multiEntry flag.
-        auto completion_index_key = extract_a_key_from_a_value_using_a_key_path(realm, value, index->key_path(), index->multi_entry());
-
-        // 2. If index key is an exception, or invalid, or failure, take no further actions for index, and continue these steps for the next index.
-        if (completion_index_key.is_error())
+        // AD-HOC: An index whose creation request has not been processed yet gets the records of store once it is.
+        if (index->is_pending_creation())
             continue;
 
-        auto failure_index_key = completion_index_key.release_value();
-        if (failure_index_key.is_error())
-            continue;
-
-        auto index_key = failure_index_key.release_value();
-        if (index_key->is_invalid())
-            continue;
-
-        auto index_multi_entry = index->multi_entry();
-        auto index_key_is_array = index_key->type() == Key::KeyType::Array;
-        auto index_is_unique = index->unique();
-
-        // 3. If index’s multiEntry flag is false, or if index key is not an array key,
-        //    and if index already contains a record with key equal to index key,
-        //    and index’s unique flag is true,
-        //    then this operation failed with a "ConstraintError" DOMException.
-        //    Abort this algorithm without taking any further steps.
-        if ((!index_multi_entry || !index_key_is_array) && index_is_unique && index->has_record_with_key(index_key))
-            return WebIDL::ConstraintError::create("Record already exists in index"_utf16);
-
-        // 4. If index’s multiEntry flag is true and index key is an array key,
-        //    and if index already contains a record with key equal to any of the subkeys of index key,
-        //    and index’s unique flag is true,
-        //    then this operation failed with a "ConstraintError" DOMException.
-        //    Abort this algorithm without taking any further steps.
-        if (index_multi_entry && index_key_is_array && index_is_unique) {
-            for (auto const& subkey : index_key->subkeys()) {
-                if (index->has_record_with_key(*subkey))
-                    return WebIDL::ConstraintError::create("Record already exists in index"_utf16);
-            }
-        }
-
-        // 5. If index’s multiEntry flag is false, or if index key is not an array key
-        //    then store a record in index containing index key as its key and key as its value.
-        //    The record is stored in index’s list of records such that the list is sorted primarily on the records keys,
-        //    and secondarily on the records values, in ascending order.
-        if (!index_multi_entry || !index_key_is_array) {
-            IndexRecord index_record = {
-                .key = *index_key,
-                .value = *key,
-            };
-            index->store_a_record(index_record);
-        }
-
-        // 6. If index’s multiEntry flag is true and index key is an array key,
-        //    then for each subkey of the subkeys of index key store a record in index containing subkey as its key and key as its value.
-        if (index_multi_entry && index_key_is_array) {
-            for (auto const& subkey : index_key->subkeys()) {
-                IndexRecord index_record = {
-                    .key = *subkey,
-                    .value = *key,
-                };
-                index->store_a_record(index_record);
-            }
-        }
+        TRY(store_a_record_into_an_index(realm.global_object(), index, value, *key));
     }
 
     // 6. Return key.
     return key;
+}
+
+// AD-HOC: The spec deserializes stored records infallibly, but a record read back from storage can be
+//         corrupt or written by a newer format version, so treat failure as the "error occurs while
+//         reading the value from the underlying storage" case: a "NotReadableError" DOMException.
+static WebIDL::ExceptionOr<JS::Value> deserialize_a_stored_record(JS::Realm& realm, HTML::StorageSerializationRecord const& serialized)
+{
+    auto value = HTML::structured_deserialize(realm.vm(), serialized, realm);
+    if (value.is_exception())
+        return WebIDL::NotReadableError::create(realm, "Stored value could not be read"_utf16);
+    return value;
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-createindex
+// AD-HOC: The index creation itself is processed as an asynchronous request within the upgrade transaction, so the
+//         index gets the records that its object store has once the requests made before createIndex() are processed.
+//         If those records violate the index's unique flag, the upgrade transaction is aborted with a "ConstraintError"
+//         DOMException.
+void queue_the_creation_of_an_index(GC::Ref<IDBObjectStore> handle, GC::Ref<Index> index)
+{
+    auto& realm = HTML::relevant_realm(handle->relevant_global_object());
+    auto transaction = handle->transaction();
+    index->set_pending_creation(true);
+
+    // NB: The request has no transaction, so that nothing observes it, and the events fired at it if the transaction
+    //     aborts first go nowhere.
+    auto request = IDBRequest::create(transaction->connection()->relevant_global_scope().this_impl(), handle);
+    transaction->request_list().enqueue(request, GC::create_function(GC::Heap::the(), [&realm, transaction, index, request]() {
+        if (request->aborted())
+            return;
+
+        index->set_pending_creation(false);
+        auto store_the_records_into_the_index = [&]() -> WebIDL::ExceptionOr<void> {
+            for (auto const& record : index->object_store()->records()) {
+                auto value = TRY(deserialize_a_stored_record(realm, *record.value));
+                TRY(store_a_record_into_an_index(realm.global_object(), index, value, record.key));
+            }
+            return {};
+        };
+        auto result = store_the_records_into_the_index();
+
+        request->set_processed(true);
+
+        if (result.is_exception()) {
+            abort_a_transaction(transaction, result.exception().get<GC::Ref<WebIDL::DOMException>>());
+            return;
+        }
+
+        // NB: Finish up like a request whose success event nobody listens to: the transaction commits once its request
+        //     list is empty, if it is inactive by then.
+        queue_a_database_task(GC::create_function(GC::Heap::the(), [&realm, transaction, request]() {
+            if (request->aborted())
+                return;
+
+            transaction->request_list().remove(request);
+            if (transaction->state() == IDBTransaction::TransactionState::Inactive && transaction->request_list().is_empty())
+                commit_a_transaction(realm, transaction);
+            transaction->request_list().check_all_processed();
+        }));
+
+        transaction->request_list().on_request_processed();
+    }));
 }
 
 // https://w3c.github.io/IndexedDB/#convert-a-value-to-a-key-range
@@ -1680,17 +1758,6 @@ JS::Value count_the_records_in_a_range(RecordSource source, GC::Ref<IDBKeyRange>
 
     // 2. Return count.
     return JS::Value(count);
-}
-
-// AD-HOC: The spec deserializes stored records infallibly, but a record read back from storage can be
-//         corrupt or written by a newer format version, so treat failure as the "error occurs while
-//         reading the value from the underlying storage" case: a "NotReadableError" DOMException.
-static WebIDL::ExceptionOr<JS::Value> deserialize_a_stored_record(JS::Realm& realm, HTML::StorageSerializationRecord const& serialized)
-{
-    auto value = HTML::structured_deserialize(realm.vm(), serialized, realm);
-    if (value.is_exception())
-        return WebIDL::NotReadableError::create(realm, "Stored value could not be read"_utf16);
-    return value;
 }
 
 // https://w3c.github.io/IndexedDB/#retrieve-a-value-from-an-object-store
