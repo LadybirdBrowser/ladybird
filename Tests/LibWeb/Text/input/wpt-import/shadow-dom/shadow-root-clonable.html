@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<title>Shadow root clonable flag</title>
+<link rel='author' href='mailto:krosylight@mozilla.com'>
+<link rel='author' href='mailto:masonf@chromium.org'>
+<link rel='help' href='https://dom.spec.whatwg.org/#shadowroot-clonable'>
+<link rel='help' href='https://github.com/whatwg/dom/issues/1249#issuecomment-1917772229'>
+<script src='../resources/testharness.js'></script>
+<script src='../resources/testharnessreport.js'></script>
+
+<body>
+<script>
+test(() => {
+  const div = document.createElement("div");
+  const root = div.attachShadow({ mode: "open", clonable: true });
+  root.innerHTML = '<input><div><span></span></div>';
+  assert_true(root.clonable, "clonable attribute");
+
+  const clone = div.cloneNode(true);
+  const clonedRoot = clone.shadowRoot;
+  assert_true(clonedRoot.clonable, "clone gets the same clonable state");
+  assert_equals(clonedRoot.children.length, 2, "children count");
+  assert_equals(clonedRoot.children[0].localName, "input", "children content");
+  assert_equals(clonedRoot.children[1].firstElementChild.localName, "span", "grandchildren content");
+
+  const shallowClone = div.cloneNode(false);
+  const shallowClonedRoot = shallowClone.shadowRoot;
+  assert_true(shallowClonedRoot.clonable, "clone gets the same clonable state");
+  assert_equals(shallowClonedRoot.children.length, 2, "shallow clone still deep-clones the shadow root");
+  assert_equals(shallowClonedRoot.children[0].localName, "input", "shadow children content");
+  assert_equals(shallowClonedRoot.children[1].firstElementChild.localName, "span", "shadow grandchildren content");
+}, "attachShadow with clonable: true");
+
+for (const clonable of [false, undefined]) {
+  test(() => {
+    const div = document.createElement("div");
+    const root = div.attachShadow({ mode: "open", clonable });
+    root.appendChild(document.createElement("input"));
+    assert_false(root.clonable, "clonable attribute");
+
+    const clone = div.cloneNode(true);
+    assert_true(!clone.shadowRoot, "shadow should not be cloned");
+  }, `attachShadow with clonable: ${clonable}`);
+}
+
+test(() => {
+  const div = document.createElement("div");
+  div.setHTMLUnsafe('<div><template shadowrootmode=open><input></template></div>');
+  const root = div.firstElementChild.shadowRoot;
+  assert_true(!!root);
+  assert_false(root.clonable, "clonable is *not* automatically true for declarative shadow root");
+
+  const clone = div.cloneNode(true);
+  const clonedRoot = clone.firstElementChild.shadowRoot;
+  assert_true(!clonedRoot,'no shadow root gets cloned');
+}, "declarative shadow roots do *not* get clonable: true automatically");
+
+test(() => {
+  const div = document.createElement("div");
+  div.setHTMLUnsafe('<div><template shadowrootmode=open shadowrootclonable><input></template></div>');
+  const root = div.firstElementChild.shadowRoot;
+  assert_true(!!root);
+  assert_true(root.clonable, "clonable gets added when shadowrootclonable is present");
+
+  const clone = div.cloneNode(true);
+  const clonedRoot = clone.firstElementChild.shadowRoot;
+  assert_true(!!clonedRoot);
+  assert_equals(clonedRoot.children.length, 1, "children count");
+  assert_equals(clonedRoot.children[0].localName, "input", "children content");
+}, "declarative shadow roots can opt in to clonable with shadowrootclonable");
+</script>
+
+<template id="test">
+  <div id="host">
+    <template shadowrootmode=open><input></template>
+  </div>
+</template>
+
+<script>
+test(() => {
+  const template = document.querySelector('#test');
+  const root = template.content.querySelector('#host').shadowRoot;
+  assert_true(!!root);
+  const clone = template.content.cloneNode(true);
+  const clonedRoot = clone.querySelector('#host').shadowRoot;
+  assert_true(!clonedRoot,'no shadow root gets cloned');
+}, "declarative shadow roots inside templates do *not* get cloned automatically");
+</script>

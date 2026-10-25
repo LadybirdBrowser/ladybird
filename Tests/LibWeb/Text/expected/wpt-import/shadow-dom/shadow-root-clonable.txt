@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+5 Pass
+1 Fail
+Fail	attachShadow with clonable: true
+Pass	attachShadow with clonable: false
+Pass	attachShadow with clonable: undefined
+Pass	declarative shadow roots do *not* get clonable: true automatically
+Pass	declarative shadow roots can opt in to clonable with shadowrootclonable
+Pass	declarative shadow roots inside templates do *not* get cloned automatically
