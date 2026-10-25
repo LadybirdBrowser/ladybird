@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Element.tagName</title>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<body>
+<script>
+  "use strict";
+  test(() => {
+    const el = document.createElement("t");
+    const xmlEl = document.implementation
+      .createDocument("http://www.w3.org/1999/xhtml", "div", null)
+      .documentElement;
+    assert_equals(el.tagName, "T", "tagName should be uppercase in HTML document");
+    xmlEl.appendChild(el);
+    assert_equals(el.tagName, "t", "tagName should be lowercase in XML document");
+  }, "tagName should not be uppercased when appended to XML document");
+</script>
