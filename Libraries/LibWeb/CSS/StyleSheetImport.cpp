@@ -23,6 +23,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 
 namespace Web::CSS {
 
@@ -219,10 +220,10 @@ void StyleSheetImport::fetch()
             }
             Parser::Parser::parse_stylesheet_off_thread(
                 Parser::ParsingParams { *document }, decoded_or_error.release_value(),
-                [strong_this, parent_style_sheet, document = GC::make_root(document), url = move(url), is_cors_same_origin = response->is_cors_same_origin(), finish_loading = move(finish_loading)](Parser::RustStyleSheetParse parsed) mutable {
+                [strong_this, parent_style_sheet, document = GC::make_root(document), url = move(url), is_cors_same_origin = response->is_cors_same_origin(), referrer_policy = ReferrerPolicy::parse_a_referrer_policy_from_a_referrer_policy_header(response->unsafe_response()), finish_loading = move(finish_loading)](Parser::RustStyleSheetParse parsed) mutable {
                     ScopeGuard guard = move(finish_loading);
-                    Parser::Parser parser { Parser::ParsingParams { *document } };
-                    auto imported_style_sheet = parser.create_css_stylesheet(parsed, move(url), strong_this->m_media_list.retain());
+                    // NB: The sheet records its referrer policy as it is created, before its own imports start to load.
+                    auto imported_style_sheet = StyleSheetState::create(parsed.native_rules(), document.ptr(), strong_this->m_media_list.retain(), move(url), referrer_policy);
 
                     // 5. Set importedStylesheet’s origin-clean flag to parentStylesheet’s origin-clean flag.
                     imported_style_sheet->set_origin_clean(parent_style_sheet->is_origin_clean());

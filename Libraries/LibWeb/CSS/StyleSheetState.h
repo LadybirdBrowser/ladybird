@@ -29,6 +29,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/TraversalOrder.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::ViewTransition {
@@ -65,7 +66,7 @@ public:
     };
     static StringView loading_state_name(LoadingState);
 
-    [[nodiscard]] static NonnullRefPtr<StyleSheetState> create(RustRuleList, GC::Ptr<DOM::Document>, RustMediaList, Optional<::URL::URL> location);
+    [[nodiscard]] static NonnullRefPtr<StyleSheetState> create(RustRuleList, GC::Ptr<DOM::Document>, RustMediaList, Optional<::URL::URL> location, Optional<ReferrerPolicy::ReferrerPolicy> fetched_referrer_policy = {});
     static WebIDL::ExceptionOr<NonnullRefPtr<StyleSheetState>> create_constructed(DOM::Document const&, CSSStyleSheetOptions const& options = {});
 
     ~StyleSheetState();
@@ -176,6 +177,10 @@ public:
     Optional<::URL::URL> location() const { return m_location; }
     void set_location(Optional<::URL::URL> location) { m_location = move(location); }
 
+    // AD-HOC: The referrer policy of the response that this style sheet was fetched from, or none if it was not fetched.
+    //         See fetch_a_style_resource().
+    Optional<ReferrerPolicy::ReferrerPolicy> fetched_referrer_policy() const { return m_fetched_referrer_policy; }
+
     Utf16String const& title() const { return m_title; }
     Optional<Utf16String> title_for_bindings() const;
     void set_title(Utf16String title) { m_title = move(title); }
@@ -197,7 +202,7 @@ public:
     void set_parent_css_style_sheet(StyleSheetState*);
 
 private:
-    StyleSheetState(RustRuleList, GC::Ptr<DOM::Document>, RustMediaList, Optional<::URL::URL> location);
+    StyleSheetState(RustRuleList, GC::Ptr<DOM::Document>, RustMediaList, Optional<::URL::URL> location, Optional<ReferrerPolicy::ReferrerPolicy> fetched_referrer_policy);
 
     void recalculate_rule_caches();
     void set_rules(RustRuleList);
@@ -225,6 +230,7 @@ private:
     GC::Ptr<DOM::Element> m_owner_node;
     WeakPtr<StyleSheetState> m_parent_style_sheet;
     Optional<::URL::URL> m_location;
+    Optional<ReferrerPolicy::ReferrerPolicy> m_fetched_referrer_policy;
     Utf16String m_title;
 
     Optional<Utf16String> m_source_text;

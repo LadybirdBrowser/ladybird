@@ -37,9 +37,9 @@
 
 namespace Web::CSS {
 
-NonnullRefPtr<StyleSheetState> StyleSheetState::create(RustRuleList rules, GC::Ptr<DOM::Document> document, RustMediaList media, Optional<::URL::URL> location)
+NonnullRefPtr<StyleSheetState> StyleSheetState::create(RustRuleList rules, GC::Ptr<DOM::Document> document, RustMediaList media, Optional<::URL::URL> location, Optional<ReferrerPolicy::ReferrerPolicy> fetched_referrer_policy)
 {
-    return adopt_ref(*new StyleSheetState(move(rules), document, move(media), move(location)));
+    return adopt_ref(*new StyleSheetState(move(rules), document, move(media), move(location), fetched_referrer_policy));
 }
 
 WebIDL::ExceptionOr<NonnullRefPtr<StyleSheetState>> StyleSheetState::create_constructed(DOM::Document const& associated_document, CSSStyleSheetOptions const& options)
@@ -103,9 +103,10 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleSheetState>> StyleSheetState::create_cons
     return sheet;
 }
 
-StyleSheetState::StyleSheetState(RustRuleList rules, GC::Ptr<DOM::Document> document, RustMediaList media, Optional<::URL::URL> location)
+StyleSheetState::StyleSheetState(RustRuleList rules, GC::Ptr<DOM::Document> document, RustMediaList media, Optional<::URL::URL> location, Optional<ReferrerPolicy::ReferrerPolicy> fetched_referrer_policy)
     : m_native_sheet(move(rules), move(media))
     , m_style_engine_occurrence_id(m_native_sheet.identity())
+    , m_fetched_referrer_policy(fetched_referrer_policy)
     , m_parsing_document(document)
 {
     if (location.has_value())
