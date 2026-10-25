@@ -110,6 +110,13 @@ fn heap_region_size(target: &Target, thread_sanitizer: bool) -> u64 {
     }
 }
 
+/// The 64-bit FNV-1a hash of `bytes`, which stays the same from build to build, unlike std's hashers.
+fn fnv1a_64(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf2_9ce4_8422_2325, |hash, &byte| {
+        (hash ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3)
+    })
+}
+
 fn main() {
     let manifest_directory = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
     let output_directory = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR"));
@@ -126,6 +133,19 @@ fn main() {
     println!("cargo:rerun-if-env-changed=MACOSX_DEPLOYMENT_TARGET");
 
     instructions::generate(&interpreter_source, &output_directory).expect("generate the frontend's instruction types");
+
+    // NB: Bytecode cache blobs hold encoded instructions, so a blob is only good for the instruction set it was encoded
+    //     with. The generated instruction types spell out every opcode, in the order that numbers them, and every
+    //     operand, so their fingerprint changes with any change to the instructions in interpreter.flap.
+    let instruction_types =
+        fs::read(output_directory.join("instruction_generated.rs")).expect("read instruction_generated.rs");
+    write_if_changed(
+        &output_directory.join("instruction_set_fingerprint.rs"),
+        &format!(
+            "pub(crate) const INSTRUCTION_SET_FINGERPRINT: u64 = {:#018x};\n",
+            fnv1a_64(&instruction_types)
+        ),
+    );
 
     let target = target();
     let address_sanitizer = env::var_os("CARGO_FEATURE_ADDRESS_SANITIZER").is_some();
