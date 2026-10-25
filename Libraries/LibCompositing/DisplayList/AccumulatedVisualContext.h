@@ -80,10 +80,8 @@ public:
     AccumulatedVisualContextTree with_visual_viewport_transform(TransformWithOrigin const&) const;
     // A copy whose nodes carry the values the animations take at the time.
     AccumulatedVisualContextTree with_visual_animation_samples(i64 monotonic_time_ns) const;
-    Optional<float> effects_opacity(EffectNodeIndex) const;
     // The sampled background color of a recorded fill's animation effect.
     Optional<Gfx::Color> sampled_background_color(EffectNodeIndex) const;
-    Vector<bool> spatial_nodes_in_subtrees_of(ReadonlySpan<SpatialNodeIndex> roots) const;
 
     Optional<Gfx::FloatPoint> transform_point_for_hit_test(ContextRef, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
     Gfx::FloatPoint inverse_transform_point(SpatialNodeIndex, Gfx::FloatPoint) const;
@@ -92,8 +90,6 @@ public:
     Gfx::FloatPoint cumulative_scroll_chain_offset(SpatialNodeIndex, ScrollStateSnapshot const&) const;
     Gfx::FloatMatrix4x4 accumulated_matrix(SpatialNodeIndex, ScrollStateSnapshot const&, IncludeVisualViewportTransform) const;
 
-    bool effect_is_isolated_by_layer(EffectNodeIndex) const;
-    bool has_unisolated_destination_reading_effect() const;
     void for_each_effects_filter_image_frame_id(Function<void(u64)> const&) const;
 
 private:
