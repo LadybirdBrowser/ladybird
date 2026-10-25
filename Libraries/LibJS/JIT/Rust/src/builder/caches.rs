@@ -91,6 +91,9 @@ pub(super) struct CacheEntry {
     /// The snapshot executable of the function `prototype_property` holds,
     /// if calls of it may be inlined.
     pub prototype_property_inline_executable: Option<u32>,
+    /// The watchpoint set that stays valid while the prototype holds
+    /// `prototype_property`, if there is one.
+    pub prototype_property_watchpoint: Option<CellId>,
 }
 
 impl CacheEntry {
@@ -165,6 +168,7 @@ impl CacheEntry {
                 .prototype_property
                 .map(|cell| (cell, entry.prototype_property_intrinsic)),
             prototype_property_inline_executable: entry.prototype_property_inline_executable,
+            prototype_property_watchpoint: entry.prototype_property_watchpoint,
         })
     }
 

@@ -467,6 +467,18 @@ impl SnapshotBuilder<'_> {
                 prototype_property_inline_executable: prototype_property.and_then(|object| {
                     self.inline_executable_index(Some(Value::from_object(object).as_cell()), caller)
                 }),
+                // NB: Watching a slot allocates, which collects no garbage while the snapshot is taken. Slots
+                //     replaced while watched are checked instead, as invalidated code learns nothing, while the
+                //     check learns from its exit.
+                prototype_property_watchpoint: prototype_property
+                    .and(entry.prototype)
+                    .filter(|holder| !holder.shape().was_slot_replaced(entry.property_offset))
+                    .and_then(|holder| {
+                        holder
+                            .shape()
+                            .watch_slot_for_replacements(self.vm, entry.property_offset)
+                    })
+                    .map(|set| self.cell(set)),
                 accessor_function,
                 holds_accessor: entry_holds_accessor(&entry),
             });

@@ -691,6 +691,12 @@ pub struct PropertyCacheEntrySnapshot {
     /// it is a function JIT code may inline: code that calls the property's
     /// value as a constant can inline the call without feedback for it.
     pub prototype_property_inline_executable: Option<u32>,
+    /// The `WatchpointSet` cell that stays valid while `prototype` keeps
+    /// `prototype_property` in the property and its shape (see
+    /// `Shape::watch_slot_for_replacements()` in the runtime), if there is
+    /// one: code that depends on it takes the property as a constant
+    /// without checking it.
+    pub prototype_property_watchpoint: Option<CellId>,
     /// The function of the accessor the access calls: for `GetPropertyInPrototypeChain` entries, the getter of the
     /// accessor `prototype` held in the property when the snapshot was
     /// taken, for `ChangePropertyInPrototypeChain` entries its setter, and
