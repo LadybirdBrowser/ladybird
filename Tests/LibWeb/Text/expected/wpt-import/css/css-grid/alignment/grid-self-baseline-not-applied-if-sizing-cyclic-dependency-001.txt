@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	.inline-grid 1
+Pass	.inline-grid 2
+Pass	.inline-grid 3
+Pass	.inline-grid 4
+Pass	.inline-grid 5
+Pass	.inline-grid 6
+Pass	.inline-grid 7
+Pass	.inline-grid 8
+Pass	.inline-grid 9
+Pass	.inline-grid 10
+Pass	.inline-grid 11
+Pass	.inline-grid 12

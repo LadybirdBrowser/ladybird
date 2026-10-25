@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Tables: a caption's margins add to the table's block size along the table's block axis</title>
+<link rel="help" href="https://www.w3.org/TR/css-writing-modes-3/#orthogonal-flows">
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#table-wrapper-box">
+<meta name="assert" content="The caption's physical margins contribute to the table wrapper's block size along the wrapper's block axis, whether or not the caption's writing mode matches the table's.">
+<link rel="stylesheet" href="../../fonts/ahem.css">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+table { writing-mode: vertical-rl; border-spacing: 0; font: 10px/1 Ahem; }
+td { width: 50px; height: 30px; padding: 0; }
+caption { margin: 10px 40px; }
+.same-writing-mode caption { writing-mode: vertical-rl; }
+.orthogonal caption { writing-mode: horizontal-tb; }
+.no-margin caption { margin: 0; }
+</style>
+<table class="same-writing-mode" id="same-margin"><caption>c</caption><tr><td></td></tr></table>
+<table class="same-writing-mode no-margin" id="same-no-margin"><caption>c</caption><tr><td></td></tr></table>
+<table class="orthogonal" id="orthogonal-margin"><caption>c</caption><tr><td></td></tr></table>
+<table class="orthogonal no-margin" id="orthogonal-no-margin"><caption>c</caption><tr><td></td></tr></table>
+<script>
+// The table is vertical-rl, so its block axis is horizontal and the caption contributes its
+// horizontal margins, 40px on each side, no matter which writing mode the caption itself uses.
+function blockSizeGrowth(withMargin, withoutMargin) {
+  const width = id => document.getElementById(id).getBoundingClientRect().width;
+  return width(withMargin) - width(withoutMargin);
+}
+
+test(() => {
+  assert_equals(blockSizeGrowth("same-margin", "same-no-margin"), 80);
+}, "A caption in the table's writing mode adds its horizontal margins to the table's block size");
+
+test(() => {
+  assert_equals(blockSizeGrowth("orthogonal-margin", "orthogonal-no-margin"), 80);
+}, "A caption in an orthogonal writing mode adds its horizontal margins to the table's block size");
+</script>

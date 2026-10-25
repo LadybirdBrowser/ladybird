@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#algo-track-sizing">
+<link rel="help" href="https://drafts.csswg.org/css-writing-modes-4/#orthogonal-flows">
+<meta name="assert" content="Laying out a grid with an orthogonal grid item several times, after the containing block width changes and changes back, gives the same sizes as the first layout.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/width-keyword-classes.css">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<style>
+body {
+   margin: 0;
+}
+.container {
+   width: 100px;
+}
+.grid {
+  border: 5px solid;
+  grid-template-rows: 50px;
+  font: 25px/1 Ahem;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script>
+    function runTest() {
+       document.body.offsetTop;
+       document.body.style.width = "99%";
+       document.body.offsetTop;
+       document.body.style.width = "100%";
+       checkLayout('.grid');
+    }
+</script>
+<body onload="document.fonts.ready.then(() => { runTest(); })">
+<p>This test checks that laying out the grid several times gives the same sizes each time.</p>
+<div class="grid fit-content" data-expected-width="160" data-expected-height="60">
+  <div class="firstRowFirstColumn verticalLR" data-expected-width="50" data-expected-height="50">XX X</div>
+  <div class="firstRowSecondColumn" data-expected-width="100" data-expected-height="50">XX X</div>
+</div>
+<br>
+<div class="grid min-content" data-expected-width="110" data-expected-height="60">
+  <div class="firstRowFirstColumn verticalLR" data-expected-width="50" data-expected-height="50">XX X</div>
+  <div class="firstRowSecondColumn" data-expected-width="50" data-expected-height="50">XX X</div>
+</div>
+<br>
+<div class="grid max-content" data-expected-width="160" data-expected-height="60">
+  <div class="firstRowFirstColumn verticalLR" data-expected-width="50" data-expected-height="50">XX X</div>
+  <div class="firstRowSecondColumn" data-expected-width="100" data-expected-height="50">XX X</div>
+</div>
+</body>

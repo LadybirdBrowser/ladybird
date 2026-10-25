@@ -1,0 +1,79 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>overflow: clip clamps existing scroll offsets and future scroll writes in vertical-rl</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrollto">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrollby">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrollleft">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrolltop">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#overflow-clip">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<body>
+<style>
+  #scroller {
+    width: 100px;
+    height: 100px;
+    overflow: hidden;
+    resize: both;
+    writing-mode: vertical-rl;
+    border: 1px solid black;
+  }
+
+  #contents {
+    width: 300px;
+    height: 300px;
+  }
+</style>
+
+<div id="scroller">
+  <div id="contents"></div>
+</div>
+
+<script>
+test(() => {
+  const scroller = document.getElementById('scroller');
+
+  scroller.scrollTo(-40, 50);
+  assert_equals(
+      scroller.scrollLeft, -40,
+      'overflow:hidden in vertical-rl should allow establishing a negative scrollLeft');
+  assert_equals(
+      scroller.scrollTop, 50,
+      'overflow:hidden should allow establishing a positive scrollTop');
+
+  scroller.style.overflow = 'clip';
+
+  assert_equals(
+      scroller.scrollLeft, 0,
+      'changing to overflow:clip should clamp an existing scrollLeft back to 0');
+  assert_equals(
+      scroller.scrollTop, 0,
+      'changing to overflow:clip should clamp an existing scrollTop back to 0');
+
+  scroller.scrollTo(-60, 70);
+  assert_equals(
+      scroller.scrollLeft, 0,
+      'scrollTo() should not change scrollLeft for overflow:clip');
+  assert_equals(
+      scroller.scrollTop, 0,
+      'scrollTo() should not change scrollTop for overflow:clip');
+
+  scroller.scrollBy(-10, 20);
+  assert_equals(
+      scroller.scrollLeft, 0,
+      'scrollBy() should not change scrollLeft for overflow:clip');
+  assert_equals(
+      scroller.scrollTop, 0,
+      'scrollBy() should not change scrollTop for overflow:clip');
+
+  scroller.scrollLeft = -25;
+  scroller.scrollTop = 35;
+  assert_equals(
+      scroller.scrollLeft, 0,
+      'setting scrollLeft should be a no-op for overflow:clip');
+  assert_equals(
+      scroller.scrollTop, 0,
+      'setting scrollTop should be a no-op for overflow:clip');
+}, 'changing a resizable vertical-rl scroller from overflow:hidden to overflow:clip clamps existing offsets and makes future scroll writes no-ops');
+</script>

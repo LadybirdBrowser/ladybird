@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-item-sizing">
+<link rel="help" href="https://drafts.csswg.org/css-writing-modes-4/#orthogonal-flows">
+<link rel="help" href="https://drafts.csswg.org/css-writing-modes-4/#orthogonal-auto">
+<meta name="assert" content="A grid item whose writing mode is orthogonal to the grid container's is sized like an orthogonal block, in intrinsic minmax() tracks.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<style>
+body {
+    margin: 0;
+}
+.grid {
+    font: 10px/1 Ahem;
+    width: 300px;
+    height: 80px;
+    position: relative;
+    grid-template-columns: minmax(min-content, max-content);
+    grid-template-rows: minmax(min-content, max-content);
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+<p>This test checks that grid items sizing works as regular block sizing with orthogonal flows.</p>
+
+<div>
+    <p>HORIZONTAL-TB container with VERTICAL-LR items.</p>
+    <div class="grid">
+        <div class="verticalLR firstRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="20" data-expected-height="80">X X X X X X</div>
+    </div>
+</div>
+
+<div>
+    <p>HORIZONTAL-TB container with VERTICAL-RL items.</p>
+    <div class="grid itemsStart">
+        <div class="verticalRL firstRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="20" data-expected-height="80">X X X X X X</div>
+    </div>
+</div>
+
+<div>
+    <p>VERTICAL-LR container with HORIZONTAL-TB items.</p>
+    <div class="grid itemsStart verticalLR">
+        <div class="firstRowFirstColumn horizontalTB" data-offset-x="0" data-offset-y="0" data-expected-width="110" data-expected-height="10">X X X X X X</div>
+    </div>
+</div>
+
+<div>
+    <p>VERTICAL-RL container with HORIZONTAL-TB items.</p>
+    <div class="grid itemsStart verticalRL">
+        <div class="firstRowFirstColumn horizontalTB" data-offset-x="190" data-offset-y="0" data-expected-width="110" data-expected-height="10">X X X X X X</div>
+    </div>
+</div>
+</body>

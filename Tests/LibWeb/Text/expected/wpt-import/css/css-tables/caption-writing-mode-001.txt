@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Caption percent margins are resolved against table's height for vertical-lr tables
+Pass	Caption with auto top/bottom margins is centered vertically for vertical-lr tables
