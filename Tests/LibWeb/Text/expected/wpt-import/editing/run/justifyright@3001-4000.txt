@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-951 Pass
-49 Fail
+992 Pass
+8 Fail
 Fail	[["stylewithcss","true"],["defaultparagraphseparator","p"],["justifyright",""]] "<div style=text-align:center><p>[foo]<p>bar</div><p>extra" queryCommandValue("defaultparagraphseparator") after
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["justifyright",""]] "<div style=text-align:center><p>[foo]<p>bar</div><p>extra" queryCommandIndeterm("justifyright") before
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["justifyright",""]] "<div style=text-align:center><p>[foo]<p>bar</div><p>extra" queryCommandState("justifyright") before
@@ -138,7 +138,7 @@ Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["justifyright"
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" compare innerHTML
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandValue("stylewithcss") before
@@ -149,12 +149,12 @@ Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") before
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") after
-Fail	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") after
+Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") after
+Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" compare innerHTML
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandValue("stylewithcss") before
@@ -165,8 +165,8 @@ Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") before
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") after
-Fail	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") after
+Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") after
+Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=justify><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<div style=text-align:justify><p>[foo]<p>bar</div><p>extra": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<div style=text-align:justify><p>[foo]<p>bar</div><p>extra": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<div style=text-align:justify><p>[foo]<p>bar</div><p>extra": execCommand("justifyright", false, "") return value
@@ -363,7 +363,7 @@ Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["justifyright"
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" compare innerHTML
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandValue("stylewithcss") before
@@ -374,12 +374,12 @@ Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>ba
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") before
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") after
-Fail	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") after
+Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") after
+Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" compare innerHTML
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandValue("stylewithcss") before
@@ -390,8 +390,8 @@ Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>b
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") before
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") after
-Fail	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") after
+Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") after
+Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=left><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<div style=text-align:left><p>[foo]<p>bar</div><p>extra": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<div style=text-align:left><p>[foo]<p>bar</div><p>extra": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<div style=text-align:left><p>[foo]<p>bar</div><p>extra": execCommand("justifyright", false, "") return value
@@ -495,17 +495,17 @@ Pass	[["justifyright",""]] "<div style=text-align:left><p>[foo<p>bar]</div><p>ex
 Pass	[["justifyright",""]] "<div style=text-align:left><p>[foo<p>bar]</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["justifyright",""]] "<div align=right><p>[foo]<p>bar</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["justifyright",""]] "<div align=right><p>[foo]<p>bar</div><p>extra" checks for modifications to non-editable content
-Fail	[["justifyright",""]] "<div align=right><p>[foo]<p>bar</div><p>extra" compare innerHTML
+Pass	[["justifyright",""]] "<div align=right><p>[foo]<p>bar</div><p>extra" compare innerHTML
 Pass	[["justifyright",""]] "<div align=right><p>[foo]<p>bar</div><p>extra" queryCommandIndeterm("justifyright") before
-Fail	[["justifyright",""]] "<div align=right><p>[foo]<p>bar</div><p>extra" queryCommandState("justifyright") before
-Fail	[["justifyright",""]] "<div align=right><p>[foo]<p>bar</div><p>extra" queryCommandValue("justifyright") before
+Pass	[["justifyright",""]] "<div align=right><p>[foo]<p>bar</div><p>extra" queryCommandState("justifyright") before
+Pass	[["justifyright",""]] "<div align=right><p>[foo]<p>bar</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["justifyright",""]] "<div align=right><p>[foo]<p>bar</div><p>extra" queryCommandIndeterm("justifyright") after
 Pass	[["justifyright",""]] "<div align=right><p>[foo]<p>bar</div><p>extra" queryCommandState("justifyright") after
 Pass	[["justifyright",""]] "<div align=right><p>[foo]<p>bar</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" compare innerHTML
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandValue("stylewithcss") before
@@ -513,15 +513,15 @@ Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>b
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandState("stylewithcss") after
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandValue("stylewithcss") after
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("justifyright") before
-Fail	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") before
-Fail	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") before
+Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") before
+Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") after
-Fail	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") after
+Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") after
+Pass	[["stylewithcss","true"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" compare innerHTML
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandValue("stylewithcss") before
@@ -529,11 +529,11 @@ Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandState("stylewithcss") after
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandValue("stylewithcss") after
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("justifyright") before
-Fail	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") before
-Fail	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") before
+Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") before
+Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") after
-Fail	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") after
+Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandState("justifyright") after
+Pass	[["stylewithcss","false"],["justifyright",""]] "<div align=right><p>[foo<p>bar}</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["justifyright",""]] "<div style=text-align:right><p>[foo]<p>bar</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["justifyright",""]] "<div style=text-align:right><p>[foo]<p>bar</div><p>extra" checks for modifications to non-editable content
 Pass	[["justifyright",""]] "<div style=text-align:right><p>[foo]<p>bar</div><p>extra" compare innerHTML
@@ -559,8 +559,8 @@ Pass	[["justifyright",""]] "<div align=right>foo</div>[bar]<p>extra" queryComman
 Pass	[["justifyright",""]] "<div align=right>foo</div>[bar]<p>extra" queryCommandState("justifyright") before
 Pass	[["justifyright",""]] "<div align=right>foo</div>[bar]<p>extra" queryCommandValue("justifyright") before
 Pass	[["justifyright",""]] "<div align=right>foo</div>[bar]<p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["justifyright",""]] "<div align=right>foo</div>[bar]<p>extra" queryCommandState("justifyright") after
-Fail	[["justifyright",""]] "<div align=right>foo</div>[bar]<p>extra" queryCommandValue("justifyright") after
+Pass	[["justifyright",""]] "<div align=right>foo</div>[bar]<p>extra" queryCommandState("justifyright") after
+Pass	[["justifyright",""]] "<div align=right>foo</div>[bar]<p>extra" queryCommandValue("justifyright") after
 Pass	[["justifyright",""]] "[foo]<div align=right>bar</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["justifyright",""]] "[foo]<div align=right>bar</div><p>extra" checks for modifications to non-editable content
 Pass	[["justifyright",""]] "[foo]<div align=right>bar</div><p>extra" compare innerHTML
@@ -568,8 +568,8 @@ Pass	[["justifyright",""]] "[foo]<div align=right>bar</div><p>extra" queryComman
 Pass	[["justifyright",""]] "[foo]<div align=right>bar</div><p>extra" queryCommandState("justifyright") before
 Pass	[["justifyright",""]] "[foo]<div align=right>bar</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["justifyright",""]] "[foo]<div align=right>bar</div><p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["justifyright",""]] "[foo]<div align=right>bar</div><p>extra" queryCommandState("justifyright") after
-Fail	[["justifyright",""]] "[foo]<div align=right>bar</div><p>extra" queryCommandValue("justifyright") after
+Pass	[["justifyright",""]] "[foo]<div align=right>bar</div><p>extra" queryCommandState("justifyright") after
+Pass	[["justifyright",""]] "[foo]<div align=right>bar</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" checks for modifications to non-editable content
@@ -584,8 +584,8 @@ Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right
 Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandState("justifyright") before
 Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandState("justifyright") after
-Fail	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandValue("justifyright") after
+Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandState("justifyright") after
+Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra": execCommand("defaultparagraphseparator", false, "p") return value
 Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" checks for modifications to non-editable content
@@ -600,8 +600,8 @@ Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right>f
 Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandState("justifyright") before
 Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandState("justifyright") after
-Fail	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandValue("justifyright") after
+Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandState("justifyright") after
+Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right>foo</div>[bar]<div align=right>baz</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<p>extra": execCommand("justifyright", false, "") return value
 Pass	[["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<p>extra" checks for modifications to non-editable content
 Pass	[["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<p>extra" compare innerHTML
@@ -609,8 +609,8 @@ Pass	[["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<p>extra" query
 Pass	[["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<p>extra" queryCommandState("justifyright") before
 Pass	[["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<p>extra" queryCommandValue("justifyright") before
 Pass	[["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<p>extra" queryCommandState("justifyright") after
-Fail	[["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<p>extra" queryCommandValue("justifyright") after
+Pass	[["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<p>extra" queryCommandState("justifyright") after
+Pass	[["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<p>extra" queryCommandValue("justifyright") after
 Pass	[["justifyright",""]] "<p>[foo]<div align=right><p>bar</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["justifyright",""]] "<p>[foo]<div align=right><p>bar</div><p>extra" checks for modifications to non-editable content
 Pass	[["justifyright",""]] "<p>[foo]<div align=right><p>bar</div><p>extra" compare innerHTML
@@ -618,8 +618,8 @@ Pass	[["justifyright",""]] "<p>[foo]<div align=right><p>bar</div><p>extra" query
 Pass	[["justifyright",""]] "<p>[foo]<div align=right><p>bar</div><p>extra" queryCommandState("justifyright") before
 Pass	[["justifyright",""]] "<p>[foo]<div align=right><p>bar</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["justifyright",""]] "<p>[foo]<div align=right><p>bar</div><p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["justifyright",""]] "<p>[foo]<div align=right><p>bar</div><p>extra" queryCommandState("justifyright") after
-Fail	[["justifyright",""]] "<p>[foo]<div align=right><p>bar</div><p>extra" queryCommandValue("justifyright") after
+Pass	[["justifyright",""]] "<p>[foo]<div align=right><p>bar</div><p>extra" queryCommandState("justifyright") after
+Pass	[["justifyright",""]] "<p>[foo]<div align=right><p>bar</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" checks for modifications to non-editable content
@@ -634,8 +634,8 @@ Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right
 Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandState("justifyright") before
 Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandState("justifyright") after
-Fail	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandValue("justifyright") after
+Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandState("justifyright") after
+Pass	[["defaultparagraphseparator","div"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra": execCommand("defaultparagraphseparator", false, "p") return value
 Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra": execCommand("justifyright", false, "") return value
 Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" checks for modifications to non-editable content
@@ -650,8 +650,8 @@ Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right><
 Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandState("justifyright") before
 Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandValue("justifyright") before
 Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandIndeterm("justifyright") after
-Fail	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandState("justifyright") after
-Fail	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandValue("justifyright") after
+Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandState("justifyright") after
+Pass	[["defaultparagraphseparator","p"],["justifyright",""]] "<div align=right><p>foo</div><p>[bar]<div align=right><p>baz</div><p>extra" queryCommandValue("justifyright") after
 Pass	[["justifyright",""]] "<div style=text-align:right>foo</div>[bar]<p>extra": execCommand("justifyright", false, "") return value
 Pass	[["justifyright",""]] "<div style=text-align:right>foo</div>[bar]<p>extra" checks for modifications to non-editable content
 Pass	[["justifyright",""]] "<div style=text-align:right>foo</div>[bar]<p>extra" compare innerHTML

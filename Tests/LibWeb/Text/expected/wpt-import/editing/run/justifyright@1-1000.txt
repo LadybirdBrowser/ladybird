@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-996 Pass
-4 Fail
+999 Pass
+1 Fail
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "foo[]bar<p>extra": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "foo[]bar<p>extra": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "foo[]bar<p>extra": execCommand("justifyright", false, "") return value
@@ -943,7 +943,7 @@ Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandValue("defaultparagraphseparator") after
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandIndeterm("justifyright") before
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandState("justifyright") before
-Fail	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandValue("justifyright") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandValue("justifyright") before
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandIndeterm("justifyright") after
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandState("justifyright") after
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandValue("justifyright") after
@@ -966,7 +966,7 @@ Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["justifyrigh
 Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandValue("defaultparagraphseparator") after
 Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandIndeterm("justifyright") before
 Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandState("justifyright") before
-Fail	[["stylewithcss","false"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandValue("justifyright") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandValue("justifyright") before
 Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandIndeterm("justifyright") after
 Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandState("justifyright") after
 Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandValue("justifyright") after
@@ -989,7 +989,7 @@ Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["justifyright",
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandValue("defaultparagraphseparator") after
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandIndeterm("justifyright") before
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandState("justifyright") before
-Fail	[["stylewithcss","true"],["defaultparagraphseparator","p"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandValue("justifyright") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandValue("justifyright") before
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandIndeterm("justifyright") after
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandState("justifyright") after
 Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["justifyright",""]] "<center><p>[foo]<p>bar</center><p>extra" queryCommandValue("justifyright") after
