@@ -1648,6 +1648,12 @@ void Navigation::update_the_navigation_api_entries_for_a_same_document_navigatio
         }
     }
 
+    // NB: Resolving the committed promise in step 8 needs a running execution context, and cleaning that up would
+    //     perform a microtask checkpoint when nothing else is running script, such as during a traversal. So this
+    //     prepares to run script ahead of step 11, which keeps promise reactions from running before the
+    //     currententrychange event handlers and the intercept() handlers.
+    TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+
     // 8. If navigation's ongoing API method tracker is non-null, then notify about the committed-to entry
     //    given navigation's ongoing API method tracker and the current entry of navigation.
     // NOTE: It is important to do this before firing the dispose or currententrychange events,
@@ -1663,7 +1669,7 @@ void Navigation::update_the_navigation_api_entries_for_a_same_document_navigatio
     auto api_method_tracker = m_ongoing_api_method_tracker;
 
     // 11. Prepare to run script given navigation's relevant settings object.
-    TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+    // NB: Done before step 8.
 
     // 12. Fire an event named currententrychange at navigation using NavigationCurrentEntryChangeEvent,
     //     with its navigationType attribute initialized to navigationType and its from initialized to oldCurrentNHE.

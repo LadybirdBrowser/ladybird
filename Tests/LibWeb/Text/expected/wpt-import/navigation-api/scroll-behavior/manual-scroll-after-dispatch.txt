@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	scroll: scroll() should work after a navigate event dispatch
+1 Pass
+Pass	scroll: scroll() should work after a navigate event dispatch
