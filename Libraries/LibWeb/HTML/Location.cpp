@@ -301,13 +301,21 @@ bool Location::has_relevant_document() const
 WebIDL::ExceptionOr<void> Location::navigate(URL::URL url, NavigationHistoryBehavior history_handling)
 {
     // 1. Let navigable be location's relevant global object's navigable.
-    auto navigable = m_window.visit([](auto const& window) -> GC::Ptr<Navigable> { return window->navigable(); });
+    // INTEROP: Other browsers keep a window reused from an initial about:blank with the about:blank until the new
+    //          document commits, so its Location navigates the about:blank's navigable. Take the relevant Document's.
+    // FIXME: Associate a reused window with the new document when it is made active, not when it is created, which
+    //        leaves the window without a navigable meanwhile.
+    auto navigable = m_window.visit(
+        [&](GC::Ref<Window> const&) -> GC::Ptr<Navigable> { return relevant_document()->navigable(); },
+        [](GC::Ref<RemoteWindow> const& window) -> GC::Ptr<Navigable> { return window->navigable(); });
+    if (!navigable)
+        return {};
 
     // 2. Let sourceDocument be the incumbent global object's associated Document.
     auto& source_document = incumbent_window().associated_document();
 
     // 3. If location's relevant Document is not yet completely loaded, and the incumbent global object does not have transient activation, then set historyHandling to "replace".
-    // NB: The relevant Document is navigable's active document, which step 1 reached through the relevant global object.
+    // NB: The relevant Document is navigable's active document.
     if (!navigable->active_document_is_completely_loaded() && !incumbent_window().has_transient_activation()) {
         history_handling = NavigationHistoryBehavior::Replace;
     }

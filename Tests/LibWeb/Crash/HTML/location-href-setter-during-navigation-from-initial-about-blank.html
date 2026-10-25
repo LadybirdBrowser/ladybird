@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html class="test-wait">
+    <body>
+        <script>
+            const runId = crypto.randomUUID();
+
+            async function createEcho(name, body) {
+                const path = `/echo/${runId}/${name}`;
+                await fetch("/echo", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        method: "GET",
+                        path,
+                        status: 200,
+                        headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+                        body,
+                    }),
+                });
+                return path;
+            }
+
+            async function startStalledNavigation(frame, url) {
+                const frameWindow = frame.contentWindow;
+                frame.src = url;
+                while (frameWindow.document.URL === "about:blank") await new Promise(resolve => setTimeout(resolve, 0));
+            }
+
+            (async () => {
+                const stalled = await createEcho("stalled", "<!DOCTYPE html>" + "x".repeat(8192));
+                const stalledAfterFirstChunk = `${stalled}?chunks=4096&chunk_delay_ms=3000`;
+                const target = await createEcho("target", "<!DOCTYPE html>");
+
+                const frame = document.createElement("iframe");
+                document.body.append(frame);
+                const frameLocation = frame.contentWindow.location;
+                await startStalledNavigation(frame, stalledAfterFirstChunk);
+                const frameLoaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+                frameLocation.href = target;
+                await frameLoaded;
+                if (frame.contentDocument.URL !== new URL(target, location.href).href)
+                    throw new Error("The iframe did not navigate to target");
+
+                const removedFrame = document.createElement("iframe");
+                document.body.append(removedFrame);
+                const removedFrameInitialDocument = removedFrame.contentDocument;
+                const removedFrameLocation = removedFrame.contentWindow.location;
+                await startStalledNavigation(removedFrame, stalledAfterFirstChunk);
+                removedFrame.remove();
+                while (removedFrameInitialDocument.defaultView) await new Promise(resolve => setTimeout(resolve, 0));
+                removedFrameLocation.href = target;
+
+                document.documentElement.classList.remove("test-wait");
+            })();
+        </script>
+    </body>
+</html>
