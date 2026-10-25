@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/CSSRule.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
@@ -174,76 +173,6 @@ void CSSRule::dump(StringBuilder& builder, int indent_levels) const
 
 void CSSRule::clear_caches()
 {
-    m_cached_layer_name.clear();
-}
-
-Utf16FlyString CSSRule::parent_layer_internal_qualified_name_slow_case() const
-{
-    Vector<Utf16FlyString> layer_names;
-    for (auto* rule = parent_rule(); rule; rule = rule->parent_rule()) {
-        switch (rule->type()) {
-        case Type::Import:
-            // @import is only a parent to style sheets, not to rules directly. It's handled below this loop.
-            VERIFY_NOT_REACHED();
-            break;
-
-        case Type::LayerBlock: {
-            auto& layer_block = as<CSSLayerBlockRule>(*rule);
-            layer_names.append(layer_block.internal_name());
-            break;
-        }
-
-            // Ignore everything else
-            // Note that LayerStatement cannot have child rules so we still ignore it here.
-        case Type::Container:
-        case Type::CounterStyle:
-        case Type::LayerStatement:
-        case Type::Style:
-        case Type::Media:
-        case Type::FontFace:
-        case Type::FontFeatureValues:
-        case Type::Function:
-        case Type::FunctionDeclarations:
-        case Type::Keyframes:
-        case Type::Keyframe:
-        case Type::Namespace:
-        case Type::Supports:
-        case Type::NestedDeclarations:
-        case Type::Property:
-        case Type::Page:
-        case Type::Margin:
-        case Type::PositionTry:
-        case Type::Scope:
-            break;
-        }
-    }
-
-    // If this style sheet is owned by a rule, include its qualified layer name.
-    if (m_parent_style_sheet && m_parent_style_sheet->owner_rule()) {
-        if (auto* import = as_if<CSSImportRule>(*m_parent_style_sheet->owner_rule())) {
-            // https://drafts.csswg.org/css-cascade-5/#at-import
-            // The layer is added to the layer order even if the import fails to load the stylesheet, but is subject to
-            // any import conditions (just as if declared by an @layer rule wrapped in the appropriate conditional
-            // group rules).
-            if (auto layer_name = import->internal_layer_name(); layer_name.has_value() && import->matches()) {
-                layer_names.append(layer_name.release_value());
-                auto parent_qualified_layer_name = m_parent_style_sheet->owner_rule()->parent_layer_internal_qualified_name();
-                if (!parent_qualified_layer_name.is_empty())
-                    layer_names.append(move(parent_qualified_layer_name));
-            }
-        }
-    }
-
-    Utf16StringBuilder builder;
-    bool first = true;
-    for (auto const& layer_name : layer_names.in_reverse()) {
-        if (!first)
-            builder.append_ascii('.');
-        first = false;
-        builder.append(layer_name);
-    }
-    auto qualified_name = builder.to_string();
-    return Utf16FlyString::from_utf16(qualified_name.utf16_view());
 }
 
 }
