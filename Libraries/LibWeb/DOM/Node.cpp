@@ -1856,7 +1856,10 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
     // 10. Let removedNodes be the empty set.
     GC::RootVector<GC::Ref<Node>> removed_nodes;
 
-    // 11. If child’s parent is non-null:
+    // 11. Adopt node into parent's node document.
+    document().adopt_node_steps(node);
+
+    // 12. If child’s parent is non-null:
     // NOTE: The above can only be false if child is node.
     if (child->parent()) {
         // 1. Set removedNodes to « child ».
@@ -1866,7 +1869,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
         child->remove(true);
     }
 
-    // 12. Let nodes be node’s children if node is a DocumentFragment node; otherwise « node ».
+    // 13. Let nodes be node’s children if node is a DocumentFragment node; otherwise « node ».
     GC::RootVector<GC::Ref<Node>> nodes;
     if (is<DocumentFragment>(*node))
         nodes = node->children_as_vector();
@@ -1877,14 +1880,14 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
     //         the sanity of inserting `node` before `reference_child` again, as well as
     //         `child` not being reinserted elsewhere.
     if (!reference_child || (reference_child->parent() == this && !child->parent_node())) {
-        // 13. Insert node into parent before referenceChild with suppressObservers set to true.
+        // 14. Insert node into parent before referenceChild with suppressObservers set to true.
         insert_before(node, reference_child, true);
     }
 
-    // 14. Queue a tree mutation record for parent with nodes, removedNodes, previousSibling, and referenceChild.
+    // 15. Queue a tree mutation record for parent with nodes, removedNodes, previousSibling, and referenceChild.
     queue_tree_mutation_record(nodes, removed_nodes, previous_sibling.ptr(), reference_child.ptr());
 
-    // 15. Return child.
+    // 16. Return child.
     return child;
 }
 
