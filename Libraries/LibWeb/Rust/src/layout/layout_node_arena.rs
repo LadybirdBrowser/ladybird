@@ -777,10 +777,6 @@ pub(crate) type ShellStyleChangedHost = (
     unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *const c_void, bool, bool),
 );
 
-fn style_payloads_equal_in_layout_affecting_groups(a: StylePayloadsRef, b: StylePayloadsRef) -> bool {
-    style_payloads_equal_in_groups(a, b, crate::css::computed_values::style_group_affects_layout)
-}
-
 /// Whether `a` and `b` hold equal payloads in the inherited groups, which are all an anonymous box inherits.
 fn style_payloads_equal_in_inherited_groups(a: StylePayloadsRef, b: StylePayloadsRef) -> bool {
     style_payloads_equal_in_groups(a, b, |group_index| {
@@ -2378,6 +2374,29 @@ impl LayoutNodeArena {
         previous != style_record
     }
 
+    /// Whether the box `slot` keeps the layout it cached when it shows `new` in place of `previous` (see
+    /// [`crate::css::computed_values::style_payloads_layout_inputs_equal`]).
+    fn style_move_keeps_layout_inputs(
+        &self,
+        slot: NodeSlotId,
+        previous: StylePayloadsRef,
+        new: StylePayloadsRef,
+    ) -> bool {
+        if previous == new {
+            return true;
+        }
+        if previous.is_null() || new.is_null() {
+            return false;
+        }
+        // SAFETY: A row's non-null style addresses the payload array of the record pinned for it.
+        let (previous, new) = unsafe { (previous.deref(), new.deref()) };
+        let is_svg_box = super::node_facts::kind_is_svg_box(self.data(slot).kind.get());
+        // SAFETY: Published style-group payloads stay live while their records do.
+        unsafe {
+            crate::css::computed_values::style_payloads_layout_inputs_equal(&previous.groups, &new.groups, is_svg_box)
+        }
+    }
+
     /// Applies `rows`, the rows of a style transaction a frame applies ahead of the host, to the boxes of their elements,
     /// as the host's install of each row does: the row's record, the styles the box's anonymous descendants inherit, and
     /// the relayout the move asks for. Answers the rows it applied, by element, or why it applied none: a row's box is
@@ -2426,7 +2445,7 @@ impl LayoutNodeArena {
             self.publish_new_size_container_geometry(slot);
             self.enroll_node_for_svg_paint_resources_sync(slot);
             self.set_node_flag(slot, NodeFlag::HasAnimatedOpacityOrTransform, false);
-            if !style_payloads_equal_in_layout_affecting_groups(previous_payloads, payloads) {
+            if !self.style_move_keeps_layout_inputs(slot, previous_payloads, payloads) {
                 self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
                 self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
             }
@@ -2551,7 +2570,7 @@ impl LayoutNodeArena {
         }
         self.publish_new_size_container_geometry(slot);
         self.enroll_node_for_svg_paint_resources_sync(slot);
-        if !style_payloads_equal_in_layout_affecting_groups(previous_payloads, payloads) {
+        if !self.style_move_keeps_layout_inputs(slot, previous_payloads, payloads) {
             self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
             self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
         }
@@ -2810,7 +2829,7 @@ impl LayoutNodeArena {
         self.invalidate_overflow_after_style_change(row);
         self.enroll_text_children_for_content_sync(row);
         self.enroll_node_for_svg_paint_resources_sync(row);
-        if style_payloads_equal_in_layout_affecting_groups(previous_payloads, style.payloads) {
+        if self.style_move_keeps_layout_inputs(row, previous_payloads, style.payloads) {
             return;
         }
         self.bump_fragment_cache_epoch_of_self_and_ancestors(row);
@@ -3721,7 +3740,7 @@ impl LayoutNodeArena {
     ) {
         let previous_payloads = self.data(slot).style.get();
         let changes_layout_affecting_style =
-            !style_payloads_equal_in_layout_affecting_groups(previous_payloads, derived.payloads);
+            !self.style_move_keeps_layout_inputs(slot, previous_payloads, derived.payloads);
         self.replace_arena_pinned_style_record(slot, derived);
         if changes_layout_affecting_style {
             self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);

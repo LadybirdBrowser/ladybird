@@ -288,38 +288,31 @@ inline Gfx::InterpolationColorSpace to_interpolation_color_space(ColorInterpolat
 }
 
 // Every ComputedValues style value group, in vtable registration order:
-// G(enumerator, member path, sharing-info name, affects layout).
-// A group may be flagged as not affecting layout only when every one of its fields is
-// read exclusively at paint or display-list build time: background qualifies (paint;
-// resource-observer registration runs in apply_style regardless of layout), mask
-// qualifies (paint and hit-testing), and text_reset qualifies (text-decoration resolves
-// at display-list build; white-space-trim is unread by layout today, so implementing it
-// must revisit the flag). effects stays layout-affecting because filter/backdrop-filter
-// establish fixed-positioning containing blocks and re-parent abspos descendants.
-#define LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(G)                 \
-    G(InheritedTableValues, m_inherited.table, "inheritedTable", true)  \
-    G(InheritedListValues, m_inherited.list, "inheritedList", true)     \
-    G(InheritedUIValues, m_inherited.ui, "inheritedUI", true)           \
-    G(InheritedSVGValues, m_inherited.svg, "inheritedSVG", true)        \
-    G(InheritedTextValues, m_inherited.text, "inheritedText", true)     \
-    G(InheritedBoxValues, m_inherited.box, "inheritedBox", true)        \
-    G(FontValues, m_inherited.font, "font", true)                       \
-    G(AnimationValues, m_noninherited.animation, "animation", true)     \
-    G(SVGResetValues, m_noninherited.svg_reset, "svgReset", true)       \
-    G(GridValues, m_noninherited.grid, "grid", true)                    \
-    G(AnchorValues, m_noninherited.anchor, "anchor", true)              \
-    G(EffectsValues, m_noninherited.effects, "effects", true)           \
-    G(MaskValues, m_noninherited.mask_data, "mask", false)              \
-    G(TextResetValues, m_noninherited.text_reset, "textReset", false)   \
-    G(ContentValues, m_noninherited.content_data, "content", true)      \
-    G(TransformValues, m_noninherited.transform, "transform", true)     \
-    G(BackgroundValues, m_noninherited.background, "background", false) \
-    G(BorderValues, m_noninherited.border, "border", true)              \
-    G(AlignmentValues, m_noninherited.alignment, "alignment", true)     \
-    G(MiscResetValues, m_noninherited.misc, "miscReset", true)          \
-    G(SizingValues, m_noninherited.sizing, "sizing", true)              \
-    G(SurroundValues, m_noninherited.surround, "surround", true)        \
-    G(BoxValues, m_noninherited.box, "box", true)
+// G(enumerator, member path, sharing-info name).
+#define LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(G)          \
+    G(InheritedTableValues, m_inherited.table, "inheritedTable") \
+    G(InheritedListValues, m_inherited.list, "inheritedList")    \
+    G(InheritedUIValues, m_inherited.ui, "inheritedUI")          \
+    G(InheritedSVGValues, m_inherited.svg, "inheritedSVG")       \
+    G(InheritedTextValues, m_inherited.text, "inheritedText")    \
+    G(InheritedBoxValues, m_inherited.box, "inheritedBox")       \
+    G(FontValues, m_inherited.font, "font")                      \
+    G(AnimationValues, m_noninherited.animation, "animation")    \
+    G(SVGResetValues, m_noninherited.svg_reset, "svgReset")      \
+    G(GridValues, m_noninherited.grid, "grid")                   \
+    G(AnchorValues, m_noninherited.anchor, "anchor")             \
+    G(EffectsValues, m_noninherited.effects, "effects")          \
+    G(MaskValues, m_noninherited.mask_data, "mask")              \
+    G(TextResetValues, m_noninherited.text_reset, "textReset")   \
+    G(ContentValues, m_noninherited.content_data, "content")     \
+    G(TransformValues, m_noninherited.transform, "transform")    \
+    G(BackgroundValues, m_noninherited.background, "background") \
+    G(BorderValues, m_noninherited.border, "border")             \
+    G(AlignmentValues, m_noninherited.alignment, "alignment")    \
+    G(MiscResetValues, m_noninherited.misc, "miscReset")         \
+    G(SizingValues, m_noninherited.sizing, "sizing")             \
+    G(SurroundValues, m_noninherited.surround, "surround")       \
+    G(BoxValues, m_noninherited.box, "box")
 
 class StyleEngine;
 
@@ -435,10 +428,6 @@ public:
     };
     static Statistics const& statistics() { return s_statistics; }
 
-    // The same question answered straight from two style records' group payload arrays, so a caller
-    // that only wants the answer does not have to materialize a ComputedValues for either record.
-    static bool layout_affecting_group_payloads_differ(void const* const* a, void const* const* b);
-
     // Returns the Rust-owned payload for direct read-only layout access. The
     // pointer is borrowed from this immutable ComputedValues instance.
     void const* style_group_payload(StyleGroupIndex) const;
@@ -450,7 +439,7 @@ public:
     template<typename Callback>
     void for_each_style_group_sharing_state(ComputedValues const* parent, Callback callback) const
     {
-#define LIBWEB_VISIT_STYLE_GROUP(name, path, sharing_name, affects_layout) \
+#define LIBWEB_VISIT_STYLE_GROUP(name, path, sharing_name) \
     callback(sharing_name##sv, parent ? path.ptr_equals(parent->path) : false, path.is_default());
         LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_VISIT_STYLE_GROUP)
 #undef LIBWEB_VISIT_STYLE_GROUP
@@ -664,11 +653,6 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedListValues);
 
         RefPtr<AbstractImageStyleValue const> list_style_image_value() const;
-
-        bool operator==(InheritedListValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct InheritedUIValues : ComputedValuesFFI::InheritedUIValues {
@@ -691,11 +675,6 @@ public:
             static_assert(sizeof(Utf16FlyString) == sizeof(size_t));
             static_assert(alignof(Utf16FlyString) == alignof(size_t));
             return { reinterpret_cast<Utf16FlyString const*>(color_schemes.pointer), color_schemes.length };
-        }
-
-        bool operator==(InheritedUIValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
         }
     };
 
@@ -728,11 +707,6 @@ public:
                 static_cast<PaintOrder>(paint_order[2]),
             };
         }
-
-        bool operator==(InheritedSVGValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct InheritedTextValues : ComputedValuesFFI::InheritedTextValues {
@@ -749,11 +723,6 @@ public:
             return { reinterpret_cast<ShadowData const*>(text_shadow.pointer), text_shadow.length };
         }
         TextTransform text_transform_value() const { return static_cast<TextTransform>(text_transform); }
-
-        bool operator==(InheritedTextValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     // The layout and lifecycle of this group are defined in Rust (computed_values.rs). The
@@ -785,11 +754,6 @@ public:
 
         WEB_API Gfx::FontCascadeList const& font_list_value() const;
         FontStyleKeyword font_style_keyword() const;
-
-        bool operator==(FontValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
 private:
@@ -823,41 +787,21 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AnimationValues);
 
         Vector<Utf16FlyString> animation_names_value() const;
-
-        bool operator==(AnimationValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     // The layout and lifecycle of this group are defined in Rust (computed_values.rs).
     struct SVGResetValues : ComputedValuesFFI::SVGResetValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::SVGResetValues);
-
-        bool operator==(SVGResetValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct GridValues : ComputedValuesFFI::GridValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::GridValues);
-
-        bool operator==(GridValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct AnchorValues : ComputedValuesFFI::AnchorValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AnchorValues);
 
         ReadonlySpan<Utf16FlyString> anchor_names_span() const { return fly_strings(anchor_names); }
-
-        bool operator==(AnchorValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
 
     private:
         static ReadonlySpan<Utf16FlyString> fly_strings(ComputedValuesFFI::RetainedUtf16FlyStringList const& values)
@@ -881,11 +825,6 @@ public:
             static_assert(alignof(ShadowData) == alignof(ComputedValuesFFI::ComputedShadow));
             return { reinterpret_cast<ShadowData const*>(box_shadows.pointer), box_shadows.length };
         }
-
-        bool operator==(EffectsValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct MaskValues : ComputedValuesFFI::MaskValues {
@@ -898,11 +837,6 @@ public:
         // https://drafts.fxtf.org/css-masking/#the-clip-path
         // TODO: Support basic shapes and geometry boxes.
         Optional<URL> clip_path_value() const;
-
-        bool operator==(MaskValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct TextResetValues : ComputedValuesFFI::TextResetValues {
@@ -913,11 +847,6 @@ public:
             static_assert(sizeof(TextDecorationLine) == sizeof(u8));
             return { reinterpret_cast<TextDecorationLine const*>(text_decoration_lines.pointer), text_decoration_lines.length };
         }
-
-        bool operator==(TextResetValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct ContentValues : ComputedValuesFFI::ContentValues {
@@ -925,11 +854,6 @@ public:
 
         NonnullRefPtr<StyleValue const> computed_content_value() const;
         bool content_is_normal() const;
-
-        bool operator==(ContentValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct TransformValues : public ComputedValuesFFI::TransformValues {
@@ -1000,10 +924,6 @@ public:
                 return {};
             return CSSPixels::from_raw(perspective_px);
         }
-        bool operator==(TransformValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
 
     private:
         static RefPtr<TransformationStyleValue const> transformation_value(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
@@ -1020,11 +940,6 @@ public:
 
         Color background_color_value() const { return Color::from_bgra(background_color); }
         Vector<RefPtr<AbstractImageStyleValue const>> background_images_value() const;
-
-        bool operator==(BackgroundValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct BorderValues : ComputedValuesFFI::BorderValues {
@@ -1035,20 +950,10 @@ public:
         BorderData const& border_right_value() const { return reinterpret_cast<BorderData const&>(border_right); }
         BorderData const& border_bottom_value() const { return reinterpret_cast<BorderData const&>(border_bottom); }
         RefPtr<AbstractImageStyleValue const> border_image_source_value() const;
-
-        bool operator==(BorderValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct AlignmentValues : ComputedValuesFFI::AlignmentValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AlignmentValues);
-
-        bool operator==(AlignmentValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct MiscResetValues : ComputedValuesFFI::MiscResetValues {
@@ -1056,29 +961,14 @@ public:
 
         Optional<Utf16FlyString> view_transition_name_value() const;
         ScrollSnapStrictness scroll_snap_strictness_value() const { return static_cast<ScrollSnapStrictness>(scroll_snap_strictness); }
-
-        bool operator==(MiscResetValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct SizingValues : ComputedValuesFFI::SizingValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::SizingValues);
-
-        bool operator==(SizingValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct SurroundValues : ComputedValuesFFI::SurroundValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::SurroundValues);
-
-        bool operator==(SurroundValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
     struct BoxValues : ComputedValuesFFI::BoxValues {
@@ -1088,11 +978,6 @@ public:
         Float float_value() const { return static_cast<Float>(float_); }
         Clear clear_value() const { return static_cast<Clear>(clear); }
         Positioning position_value() const { return static_cast<Positioning>(position); }
-
-        bool operator==(BoxValues const& other) const
-        {
-            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
-        }
     };
 
 private:

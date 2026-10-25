@@ -406,6 +406,29 @@ macro_rules! impl_computed_payload_clone_and_eq {
 
         impl_content_hash_by_field!($type { $($field),+ });
     };
+    // A style group whose payload holds values that layout does not read, each followed by `=> paint_only`, or values
+    // that layout reads only in part, each followed by `=>` and the function that compares that part.
+    ($type:ty { $($field:ident $(=> $layout_comparison:ident)?),+ $(,)? }) => {
+        impl_computed_payload_clone_and_eq!($type { $($field),+ });
+
+        impl StyleGroupLayoutInputs for $type {
+            fn layout_inputs_equal(&self, other: &Self) -> bool {
+                true $(&& layout_input_equal!(self.$field, other.$field $(, $layout_comparison)?))+
+            }
+        }
+    };
+}
+
+macro_rules! layout_input_equal {
+    ($first:expr, $second:expr) => {
+        $first == $second
+    };
+    ($first:expr, $second:expr, paint_only) => {
+        true
+    };
+    ($first:expr, $second:expr, $layout_inputs_equal:ident) => {
+        $layout_inputs_equal(&$first, &$second)
+    };
 }
 
 impl_computed_payload_clone_and_eq!(SizingValues {
@@ -637,11 +660,11 @@ impl_computed_payload_clone_and_eq!(InheritedTextValues {
     tab_size_length,
     tab_size_number,
     text_indent,
-    color,
-    color_style_value,
+    color => paint_only,
+    color_style_value => paint_only,
     font_smoothing,
-    webkit_text_fill_color,
-    webkit_text_fill_color_is_current_color,
+    webkit_text_fill_color => paint_only,
+    webkit_text_fill_color_is_current_color => paint_only,
     text_shadow,
     text_transform,
     text_wrap_style,
@@ -708,14 +731,14 @@ impl_computed_payload_clone_and_eq!(BackgroundValues {
     background_size,
 });
 impl_computed_payload_clone_and_eq!(BorderValues {
-    border_left,
-    border_top,
-    border_right,
-    border_bottom,
-    border_left_color_style_value,
-    border_top_color_style_value,
-    border_right_color_style_value,
-    border_bottom_color_style_value,
+    border_left => border_side_layout_inputs_equal,
+    border_top => border_side_layout_inputs_equal,
+    border_right => border_side_layout_inputs_equal,
+    border_bottom => border_side_layout_inputs_equal,
+    border_left_color_style_value => paint_only,
+    border_top_color_style_value => paint_only,
+    border_right_color_style_value => paint_only,
+    border_bottom_color_style_value => paint_only,
     border_left_computed_width,
     border_top_computed_width,
     border_right_computed_width,
@@ -776,9 +799,9 @@ impl_computed_payload_clone_and_eq!(MiscResetValues {
     outline_style,
     object_fit,
     column_height,
-    outline_color,
+    outline_color => paint_only,
     outline_width,
-    column_rule_color,
+    column_rule_color => paint_only,
     column_rule_width,
     outline_offset,
     user_select,
@@ -799,7 +822,7 @@ impl_computed_payload_clone_and_eq!(MiscResetValues {
     shape_margin,
     shape_outside,
     will_change,
-    implicit_will_change,
+    implicit_will_change => implicit_will_change_layout_inputs_equal,
 });
 impl_computed_payload_clone_and_eq!(FontValues {
     font_size,
@@ -874,7 +897,7 @@ impl_computed_payload_clone_and_eq!(ComputedFilter {
     operations
 });
 impl_computed_payload_clone_and_eq!(EffectsValues {
-    opacity,
+    opacity => paint_only,
     filter,
     backdrop_filter,
     mix_blend_mode,
@@ -882,7 +905,7 @@ impl_computed_payload_clone_and_eq!(EffectsValues {
     box_shadows,
     clip_is_rect,
     clip_edges,
-    opacity_style_value,
+    opacity_style_value => paint_only,
     filter_style_value,
     backdrop_filter_style_value,
     mix_blend_mode_style_value,
@@ -906,13 +929,13 @@ impl_computed_payload_clone_and_eq!(AnchorValues {
     position_visibility_no_overflow,
 });
 impl_computed_payload_clone_and_eq!(InheritedUIValues {
-    caret_color,
-    accent_color,
+    caret_color => paint_only,
+    accent_color => paint_only,
     cursor,
     pointer_events,
     forced_color_adjust,
     interpolate_size,
-    scrollbar_color,
+    scrollbar_color => paint_only,
     color_scheme,
     color_schemes,
     color_scheme_only,
@@ -1388,11 +1411,118 @@ unsafe fn payload_content_hash(group: StyleGroup, payload: *const c_void, hasher
     with_style_group_type!(group, Payload => unsafe { payload_ref::<Payload>(payload) }.write_content_hash(hasher));
 }
 
-pub(crate) fn style_group_affects_layout(group_index: usize) -> bool {
-    !matches!(
-        style_group(group_index),
-        StyleGroup::Mask | StyleGroup::TextReset | StyleGroup::Background
-    )
+/// The values of a style group's payload that layout reads. A box whose style changes only the other values keeps the
+/// layout it cached, as only painting reads them.
+trait StyleGroupLayoutInputs: PartialEq {
+    fn layout_inputs_equal(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
+fn border_side_layout_inputs_equal(
+    first: &crate::css::computed_value_types::ComputedBorderSide,
+    second: &crate::css::computed_value_types::ComputedBorderSide,
+) -> bool {
+    let crate::css::computed_value_types::ComputedBorderSide {
+        color: _,
+        line_style,
+        width,
+    } = first;
+    *line_style == second.line_style && *width == second.width
+}
+
+fn implicit_will_change_layout_inputs_equal(
+    first: &RetainedWillChangePropertyList,
+    second: &RetainedWillChangePropertyList,
+) -> bool {
+    use crate::css::property_metadata::property_id::{COLOR, OPACITY};
+    let names_only_paint_properties = |hints: &RetainedWillChangePropertyList| {
+        hints
+            .as_slice()
+            .iter()
+            .all(|&property| matches!(property, COLOR | OPACITY))
+    };
+    (names_only_paint_properties(first) && names_only_paint_properties(second)) || first == second
+}
+
+macro_rules! impl_style_group_read_whole_by_layout {
+    ($($type:ty),+ $(,)?) => {
+        $(impl StyleGroupLayoutInputs for $type {})+
+    };
+}
+
+impl_style_group_read_whole_by_layout!(
+    InheritedTableValues,
+    InheritedListValues,
+    InheritedSVGValues,
+    InheritedBoxValues,
+    FontValues,
+    AnimationValues,
+    SVGResetValues,
+    GridValues,
+    AnchorValues,
+    ContentValues,
+    TransformValues,
+    AlignmentValues,
+    SizingValues,
+    SurroundValues,
+    BoxValues,
+);
+
+macro_rules! impl_style_group_unread_by_layout {
+    ($($type:ty),+ $(,)?) => {
+        $(impl StyleGroupLayoutInputs for $type {
+            fn layout_inputs_equal(&self, _: &Self) -> bool {
+                true
+            }
+        })+
+    };
+}
+
+// Only painting reads these groups. Resource observers for background images register in apply_style, whatever layout
+// does. Hit testing also reads the mask. Text decorations resolve when the display list is built. Layout does not read
+// white-space-trim yet, so an implementation of it must remove TextResetValues from this list. EffectsValues is not
+// in this list, because filter and backdrop-filter make a containing block for fixed-position descendants.
+impl_style_group_unread_by_layout!(MaskValues, TextResetValues, BackgroundValues);
+
+/// Both payloads must be live payloads of the group's type.
+unsafe fn payload_layout_inputs_equal(group: StyleGroup, a: *const c_void, b: *const c_void) -> bool {
+    with_style_group_type!(group, Payload => {
+        // SAFETY: The caller guarantees live payloads of the group.
+        let (a, b) = unsafe { (payload_ref::<Payload>(a), payload_ref::<Payload>(b)) };
+        a.layout_inputs_equal(b)
+    })
+}
+
+/// Whether two records' group payloads hold the same values that layout reads (see [`StyleGroupLayoutInputs`]), so a
+/// box whose style moves from one record to the other keeps the layout it cached. The geometry of an SVG box can also
+/// depend on `color`, through `currentColor`.
+///
+/// # Safety
+/// Every payload must be a live payload of the group at its index.
+pub(crate) unsafe fn style_payloads_layout_inputs_equal(
+    a: &[*const c_void],
+    b: &[*const c_void],
+    is_svg_box: bool,
+) -> bool {
+    debug_assert_eq!(a.len(), group_index::COUNT);
+    debug_assert_eq!(b.len(), group_index::COUNT);
+    if is_svg_box {
+        // SAFETY: The caller guarantees live payloads of each group.
+        let (first, second) = unsafe {
+            (
+                payload_ref::<InheritedTextValues>(a[group_index::INHERITED_TEXT]),
+                payload_ref::<InheritedTextValues>(b[group_index::INHERITED_TEXT]),
+            )
+        };
+        if first.color != second.color {
+            return false;
+        }
+    }
+    (0..group_index::COUNT).all(|group| {
+        // SAFETY: The caller guarantees live payloads of each group.
+        a[group] == b[group] || unsafe { payload_layout_inputs_equal(style_group(group), a[group], b[group]) }
+    })
 }
 
 /// The style groups in `groups` whose payloads differ between two records, `[base, composed]` each: explicit
@@ -1942,20 +2072,24 @@ pub(crate) fn release_group_payload(group_index: usize, payload: *const c_void) 
     }
 }
 
-/// Compares two payloads of the same style group for value equality, letting
-/// C++ group structs that inherit a Rust-native payload layout reuse the Rust
-/// field-wise equality instead of hand-writing a second one.
+/// See [`style_payloads_layout_inputs_equal`].
 ///
 /// # Safety
-/// `a` and `b` must be valid payloads of the given group type.
+/// `a` and `b` must each point to a record's array of live group payloads.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_group_payloads_equal(
-    group_index: usize,
-    a: *const c_void,
-    b: *const c_void,
+pub unsafe extern "C" fn rust_style_payloads_layout_inputs_equal(
+    a: *const *const c_void,
+    b: *const *const c_void,
+    is_svg_box: bool,
 ) -> bool {
-    // SAFETY: The caller guarantees live payloads of the group.
-    unsafe { style_group_payloads_equal(group_index, a, b) }
+    // SAFETY: The caller guarantees two arrays of live group payloads.
+    unsafe {
+        style_payloads_layout_inputs_equal(
+            ak::slice_from_raw_parts(a, group_index::COUNT),
+            ak::slice_from_raw_parts(b, group_index::COUNT),
+            is_svg_box,
+        )
+    }
 }
 
 /// Clamps a border box size by the min and max sizes of a sizing group that resolve against the given basis, as
