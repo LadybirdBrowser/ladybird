@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+</head>
+<body>
+<iframe id="iframe"></iframe>
+<script>
+  const frame = document.getElementById("iframe");
+
+  function loadIframe(doc) {
+    return new Promise((resolve) => {
+      frame.addEventListener("load", resolve);
+      frame.srcdoc = doc;
+    });
+  }
+
+  promise_test(async function() {
+    await loadIframe("<input type='number'>");
+    const inputElement = frame.contentDocument.querySelector("input");
+
+    let events = [];
+
+    inputElement.addEventListener("beforeinput", () => {
+      events.push("beforeinput");
+      frame.remove();
+    });
+    inputElement.addEventListener("input", () => {
+      events.push("input");
+    });
+    inputElement.addEventListener("change", () => {
+      events.push("change");
+    });
+
+    inputElement.focus();
+
+    await test_driver.send_keys(inputElement, "\uE013");
+
+    assert_array_equals(events, ['beforeinput']);
+    assert_false(document.body.contains(frame));
+  }, "Number input should not crash and not fire subsequent events when event handler removes document");
+</script>
+</body>
+</html>

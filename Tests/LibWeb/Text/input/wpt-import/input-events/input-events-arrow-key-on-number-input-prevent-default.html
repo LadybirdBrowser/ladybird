@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+</head>
+<body>
+<input type="number" id="number_input">
+<script>
+promise_test(async function() {
+  const inputElement = document.getElementById("number_input");
+  let events = [];
+  inputElement.addEventListener("beforeinput", (e) => {
+    e.preventDefault();
+    events.push("beforeinput");
+  });
+  inputElement.addEventListener("input", () => {
+    events.push("input");
+  });
+  inputElement.addEventListener("change", () => {
+    events.push("change");
+  });
+
+  inputElement.focus();
+
+  await new test_driver.send_keys(inputElement, "\uE013");
+  assert_array_equals(events, ['beforeinput']);
+}, "Number input should not fire input and change event if the beforeinput event is default prevented");
+</script>
+</body>
+</html>

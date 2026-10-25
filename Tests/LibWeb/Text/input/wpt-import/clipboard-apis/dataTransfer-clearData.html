@@ -1,0 +1,59 @@
+<!doctype html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<p id="description"></p>
+<div id="console"></div>
+<script>
+const dataTransfer = new DataTransfer();
+const filename = "1.png";
+const filename2 = "2.png";
+
+test(() => {
+    const file = new File(["🕺💃"], filename, {
+        type: "image/png"
+    });
+
+    const file2 = new File(["🕺💃"], filename2, {
+        type: "image/png"
+    });
+
+    dataTransfer.items.add(file);
+    dataTransfer.items.add(file2);
+    assert_equals(dataTransfer.items.length, 2);
+    assert_equals(dataTransfer.types.length, 1);
+
+    dataTransfer.setData("text/plain", "hi");
+    assert_equals(dataTransfer.items.length, 3);
+    assert_equals(dataTransfer.types.length, 2);
+
+    dataTransfer.items.add("hi 2", "text/html");
+    dataTransfer.items.add("new octet item", "application/octet-stream");
+
+    assert_equals(dataTransfer.items.length, 5);
+    assert_equals(dataTransfer.types.length, 4);
+
+    dataTransfer.clearData("text/html");
+    assert_equals(dataTransfer.items.length, 4);
+    assert_equals(dataTransfer.types.length, 3);
+
+    dataTransfer.clearData();
+    assert_equals(dataTransfer.items.length, 2);
+    assert_equals(dataTransfer.files.length, 2);
+    assert_equals(dataTransfer.types.length, 1);
+    assert_equals(dataTransfer.types[0], "Files");
+    assert_equals(dataTransfer.files[0].name, filename);
+    assert_equals(dataTransfer.files[1].name, filename2);
+
+    dataTransfer.items.add("hi", "text/plain");
+    assert_equals(dataTransfer.items.length, 3);
+    assert_equals(dataTransfer.files.length, 2);
+    assert_equals(dataTransfer.types.length, 2);
+
+    dataTransfer.items.clear();
+    assert_equals(dataTransfer.items.length, 0);
+    assert_equals(dataTransfer.files.length, 0);
+    assert_equals(dataTransfer.types.length, 0);
+}, 'Clear data from dataTransfer');
+</script>
+</body>
+</html>
