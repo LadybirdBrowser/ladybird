@@ -9,8 +9,6 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/RustFFI.h>
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
 
 #include <harfbuzz/hb.h>
 
@@ -79,11 +77,6 @@ Path Path::from_serialized_bytes(ReadonlyBytes bytes)
     return Path { FFI::path_geometry_decode(bytes.data(), bytes.size()) };
 }
 
-void Path::clear()
-{
-    FFI::path_geometry_clear(m_geometry);
-}
-
 void Path::move_to(FloatPoint const& point)
 {
     FFI::path_geometry_move_to(m_geometry, point.x(), point.y());
@@ -99,11 +92,6 @@ void Path::close()
     FFI::path_geometry_close(m_geometry);
 }
 
-void Path::elliptical_arc_to(FloatPoint point, FloatSize radii, float x_axis_rotation, bool large_arc, bool sweep)
-{
-    FFI::path_geometry_elliptical_arc_to(m_geometry, point.x(), point.y(), radii.width(), radii.height(), x_axis_rotation, large_arc, sweep);
-}
-
 void Path::arc_to(FloatPoint point, float radius, bool large_arc, bool sweep)
 {
     FFI::path_geometry_arc_to(m_geometry, point.x(), point.y(), radius, large_arc, sweep);
@@ -114,50 +102,15 @@ void Path::quadratic_bezier_curve_to(FloatPoint through, FloatPoint point)
     FFI::path_geometry_quadratic_bezier_curve_to(m_geometry, through.x(), through.y(), point.x(), point.y());
 }
 
-void Path::cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2)
-{
-    FFI::path_geometry_cubic_bezier_curve_to(m_geometry, c1.x(), c1.y(), c2.x(), c2.y(), p2.x(), p2.y());
-}
-
-void Path::append_path(Path const& other)
-{
-    FFI::path_geometry_append_path(m_geometry, other.m_geometry);
-}
-
-static void append_to_byte_vector(void* context, u8 const* bytes, size_t count)
-{
-    static_cast<Vector<u8>*>(context)->append(bytes, count);
-}
-
 Vector<u8> Path::serialize_to_bytes() const
 {
     Vector<u8> bytes;
-    serialize_into(append_to_byte_vector, &bytes);
+    FFI::path_geometry_encode(
+        m_geometry, [](void* context, u8 const* bytes, size_t count) {
+            static_cast<Vector<u8>*>(context)->append(bytes, count);
+        },
+        &bytes);
     return bytes;
-}
-
-void Path::serialize_into(void (*append)(void*, u8 const*, size_t), void* context) const
-{
-    FFI::path_geometry_encode(m_geometry, append, context);
-}
-
-bool Path::is_empty() const
-{
-    return FFI::path_geometry_is_empty(m_geometry);
-}
-
-FloatPoint Path::last_point() const
-{
-    float x_y[2];
-    FFI::path_geometry_last_point(m_geometry, x_y);
-    return { x_y[0], x_y[1] };
-}
-
-FloatRect Path::bounding_box() const
-{
-    float x_y_width_height[4];
-    FFI::path_geometry_bounding_box(m_geometry, x_y_width_height);
-    return { x_y_width_height[0], x_y_width_height[1], x_y_width_height[2], x_y_width_height[3] };
 }
 
 float Path::length() const
@@ -189,44 +142,6 @@ bool Path::contains(FloatPoint point, WindingRule winding_rule) const
     return FFI::path_geometry_contains(m_geometry, point.x(), point.y(), to_underlying(winding_rule));
 }
 
-Path Path::stroke_to_fill(StrokeStyle const& style) const
-{
-    return Path { FFI::path_geometry_stroke_to_fill(m_geometry, style.thickness, to_underlying(style.cap_style), to_underlying(style.join_style), style.miter_limit, style.dash_array.data(), style.dash_array.size(), style.dash_offset) };
-}
-
-void Path::set_fill_type(WindingRule winding_rule)
-{
-    FFI::path_geometry_set_fill_rule(m_geometry, to_underlying(winding_rule));
-}
-
-static Array<float, 6> affine_values(AffineTransform const& transform)
-{
-    return { transform.a(), transform.b(), transform.c(), transform.d(), transform.e(), transform.f() };
-}
-
-Path Path::copy_transformed(AffineTransform const& transform) const
-{
-    auto values = affine_values(transform);
-    return Path { FFI::path_geometry_copy_transformed(m_geometry, values.data()) };
-}
-
-void Path::transform(AffineTransform const& transform)
-{
-    auto values = affine_values(transform);
-    FFI::path_geometry_transform(m_geometry, values.data());
-}
-
-String Path::to_svg_string() const
-{
-    String string;
-    FFI::path_geometry_svg_string(
-        m_geometry, [](void* context, u8 const* bytes, size_t count) {
-            *static_cast<String*>(context) = String::from_utf8_without_validation({ bytes, count });
-        },
-        &string);
-    return string;
-}
-
 PathData PathData::from_ffi(FFI::PathGeometryData const& data)
 {
     return {
@@ -242,11 +157,6 @@ PathData Path::data() const
     FFI::PathGeometryData data;
     FFI::path_geometry_data(m_geometry, &data);
     return PathData::from_ffi(data);
-}
-
-bool Path::operator==(Path const& other) const
-{
-    return FFI::path_geometry_equals(m_geometry, other.m_geometry);
 }
 
 namespace {
@@ -427,23 +337,6 @@ public:
 #endif
 };
 
-}
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Gfx::Path const& path)
-{
-    return encoder.encode(path.serialize_to_bytes());
-}
-
-template<>
-ErrorOr<Gfx::Path> decode(Decoder& decoder)
-{
-    auto path_data = TRY(decoder.decode<Vector<u8>>());
-    return Gfx::Path::from_serialized_bytes(path_data);
 }
 
 }
