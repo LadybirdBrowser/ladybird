@@ -1,0 +1,3 @@
+gridItem: caption 300x20, cell 300x180
+columnItem: caption 300x20, cell 300x20
+rowItem: caption 60x60, cell 60x140

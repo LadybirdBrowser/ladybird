@@ -1765,15 +1765,14 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 IntrinsicSizeCacheKind::MaxContentBlock,
             );
         }
-        let measurement = formatting_context::MeasurementState::create(self.callbacks);
-        let root = measurement.create_used_values(node, constraints);
+        let root = used_values::create_used_values(&self.callbacks, node, constraints);
         root.set_content_inline_size(other_axis_size);
         root.set_content_block_size(transferred_size);
         root.has_definite_block_size.set(true);
-        let result = measurement.run_with_layout_mode(
+        let result = formatting_context::lay_out_measurement_root_for_its_result(
+            self.callbacks,
             node,
-            &root,
-            LayoutMode::Normal,
+            used_values::RootInputCells::capture(&root),
             LayoutInput::new(
                 AvailableSpace {
                     inline_size: AvailableSize::definite(other_axis_size),
@@ -3171,15 +3170,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     }
 
     fn block_size_is_measured_with_normal_layout(&self, node: Node) -> bool {
-        let facts = self.facts(node);
-        !facts.document_in_quirks_mode()
-            && !facts.is_table_wrapper()
-            && matches!(
-                formatting_context::independent_formatting_context_type(node, &self.callbacks),
-                formatting_context::FormattingContextType::Block
-                    | formatting_context::FormattingContextType::Flex
-                    | formatting_context::FormattingContextType::Grid
-            )
+        !self.facts(node).document_in_quirks_mode()
     }
 
     fn measure_block_size_with_normal_layout(
@@ -3641,21 +3632,27 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // table-wrapper can't have borders or paddings but it might have margin taken from table-root.
         let available_block_size = containing_block_block_size - margin_top - margin_bottom;
 
-        let measurement = formatting_context::MeasurementState::create(self.callbacks);
-        let wrapper_used = measurement.create_used_values(wrapper, table_wrapper_constraints);
-        let wrapper_outputs = measurement.run_with_layout_mode(
+        let wrapper_inner_space = self
+            .used(wrapper)
+            .available_inner_space_or_constraints_from(available_space);
+        let wrapper_used = used_values::create_used_values(&self.callbacks, wrapper, table_wrapper_constraints);
+        if let AvailableSize::Definite(inline_size) = wrapper_inner_space.inline_size {
+            wrapper_used.set_content_inline_size(inline_size);
+        }
+        if let AvailableSize::Definite(block_size) = wrapper_inner_space.block_size {
+            wrapper_used.set_content_block_size(block_size);
+        } else {
+            wrapper_used.has_definite_block_size.set(false);
+        }
+        let wrapper_outputs = formatting_context::lay_out_measurement_root_for_its_result(
+            self.callbacks,
             wrapper,
-            &wrapper_used,
-            LayoutMode::IntrinsicSizing,
-            LayoutInput {
-                available_space: self
-                    .used(wrapper)
-                    .available_inner_space_or_constraints_from(available_space),
-                containing_block_constraints: table_wrapper_constraints,
-                content_box_position_in_bfc_root: None,
-                sizing: RootSizingDirectives::default(),
-                participation: ParticipationInParentFormattingContext::Root,
-            },
+            used_values::RootInputCells::capture(&wrapper_used),
+            LayoutInput::new(
+                wrapper_inner_space,
+                table_wrapper_constraints,
+                ParticipationInParentFormattingContext::Root,
+            ),
         );
 
         let table_used_block_size = wrapper_outputs

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    table { border-spacing: 0; }
+    td { padding: 0; }
+    img { width: 100%; display: block; }
+    .after { height: 10px; }
+</style>
+<div id="column-flex" style="display: flex; flex-direction: column; width: 300px"><table><tr><td><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='50'/%3E"></td></tr></table><div class="after"></div></div>
+<div id="grid" style="display: grid; width: 300px"><table><tr><td><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='50'/%3E"></td></tr></table><div class="after"></div></div>
+<div id="grid-with-max-width-table" style="display: grid; grid-template-columns: 300px"><table style="max-width: 200px"><tr><td><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='50'/%3E"></td></tr></table><div class="after"></div></div>
+<script>
+    asyncTest(async done => {
+        await Promise.all([...document.images].map(image => image.decode()));
+        for (const id of ["column-flex", "grid", "grid-with-max-width-table"]) {
+            const container = document.getElementById(id);
+            const containerRect = container.getBoundingClientRect();
+            const table = container.querySelector("table").getBoundingClientRect();
+            const after = container.querySelector(".after").getBoundingClientRect();
+            println(`${id}: container height ${containerRect.height}, table ${table.width}x${table.height}, next sibling at ${after.top - containerRect.top}`);
+        }
+        done();
+    });
+</script>
