@@ -191,7 +191,7 @@ void RenderClock::arm_lane(Web::CompositorContextId context_id, double maximum_f
         // The display ticks of an armed context drive its ticks at their rate, however many tasks begin meanwhile.
         if (tick_now_at.has_value() && !m_armed_contexts.contains(context_id)) {
             (void)ticks->tick(*tick_now_at, {});
-            m_armed_contexts.set(context_id, ArmedContext { maximum_frames_per_second, [ticks](i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset> scroll_offsets) { return ticks->tick(frame_time_nanoseconds, scroll_offsets); } });
+            m_armed_contexts.set(context_id, ArmedContext { maximum_frames_per_second, ticks });
             request_clock_tick(context_id, maximum_frames_per_second);
         }
         m_pointer_lanes.set(context_id, PointerLane { maximum_frames_per_second, move(ticks) });
@@ -263,9 +263,8 @@ void RenderClock::did_receive_pointer_move(Web::CompositorContextId context_id, 
     // A context armed for ticks already asked for the next one.
     if (m_armed_contexts.contains(context_id))
         return;
-    auto ticks = it->value.ticks;
     auto maximum_frames_per_second = it->value.maximum_frames_per_second;
-    m_armed_contexts.set(context_id, ArmedContext { maximum_frames_per_second, [ticks](i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset> scroll_offsets) { return ticks->tick(frame_time_nanoseconds, scroll_offsets); } });
+    m_armed_contexts.set(context_id, ArmedContext { maximum_frames_per_second, it->value.ticks });
     request_clock_tick(context_id, maximum_frames_per_second);
 }
 
@@ -284,7 +283,7 @@ void RenderClock::did_receive_clock_tick(Web::CompositorContextId context_id, i6
 
     // Handing a tick on only queues it, so the next request goes out right after: however long this tick takes, the next
     // one is already on its way, and the Compositor's pacing is the only limit on the rate.
-    if (!it->value.on_tick(frame_time_nanoseconds, scroll_offsets)) {
+    if (!it->value.ticks->tick(frame_time_nanoseconds, scroll_offsets)) {
         m_armed_contexts.remove(it);
         return;
     }

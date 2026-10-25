@@ -79,11 +79,6 @@ class WEB_API RenderClock {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    // Runs on the clock thread, for each tick delivered to the context it was armed for, with where the Compositor had
-    // scrolled the context's scroll nodes to then, and answers whether the context wants the next tick: one that does
-    // not is disarmed.
-    using OnTick = Function<bool(i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset>)>;
-
     // The process's render clock, made the first time it is asked for.
     static RenderClock& the();
 
@@ -117,7 +112,7 @@ public:
 private:
     struct ArmedContext {
         double maximum_frames_per_second { 60.0 };
-        OnTick on_tick;
+        NonnullRefPtr<ClockTicksHandle> ticks;
     };
 
     friend class RenderClockChannel;
