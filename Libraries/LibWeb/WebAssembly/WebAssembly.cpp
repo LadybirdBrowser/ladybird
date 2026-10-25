@@ -583,148 +583,170 @@ Wasm::Runtime::FunctionType function_type_in_store(Wasm::Runtime::Module const& 
     return type.release_value();
 }
 
-JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM& vm, Wasm::Runtime::Module const& module, GC::Ptr<JS::Object> import_object)
+// https://webassembly.github.io/spec/js-api/#read-the-imports
+JS::ThrowCompletionOr<GC::ConservativeVector<Wasm::Runtime::Extern>> read_the_imports(JS::VM& vm, Wasm::Runtime::Module const& module, GC::Ptr<JS::Object> import_object)
 {
     auto& store = WebAssemblyCache::the().store();
 
-    // https://webassembly.github.io/spec/js-api/index.html#read-the-imports
-    // 1. If module.imports is not empty, and importObject is undefined, throw a TypeError exception.
+    // 1. If module_imports(module) is not empty, and importObject is missing, throw a TypeError exception.
     auto import_count = module.import_count();
     if (import_count != 0 && !import_object)
         return vm.throw_completion<JS::TypeError>("ImportObject must be provided when module has imports"_utf16);
 
-    // 2. Let imports be « ».
+    // FIXME: 2. Let builtinOrStringImports be the ordered map «[ ]».
+    // FIXME: 3. For each builtinSetName of builtinSetNames,
+    //           1. Let builtinSetQualifiedName be builtinSetName prefixed with "wasm:"
+    //           2. Assert: builtinOrStringImports does not contain builtinSetQualifiedName
+    //           3. If builtinSetName does not refer to a builtin set, then continue.
+    //           4. Let exportsObject be the result of instantiate a builtin set with builtinSetName
+    //           5. Set builtinOrStringImports[builtinSetQualifiedName] to exportsObject
+    // FIXME: 4. If importedStringModule is not null,
+    //           1. Let exportsObject be the result of instantiate imported strings with module and importedStringModule
+    //           2. Set builtinOrStringImports[importedStringModule] to exportsObject
+
+    // 5. Let imports be « ».
     // NB: The host functions and globals made for the imports are referenced from here only until the instance
     //     holds them, and the steps below run user code (getters, valueOf) that may collect garbage.
     GC::ConservativeVector<Wasm::Runtime::Extern> imports;
     imports.ensure_capacity(import_count);
     size_t imported_function_count = 0;
 
-    // 3. For each (moduleName, componentName, externtype) of module_imports(module),
+    // 6. For each (moduleName, componentName, externtype) of module_imports(module),
     for (size_t import_index = 0; import_index < import_count; ++import_index) {
         auto import = module.import(import_index);
         dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve {}::{}", import.module, import.name);
 
-        // 3.1. Let o be ? Get(importObject, moduleName).
+        // FIXME: 6.1. If builtinOrStringImports[moduleName] exists,
+        //            1. Let o be builtinOrStringImports[moduleName].
+        //            2. If o is not an Object or if ? HasProperty(o, componentName) is false,
+        //               1. Set o to ? Get(importObject, moduleName).
+        // 6.2. Else,
+        // 6.2.1. Let o be ? Get(importObject, moduleName).
         auto value = TRY(import_object->get(Utf16FlyString::from_utf8(import.module)));
 
-        // 3.2. If o is not an Object, throw a TypeError exception.
+        // 6.3. If o is not an Object, throw a TypeError exception.
         if (!value.is_object())
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::IsNotAEvaluatedFrom, value.to_utf16_string_without_side_effects(), "Object"_string, MUST(String::formatted("[wasm import object][\"{}\"]", import.module)));
         auto const& object = value.as_object();
 
-        // 3.3. Let v be ? Get(o, componentName).
+        // 6.4. Let v be ? Get(o, componentName).
         auto import_ = TRY(object.get(Utf16FlyString::from_utf8(import.name)));
 
         switch (import.type.kind) {
-        // 3.4. If externtype is of the form func functype,
+        // 6.5. If externtype is of the form func functype,
         case Wasm::Runtime::ExternKind::Function: {
-            // 3.4.1. If IsCallable(v) is false, throw a LinkError exception.
+            // 6.5.1. If IsCallable(v) is false, throw a LinkError exception.
             if (!import_.is_function())
                 return vm.throw_completion<LinkError>(JS::ErrorType::IsNotAEvaluatedFrom, import_, "function"_string, MUST(String::formatted("[wasm import object][\"{}\"]", import.name)));
             auto& function = import_.as_function();
 
             Wasm::Runtime::Entity address = nullptr;
-            // 3.4.2. If v has a [[FunctionAddress]] internal slot, and therefore is an Exported Function,
+            // 6.5.2. If v has a [[FunctionAddress]] internal slot, and therefore is an Exported Function,
             if (auto exported_address = exported_function_address(function); exported_address.has_value()) {
-                // 3.4.2.1. Let funcaddr be the value of v's [[FunctionAddress]] internal slot.
+                // 6.5.2.1. Let funcaddr be the value of v's [[FunctionAddress]] internal slot.
                 address = *exported_address;
             }
-            // 3.4.3. Otherwise,
+            // 6.5.3. Otherwise,
             else {
-                // 3.4.3.1. Create a host function from v and functype, and let funcaddr be the result.
-                // 3.4.3.2. Let index be the number of external functions in imports. This value index is known as the index of the host function funcaddr.
+                // 6.5.3.1. Create a host function from v and functype, and let funcaddr be the result.
+                // 6.5.3.2. Let index be the number of external functions in imports. This value index is known as the index of the host function funcaddr.
                 address = create_host_function(vm, function, function_type_in_store(module, import.type.type_index), imported_function_count);
             }
 
-            // 3.4.4. Let externfunc be the external value func funcaddr.
-            // 3.4.5. Append externfunc to imports.
+            // 6.5.4. Let externfunc be the external value func funcaddr.
+            // 6.5.5. Append externfunc to imports.
             imports.unchecked_append({ Wasm::Runtime::ExternKind::Function, address });
             ++imported_function_count;
             break;
         }
-        // 3.5. If externtype is of the form global mut valtype,
+        // 6.6. If externtype is of the form global mut valtype,
         case Wasm::Runtime::ExternKind::Global: {
             auto value_type = store.canonical_value_type(module, import.type.value_type);
             Wasm::Runtime::Entity address = nullptr;
-            // 3.5.1. If v implements Global,
+            // 6.6.1. If v implements Global,
             if (auto* global = Bindings::global_from_value(import_)) {
-                // 3.5.1.1. Let globaladdr be v.[[Global]].
+                // 6.6.1.1. Let globaladdr be v.[[Global]].
                 address = global->address();
             }
-            // 3.5.2. Otherwise,
+            // 6.6.2. Otherwise,
             else {
-                // 3.5.2.1. If valtype is i64 and v is not a BigInt, throw a LinkError exception.
+                // 6.6.2.1. If valtype is i64 and v is not a BigInt, throw a LinkError exception.
                 if (value_type.kind == ValueKind::I64 && !import_.is_bigint())
                     return vm.throw_completion<LinkError>("Import resolution attempted to use a non-BigInt for an i64 global"sv);
-                // 3.5.2.2. If valtype is one of i32, f32 or f64 and v is not a Number, throw a LinkError exception.
+                // 6.6.2.2. If valtype is one of i32, f32 or f64 and v is not a Number, throw a LinkError exception.
                 if ((value_type.kind == ValueKind::I32 || value_type.kind == ValueKind::F32 || value_type.kind == ValueKind::F64) && !import_.is_number())
                     return vm.throw_completion<LinkError>("Import resolution attempted to use a non-Number for a numeric global"sv);
-                // 3.5.2.3. If valtype is v128, throw a LinkError exception.
+                // 6.6.2.3. If valtype is v128, throw a LinkError exception.
                 if (value_type.kind == ValueKind::V128)
                     return vm.throw_completion<LinkError>("Import resolution attempted to use a value for a V128 global"sv);
-                // 3.5.2.4. If mut is var, throw a LinkError exception.
+                // 6.6.2.4. If mut is var, throw a LinkError exception.
                 if (import.type.is_mutable)
                     return vm.throw_completion<LinkError>("Import resolution attempted to use a value for a mutable global"sv);
-                // 3.5.2.5. Let value be ToWebAssemblyValue(v, valtype). If this throws a TypeError, catch it, and throw
+                // 6.6.2.5. Let value be ToWebAssemblyValue(v, valtype). If this throws a TypeError, catch it, and throw
                 //          a LinkError exception.
                 auto value = to_webassembly_value(vm, import_, value_type);
                 if (value.is_error())
                     return vm.throw_completion<LinkError>("Import resolution attempted to use a value of the wrong type for a global"sv);
-                // 3.5.2.6. Let store be the surrounding agent's associated store.
-                // 3.5.2.7. Let (store, globaladdr) be global_alloc(store, const valtype, value).
-                // 3.5.2.8. Set the surrounding agent's associated store to store.
+                // 6.6.2.6. Let store be the surrounding agent's associated store.
+                // 6.6.2.7. Let (store, globaladdr) be global_alloc(store, const valtype, value).
+                // 6.6.2.8. Set the surrounding agent's associated store to store.
                 address = store.allocate_global(value_type, false, value.release_value());
             }
 
-            // 3.5.3. Let externglobal be global globaladdr.
-            // 3.5.4. Append externglobal to imports.
+            // 6.6.3. Let externglobal be global globaladdr.
+            // 6.6.4. Append externglobal to imports.
             imports.unchecked_append({ Wasm::Runtime::ExternKind::Global, address });
             break;
         }
-        // 3.6. If externtype is of the form mem memtype,
+        // 6.7. If externtype is of the form mem memtype,
         case Wasm::Runtime::ExternKind::Memory: {
-            // 3.6.1. If v does not implement Memory, throw a LinkError exception.
+            // 6.7.1. If v does not implement Memory, throw a LinkError exception.
             auto* memory = Bindings::memory_from_value(import_);
             if (!memory)
                 return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Memory for a memory import"sv);
 
-            // 3.6.2. Let externmem be the external value mem v.[[Memory]].
-            // 3.6.3. Append externmem to imports.
+            // 6.7.2. Let externmem be the external value mem v.[[Memory]].
+            // 6.7.3. Append externmem to imports.
             imports.unchecked_append({ Wasm::Runtime::ExternKind::Memory, memory->address() });
             break;
         }
-        // 3.7. If externtype is of the form table tabletype,
+        // 6.8. If externtype is of the form table tabletype,
         case Wasm::Runtime::ExternKind::Table: {
-            // 3.7.1. If v does not implement Table, throw a LinkError exception.
+            // 6.8.1. If v does not implement Table, throw a LinkError exception.
             auto* table = Bindings::table_from_value(import_);
             if (!table)
                 return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Table for a table import"sv);
 
-            // 3.7.2. Let tableaddr be v.[[Table]].
-            // 3.7.3. Let externtable be the external value table tableaddr.
-            // 3.7.4. Append externtable to imports.
+            // 6.8.2. Let tableaddr be v.[[Table]].
+            // 6.8.3. Let externtable be the external value table tableaddr.
+            // 6.8.4. Append externtable to imports.
             imports.unchecked_append({ Wasm::Runtime::ExternKind::Table, table->address() });
             break;
         }
-        // 3.8. If externtype is of the form tag attribute functype,
+        // 6.9. If externtype is of the form tag attribute functype,
         case Wasm::Runtime::ExternKind::Tag: {
-            // 3.8.1. Assert: attribute is exception.
-            // 3.8.2. If v does not implement Tag, throw a LinkError exception.
+            // 6.9.1. Assert: attribute is exception.
+            // 6.9.2. If v does not implement Tag, throw a LinkError exception.
             auto* tag = Bindings::tag_from_value(import_);
             if (!tag)
                 return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Tag for a tag import"sv);
 
-            // 3.8.3. Let tagaddr be v.[[Address]].
-            // 3.8.4. Let externtag be the external value tag tagaddr.
-            // 3.8.5. Append externtag to imports.
+            // 6.9.3. Let tagaddr be v.[[Address]].
+            // 6.9.4. Let externtag be the external value tag tagaddr.
+            // 6.9.5. Append externtag to imports.
             imports.unchecked_append({ Wasm::Runtime::ExternKind::Tag, tag->address() });
             break;
         }
         }
     }
 
-    // 4. Return imports.
+    // 7. Return imports.
+    return imports;
+}
+
+JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM& vm, Wasm::Runtime::Module const& module, GC::Ptr<JS::Object> import_object)
+{
+    auto imports = TRY(read_the_imports(vm, module, import_object));
     return instantiate_core_module(vm, module, imports);
 }
 
@@ -1251,19 +1273,27 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::Realm
     // 2. Let module be moduleObject.[[Module]].
     auto module = module_object->compiled_module();
 
-    // 3. Read the imports of module with imports importObject, and let imports be the result.
-    //    If this operation throws an exception, catch it, reject promise with the exception, and return promise.
-    // Note: We do this at the same time as instantiation in instantiate_module.
+    // FIXME: 3. Let builtinSetNames be moduleObject.[[BuiltinSets]].
+    // FIXME: 4. Let importedStringModule be moduleObject.[[ImportedStringModule]].
 
-    // 4. Run the following steps in parallel:
+    // 5. Read the imports of module with imports importObject, builtinSetNames and importedStringModule, and let imports
+    //    be the result. If this operation throws an exception, catch it, reject promise with the exception, and return
+    //    promise.
+    auto imports_or_error = Detail::read_the_imports(realm.vm(), *module->module, import_object);
+    if (imports_or_error.is_error()) {
+        WebIDL::reject_promise(promise, imports_or_error.error_value());
+        return promise;
+    }
+
+    // 6. Run the following steps in parallel:
     //   1. Queue a task to perform the following steps: Note: Implementation-specific work may be performed here.
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, module, import_object]() {
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, module, imports = imports_or_error.release_value()]() {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         auto& realm = HTML::relevant_realm(*promise->promise());
 
         // 1. Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
         //    If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
-        auto result = Detail::instantiate_module(realm.vm(), *module->module, import_object);
+        auto result = Detail::instantiate_core_module(realm.vm(), *module->module, imports);
         if (result.is_error()) {
             WebIDL::reject_promise(promise, result.error_value());
             return;
@@ -1279,7 +1309,7 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::Realm
         Bindings::resolve_webassembly_instance_promise(realm, promise, instance_object);
     }));
 
-    // 5. Return promise.
+    // 7. Return promise.
     return promise;
 }
 

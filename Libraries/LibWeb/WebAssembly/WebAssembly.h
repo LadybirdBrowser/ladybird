@@ -13,6 +13,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibGC/Root.h>
 #include <LibGC/Weak.h>
 #include <LibJS/Forward.h>
@@ -121,6 +122,7 @@ Optional<u64> exported_gc_object_address(JS::Object const&);
 
 // The function type at `type_index` of a module, in the store's terms (see Store::canonical_value_type()).
 Wasm::Runtime::FunctionType function_type_in_store(Wasm::Runtime::Module const&, u32 type_index);
+JS::ThrowCompletionOr<GC::ConservativeVector<Wasm::Runtime::Extern>> read_the_imports(JS::VM&, Wasm::Runtime::Module const&, GC::Ptr<JS::Object> import_object);
 JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM&, Wasm::Runtime::Module const&, GC::Ptr<JS::Object> import_object);
 JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_core_module(JS::VM&, Wasm::Runtime::Module const&, ReadonlySpan<Wasm::Runtime::Extern> imports);
 Wasm::Runtime::Entity create_host_function(JS::VM&, JS::FunctionObject& function, Wasm::Runtime::FunctionType type, size_t function_index);
