@@ -8,6 +8,7 @@
 //! the paused frames and evaluate code in them.
 
 use core::cell::{Cell, RefCell};
+use core::marker::PhantomData;
 use core::ops::ControlFlow;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -78,6 +79,16 @@ pub struct PauseInfo<'a> {
     pub exception: Option<Value>,
     pub exception_will_be_caught: bool,
     pub reason: PauseReason,
+    /// Only the debugger makes these, while execution is paused and the frames are on the stack.
+    _frames: PhantomData<&'a ExecutionContext>,
+}
+
+impl<'a> PauseInfo<'a> {
+    pub fn execution_context(&self, index: usize) -> &'a ExecutionContext {
+        // SAFETY: The frames of the stack trace stay on the stack while execution is paused, which it is while the
+        //         debugger lends this.
+        unsafe { self.stack_trace[index].execution_context.as_ref() }
+    }
 }
 
 #[derive(Clone, Trace)]
@@ -223,6 +234,7 @@ impl Debugger {
                 exception,
                 exception_will_be_caught,
                 reason,
+                _frames: PhantomData,
             },
         );
         assert!(!self.is_paused.get(), "the pause callback continues execution");
