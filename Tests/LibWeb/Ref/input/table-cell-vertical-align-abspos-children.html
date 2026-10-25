@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/table-cell-vertical-align-abspos-children-ref.html">
+<style>
+    body { margin: 0; }
+    table { border-spacing: 0; table-layout: fixed; width: 300px; }
+    td { padding: 0; width: 100px; }
+    tr { height: 100px; }
+    .middle { vertical-align: middle; }
+    .bottom { vertical-align: bottom; }
+    .positioned { position: relative; }
+    .content { height: 20px; background: green; }
+    .bar { position: absolute; left: 0; width: 100px; height: 10px; background: blue; }
+    .at-top { top: 0; }
+    .at-bottom { bottom: 0; }
+    .static { position: absolute; width: 50px; height: 10px; background: orange; }
+</style>
+<table><tr id="row">
+    <td class="middle positioned"><div class="content"></div><div class="bar at-top"></div><div class="bar at-bottom"></div></td>
+    <td class="bottom positioned"><div class="content"></div><div class="static"></div></td>
+    <td class="middle"><div class="content"></div><div class="static"></div></td>
+</tr></table>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("row").style.height = "140px";
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    document.documentElement.classList.remove("reftest-wait");
+                });
+            });
+        });
+    });
+</script>
+</html>

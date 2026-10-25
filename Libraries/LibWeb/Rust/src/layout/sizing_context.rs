@@ -3464,7 +3464,6 @@ impl<'pass> SizingContext<'pass> {
         // table-wrapper can't have borders or paddings but it might have margin taken from table-root.
         let available_inline_size = containing_block_inline_size - margin_left - margin_right;
 
-
         // The table wrapper is invisible to percentage resolution, so the table box gets the
         // wrapper's constraints unchanged. Callers measuring a table wrapper for grid alignment
         // pass the grid-area inline size as the wrapper's percentage basis.

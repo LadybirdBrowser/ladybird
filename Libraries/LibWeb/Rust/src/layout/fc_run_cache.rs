@@ -272,8 +272,8 @@ pub(super) struct FcRunCacheEntry {
     key: FcRunCacheKey,
     validity: FcRunCacheValidity,
     pub(super) outputs: formatting_context::RunOutputs,
-    /// Whether the run is a table cell's that cannot observe the intrinsic block padding its table hands it (see
-    /// table_cell_contents_never_observe_intrinsic_block_padding), so that it stands for runs with any such padding.
+    /// Whether the run is a table cell's that did not observe the intrinsic block padding its table hands it (see
+    /// run_observes_root_block_padding), so that it stands for runs with any such padding.
     table_cell_intrinsic_block_padding_unobserved: bool,
     root_content_block_size_adopted_after_run: Option<CssPixels>,
     /// How many layouts the arena had committed when the run was stored. The subtrees the run took from the cache as
@@ -941,7 +941,7 @@ impl FcRunCacheAttempt {
                 .table_cell_intrinsic_block_padding
                 .is_some()
                 && outputs.root_outcome.cells.parent_owns_root_input_cells()
-                && table_cell_contents_never_observe_intrinsic_block_padding(callbacks, box_),
+                && !run_observes_root_block_padding(callbacks, box_, outputs),
             root_content_block_size_adopted_after_run,
             layout_commits_when_stored: callbacks.arena().layout_commit_count(),
             committed_subtree_token_when_descendants_dropped: None,
@@ -995,24 +995,21 @@ pub(super) fn can_describe_run(
     )
 }
 
-/// Whether a table cell's run cannot observe the intrinsic block padding its table hands it (the vertical-alignment
-/// stretch): the padding only moves the cell's content box, and content that is only text lays out relative to that.
-/// Nothing in it resolves against the padding box, as out-of-flow descendants would, and it holds no scroll container.
-pub(super) fn table_cell_contents_never_observe_intrinsic_block_padding(
+/// Whether a run's outputs may depend on its root's block paddings. They hold the content in content box coordinates,
+/// so they stand for the same run at other block paddings unless the root is a scroll container, whose scrollable
+/// overflow area is bounded by its padding box, places a rendered legend on its border box, or passes payloads on to
+/// its ancestors (out-of-flow descendants, their containing block rects, anchors), which are placed against its
+/// padding box. Outputs without a root fragment cannot show those payloads.
+pub(super) fn run_observes_root_block_padding(
     callbacks: &LayoutPass<'_>,
     box_: Node,
+    outputs: &formatting_context::RunOutputs,
 ) -> bool {
     let facts = NodeFacts::new(callbacks, box_);
-    if !facts.is_table_cell() || facts.is_scroll_container() {
-        return false;
-    }
-    for child in callbacks.children(box_) {
-        let child_facts = NodeFacts::new(callbacks, child);
-        if !child_facts.is_text_node() && !child_facts.is_break_node() {
-            return false;
-        }
-    }
-    true
+    let places_rendered_legend_on_its_border_box = facts.is_fieldset_box() && !facts.rendered_legend().is_invalid();
+    facts.is_scroll_container()
+        || places_rendered_legend_on_its_border_box
+        || outputs.root.as_ref().is_none_or(|root| !root.propagates_nothing())
 }
 
 #[cfg(test)]

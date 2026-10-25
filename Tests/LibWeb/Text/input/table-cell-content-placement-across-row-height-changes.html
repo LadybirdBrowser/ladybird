@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px SerenitySans; }
+    .table { display: table; border-spacing: 0; }
+    .row { display: table-row; height: 100px; }
+    .cell { display: table-cell; width: 60px; padding: 0; }
+    fieldset.cell { margin: 0; padding: 4px; border: 2px solid black; }
+    legend { padding: 0; }
+    .block { height: 10px; }
+    .float { float: left; width: 10px; height: 10px; }
+    .inline-block { display: inline-block; width: 10px; height: 10px; }
+    table { border-spacing: 0; }
+    td { padding: 0; }
+</style>
+<div class="table"><div class="row" id="row">
+    <fieldset class="cell" id="middle-fieldset" style="vertical-align: middle"><legend>L</legend><div class="block"></div></fieldset>
+    <fieldset class="cell" id="bottom-fieldset" style="vertical-align: bottom"><legend>L</legend><div class="block"></div></fieldset>
+    <fieldset class="cell" id="baseline-fieldset" style="vertical-align: baseline"><legend>L</legend><div class="block"></div></fieldset>
+    <div class="cell" id="middle-markup" style="vertical-align: middle"><div class="block"></div><div class="float"></div><span class="inline-block"></span><table><tr><td><div class="block"></div></td></tr></table></div>
+    <div class="cell" id="bottom-markup" style="vertical-align: bottom"><div class="block"></div><div class="float"></div><span class="inline-block"></span><table><tr><td><div class="block"></div></td></tr></table></div>
+</div></div>
+<script>
+    test(() => {
+        const row = document.getElementById("row");
+        const describeCells = rowHeight => {
+            for (const cell of row.children) {
+                const cellTop = cell.getBoundingClientRect().top;
+                const offsets = [...cell.querySelectorAll("legend, .block, .float, .inline-block, table")].map(
+                    element => `${element.className || element.localName} ${element.getBoundingClientRect().top - cellTop}`
+                );
+                println(`row ${rowHeight} ${cell.id}: ${offsets.join(", ")}`);
+            }
+        };
+        describeCells("100px");
+        for (const rowHeight of ["140px", "60px", "100px"]) {
+            row.style.height = rowHeight;
+            describeCells(rowHeight);
+        }
+    });
+</script>

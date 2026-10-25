@@ -15,7 +15,7 @@
         const parts = [];
         for (let i = 0; i < ROWS; ++i)
             parts.push(`<tr><td class="num" id="r${i}c0">${i}</td><td class="num" id="r${i}c1">${i}</td><td id="r${i}c2">line ${i} with <span>some</span> <b>markup</b></td></tr>`);
-        const missedCells = work => work.events.filter(event => event.event === "measure cell" && event.cache === "miss");
+        const missedCells = work => work.events.filter(event => event.event === "run" && event.action === "RUN AHEAD OF INTRINSIC BLOCK PADDING");
 
         const lines = [];
         let work = layoutWork(() => document.getElementById("rows").innerHTML = parts.join(""));

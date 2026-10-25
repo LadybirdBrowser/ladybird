@@ -16,22 +16,18 @@
         document.getElementById("rows").innerHTML = parts.join("");
         const table = document.getElementById("table");
 
-        // The cells of a column share a box name, so the names of the missed cells name their columns.
+        // Each cell is laid out once ahead of its intrinsic padding, and its committing run replays that layout.
         const measure = width => {
             const work = layoutWork(() => table.style.width = `${width}px`);
-            const misses = { event: "measure cell", cache: "miss" };
-            const columns = work.boxes(misses);
-            println(`${width}px: ${work.count(misses)} misses${columns.length ? ` in ${columns.join(", ")}` : ""}, height ${table.offsetHeight}`);
+            const cellRuns = action => work.count(event => event.event === "run" && event.box.startsWith("BlockContainer<TD>") && event.action === action);
+            println(`${width}px: ${cellRuns("RUN AHEAD OF INTRINSIC BLOCK PADDING")} laid out ahead, ${cellRuns("REPLAY FRAGMENTS")} replayed, ${cellRuns("RUN")} laid out again, height ${table.offsetHeight}`);
         };
 
         layoutWork(() => table.style.width = "1000px");
-        // Wide enough for every cell to fit on one line: only cells with markup are measured again.
         measure(900);
         measure(950);
-        // The middle column wraps: its cells are measured again, the text-only first column is not.
         measure(400);
         measure(350);
-        // Back above the max-content widths of the text-only cells.
         measure(1000);
     });
 </script>
