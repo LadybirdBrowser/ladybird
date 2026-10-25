@@ -1,0 +1,48 @@
+<!doctype html>
+<title>Queue a task to fire popstate event</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+t = async_test();
+window.onload = t.step_func(function () {
+  var states = [];
+
+  var timer = null;
+
+  history.pushState("a", "State a", "/a");
+  history.pushState("b", "State b", "/b");
+
+  history.back();
+  window.onpopstate = t.step_func(function (e) {
+    assert_true(e.isTrusted, "isTrusted");
+    assert_equals(e.target, window, "target");
+    assert_equals(e.type, "popstate", "type");
+    assert_true(e instanceof PopStateEvent, "is PopStateEvent");
+    assert_false(e.bubbles, "bubbles");
+    assert_false(e.cancelable, "cancelable");
+    assert_not_equals(e.hasUAVisualTransition, undefined);
+
+    states.push(e.state);
+
+    if (states.length === 2) {
+      check_result();
+    } else if (timer === null) {
+      timer = setTimeout(function() {check_result()}, 500);
+    }
+  })
+
+  check_result = t.step_func(function() {
+    clearTimeout(timer);
+    try {
+      assert_array_equals(states, ["a", null]);
+      t.done();
+    } finally {
+      location.hash = "";
+    }
+  });
+
+  setTimeout(function() {history.back()}, 0);
+
+});
+</script>
