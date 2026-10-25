@@ -2198,9 +2198,23 @@ void CanonicalTraversable::perform_a_navigation_api_traversal_at_queue_position(
         return;
     }
 
+    // INTEROP: targetSHE stays navigable's current entry for every step until navigable's next entry. When going
+    //          back, traverse to the nearest of those steps instead of targetSHE's step, so that other navigables
+    //          are not traversed along with it.
+    auto target_step = target_entry->step;
+    if (target_step < m_session_history.current_step()) {
+        for (auto step : m_session_history.used_steps()) {
+            if (step >= m_session_history.current_step())
+                break;
+            auto const* entry_at_step = m_session_history.get_the_target_history_entry(*navigable, step);
+            if (entry_at_step && entry_at_step->identity() == target_entry->identity())
+                target_step = step;
+        }
+    }
+
     // 12.4. Let result be the result of applying the traverse history step targetSHE's step to traversable, given
     //       sourceSnapshotParams, navigable, and "none".
-    apply_the_traverse_history_step(operation, target_entry->step, request.source_snapshot_params, request.navigable_id, Web::HTML::UserNavigationInvolvement::None);
+    apply_the_traverse_history_step(operation, target_step, request.source_snapshot_params, request.navigable_id, Web::HTML::UserNavigationInvolvement::None);
 
     // Steps 12.5-12.6 are handled in Navigation's relevant realm when the requesting process learns the result.
 }
