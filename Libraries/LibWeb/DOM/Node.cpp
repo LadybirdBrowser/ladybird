@@ -64,6 +64,7 @@
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
+#include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -4377,6 +4378,17 @@ static void for_each_ascii_whitespace_separated_token(Utf16View input, Function<
     }
 }
 
+// The elements that the given element's aria-labelledby or aria-describedby refers to: its attr-associated elements if
+// it has the attribute, and otherwise those given by its default ARIA state and property semantics.
+static Optional<GC::RootVector<GC::Ref<Element>>> elements_referenced_for_name_or_description(Element const& element, Utf16FlyString const& attribute, Optional<Vector<GC::Weak<Element>> const&> explicitly_set_elements)
+{
+    if (element.has_attribute(attribute))
+        return element.get_the_attribute_associated_elements(attribute, explicitly_set_elements);
+    if (auto const* html_element = as_if<HTML::HTMLElement>(element))
+        return html_element->default_aria_state_or_property_elements(attribute);
+    return {};
+}
+
 ErrorOr<Utf16String> Node::name_or_description(Layout::BegunRead const& read, NameOrDescription target, Document const& document, HashTable<UniqueNodeID>& visited_nodes, IsDescendant is_descendant, ShouldComputeRole should_compute_role) const
 {
     // The text alternative for a given element is computed as follows:
@@ -4435,40 +4447,26 @@ ErrorOr<Utf16String> Node::name_or_description(Layout::BegunRead const& read, Na
         // - or, if computing a description, and the current node has an aria-describedby attribute that contains at least
         //   one valid IDREF, and the current node is not already part of an aria-describedby traversal, process its IDREFs
         //   in the order they occur:
-        auto aria_labelled_by = element->aria_labelled_by();
-        auto aria_described_by = element->aria_described_by();
+        // NB: We take the elements an IDREF refers to as the attr-associated elements of the attribute, so that the
+        //     elements set through ariaLabelledByElements, ariaDescribedByElements and ElementInternals count too.
+        auto referenced_elements = target == NameOrDescription::Name
+            ? elements_referenced_for_name_or_description(*element, ARIA::AttributeNames::aria_labelled_by, element->aria_labelled_by_elements())
+            : elements_referenced_for_name_or_description(*element, ARIA::AttributeNames::aria_described_by, element->aria_described_by_elements());
 
-        if ((target == NameOrDescription::Name && aria_labelled_by.has_value() && Node::first_valid_id(*aria_labelled_by, document).has_value())
-            || (target == NameOrDescription::Description && aria_described_by.has_value() && Node::first_valid_id(*aria_described_by, document).has_value())) {
+        if (referenced_elements.has_value() && !referenced_elements->is_empty()) {
 
             // i. Set the accumulated text to the empty string.
             total_accumulated_text.clear();
 
-            Vector<Utf16View> id_list;
-            if (target == NameOrDescription::Name) {
-                for_each_ascii_whitespace_separated_token(aria_labelled_by->utf16_view(), [&](auto id) {
-                    id_list.append(id);
-                    return IterationDecision::Continue;
-                });
-            } else {
-                for_each_ascii_whitespace_separated_token(aria_described_by->utf16_view(), [&](auto id) {
-                    id_list.append(id);
-                    return IterationDecision::Continue;
-                });
-            }
-
             // ii. For each IDREF:
-            for (auto const& id_ref : id_list) {
-                auto node = document.get_element_by_id(id_ref);
-                if (!node)
-                    continue;
+            for (auto node : *referenced_elements) {
                 // AD-HOC: The “For each IDREF” substep in the spec doesn’t seem to explicitly require the following
                 // check for an aria-label value; but the “div group explicitly labelledby self and heading” subtest at
                 // https://wpt.fyi/results/accname/name/comp_labelledby.html won’t pass unless we do this check.
                 // https://github.com/w3c/aria/issues/2388
-                if (target == NameOrDescription::Name && node->aria_label().has_value() && !node->aria_label()->is_empty() && !node->aria_label()->is_ascii_whitespace()) {
+                if (target == NameOrDescription::Name && node->aria_label_or_default_semantics().has_value() && !node->aria_label_or_default_semantics()->is_empty() && !node->aria_label_or_default_semantics()->is_ascii_whitespace()) {
                     total_accumulated_text.append_ascii(' ');
-                    total_accumulated_text.append(node->aria_label().value());
+                    total_accumulated_text.append(node->aria_label_or_default_semantics().value());
                 }
                 if (visited_nodes.contains(node->unique_id()))
                     continue;
@@ -4493,8 +4491,8 @@ ErrorOr<Utf16String> Node::name_or_description(Layout::BegunRead const& read, Na
             // falls back to aria-label” subtest at https://wpt.fyi/results/accname/name/comp_labelledby.html won’t pass
             // unless we do this check.
             // https://github.com/w3c/aria/issues/2388
-            if (total_accumulated_text.view().is_ascii_whitespace() && target == NameOrDescription::Name && element->aria_label().has_value() && !element->aria_label()->is_empty() && !element->aria_label()->is_ascii_whitespace())
-                return element->aria_label().release_value();
+            if (total_accumulated_text.view().is_ascii_whitespace() && target == NameOrDescription::Name && element->aria_label_or_default_semantics().has_value() && !element->aria_label_or_default_semantics()->is_empty() && !element->aria_label_or_default_semantics()->is_ascii_whitespace())
+                return element->aria_label_or_default_semantics().release_value();
             return total_accumulated_text.to_string();
         }
 
@@ -4506,11 +4504,11 @@ ErrorOr<Utf16String> Node::name_or_description(Layout::BegunRead const& read, Na
         // necessitate doing so, and the “input with label for association is superceded by aria-label” subtest at
         // https://wpt.fyi/results/accname/name/comp_label.html won’t pass unless we do this reordering.
         // Spec PR: https://github.com/w3c/aria/pull/2377
-        if (target == NameOrDescription::Name && element->aria_label().has_value() && !element->aria_label()->is_empty() && !element->aria_label()->is_ascii_whitespace()) {
+        if (target == NameOrDescription::Name && element->aria_label_or_default_semantics().has_value() && !element->aria_label_or_default_semantics()->is_empty() && !element->aria_label_or_default_semantics()->is_ascii_whitespace()) {
             // TODO: - If traversal of the current node is due to recursion and the current node is an embedded control as defined in step 2E, ignore aria-label and skip to rule 2E.
             // https://github.com/w3c/aria/pull/2385 and https://github.com/w3c/accname/issues/173
             if (!element->is_html_slot_element())
-                return element->aria_label().value();
+                return element->aria_label_or_default_semantics().value();
         }
 
         // C. Embedded Control: Otherwise, if the current node is a control embedded within the label (e.g. any element
@@ -4573,14 +4571,14 @@ ErrorOr<Utf16String> Node::name_or_description(Layout::BegunRead const& read, Na
                                 if (child->is_element()) {
                                     auto const& element = static_cast<DOM::Element const&>(*child);
                                     auto role = element.role_or_default();
-                                    auto aria_selected = element.aria_selected();
+                                    auto aria_selected = element.aria_selected_or_default_semantics();
                                     if (role == ARIA::Role::option && aria_selected.has_value() && aria_selected->utf16_view() == u"true"sv)
                                         builder.append(element.text_content().value());
                                 }
                             }
                         } else if (role == ARIA::Role::spinbutton || role == ARIA::Role::slider) {
-                            auto aria_valuenow = element.aria_value_now();
-                            auto aria_valuetext = element.aria_value_text();
+                            auto aria_valuenow = element.aria_value_now_or_default_semantics();
+                            auto aria_valuetext = element.aria_value_text_or_default_semantics();
 
                             // iii. Range: If the embedded control has role range (e.g., a spinbutton or slider):
                             // a. If the aria-valuetext property is present, return its value,
@@ -4849,33 +4847,26 @@ ErrorOr<Utf16String> Node::accessible_description(Document const& document) cons
         return Utf16String {};
 
     auto const* element = static_cast<Element const*>(this);
-    auto described_by = element->aria_described_by();
-    if (!described_by.has_value())
+    auto described_by_elements = elements_referenced_for_name_or_description(*element, ARIA::AttributeNames::aria_described_by, element->aria_described_by_elements());
+    if (!described_by_elements.has_value())
         return Utf16String {};
 
     HashTable<UniqueNodeID> visited_nodes;
     Utf16StringBuilder builder;
-    Vector<Utf16View> id_list;
-    for_each_ascii_whitespace_separated_token(described_by->utf16_view(), [&](auto id) {
-        id_list.append(id);
-        return IterationDecision::Continue;
-    });
-    for (auto id : id_list) {
-        if (auto description_element = document.get_element_by_id(id)) {
-            // Compute the text alternative (name) of the referenced element — not its description. The spec says to use
-            // the "text alternative computation" for referenced elements. IsDescendant::Yes marks this as an
-            // aria-describedby traversal, so step 2F takes the referenced element's content whatever its role — see the
-            // notes at step 2B and step 2F in name_or_description().
-            auto description = TRY(
-                description_element->name_or_description(read, NameOrDescription::Name, document,
-                    visited_nodes, IsDescendant::Yes));
-            if (!description.is_empty()) {
-                if (builder.is_empty()) {
-                    builder.append(description);
-                } else {
-                    builder.append_ascii(" "sv);
-                    builder.append(description);
-                }
+    for (auto description_element : *described_by_elements) {
+        // Compute the text alternative (name) of the referenced element — not its description. The spec says to use
+        // the "text alternative computation" for referenced elements. IsDescendant::Yes marks this as an
+        // aria-describedby traversal, so step 2F takes the referenced element's content whatever its role — see the
+        // notes at step 2B and step 2F in name_or_description().
+        auto description = TRY(
+            description_element->name_or_description(read, NameOrDescription::Name, document,
+                visited_nodes, IsDescendant::Yes));
+        if (!description.is_empty()) {
+            if (builder.is_empty()) {
+                builder.append(description);
+            } else {
+                builder.append_ascii(" "sv);
+                builder.append(description);
             }
         }
     }

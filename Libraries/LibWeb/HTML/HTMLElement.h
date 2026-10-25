@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16View.h>
@@ -144,6 +145,12 @@ public:
     GC::Ptr<DOM::NodeList> labels();
 
     virtual Optional<ARIA::Role> default_role() const override;
+    virtual Optional<Utf16String> default_aria_state_or_property_value(Utf16FlyString const&) const override;
+    Optional<GC::RootVector<GC::Ref<DOM::Element>>> default_aria_state_or_property_elements(Utf16FlyString const&) const;
+
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#internal-content-attribute-map
+    OrderedHashMap<Utf16FlyString, Utf16String>& internal_content_attribute_map();
+    Optional<Utf16String> internal_content_attribute(Utf16FlyString const&) const;
 
     WebIDL::ExceptionOr<GC::Ref<ElementInternals>> attach_internals();
 

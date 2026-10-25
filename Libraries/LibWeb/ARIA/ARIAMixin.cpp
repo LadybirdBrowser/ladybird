@@ -18,6 +18,16 @@ namespace Web::ARIA {
 ARIAMixin::ARIAMixin() = default;
 ARIAMixin::~ARIAMixin() = default;
 
+#define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute)                        \
+    Optional<Utf16String> ARIAMixin::name##_or_default_semantics() const   \
+    {                                                                      \
+        if (auto value = name(); value.has_value())                        \
+            return value;                                                  \
+        return default_aria_state_or_property_value(AttributeNames::name); \
+    }
+ENUMERATE_ARIA_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
+
 static void for_each_ascii_whitespace_separated_token(Utf16View input, Function<IterationDecision(Utf16View)> const& callback)
 {
     size_t start = 0;
@@ -35,7 +45,11 @@ static void for_each_ascii_whitespace_separated_token(Utf16View input, Function<
 Optional<Role> ARIAMixin::role_from_role_attribute_value() const
 {
     // 1. Use the rules of the host language to detect that an element has a role attribute and to identify the attribute value string for it.
-    auto maybe_role_string = role();
+    return role_from_role_value(role(), RoleSource::RoleAttribute);
+}
+
+Optional<Role> ARIAMixin::role_from_role_value(Optional<Utf16String> const& maybe_role_string, RoleSource source) const
+{
     if (!maybe_role_string.has_value())
         return OptionalNone {};
 
@@ -176,7 +190,9 @@ Optional<Role> ARIAMixin::role_from_role_attribute_value() const
         // these landmarks, it is considered an authoring error. The user agent MUST treat such elements as if no role
         // had been provided. If a valid fallback role had been specified, or if the element had an implicit ARIA role,
         // then user agents would continue to expose that role, instead.
-        if ((role == ARIA::Role::form || role == ARIA::Role::region)
+        // NB: A role from the default ARIA role semantics is an implicit role, so this only applies to the role
+        //     attribute. Computing the accessible name here would also loop, as that computes the default role.
+        if (source == RoleSource::RoleAttribute && (role == ARIA::Role::form || role == ARIA::Role::region)
             && to_element().accessible_name(to_element().document(), DOM::ShouldComputeRole::No).value().is_empty())
             return IterationDecision::Continue;
         if (role == ARIA::Role::none || role == ARIA::Role::presentation) {
