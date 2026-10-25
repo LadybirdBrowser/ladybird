@@ -257,8 +257,8 @@ def copy_linked_libraries(app: Path, search_directories: list[Path]) -> list[str
 def resign(app: Path, build_directory: Path) -> list[str]:
     """Re-sign every library and plugin in the bundle ad hoc (install_name_tool and macdeployqt rewrote most of them,
     which invalidated their signatures), then the helpers ad hoc with the entitlements the build gave them (see
-    ladybird_helper_process), then the bundle as a whole, which signs the main executable and reseals the bundle over
-    everything copied in."""
+    ladybird_helper_process), then the bundle as a whole, which signs the main executable with the entitlements it
+    already has and reseals the bundle over everything copied in."""
     executables_directory = app / "Contents" / "MacOS"
     main_executable = executables_directory / "Ladybird"
     resigned = []
@@ -274,7 +274,11 @@ def resign(app: Path, build_directory: Path) -> list[str]:
             command += ["--options", "runtime", "--entitlements", str(entitlements)]
         subprocess.run([*command, str(executable)], check=True, capture_output=True)
         resigned.append(executable.name)
-    subprocess.run(["codesign", "--sign", "-", "--force", str(app)], check=True, capture_output=True)
+    subprocess.run(
+        ["codesign", "--sign", "-", "--force", "--preserve-metadata=entitlements", str(app)],
+        check=True,
+        capture_output=True,
+    )
     resigned.append(app.name)
     return resigned
 
