@@ -19,7 +19,8 @@ pub(super) const WEAK_IMPL_POINTER_OFFSET: usize = 16;
 /// A reference to a cell that does not keep it alive.
 pub struct GcWeak<T> {
     weak_impl: NonNull<GCWeakImpl>,
-    _cell: PhantomData<Gc<T>>,
+    // NB: A GcWeak gives a Gc<T> out, but holds none.
+    _cell: PhantomData<fn() -> Gc<T>>,
 }
 
 impl<T> GcWeak<T> {
