@@ -2376,7 +2376,7 @@ impl LayoutNodeArena {
 
     /// Whether the box `slot` keeps the layout it cached when it shows `new` in place of `previous` (see
     /// [`crate::css::computed_values::style_payloads_layout_inputs_equal`]).
-    fn style_move_keeps_layout_inputs(
+    pub(crate) fn style_move_keeps_layout_inputs(
         &self,
         slot: NodeSlotId,
         previous: StylePayloadsRef,
