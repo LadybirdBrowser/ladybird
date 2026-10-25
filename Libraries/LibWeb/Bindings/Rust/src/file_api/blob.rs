@@ -98,7 +98,8 @@ pub(crate) struct ForeignBytesAbi {
     pub(crate) length: usize,
 }
 
-/// Bytes that a C++ Web::FileAPI::BlobBytes owns: those that C++ created the Blob with, or moved to shared memory.
+/// Bytes that a C++ Web::FileAPI::BlobBytes owns: those that C++ created the Blob with, or moved into immutable bytes
+/// or shared memory.
 struct ForeignBytes {
     owner: NonNull<c_void>,
     data: *const u8,
@@ -149,7 +150,8 @@ impl ByteSequence {
 #[gc(crate = libjs_rust)]
 pub(crate) struct Blob {
     // https://w3c.github.io/FileAPI/#dfn-byte-sequence
-    // NB: The bytes move to shared memory the first time they are shared, and stay there.
+    // NB: The bytes move into immutable bytes or shared memory the first time C++ shares them, and stay in shared
+    //     memory once there.
     #[gc(untraced)]
     byte_sequence: RefCell<ByteSequence>,
     // https://w3c.github.io/FileAPI/#dfn-type
