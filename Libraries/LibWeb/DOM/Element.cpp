@@ -1230,20 +1230,29 @@ Vector<Utf16FlyString> Element::get_attribute_names() const
     return names;
 }
 
-// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-element
-GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(Utf16FlyString const& content_attribute, GC::Ptr<DOM::Element> explicitly_set_attribute_element) const
+// Whether attrElement is a descendant of any of element's shadow-including ancestors.
+static bool is_descendant_of_any_shadow_including_ancestor(Element const& attribute_element, Element const& element)
 {
-    // 1. Let element be the result of running reflectedTarget's get the element.
-    auto const& element = *this;
+    // NB: attrElement is a descendant of its root, so this holds exactly when that root is a shadow-including ancestor
+    //     of element.
+    auto const& root = attribute_element.root();
+    return &root != &attribute_element && root.is_shadow_including_ancestor_of(element);
+}
 
-    // 2. Let contentAttributeValue be the result of running reflectedTarget's get the content attribute.
-    auto content_attribute_value = element.get_attribute(content_attribute);
+// The first element, in tree order, whose root is the same as element's root and whose ID is id.
+static GC::Ptr<Element> first_element_with_id_in_the_same_tree(Element const& element, Utf16View id)
+{
+    return as<ParentNode>(element.root()).get_element_by_id(id);
+}
 
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-element
+GC::Ptr<Element> get_the_attribute_associated_element(Element const& element, Optional<Utf16String> const& content_attribute_value, GC::Ptr<Element> explicitly_set_attribute_element)
+{
     // 3. If reflectedTarget's explicitly set attr-element is not null:
     if (explicitly_set_attribute_element) {
         // 1. If reflectedTarget's explicitly set attr-element is a descendant of any of element's shadow-including
         //    ancestors, then return reflectedTarget's explicitly set attr-element.
-        if (&explicitly_set_attribute_element->root() == &element.shadow_including_root())
+        if (is_descendant_of_any_shadow_including_ancestor(*explicitly_set_attribute_element, element))
             return *explicitly_set_attribute_element;
 
         // 2. Return null.
@@ -1255,29 +1264,38 @@ GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(Utf16FlyStri
     //     * candidate's root is the same as element's root;
     //     * candidate's ID is contentAttributeValue; and
     //     * candidate implements T.
+    //    If no such element exists, then return null.
     if (content_attribute_value.has_value())
-        return element.document().get_element_by_id(content_attribute_value->utf16_view());
+        return first_element_with_id_in_the_same_tree(element, content_attribute_value->utf16_view());
 
-    // 5. If no such element exists, then return null.
-    // 6. Return null.
+    // 5. Return null.
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-element
+GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(Utf16FlyString const& content_attribute, GC::Ptr<DOM::Element> explicitly_set_attribute_element) const
+{
+    // 1. Let element be the result of running reflectedTarget's get the element.
+    auto const& element = *this;
+
+    // 2. Let contentAttributeValue be the result of running reflectedTarget's get the content attribute.
+    auto content_attribute_value = element.get_attribute(content_attribute);
+
+    return DOM::get_the_attribute_associated_element(element, content_attribute_value, explicitly_set_attribute_element);
+}
+
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-elements
-Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_associated_elements(Utf16FlyString const& content_attribute, Optional<Vector<GC::Weak<DOM::Element>> const&> explicitly_set_attribute_elements) const
+Optional<GC::RootVector<GC::Ref<Element>>> get_the_attribute_associated_elements(Element const& element, Function<Optional<Utf16String>()> const& get_the_content_attribute, Optional<Vector<GC::Weak<Element>> const&> explicitly_set_attribute_elements)
 {
     // 1. Let elements be an empty list.
-    GC::RootVector<GC::Ref<DOM::Element>> elements;
-
-    // 2. Let element be the result of running reflectedTarget's get the element.
-    auto const& element = *this;
+    GC::RootVector<GC::Ref<Element>> elements;
 
     // 3. If reflectedTarget's explicitly set attr-elements is not null:
     if (explicitly_set_attribute_elements.has_value()) {
         // 1. For each attrElement in reflectedTarget's explicitly set attr-elements:
         for (auto const& attribute_element : *explicitly_set_attribute_elements) {
             // 1. If attrElement is not a descendant of any of element's shadow-including ancestors, then continue.
-            if (!attribute_element || &attribute_element->root() != &element.shadow_including_root())
+            if (!attribute_element || !is_descendant_of_any_shadow_including_ancestor(*attribute_element, element))
                 continue;
 
             // 2. Append attrElement to elements.
@@ -1287,26 +1305,25 @@ Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_assoc
     // 4. Otherwise:
     else {
         // 1. Let contentAttributeValue be the result of running reflectedTarget's get the content attribute.
-        auto content_attribute_value = element.get_attribute(content_attribute);
+        auto content_attribute_value = get_the_content_attribute();
 
         // 2. If contentAttributeValue is null, then return null.
         if (!content_attribute_value.has_value())
             return {};
 
         // 3. Let tokens be contentAttributeValue, split on ASCII whitespace.
+        // 4. For each id of tokens:
         for_each_ascii_whitespace_separated_token(content_attribute_value->utf16_view(), [&](auto id) {
-            // 4. For each id of tokens:
             // 1. Let candidate be the first element, in tree order, that meets the following criteria:
             //     * candidate's root is the same as element's root;
             //     * candidate's ID is id; and
             //     * candidate implements T.
-            auto candidate = element.document().get_element_by_id(id);
-
-            // 2. If no such element exists, then continue.
+            //    If no such element exists, then continue.
+            auto candidate = first_element_with_id_in_the_same_tree(element, id);
             if (!candidate)
                 return IterationDecision::Continue;
 
-            // 3. Append candidate to elements.
+            // 2. Append candidate to elements.
             elements.append(*candidate);
             return IterationDecision::Continue;
         });
@@ -1314,6 +1331,16 @@ Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_assoc
 
     // 5. Return elements.
     return elements;
+}
+
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-elements
+Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_associated_elements(Utf16FlyString const& content_attribute, Optional<Vector<GC::Weak<DOM::Element>> const&> explicitly_set_attribute_elements) const
+{
+    // 2. Let element be the result of running reflectedTarget's get the element.
+    auto const& element = *this;
+
+    return DOM::get_the_attribute_associated_elements(
+        element, [&] { return element.get_attribute(content_attribute); }, explicitly_set_attribute_elements);
 }
 
 CSS::ElementBoxKind Element::box_kind() const
