@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/RootVector.h>
 #include <LibUnicode/CharacterTypes.h>
@@ -1652,6 +1653,16 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
     auto selection_was_collapsed = selection.is_collapsed();
     delete_the_selection(selection);
 
+    // INTEROP: Deleting the selection can set overrides to keep the formatting of the deleted content. Browsers keep
+    //          that formatting in the new paragraph, so keep the overrides that add formatting when the caret moves to
+    //          it, unless the new paragraph is of another kind, such as a div after a heading.
+    auto overrides = record_current_overrides(document);
+    auto keeps_overrides = true;
+    ScopeGuard restore_overrides = [&] {
+        if (keeps_overrides && selection.is_collapsed())
+            restore_overrides_that_add_formatting(document, overrides);
+    };
+
     GC::Ref<DOM::Range> active_range = *selection.range();
     GC::Ptr<DOM::Node> node = active_range->start_container();
 
@@ -1985,6 +1996,8 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
         // 21. Otherwise, let new container name be the local name of container.
         return container_element.local_name();
     }();
+    if (new_container_name != container_element.local_name())
+        keeps_overrides = false;
 
     // 22. Let new container be the result of calling createElement(new container name) on the context object.
     auto new_container = MUST(DOM::create_element(document, new_container_name, Namespace::HTML));
