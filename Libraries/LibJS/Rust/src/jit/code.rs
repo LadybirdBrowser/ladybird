@@ -16,6 +16,7 @@ use libjs_jit::code::{ExitKind, Site};
 use super::entry_table::{JIT_ENTRY_SLOT_MASK, JitEntryTable, NO_JIT_ENTRY_SLOT};
 use super::executable_memory::ExecutableMemory;
 use crate::bytecode::executable::{Executable, PropertyLookupCache, PropertyLookupCacheTier};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -182,6 +183,7 @@ struct MaterializedObject {
 }
 
 impl JitCode {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: ExecutableMemory,
         entry_offset: u32,
@@ -190,6 +192,7 @@ impl JitCode {
         sites: Vec<Site>,
         embedded_cells: Vec<Gc<CellHeader>>,
         snapshot_executables: Vec<SnapshotExecutable>,
+        _defer_gc: &DeferGc<'_>,
     ) -> Self {
         let entry_at = |offset: u32| {
             assert!((offset as usize) < memory.size());
@@ -632,12 +635,12 @@ impl Executable {
 
     /// Makes new frames of the executable run in its JIT code. Frames of it that run in the interpreter count down
     /// `tier_up_budget` from here, and continue in the code at an on-stack replacement entry once it runs out.
-    pub fn install_jit_code(&self, vm: &Vm, code: Box<JitCode>, tier_up_budget: i32) {
+    pub fn install_jit_code(&self, vm: &Vm, code: JitCode, tier_up_budget: i32) {
         let (table, slot) = self
             .jit_entry_table_slot(vm)
             .expect("only executables with a JIT entry slot are compiled");
         table.set_entry(slot, Some(code.entry() as *const c_void));
-        assert!(table.set_code(slot, Some(code)).is_none());
+        table.attach_code(slot, code);
         self.set_jit_compile_state(CompileState::Installed);
         self.head.tier_up_budget.set(tier_up_budget);
     }
@@ -697,7 +700,7 @@ impl Executable {
     fn detach_jit_code(&self, vm: &Vm) {
         let state = self.jit_state();
         let (table, slot) = self.jit_entry_table_slot(vm).expect("the code is attached");
-        drop(table.set_code(slot, None));
+        table.detach_code(slot);
         vm.jit.count_coverage("discard");
         let discard_count = state.discard_count.get() + 1;
         state.discard_count.set(discard_count);

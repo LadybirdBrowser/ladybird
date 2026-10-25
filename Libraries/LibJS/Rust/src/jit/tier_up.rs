@@ -342,6 +342,7 @@ fn install(
     compiled: CompiledCode,
     memory: ExecutableMemory,
     snapshot: SnapshotExecutables,
+    defer_gc: &DeferGc<'_>,
 ) {
     let embedded_cells = compiled
         .embedded_cells
@@ -360,6 +361,7 @@ fn install(
         compiled.sites,
         embedded_cells,
         snapshot,
+        defer_gc,
     )
     .with_invalidation(id, compiled.invalidation_patches)
     .with_frame_offsets(compiled.site_index_frame_offset, compiled.register_dump_frame_offset)
@@ -370,7 +372,7 @@ fn install(
     //     queued (from the tier-up check of another executable, like a callee's), or because they exited from the
     //     code before. Those frames keep counting, so that they continue in the code at its on-stack replacement
     //     entry rather than run in the interpreter until they return.
-    executable.install_jit_code(vm, Box::new(code), compile_wait_budget(&vm.jit.options));
+    executable.install_jit_code(vm, code, compile_wait_budget(&vm.jit.options));
 }
 
 type SnapshotExecutables = Vec<SnapshotExecutable>;
@@ -382,6 +384,7 @@ fn finish_compile(
     result: CompileResult,
     memory: Option<ExecutableMemory>,
     snapshot_executables: SnapshotExecutables,
+    defer_gc: &DeferGc<'_>,
 ) {
     assert_eq!(executable.jit_compile_state(), CompileState::Queued);
     let options = &vm.jit.options;
@@ -411,7 +414,7 @@ fn finish_compile(
         eprintln!("JIT code for {}:\n{dump}", super::describe_executable(&executable));
     }
     if let Some(memory) = memory {
-        install(vm, executable, compiled, memory, snapshot_executables);
+        install(vm, executable, compiled, memory, snapshot_executables, defer_gc);
     }
     if executable.jit_compile_state() != CompileState::Installed {
         executable.set_jit_compile_state(CompileState::None);
@@ -467,16 +470,26 @@ fn compile(
             .pop()
             .expect("one code was allocated")
         });
-        finish_compile(vm, executable, result, memory, snapshot_executables.into_inner());
+        finish_compile(
+            vm,
+            executable,
+            result,
+            memory,
+            snapshot_executables.into_inner(),
+            &defer_gc,
+        );
         drop(defer_gc);
         return;
     }
 
-    let job_id = vm.jit.add_job(CompileJob {
-        executable,
-        cells: cells.into_inner(),
-        snapshot_executables: snapshot_executables.into_inner(),
-    });
+    let job_id = vm.jit.add_job(
+        CompileJob {
+            executable,
+            cells: cells.into_inner(),
+            snapshot_executables: snapshot_executables.into_inner(),
+        },
+        &defer_gc,
+    );
     drop(defer_gc);
     vm.jit.compile_queue().submit(job_id, snapshot);
 }
@@ -504,7 +517,11 @@ pub fn install_finished_compiles(vm: &Vm) {
     let Some(queue) = vm.jit.started_compile_queue() else {
         return;
     };
-    install_compile_results(vm, vm.jit.compile_results_to_install(queue.take_finished()));
+    install_compile_results(
+        vm,
+        vm.jit.compile_results_to_install(queue.take_finished()),
+        &DeferGc::new(vm),
+    );
 }
 
 /// Waits for the compile job of `executable` to finish and installs its code, and that of every other job that
@@ -514,17 +531,18 @@ pub(crate) fn wait_for_compile_job(vm: &Vm, executable: &Executable) {
         return;
     };
     // NB: The job may have finished already, and be held back by the "stress-install" option.
-    install_compile_results(vm, vm.jit.take_held_compile_results());
+    install_compile_results(vm, vm.jit.take_held_compile_results(), &DeferGc::new(vm));
     while executable.jit_compile_state() == CompileState::Queued {
-        install_compile_results(vm, queue.wait_for_finished());
+        install_compile_results(vm, queue.wait_for_finished(), &DeferGc::new(vm));
     }
 }
 
-fn install_compile_results(vm: &Vm, results: Vec<(u64, CompileResult)>) {
+/// Installs the code of finished compile jobs.
+fn install_compile_results(vm: &Vm, results: Vec<(u64, CompileResult)>, defer_gc: &DeferGc<'_>) {
     let finished: Vec<(CompileJob, CompileResult)> = results
         .into_iter()
         // NB: Jobs abandoned meanwhile have no entry anymore.
-        .filter_map(|(id, result)| Some((vm.jit.take_job(id)?, result)))
+        .filter_map(|(id, result)| Some((vm.jit.take_job(id, defer_gc)?.into_inner(), result)))
         .collect();
     if finished.is_empty() {
         return;
@@ -552,6 +570,6 @@ fn install_compile_results(vm: &Vm, results: Vec<(u64, CompileResult)>) {
 
     for ((job, result), install) in finished.into_iter().zip(verdicts) {
         let memory = install.then(|| memories.next().expect("there is memory for each installed code"));
-        finish_compile(vm, job.executable, result, memory, job.snapshot_executables);
+        finish_compile(vm, job.executable, result, memory, job.snapshot_executables, defer_gc);
     }
 }
