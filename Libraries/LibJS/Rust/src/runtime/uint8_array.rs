@@ -560,6 +560,16 @@ pub fn from_base64(
     last_chunk_handling: LastChunkHandling,
     max_length: Option<usize>,
 ) -> DecodeResult {
+    // 3. If maxLength = 0, then
+    if max_length == Some(0) {
+        // a. Return the Record { [[Read]]: 0, [[Bytes]]: « », [[Error]]: NONE }.
+        return DecodeResult {
+            read: 0,
+            bytes: Vec::new(),
+            error: None,
+        };
+    }
+
     let result = ak::decode_base64(string.as_units(), alphabet, last_chunk_handling, max_length);
 
     let error = result.error.map(|error| {
