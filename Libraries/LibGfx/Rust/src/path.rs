@@ -335,3 +335,193 @@ impl PartialEq for Path {
 
 // The contours are compared bit for bit, which is reflexive even for NaN.
 impl Eq for Path {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn point(x: f32, y: f32) -> FloatPoint {
+        FloatPoint { x, y }
+    }
+
+    fn assert_approximately(actual: f32, expected: f32, tolerance: f32) {
+        assert!(
+            (actual - expected).abs() <= tolerance,
+            "{actual} is not within {tolerance} of {expected}"
+        );
+    }
+
+    fn assert_point_along_path(path: &Path, distance: f32, expected_point: FloatPoint, expected_tangent: FloatPoint) {
+        let [x, y, tangent_x, tangent_y] = path
+            .point_at_length(distance)
+            .expect("a path with a point has a point at every distance");
+        for (actual, expected) in [
+            (x, expected_point.x),
+            (y, expected_point.y),
+            (tangent_x, expected_tangent.x),
+            (tangent_y, expected_tangent.y),
+        ] {
+            assert_approximately(actual, expected, 0.000_000_5);
+        }
+    }
+
+    #[test]
+    fn point_at_length_along_a_line() {
+        let mut path = Path::new();
+        path.move_to(point(0.0, 0.0));
+        path.line_to(point(100.0, 0.0));
+
+        assert_point_along_path(&path, 25.0, point(25.0, 0.0), point(1.0, 0.0));
+        assert_point_along_path(&path, -10.0, point(0.0, 0.0), point(1.0, 0.0));
+        assert_point_along_path(&path, 1000.0, point(100.0, 0.0), point(1.0, 0.0));
+    }
+
+    #[test]
+    fn point_at_length_skips_the_gaps_between_subpaths() {
+        let mut path = Path::new();
+        path.move_to(point(0.0, 0.0));
+        path.line_to(point(10.0, 0.0));
+        path.move_to(point(50.0, 50.0));
+        path.move_to(point(100.0, 100.0));
+        path.line_to(point(100.0, 110.0));
+
+        assert_point_along_path(&path, 5.0, point(5.0, 0.0), point(1.0, 0.0));
+        assert_point_along_path(&path, 15.0, point(100.0, 105.0), point(0.0, 1.0));
+        assert_point_along_path(&path, 25.0, point(100.0, 110.0), point(0.0, 1.0));
+    }
+
+    #[test]
+    fn point_at_length_along_a_closed_path() {
+        let mut path = Path::new();
+        path.move_to(point(0.0, 0.0));
+        path.line_to(point(10.0, 0.0));
+        path.line_to(point(10.0, 10.0));
+        path.line_to(point(0.0, 10.0));
+        path.close();
+
+        assert_point_along_path(&path, 15.0, point(10.0, 5.0), point(0.0, 1.0));
+        assert_point_along_path(&path, 35.0, point(0.0, 5.0), point(0.0, -1.0));
+    }
+
+    #[test]
+    fn point_at_length_of_a_path_without_length() {
+        let mut path = Path::new();
+        path.move_to(point(10.0, 20.0));
+        assert_point_along_path(&path, 5.0, point(10.0, 20.0), point(0.0, 0.0));
+
+        assert!(Path::new().point_at_length(0.0).is_none());
+    }
+
+    fn vertex(x: f32, y: f32, distance: f32, direction_x: f32, direction_y: f32) -> PathVertex {
+        PathVertex {
+            point: point(x, y),
+            distance,
+            direction: point(direction_x, direction_y),
+        }
+    }
+
+    fn assert_vertices(path: &Path, expected_vertices: &[PathVertex]) {
+        let vertices = path.vertices();
+        assert_eq!(vertices.len(), expected_vertices.len());
+        for (actual, expected) in vertices.iter().zip(expected_vertices) {
+            for (actual, expected) in [
+                (actual.point.x, expected.point.x),
+                (actual.point.y, expected.point.y),
+                (actual.distance, expected.distance),
+                (actual.direction.x, expected.direction.x),
+                (actual.direction.y, expected.direction.y),
+            ] {
+                assert_approximately(actual, expected, 0.0001);
+            }
+        }
+    }
+
+    #[test]
+    fn vertices_of_subpaths_of_lines() {
+        let mut path = Path::new();
+        path.move_to(point(0.0, 0.0));
+        path.line_to(point(10.0, 0.0));
+        path.line_to(point(10.0, 10.0));
+        path.close();
+        path.move_to(point(50.0, 50.0));
+        path.line_to(point(60.0, 50.0));
+
+        let diagonal = 200.0_f32.sqrt();
+        let inverse_sqrt_2 = 1.0 / 2.0_f32.sqrt();
+        assert_vertices(
+            &path,
+            &[
+                vertex(0.0, 0.0, 0.0, 1.0, 0.0),
+                vertex(10.0, 0.0, 10.0, 1.0, 0.0),
+                vertex(10.0, 0.0, 10.0, 0.0, 1.0),
+                vertex(10.0, 10.0, 20.0, 0.0, 1.0),
+                vertex(10.0, 10.0, 20.0, -inverse_sqrt_2, -inverse_sqrt_2),
+                vertex(0.0, 0.0, 20.0 + diagonal, -inverse_sqrt_2, -inverse_sqrt_2),
+                vertex(50.0, 50.0, 20.0 + diagonal, 1.0, 0.0),
+                vertex(60.0, 50.0, 30.0 + diagonal, 1.0, 0.0),
+            ],
+        );
+    }
+
+    #[test]
+    fn vertices_along_curves() {
+        let mut path = Path::new();
+        path.move_to(point(0.0, 0.0));
+        path.quadratic_bezier_curve_to(point(50.0, 0.0), point(100.0, 0.0));
+        assert_vertices(
+            &path,
+            &[vertex(0.0, 0.0, 0.0, 1.0, 0.0), vertex(100.0, 0.0, 100.0, 1.0, 0.0)],
+        );
+
+        let mut long_path = Path::new();
+        long_path.move_to(point(0.0, 0.0));
+        long_path.quadratic_bezier_curve_to(point(10_000_000.0, 0.0), point(20_000_000.0, 0.0));
+        assert_vertices(
+            &long_path,
+            &[
+                vertex(0.0, 0.0, 0.0, 1.0, 0.0),
+                vertex(20_000_000.0, 0.0, 20_000_000.0, 1.0, 0.0),
+            ],
+        );
+
+        let mut circle = Path::new();
+        circle.move_to(point(10.0, 0.0));
+        circle.arc_to(point(-10.0, 0.0), 10.0, false, true);
+        circle.arc_to(point(10.0, 0.0), 10.0, false, true);
+        let vertices = circle.vertices();
+        assert!(vertices.len() > 40);
+        for vertex in &vertices {
+            assert_approximately(vertex.point.x.hypot(vertex.point.y), 10.0, 0.001);
+            assert_approximately(vertex.direction.x.hypot(vertex.direction.y), 1.0, 0.001);
+            assert_approximately(
+                vertex.direction.x * vertex.point.x + vertex.direction.y * vertex.point.y,
+                0.0,
+                0.01,
+            );
+        }
+        for pair in vertices.windows(2) {
+            let midpoint = point(
+                (pair[0].point.x + pair[1].point.x) / 2.0,
+                (pair[0].point.y + pair[1].point.y) / 2.0,
+            );
+            assert!(midpoint.x.hypot(midpoint.y) > 10.0 - 0.5 / 16.0);
+        }
+        assert_approximately(vertices.first().unwrap().point.x, 10.0, 0.000_000_5);
+        assert_approximately(vertices.last().unwrap().point.x, 10.0, 0.000_000_5);
+        assert_approximately(vertices.last().unwrap().distance, 20.0 * std::f32::consts::PI, 0.05);
+    }
+
+    #[test]
+    fn vertices_of_a_path_without_length() {
+        let mut path = Path::new();
+        path.move_to(point(10.0, 20.0));
+        assert_vertices(&path, &[vertex(10.0, 20.0, 0.0, 0.0, 0.0)]);
+
+        let mut zero_length_line = Path::new();
+        zero_length_line.move_to(point(10.0, 20.0));
+        zero_length_line.line_to(point(10.0, 20.0));
+        assert_vertices(&zero_length_line, &[vertex(10.0, 20.0, 0.0, 0.0, 0.0)]);
+
+        assert_vertices(&Path::new(), &[]);
+    }
+}

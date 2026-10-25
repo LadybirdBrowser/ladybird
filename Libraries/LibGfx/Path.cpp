@@ -16,10 +16,6 @@
 #    include <LibGfx/Font/TypefaceCoreText.h>
 #endif
 
-static_assert(sizeof(Gfx::PathVertex) == sizeof(Gfx::FFI::PathVertex));
-static_assert(offsetof(Gfx::PathVertex, point) == offsetof(Gfx::FFI::PathVertex, point));
-static_assert(offsetof(Gfx::PathVertex, distance) == offsetof(Gfx::FFI::PathVertex, distance));
-static_assert(offsetof(Gfx::PathVertex, direction) == offsetof(Gfx::FFI::PathVertex, direction));
 static_assert(sizeof(Gfx::FloatPoint) == sizeof(Gfx::FFI::FloatPoint));
 static_assert(to_underlying(Gfx::WindingRule::Nonzero) == 0 && to_underlying(Gfx::WindingRule::EvenOdd) == 1);
 static_assert(to_underlying(Gfx::PathVerb::Move) == to_underlying(Gfx::FFI::PathVerb::Move));
@@ -90,56 +86,6 @@ void Path::line_to(FloatPoint const& point)
 void Path::close()
 {
     FFI::path_geometry_close(m_geometry);
-}
-
-void Path::arc_to(FloatPoint point, float radius, bool large_arc, bool sweep)
-{
-    FFI::path_geometry_arc_to(m_geometry, point.x(), point.y(), radius, large_arc, sweep);
-}
-
-void Path::quadratic_bezier_curve_to(FloatPoint through, FloatPoint point)
-{
-    FFI::path_geometry_quadratic_bezier_curve_to(m_geometry, through.x(), through.y(), point.x(), point.y());
-}
-
-Vector<u8> Path::serialize_to_bytes() const
-{
-    Vector<u8> bytes;
-    FFI::path_geometry_encode(
-        m_geometry, [](void* context, u8 const* bytes, size_t count) {
-            static_cast<Vector<u8>*>(context)->append(bytes, count);
-        },
-        &bytes);
-    return bytes;
-}
-
-float Path::length() const
-{
-    return FFI::path_geometry_length(m_geometry);
-}
-
-Optional<PointAlongPath> Path::point_at_length(float distance) const
-{
-    float point_and_tangent[4];
-    if (!FFI::path_geometry_point_at_length(m_geometry, distance, point_and_tangent))
-        return {};
-    return PointAlongPath { { point_and_tangent[0], point_and_tangent[1] }, { point_and_tangent[2], point_and_tangent[3] } };
-}
-
-Vector<PathVertex> Path::vertices() const
-{
-    Vector<PathVertex> vertices;
-    FFI::path_geometry_vertices(
-        m_geometry, [](void* context, FFI::PathVertex const* ffi_vertices, size_t count) {
-            static_cast<Vector<PathVertex>*>(context)->append(reinterpret_cast<PathVertex const*>(ffi_vertices), count);
-        },
-        &vertices);
-    return vertices;
-}
-
-bool Path::contains(FloatPoint point, WindingRule winding_rule) const
-{
-    return FFI::path_geometry_contains(m_geometry, point.x(), point.y(), to_underlying(winding_rule));
 }
 
 PathData PathData::from_ffi(FFI::PathGeometryData const& data)
