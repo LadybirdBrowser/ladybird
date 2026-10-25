@@ -170,3 +170,9 @@ test("try statement must have either 'catch' or 'finally' clause", () => {
     expect("try {} catch (e) {} finally {}").toEval();
     expect("try {}").not.toEval();
 });
+
+test("lexical declarations in a catch block may not redeclare the catch parameter", () => {
+    expect("try {} catch (e) { let { e } = {}; }").not.toEval();
+    expect("try {} catch ({ e }) { const [e] = []; }").not.toEval();
+    expect("try {} catch (e) { using e = null; }").not.toEval();
+});
