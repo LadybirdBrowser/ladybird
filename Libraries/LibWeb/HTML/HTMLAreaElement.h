@@ -7,10 +7,8 @@
 
 #pragma once
 
-#include <LibGfx/Path.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLHyperlinkElementUtils.h>
-#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::HTML {
 
@@ -32,8 +30,6 @@ public:
     };
     ShapeState shape_state() const;
     Vector<double> shape_coords() const;
-
-    Optional<Gfx::Path> shape_path(CSSPixelSize image_size) const;
 
 private:
     HTMLAreaElement(DOM::Document&, DOM::QualifiedName);

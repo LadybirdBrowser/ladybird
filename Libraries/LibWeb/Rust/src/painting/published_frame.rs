@@ -43,6 +43,7 @@ pub(crate) struct PublishedPaintFacts {
     pub(crate) replaced: Arc<ReplacedPaintFactsTable>,
     pub(crate) layer_images: Arc<LayerImagePaintFactsTable>,
     pub(crate) svg_paint_resources: Arc<SvgPaintResourceRows>,
+    pub(crate) image_maps: Arc<crate::painting::image_map_areas::ImageMaps>,
 }
 
 /// One published generation of a document's layout tree shape and paintable rows, and of the

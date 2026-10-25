@@ -131,7 +131,8 @@ pub(crate) struct FocusedTextControlSelection {
 #[derive(Clone)]
 pub(crate) struct FocusedAreaOutline {
     pub image: NodeSlotId,
-    pub path_bytes: Box<[u8]>,
+    /// The style-tree identity of the area.
+    pub area: u32,
 }
 
 #[derive(Clone)]

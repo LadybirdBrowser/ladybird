@@ -84,7 +84,7 @@ WEB_API CSSPixelRect caret_rect_for_child_offset(Layout::BegunRead const&, Layou
 // Per-document paint facts the recording inputs carry, resolved once per recording.
 WEB_API Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(Layout::BegunRead const&, DOM::Document&);
 WEB_API Layout::RustFFI::FfiFocusedTextControlSelection resolve_focused_text_control_selection(Layout::BegunRead const&, DOM::Document const&);
-WEB_API Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(Layout::BegunRead const&, DOM::Document const&, Vector<u8>& path_bytes);
+WEB_API Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(Layout::BegunRead const&, DOM::Document const&);
 WEB_API void push_highlight_pseudo_styles(DOM::Element const&);
 
 // The node a layout row stands for, as the arena names it.
