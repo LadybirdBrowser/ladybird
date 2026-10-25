@@ -219,6 +219,7 @@ public:
     [[nodiscard]] GC::Ref<Speech::SpeechSynthesis> speech_synthesis();
 
     void alert(Utf16String const& message = {});
+    void print();
     bool confirm(Optional<Utf16String> const& message);
     Optional<Utf16String> prompt(Optional<Utf16String> const& message, Optional<Utf16String> const& default_);
 

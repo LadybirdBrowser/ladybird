@@ -1570,6 +1570,30 @@ void Window::alert(Utf16String const& message)
     page().did_request_alert(message);
 }
 
+// https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-print
+void Window::print()
+{
+    // 1. Let document be this's associated Document.
+    auto& document = associated_document();
+
+    // 2. If document is not fully active, then return.
+    if (!document.is_fully_active())
+        return;
+
+    // 3. If document's unload counter is greater than 0, then return.
+    if (document.unload_counter() > 0)
+        return;
+
+    // 4. If document is ready for post-load tasks, then run the printing steps for document.
+    if (document.ready_for_post_load_tasks()) {
+        document.run_the_printing_steps();
+        return;
+    }
+
+    // 5. Otherwise, set document's print when loaded flag.
+    document.set_print_when_loaded();
+}
+
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-confirm
 bool Window::confirm(Optional<Utf16String> const& message)
 {

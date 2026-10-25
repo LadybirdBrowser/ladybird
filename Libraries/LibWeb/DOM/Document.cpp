@@ -5989,6 +5989,44 @@ void Document::remove_from_script_blocking_style_sheet_set(Element& element)
     schedule_html_parser_end_check();
 }
 
+// https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#printing-steps
+void Document::run_the_printing_steps()
+{
+    // 1. The user agent may display a message to the user or return (or both).
+
+    // 2. If the active sandboxing flag set of document has the sandboxed modals flag set, then return.
+    if (has_flag(active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedModals))
+        return;
+
+    // NB: The events go to the relevant global object of document, and to the active windows of its child navigables
+    //     that are in this process.
+    auto fire_print_event = [&](Utf16FlyString const& event_name) {
+        auto& window = HTML::relevant_window(*this);
+        window.dispatch_event(Event::create(event_name, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window))));
+        for (auto const& child_navigable : document_tree_child_navigables()) {
+            auto* local_child_navigable = as_if<HTML::LocalNavigable>(*child_navigable);
+            if (!local_child_navigable)
+                continue;
+            if (auto child_window = local_child_navigable->active_window())
+                child_window->dispatch_event(Event::create(event_name, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*child_window))));
+        }
+    };
+
+    // 3. The user agent must fire an event named beforeprint at the relevant global object of document, as well as
+    //    any child navigable in it.
+    fire_print_event(HTML::EventNames::beforeprint);
+
+    // FIXME: 4. The user agent should offer the user the opportunity to obtain a physical form (or the representation of
+    //           a physical form) of document. The user agent may wait for the user to either accept or decline before
+    //           returning; if so, the user agent must pause while the method is waiting. Even if the user agent doesn't
+    //           wait at this point, the user agent must use the state of the relevant documents as they are at this
+    //           point in the algorithm if and when it eventually creates the alternate form.
+
+    // 5. The user agent must fire an event named afterprint at the relevant global object of document, as well as any
+    //    child navigables in it.
+    fire_print_event(HTML::EventNames::afterprint);
+}
+
 void Document::set_ready_for_post_load_tasks(bool ready)
 {
     m_ready_for_post_load_tasks = ready;
