@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	an observation is fired with box dimensions 0 when element's display property is set to inline
+1 Pass
+Pass	an observation is fired with box dimensions 0 when element's display property is set to inline

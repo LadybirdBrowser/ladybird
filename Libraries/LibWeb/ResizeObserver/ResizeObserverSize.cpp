@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
@@ -27,22 +28,45 @@ ResizeObserverSize::RawSize ResizeObserverSize::compute_box_size(DOM::Element& t
     //     observer's callback may have invalidated it before we get here.
     //     This matches the behavior of all major browsers.
     auto const* layout_node = target.unsafe_layout_node(read);
-    if (layout_node && Painting::has_committed_box(*layout_node)) {
+    // INTEROP: Non-replaced inline boxes have no content area to observe, so they are reported with a size of 0x0.
+    if (layout_node && !layout_node->is_inline_node() && Painting::has_committed_box(*layout_node)) {
+        double width = 0;
+        double height = 0;
         switch (observed_box) {
+        // -> If observedBox is "border-box"
         case ObservedBox::BorderBox:
-            size.inline_size = Painting::border_box_width(*layout_node).to_double();
-            size.block_size = Painting::border_box_height(*layout_node).to_double();
+            // 1. Set computedSize's inlineSize attribute to target's border area inline length.
+            // 2. Set computedSize's blockSize attribute to target's border area block length.
+            width = Painting::border_box_width(*layout_node).to_double();
+            height = Painting::border_box_height(*layout_node).to_double();
             break;
+        // -> If observedBox is "content-box"
         case ObservedBox::ContentBox:
-            size.inline_size = Painting::content_width(*layout_node).to_double();
-            size.block_size = Painting::content_height(*layout_node).to_double();
+            // 1. Set computedSize's inlineSize attribute to target's content area inline length.
+            // 2. Set computedSize's blockSize attribute to target's content area block length.
+            width = Painting::content_width(*layout_node).to_double();
+            height = Painting::content_height(*layout_node).to_double();
             break;
+        // -> If observedBox is "device-pixel-content-box"
         case ObservedBox::DevicePixelContentBox: {
+            // 1. Set computedSize's inlineSize attribute to target's content area inline length, in integral device
+            //    pixels.
+            // 2. Set computedSize's blockSize attribute to target's content area block length, in integral device
+            //    pixels.
             auto device_pixel_ratio = target.document().window()->device_pixel_ratio();
-            size.inline_size = Painting::border_box_width(*layout_node).to_double() * device_pixel_ratio;
-            size.block_size = Painting::border_box_height(*layout_node).to_double() * device_pixel_ratio;
+            width = AK::round(Painting::content_width(*layout_node).to_double() * device_pixel_ratio);
+            height = AK::round(Painting::content_height(*layout_node).to_double() * device_pixel_ratio);
             break;
         }
+        }
+
+        // NB: The inline and block lengths follow the writing mode of the target.
+        if (layout_node->writing_mode() == CSS::WritingMode::HorizontalTb) {
+            size.inline_size = width;
+            size.block_size = height;
+        } else {
+            size.inline_size = height;
+            size.block_size = width;
         }
     }
 
