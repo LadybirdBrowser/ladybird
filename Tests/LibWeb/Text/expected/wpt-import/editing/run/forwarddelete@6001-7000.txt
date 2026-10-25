@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-959 Pass
-41 Fail
+970 Pass
+30 Fail
 Fail	[["forwarddelete",""]] "<ol><li>foo[<li>]bar</ol>" compare innerHTML
 Pass	[["forwarddelete",""]] "<ol><li>foo[<li>]bar</ol>" queryCommandIndeterm("forwarddelete") before
 Pass	[["forwarddelete",""]] "<ol><li>foo[<li>]bar</ol>" queryCommandState("forwarddelete") before
@@ -352,7 +352,7 @@ Pass	[["forwarddelete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" quer
 Pass	[["forwarddelete",""]] "<ul><li>foo</ul><p>{}<br></p><ol><li>bar</ol>" queryCommandValue("forwarddelete") after
 Pass	[["forwarddelete",""]] "<p><b>[foo]</b>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<p><b>[foo]</b>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<p><b>[foo]</b>" compare innerHTML
+Pass	[["forwarddelete",""]] "<p><b>[foo]</b>" compare innerHTML
 Pass	[["forwarddelete",""]] "<p><b>[foo]</b>" queryCommandIndeterm("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p><b>[foo]</b>" queryCommandState("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p><b>[foo]</b>" queryCommandValue("forwarddelete") before
@@ -361,7 +361,7 @@ Pass	[["forwarddelete",""]] "<p><b>[foo]</b>" queryCommandState("forwarddelete")
 Pass	[["forwarddelete",""]] "<p><b>[foo]</b>" queryCommandValue("forwarddelete") after
 Pass	[["forwarddelete",""]] "<p><quasit>[foo]</quasit>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<p><quasit>[foo]</quasit>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<p><quasit>[foo]</quasit>" compare innerHTML
+Pass	[["forwarddelete",""]] "<p><quasit>[foo]</quasit>" compare innerHTML
 Pass	[["forwarddelete",""]] "<p><quasit>[foo]</quasit>" queryCommandIndeterm("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p><quasit>[foo]</quasit>" queryCommandState("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p><quasit>[foo]</quasit>" queryCommandValue("forwarddelete") before
@@ -370,7 +370,7 @@ Pass	[["forwarddelete",""]] "<p><quasit>[foo]</quasit>" queryCommandState("forwa
 Pass	[["forwarddelete",""]] "<p><quasit>[foo]</quasit>" queryCommandValue("forwarddelete") after
 Pass	[["forwarddelete",""]] "<p><b><i>[foo]</i></b>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<p><b><i>[foo]</i></b>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<p><b><i>[foo]</i></b>" compare innerHTML
+Pass	[["forwarddelete",""]] "<p><b><i>[foo]</i></b>" compare innerHTML
 Pass	[["forwarddelete",""]] "<p><b><i>[foo]</i></b>" queryCommandIndeterm("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p><b><i>[foo]</i></b>" queryCommandState("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p><b><i>[foo]</i></b>" queryCommandValue("forwarddelete") before
@@ -379,7 +379,7 @@ Pass	[["forwarddelete",""]] "<p><b><i>[foo]</i></b>" queryCommandState("forwardd
 Pass	[["forwarddelete",""]] "<p><b><i>[foo]</i></b>" queryCommandValue("forwarddelete") after
 Pass	[["forwarddelete",""]] "<p><b>{foo}</b>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<p><b>{foo}</b>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<p><b>{foo}</b>" compare innerHTML
+Pass	[["forwarddelete",""]] "<p><b>{foo}</b>" compare innerHTML
 Pass	[["forwarddelete",""]] "<p><b>{foo}</b>" queryCommandIndeterm("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p><b>{foo}</b>" queryCommandState("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p><b>{foo}</b>" queryCommandValue("forwarddelete") before
@@ -388,7 +388,7 @@ Pass	[["forwarddelete",""]] "<p><b>{foo}</b>" queryCommandState("forwarddelete")
 Pass	[["forwarddelete",""]] "<p><b>{foo}</b>" queryCommandValue("forwarddelete") after
 Pass	[["forwarddelete",""]] "<p>{<b>foo</b>}": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<p>{<b>foo</b>}" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<p>{<b>foo</b>}" compare innerHTML
+Pass	[["forwarddelete",""]] "<p>{<b>foo</b>}" compare innerHTML
 Pass	[["forwarddelete",""]] "<p>{<b>foo</b>}" queryCommandIndeterm("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p>{<b>foo</b>}" queryCommandState("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p>{<b>foo</b>}" queryCommandValue("forwarddelete") before
@@ -397,7 +397,7 @@ Pass	[["forwarddelete",""]] "<p>{<b>foo</b>}" queryCommandState("forwarddelete")
 Pass	[["forwarddelete",""]] "<p>{<b>foo</b>}" queryCommandValue("forwarddelete") after
 Pass	[["forwarddelete",""]] "<p><b>[]f</b>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<p><b>[]f</b>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<p><b>[]f</b>" compare innerHTML
+Pass	[["forwarddelete",""]] "<p><b>[]f</b>" compare innerHTML
 Pass	[["forwarddelete",""]] "<p><b>[]f</b>" queryCommandIndeterm("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p><b>[]f</b>" queryCommandState("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p><b>[]f</b>" queryCommandValue("forwarddelete") before
@@ -406,7 +406,7 @@ Pass	[["forwarddelete",""]] "<p><b>[]f</b>" queryCommandState("forwarddelete") a
 Pass	[["forwarddelete",""]] "<p><b>[]f</b>" queryCommandValue("forwarddelete") after
 Pass	[["forwarddelete",""]] "<b>[foo]</b>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<b>[foo]</b>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<b>[foo]</b>" compare innerHTML
+Pass	[["forwarddelete",""]] "<b>[foo]</b>" compare innerHTML
 Pass	[["forwarddelete",""]] "<b>[foo]</b>" queryCommandIndeterm("forwarddelete") before
 Pass	[["forwarddelete",""]] "<b>[foo]</b>" queryCommandState("forwarddelete") before
 Pass	[["forwarddelete",""]] "<b>[foo]</b>" queryCommandValue("forwarddelete") before
@@ -415,7 +415,7 @@ Pass	[["forwarddelete",""]] "<b>[foo]</b>" queryCommandState("forwarddelete") af
 Pass	[["forwarddelete",""]] "<b>[foo]</b>" queryCommandValue("forwarddelete") after
 Pass	[["forwarddelete",""]] "<div><b>[foo]</b></div>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<div><b>[foo]</b></div>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<div><b>[foo]</b></div>" compare innerHTML
+Pass	[["forwarddelete",""]] "<div><b>[foo]</b></div>" compare innerHTML
 Pass	[["forwarddelete",""]] "<div><b>[foo]</b></div>" queryCommandIndeterm("forwarddelete") before
 Pass	[["forwarddelete",""]] "<div><b>[foo]</b></div>" queryCommandState("forwarddelete") before
 Pass	[["forwarddelete",""]] "<div><b>[foo]</b></div>" queryCommandValue("forwarddelete") before
@@ -631,7 +631,7 @@ Pass	[["forwarddelete",""]] "foo<span>bar[]<span contenteditable=false>baz</span
 Pass	[["forwarddelete",""]] "foo<span>bar[]<span contenteditable=false>baz</span></span>qux" queryCommandValue("forwarddelete") after
 Pass	[["forwarddelete",""]] "<span>[abc]</span>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<span>[abc]</span>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<span>[abc]</span>" compare innerHTML
+Pass	[["forwarddelete",""]] "<span>[abc]</span>" compare innerHTML
 Pass	[["forwarddelete",""]] "<span>[abc]</span>" queryCommandIndeterm("forwarddelete") before
 Pass	[["forwarddelete",""]] "<span>[abc]</span>" queryCommandState("forwarddelete") before
 Pass	[["forwarddelete",""]] "<span>[abc]</span>" queryCommandValue("forwarddelete") before
@@ -649,7 +649,7 @@ Pass	[["forwarddelete",""]] "<span>[abc]</span><br>" queryCommandState("forwardd
 Pass	[["forwarddelete",""]] "<span>[abc]</span><br>" queryCommandValue("forwarddelete") after
 Pass	[["forwarddelete",""]] "<p><span>[abc]</span></p>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<p><span>[abc]</span></p>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<p><span>[abc]</span></p>" compare innerHTML
+Pass	[["forwarddelete",""]] "<p><span>[abc]</span></p>" compare innerHTML
 Pass	[["forwarddelete",""]] "<p><span>[abc]</span></p>" queryCommandIndeterm("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p><span>[abc]</span></p>" queryCommandState("forwarddelete") before
 Pass	[["forwarddelete",""]] "<p><span>[abc]</span></p>" queryCommandValue("forwarddelete") before
@@ -919,7 +919,7 @@ Pass	[["forwarddelete",""]] "<div contenteditable=\"false\"><custom-element cont
 Pass	[["forwarddelete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>[ab</b></p><p><i>c]d</i></p></custom-element></div>" queryCommandValue("forwarddelete") after
 Pass	[["forwarddelete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>" compare innerHTML
+Pass	[["forwarddelete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>" compare innerHTML
 Pass	[["forwarddelete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>" queryCommandIndeterm("forwarddelete") before
 Pass	[["forwarddelete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>" queryCommandState("forwarddelete") before
 Pass	[["forwarddelete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>" queryCommandValue("forwarddelete") before

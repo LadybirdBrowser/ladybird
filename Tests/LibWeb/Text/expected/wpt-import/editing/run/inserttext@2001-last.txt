@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1009 tests
 
-982 Pass
-27 Fail
+984 Pass
+25 Fail
 Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandValue("stylewithcss") after
 Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandIndeterm("inserttext") before
 Pass	[["stylewithcss","false"],["inserttext","a"]] "[foo<a href=http://www.google.com><font color=blue>bar]</font></a>baz" queryCommandState("inserttext") before
@@ -927,10 +927,10 @@ Pass	[["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>abc<
 Fail	[["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>abc</span><span><b>{def</b></span>}</div>" compare innerHTML
 Pass	[["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>": execCommand("inserttext", false, "B") return value
 Pass	[["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" checks for modifications to non-editable content
-Fail	[["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" compare innerHTML
+Pass	[["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" compare innerHTML
 Pass	[["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>": execCommand("inserttext", false, "B") return value
 Pass	[["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" checks for modifications to non-editable content
-Fail	[["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" compare innerHTML
+Pass	[["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" compare innerHTML
 Pass	[["inserttext"," "]] "<div style=display:flex><span>[]abc</span><span>def</span></div>": execCommand("inserttext", false, " ") return value
 Pass	[["inserttext"," "]] "<div style=display:flex><span>[]abc</span><span>def</span></div>" checks for modifications to non-editable content
 Pass	[["inserttext"," "]] "<div style=display:flex><span>[]abc</span><span>def</span></div>" compare innerHTML

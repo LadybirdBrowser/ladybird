@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 842 tests
 
-806 Pass
-36 Fail
+811 Pass
+31 Fail
 Pass	[["delete",""]] "<p contenteditable=false><span contenteditable=true>[abc]</span></p>" queryCommandIndeterm("delete") after
 Pass	[["delete",""]] "<p contenteditable=false><span contenteditable=true>[abc]</span></p>" queryCommandState("delete") after
 Pass	[["delete",""]] "<p contenteditable=false><span contenteditable=true>[abc]</span></p>" queryCommandValue("delete") after
@@ -252,7 +252,7 @@ Pass	[["delete",""]] "<div contenteditable=\"false\"><custom-element contentedit
 Pass	[["delete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>[ab</b></p><p><i>c]d</i></p></custom-element></div>" queryCommandValue("delete") after
 Pass	[["delete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>": execCommand("delete", false, "") return value
 Pass	[["delete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>" checks for modifications to non-editable content
-Fail	[["delete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>" compare innerHTML
+Pass	[["delete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>" compare innerHTML
 Pass	[["delete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>" queryCommandIndeterm("delete") before
 Pass	[["delete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>" queryCommandState("delete") before
 Pass	[["delete",""]] "<div contenteditable=\"false\"><custom-element contenteditable=\"\"><p><b>a[b</b></p><p><i>cd]</i></p></custom-element></div>" queryCommandValue("delete") before
@@ -563,10 +563,10 @@ Pass	[["delete",""]] "<ul><li><span>[abc</span></li><li>def]</li></ul>" checks f
 Pass	[["delete",""]] "<ul><li><span>[abc</span></li><li>def]</li></ul>" compare innerHTML
 Pass	[["delete",""]] "<ul><li>[abc</li><li><span>def]</span></li></ul>": execCommand("delete", false, "") return value
 Pass	[["delete",""]] "<ul><li>[abc</li><li><span>def]</span></li></ul>" checks for modifications to non-editable content
-Fail	[["delete",""]] "<ul><li>[abc</li><li><span>def]</span></li></ul>" compare innerHTML
+Pass	[["delete",""]] "<ul><li>[abc</li><li><span>def]</span></li></ul>" compare innerHTML
 Pass	[["delete",""]] "<ul><li><span>[abc</span></li><li><span>def]</span></li></ul>": execCommand("delete", false, "") return value
 Pass	[["delete",""]] "<ul><li><span>[abc</span></li><li><span>def]</span></li></ul>" checks for modifications to non-editable content
-Fail	[["delete",""]] "<ul><li><span>[abc</span></li><li><span>def]</span></li></ul>" compare innerHTML
+Pass	[["delete",""]] "<ul><li><span>[abc</span></li><li><span>def]</span></li></ul>" compare innerHTML
 Pass	[["delete",""]] "<ul><li> [abc</li><li>def]</li></ul>": execCommand("delete", false, "") return value
 Pass	[["delete",""]] "<ul><li> [abc</li><li>def]</li></ul>" checks for modifications to non-editable content
 Pass	[["delete",""]] "<ul><li> [abc</li><li>def]</li></ul>" compare innerHTML
@@ -650,10 +650,10 @@ Pass	[["delete",""]] "<div><font><table><td>a</table><br>{}<br><table><td>b</tab
 Fail	[["delete",""]] "<div><font><table><td>a</table><br>{}<br><table><td>b</table></font></div>" compare innerHTML
 Pass	[["delete",""]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>": execCommand("delete", false, "") return value
 Pass	[["delete",""]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" checks for modifications to non-editable content
-Fail	[["delete",""]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" compare innerHTML
+Pass	[["delete",""]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" compare innerHTML
 Pass	[["delete",""]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>": execCommand("delete", false, "") return value
 Pass	[["delete",""]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" checks for modifications to non-editable content
-Fail	[["delete",""]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" compare innerHTML
+Pass	[["delete",""]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" compare innerHTML
 Pass	[["delete",""]] "<div style=display:flex><span>abc</span><span>[]def</span></div>": execCommand("delete", false, "") return value
 Pass	[["delete",""]] "<div style=display:flex><span>abc</span><span>[]def</span></div>" checks for modifications to non-editable content
 Pass	[["delete",""]] "<div style=display:flex><span>abc</span><span>[]def</span></div>" compare innerHTML
