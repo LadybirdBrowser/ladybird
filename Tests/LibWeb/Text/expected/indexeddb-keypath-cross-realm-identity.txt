@@ -1,0 +1,8 @@
+store: first array uses the current global: true
+store: other array uses the other global: true
+store: current array keeps its identity: true
+store: other array keeps its identity: true
+index: first array uses the current global: true
+index: other array uses the other global: true
+index: current array keeps its identity: true
+index: other array keeps its identity: true

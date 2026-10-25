@@ -1,0 +1,53 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        if (document.readyState !== "complete") {
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        }
+        spoofCurrentURL("https://example.com/indexeddb-keypath-cross-realm-identity.html");
+        const frame = document.createElement("iframe");
+        const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(frame);
+        await loaded;
+        const other = frame.contentWindow;
+        const name = `keypath-cross-realm-${Date.now()}-${Math.random()}`;
+        const request = indexedDB.open(name, 1);
+        const check = (label, object, otherPrototype) => {
+            const first = object.keyPath;
+            const getter = other.Object.getOwnPropertyDescriptor(otherPrototype, "keyPath").get;
+            const otherFirst = getter.call(object);
+            println(
+                `${label}: first array uses the current global: ${Object.getPrototypeOf(first) === Array.prototype}`
+            );
+            println(
+                `${label}: other array uses the other global: ${Object.getPrototypeOf(otherFirst) === other.Array.prototype}`
+            );
+            println(`${label}: current array keeps its identity: ${first === object.keyPath}`);
+            println(`${label}: other array keeps its identity: ${otherFirst === getter.call(object)}`);
+        };
+        request.onupgradeneeded = () => {
+            const store = request.result.createObjectStore("store", { keyPath: ["key"] });
+            const index = store.createIndex("index", ["value"]);
+            check("store", store, other.IDBObjectStore.prototype);
+            check("index", index, other.IDBIndex.prototype);
+        };
+        const finish = () => {
+            frame.remove();
+            done();
+        };
+        request.onsuccess = () => {
+            request.result.close();
+            const deletion = indexedDB.deleteDatabase(name);
+            deletion.onsuccess = finish;
+            deletion.onerror = () => {
+                println(`delete error: ${deletion.error.name}`);
+                finish();
+            };
+        };
+        request.onerror = () => {
+            println(`open error: ${request.error.name}`);
+            finish();
+        };
+    });
+</script>

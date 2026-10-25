@@ -40,6 +40,7 @@ void IDBObjectStore::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_store);
     visitor.visit(m_transaction);
     visitor.visit(m_indexes);
+    visitor.visit(m_key_path_arrays);
 }
 
 JS::Object& IDBObjectStore::relevant_global_object() const
@@ -104,13 +105,25 @@ Optional<KeyPath> const& IDBObjectStore::key_path() const
     return m_store->key_path();
 }
 
-JS::ThrowCompletionOr<JS::Value> IDBObjectStore::key_path_value(JS::Realm& realm) const
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-keypath
+JS::ThrowCompletionOr<JS::Value> IDBObjectStore::key_path_value(JS::Realm& realm)
 {
+    // The keyPath getter steps are to return this’s object store’s key path, or null if none. The key path is
+    // converted as a DOMString (if a string) or a sequence<DOMString> (if a list of strings), per [WEBIDL].
     auto const& key_path = this->key_path();
     if (!key_path.has_value())
         return JS::js_null();
 
-    return convert_a_key_path_to_a_value(realm, key_path.value());
+    // NOTE: The returned value is not the same instance that was used when the object store was created. However, if
+    //       this attribute returns an object (specifically an Array), it returns the same object instance every time
+    //       it is inspected. Changing the properties of the object has no effect on the object store.
+    if (auto array = m_key_path_arrays.get(realm.global_object()); array.has_value())
+        return *array;
+
+    auto value = TRY(convert_a_key_path_to_a_value(realm, key_path.value()));
+    if (value.is_object())
+        m_key_path_arrays.set(realm.global_object(), value.as_object());
+    return value;
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-indexnames

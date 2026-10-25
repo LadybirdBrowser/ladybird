@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	IDBObjectStore's keyPath attribute returns the same object.
+1 Pass
+Pass	IDBObjectStore's keyPath attribute returns the same object.
