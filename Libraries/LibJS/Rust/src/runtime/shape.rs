@@ -12,7 +12,7 @@ use indexmap::IndexMap;
 
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
-use crate::gc::heap::cell_is_dead;
+use crate::gc::sweep::Sweep;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak::GcWeak;
@@ -279,10 +279,11 @@ impl PrototypeTransitionCache {
         });
     }
 
-    pub fn remove_dead_entries(&self) {
+    pub fn remove_dead_entries(&self, sweep: &Sweep<'_>) {
         for entry in &self.entries {
             let transition = entry.get();
-            if transition.from.is_some_and(cell_is_dead) || transition.target.is_some_and(cell_is_dead) {
+            let is_dead = |shape| sweep.is_dead(shape);
+            if transition.from.is_some_and(is_dead) || transition.target.is_some_and(is_dead) {
                 entry.set(PrototypeTransition::default());
             }
         }

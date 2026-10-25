@@ -17,8 +17,8 @@ use core::ptr::NonNull;
 
 use crate::build_configuration::HEAP_REGION_OFFSET_MASK;
 use crate::gc::capi;
-use crate::gc::heap::cell_is_dead;
 use crate::gc::primitive_storage::{OwnedPrimitiveStorage, ZeroFillNewBytes};
+use crate::gc::sweep::Sweep;
 use crate::layout::cell::{CellHeader, Gc};
 pub use crate::layout::feedback::*;
 use crate::layout::object::Object;
@@ -110,10 +110,10 @@ impl ExecutableFeedback {
 
     /// Forgets the call targets and keys that died in this collection, which the feedback holds weakly. The value
     /// buckets are not references, but they are folded into the value feedback here as well.
-    pub fn remove_dead_cells(&self) {
+    pub fn remove_dead_cells(&self, sweep: &Sweep<'_>) {
         self.update_value_feedback();
         let clear_if_dead = |cell: &Cell<Option<Gc<CellHeader>>>| {
-            if decode_weak_reference(cell).is_some_and(cell_is_dead) {
+            if decode_weak_reference(cell).is_some_and(|cell| sweep.is_dead(cell)) {
                 cell.set(None);
             }
         };

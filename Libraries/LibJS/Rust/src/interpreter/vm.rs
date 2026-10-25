@@ -29,9 +29,10 @@ use crate::gc::capi::{self, GCVisitor};
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::gc_ref_cell::GcRefCell;
-use crate::gc::heap::{Heap, cell_is_dead};
+use crate::gc::heap::Heap;
 use crate::gc::heap_function::HeapFunction;
 use crate::gc::root::{MarkedVec, RootSet};
+use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak_container::WeakContainer;
 use crate::jit::code::INLINED_CALL_SITE_BIT;
@@ -1135,18 +1136,18 @@ impl Vm {
 
     /// Has the weak containers that survived this collection forget the cells that died in it, as LibGC does before
     /// it runs its sweep callbacks.
-    fn remove_dead_cells_from_weak_containers(&self) {
+    fn remove_dead_cells_from_weak_containers(&self, sweep: &Sweep<'_>) {
         self.weak_containers.borrow_mut().retain(|weak_container| {
-            if cell_is_dead(weak_container.owner()) {
+            if sweep.is_dead(weak_container.owner()) {
                 return false;
             }
-            weak_container.remove_dead_cells(self);
+            weak_container.remove_dead_cells(sweep);
             true
         });
     }
 
     /// Hands `finalization_registry` to HostEnqueueFinalizationRegistryCleanupJob once the collection in progress is
-    /// over. Only a weak container's remove_dead_cells() calls this, through its Sweep.
+    /// over. Only the sweep callback calls this, through its Sweep.
     pub(crate) fn enqueue_finalization_registry_cleanup_job_after_collection(
         &self,
         finalization_registry: Gc<FinalizationRegistry>,
@@ -1178,12 +1179,12 @@ impl Vm {
     }
 
     /// Forgets the intrinsic accessors and unimplemented properties of objects that died in this collection.
-    fn remove_dead_objects_from_intrinsic_accessors_and_unimplemented_properties(&self) {
+    fn remove_dead_objects_from_intrinsic_accessors_and_unimplemented_properties(&self, sweep: &Sweep<'_>) {
         let is_live = |object: usize| {
             // SAFETY: The maps only hold objects that were live when their entries were added, and a dead object is
             //         intact until the sweep that follows this callback.
             let object = unsafe { Gc::from_non_null(NonNull::new_unchecked(object as *mut Object)) };
-            !cell_is_dead(object)
+            !sweep.is_dead(object)
         };
         self.intrinsic_accessors
             .borrow_mut()
@@ -1357,8 +1358,8 @@ impl Vm {
     }
 
     /// Drops the weak cache entries of strings that died in this collection.
-    fn remove_dead_strings_from_weak_caches(&self) {
-        let is_dead = |string: Gc<PrimitiveString>| !string.header.mark.get();
+    fn remove_dead_strings_from_weak_caches(&self, sweep: &Sweep<'_>) {
+        let is_dead = |string: Gc<PrimitiveString>| sweep.is_dead(string);
         for cache_slot in self.fly_string_cache.iter() {
             if cache_slot.get().is_some_and(is_dead) {
                 cache_slot.set(None);
@@ -1373,20 +1374,20 @@ impl Vm {
     }
 
     /// Forgets the cells that died in this collection from the inline caches of executables and static call sites.
-    fn remove_dead_cells_from_property_lookup_caches(&self) {
+    fn remove_dead_cells_from_property_lookup_caches(&self, sweep: &Sweep<'_>) {
         self.executables.borrow_mut().retain(|executable| {
-            if cell_is_dead(*executable) {
+            if sweep.is_dead(*executable) {
                 executable.free_jit_entry_slot(self);
                 return false;
             }
-            executable.remove_dead_cells();
+            executable.remove_dead_cells(sweep);
             true
         });
-        self.static_property_lookup_caches.remove_dead_entries();
-        self.keyed_property_lookup_cache.remove_dead_entries();
-        self.prototype_transition_cache.remove_dead_entries();
-        self.keyed_property_store_cache.remove_dead_entries();
-        self.jit.dependents.remove_dead_entries();
+        self.static_property_lookup_caches.remove_dead_entries(sweep);
+        self.keyed_property_lookup_cache.remove_dead_entries(sweep);
+        self.prototype_transition_cache.remove_dead_entries(sweep);
+        self.keyed_property_store_cache.remove_dead_entries(sweep);
+        self.jit.dependents.remove_dead_entries(sweep);
     }
 
     pub fn register_executable(&self, executable: Gc<Executable>) {
@@ -2031,12 +2032,14 @@ unsafe extern "C" fn gather_roots(context: *mut c_void, visitor: *mut GCVisitor)
 unsafe extern "C" fn sweep(context: *mut c_void) {
     // SAFETY: The sweep callback was registered with the VM as its context.
     let vm = unsafe { &*context.cast::<Vm>() };
-    vm.remove_dead_cells_from_weak_containers();
-    vm.remove_dead_strings_from_weak_caches();
-    vm.remove_dead_cells_from_property_lookup_caches();
-    vm.remove_dead_objects_from_intrinsic_accessors_and_unimplemented_properties();
+    // SAFETY: LibGC runs sweep callbacks once the marks are final, before it sweeps the cells that died.
+    let sweep = unsafe { Sweep::new(vm) };
+    vm.remove_dead_cells_from_weak_containers(&sweep);
+    vm.remove_dead_strings_from_weak_caches(&sweep);
+    vm.remove_dead_cells_from_property_lookup_caches(&sweep);
+    vm.remove_dead_objects_from_intrinsic_accessors_and_unimplemented_properties(&sweep);
     if let Some(debugger) = vm.debugger() {
-        debugger.remove_dead_executables();
+        debugger.remove_dead_executables(&sweep);
     }
 }
 

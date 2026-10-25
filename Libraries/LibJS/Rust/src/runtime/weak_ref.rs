@@ -8,9 +8,9 @@ use core::cell::Cell;
 use core::ptr::NonNull;
 
 use crate::gc::class::{GcCell, define_cell};
-use crate::gc::heap::cell_is_dead;
 use crate::gc::visitor::{Trace, Visitor};
-use crate::gc::weak_container::{Sweep, WeakContainer};
+use crate::gc::sweep::Sweep;
+use crate::gc::weak_container::WeakContainer;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -78,13 +78,13 @@ impl WeakRef {
         self.last_execution_generation.set(vm.head.execution_generation.get());
     }
 
-    fn remove_dead_cells(object: &Object, _: &Sweep<'_>) {
+    fn remove_dead_cells(object: &Object, sweep: &Sweep<'_>) {
         let weak_ref = object
             .as_gc()
             .downcast::<WeakRef>()
             .expect("the weak container is a WeakRef");
         let value = weak_ref.value.get();
-        let is_alive = value.is_empty() || !cell_is_dead(value.as_cell());
+        let is_alive = value.is_empty() || !sweep.is_dead(value.as_cell());
         if is_alive {
             return;
         }
