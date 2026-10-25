@@ -2,29 +2,29 @@ Harness status: OK
 
 Found 25 tests
 
-25 Fail
-Fail	Empty module without imports argument
-Fail	Empty module with undefined imports argument
-Fail	Empty module with empty imports argument
-Fail	getter order for imports object
-Fail	imports
-Fail	imports with empty module names
-Fail	imports with empty names
-Fail	exports with empty name: function
-Fail	exports with empty name: table
-Fail	exports with empty name: global
-Fail	No imports
-Fail	exports and imports
-Fail	i64 exports and imports
-Fail	import with i32-returning function
-Fail	import with function that takes and returns i32
-Fail	import with i64-returning function
-Fail	import with function that takes and returns i64
-Fail	import with i32-taking function
-Fail	import with i64-taking function
-Fail	export i64-returning function
-Fail	i32 mutable WebAssembly.Global import
-Fail	i64 mutable WebAssembly.Global import
-Fail	Multiple i64 arguments
-Fail	stray argument
-Fail	Synchronous options handling
+25 Pass
+Pass	Empty module without imports argument
+Pass	Empty module with undefined imports argument
+Pass	Empty module with empty imports argument
+Pass	getter order for imports object
+Pass	imports
+Pass	imports with empty module names
+Pass	imports with empty names
+Pass	exports with empty name: function
+Pass	exports with empty name: table
+Pass	exports with empty name: global
+Pass	No imports
+Pass	exports and imports
+Pass	i64 exports and imports
+Pass	import with i32-returning function
+Pass	import with function that takes and returns i32
+Pass	import with i64-returning function
+Pass	import with function that takes and returns i64
+Pass	import with i32-taking function
+Pass	import with i64-taking function
+Pass	export i64-returning function
+Pass	i32 mutable WebAssembly.Global import
+Pass	i64 mutable WebAssembly.Global import
+Pass	Multiple i64 arguments
+Pass	stray argument
+Pass	Synchronous options handling
