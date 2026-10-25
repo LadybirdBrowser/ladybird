@@ -340,18 +340,14 @@ TEST_CASE(connect_marks_the_bottle_accessed)
     EXPECT_EQ(jar->get_item(StorageEndpointType::LocalStorage, KEY, "k"_utf16), Optional<Utf16String> {});
 }
 
-TEST_CASE(devtools_hears_every_change_with_the_writer_url)
+TEST_CASE(devtools_hears_every_change_whoever_made_it)
 {
     auto& registry = WebView::StorageAreaRegistry::the();
     auto jar = WebView::StorageJar::create();
-    struct Seen {
-        WebView::StorageChange::Type type;
-        Optional<String> url;
-    };
-    Vector<Seen> seen;
-    registry.on_change_for_devtools = [&](WebView::StorageJar& changed_jar, WebView::StorageChange const& change, Optional<String> const& url) {
+    Vector<WebView::StorageChange::Type> seen;
+    registry.on_change_for_devtools = [&](WebView::StorageJar& changed_jar, WebView::StorageChange const& change) {
         EXPECT_EQ(&changed_jar, jar.ptr());
-        seen.append({ change.type, url });
+        seen.append(change.type);
     };
 
     FakeListener a;
@@ -360,9 +356,7 @@ TEST_CASE(devtools_hears_every_change_with_the_writer_url)
     jar->remove_item(StorageEndpointType::LocalStorage, KEY, "k"_utf16);
 
     EXPECT_EQ(seen.size(), 2u);
-    EXPECT_EQ(seen[0].type, WebView::StorageChange::Type::Set);
-    EXPECT_EQ(seen[0].url, Optional<String> { URL });
-    EXPECT_EQ(seen[1].type, WebView::StorageChange::Type::Removed);
-    EXPECT_EQ(seen[1].url, Optional<String> {});
+    EXPECT_EQ(seen[0], WebView::StorageChange::Type::Set);
+    EXPECT_EQ(seen[1], WebView::StorageChange::Type::Removed);
     registry.on_change_for_devtools = nullptr;
 }

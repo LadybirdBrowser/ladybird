@@ -38,6 +38,10 @@ struct StorageKey {
 
 WEBCOMMON_API StorageKey obtain_a_storage_key_for_non_storage_purposes(URL::Origin const&);
 
+// Steps 2 to 4 of "obtain a storage key", for a caller that has the environment's origin in hand. Every process
+// that names a bottle goes through this, so they all name it the same way.
+WEBCOMMON_API Optional<StorageKey> obtain_a_storage_key(URL::Origin const&);
+
 }
 
 namespace AK {
