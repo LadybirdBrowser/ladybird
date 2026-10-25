@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #content { position: absolute; top: 0; left: 0; width: 800.75px; height: 1000.75px; }
+</style>
+<script src="../include.js"></script>
+<div id="content"></div>
+<script>
+    test(() => {
+        const root = document.documentElement;
+        println(`viewport: ${window.innerWidth}x${window.innerHeight}`);
+        println(`root scrollWidth: ${root.scrollWidth}`);
+        println(`root scrollHeight: ${root.scrollHeight}`);
+    });
+</script>

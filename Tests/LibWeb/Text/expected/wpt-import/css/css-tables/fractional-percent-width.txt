@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-1 Pass
-2 Fail
+3 Pass
 Pass	.cell 1
-Fail	.cell 2
-Fail	.cell 3
+Pass	.cell 2
+Pass	.cell 3

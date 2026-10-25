@@ -3244,7 +3244,8 @@ int Element::client_width() const
 
     // 3. Return the width of the padding edge excluding the width of any rendered scrollbar between the padding edge and the border edge,
     // ignoring any transforms that apply to the element and its ancestors.
-    return Painting::absolute_padding_box_rect(*layout_node).width().to_int();
+    // INTEROP: The result is rounded to the nearest integer rather than truncated, as browsers do.
+    return round(Painting::absolute_padding_box_rect(*layout_node).width()).to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-clientheight
@@ -3271,7 +3272,8 @@ int Element::client_height() const
 
     // 3. Return the height of the padding edge excluding the height of any rendered scrollbar between the padding edge and the border edge,
     //    ignoring any transforms that apply to the element and its ancestors.
-    return Painting::absolute_padding_box_rect(*layout_node).height().to_int();
+    // INTEROP: The result is rounded to the nearest integer rather than truncated, as browsers do.
+    return round(Painting::absolute_padding_box_rect(*layout_node).height()).to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-currentcsszoom
@@ -4033,7 +4035,8 @@ int Element::scroll_width()
     // 3. Let viewport width be the width of the viewport excluding the width of the scroll bar, if any,
     //    or zero if there is no viewport.
     auto viewport_width = document.viewport_rect().width().to_int();
-    auto viewport_scrolling_area_width = viewport_scrollable_overflow_rect->width().to_int();
+    // INTEROP: The scrolling area width is rounded to the nearest integer rather than truncated, as browsers do.
+    auto viewport_scrolling_area_width = round(viewport_scrollable_overflow_rect->width()).to_int();
 
     // 4. If the element is the root element and document is not in quirks mode
     //    return max(viewport scrolling area width, viewport width).
@@ -4051,8 +4054,9 @@ int Element::scroll_width()
         return 0;
 
     // 7. Return the width of the element’s scrolling area.
+    // INTEROP: The result is rounded to the nearest integer rather than truncated, as browsers do.
     if (auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node); scrollable_overflow_rect.has_value())
-        return scrollable_overflow_rect->width().to_int();
+        return round(scrollable_overflow_rect->width()).to_int();
 
     return 0;
 }
@@ -4078,7 +4082,8 @@ int Element::scroll_height()
     // 3. Let viewport height be the height of the viewport excluding the height of the scroll bar, if any,
     //    or zero if there is no viewport.
     auto viewport_height = document.viewport_rect().height().to_int();
-    auto viewport_scrolling_area_height = viewport_scrollable_overflow_rect->height().to_int();
+    // INTEROP: The scrolling area height is rounded to the nearest integer rather than truncated, as browsers do.
+    auto viewport_scrolling_area_height = round(viewport_scrollable_overflow_rect->height()).to_int();
 
     // 4. If the element is the root element and document is not in quirks mode
     //    return max(viewport scrolling area height, viewport height).
@@ -4096,8 +4101,9 @@ int Element::scroll_height()
         return 0;
 
     // 7. Return the height of the element’s scrolling area.
+    // INTEROP: The result is rounded to the nearest integer rather than truncated, as browsers do.
     if (auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node); scrollable_overflow_rect.has_value()) {
-        return scrollable_overflow_rect->height().to_int();
+        return round(scrollable_overflow_rect->height()).to_int();
     }
     return 0;
 }
