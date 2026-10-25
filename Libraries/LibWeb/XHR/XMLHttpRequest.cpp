@@ -238,14 +238,14 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response(JS::Realm& realm)
     auto wrapper = Bindings::wrap(wrapper_world, realm, GC::Ref { *this });
     m_cached_response_objects.remove_all_matching([](auto const& entry) { return !entry.wrapper; });
 
-    auto cached_response_object = [&]() -> GC::Ptr<JS::Object> {
+    auto cached_response_object = [&]() -> Optional<JS::Value> {
         auto cached = m_cached_response_objects.find_if([&](auto const& entry) { return entry.wrapper.ptr() == wrapper; });
         if (cached.is_end())
-            return nullptr;
+            return {};
         return cached->object;
     };
 
-    auto cache_response_object = [&](GC::Ref<JS::Object> object) {
+    auto cache_response_object = [&](JS::Value object) {
         m_cached_response_objects.append({ wrapper, object });
     };
 
@@ -275,8 +275,8 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response(JS::Realm& realm)
 
     // 5. If this’s response type is "arraybuffer",
     if (m_response_type == XMLHttpRequest::ResponseType::Arraybuffer) {
-        if (auto cached_object = cached_response_object())
-            return cached_object;
+        if (auto cached_object = cached_response_object(); cached_object.has_value())
+            return *cached_object;
 
         // then set this’s response object to a new ArrayBuffer object representing this’s received bytes. If this throws
         // an exception, then set this’s response object to failure and return null.
@@ -310,8 +310,8 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response(JS::Realm& realm)
     if (!m_response->body())
         return JS::js_null();
 
-    if (auto cached_object = cached_response_object())
-        return cached_object;
+    if (auto cached_object = cached_response_object(); cached_object.has_value())
+        return *cached_object;
 
     // 3. Let jsonObject be the result of running parse JSON from bytes on this’s received bytes. If that threw an
     // exception, then return null.
@@ -321,13 +321,10 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response(JS::Realm& realm)
 
     // 4. Set this’s response object to jsonObject.
     auto json_object = json_object_result.release_value();
-    if (json_object.is_object()) {
-        cache_response_object(GC::Ref<JS::Object> { json_object.as_object() });
-        return json_object;
-    }
+    cache_response_object(json_object);
 
     // 9. Return this’s response object.
-    return JS::js_null();
+    return json_object;
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-responsetype

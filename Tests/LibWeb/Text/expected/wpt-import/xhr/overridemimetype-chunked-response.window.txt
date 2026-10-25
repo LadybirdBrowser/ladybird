@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	overrideMimeType() charset is used for every chunk of a chunked response
+Pass	overrideMimeType() charset overrides the response charset for every chunk of a chunked response
+Pass	Response charset is used for every chunk of a chunked response when overrideMimeType() has no charset
+Pass	Response charset is used for every chunk of a chunked response
