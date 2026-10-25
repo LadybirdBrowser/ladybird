@@ -308,7 +308,7 @@ rejected instantiate: LinkError: undefined is not a function (evaluated from '[w
   Error.isError: true
   name: LinkError, message: "undefined is not a function (evaluated from '[wasm import object][\"f\"]')"
   stack head: LinkError: undefined is not a function (evaluated from '[wasm import object]["f"]')
-  stack frames: 
+  stack frames: <unknown> > <script> > <script> > <unknown> > <unknown>
 trapping start function: RuntimeError: Wasm execution trapped (WIP): unreachable
   own keys: message
   prototype is RuntimeError.prototype: true

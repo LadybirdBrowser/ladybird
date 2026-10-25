@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 57 tests
 
-56 Pass
-1 Fail
+57 Pass
 Pass	Missing arguments
 Pass	Branding
 Pass	Invalid arguments
@@ -57,7 +56,7 @@ Pass	Multiple i64 arguments: Module argument
 Pass	stray argument: BufferSource argument
 Pass	stray argument: Module argument
 Pass	Synchronous options handling: Buffer argument
-Fail	Synchronous options handling: Module argument
+Pass	Synchronous options handling: Module argument
 Pass	Empty buffer
 Pass	Invalid code
 Pass	Changing the buffer
