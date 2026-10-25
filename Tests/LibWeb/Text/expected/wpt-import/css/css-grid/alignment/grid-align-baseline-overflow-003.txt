@@ -10,9 +10,9 @@ Fail	.target > * 3
 Pass	.target > * 4
 Pass	.target > * 5
 Fail	.target > * 6
-Pass	.target > * 7
+Fail	.target > * 7
 Fail	.target > * 8
 Fail	.target > * 9
 Pass	.target > * 10
-Fail	.target > * 11
+Pass	.target > * 11
 Pass	.target > * 12
