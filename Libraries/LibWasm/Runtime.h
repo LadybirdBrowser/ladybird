@@ -303,6 +303,14 @@ public:
     // The previous size, or -1 if the table cannot grow.
     i64 grow_table(Entity table, u64 delta, u64 initial);
 
+    // The number of elements of an array, which is a reference to one.
+    u32 array_length(u64 array);
+    // The bits of an element of an array of numbers (whose elements are neither references nor v128s), with packed
+    // elements zero-extended. The index must be in bounds.
+    u64 array_element(u64 array, u32 index);
+    // Set an element of an array of numbers to `bits`, which packed elements wrap. The index must be in bounds.
+    void set_array_element(u64 array, u32 index, u64 bits);
+
     ValueType global_type(Entity global, bool& is_mutable);
     Value global_get(Entity global);
     void global_set(Entity global, Value);

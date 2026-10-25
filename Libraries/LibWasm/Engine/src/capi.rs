@@ -1165,6 +1165,40 @@ pub unsafe extern "C" fn wasm_store_global_set(store: *mut WasmStore, global: *m
     store_of(store).global_mut(entity(global)).set(value.to_value());
 }
 
+// Arrays.
+
+/// The number of elements of an array.
+///
+/// # Safety
+///
+/// `array` must be a live array reference.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_array_length(array: u64) -> u32 {
+    unsafe { crate::runtime::gc::array_length(array) }
+}
+
+/// The bits of the element at `index` of an array whose elements are numbers, with packed elements zero-extended.
+///
+/// # Safety
+///
+/// `array` must be a live array reference whose elements are neither references nor v128s, and `index` must be in
+/// its bounds.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_array_element(array: u64, index: u32) -> u64 {
+    unsafe { crate::runtime::gc::array_element(array, index) }
+}
+
+/// Set the element at `index` of an array whose elements are numbers to `bits`, which packed elements wrap.
+///
+/// # Safety
+///
+/// `array` must be a live array reference whose elements are neither references nor v128s, and `index` must be in
+/// its bounds.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_array_set_element(array: u64, index: u32, bits: u64) {
+    unsafe { crate::runtime::gc::set_array_element(array, index, bits) }
+}
+
 // Custom sections.
 
 /// The number of custom sections of a module.
