@@ -11,6 +11,7 @@ use core::ptr::NonNull;
 use ak::Utf16String;
 use libcompositing_rust::display_list::commands::DisplayListGlyph;
 use libgfx_rust::path::Path;
+use libgfx_rust::text_layout::glyph_run_ink_bounding_box;
 use libgfx_rust::{CompositingAndBlendingOperator, FloatPoint, WindingRule};
 
 use super::text_metrics::{TextMeasurements, TextMetrics};
@@ -225,17 +226,31 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         let text_baseline: CanvasTextBaseline = self.drawing_state().text_baseline;
         let baseline_offset = baseline_offset(text_baseline, &first_font);
 
+        // NB: The bounding rectangle of the given text is that of the ink of its glyphs, which is relative to the
+        //     alphabetic baseline at the start of the inline box. Text without ink has that of the inline box.
+        let ink_bounds = runs
+            .iter()
+            .filter(|run| !run.font.is_invisible())
+            .map(|run| glyph_run_ink_bounding_box(&run.font, &run.glyphs, 1.0))
+            .filter(|[_, _, width, height]| *width > 0.0 && *height > 0.0)
+            .map(|[x, y, width, height]| (x, x + width, y, y + height))
+            .reduce(|a, b| (a.0.min(b.0), a.1.max(b.1), a.2.min(b.2), a.3.max(b.3)));
+        let (text_left, text_right, text_top, text_bottom) = match ink_bounds {
+            Some((left, right, top, bottom)) => (alignment_offset + left, alignment_offset + right, top, bottom),
+            None => (box_left, box_right, -ascent, descent),
+        };
+
         let measurements = TextMeasurements {
             // width attribute: The width of that inline box, in CSS pixels. (The text's advance width.)
             width: f64::from(width),
             // actualBoundingBoxLeft attribute: The distance parallel to the baseline from the alignment point given by
             // the textAlign attribute to the left side of the bounding rectangle of the given text, in CSS pixels;
             // positive numbers indicating a distance going left from the given alignment point.
-            actual_bounding_box_left: f64::from(-box_left),
+            actual_bounding_box_left: f64::from(-text_left),
             // actualBoundingBoxRight attribute: The distance parallel to the baseline from the alignment point given
             // by the textAlign attribute to the right side of the bounding rectangle of the given text, in CSS pixels;
             // positive numbers indicating a distance going right from the given alignment point.
-            actual_bounding_box_right: f64::from(box_right),
+            actual_bounding_box_right: f64::from(text_right),
             // fontBoundingBoxAscent attribute: The distance from the horizontal line indicated by the textBaseline
             // attribute to the ascent metric of the first available font, in CSS pixels; positive numbers indicating
             // a distance going up from the given baseline.
@@ -247,11 +262,11 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             // actualBoundingBoxAscent attribute: The distance from the horizontal line indicated by the textBaseline
             // attribute to the top of the bounding rectangle of the given text, in CSS pixels; positive numbers
             // indicating a distance going up from the given baseline.
-            actual_bounding_box_ascent: f64::from(ascent - baseline_offset),
+            actual_bounding_box_ascent: f64::from(-text_top - baseline_offset),
             // actualBoundingBoxDescent attribute: The distance from the horizontal line indicated by the textBaseline
             // attribute to the bottom of the bounding rectangle of the given text, in CSS pixels; positive numbers
             // indicating a distance going down from the given baseline.
-            actual_bounding_box_descent: f64::from(descent + baseline_offset),
+            actual_bounding_box_descent: f64::from(text_bottom + baseline_offset),
             // emHeightAscent attribute: The distance from the horizontal line indicated by the textBaseline attribute
             // to the highest top of the em squares in the inline box, in CSS pixels; positive numbers indicating that
             // the given baseline is below the top of that em square (so this value will usually be positive). Zero if
