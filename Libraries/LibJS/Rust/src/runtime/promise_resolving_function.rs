@@ -68,16 +68,15 @@ impl Deref for PromiseResolvingFunction {
 
 impl PromiseResolvingFunction {
     pub fn create_resolve(vm: &Vm, realm: Gc<Realm>, promise: Gc<Promise>) -> Gc<PromiseResolvingFunction> {
-        realm.create_object(
-            vm,
+        realm.create_object(vm, |_| {
             Self::new(
                 vm,
                 promise,
                 PromiseResolvingFunctionKind::Resolve,
                 None,
                 realm.function_prototype(),
-            ),
-        )
+            )
+        })
     }
 
     pub fn create_reject(
@@ -86,16 +85,15 @@ impl PromiseResolvingFunction {
         promise: Gc<Promise>,
         resolve_function: Gc<PromiseResolvingFunction>,
     ) -> Gc<PromiseResolvingFunction> {
-        realm.create_object(
-            vm,
+        realm.create_object(vm, |_| {
             Self::new(
                 vm,
                 promise,
                 PromiseResolvingFunctionKind::Reject,
                 Some(resolve_function),
                 realm.function_prototype(),
-            ),
-        )
+            )
+        })
     }
 
     fn new(

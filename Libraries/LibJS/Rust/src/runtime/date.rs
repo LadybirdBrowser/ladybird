@@ -66,7 +66,7 @@ impl Date {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>, date_value: f64) -> Gc<Date> {
-        realm.create_object(vm, Date::new(vm, date_value, realm.intrinsics().date_prototype(vm)))
+        realm.create_object(vm, |_| Date::new(vm, date_value, realm.intrinsics().date_prototype(vm)))
     }
 
     pub fn date_value(&self) -> f64 {

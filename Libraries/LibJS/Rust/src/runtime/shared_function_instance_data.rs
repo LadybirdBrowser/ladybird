@@ -282,17 +282,19 @@ impl SharedFunctionInstanceData {
             Vec::new()
         };
 
-        let shared = vm.heap().allocate(Self::new(
-            description.function_kind,
-            name,
-            description.function_length,
-            description.formal_parameter_count,
-            description.strict,
-            description.is_arrow,
-            description.has_simple_parameter_list,
-            mapped_parameter_names,
-            Some(description.payload),
-        ));
+        let shared = vm.heap().allocate(|_| {
+            Self::new(
+                description.function_kind,
+                name,
+                description.function_length,
+                description.formal_parameter_count,
+                description.strict,
+                description.is_arrow,
+                description.has_simple_parameter_list,
+                mapped_parameter_names,
+                Some(description.payload),
+            )
+        });
         shared.update_can_inline_call();
 
         // Set parsing insights that must be available before lazy compilation.
@@ -334,17 +336,19 @@ impl SharedFunctionInstanceData {
         let source_text_length = source_text_range.end.saturating_sub(source_text_range.start);
         let is_arrow_function = function.is_arrow();
 
-        let shared = vm.heap().allocate(Self::new(
-            function.function_kind(),
-            name,
-            function.length(),
-            function.parameter_count(),
-            function.has_strict_code() || outer_strict,
-            is_arrow_function,
-            has_simple_parameter_list,
-            simple_parameter_names.unwrap_or_default(),
-            None,
-        ));
+        let shared = vm.heap().allocate(|_| {
+            Self::new(
+                function.function_kind(),
+                name,
+                function.length(),
+                function.parameter_count(),
+                function.has_strict_code() || outer_strict,
+                is_arrow_function,
+                has_simple_parameter_list,
+                simple_parameter_names.unwrap_or_default(),
+                None,
+            )
+        });
         shared.update_can_inline_call();
 
         // Set parsing insights that must be available before lazy compilation.
@@ -444,17 +448,19 @@ impl SharedFunctionInstanceData {
         has_simple_parameter_list: bool,
         parameter_names_for_mapped_arguments: Vec<Utf16FlyString>,
     ) -> Gc<SharedFunctionInstanceData> {
-        let shared = vm.heap().allocate(Self::new(
-            kind,
-            name,
-            function_length,
-            formal_parameter_count,
-            strict,
-            is_arrow_function,
-            has_simple_parameter_list,
-            parameter_names_for_mapped_arguments,
-            None,
-        ));
+        let shared = vm.heap().allocate(|_| {
+            Self::new(
+                kind,
+                name,
+                function_length,
+                formal_parameter_count,
+                strict,
+                is_arrow_function,
+                has_simple_parameter_list,
+                parameter_names_for_mapped_arguments,
+                None,
+            )
+        });
         shared.update_can_inline_call();
         shared
     }

@@ -99,17 +99,14 @@ fn get_options_or_string_option(vm: &Vm, value: Value, key: &PropertyKey) -> Thr
 
 impl DurationPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DurationPrototype> {
-        realm.create_object(
-            vm,
-            DurationPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| DurationPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

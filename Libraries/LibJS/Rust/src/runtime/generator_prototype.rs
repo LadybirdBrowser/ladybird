@@ -39,17 +39,14 @@ const DISPLAY_NAME: &str = "Generator";
 
 impl GeneratorPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<GeneratorPrototype> {
-        realm.create_object(
-            vm,
-            GeneratorPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().iterator_prototype(vm),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| GeneratorPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().iterator_prototype(vm),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

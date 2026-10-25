@@ -180,7 +180,7 @@ impl WritableStream {
         }
 
         // 4. Perform ! InitializeWritableStream(this).
-        let this = allocate(cx.vm(), Self::new(cx.realm()));
+        let this = allocate(cx.vm(), |_| Self::new(cx.realm()));
 
         // 5. Let sizeAlgorithm be ! ExtractSizeAlgorithm(strategy).
         let size_algorithm = extract_size_algorithm(&strategy);
@@ -273,7 +273,7 @@ impl Transferable for WritableStream {
             let (port1, port2) = create_entangled_ports(cx);
 
             // 5. Let readable be a new ReadableStream in the current Realm.
-            let readable = allocate(cx.vm(), ReadableStream::new(cx.realm()));
+            let readable = allocate(cx.vm(), |_| ReadableStream::new(cx.realm()));
 
             // 6. Perform ! SetUpCrossRealmTransformReadable(readable, port1).
             set_up_cross_realm_transform_readable(cx, readable, port1);
@@ -294,7 +294,7 @@ impl Transferable for WritableStream {
     fn transfer_receiving_steps(cx: &mut CallContext, data_holder: &mut TransferDataReader) -> WebIdlResult<Ref<Self>> {
         let cx: &CallContext = cx;
         with_temporary_execution_context_and_callbacks(cx.realm(), || {
-            let value = allocate(cx.vm(), Self::new(cx.realm()));
+            let value = allocate(cx.vm(), |_| Self::new(cx.realm()));
 
             // 1. Let deserializedRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[port]], the current
             //    Realm).
@@ -314,7 +314,7 @@ pub(crate) fn acquire_writable_stream_default_writer(
     stream: Ref<WritableStream>,
 ) -> WebIdlResult<Ref<WritableStreamDefaultWriter>> {
     // 1. Let writer be a new WritableStreamDefaultWriter.
-    let writer = allocate(cx.vm(), WritableStreamDefaultWriter::new());
+    let writer = allocate(cx.vm(), |_| WritableStreamDefaultWriter::new());
 
     // 2. Perform ? SetUpWritableStreamDefaultWriter(writer, stream).
     set_up_writable_stream_default_writer(cx, writer, stream)?;
@@ -338,13 +338,13 @@ pub(crate) fn create_writable_stream(
     assert!(is_non_negative_number(Value::from_f64(high_water_mark)));
 
     // 2. Let stream be a new WritableStream.
-    let stream = allocate(cx.vm(), WritableStream::new(cx.realm()));
+    let stream = allocate(cx.vm(), |_| WritableStream::new(cx.realm()));
 
     // 3. Perform ! InitializeWritableStream(stream).
     initialize_writable_stream(cx.vm(), stream);
 
     // 4. Let controller be a new WritableStreamDefaultController.
-    let controller = allocate(cx.vm(), WritableStreamDefaultController::new());
+    let controller = allocate(cx.vm(), |_| WritableStreamDefaultController::new());
 
     // 5. Perform ? SetUpWritableStreamDefaultController(stream, controller, startAlgorithm, writeAlgorithm,
     //    closeAlgorithm, abortAlgorithm, highWaterMark, sizeAlgorithm).

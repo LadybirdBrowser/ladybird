@@ -42,17 +42,14 @@ fn typed_this_weak_set(vm: &Vm) -> ThrowCompletionOr<Gc<WeakSet>> {
 
 impl WeakSetPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WeakSetPrototype> {
-        realm.create_object(
-            vm,
-            WeakSetPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| WeakSetPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

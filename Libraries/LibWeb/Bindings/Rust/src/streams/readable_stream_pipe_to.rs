@@ -549,24 +549,21 @@ pub(crate) fn readable_stream_pipe_to(
     // 13. Let promise be a new promise.
     let promise = create_promise(vm, cx.realm());
 
-    let this = PIPE_TO_CLASS.allocate(
-        vm,
-        PipeTo {
-            promise,
-            source,
-            destination,
-            reader,
-            writer,
-            signal: GcRefCell::new(None),
-            signal_algorithm_id: Cell::new(None),
-            last_write_promise: Cell::new(None),
-            unwritten_chunks: GcRefCell::new(VecDeque::new()),
-            prevent_close,
-            prevent_abort,
-            prevent_cancel,
-            shutting_down: Cell::new(false),
-        },
-    );
+    let this = PIPE_TO_CLASS.allocate(vm, |_| PipeTo {
+        promise,
+        source,
+        destination,
+        reader,
+        writer,
+        signal: GcRefCell::new(None),
+        signal_algorithm_id: Cell::new(None),
+        last_write_promise: Cell::new(None),
+        unwritten_chunks: GcRefCell::new(VecDeque::new()),
+        prevent_close,
+        prevent_abort,
+        prevent_cancel,
+        shutting_down: Cell::new(false),
+    });
 
     reader.set_pipe_to(Some(this));
 

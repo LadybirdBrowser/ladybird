@@ -444,7 +444,7 @@ impl SourceTextModule {
             (Some(parts.executable), None)
         };
 
-        let module = vm.heap().allocate(SourceTextModule {
+        let module = vm.heap().allocate(|_| SourceTextModule {
             base: CyclicModule::new(
                 Self::CLASS,
                 realm,

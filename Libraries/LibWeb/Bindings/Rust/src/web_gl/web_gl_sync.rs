@@ -35,13 +35,10 @@ impl Inherits<WebGLObject> for WebGLSync {
 
 impl WebGLSync {
     pub(crate) fn create(vm: &Vm, context: &ContextState, sync_handle: u32) -> Ref<Self> {
-        allocate(
-            vm,
-            Self {
-                object: WebGLObject::new(context, 0),
-                sync_handle,
-            },
-        )
+        allocate(vm, |_| Self {
+            object: WebGLObject::new(context, 0),
+            sync_handle,
+        })
     }
 
     pub(crate) fn sync_handle(&self, context: &ContextState) -> Result<u32, InvalidOperation> {

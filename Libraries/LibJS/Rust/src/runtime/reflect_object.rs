@@ -39,17 +39,14 @@ define_object_class!(ReflectObject, extends: [Object], methods: {
 
 impl ReflectObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ReflectObject> {
-        realm.create_object(
-            vm,
-            ReflectObject {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| ReflectObject {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

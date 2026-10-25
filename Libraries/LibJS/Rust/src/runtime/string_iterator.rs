@@ -40,20 +40,17 @@ define_object_class!(StringIterator, extends: [Object], methods: {
 
 impl StringIterator {
     pub fn create(vm: &Vm, realm: Gc<Realm>, string: Utf16String) -> Gc<StringIterator> {
-        realm.create_object(
-            vm,
-            StringIterator {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().string_iterator_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                string,
-                position: Cell::new(0),
-                done: Cell::new(false),
-            },
-        )
+        realm.create_object(vm, |_| StringIterator {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().string_iterator_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            string,
+            position: Cell::new(0),
+            done: Cell::new(false),
+        })
     }
 
     fn as_builtin_iterator_if_next_is_not_redefined(_: &Object, next_method: Value) -> Option<BuiltinIteratorNext> {

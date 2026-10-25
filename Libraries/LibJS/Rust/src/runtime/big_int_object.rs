@@ -36,18 +36,15 @@ impl Deref for BigIntObject {
 
 impl BigIntObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>, bigint: Gc<BigInt>) -> Gc<BigIntObject> {
-        realm.create_object(
-            vm,
-            BigIntObject {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().bigint_prototype(vm),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                bigint,
-            },
-        )
+        realm.create_object(vm, |_| BigIntObject {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().bigint_prototype(vm),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            bigint,
+        })
     }
 
     pub fn bigint(&self) -> Gc<BigInt> {

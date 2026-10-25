@@ -63,7 +63,7 @@ pub unsafe extern "C" fn web_blob_create(vm: *mut c_void, bytes: ForeignBytesAbi
     let vm = unsafe { vm_from_abi(vm) };
     // SAFETY: The caller hands over the bytes and the string.
     let blob = unsafe { Blob::with_foreign_bytes(bytes, Utf16String::from_raw_owned(r#type)) };
-    cell_into_abi(allocate(vm, blob))
+    cell_into_abi(allocate(vm, |_| blob))
 }
 
 /// The byte sequence of the Blob or File, which lives until the object dies or its bytes move to shared memory.
@@ -147,7 +147,7 @@ pub unsafe extern "C" fn web_blob_slice(
         has_end.then_some(end),
         content_type.as_ref(),
     );
-    cell_into_abi(allocate(vm, sliced_blob))
+    cell_into_abi(allocate(vm, |_| sliced_blob))
 }
 
 /// Whether the cell of a Blob or a File is that of a File.
@@ -193,7 +193,7 @@ pub unsafe extern "C" fn web_file_create(
         last_modified: has_last_modified.then_some(last_modified),
     };
     let file = File::create(bytes.as_slice().to_vec(), file_name, &options);
-    cell_into_abi(allocate(vm, file))
+    cell_into_abi(allocate(vm, |_| file))
 }
 
 /// The name of the File, a raw AK::Utf16String that the call lends for as long as the File lives.

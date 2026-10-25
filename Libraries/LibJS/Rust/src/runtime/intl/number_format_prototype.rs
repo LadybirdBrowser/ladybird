@@ -83,17 +83,14 @@ fn unwrapped_this_number_format(vm: &Vm) -> ThrowCompletionOr<Gc<NumberFormat>> 
 
 impl NumberFormatPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<NumberFormatPrototype> {
-        realm.create_object(
-            vm,
-            NumberFormatPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| NumberFormatPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

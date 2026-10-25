@@ -314,7 +314,7 @@ pub fn make_call_environment_template(vm: &Vm, function: Gc<EcmascriptFunctionOb
     }
     shared_data
         .call_environment_template
-        .set(Some(vm.heap().allocate(template)));
+        .set(Some(vm.heap().allocate(|_| template)));
 }
 
 /// The template of the function environments that calls of `function` get (see `EnvironmentTemplateSnapshot`), if the

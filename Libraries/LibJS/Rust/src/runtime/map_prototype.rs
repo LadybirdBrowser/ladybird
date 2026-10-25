@@ -59,18 +59,15 @@ fn typed_this_map(vm: &Vm) -> ThrowCompletionOr<Gc<Map>> {
 
 impl MapPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<MapPrototype> {
-        realm.create_object(
-            vm,
-            MapPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                entries_function: Cell::new(None),
-            },
-        )
+        realm.create_object(vm, |_| MapPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            entries_function: Cell::new(None),
+        })
     }
 
     /// The original Map.prototype.entries, which is also the original Map.prototype[%Symbol.iterator%].

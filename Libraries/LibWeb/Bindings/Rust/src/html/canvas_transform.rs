@@ -144,7 +144,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         let transform = self.drawing_state().transform;
         let elements = transform.values.map(f64::from);
         let matrix = DOMMatrix::from_read_only(DOMMatrixReadOnly::create_2d_matrix(elements));
-        Ok(allocate(cx.vm(), matrix))
+        Ok(allocate(cx.vm(), |_| matrix))
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-settransform

@@ -128,7 +128,7 @@ macro_rules! modules_of_interfaces_that_only_inherit_from_web_gl_object {
                 pub(crate) fn create(vm: &Vm, context: &ContextState, handle: u32) -> Ref<Self> {
                     allocate(
                         vm,
-                        Self {
+                        |_| Self {
                             object: WebGLObject::new(context, handle),
                         },
                     )

@@ -43,7 +43,7 @@ impl Set {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Set> {
-        realm.create_object(vm, Set::new(vm, realm.intrinsics().set_prototype(vm)))
+        realm.create_object(vm, |_| Set::new(vm, realm.intrinsics().set_prototype(vm)))
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

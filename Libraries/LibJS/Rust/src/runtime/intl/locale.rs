@@ -75,7 +75,7 @@ impl Locale {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>, source_locale: Gc<Locale>, locale_tag: Utf16String) -> Gc<Locale> {
-        let locale = realm.create_object(vm, Locale::new(vm, realm.intrinsics().intl_locale_prototype(vm)));
+        let locale = realm.create_object(vm, |_| Locale::new(vm, realm.intrinsics().intl_locale_prototype(vm)));
 
         locale.set_locale(locale_tag);
         locale.calendar.replace(source_locale.calendar());

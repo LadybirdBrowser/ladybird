@@ -61,17 +61,14 @@ fn this_bigint_value(vm: &Vm, value: Value) -> ThrowCompletionOr<Gc<BigInt>> {
 
 impl BigIntPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<BigIntPrototype> {
-        realm.create_object(
-            vm,
-            BigIntPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| BigIntPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

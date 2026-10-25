@@ -69,13 +69,10 @@ fn point(x: f64, y: f64) -> FloatPoint {
 
 impl CanvasGradient {
     fn create(vm: &Vm, geometry: GradientGeometry) -> Ref<Self> {
-        allocate(
-            vm,
-            Self {
-                geometry,
-                color_stops: RefCell::new(ColorStopList::default()),
-            },
-        )
+        allocate(vm, |_| Self {
+            geometry,
+            color_stops: RefCell::new(ColorStopList::default()),
+        })
     }
 
     /// The gradient of createLinearGradient(), https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createlineargradient

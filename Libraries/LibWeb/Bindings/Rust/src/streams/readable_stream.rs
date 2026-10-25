@@ -227,7 +227,7 @@ impl ReadableStream {
         let underlying_source_dict = UnderlyingSource::from_js(cx.vm(), underlying_source)?;
 
         // 3. Perform ! InitializeReadableStream(this).
-        let this = allocate(cx.vm(), Self::new(cx.realm()));
+        let this = allocate(cx.vm(), |_| Self::new(cx.realm()));
 
         // 4. If underlyingSourceDict["type"] is "bytes":
         if underlying_source_dict.r#type == Some(ReadableStreamType::Bytes) {
@@ -574,7 +574,7 @@ impl Transferable for ReadableStream {
             let (port1, port2) = create_entangled_ports(cx);
 
             // 5. Let writable be a new WritableStream in the current Realm.
-            let writable = allocate(cx.vm(), WritableStream::new(cx.realm()));
+            let writable = allocate(cx.vm(), |_| WritableStream::new(cx.realm()));
 
             // 6. Perform ! SetUpCrossRealmTransformWritable(writable, port1).
             set_up_cross_realm_transform_writable(cx, writable, port1);
@@ -595,7 +595,7 @@ impl Transferable for ReadableStream {
     fn transfer_receiving_steps(cx: &mut CallContext, data_holder: &mut TransferDataReader) -> WebIdlResult<Ref<Self>> {
         let cx = &*cx;
         with_temporary_execution_context_and_callbacks(cx.realm(), || {
-            let value = allocate(cx.vm(), Self::new(cx.realm()));
+            let value = allocate(cx.vm(), |_| Self::new(cx.realm()));
 
             // 1. Let deserializedRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[port]], the current Realm).
             // 2. Let port be deserializedRecord.[[Deserialized]].
@@ -631,7 +631,7 @@ impl ReadableStream {
 
         // 4. Perform ! InitializeReadableStream(stream).
         // 5. Let controller be a new ReadableByteStreamController.
-        let controller = allocate(cx.vm(), ReadableByteStreamController::new());
+        let controller = allocate(cx.vm(), |_| ReadableByteStreamController::new());
 
         // 6. Perform ! SetUpReadableByteStreamController(stream, controller, startAlgorithm, pullAlgorithmWrapper,
         //    cancelAlgorithmWrapper, highWaterMark, undefined).
@@ -820,7 +820,7 @@ pub(crate) fn acquire_readable_stream_byob_reader(
     stream: Ref<ReadableStream>,
 ) -> WebIdlResult<Ref<ReadableStreamBYOBReader>> {
     // 1. Let reader be a new ReadableStreamBYOBReader.
-    let reader = allocate(cx.vm(), ReadableStreamBYOBReader::new());
+    let reader = allocate(cx.vm(), |_| ReadableStreamBYOBReader::new());
 
     // 2. Perform ? SetUpReadableStreamBYOBReader(reader, stream).
     set_up_readable_stream_byob_reader(cx, reader, stream)?;
@@ -835,7 +835,7 @@ pub(crate) fn acquire_readable_stream_default_reader(
     stream: Ref<ReadableStream>,
 ) -> WebIdlResult<Ref<ReadableStreamDefaultReader>> {
     // 1. Let reader be a new ReadableStreamDefaultReader.
-    let reader = allocate(cx.vm(), ReadableStreamDefaultReader::new());
+    let reader = allocate(cx.vm(), |_| ReadableStreamDefaultReader::new());
 
     // 2. Perform ? SetUpReadableStreamDefaultReader(reader, stream).
     set_up_readable_stream_default_reader(cx, reader, stream)?;
@@ -855,7 +855,7 @@ pub(crate) fn create_readable_stream(
 ) -> WebIdlResult<Ref<ReadableStream>> {
     // 4. Let stream be a new ReadableStream.
     // 5. Perform ! InitializeReadableStream(stream).
-    let stream = allocate(cx.vm(), ReadableStream::new(cx.realm()));
+    let stream = allocate(cx.vm(), |_| ReadableStream::new(cx.realm()));
     create_readable_stream_with_existing_stream(
         cx,
         stream,
@@ -893,7 +893,7 @@ pub(crate) fn create_readable_stream_with_existing_stream(
     initialize_readable_stream(stream);
 
     // 6. Let controller be a new ReadableStreamDefaultController.
-    let controller = allocate(cx.vm(), ReadableStreamDefaultController::new());
+    let controller = allocate(cx.vm(), |_| ReadableStreamDefaultController::new());
 
     // 7. Perform ? SetUpReadableStreamDefaultController(stream, controller, startAlgorithm, pullAlgorithm,
     //    cancelAlgorithm, highWaterMark, sizeAlgorithm).
@@ -920,10 +920,10 @@ pub(crate) fn create_readable_byte_stream(
 ) -> WebIdlResult<Ref<ReadableStream>> {
     // 1. Let stream be a new ReadableStream.
     // 2. Perform ! InitializeReadableStream(stream).
-    let stream = allocate(cx.vm(), ReadableStream::new(cx.realm()));
+    let stream = allocate(cx.vm(), |_| ReadableStream::new(cx.realm()));
 
     // 3. Let controller be a new ReadableByteStreamController.
-    let controller = allocate(cx.vm(), ReadableByteStreamController::new());
+    let controller = allocate(cx.vm(), |_| ReadableByteStreamController::new());
 
     // 4. Perform ? SetUpReadableByteStreamController(stream, controller, startAlgorithm, pullAlgorithm,
     //    cancelAlgorithm, 0, undefined).
@@ -969,7 +969,7 @@ pub(crate) fn readable_stream_from_iterable(
 ) -> WebIdlResult<Ref<ReadableStream>> {
     // 1. Let stream be undefined.
     // NB: The algorithms below refer to the stream, so it is created here.
-    let stream = allocate(cx.vm(), ReadableStream::new(cx.realm()));
+    let stream = allocate(cx.vm(), |_| ReadableStream::new(cx.realm()));
 
     // 2. Let iteratorRecord be ? GetIterator(asyncIterable, async).
     let iterator_record = get_iterator(cx.vm(), async_iterable, IteratorHint::Async)?;

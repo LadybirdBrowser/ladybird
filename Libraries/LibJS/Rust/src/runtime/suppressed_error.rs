@@ -45,9 +45,8 @@ impl SuppressedError {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SuppressedError> {
-        realm.create_object(
-            vm,
-            SuppressedError::new(vm, realm.intrinsics().suppressed_error_prototype(vm)),
-        )
+        realm.create_object(vm, |_| {
+            SuppressedError::new(vm, realm.intrinsics().suppressed_error_prototype(vm))
+        })
     }
 }

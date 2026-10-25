@@ -63,7 +63,7 @@ impl IsHTMLDDA {
             realm.function_prototype(),
         );
         base.set_is_htmldda(vm);
-        realm.create_object(vm, IsHTMLDDA { base })
+        realm.create_object(vm, |_| IsHTMLDDA { base })
     }
 
     #[allow(clippy::unnecessary_wraps, reason = "NativeFunction::call returns a completion")]

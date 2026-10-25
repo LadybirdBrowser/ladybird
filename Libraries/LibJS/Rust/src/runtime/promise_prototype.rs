@@ -46,17 +46,14 @@ fn then_native_function() -> RawNativeFunctionPointer {
 
 impl PromisePrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<PromisePrototype> {
-        realm.create_object(
-            vm,
-            PromisePrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().object_prototype(vm),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| PromisePrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().object_prototype(vm),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     pub fn is_original_then_function(vm: &Vm, value: Value) -> bool {

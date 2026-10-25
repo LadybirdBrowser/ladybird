@@ -142,8 +142,8 @@ unsafe fn flush_entry<T: TransformSteps>(
 
 /// A new TransformStream, set up with the steps, https://streams.spec.whatwg.org/#transformstream-set-up
 pub(crate) fn create_and_set_up<T: TransformSteps>(cx: &CallContext, steps: T) -> Ref<TransformStream> {
-    let steps = T::CLASS.allocate(cx.vm(), steps);
-    let stream = allocate(cx.vm(), TransformStream::new(cx.realm()));
+    let steps = T::CLASS.allocate(cx.vm(), |_| steps);
+    let stream = allocate(cx.vm(), |_| TransformStream::new(cx.realm()));
     let algorithms = RustTransformSteps::new(steps, stream);
     TransformStream::set_up(
         stream,

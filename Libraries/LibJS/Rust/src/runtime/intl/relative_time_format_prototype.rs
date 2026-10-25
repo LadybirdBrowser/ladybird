@@ -42,17 +42,14 @@ fn typed_this_relative_time_format(vm: &Vm) -> ThrowCompletionOr<Gc<RelativeTime
 
 impl RelativeTimeFormatPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<RelativeTimeFormatPrototype> {
-        realm.create_object(
-            vm,
-            RelativeTimeFormatPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| RelativeTimeFormatPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

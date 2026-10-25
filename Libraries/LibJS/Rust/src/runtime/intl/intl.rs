@@ -46,24 +46,21 @@ define_object_class!(Intl, extends: [Object], methods: {
 
 impl Intl {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Intl> {
-        realm.create_object(
-            vm,
-            Intl {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                // The Intl object has a [[FallbackSymbol]] internal slot, which is a new %Symbol% in the current realm
-                // with the [[Description]] "IntlLegacyConstructedSymbol".
-                fallback_symbol: Symbol::create(
-                    vm,
-                    Some(Utf16String::from_utf8("IntlLegacyConstructedSymbol")),
-                    SymbolKind::Unique,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| Intl {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            // The Intl object has a [[FallbackSymbol]] internal slot, which is a new %Symbol% in the current realm
+            // with the [[Description]] "IntlLegacyConstructedSymbol".
+            fallback_symbol: Symbol::create(
+                vm,
+                Some(Utf16String::from_utf8("IntlLegacyConstructedSymbol")),
+                SymbolKind::Unique,
+            ),
+        })
     }
 
     /// %Intl%.[[FallbackSymbol]] of the given realm.

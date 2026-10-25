@@ -95,7 +95,7 @@ fn environment_of_module(module: Gc<Module>) -> Option<Gc<Environment>> {
 impl ModuleEnvironment {
     // 9.1.2.6 NewModuleEnvironment ( E ), https://tc39.es/ecma262/#sec-newmoduleenvironment
     pub fn create(vm: &Vm, outer_environment: Option<Gc<Environment>>) -> Gc<ModuleEnvironment> {
-        vm.heap().allocate(ModuleEnvironment {
+        vm.heap().allocate(|_| ModuleEnvironment {
             base: DeclarativeEnvironment::new(Self::CLASS, outer_environment),
             indirect_bindings: GcRefCell::default(),
         })

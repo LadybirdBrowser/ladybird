@@ -64,20 +64,17 @@ impl Segments {
         // 5. Return segments.
         let segments_string = string.utf16_string();
         segmenter.set_segmented_text(Utf16View::of_string(&segments_string));
-        realm.create_object(
-            vm,
-            Segments {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().intl_segments_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                segments_segmenter: RefCell::new(Some(segmenter)),
-                segments_string_value: Cell::new(string),
-                segments_string,
-            },
-        )
+        realm.create_object(vm, |_| Segments {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().intl_segments_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            segments_segmenter: RefCell::new(Some(segmenter)),
+            segments_string_value: Cell::new(string),
+            segments_string,
+        })
     }
 
     pub fn segments_segmenter(&self) -> &RefCell<Option<unicode::Segmenter>> {

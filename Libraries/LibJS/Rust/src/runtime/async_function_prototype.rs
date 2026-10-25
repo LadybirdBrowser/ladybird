@@ -32,17 +32,14 @@ define_object_class!(AsyncFunctionPrototype, extends: [Object], methods: {
 
 impl AsyncFunctionPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AsyncFunctionPrototype> {
-        realm.create_object(
-            vm,
-            AsyncFunctionPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.function_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| AsyncFunctionPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.function_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, _realm: Gc<Realm>) {

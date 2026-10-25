@@ -44,17 +44,14 @@ fn typed_this_duration_format(vm: &Vm) -> ThrowCompletionOr<Gc<DurationFormat>> 
 
 impl DurationFormatPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DurationFormatPrototype> {
-        realm.create_object(
-            vm,
-            DurationFormatPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| DurationFormatPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

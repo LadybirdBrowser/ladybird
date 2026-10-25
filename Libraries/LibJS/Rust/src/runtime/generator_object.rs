@@ -162,8 +162,7 @@ impl GeneratorObject {
         let generating_executable = generating_function.bytecode_executable(vm);
 
         let yield_continuation = execution_context.yield_continuation.get();
-        let object = realm.create_object(
-            vm,
+        let object = realm.create_object(vm, |_| {
             GeneratorObject::new(
                 vm,
                 Self::CLASS,
@@ -172,8 +171,8 @@ impl GeneratorObject {
                 execution_context,
                 None,
                 GeneratorObject::execute,
-            ),
-        );
+            )
+        });
         object.generating_executable.set(Some(generating_executable));
         object.yield_continuation.set(yield_continuation);
         object

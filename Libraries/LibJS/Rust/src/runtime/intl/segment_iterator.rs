@@ -66,20 +66,17 @@ impl SegmentIterator {
         // 5. Set iterator.[[IteratedStringNextSegmentCodeUnitIndex]] to 0.
         // 6. Return iterator.
         segmenter.set_segmented_text(Utf16View::of_string(&string));
-        realm.create_object(
-            vm,
-            SegmentIterator {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().intl_segment_iterator_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                iterating_segmenter: RefCell::new(Some(segmenter)),
-                iterated_string: string,
-                segments: Cell::new(segments),
-            },
-        )
+        realm.create_object(vm, |_| SegmentIterator {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().intl_segment_iterator_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            iterating_segmenter: RefCell::new(Some(segmenter)),
+            iterated_string: string,
+            segments: Cell::new(segments),
+        })
     }
 
     pub fn iterating_segmenter(&self) -> &RefCell<Option<unicode::Segmenter>> {

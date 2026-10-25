@@ -42,17 +42,14 @@ define_native_function_class!(
 
 impl SetConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SetConstructor> {
-        realm.create_object(
-            vm,
-            SetConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.Set.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| SetConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.Set.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -95,9 +92,10 @@ impl SetConstructor {
         let iterable = vm.argument(0);
 
         // 2. Let set be ? OrdinaryCreateFromConstructor(NewTarget, "%Set.prototype%", « [[SetData]] »).
-        let set = ordinary_create_from_constructor_of(vm, realm, new_target, Intrinsics::set_prototype, |prototype| {
-            Set::new(vm, prototype)
-        })?;
+        let set =
+            ordinary_create_from_constructor_of(vm, realm, new_target, Intrinsics::set_prototype, |_, prototype| {
+                Set::new(vm, prototype)
+            })?;
 
         // 3. Set set.[[SetData]] to a new empty List.
 

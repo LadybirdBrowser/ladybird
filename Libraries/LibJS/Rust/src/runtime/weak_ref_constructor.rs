@@ -37,17 +37,14 @@ define_native_function_class!(
 
 impl WeakRefConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WeakRefConstructor> {
-        realm.create_object(
-            vm,
-            WeakRefConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.WeakRef.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| WeakRefConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.WeakRef.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -87,10 +84,13 @@ impl WeakRefConstructor {
         // 4. Perform AddToKeptObjects(target).
         // 5. Set weakRef.[[WeakRefTarget]] to target.
         // 6. Return weakRef.
-        let weak_ref =
-            ordinary_create_from_constructor_of(vm, realm, new_target, Intrinsics::weak_ref_prototype, |prototype| {
-                WeakRef::new(vm, target, prototype)
-            })?;
+        let weak_ref = ordinary_create_from_constructor_of(
+            vm,
+            realm,
+            new_target,
+            Intrinsics::weak_ref_prototype,
+            |_, prototype| WeakRef::new(vm, target, prototype),
+        )?;
         Ok(weak_ref.upcast())
     }
 }

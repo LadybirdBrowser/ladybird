@@ -55,17 +55,14 @@ fn optional_string_value(vm: &Vm, string: Option<Utf16String>) -> Value {
 
 impl LocalePrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<LocalePrototype> {
-        realm.create_object(
-            vm,
-            LocalePrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| LocalePrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

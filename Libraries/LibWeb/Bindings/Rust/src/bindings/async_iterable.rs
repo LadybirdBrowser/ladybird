@@ -92,15 +92,12 @@ pub(crate) fn create_default_async_iterator<T: DefaultAsyncIteratorClasses>(
 ) -> Value {
     let vm = cx.vm();
     let realm = cx.realm();
-    let iterator = T::ASYNC_ITERATOR_CELL_CLASS.allocate(
-        vm,
-        DefaultAsyncIterator {
-            realm,
-            state,
-            ongoing_promise: Cell::new(None),
-            is_finished: Cell::new(false),
-        },
-    );
+    let iterator = T::ASYNC_ITERATOR_CELL_CLASS.allocate(vm, |_| DefaultAsyncIterator {
+        realm,
+        state,
+        ongoing_promise: Cell::new(None),
+        is_finished: Cell::new(false),
+    });
     // SAFETY: The realm is live, and the interface is asynchronously iterable.
     let prototype = unsafe { web_bindings_ensure_web_iterator_prototype(realm.as_ptr().cast(), T::INTERFACE_NAME) };
     let prototype = NonNull::new(prototype.cast::<Object>()).expect("LibWeb returns the iterator prototype object");

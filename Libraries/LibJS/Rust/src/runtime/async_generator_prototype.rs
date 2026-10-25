@@ -74,17 +74,14 @@ fn async_generator_validate(
 impl AsyncGeneratorPrototype {
     // 27.6.1 Properties of the AsyncGenerator Prototype Object, https://tc39.es/ecma262/#sec-properties-of-asyncgenerator-prototype
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AsyncGeneratorPrototype> {
-        realm.create_object(
-            vm,
-            AsyncGeneratorPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().async_iterator_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| AsyncGeneratorPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().async_iterator_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

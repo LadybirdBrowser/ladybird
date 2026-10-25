@@ -242,7 +242,7 @@ pub fn create_temporal_year_month(
         realm,
         new_target,
         Intrinsics::temporal_plain_year_month_prototype,
-        |prototype| PlainYearMonth::new(vm, iso_date, calendar, prototype),
+        |_, prototype| PlainYearMonth::new(vm, iso_date, calendar, prototype),
     )?;
 
     // 6. Return object.

@@ -96,19 +96,16 @@ impl ModuleNamespaceObject {
             }
         });
 
-        realm.create_object(
-            vm,
-            ModuleNamespaceObject {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::Yes,
-                ),
-                module,
-                exports,
-            },
-        )
+        realm.create_object(vm, |_| ModuleNamespaceObject {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::Yes,
+            ),
+            module,
+            exports,
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

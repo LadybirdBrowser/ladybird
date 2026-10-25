@@ -36,18 +36,15 @@ impl Deref for SymbolObject {
 
 impl SymbolObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>, primitive_symbol: Gc<Symbol>) -> Gc<SymbolObject> {
-        realm.create_object(
-            vm,
-            SymbolObject {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().symbol_prototype(vm),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                symbol: primitive_symbol,
-            },
-        )
+        realm.create_object(vm, |_| SymbolObject {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().symbol_prototype(vm),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            symbol: primitive_symbol,
+        })
     }
 
     pub fn primitive_symbol(&self) -> Gc<Symbol> {

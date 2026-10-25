@@ -353,7 +353,7 @@ impl Shape {
 
     /// A new unique shape with no properties and no prototype.
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Shape> {
-        vm.heap().allocate(Self::new(realm))
+        vm.heap().allocate(|_| Self::new(realm))
     }
 
     fn as_gc(&self) -> Gc<Shape> {
@@ -578,7 +578,7 @@ impl Shape {
         }
         let new_shape = vm
             .heap()
-            .allocate(Self::new_from_previous_shape(self, PropertyCountChange::Increment));
+            .allocate(|_| Self::new_from_previous_shape(self, PropertyCountChange::Increment));
 
         let property_count = self.property_count();
         let metadata = PropertyMetadata {
@@ -619,7 +619,7 @@ impl Shape {
         }
         let new_shape = vm
             .heap()
-            .allocate(Self::new_from_previous_shape(self, PropertyCountChange::Preserve));
+            .allocate(|_| Self::new_from_previous_shape(self, PropertyCountChange::Preserve));
         let descriptors = self.copy_descriptors(vm);
         new_shape.set_descriptors(Some(descriptors));
         descriptors.set_attributes(vm, property_key, attributes, self.property_count());
@@ -675,7 +675,7 @@ impl Shape {
         }
         let new_shape = vm
             .heap()
-            .allocate(Self::new_from_previous_shape_with_prototype(self, realm, new_prototype));
+            .allocate(|_| Self::new_from_previous_shape_with_prototype(self, realm, new_prototype));
         if self.is_dictionary() && self.property_count() > MAX_DESCRIPTOR_COUNT {
             new_shape.become_dictionary_shape();
             self.copy_properties_to_dictionary_shape(vm, &new_shape);
@@ -695,7 +695,7 @@ impl Shape {
         }
         let new_shape = vm
             .heap()
-            .allocate(Self::new_from_previous_shape(self, PropertyCountChange::Decrement));
+            .allocate(|_| Self::new_from_previous_shape(self, PropertyCountChange::Decrement));
         let descriptors = self.copy_descriptors(vm);
         new_shape.set_descriptors(Some(descriptors));
         descriptors.remove(vm, property_key, self.property_count());

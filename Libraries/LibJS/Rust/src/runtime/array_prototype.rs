@@ -126,12 +126,9 @@ pub(crate) static SLICE_FUNCTION: RawNativeFunctionPointer = raw_native!(ArrayPr
 
 impl ArrayPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ArrayPrototype> {
-        realm.create_object(
-            vm,
-            ArrayPrototype {
-                base: Array::new_with_class(vm, Self::CLASS, realm, realm.object_prototype()),
-            },
-        )
+        realm.create_object(vm, |_| ArrayPrototype {
+            base: Array::new_with_class(vm, Self::CLASS, realm, realm.object_prototype()),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

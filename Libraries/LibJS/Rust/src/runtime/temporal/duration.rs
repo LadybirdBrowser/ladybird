@@ -1042,7 +1042,7 @@ pub fn create_temporal_duration(
         realm,
         new_target,
         Intrinsics::temporal_duration_prototype,
-        |prototype| Duration::new(vm, fields, prototype),
+        |_, prototype| Duration::new(vm, fields, prototype),
     )?;
 
     // 14. Return object.

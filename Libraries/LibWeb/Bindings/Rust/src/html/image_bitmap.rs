@@ -113,7 +113,7 @@ impl ImageBitmap {
 
     /// A new ImageBitmap whose bitmap data is the frame, or that has none.
     pub(crate) fn create(vm: &Vm, frame: Option<ImageFrameHandle>) -> Ref<Self> {
-        allocate(vm, Self::new(frame.map(BitmapData::new)))
+        allocate(vm, |_| Self::new(frame.map(BitmapData::new)))
     }
 
     /// The frame of the bitmap data, unless the ImageBitmap has none, as when it is closed or transferred.
@@ -252,9 +252,8 @@ impl Transferable for ImageBitmap {
         // SAFETY: The data holder is lent for the steps.
         unsafe { web_image_bitmap_receive_bitmap(data_holder.as_raw(), &mut frame) }.into_completion()?;
         // SAFETY: C++ hands over the frame it decoded, or null.
-        Ok(allocate(
-            cx.vm(),
-            Self::new(unsafe { BitmapData::from_handed_over_frame(frame) }),
-        ))
+        Ok(allocate(cx.vm(), |_| {
+            Self::new(unsafe { BitmapData::from_handed_over_frame(frame) })
+        }))
     }
 }

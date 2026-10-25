@@ -46,17 +46,14 @@ define_native_function_class!(
 
 impl ZonedDateTimeConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ZonedDateTimeConstructor> {
-        realm.create_object(
-            vm,
-            ZonedDateTimeConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.ZonedDateTime.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| ZonedDateTimeConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.ZonedDateTime.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

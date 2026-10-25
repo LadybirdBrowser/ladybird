@@ -44,7 +44,7 @@ impl DOMPoint {
     /// https://drafts.fxtf.org/geometry/#dom-dompoint-frompoint
     pub(crate) fn from_point(cx: &mut CallContext, other: DOMPointInit) -> WebIdlResult<Ref<Self>> {
         // The fromPoint(other) static method on DOMPoint must create a DOMPoint from the dictionary other.
-        Ok(allocate(cx.vm(), Self::from_dictionary(&other)))
+        Ok(allocate(cx.vm(), |_| Self::from_dictionary(&other)))
     }
 
     /// https://drafts.fxtf.org/geometry/#create-a-dompoint-from-the-dictionary

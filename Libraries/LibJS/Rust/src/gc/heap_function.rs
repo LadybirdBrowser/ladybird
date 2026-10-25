@@ -92,7 +92,7 @@ where
     }
     // The captures stay in `storage` on the stack, where the collector finds them, until the function that keeps
     // them alive exists.
-    vm.heap().allocate(HeapFunction {
+    vm.heap().allocate(|_| HeapFunction {
         header: CellHeader::for_class(HeapFunction::CLASS),
         call: call_with_captures::<C, F>,
         trace: trace_captures::<C, F>,

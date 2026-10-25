@@ -9,6 +9,7 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use crate::gc::class::{Extends, GcCell, define_cell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::embedder_cell::{EmbedderCell, EmbedderValue};
 use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::visitor::{Trace, Visitor};
@@ -136,7 +137,7 @@ impl Realm {
     /// A realm without intrinsics, a global object or a global environment, which
     /// InitializeHostDefinedRealm goes on to create.
     pub fn create(vm: &Vm) -> Gc<Realm> {
-        vm.heap().allocate(Realm {
+        vm.heap().allocate(|_| Realm {
             header: CellHeader::for_class(Self::CLASS),
             global_object: Cell::new(None),
             global_declarative_environment: Cell::new(None),
@@ -209,7 +210,7 @@ impl Realm {
             // a. Let global be OrdinaryObjectCreate(realm.[[Intrinsics]].[[%Object.prototype%]]).
             // NOTE: We allocate a proper GlobalObject directly as this plain object is
             //       turned into one via SetDefaultGlobalBindings in the spec.
-            allocate_object(vm, GlobalObject::new(vm, GlobalObject::CLASS, realm)).upcast()
+            allocate_object(vm, |_| GlobalObject::new(vm, GlobalObject::CLASS, realm)).upcast()
         };
 
         // 14. If the host requires that the this binding in realm's global scope return an object other than the global object, then
@@ -241,8 +242,8 @@ impl Realm {
 
     /// Realm::create<T>(): allocates an object and runs its initialize(), which defines the properties of built-in
     /// objects.
-    pub fn create_object<T: GcCell + Extends<Object>>(&self, vm: &Vm, object: T) -> Gc<T> {
-        let object = allocate_object(vm, object);
+    pub fn create_object<T: GcCell + Extends<Object>>(&self, vm: &Vm, build: impl FnOnce(&DeferGc<'_>) -> T) -> Gc<T> {
+        let object = allocate_object(vm, build);
         object.upcast::<Object>().initialize(vm, self.as_gc());
         object
     }

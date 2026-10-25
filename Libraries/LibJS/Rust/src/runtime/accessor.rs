@@ -33,7 +33,7 @@ impl Accessor {
         cached_value_key: Option<Gc<Symbol>>,
     ) -> Gc<Accessor> {
         assert!(cached_value_key.is_none_or(|cached_value_key| cached_value_key.is_private()));
-        vm.heap().allocate(Accessor {
+        vm.heap().allocate(|_| Accessor {
             header: CellHeader::for_class(Self::CLASS),
             getter: Cell::new(getter),
             setter: Cell::new(setter),

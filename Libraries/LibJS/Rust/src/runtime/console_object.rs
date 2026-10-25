@@ -49,18 +49,15 @@ fn console_of_current_realm(vm: &Vm) -> Gc<Console> {
 impl ConsoleObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ConsoleObject> {
         let prototype = create_console_prototype(vm, realm);
-        realm.create_object(
-            vm,
-            ConsoleObject {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    prototype.upcast(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                console: Cell::new(None),
-            },
-        )
+        realm.create_object(vm, |_| ConsoleObject {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                prototype.upcast(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            console: Cell::new(None),
+        })
     }
 
     pub fn console(&self) -> Gc<Console> {

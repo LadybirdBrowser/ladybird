@@ -18,6 +18,7 @@ use num_traits::{Signed, Zero};
 use crate::bytecode::executable::{Executable, StaticPropertyLookupCacheSite};
 use crate::compile::{CompiledEval, EvalContext, parse_eval};
 use crate::gc::class::{Extends, GcCell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::hash_table::Utf16FlyStringHashTable;
@@ -735,23 +736,23 @@ pub fn ordinary_create_from_constructor(
     constructor: Gc<FunctionObject>,
     intrinsic_default_prototype: IntrinsicDefaultPrototype,
 ) -> ThrowCompletionOr<Gc<Object>> {
-    ordinary_create_from_constructor_of(vm, realm, constructor, intrinsic_default_prototype, |prototype| {
+    ordinary_create_from_constructor_of(vm, realm, constructor, intrinsic_default_prototype, |_, prototype| {
         Object::new_with_prototype(vm, Object::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No)
     })
 }
 
 // 10.1.13 OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor
 /// The form of OrdinaryCreateFromConstructor that creates an object with the internal slots of a T, which `create`
-/// makes from the prototype.
+/// builds from the prototype, as Heap::allocate() does.
 pub fn ordinary_create_from_constructor_of<T: GcCell + Extends<Object>>(
     vm: &Vm,
     realm: Gc<Realm>,
     constructor: Gc<FunctionObject>,
     intrinsic_default_prototype: IntrinsicDefaultPrototype,
-    create: impl FnOnce(Gc<Object>) -> T,
+    create: impl FnOnce(&DeferGc<'_>, Gc<Object>) -> T,
 ) -> ThrowCompletionOr<Gc<T>> {
     let prototype = get_prototype_from_constructor(vm, constructor, intrinsic_default_prototype)?;
-    Ok(realm.create_object(vm, create(prototype)))
+    Ok(realm.create_object(vm, |defer_gc| create(defer_gc, prototype)))
 }
 
 // 10.1.14 GetPrototypeFromConstructor ( constructor, intrinsicDefaultProto ), https://tc39.es/ecma262/#sec-getprototypefromconstructor

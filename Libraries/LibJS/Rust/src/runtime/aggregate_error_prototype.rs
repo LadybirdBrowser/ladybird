@@ -30,17 +30,14 @@ define_object_class!(AggregateErrorPrototype, extends: [Object], methods: {
 
 impl AggregateErrorPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AggregateErrorPrototype> {
-        realm.create_object(
-            vm,
-            AggregateErrorPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().error_prototype(vm),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| AggregateErrorPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().error_prototype(vm),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, _realm: Gc<Realm>) {

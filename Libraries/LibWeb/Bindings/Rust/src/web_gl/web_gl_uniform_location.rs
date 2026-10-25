@@ -28,7 +28,7 @@ impl Wrappable for WebGLUniformLocation {
 
 impl WebGLUniformLocation {
     pub(crate) fn create(vm: &Vm, handle: i32, program: Ref<WebGLProgram>) -> Ref<Self> {
-        allocate(vm, Self { handle, program })
+        allocate(vm, |_| Self { handle, program })
     }
 
     pub(crate) fn handle(&self, current_program: Option<Ref<WebGLProgram>>) -> Result<i32, InvalidOperation> {

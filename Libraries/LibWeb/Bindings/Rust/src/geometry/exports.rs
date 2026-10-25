@@ -51,7 +51,7 @@ unsafe fn matrix_from_abi<'a>(cell: *mut c_void) -> &'a DOMMatrixReadOnly {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn web_dom_point_read_only_create(vm: &Vm, x: f64, y: f64, z: f64, w: f64) -> *mut c_void {
-    cell_into_abi(allocate(vm, DOMPointReadOnly::new(x, y, z, w)))
+    cell_into_abi(allocate(vm, |_| DOMPointReadOnly::new(x, y, z, w)))
 }
 
 /// Stores the coordinates x, y, z and w of the point, in that order.
@@ -78,17 +78,17 @@ pub unsafe extern "C" fn web_dom_point_set_x_and_y(point: *mut c_void, x: f64, y
 
 #[unsafe(no_mangle)]
 pub extern "C" fn web_dom_point_create(vm: &Vm, x: f64, y: f64, z: f64, w: f64) -> *mut c_void {
-    cell_into_abi(allocate(vm, DOMPoint::new(x, y, z, w)))
+    cell_into_abi(allocate(vm, |_| DOMPoint::new(x, y, z, w)))
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn web_dom_rect_read_only_create(vm: &Vm, x: f64, y: f64, width: f64, height: f64) -> *mut c_void {
-    cell_into_abi(allocate(vm, DOMRectReadOnly::new(x, y, width, height)))
+    cell_into_abi(allocate(vm, |_| DOMRectReadOnly::new(x, y, width, height)))
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn web_dom_rect_create(vm: &Vm, x: f64, y: f64, width: f64, height: f64) -> *mut c_void {
-    cell_into_abi(allocate(vm, DOMRect::new(x, y, width, height)))
+    cell_into_abi(allocate(vm, |_| DOMRect::new(x, y, width, height)))
 }
 
 /// Sets the x coordinate, y coordinate, width dimension and height dimension of the rectangle.
@@ -113,17 +113,17 @@ pub extern "C" fn web_dom_rect_list_create(vm: &Vm, rects: ak::Span<'_, [f64; 4]
     //     list holds them.
     let created = MarkedVec::with_capacity(vm, rects.as_slice().len());
     for &[x, y, width, height] in rects.as_slice() {
-        created.push(allocate(vm, DOMRect::new(x, y, width, height)));
+        created.push(allocate(vm, |_| DOMRect::new(x, y, width, height)));
     }
     let list = DOMRectList::new(&created.values());
-    cell_into_abi(allocate(vm, list))
+    cell_into_abi(allocate(vm, |_| list))
 }
 
 /// A new DOMMatrix whose elements m11, m12, m13, m14, m21, ..., m44 are the values, in that order.
 #[unsafe(no_mangle)]
 pub extern "C" fn web_dom_matrix_create(vm: &Vm, elements: &[f64; 16], is_2d: bool) -> *mut c_void {
     let matrix = DOMMatrixReadOnly::new(Matrix4::from_column_major(*elements), is_2d);
-    cell_into_abi(allocate(vm, DOMMatrix::from_read_only(matrix)))
+    cell_into_abi(allocate(vm, |_| DOMMatrix::from_read_only(matrix)))
 }
 
 /// A new DOMMatrix initialized to the values of the matrix.
@@ -136,7 +136,7 @@ pub unsafe extern "C" fn web_dom_matrix_create_from_read_only(vm: &Vm, matrix: *
     // SAFETY: The caller passes a live cell.
     let matrix = unsafe { matrix_from_abi(matrix) };
     let copy = DOMMatrixReadOnly::new(matrix.matrix(), matrix.is_2d());
-    cell_into_abi(allocate(vm, DOMMatrix::from_read_only(copy)))
+    cell_into_abi(allocate(vm, |_| DOMMatrix::from_read_only(copy)))
 }
 
 /// Stores the elements m11, m12, m13, m14, m21, ..., m44 of the matrix, in that order.

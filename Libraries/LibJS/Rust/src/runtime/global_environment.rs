@@ -83,7 +83,7 @@ impl GlobalEnvironment {
         let object_record = ObjectEnvironment::create(vm, global_object, IsWithEnvironment::No, None);
         let declarative_record = DeclarativeEnvironment::create(vm, None);
         declarative_record.track_binding_assignments();
-        vm.heap().allocate(GlobalEnvironment {
+        vm.heap().allocate(|_| GlobalEnvironment {
             base: Environment::new(Self::CLASS, None, false),
             object_record: Cell::new(Some(object_record)),
             global_this_value: Cell::new(Some(this_value)),

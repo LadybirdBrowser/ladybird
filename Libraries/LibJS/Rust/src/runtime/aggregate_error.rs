@@ -45,9 +45,8 @@ impl AggregateError {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AggregateError> {
-        realm.create_object(
-            vm,
-            AggregateError::new(vm, realm.intrinsics().aggregate_error_prototype(vm)),
-        )
+        realm.create_object(vm, |_| {
+            AggregateError::new(vm, realm.intrinsics().aggregate_error_prototype(vm))
+        })
     }
 }

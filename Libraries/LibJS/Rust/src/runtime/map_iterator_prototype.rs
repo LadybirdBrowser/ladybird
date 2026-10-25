@@ -38,17 +38,14 @@ define_object_class!(MapIteratorPrototype, extends: [Object], methods: {
 
 impl MapIteratorPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<MapIteratorPrototype> {
-        realm.create_object(
-            vm,
-            MapIteratorPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().iterator_prototype(vm),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| MapIteratorPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().iterator_prototype(vm),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

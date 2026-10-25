@@ -40,7 +40,7 @@ impl PromiseReaction {
         capability: Option<Gc<PromiseCapability>>,
         handler: Option<Gc<JobCallback>>,
     ) -> Gc<PromiseReaction> {
-        vm.heap().allocate(PromiseReaction {
+        vm.heap().allocate(|_| PromiseReaction {
             header: CellHeader::for_class(Self::CLASS),
             reaction_type,
             capability: Cell::new(capability),

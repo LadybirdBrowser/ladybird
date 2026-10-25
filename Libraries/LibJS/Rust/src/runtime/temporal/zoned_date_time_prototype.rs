@@ -107,17 +107,14 @@ fn calendar_date_of(zoned_date_time: &ZonedDateTime, iso_date_time: &ISODateTime
 
 impl ZonedDateTimePrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ZonedDateTimePrototype> {
-        realm.create_object(
-            vm,
-            ZonedDateTimePrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| ZonedDateTimePrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

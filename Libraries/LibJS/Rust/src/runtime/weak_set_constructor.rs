@@ -38,17 +38,14 @@ define_native_function_class!(
 
 impl WeakSetConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WeakSetConstructor> {
-        realm.create_object(
-            vm,
-            WeakSetConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.WeakSet.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| WeakSetConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.WeakSet.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -81,10 +78,13 @@ impl WeakSetConstructor {
 
         // 2. Let set be ? OrdinaryCreateFromConstructor(NewTarget, "%WeakSet.prototype%", « [[WeakSetData]] »).
         // 3. Set set.[[WeakSetData]] to a new empty List.
-        let set =
-            ordinary_create_from_constructor_of(vm, realm, new_target, Intrinsics::weak_set_prototype, |prototype| {
-                WeakSet::new(vm, prototype)
-            })?;
+        let set = ordinary_create_from_constructor_of(
+            vm,
+            realm,
+            new_target,
+            Intrinsics::weak_set_prototype,
+            |_, prototype| WeakSet::new(vm, prototype),
+        )?;
 
         // 4. If iterable is either undefined or null, return set.
         if iterable.is_nullish() {

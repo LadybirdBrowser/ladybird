@@ -35,17 +35,14 @@ define_object_class!(AsyncIteratorPrototype, extends: [Object], methods: {
 
 impl AsyncIteratorPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AsyncIteratorPrototype> {
-        realm.create_object(
-            vm,
-            AsyncIteratorPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| AsyncIteratorPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

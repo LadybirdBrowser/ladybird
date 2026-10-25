@@ -39,17 +39,14 @@ fn typed_this_list_format(vm: &Vm) -> ThrowCompletionOr<Gc<ListFormat>> {
 
 impl ListFormatPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ListFormatPrototype> {
-        realm.create_object(
-            vm,
-            ListFormatPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| ListFormatPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

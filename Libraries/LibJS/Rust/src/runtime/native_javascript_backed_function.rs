@@ -98,13 +98,10 @@ impl NativeJavaScriptBackedFunction {
         // 7. Set func.[[Extensible]] to true.
         // 8. Set func.[[Realm]] to realm.
         // 9. Set func.[[InitialName]] to null.
-        let function = realm.create_object(
-            vm,
-            NativeJavaScriptBackedFunction {
-                base: NativeFunction::new_with_name(vm, Self::CLASS, shared_data.name(), prototype),
-                shared_function_instance_data: Cell::new(shared_data),
-            },
-        );
+        let function = realm.create_object(vm, |_| NativeJavaScriptBackedFunction {
+            base: NativeFunction::new_with_name(vm, Self::CLASS, shared_data.name(), prototype),
+            shared_function_instance_data: Cell::new(shared_data),
+        });
 
         function.unsafe_set_shape(realm.native_function_shape());
 

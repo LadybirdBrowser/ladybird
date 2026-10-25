@@ -82,7 +82,7 @@ impl EnvironmentShape {
         }
 
         vm.heap()
-            .allocate(Self::new(binding_names, binding_flags, binding_indices))
+            .allocate(|_| Self::new(binding_names, binding_flags, binding_indices))
     }
 
     pub fn size(&self) -> usize {

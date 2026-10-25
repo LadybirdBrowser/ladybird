@@ -41,17 +41,14 @@ define_object_class!(RegExpStringIteratorPrototype, extends: [Object], methods: 
 
 impl RegExpStringIteratorPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<RegExpStringIteratorPrototype> {
-        realm.create_object(
-            vm,
-            RegExpStringIteratorPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().iterator_prototype(vm),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| RegExpStringIteratorPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().iterator_prototype(vm),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

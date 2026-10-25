@@ -57,17 +57,14 @@ fn current_realm(vm: &Vm) -> Gc<Realm> {
 impl IteratorConstructor {
     // 27.1.3.1 The Iterator Constructor, https://tc39.es/ecma262/#sec-iterator-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<IteratorConstructor> {
-        realm.create_object(
-            vm,
-            IteratorConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.Iterator.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| IteratorConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.Iterator.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -483,7 +480,7 @@ impl Finalize for ConcatIterator {
 
 impl ConcatIterator {
     fn create(vm: &Vm) -> Gc<ConcatIterator> {
-        vm.heap().allocate(ConcatIterator {
+        vm.heap().allocate(|_| ConcatIterator {
             header: CellHeader::for_class(Self::CLASS),
             iterables: GcRefCell::new(Vec::new()),
             index: Cell::new(0),
@@ -611,7 +608,7 @@ impl Finalize for ZipIterator {
 
 impl ZipIterator {
     fn create(vm: &Vm, realm: Gc<Realm>, mode: ZipMode) -> Gc<ZipIterator> {
-        vm.heap().allocate(ZipIterator {
+        vm.heap().allocate(|_| ZipIterator {
             header: CellHeader::for_class(Self::CLASS),
             realm,
             mode,

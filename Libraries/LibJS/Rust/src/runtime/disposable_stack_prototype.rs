@@ -51,17 +51,14 @@ fn current_realm(vm: &Vm) -> Gc<Realm> {
 
 impl DisposableStackPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DisposableStackPrototype> {
-        realm.create_object(
-            vm,
-            DisposableStackPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| DisposableStackPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -253,7 +250,7 @@ impl DisposableStackPrototype {
             realm,
             realm.intrinsics().disposable_stack_constructor(vm).upcast(),
             Intrinsics::disposable_stack_prototype,
-            |prototype| DisposableStack::new(vm, prototype),
+            |_, prototype| DisposableStack::new(vm, prototype),
         )?;
 
         // 6. Set newDisposableStack.[[DisposeCapability]] to disposableStack.[[DisposeCapability]].

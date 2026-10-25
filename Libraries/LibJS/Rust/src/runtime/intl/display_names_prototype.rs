@@ -41,17 +41,14 @@ fn typed_this_display_names(vm: &Vm) -> ThrowCompletionOr<Gc<DisplayNames>> {
 
 impl DisplayNamesPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DisplayNamesPrototype> {
-        realm.create_object(
-            vm,
-            DisplayNamesPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| DisplayNamesPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

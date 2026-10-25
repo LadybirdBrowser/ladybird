@@ -34,17 +34,14 @@ define_object_class!(Temporal, extends: [Object], methods: {
 
 impl Temporal {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Temporal> {
-        realm.create_object(
-            vm,
-            Temporal {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| Temporal {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

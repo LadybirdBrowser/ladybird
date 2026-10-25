@@ -104,7 +104,7 @@ impl ReadableStreamDefaultReader {
 
     // https://streams.spec.whatwg.org/#default-reader-constructor
     pub(crate) fn construct(cx: &mut CallContext, stream: Ref<ReadableStream>) -> WebIdlResult<Ref<Self>> {
-        let reader = allocate(cx.vm(), Self::new());
+        let reader = allocate(cx.vm(), |_| Self::new());
 
         // 1. Perform ? SetUpReadableStreamDefaultReader(this, stream).
         set_up_readable_stream_default_reader(cx, reader, stream)?;
@@ -187,16 +187,13 @@ impl ReadableStreamDefaultReader {
         // https://streams.spec.whatwg.org/#read-loop
         // 1. Let readRequest be a new read request with the following items:
         //    NOTE: The items are the steps of ReadLoop.
-        let read_request = READ_LOOP_CLASS.allocate(
-            vm,
-            ReadLoop {
-                realm,
-                reader,
-                bytes: core::cell::RefCell::new(Vec::new()),
-                success_steps,
-                failure_steps,
-            },
-        );
+        let read_request = READ_LOOP_CLASS.allocate(vm, |_| ReadLoop {
+            realm,
+            reader,
+            bytes: core::cell::RefCell::new(Vec::new()),
+            success_steps,
+            failure_steps,
+        });
 
         // 2. Perform ! ReadableStreamDefaultReaderRead(reader, readRequest).
         readable_stream_default_reader_read(vm, reader, ReadRequest::ReadLoop(read_request));

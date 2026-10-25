@@ -39,17 +39,14 @@ define_native_function_class!(
 
 impl DataViewConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DataViewConstructor> {
-        realm.create_object(
-            vm,
-            DataViewConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.DataView.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| DataViewConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.DataView.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -155,10 +152,13 @@ impl DataViewConstructor {
         }
 
         // 10. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%DataView.prototype%", « [[DataView]], [[ViewedArrayBuffer]], [[ByteLength]], [[ByteOffset]] »).
-        let data_view =
-            ordinary_create_from_constructor_of(vm, realm, new_target, Intrinsics::data_view_prototype, |prototype| {
-                DataView::new(vm, buffer, view_byte_length, offset, prototype)
-            })?;
+        let data_view = ordinary_create_from_constructor_of(
+            vm,
+            realm,
+            new_target,
+            Intrinsics::data_view_prototype,
+            |_, prototype| DataView::new(vm, buffer, view_byte_length, offset, prototype),
+        )?;
 
         // 11. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
         if buffer.is_detached() {

@@ -27,7 +27,7 @@ impl Wrappable for WebGLActiveInfo {}
 
 impl WebGLActiveInfo {
     pub(crate) fn create(vm: &Vm, name: Utf16String, r#type: u32, size: i32) -> Ref<Self> {
-        allocate(vm, Self { name, r#type, size })
+        allocate(vm, |_| Self { name, r#type, size })
     }
 
     pub(crate) fn size(&self, _: &mut CallContext) -> WebIdlResult<i32> {

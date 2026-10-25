@@ -115,7 +115,7 @@ impl SyntheticModule {
                 "the evaluation steps capture their state through their captures"
             );
         };
-        let module = vm.heap().allocate(SyntheticModule {
+        let module = vm.heap().allocate(|_| SyntheticModule {
             base: Module::new(Self::CLASS, realm, filename, ForeignCellSlot::empty()),
             export_names,
             evaluation_steps: OnceCell::new(),

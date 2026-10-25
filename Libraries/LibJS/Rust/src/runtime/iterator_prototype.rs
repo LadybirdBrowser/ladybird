@@ -75,17 +75,14 @@ fn return_undefined() -> HelperIterationResult {
 impl IteratorPrototype {
     // 27.1.2 The %IteratorPrototype% Object, https://tc39.es/ecma262/#sec-%iteratorprototype%-object
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<IteratorPrototype> {
-        realm.create_object(
-            vm,
-            IteratorPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| IteratorPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -1150,7 +1147,7 @@ define_cell!(FlatMapIterator, Other);
 
 impl FlatMapIterator {
     fn create(vm: &Vm) -> Gc<FlatMapIterator> {
-        vm.heap().allocate(FlatMapIterator {
+        vm.heap().allocate(|_| FlatMapIterator {
             header: CellHeader::for_class(Self::CLASS),
             inner_iterator: Cell::new(None),
         })

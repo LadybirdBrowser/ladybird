@@ -173,15 +173,14 @@ pub(crate) const NEW_REGEXP_OBJECT_LAST_INDEX_OFFSET: u32 = 0;
 
 impl RegExpObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<RegExpObject> {
-        realm.create_object(
-            vm,
+        realm.create_object(vm, |_| {
             Self::new(
                 vm,
                 Utf16String::default(),
                 Utf16String::default(),
                 realm.intrinsics().regexp_prototype(vm),
-            ),
-        )
+            )
+        })
     }
 
     pub fn create_with_pattern_and_flags(
@@ -194,18 +193,15 @@ impl RegExpObject {
         //               from a premade shape that already has the "lastIndex" property initialize() would define.
         let shape = realm.intrinsics().new_regexp_object_shape(vm);
         let flag_bits = to_flag_bits(Utf16View::of_string(&flags));
-        let regexp_object = allocate_object(
-            vm,
-            RegExpObject {
-                base: Object::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No),
-                pattern: RefCell::new(pattern),
-                flags: RefCell::new(flags),
-                flag_bits: Cell::new(flag_bits),
-                legacy_features_enabled: Cell::new(false),
-                cached_regex: RefCell::new(None),
-                realm: Cell::new(None),
-            },
-        );
+        let regexp_object = allocate_object(vm, |_| RegExpObject {
+            base: Object::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No),
+            pattern: RefCell::new(pattern),
+            flags: RefCell::new(flags),
+            flag_bits: Cell::new(flag_bits),
+            legacy_features_enabled: Cell::new(false),
+            cached_regex: RefCell::new(None),
+            realm: Cell::new(None),
+        });
         regexp_object.initialize_direct(NEW_REGEXP_OBJECT_LAST_INDEX_OFFSET, Value::from_i32(0));
         regexp_object
     }
@@ -465,7 +461,7 @@ pub fn regexp_alloc(vm: &Vm, new_target: Gc<FunctionObject>) -> ThrowCompletionO
         current_realm,
         new_target,
         Intrinsics::regexp_prototype,
-        |prototype| RegExpObject::new(vm, Utf16String::default(), Utf16String::default(), prototype),
+        |_, prototype| RegExpObject::new(vm, Utf16String::default(), Utf16String::default(), prototype),
     )?;
 
     // 2. Let thisRealm be the current Realm Record.

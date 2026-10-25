@@ -41,17 +41,14 @@ fn this_array_buffer(vm: &Vm) -> ThrowCompletionOr<Gc<ArrayBuffer>> {
 
 impl SharedArrayBufferPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SharedArrayBufferPrototype> {
-        realm.create_object(
-            vm,
-            SharedArrayBufferPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| SharedArrayBufferPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

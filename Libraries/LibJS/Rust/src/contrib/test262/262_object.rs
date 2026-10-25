@@ -49,14 +49,11 @@ fn key(name: &str) -> PropertyKey {
 
 impl Dollar262Object {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Dollar262Object> {
-        realm.create_object(
-            vm,
-            Dollar262Object {
-                base: Object::new_without_prototype(vm, Self::CLASS, realm, MayInterfereWithIndexedPropertyAccess::No),
-                agent: Cell::new(None),
-                is_htmldda: Cell::new(None),
-            },
-        )
+        realm.create_object(vm, |_| Dollar262Object {
+            base: Object::new_without_prototype(vm, Self::CLASS, realm, MayInterfereWithIndexedPropertyAccess::No),
+            agent: Cell::new(None),
+            is_htmldda: Cell::new(None),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

@@ -46,12 +46,9 @@ define_object_class!(AgentObject, extends: [Object], methods: {
 
 impl AgentObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AgentObject> {
-        realm.create_object(
-            vm,
-            AgentObject {
-                base: Object::new_without_prototype(vm, Self::CLASS, realm, MayInterfereWithIndexedPropertyAccess::No),
-            },
-        )
+        realm.create_object(vm, |_| AgentObject {
+            base: Object::new_without_prototype(vm, Self::CLASS, realm, MayInterfereWithIndexedPropertyAccess::No),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

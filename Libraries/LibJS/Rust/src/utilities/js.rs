@@ -436,12 +436,9 @@ define_object_class!(ReplObject, extends: [GlobalObject, Object], methods: {
 
 impl ReplObject {
     pub fn allocate(vm: &Vm, realm: Gc<Realm>) -> Gc<ReplObject> {
-        allocate_object(
-            vm,
-            ReplObject {
-                base: GlobalObject::new(vm, Self::CLASS, realm),
-            },
-        )
+        allocate_object(vm, |_| ReplObject {
+            base: GlobalObject::new(vm, Self::CLASS, realm),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -567,12 +564,9 @@ define_object_class!(ScriptObject, extends: [GlobalObject, Object], methods: {
 
 impl ScriptObject {
     pub fn allocate(vm: &Vm, realm: Gc<Realm>) -> Gc<ScriptObject> {
-        allocate_object(
-            vm,
-            ScriptObject {
-                base: GlobalObject::new(vm, Self::CLASS, realm),
-            },
-        )
+        allocate_object(vm, |_| ScriptObject {
+            base: GlobalObject::new(vm, Self::CLASS, realm),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -1551,7 +1545,7 @@ static REPL_CONSOLE_CLIENT_METHODS: ConsoleClientMethods = ConsoleClientMethods 
 
 impl ReplConsoleClient {
     pub fn create(vm: &Vm, console: Gc<Console>) -> Gc<ReplConsoleClient> {
-        vm.heap().allocate(ReplConsoleClient {
+        vm.heap().allocate(|_| ReplConsoleClient {
             base: ConsoleClient::new(Self::CLASS, &REPL_CONSOLE_CLIENT_METHODS, console),
             group_stack_depth: Cell::new(0),
         })

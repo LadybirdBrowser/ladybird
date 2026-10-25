@@ -44,10 +44,9 @@ impl NumberObject {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>, value: f64) -> Gc<NumberObject> {
-        realm.create_object(
-            vm,
-            NumberObject::new(vm, Self::CLASS, value, realm.intrinsics().number_prototype(vm)),
-        )
+        realm.create_object(vm, |_| {
+            NumberObject::new(vm, Self::CLASS, value, realm.intrinsics().number_prototype(vm))
+        })
     }
 
     pub fn number(&self) -> f64 {

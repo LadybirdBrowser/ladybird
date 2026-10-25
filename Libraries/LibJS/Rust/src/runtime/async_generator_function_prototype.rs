@@ -32,17 +32,14 @@ define_object_class!(AsyncGeneratorFunctionPrototype, extends: [Object], methods
 
 impl AsyncGeneratorFunctionPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AsyncGeneratorFunctionPrototype> {
-        realm.create_object(
-            vm,
-            AsyncGeneratorFunctionPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.function_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| AsyncGeneratorFunctionPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.function_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

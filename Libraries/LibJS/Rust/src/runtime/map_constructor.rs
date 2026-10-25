@@ -122,17 +122,14 @@ impl<'vm> KeyedGroups<'vm> for ValueKeyedGroups<'vm> {
 
 impl MapConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<MapConstructor> {
-        realm.create_object(
-            vm,
-            MapConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.Map.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| MapConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.Map.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -183,9 +180,10 @@ impl MapConstructor {
     fn construct(_: &NativeFunction, vm: &Vm, new_target: Gc<FunctionObject>) -> ThrowCompletionOr<Gc<Object>> {
         let realm = vm.current_realm().expect("a constructor runs in a realm");
 
-        let map = ordinary_create_from_constructor_of(vm, realm, new_target, Intrinsics::map_prototype, |prototype| {
-            Map::new(vm, prototype)
-        })?;
+        let map =
+            ordinary_create_from_constructor_of(vm, realm, new_target, Intrinsics::map_prototype, |_, prototype| {
+                Map::new(vm, prototype)
+            })?;
 
         if vm.argument(0).is_nullish() {
             return Ok(map.upcast());

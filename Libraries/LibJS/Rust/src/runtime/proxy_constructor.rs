@@ -71,17 +71,14 @@ define_native_function_class!(
 
 impl ProxyConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ProxyConstructor> {
-        realm.create_object(
-            vm,
-            ProxyConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.Proxy.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| ProxyConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.Proxy.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

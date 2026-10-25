@@ -133,7 +133,7 @@ impl DescriptorArray {
     }
 
     pub fn create(vm: &Vm) -> Gc<DescriptorArray> {
-        vm.heap().allocate(Self::from_parts(Vec::new(), Vec::new()))
+        vm.heap().allocate(|_| Self::from_parts(Vec::new(), Vec::new()))
     }
 
     /// The first `descriptor_count` properties of `other`, in its insertion order.
@@ -157,7 +157,7 @@ impl DescriptorArray {
         );
         // The keys are clones of the keys `other` holds, which keeps their symbols alive while this allocates.
         vm.heap()
-            .allocate(Self::from_parts(entries, entry_indices_by_enum_index))
+            .allocate(|_| Self::from_parts(entries, entry_indices_by_enum_index))
     }
 
     pub fn size(&self) -> u32 {

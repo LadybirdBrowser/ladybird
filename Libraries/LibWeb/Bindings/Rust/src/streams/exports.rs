@@ -67,7 +67,7 @@ fn promise_into_abi(promise: WebIdlPromise) -> *mut c_void {
 pub unsafe extern "C" fn web_rust_readable_stream_create(vm: *mut c_void, realm: *mut c_void) -> *mut c_void {
     // SAFETY: The caller passes the VM and a live realm.
     let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    cell_into_abi(allocate(vm, ReadableStream::new(realm)))
+    cell_into_abi(allocate(vm, |_| ReadableStream::new(realm)))
 }
 
 /// Sets the stream up with byte reading support, https://streams.spec.whatwg.org/#readablestream-set-up-with-byte-reading-support,
@@ -450,7 +450,7 @@ pub unsafe extern "C" fn web_rust_readable_stream_default_reader_closed_promise_
 pub unsafe extern "C" fn web_rust_transform_stream_create(vm: *mut c_void, realm: *mut c_void) -> *mut c_void {
     // SAFETY: The caller passes the VM and a live realm.
     let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    cell_into_abi(allocate(vm, TransformStream::new(realm)))
+    cell_into_abi(allocate(vm, |_| TransformStream::new(realm)))
 }
 
 /// Sets the stream up with the algorithms that C++ gives, https://streams.spec.whatwg.org/#transformstream-set-up

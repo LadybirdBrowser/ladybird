@@ -56,12 +56,9 @@ fn this_boolean_value(vm: &Vm, value: Value) -> ThrowCompletionOr<bool> {
 
 impl BooleanPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<BooleanPrototype> {
-        realm.create_object(
-            vm,
-            BooleanPrototype {
-                base: BooleanObject::new(vm, Self::CLASS, false, realm.object_prototype()),
-            },
-        )
+        realm.create_object(vm, |_| BooleanPrototype {
+            base: BooleanObject::new(vm, Self::CLASS, false, realm.object_prototype()),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

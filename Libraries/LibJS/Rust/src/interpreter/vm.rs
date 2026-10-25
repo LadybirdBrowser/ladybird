@@ -768,7 +768,7 @@ impl Vm {
         let allocate_interned_string = |string: &str| {
             let string = self
                 .heap()
-                .allocate(PrimitiveString::new(Utf16String::from_utf8(string)));
+                .allocate(|_| PrimitiveString::new(Utf16String::from_utf8(string)));
             string.set_interned();
             string
         };
@@ -797,12 +797,12 @@ impl Vm {
 
         let _ = self.well_known_symbols.set(WellKnownSymbols::create(self));
         let _ = self.global_symbol_registry.set(GlobalSymbolRegistry::create(self));
-        let _ = self.job_queues.set(self.heap().allocate(JobQueues {
+        let _ = self.job_queues.set(self.heap().allocate(|_| JobQueues {
             header: CellHeader::for_class(JobQueues::CLASS),
             promise_jobs: GcRefCell::new(VecDeque::new()),
             finalization_registry_cleanup_jobs: GcRefCell::new(Vec::new()),
         }));
-        let _ = self.loaded_modules.set(self.heap().allocate(LoadedModules {
+        let _ = self.loaded_modules.set(self.heap().allocate(|_| LoadedModules {
             header: CellHeader::for_class(LoadedModules::CLASS),
             stored_modules: GcRefCell::new(Vec::new()),
         }));

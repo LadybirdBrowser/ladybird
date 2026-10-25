@@ -51,22 +51,19 @@ impl RegExpStringIterator {
         // 5. Set iterator.[[Unicode]] to fullUnicode.
         // 6. Set iterator.[[Done]] to false.
         // 7. Return iterator.
-        realm.create_object(
-            vm,
-            RegExpStringIterator {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().regexp_string_iterator_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                regexp_object,
-                string,
-                global,
-                unicode,
-                done: Cell::new(false),
-            },
-        )
+        realm.create_object(vm, |_| RegExpStringIterator {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().regexp_string_iterator_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            regexp_object,
+            string,
+            global,
+            unicode,
+            done: Cell::new(false),
+        })
     }
 
     pub fn regexp_object(&self) -> Gc<Object> {

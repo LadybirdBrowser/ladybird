@@ -34,13 +34,10 @@ impl Inherits<WebGLObject> for WebGLShader {
 
 impl WebGLShader {
     pub(crate) fn create(vm: &Vm, context: &ContextState, handle: u32, r#type: u32) -> Ref<Self> {
-        allocate(
-            vm,
-            Self {
-                object: WebGLObject::new(context, handle),
-                r#type,
-            },
-        )
+        allocate(vm, |_| Self {
+            object: WebGLObject::new(context, handle),
+            r#type,
+        })
     }
 
     pub(crate) fn r#type(&self) -> u32 {

@@ -119,17 +119,14 @@ pub(crate) static IMUL_FUNCTION: RawNativeFunctionPointer = raw_native!(MathObje
 
 impl MathObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<MathObject> {
-        realm.create_object(
-            vm,
-            MathObject {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| MathObject {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

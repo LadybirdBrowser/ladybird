@@ -37,7 +37,7 @@ impl BigInt {
     }
 
     pub fn create(vm: &Vm, big_integer: SignedBigInteger) -> Gc<BigInt> {
-        vm.heap().allocate(Self::new(big_integer))
+        vm.heap().allocate(|_| Self::new(big_integer))
     }
 
     pub fn big_integer(&self) -> &SignedBigInteger {

@@ -71,20 +71,17 @@ impl ArrayIterator {
         // 3. Set iterator.[[ArrayLikeNextIndex]] to 0.
         // 4. Set iterator.[[ArrayLikeIterationKind]] to kind.
         // 5. Return iterator.
-        realm.create_object(
-            vm,
-            ArrayIterator {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().array_iterator_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                array: Cell::new(array),
-                iteration_kind,
-                index: Cell::new(0),
-            },
-        )
+        realm.create_object(vm, |_| ArrayIterator {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().array_iterator_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            array: Cell::new(array),
+            iteration_kind,
+            index: Cell::new(0),
+        })
     }
 
     fn as_builtin_iterator_if_next_is_not_redefined(_: &Object, next_method: Value) -> Option<BuiltinIteratorNext> {

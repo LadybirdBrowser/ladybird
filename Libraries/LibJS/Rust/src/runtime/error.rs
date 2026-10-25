@@ -169,7 +169,9 @@ impl Error {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Error> {
-        realm.create_object(vm, Error::new(vm, Error::CLASS, realm.intrinsics().error_prototype(vm)))
+        realm.create_object(vm, |_| {
+            Error::new(vm, Error::CLASS, realm.intrinsics().error_prototype(vm))
+        })
     }
 
     pub fn create_with_message(vm: &Vm, realm: Gc<Realm>, message: Utf16String) -> Gc<Error> {
@@ -244,7 +246,7 @@ macro_rules! define_native_errors {
                 }
 
                 pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<$class> {
-                    realm.create_object(vm, $class::new(vm, realm.intrinsics().$prototype(vm)))
+                    realm.create_object(vm, |_| $class::new(vm, realm.intrinsics().$prototype(vm)))
                 }
 
                 pub fn create_with_message(vm: &Vm, realm: Gc<Realm>, message: Utf16String) -> Gc<$class> {

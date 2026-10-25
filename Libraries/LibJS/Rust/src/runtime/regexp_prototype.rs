@@ -808,17 +808,14 @@ fn has_intrinsic_getter(
 
 impl RegExpPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<RegExpPrototype> {
-        realm.create_object(
-            vm,
-            RegExpPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| RegExpPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

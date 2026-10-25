@@ -68,17 +68,14 @@ fn string_value(vm: &Vm, string: &str) -> Value {
 
 impl InstantPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<InstantPrototype> {
-        realm.create_object(
-            vm,
-            InstantPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| InstantPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

@@ -1698,7 +1698,7 @@ macro_rules! define_typed_arrays {
                         ArrayBuffer::create(vm, realm, length as usize * element_size, crate::runtime::array_buffer::Shared::No)?;
                     let typed_array = realm.create_object(
                         vm,
-                        $class {
+                        |_| $class {
                             base: TypedArrayBase::new(vm, Self::CLASS, prototype, length, array_buffer, Kind::$class),
                         },
                     );
@@ -1724,7 +1724,7 @@ macro_rules! define_typed_arrays {
                     let prototype = realm.intrinsics().$prototype_accessor(vm);
                     let typed_array = realm.create_object(
                         vm,
-                        $class {
+                        |_| $class {
                             base: TypedArrayBase::new(vm, Self::CLASS, prototype, length, array_buffer, Kind::$class),
                         },
                     );
@@ -1748,7 +1748,7 @@ macro_rules! define_typed_arrays {
                 pub fn create(vm: &Vm, realm: Gc<Realm>, typed_array_prototype: Gc<Object>) -> Gc<$prototype> {
                     realm.create_object(
                         vm,
-                        $prototype {
+                        |_| $prototype {
                             base: Object::new_with_prototype(
                                 vm,
                                 Self::CLASS,
@@ -1790,7 +1790,7 @@ macro_rules! define_typed_arrays {
                 pub fn create(vm: &Vm, realm: Gc<Realm>, typed_array_constructor: Gc<Object>) -> Gc<$constructor> {
                     realm.create_object(
                         vm,
-                        $constructor {
+                        |_| $constructor {
                             base: NativeFunction::new_with_name(
                                 vm,
                                 Self::CLASS,

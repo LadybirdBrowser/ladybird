@@ -46,17 +46,14 @@ define_native_function_class!(
 impl DurationFormatConstructor {
     // 13.1 The Intl.DurationFormat Constructor, https://tc39.es/ecma402/#sec-intl-durationformat-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DurationFormatConstructor> {
-        realm.create_object(
-            vm,
-            DurationFormatConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.DurationFormat.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| DurationFormatConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.DurationFormat.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -109,7 +106,7 @@ impl DurationFormatConstructor {
             realm,
             new_target,
             Intrinsics::intl_duration_format_prototype,
-            |prototype| DurationFormat::new(vm, prototype),
+            |_, prototype| DurationFormat::new(vm, prototype),
         )?;
 
         // 3. Let optionsResolution be ? ResolveOptions(%Intl.DurationFormat%, %Intl.DurationFormat%.[[LocaleData]], locales, options).

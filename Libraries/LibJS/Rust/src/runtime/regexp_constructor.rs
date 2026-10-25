@@ -93,18 +93,15 @@ define_native_function_class!(
 
 impl RegExpConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<RegExpConstructor> {
-        realm.create_object(
-            vm,
-            RegExpConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.RegExp.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-                legacy_static_properties: RegExpLegacyStaticProperties::default(),
-            },
-        )
+        realm.create_object(vm, |_| RegExpConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.RegExp.as_string().clone(),
+                realm.function_prototype(),
+            ),
+            legacy_static_properties: RegExpLegacyStaticProperties::default(),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

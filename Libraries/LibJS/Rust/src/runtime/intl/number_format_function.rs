@@ -61,13 +61,10 @@ impl Deref for NumberFormatFunction {
 impl NumberFormatFunction {
     // 16.5.2 Number Format Functions, https://tc39.es/ecma402/#sec-number-format-functions
     pub fn create(vm: &Vm, realm: Gc<Realm>, number_format: Gc<NumberFormat>) -> Gc<NumberFormatFunction> {
-        realm.create_object(
-            vm,
-            NumberFormatFunction {
-                base: NativeFunction::new_with_prototype(vm, Self::CLASS, realm.function_prototype()),
-                number_format: Cell::new(number_format),
-            },
-        )
+        realm.create_object(vm, |_| NumberFormatFunction {
+            base: NativeFunction::new_with_prototype(vm, Self::CLASS, realm.function_prototype()),
+            number_format: Cell::new(number_format),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

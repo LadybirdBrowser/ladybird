@@ -184,7 +184,8 @@ impl DOMMatrixReadOnly {
     pub(crate) fn from_matrix(cx: &mut CallContext, other: DOMMatrixInit) -> WebIdlResult<Ref<Self>> {
         // The fromMatrix(other) static method on DOMMatrixReadOnly must create a DOMMatrixReadOnly from the dictionary
         // other.
-        Ok(allocate(cx.vm(), Self::from_dictionary(&other)?))
+        let matrix = Self::from_dictionary(&other)?;
+        Ok(allocate(cx.vm(), |_| matrix))
     }
 
     /// https://drafts.fxtf.org/geometry/#create-a-dommatrixreadonly-from-the-dictionary
@@ -222,12 +223,14 @@ impl DOMMatrixReadOnly {
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-fromfloat32array
     pub(crate) fn from_float32_array(cx: &mut CallContext, array32: Gc<TypedArrayBase>) -> WebIdlResult<Ref<Self>> {
-        Ok(allocate(cx.vm(), Self::from_typed_array(array32)?))
+        let matrix = Self::from_typed_array(array32)?;
+        Ok(allocate(cx.vm(), |_| matrix))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-fromfloat64array
     pub(crate) fn from_float64_array(cx: &mut CallContext, array64: Gc<TypedArrayBase>) -> WebIdlResult<Ref<Self>> {
-        Ok(allocate(cx.vm(), Self::from_typed_array(array64)?))
+        let matrix = Self::from_typed_array(array64)?;
+        Ok(allocate(cx.vm(), |_| matrix))
     }
 
     /// The steps of fromFloat32Array() and fromFloat64Array() on DOMMatrixReadOnly and DOMMatrix, for a Float32Array
@@ -413,7 +416,7 @@ impl DOMMatrixReadOnly {
         result.parent().translate_self_steps(tx, ty, tz);
 
         // 3. Return result.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-scale
@@ -441,7 +444,7 @@ impl DOMMatrixReadOnly {
             .scale_self_steps(scale_x, Some(scale_y), scale_z, origin_x, origin_y, origin_z);
 
         // 4. Return result.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-scalenonuniform
@@ -460,7 +463,7 @@ impl DOMMatrixReadOnly {
             .scale_self_steps(scale_x, Some(scale_y), 1.0, 0.0, 0.0, 0.0);
 
         // 3. Return result.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-scale3d
@@ -479,7 +482,7 @@ impl DOMMatrixReadOnly {
         result.parent().scale3d_self_steps(scale, origin_x, origin_y, origin_z);
 
         // 3. Return result.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-rotate
@@ -497,7 +500,7 @@ impl DOMMatrixReadOnly {
         result.parent().rotate_self_steps(rot_x, rot_y, rot_z);
 
         // 3. Return result.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-rotatefromvector
@@ -509,7 +512,7 @@ impl DOMMatrixReadOnly {
         result.parent().rotate_from_vector_self_steps(x, y);
 
         // 3. Return result.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-rotateaxisangle
@@ -528,7 +531,7 @@ impl DOMMatrixReadOnly {
         result.parent().rotate_axis_angle_self_steps(x, y, z, angle);
 
         // 3. Return result.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-skewx
@@ -540,7 +543,7 @@ impl DOMMatrixReadOnly {
         result.parent().skew_x_self_steps(sx);
 
         // 3. Return result.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-skewy
@@ -552,7 +555,7 @@ impl DOMMatrixReadOnly {
         result.parent().skew_y_self_steps(sy);
 
         // 3. Return result.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-multiply
@@ -565,7 +568,7 @@ impl DOMMatrixReadOnly {
         result.parent().multiply_self_steps(other_object.parent());
 
         // 3. Return result.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-flipx
@@ -578,7 +581,7 @@ impl DOMMatrixReadOnly {
         result.parent().set_matrix(matrix);
 
         // 3. Return result.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-flipy
@@ -591,7 +594,7 @@ impl DOMMatrixReadOnly {
         result.parent().set_matrix(matrix);
 
         // 3. Return result.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-inverse
@@ -604,7 +607,7 @@ impl DOMMatrixReadOnly {
 
         // 3. Return result.
         // The current matrix is not modified.
-        Ok(allocate(cx.vm(), result))
+        Ok(allocate(cx.vm(), |_| result))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-transformpoint
@@ -613,7 +616,7 @@ impl DOMMatrixReadOnly {
         // invoking transform a point with a matrix, given pointObject and the current matrix. The passed argument
         // does not get modified.
         let point_object = DOMPointReadOnly::from_dictionary(&point);
-        Ok(allocate(cx.vm(), self.transform_point_steps(&point_object)))
+        Ok(allocate(cx.vm(), |_| self.transform_point_steps(&point_object)))
     }
 
     /// https://drafts.fxtf.org/geometry/#transform-a-point-with-a-matrix

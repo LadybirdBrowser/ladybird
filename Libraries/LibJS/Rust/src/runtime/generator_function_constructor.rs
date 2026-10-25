@@ -35,16 +35,13 @@ define_native_function_class!(
 
 impl GeneratorFunctionConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<GeneratorFunctionConstructor> {
-        realm.create_object(
-            vm,
-            GeneratorFunctionConstructor {
-                base: NativeFunction::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().function_constructor(vm).upcast(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| GeneratorFunctionConstructor {
+            base: NativeFunction::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().function_constructor(vm).upcast(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

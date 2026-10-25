@@ -40,7 +40,7 @@ impl PromiseCapability {
         resolve: Gc<FunctionObject>,
         reject: Gc<FunctionObject>,
     ) -> Gc<PromiseCapability> {
-        vm.heap().allocate(PromiseCapability {
+        vm.heap().allocate(|_| PromiseCapability {
             header: CellHeader::for_class(Self::CLASS),
             promise: Cell::new(promise),
             resolve: Cell::new(resolve),
@@ -144,7 +144,7 @@ pub fn new_promise_capability(vm: &Vm, constructor: Value) -> ThrowCompletionOr<
             realm,
             constructor.as_function(),
             |intrinsics, vm| intrinsics.promise_prototype(vm),
-            |prototype| Promise::new(vm, Promise::CLASS, prototype),
+            |_, prototype| Promise::new(vm, Promise::CLASS, prototype),
         )?;
         let resolving_functions = promise.create_resolving_functions(vm);
         return Ok(PromiseCapability::create(
@@ -156,7 +156,7 @@ pub fn new_promise_capability(vm: &Vm, constructor: Value) -> ThrowCompletionOr<
     }
 
     // 3. Let resolvingFunctions be the Record { [[Resolve]]: undefined, [[Reject]]: undefined }.
-    let resolving_functions = vm.heap().allocate(ResolvingFunctions {
+    let resolving_functions = vm.heap().allocate(|_| ResolvingFunctions {
         header: CellHeader::for_class(ResolvingFunctions::CLASS),
         resolve: Cell::new(Value::UNDEFINED),
         reject: Cell::new(Value::UNDEFINED),

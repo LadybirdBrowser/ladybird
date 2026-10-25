@@ -37,17 +37,14 @@ const DISPLAY_NAME: &str = "Iterator";
 impl WrapForValidIteratorPrototype {
     // 27.1.3.2.1.1 The %WrapForValidIteratorPrototype% Object, https://tc39.es/ecma262/#sec-%wrapforvaliditeratorprototype%-object
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WrapForValidIteratorPrototype> {
-        realm.create_object(
-            vm,
-            WrapForValidIteratorPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().iterator_prototype(vm),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| WrapForValidIteratorPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().iterator_prototype(vm),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
