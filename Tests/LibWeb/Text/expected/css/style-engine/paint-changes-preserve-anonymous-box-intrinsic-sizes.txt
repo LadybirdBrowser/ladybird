@@ -1,0 +1,8 @@
+unchanged children reuse measurements: true
+unchanged children reuse measurements container width: 501
+inherited color preserves measurements: true
+inherited color preserves measurements container width: 500
+item color: rgb(255, 0, 0)
+inherited font size invalidates measurements: true
+inherited font size invalidates measurements container width: 501
+incremental layout stays consistent: true

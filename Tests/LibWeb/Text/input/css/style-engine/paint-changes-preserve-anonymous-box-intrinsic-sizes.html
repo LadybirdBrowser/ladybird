@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="../../layout-test.js"></script>
+<style>
+    #flex { display: flex; width: 500px; font-size: 16px; }
+    #flex > div { flex: 1 1 auto; }
+</style>
+<main id="flex"></main>
+<script>
+    test(() => {
+        const flex = document.getElementById("flex");
+        // Each item holds inline content beside a block, so the inline content sits in an anonymous block wrapper
+        // that inherits the item's style.
+        for (let index = 0; index < 20; ++index) {
+            const child = document.createElement("div");
+            child.innerHTML = `item ${index}<div>block ${index}</div>`;
+            flex.append(child);
+        }
+        flex.offsetWidth;
+        let width = 500;
+        function resizeAfter(label, change, shouldMeasure) {
+            const work = layoutWork(() => {
+                change();
+                internals.updateStyle();
+                width = width === 500 ? 501 : 500;
+                flex.style.width = `${width}px`;
+            });
+            const actualWidth = flex.offsetWidth;
+            const measurements = work.count({ event: "measure", cache: "miss" });
+            const reused = work.count({ event: "measure", cache: "hit" }) > 0;
+            println(`${label}: ${shouldMeasure ? measurements > 0 : measurements === 0 && reused}`);
+            println(`${label} container width: ${actualWidth}`);
+        }
+        resizeAfter("unchanged children reuse measurements", () => {}, false);
+        resizeAfter("inherited color preserves measurements", () => { flex.style.color = "red"; }, false);
+        println(`item color: ${getComputedStyle(flex.firstElementChild).color}`);
+        resizeAfter("inherited font size invalidates measurements", () => { flex.style.fontSize = "24px"; }, true);
+        println(`incremental layout stays consistent: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>

@@ -139,76 +139,11 @@ static_assert(to_underlying(MathShift::Compact) == 1);
 static_assert(to_underlying(MathStyle::Normal) == 0);
 static_assert(to_underlying(MathStyle::Compact) == 1);
 
-bool ComputedValues::layout_affecting_group_payloads_differ(void const* const* a, void const* const* b)
-{
-    auto differs = [&]<typename T>() {
-        auto const* mine = static_cast<T const*>(a[T::style_group_index]);
-        auto const* theirs = static_cast<T const*>(b[T::style_group_index]);
-        if (mine == theirs)
-            return false;
-        // OPTIMIZATION: Paint values share groups with text metrics, border dimensions and containing-block effects.
-        //               Changing those paint values does not invalidate intrinsic sizes.
-        if constexpr (IsSame<T, InheritedTextValues>) {
-            auto comparable = *mine;
-            comparable.color = theirs->color;
-            comparable.color_style_value = theirs->color_style_value;
-            comparable.webkit_text_fill_color = theirs->webkit_text_fill_color;
-            comparable.webkit_text_fill_color_is_current_color = theirs->webkit_text_fill_color_is_current_color;
-            return !(comparable == *theirs);
-        } else if constexpr (IsSame<T, BorderValues>) {
-            auto comparable = *mine;
-            comparable.border_left.color = theirs->border_left.color;
-            comparable.border_top.color = theirs->border_top.color;
-            comparable.border_right.color = theirs->border_right.color;
-            comparable.border_bottom.color = theirs->border_bottom.color;
-            comparable.border_left_color_style_value = theirs->border_left_color_style_value;
-            comparable.border_top_color_style_value = theirs->border_top_color_style_value;
-            comparable.border_right_color_style_value = theirs->border_right_color_style_value;
-            comparable.border_bottom_color_style_value = theirs->border_bottom_color_style_value;
-            return !(comparable == *theirs);
-        } else if constexpr (IsSame<T, EffectsValues>) {
-            auto comparable = *mine;
-            comparable.opacity = theirs->opacity;
-            comparable.opacity_style_value = theirs->opacity_style_value;
-            return !(comparable == *theirs);
-        } else if constexpr (IsSame<T, MiscResetValues>) {
-            auto comparable = *mine;
-            comparable.outline_color = theirs->outline_color;
-            comparable.column_rule_color = theirs->column_rule_color;
-            auto only_paint_hints = [](auto const& hints) {
-                for (auto property : ReadonlySpan<u16> { hints.pointer, hints.length }) {
-                    if (property != to_underlying(PropertyID::Color) && property != to_underlying(PropertyID::Opacity))
-                        return false;
-                }
-                return true;
-            };
-            if (only_paint_hints(mine->implicit_will_change) && only_paint_hints(theirs->implicit_will_change))
-                comparable.implicit_will_change = theirs->implicit_will_change;
-            return !(comparable == *theirs);
-        } else if constexpr (IsSame<T, InheritedUIValues>) {
-            auto comparable = *mine;
-            comparable.caret_color = theirs->caret_color;
-            comparable.accent_color = theirs->accent_color;
-            comparable.scrollbar_color = theirs->scrollbar_color;
-            return !(comparable == *theirs);
-        }
-        return !(*mine == *theirs);
-    };
-#define LIBWEB_COMPARE_STYLE_GROUP_PAYLOAD(name, path, sharing_name, affects_layout) \
-    if constexpr (affects_layout) {                                                  \
-        if (differs.template operator()<name>())                                     \
-            return true;                                                             \
-    }
-    LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_COMPARE_STYLE_GROUP_PAYLOAD)
-#undef LIBWEB_COMPARE_STYLE_GROUP_PAYLOAD
-    return false;
-}
-
 void const* ComputedValues::style_group_payload(StyleGroupIndex group) const
 {
     switch (group) {
-#define LIBWEB_STYLE_GROUP_PAYLOAD_CASE(name, path, sharing_name, affects_layout) \
-    case StyleGroupIndex::name:                                                   \
+#define LIBWEB_STYLE_GROUP_PAYLOAD_CASE(name, path, sharing_name) \
+    case StyleGroupIndex::name:                                   \
         return &*path;
         LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_STYLE_GROUP_PAYLOAD_CASE)
 #undef LIBWEB_STYLE_GROUP_PAYLOAD_CASE
