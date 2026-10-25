@@ -1,0 +1,49 @@
+Harness status: OK
+
+Found 44 tests
+
+44 Pass
+Pass	compileStreaming: undefined
+Pass	compileStreaming: undefined in a promise
+Pass	compileStreaming: null
+Pass	compileStreaming: null in a promise
+Pass	compileStreaming: true
+Pass	compileStreaming: true in a promise
+Pass	compileStreaming: "test"
+Pass	compileStreaming: "test" in a promise
+Pass	compileStreaming: symbol "Symbol()"
+Pass	compileStreaming: symbol "Symbol()" in a promise
+Pass	compileStreaming: 0
+Pass	compileStreaming: 0 in a promise
+Pass	compileStreaming: 0.1
+Pass	compileStreaming: 0.1 in a promise
+Pass	compileStreaming: NaN
+Pass	compileStreaming: NaN in a promise
+Pass	compileStreaming: Empty object
+Pass	compileStreaming: Empty object in a promise
+Pass	compileStreaming: Response interface object
+Pass	compileStreaming: Response interface object in a promise
+Pass	compileStreaming: Response interface prototype object
+Pass	compileStreaming: Response interface prototype object in a promise
+Pass	instantiateStreaming: undefined
+Pass	instantiateStreaming: undefined in a promise
+Pass	instantiateStreaming: null
+Pass	instantiateStreaming: null in a promise
+Pass	instantiateStreaming: true
+Pass	instantiateStreaming: true in a promise
+Pass	instantiateStreaming: "test"
+Pass	instantiateStreaming: "test" in a promise
+Pass	instantiateStreaming: symbol "Symbol()"
+Pass	instantiateStreaming: symbol "Symbol()" in a promise
+Pass	instantiateStreaming: 0
+Pass	instantiateStreaming: 0 in a promise
+Pass	instantiateStreaming: 0.1
+Pass	instantiateStreaming: 0.1 in a promise
+Pass	instantiateStreaming: NaN
+Pass	instantiateStreaming: NaN in a promise
+Pass	instantiateStreaming: Empty object
+Pass	instantiateStreaming: Empty object in a promise
+Pass	instantiateStreaming: Response interface object
+Pass	instantiateStreaming: Response interface object in a promise
+Pass	instantiateStreaming: Response interface prototype object
+Pass	instantiateStreaming: Response interface prototype object in a promise

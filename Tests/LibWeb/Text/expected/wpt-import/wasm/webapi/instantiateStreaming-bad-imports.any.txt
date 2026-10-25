@@ -1,0 +1,111 @@
+Harness status: OK
+
+Found 106 tests
+
+106 Pass
+Pass	Non-object imports argument: null
+Pass	Non-object imports argument: true
+Pass	Non-object imports argument: ""
+Pass	Non-object imports argument: symbol "Symbol()"
+Pass	Non-object imports argument: 1
+Pass	Non-object imports argument: 0.1
+Pass	Non-object imports argument: NaN
+Pass	Non-object module: undefined
+Pass	Non-object module: null
+Pass	Non-object module: true
+Pass	Non-object module: ""
+Pass	Non-object module: symbol "Symbol()"
+Pass	Non-object module: 1
+Pass	Non-object module: 0.1
+Pass	Non-object module: NaN
+Pass	Missing imports argument
+Pass	Imports argument with missing property: undefined
+Pass	Imports argument with missing property: empty object
+Pass	Imports argument with missing property: wrong property
+Pass	Importing a function with an incorrectly-typed value: undefined
+Pass	Importing a function with an incorrectly-typed value: null
+Pass	Importing a function with an incorrectly-typed value: true
+Pass	Importing a function with an incorrectly-typed value: ""
+Pass	Importing a function with an incorrectly-typed value: symbol "Symbol()"
+Pass	Importing a function with an incorrectly-typed value: 1
+Pass	Importing a function with an incorrectly-typed value: 0.1
+Pass	Importing a function with an incorrectly-typed value: NaN
+Pass	Importing a function with an incorrectly-typed value: object "[object Object]"
+Pass	Importing an i32 global with an incorrectly-typed value: undefined
+Pass	Importing an i32 global with an incorrectly-typed value: null
+Pass	Importing an i32 global with an incorrectly-typed value: true
+Pass	Importing an i32 global with an incorrectly-typed value: ""
+Pass	Importing an i32 global with an incorrectly-typed value: symbol "Symbol()"
+Pass	Importing an i32 global with an incorrectly-typed value: plain object
+Pass	Importing an i32 global with an incorrectly-typed value: WebAssembly.Global
+Pass	Importing an i32 global with an incorrectly-typed value: WebAssembly.Global.prototype
+Pass	Importing an i32 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
+Pass	Importing an i32 global with an incorrectly-typed value: BigInt
+Pass	Importing an i32 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
+Pass	Importing an i64 global with an incorrectly-typed value: undefined
+Pass	Importing an i64 global with an incorrectly-typed value: null
+Pass	Importing an i64 global with an incorrectly-typed value: true
+Pass	Importing an i64 global with an incorrectly-typed value: ""
+Pass	Importing an i64 global with an incorrectly-typed value: symbol "Symbol()"
+Pass	Importing an i64 global with an incorrectly-typed value: plain object
+Pass	Importing an i64 global with an incorrectly-typed value: WebAssembly.Global
+Pass	Importing an i64 global with an incorrectly-typed value: WebAssembly.Global.prototype
+Pass	Importing an i64 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
+Pass	Importing an i64 global with an incorrectly-typed value: Number
+Pass	Importing an i64 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
+Pass	Importing an f32 global with an incorrectly-typed value: undefined
+Pass	Importing an f32 global with an incorrectly-typed value: null
+Pass	Importing an f32 global with an incorrectly-typed value: true
+Pass	Importing an f32 global with an incorrectly-typed value: ""
+Pass	Importing an f32 global with an incorrectly-typed value: symbol "Symbol()"
+Pass	Importing an f32 global with an incorrectly-typed value: plain object
+Pass	Importing an f32 global with an incorrectly-typed value: WebAssembly.Global
+Pass	Importing an f32 global with an incorrectly-typed value: WebAssembly.Global.prototype
+Pass	Importing an f32 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
+Pass	Importing an f32 global with an incorrectly-typed value: BigInt
+Pass	Importing an f32 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
+Pass	Importing an f64 global with an incorrectly-typed value: undefined
+Pass	Importing an f64 global with an incorrectly-typed value: null
+Pass	Importing an f64 global with an incorrectly-typed value: true
+Pass	Importing an f64 global with an incorrectly-typed value: ""
+Pass	Importing an f64 global with an incorrectly-typed value: symbol "Symbol()"
+Pass	Importing an f64 global with an incorrectly-typed value: plain object
+Pass	Importing an f64 global with an incorrectly-typed value: WebAssembly.Global
+Pass	Importing an f64 global with an incorrectly-typed value: WebAssembly.Global.prototype
+Pass	Importing an f64 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
+Pass	Importing an f64 global with an incorrectly-typed value: BigInt
+Pass	Importing an f64 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
+Pass	Importing an i32 mutable global with a primitive value
+Pass	Importing an i32 mutable global with an immutable Global object
+Pass	Importing an i64 mutable global with a primitive value
+Pass	Importing an i64 mutable global with an immutable Global object
+Pass	Importing an f32 mutable global with a primitive value
+Pass	Importing an f32 mutable global with an immutable Global object
+Pass	Importing an f64 mutable global with a primitive value
+Pass	Importing an f64 mutable global with an immutable Global object
+Pass	Importing memory with an incorrectly-typed value: undefined
+Pass	Importing memory with an incorrectly-typed value: null
+Pass	Importing memory with an incorrectly-typed value: true
+Pass	Importing memory with an incorrectly-typed value: ""
+Pass	Importing memory with an incorrectly-typed value: symbol "Symbol()"
+Pass	Importing memory with an incorrectly-typed value: 1
+Pass	Importing memory with an incorrectly-typed value: 0.1
+Pass	Importing memory with an incorrectly-typed value: NaN
+Pass	Importing memory with an incorrectly-typed value: plain object
+Pass	Importing memory with an incorrectly-typed value: WebAssembly.Memory
+Pass	Importing memory with an incorrectly-typed value: WebAssembly.Memory.prototype
+Pass	Importing memory with an incorrectly-typed value: Object.create(WebAssembly.Memory.prototype)
+Pass	Importing memory with an incorrectly-typed value: WebAssembly.Memory object (too large)
+Pass	Importing table with an incorrectly-typed value: undefined
+Pass	Importing table with an incorrectly-typed value: null
+Pass	Importing table with an incorrectly-typed value: true
+Pass	Importing table with an incorrectly-typed value: ""
+Pass	Importing table with an incorrectly-typed value: symbol "Symbol()"
+Pass	Importing table with an incorrectly-typed value: 1
+Pass	Importing table with an incorrectly-typed value: 0.1
+Pass	Importing table with an incorrectly-typed value: NaN
+Pass	Importing table with an incorrectly-typed value: plain object
+Pass	Importing table with an incorrectly-typed value: WebAssembly.Table
+Pass	Importing table with an incorrectly-typed value: WebAssembly.Table.prototype
+Pass	Importing table with an incorrectly-typed value: Object.create(WebAssembly.Table.prototype)
+Pass	Importing table with an incorrectly-typed value: WebAssembly.Table object (too large)
