@@ -21,8 +21,8 @@ pub(crate) struct DOMRectList {
 impl Wrappable for DOMRectList {}
 
 impl DOMRectList {
-    pub(crate) fn new(rects: Vec<Ref<DOMRect>>) -> Self {
-        Self { rects }
+    pub(crate) fn new(rects: &[Ref<DOMRect>]) -> Self {
+        Self { rects: rects.to_vec() }
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-domrectlist-length
