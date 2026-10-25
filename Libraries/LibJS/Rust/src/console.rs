@@ -359,7 +359,7 @@ impl Console {
         let stack_trace = vm.stack_trace();
 
         // NOTE: Skip the first frame (console.trace() itself)
-        for element in stack_trace.iter().skip(1) {
+        for element in stack_trace.values().iter().skip(1) {
             let function_name = element
                 .function
                 .map(|function| function.name_for_call_stack())

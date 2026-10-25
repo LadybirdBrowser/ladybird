@@ -172,10 +172,13 @@ pub mod translate {
     use crate::layout::function_object::FunctionObject;
     use crate::layout::value::Value;
 
+    #[derive(Clone, libjs_runtime_macros::Trace)]
     pub struct CallSiteFrame {
         pub function: Gc<FunctionObject>,
         pub executable: Gc<Executable>,
+        #[gc(untraced)]
         pub program_counter: u32,
+        #[gc(untraced)]
         pub frame_state: usize,
     }
 
@@ -183,13 +186,13 @@ pub mod translate {
         u64::from(low_half)
     }
 
-    pub fn call_site_frames(
-        _vm: &Vm,
+    pub fn call_site_frames<'vm>(
+        vm: &'vm Vm,
         _frame: &ExecutionContext,
         _index: u32,
         _frame_pointer: u64,
-    ) -> Vec<CallSiteFrame> {
-        Vec::new()
+    ) -> crate::gc::root::MarkedVec<'vm, CallSiteFrame> {
+        crate::gc::root::MarkedVec::new(vm)
     }
 
     pub fn call_site_frame_arguments<'d>(

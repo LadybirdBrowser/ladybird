@@ -1291,8 +1291,8 @@ impl Vm {
     }
 
     /// The frames of every execution context, from the running one down, with where each is in its executable.
-    pub fn stack_trace(&self) -> Vec<StackTraceElement> {
-        let mut stack_trace = Vec::new();
+    pub fn stack_trace(&self) -> MarkedVec<'_, StackTraceElement> {
+        let stack_trace = MarkedVec::new(self);
         self.for_each_stack_frame_top_to_bottom(|frame| {
             // NB: Builtins written in JavaScript show up like other builtins, without a position in their source.
             let runs_builtin = frame
@@ -1335,7 +1335,10 @@ impl Vm {
             let caller = unsafe { &*caller };
             let site = return_pc & !INLINED_CALL_SITE_BIT;
             let frame_pointer = crate::jit::translate::frame_pointer_from_low_half(context.caller_dst_raw.get());
-            for frame in crate::jit::translate::call_site_frames(self, caller, site, frame_pointer) {
+            for frame in crate::jit::translate::call_site_frames(self, caller, site, frame_pointer)
+                .values()
+                .iter()
+            {
                 callback(StackFrame {
                     execution_context: caller,
                     function: Some(frame.function),
@@ -2055,9 +2058,12 @@ pub struct TypeErrorRealmOverride {
 
 /// An element of VM::stack_trace(): a frame's execution context, its function and where it is in its executable, if it
 /// runs one. A frame of a call that JIT code inlined has the execution context of the function it is inlined in.
+#[derive(Clone, Trace)]
 pub struct StackTraceElement {
+    #[gc(untraced)]
     pub execution_context: NonNull<ExecutionContext>,
     pub function: Option<Gc<FunctionObject>>,
+    #[gc(untraced)]
     pub source_range: Option<SourceRange>,
 }
 

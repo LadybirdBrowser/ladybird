@@ -68,12 +68,12 @@ pub enum ResumeMode {
 
 /// What the debugger tells its pause callback about where execution paused. It only lives on the stack while the
 /// callback runs, where the collector finds the cells it holds.
-pub struct PauseInfo {
+pub struct PauseInfo<'a> {
     pub executable: Gc<Executable>,
     pub bytecode_offset: u32,
     pub source_range: Option<SourceRange>,
     /// The frames from the paused one down, the first of which is where execution paused.
-    pub stack_trace: Vec<StackTraceElement>,
+    pub stack_trace: &'a [StackTraceElement],
     pub breakpoint_ids: Vec<BreakpointID>,
     pub exception: Option<Value>,
     pub exception_will_be_caught: bool,
@@ -89,7 +89,7 @@ pub struct FrameBinding {
 
 /// The callback must call continue_execution() before it returns. It may evaluate JavaScript, in which case any pause
 /// triggered by that evaluation is ignored.
-pub type PauseCallback = Rc<dyn Fn(&Vm, &PauseInfo)>;
+pub type PauseCallback = Rc<dyn Fn(&Vm, &PauseInfo<'_>)>;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum BindingStorage {
@@ -158,7 +158,7 @@ impl Debugger {
         }
     }
 
-    pub fn set_pause_callback(&self, callback: impl Fn(&Vm, &PauseInfo) + 'static) {
+    pub fn set_pause_callback(&self, callback: impl Fn(&Vm, &PauseInfo<'_>) + 'static) {
         *self.pause_callback.borrow_mut() = Some(Rc::new(callback));
     }
 
@@ -195,16 +195,22 @@ impl Debugger {
         }
         self.is_paused.set(true);
 
-        let mut stack_trace = vm.stack_trace();
-        assert!(!stack_trace.is_empty());
+        let stack_trace = vm.stack_trace();
+        let paused_frame = stack_trace.get(0).expect("execution pauses in a frame");
         let source_range = executable.source_range_at(bytecode_offset);
-        stack_trace[0].source_range = source_range.clone();
+        stack_trace.set(
+            0,
+            StackTraceElement {
+                source_range: source_range.clone(),
+                ..paused_frame
+            },
+        );
         // NB: Frames that JIT code creates get their ids when the debugger first needs them, which is when it steps
         //     from a paused frame.
         // SAFETY: The frames of the stack trace are live while execution is paused.
-        vm.frame_id_of(unsafe { stack_trace[0].execution_context.as_ref() });
+        vm.frame_id_of(unsafe { paused_frame.execution_context.as_ref() });
         self.paused_execution_context
-            .set(stack_trace[0].execution_context.as_ptr().cast_const());
+            .set(paused_frame.execution_context.as_ptr().cast_const());
         *self.paused_source_range.borrow_mut() = source_range.clone();
         pause_callback(
             vm,
@@ -212,7 +218,7 @@ impl Debugger {
                 executable,
                 bytecode_offset,
                 source_range,
-                stack_trace,
+                stack_trace: &stack_trace.values(),
                 breakpoint_ids: executable.debugger_breakpoints_at(bytecode_offset),
                 exception,
                 exception_will_be_caught,
