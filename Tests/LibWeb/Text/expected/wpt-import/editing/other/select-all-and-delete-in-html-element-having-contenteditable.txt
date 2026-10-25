@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-2 Pass
-10 Fail
-Fail	Select All, then, Backspace
-Fail	Select All, then, Delete
-Fail	execCommand("selectall"), then, Backspace
-Fail	execCommand("selectall"), then, Delete
-Fail	Select All, then, execCommand("forwarddelete")
-Fail	Select All, then, execCommand("delete")
+12 Pass
+Pass	Select All, then, Backspace
+Pass	Select All, then, Delete
+Pass	execCommand("selectall"), then, Backspace
+Pass	execCommand("selectall"), then, Delete
+Pass	Select All, then, execCommand("forwarddelete")
+Pass	Select All, then, execCommand("delete")
 Pass	execCommand("selectall"), then, execCommand("forwarddelete")
 Pass	execCommand("selectall"), then, execCommand("delete")
-Fail	getSelection().selectAllChildren(document.documentElement), then, Backspace
-Fail	getSelection().selectAllChildren(document.documentElement), then, Delete
-Fail	getSelection().selectAllChildren(document.documentElement), then, execCommand("forwarddelete")
-Fail	getSelection().selectAllChildren(document.documentElement), then, execCommand("delete")
+Pass	getSelection().selectAllChildren(document.documentElement), then, Backspace
+Pass	getSelection().selectAllChildren(document.documentElement), then, Delete
+Pass	getSelection().selectAllChildren(document.documentElement), then, execCommand("forwarddelete")
+Pass	getSelection().selectAllChildren(document.documentElement), then, execCommand("delete")

@@ -38,9 +38,11 @@
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
+#include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLDivElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLFontElement.h>
+#include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLOListElement.h>
@@ -1311,6 +1313,11 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
             return IterationDecision::Continue;
 
         if (!node->is_editable())
+            return IterationDecision::Continue;
+
+        // INTEROP: Browsers do not delete the body or the head element, or the content of the head element, in an
+        //          editable html element. They delete the children of the body element instead.
+        if (is<HTML::HTMLBodyElement>(*node) || node->first_ancestor_of_type<HTML::HTMLHeadElement>() || is<HTML::HTMLHeadElement>(*node))
             return IterationDecision::Continue;
 
         if (!is<HTML::HTMLTableSectionElement>(*node) && !is<HTML::HTMLTableRowElement>(*node) && !is<HTML::HTMLTableCellElement>(*node))
