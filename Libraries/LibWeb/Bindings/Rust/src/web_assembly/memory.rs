@@ -10,17 +10,17 @@
 //! https://webassembly.github.io/threads/js-api/
 //!
 //! A Memory object belongs to the agent, as its memory does, while its [[BufferObject]] belongs to a realm: the object
-//! has a buffer object of its own in every realm that asks for one. It holds them weakly, as a realm that goes away
-//! takes its buffer with it.
+//! has a buffer object of its own in every realm that asks for one, and holds each as the internal slot the
+//! specification gives it: "[[BufferObject]] : an ArrayBuffer whose Data Block is identified with the above memory
+//! address".
 
-use core::cell::RefCell;
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use libjs_rust::api::{
-    ArrayBuffer, ArrayBufferShared, DataBlock, DataBlockStorage, ExternalPrimitiveStorage, ForeignCellSlot, Gc, GcWeak,
-    IntegrityLevel, Must, PrimitiveString, RawNativeFunctionResult, Realm, ThrowCompletionOr, Trace, Value, Vm,
-    detach_array_buffer, same_value,
+    ArrayBuffer, ArrayBufferShared, DataBlock, DataBlockStorage, ExternalPrimitiveStorage, ForeignCellSlot, Gc,
+    GcRefCell, IntegrityLevel, MarkedVec, Must, PrimitiveString, RawNativeFunctionResult, Realm, ThrowCompletionOr,
+    Trace, Value, Vm, detach_array_buffer, same_value,
 };
 use libwasm_engine::runtime::MemoryAddress;
 use libwasm_engine::runtime::memory::MemoryInstance;
@@ -45,8 +45,7 @@ pub(crate) struct Memory {
     #[gc(untraced)]
     shared: bool,
     // [[BufferObject]], one per realm.
-    #[gc(untraced)]
-    buffer_objects: RefCell<Vec<GcWeak<ArrayBuffer>>>,
+    buffer_objects: GcRefCell<Vec<Gc<ArrayBuffer>>>,
 }
 
 impl Wrappable for Memory {}
@@ -96,7 +95,7 @@ impl Memory {
         let object = allocate(vm, |_| Self {
             address: EntityRef(memory),
             shared,
-            buffer_objects: RefCell::default(),
+            buffer_objects: GcRefCell::default(),
         });
 
         set_host_object(memory.cell(), object);
@@ -219,19 +218,15 @@ impl Memory {
         Ok(buffer)
     }
 
-    fn live_buffer_objects(&self) -> Vec<Gc<ArrayBuffer>> {
-        let mut buffer_objects = self.buffer_objects.borrow_mut();
-        buffer_objects.retain(|buffer| buffer.get().is_some());
-        buffer_objects.iter().filter_map(GcWeak::get).collect()
-    }
-
     /// The [[BufferObject]] of the memory in the realm, which the realm's first use creates.
     fn buffer_object(this: Ref<Self>, vm: &Vm, realm: Gc<Realm>) -> Gc<ArrayBuffer> {
-        if let Some(buffer) = this
-            .live_buffer_objects()
-            .into_iter()
-            .find(|buffer| buffer.shape().realm() == realm)
-        {
+        let buffer = this
+            .buffer_objects
+            .borrow()
+            .iter()
+            .copied()
+            .find(|buffer| buffer.shape().realm() == realm);
+        if let Some(buffer) = buffer {
             return buffer;
         }
         let buffer = Self::create_a_fixed_length_memory_buffer(this, vm, realm);
@@ -242,13 +237,13 @@ impl Memory {
     /// Sets the [[BufferObject]] of the memory in the realm of the buffer.
     fn set_buffer_object(&self, vm: &Vm, buffer: Gc<ArrayBuffer>) {
         let realm = buffer.shape().realm();
-        let mut buffer_objects = self.buffer_objects.borrow_mut();
-        buffer_objects.retain(|other| other.get().is_some_and(|other| other.shape().realm() != realm));
-        buffer_objects.push(GcWeak::new(vm.heap(), buffer));
+        let mut buffer_objects = self.buffer_objects.borrow_mut(vm);
+        buffer_objects.retain(|other| other.shape().realm() != realm);
+        buffer_objects.push(buffer);
     }
 
     fn has_buffer_object(&self, buffer: Gc<ArrayBuffer>) -> bool {
-        self.live_buffer_objects().contains(&buffer)
+        self.buffer_objects.borrow().contains(&buffer)
     }
 
     // https://webassembly.github.io/spec/js-api/#dom-memory-grow
@@ -397,7 +392,10 @@ pub(crate) fn refresh_the_memory_buffer(vm: &Vm, memory: Ref<Memory>) {
     // 2. Assert: map[memaddr] exists.
     // 3. Let memory be map[memaddr].
     // 4. Let buffer be memory.[[BufferObject]].
-    for buffer in memory.live_buffer_objects() {
+    // NB: Replacing a buffer changes the list, so the loop runs over a copy of it.
+    let buffer_objects = MarkedVec::new(vm);
+    buffer_objects.extend_from_slice(&memory.buffer_objects.borrow());
+    for &buffer in buffer_objects.values().iter() {
         // 5. If IsFixedLengthArrayBuffer(buffer) is true,
         if buffer.is_fixed_length() {
             // https://webassembly.github.io/threads/js-api/index.html#refresh-the-memory-buffer
