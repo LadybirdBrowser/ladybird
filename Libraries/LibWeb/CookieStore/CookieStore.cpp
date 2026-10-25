@@ -170,15 +170,19 @@ static GC::Ref<CookieListCompletionSteps> create_cookie_list_completion_steps(JS
 static GC::Ref<CookieMutationCompletionSteps> create_cookie_mutation_completion_steps(JS::Object& global, GC::Ref<WebIDL::Promise> promise, StringView failure_message)
 {
     return GC::Function<void(bool)>::create(GC::Heap::the(), [global = GC::Ref { global }, promise, failure_message](bool result) {
-        // AD-HOC: Queue a global task to perform the next steps
-        // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-        HTML::queue_global_task(HTML::Task::Source::Unspecified, global, GC::create_function(GC::Heap::the(), [promise, result, failure_message] {
-            auto& realm = WebIDL::promise_realm(promise);
-            HTML::TemporaryExecutionContext execution_context { realm };
-            if (!result)
-                return WebIDL::reject_promise(promise, JS::TypeError::create(realm, failure_message));
+        // NB: The UI's notification of this mutation's cookie changes is handled from a deferred invocation scheduled while
+        //     waiting for its reply. Queue the task below after that, so the change event is fired first.
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [global, promise, result, failure_message] {
+            // AD-HOC: Queue a global task to perform the next steps
+            // Spec issue: https://github.com/whatwg/cookiestore/issues/239
+            HTML::queue_global_task(HTML::Task::Source::Unspecified, global, GC::create_function(GC::Heap::the(), [promise, result, failure_message] {
+                auto& realm = WebIDL::promise_realm(promise);
+                HTML::TemporaryExecutionContext execution_context { realm };
+                if (!result)
+                    return WebIDL::reject_promise(promise, JS::TypeError::create(realm, failure_message));
 
-            WebIDL::resolve_promise(promise);
+                WebIDL::resolve_promise(promise);
+            }));
         }));
     });
 }
