@@ -7,6 +7,7 @@
 // https://w3c.github.io/mathml-core/#layout-algorithms
 
 use super::*;
+use libgfx_rust::font::FontHandle;
 use libgfx_rust::math_table::{FfiMathData, MathConstant, StretchAxis};
 
 /// The layout algorithm a MathML element's tag name selects when its computed display is block math or inline math.
@@ -630,6 +631,178 @@ struct MathContent {
     ascent: CssPixels,
     descent: CssPixels,
     positions: Vec<ChildPosition>,
+    /// The fraction bars and radical overbars, positioned like the children.
+    rules: Vec<MathRule>,
+    /// The radical symbols and stretched operator glyphs, positioned like the children.
+    glyph_runs: Vec<PlacedGlyphRun>,
+}
+
+impl MathContent {
+    /// The rules and glyphs of the math content, positioned in the content box.
+    fn paint_data(
+        &self,
+        math_content_line_left: CssPixels,
+        content_box_inline_size: CssPixels,
+        is_rtl: bool,
+    ) -> MathPaintData {
+        let content = self;
+        let line_left_in_content_box = |line_left_offset: CssPixels, inline_size: CssPixels| {
+            math_content_line_left
+                + if is_rtl {
+                    content.inline_size - line_left_offset - inline_size
+                } else {
+                    line_left_offset
+                }
+        };
+        let rules = content
+            .rules
+            .iter()
+            .map(|rule| {
+                let (x, width) = if rule.spans_content_box {
+                    (CssPixels::default(), content_box_inline_size)
+                } else {
+                    (
+                        line_left_in_content_box(rule.line_left_offset, rule.inline_size),
+                        rule.inline_size,
+                    )
+                };
+                CssPixelRect::new(x, content.ascent + rule.baseline_shift, width, rule.block_size)
+            })
+            .collect();
+        let glyph_runs = content
+            .glyph_runs
+            .iter()
+            .map(|placed| {
+                let run = &placed.glyphs;
+                let origin_x = line_left_in_content_box(placed.line_left_offset, run.advance);
+                let baseline = content.ascent + placed.baseline_shift;
+                MathGlyphRun {
+                    font: run.font.clone(),
+                    glyphs: run
+                        .glyphs
+                        .iter()
+                        .map(|glyph| MathGlyph {
+                            x: origin_x.to_float() + glyph.x,
+                            y: baseline.to_float() + glyph.y,
+                            glyph_id: glyph.glyph_id,
+                        })
+                        .collect(),
+                    ink_bounds: CssPixelRect::new(
+                        origin_x,
+                        baseline - run.ascent,
+                        run.advance,
+                        run.ascent + run.descent,
+                    ),
+                }
+            })
+            .collect();
+        MathPaintData { rules, glyph_runs }
+    }
+
+    /// The content with its children, rules and glyphs moved by the given line-left offset and baseline shift.
+    fn translated(self, line_left_offset: CssPixels, baseline_shift: CssPixels) -> Self {
+        Self {
+            positions: self
+                .positions
+                .into_iter()
+                .map(|position| ChildPosition {
+                    line_left_offset: position.line_left_offset + line_left_offset,
+                    baseline_shift: position.baseline_shift + baseline_shift,
+                })
+                .collect(),
+            rules: self
+                .rules
+                .into_iter()
+                .map(|rule| MathRule {
+                    line_left_offset: rule.line_left_offset + line_left_offset,
+                    baseline_shift: rule.baseline_shift + baseline_shift,
+                    ..rule
+                })
+                .collect(),
+            glyph_runs: self
+                .glyph_runs
+                .into_iter()
+                .map(|run| PlacedGlyphRun {
+                    line_left_offset: run.line_left_offset + line_left_offset,
+                    baseline_shift: run.baseline_shift + baseline_shift,
+                    ..run
+                })
+                .collect(),
+            ..self
+        }
+    }
+}
+
+/// A rule that the box paints: its line-left offset and the offset of its line-over edge from the alphabetic
+/// baseline of the math content towards the line-under.
+#[derive(Clone, Copy)]
+struct MathRule {
+    line_left_offset: CssPixels,
+    baseline_shift: CssPixels,
+    inline_size: CssPixels,
+    block_size: CssPixels,
+    /// Whether the rule spans the content box along the inline axis instead, like a fraction bar.
+    spans_content_box: bool,
+}
+
+/// Glyphs that the box paints, with their origin at a line-left offset, on a baseline shifted away from the
+/// alphabetic baseline of the math content towards the line-under.
+struct PlacedGlyphRun {
+    line_left_offset: CssPixels,
+    baseline_shift: CssPixels,
+    glyphs: GlyphRun,
+}
+
+/// Glyphs of one font, positioned relative to their origin, with the box metrics they cover.
+#[derive(Clone)]
+struct GlyphRun {
+    font: FontHandle,
+    /// The glyph ids, with the offsets of their origins from the origin of the run.
+    glyphs: Vec<MathGlyph>,
+    advance: CssPixels,
+    ascent: CssPixels,
+    descent: CssPixels,
+}
+
+impl GlyphRun {
+    /// A single glyph, with the box metrics of its ink.
+    fn for_glyph(font: FontHandle, glyph_id: u32) -> Self {
+        let metrics = font.glyph_metrics(glyph_id);
+        Self {
+            font,
+            glyphs: vec![MathGlyph {
+                x: 0.0,
+                y: 0.0,
+                glyph_id,
+            }],
+            advance: CssPixels::nearest_value_for_f32(metrics.advance),
+            ascent: CssPixels::nearest_value_for_f32(metrics.ascent),
+            descent: CssPixels::nearest_value_for_f32(metrics.descent),
+        }
+    }
+}
+
+/// What MathML layout produced for a box that painting draws: fraction bars, radical symbols and the glyphs of
+/// stretched operators. Positions are relative to the top-left corner of the content box.
+#[derive(Debug, PartialEq)]
+pub(crate) struct MathPaintData {
+    pub(crate) rules: Vec<CssPixelRect>,
+    pub(crate) glyph_runs: Vec<MathGlyphRun>,
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct MathGlyphRun {
+    pub(crate) font: FontHandle,
+    /// The glyphs, each positioned by its origin on its baseline.
+    pub(crate) glyphs: Vec<MathGlyph>,
+    pub(crate) ink_bounds: CssPixelRect,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct MathGlyph {
+    pub(crate) x: f32,
+    pub(crate) y: f32,
+    pub(crate) glyph_id: u32,
 }
 
 /// The layout constants of the first available font of a box.
@@ -1371,6 +1544,16 @@ impl<'pass> MathFormattingContext<'pass> {
             formatting_context::place_child(run, child.node, offset, None);
         }
 
+        if run.layout_mode == LayoutMode::Normal && (!content.rules.is_empty() || !content.glyph_runs.is_empty()) {
+            let bar_inline_size = if content_box_is_known {
+                content_box_inline_size
+            } else {
+                content.inline_size
+            };
+            let paint_data = content.paint_data(math_content_line_left, bar_inline_size, is_rtl);
+            root_used.rare_data_mut().math_paint_data = Some(std::sync::Arc::new(paint_data));
+        }
+
         self.derived_baselines_of_root_box = DerivedBaselines {
             first: Some(content.ascent),
             last: Some(content.ascent),
@@ -1521,6 +1704,7 @@ impl<'pass> MathFormattingContext<'pass> {
                     baseline_shift: position.baseline_shift - requested_voffset,
                 })
                 .collect(),
+            ..MathContent::default()
         }
     }
 
@@ -1629,6 +1813,17 @@ impl<'pass> MathFormattingContext<'pass> {
             .max(half_thickness - axis_height)
             .max(CssPixels::default());
 
+        // The inline size of the fraction bar is the inline size of the content box and its inline-start edge is the
+        // aligned with the one the content box. The center of the fraction bar is shifted away from the alphabetic
+        // baseline of the math content box by a distance of AxisHeight towards the line-over. Its block size is the
+        // fraction line thickness.
+        let fraction_bar = MathRule {
+            line_left_offset: CssPixels::default(),
+            baseline_shift: -(axis_height + half_thickness),
+            inline_size,
+            block_size: line_thickness,
+            spans_content_box: true,
+        };
         MathContent {
             inline_size,
             ascent,
@@ -1643,6 +1838,8 @@ impl<'pass> MathFormattingContext<'pass> {
                     baseline_shift: denominator_shift,
                 },
             ],
+            rules: vec![fraction_bar],
+            ..MathContent::default()
         }
     }
 
@@ -1732,6 +1929,7 @@ fn layout_row(children: &[Child], spacing: &[Option<(CssPixels, CssPixels)>]) ->
         ascent,
         descent,
         positions,
+        ..MathContent::default()
     }
 }
 
@@ -1802,6 +2000,7 @@ fn layout_fraction_without_bar(
                 baseline_shift: bottom_shift,
             },
         ],
+        ..MathContent::default()
     }
 }
 
@@ -1910,6 +2109,7 @@ fn layout_scripts(
         ascent,
         descent,
         positions,
+        ..MathContent::default()
     }
 }
 
@@ -2008,6 +2208,7 @@ fn layout_multiscripts(
         ascent,
         descent,
         positions,
+        ..MathContent::default()
     }
 }
 
@@ -2153,15 +2354,14 @@ fn layout_underover(
         ascent,
         descent,
         positions,
+        ..MathContent::default()
     }
 }
 
 /// The radical glyph of an <msqrt> or <mroot> and the radical parameters of its font.
 // https://w3c.github.io/mathml-core/#radical-symbol
 struct RadicalMetrics {
-    glyph_advance: CssPixels,
-    glyph_ascent: CssPixels,
-    glyph_descent: CssPixels,
+    glyph: GlyphRun,
     gap: CssPixels,
     rule_thickness: CssPixels,
     extra_ascender: CssPixels,
@@ -2177,7 +2377,7 @@ impl RadicalMetrics {
             SQUARE_ROOT,
             libgfx_rust::font::emoji_presentation_for_code_point(SQUARE_ROOT, None),
         );
-        let facts = font.facts();
+        let glyph_id = font.glyph_id_for_code_point(SQUARE_ROOT);
         // The radical gap is given by RadicalVerticalGap if the math-style is compact and
         // RadicalDisplayStyleVerticalGap if the math-style is normal.
         let gap = if style.math_style() == math_style::NORMAL {
@@ -2186,9 +2386,7 @@ impl RadicalMetrics {
             constants.radical_vertical_gap()
         };
         Self {
-            glyph_advance: CssPixels::nearest_value_for_f32(font.glyph_width(SQUARE_ROOT)),
-            glyph_ascent: CssPixels::nearest_value_for_f32(facts.ascent),
-            glyph_descent: CssPixels::nearest_value_for_f32(facts.descent),
+            glyph: GlyphRun::for_glyph(font, glyph_id),
             gap,
             rule_thickness: constants.radical_rule_thickness(),
             extra_ascender: constants.radical_extra_ascender(),
@@ -2198,9 +2396,10 @@ impl RadicalMetrics {
 
 // https://w3c.github.io/mathml-core/#square-root
 fn layout_square_root(base: MathContent, radical: &RadicalMetrics) -> MathContent {
+    let glyph = &radical.glyph;
     // The inline size of the math content is the sum of the advance width of the box metrics of the radical glyph
     // and of the inline size of the msqrt base's margin's box.
-    let inline_size = radical.glyph_advance + base.inline_size;
+    let inline_size = glyph.advance + base.inline_size;
     // The line-ascent of the math content is the maximum between:
     // - The line-ascent of the msqrt base's margin box.
     // - The sum of the ink line-ascent of the msqrt base, the radical gap, the RadicalRuleThickness and
@@ -2214,22 +2413,36 @@ fn layout_square_root(base: MathContent, radical: &RadicalMetrics) -> MathConten
     //   RadicalExtraAscender, minus the line-ascent of the math content.
     let descent = base
         .descent
-        .max(radical.glyph_ascent + radical.glyph_descent + radical.extra_ascender - ascent);
-    // The inline offsets of the msqrt base and overbar are also the same and equal to the width of the box metrics of
-    // the radical glyph.
-    let positions = base
-        .positions
-        .into_iter()
-        .map(|position| ChildPosition {
-            line_left_offset: position.line_left_offset + radical.glyph_advance,
-            ..position
-        })
-        .collect();
+        .max(glyph.ascent + glyph.descent + radical.extra_ascender - ascent);
+    // The inline size of the overbar is the inline size of the msqrt base's margin's box. The inline offsets of the
+    // msqrt base and overbar are also the same and equal to the width of the box metrics of the radical glyph.
+    // The block size of the overbar is RadicalRuleThickness. Its vertical center is shifted away from the alphabetic
+    // baseline by a distance towards the line-over equal to the line-ascent of the math content, minus the
+    // RadicalExtraAscender, minus half the RadicalRuleThickness.
+    let overbar_baseline_shift = radical.extra_ascender - ascent;
+    let base_inline_size = base.inline_size;
+    let mut content = base.translated(glyph.advance, CssPixels::default());
+    content.rules.push(MathRule {
+        line_left_offset: glyph.advance,
+        baseline_shift: overbar_baseline_shift,
+        inline_size: base_inline_size,
+        block_size: radical.rule_thickness,
+        spans_content_box: false,
+    });
+    // Finally, the painting of the surd is performed:
+    // - At inline offset 0.
+    // - At block offset shifted away from the line-over edge of the overbar towards the line-under by a distance
+    //   given by the ascent of the box metrics of the radical glyph.
+    content.glyph_runs.push(PlacedGlyphRun {
+        line_left_offset: CssPixels::default(),
+        baseline_shift: overbar_baseline_shift + glyph.ascent,
+        glyphs: glyph.clone(),
+    });
     MathContent {
         inline_size,
         ascent,
         descent,
-        positions,
+        ..content
     }
 }
 
@@ -2243,6 +2456,7 @@ fn layout_root(base: &Child, index: &Child, radical: &RadicalMetrics, constants:
             ascent: base.ascent,
             descent: base.descent,
             positions: vec![ChildPosition::default()],
+            ..MathContent::default()
         },
         radical,
     );
@@ -2267,19 +2481,15 @@ fn layout_root(base: &Child, index: &Child, radical: &RadicalMetrics, constants:
     // same + the inline size of the index's margin box.
     // NB: The base also follows the radical glyph and AdjustedRadicalKernAfterDegree.
     let b_offset = adjusted_kern_before_degree + index.inline_size + adjusted_kern_after_degree;
+    let mut content = b.translated(b_offset, CssPixels::default());
+    content.positions.push(ChildPosition {
+        line_left_offset: adjusted_kern_before_degree,
+        baseline_shift: index_baseline_shift,
+    });
     MathContent {
         inline_size,
         ascent,
         descent,
-        positions: vec![
-            ChildPosition {
-                line_left_offset: b_offset + b.positions[0].line_left_offset,
-                baseline_shift: CssPixels::default(),
-            },
-            ChildPosition {
-                line_left_offset: adjusted_kern_before_degree,
-                baseline_shift: index_baseline_shift,
-            },
-        ],
+        ..content
     }
 }

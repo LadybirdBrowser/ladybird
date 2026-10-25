@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dynamic radical: paint invalidation (expectation)</title>
+<style>
+  @font-face {
+    font-family: RadicalFont;
+    src: url("../../../fonts/math/radical-displaystyleverticalgap7000-rulethickness1000.woff");
+  }
+  math {
+      font-family: RadicalFont;
+      font-size: 10px;
+  }
+  #container > div {
+      height: 80px;
+      border-top: solid;
+  }
+  .withPaddingBorderAndMargin {
+      padding: 5px;
+      border: 5px solid yellow;
+      margin: 5px;
+  }
+</style>
+</head>
+<body>
+  <div id="container">
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <msqrt>
+          <mspace width="60px" height="10px" depth="10px" style="background: blue"/>
+        </msqrt>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <mroot>
+          <mspace width="60px" height="10px" depth="10px" style="background: blue"/>
+          <mspace width="20px" height="10px" depth="10px" style="background: lightblue"/>
+        </mroot>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <msqrt>
+          <mspace width="20px" height="20px" depth="10px" style="background: blue"/>
+        </msqrt>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <mroot>
+          <mspace width="20px" height="20px" depth="10px" style="background: blue"/>
+          <mspace width="20px" height="10px" depth="10px" style="background: lightblue"/>
+        </mroot>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <msqrt>
+          <mspace width="20px" height="10px" depth="40px" style="background: blue"/>
+        </msqrt>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <mroot>
+          <mspace width="20px" height="10px" depth="40px" style="background: blue"/>
+          <mspace width="20px" height="10px" depth="10px" style="background: lightblue"/>
+        </mroot>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <msqrt>
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+        </msqrt>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <mroot>
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+          <mspace width="20px" height="10px" depth="10px" style="background: lightblue"/>
+        </mroot>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <msqrt class="withPaddingBorderAndMargin">
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+        </msqrt>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <mroot class="withPaddingBorderAndMargin">
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+          <mspace width="20px" height="10px" depth="10px" style="background: lightblue"/>
+        </mroot>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+  </div>
+</body>
+</html>

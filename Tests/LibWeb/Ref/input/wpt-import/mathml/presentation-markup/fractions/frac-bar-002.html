@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <head>
+    <meta charset="utf-8">
+    <title>fractions bar</title>
+    <link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+    <meta name="assert" content="Verify painting of the fraction bar when margin/padding/border are involved.">
+    <link rel="match" href="../../../../../expected/wpt-import/mathml/presentation-markup/fractions/frac-bar-002-ref.html">
+    <style type="text/css">
+      @font-face {
+        font-family: TestFont;
+        src: url("../../../fonts/math/fraction-rulethickness10000.woff");
+      }
+      math {
+        /* FractionRuleThickness = 10000 * 1 / 1000 = 10px; */
+        /* The gap / shift / axisheight parameters are set to 0. */
+        font-family: "TestFont";
+        font-size: 1px;
+      }
+      #container {
+          position: absolute;
+          left: 0;
+          top: 0;
+      }
+      #red {
+          position: absolute;
+          background: red;
+          margin: 1px;
+          width: 148px;
+          height: 148px;
+      }
+    </style>
+    <script src="../../../mathml/support/fonts.js"></script>
+    <script src="../../../common/reftest-wait.js"></script>
+    <script>
+      window.addEventListener("load", () => { loadAllFonts().then(adjustPositionOfFraction); });
+
+      function adjustPositionOfFraction()
+      {
+          requestAnimationFrame(() => {
+              var container = document.getElementById("container");
+              var red = document.getElementById("red");
+              var numeratorBox = document.getElementById("numerator").getBoundingClientRect();
+              const shift = 50;
+              const numeratorMargin = 20;
+
+              /* Move the red square at the expected position,
+                 with a 1px gap to avoid antialiasing issues. */
+              red.style.left = `${shift}px`;
+              red.style.top = `${shift}px`;
+
+              /* Move the fraction bar at the expected position. */
+              container.style.left = (shift - numeratorBox.left + numeratorMargin) + "px";
+              container.style.top = (shift - numeratorBox.bottom - numeratorMargin) + "px";
+              requestAnimationFrame(takeScreenshot);
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <p>This test passes if you see a green <strong>square</strong> and no red.</p>
+    <div>
+      <div id="red"></div>
+      <div id="container">
+        <math>
+          <!-- border, padding and margin should not affect the width of the fraction bar. -->
+          <mfrac style="color: green; font-size: 15em;
+                        border: 30px solid transparent;
+                        padding: 60px; margin: 120px;
+                        ">
+            <!-- the bar width is the one of the numerator margin box i.e. 80 + 2 * (5 + 10 + 20) = 150px -->
+            <mspace id="numerator" width="80px"
+                    style="border: 5px solid transparent;
+                           padding: 10px; margin: 20px;"></mspace>
+            <mspace></mspace>
+          </mfrac>
+        </math>
+      </div>
+    </div>
+    <script src="../../../mathml/support/feature-detection.js"></script>
+    <script>MathMLFeatureDetection.ensure_for_match_reftest("has_mfrac");</script>
+  </body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <head>
+    <meta charset="utf-8">
+    <title>fractions bar</title>
+    <link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+    <meta name="assert" content="Verifies painting of the fraction bar">
+    <link rel="match" href="../../../../../expected/wpt-import/mathml/presentation-markup/fractions/frac-bar-001-ref.html">
+    <style type="text/css">
+      @font-face {
+        font-family: TestFont;
+        src: url("../../../fonts/math/fraction-rulethickness10000.woff");
+      }
+      math {
+        /* FractionRuleThickness = 10000 * 1 / 1000 = 10px; */
+        /* The gap / shift / axisheight parameters are set to 0. */
+        font-family: "TestFont";
+        font-size: 1px;
+      }
+      #container {
+          position: absolute;
+          left: 0;
+          top: 0;
+      }
+    </style>
+    <script src="../../../common/reftest-wait.js"></script>
+    <script src="../../../mathml/support/fonts.js"></script>
+    <script>
+      window.addEventListener("load", () => { loadAllFonts().then(adjustPositionOfFraction); });
+
+      function adjustPositionOfFraction()
+      {
+        requestAnimationFrame(() => {
+          var container = document.getElementById("container");
+          var numeratorBox = document.getElementById("numerator").getBoundingClientRect();
+          container.style.left = (10 - numeratorBox.left) + "px";
+          container.style.top = (50 - numeratorBox.top) + "px";
+          requestAnimationFrame(takeScreenshot);
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <p>This test passes if you see a green square.</p>
+    <div id="container">
+      <math>
+        <mfrac style="color: green; font-size: 15em">
+          <mspace id="numerator" width="150px"></mspace>
+          <mspace></mspace>
+        </mfrac>
+      </math>
+    </div>
+    <script src="../../../mathml/support/feature-detection.js"></script>
+    <script>MathMLFeatureDetection.ensure_for_match_reftest("has_mfrac");</script>
+  </body>
+</html>

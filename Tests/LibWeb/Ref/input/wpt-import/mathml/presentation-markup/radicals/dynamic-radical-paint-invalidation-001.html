@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head>
+<meta charset="utf-8">
+<title>Dynamic radical: paint invalidation</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#radicals-msqrt-mroot">
+<meta name="assert" content="">
+<link rel="match" href="../../../../../expected/wpt-import/mathml/presentation-markup/radicals/dynamic-radical-paint-invalidation-001-ref.html">
+<style>
+  @font-face {
+    font-family: RadicalFont;
+    src: url("../../../fonts/math/radical-displaystyleverticalgap7000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: RadicalFont2;
+    src: url("../../../fonts/math/radical-kernbeforedegree4000-rulethickness1000.woff");
+  }
+  math {
+      font-family: RadicalFont;
+      font-size: 10px;
+  }
+  #container > div {
+      height: 80px;
+      border-top: solid;
+  }
+  .withPaddingBorderAndMargin {
+      padding: 5px;
+      border: 5px solid yellow;
+      margin: 5px;
+  }
+</style>
+<script src="../../../mathml/support/fonts.js"></script>
+<script>
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+  function runTests() {
+      // force initial layout so we're sure what we're testing against
+      document.documentElement.getBoundingClientRect();
+
+      var mroot = document.getElementsByTagName("mroot");
+      var msqrt = document.getElementsByTagName("msqrt");
+
+      // Modify base's width.
+      msqrt[0].firstElementChild.setAttribute("width", "60px")
+      mroot[0].firstElementChild.setAttribute("width", "60px")
+
+      // Modify base's ascent.
+      msqrt[1].firstElementChild.setAttribute("height", "20px")
+      mroot[1].firstElementChild.setAttribute("height", "20px")
+
+      // Modify base's descent.
+      msqrt[2].firstElementChild.setAttribute("depth", "40px")
+      mroot[2].firstElementChild.setAttribute("depth", "40px")
+
+      // Modify the radical's font family.
+      msqrt[3].parentNode.removeAttribute("style");
+      mroot[3].parentNode.removeAttribute("style");
+
+      // Modify radical's margin/border/padding
+      msqrt[4].setAttribute("class", "withPaddingBorderAndMargin");
+      mroot[4].setAttribute("class", "withPaddingBorderAndMargin");
+
+      document.documentElement.classList.remove('reftest-wait');
+  };
+</script>
+</head>
+<body>
+  <div id="container">
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <msqrt>
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+        </msqrt>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <mroot>
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+          <mspace width="20px" height="10px" depth="10px" style="background: lightblue"/>
+        </mroot>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <msqrt>
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+        </msqrt>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <mroot>
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+          <mspace width="20px" height="10px" depth="10px" style="background: lightblue"/>
+        </mroot>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <msqrt>
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+        </msqrt>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <mroot>
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+          <mspace width="20px" height="10px" depth="10px" style="background: lightblue"/>
+        </mroot>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math style="font-family: RadicalFont2">
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <msqrt>
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+        </msqrt>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math style="font-family: RadicalFont2">
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <mroot>
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+          <mspace width="20px" height="10px" depth="10px" style="background: lightblue"/>
+        </mroot>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <msqrt>
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+        </msqrt>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+    <div>
+      <math>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+        <mroot>
+          <mspace width="20px" height="10px" depth="10px" style="background: blue"/>
+          <mspace width="20px" height="10px" depth="10px" style="background: lightblue"/>
+        </mroot>
+        <mspace width="20px" height="10px" depth="10px" style="background: gray"/>
+      </math>
+    </div>
+  </div>
+  <script src="../../../mathml/support/feature-detection.js"></script>
+  <script>MathMLFeatureDetection.ensure_for_match_reftest("has_mspace");</script>
+</body>
+</html>
