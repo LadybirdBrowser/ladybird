@@ -117,7 +117,17 @@ pub(crate) fn collect_visual_lines(layout_arena: &impl PaintRead, node_slots: &[
     if let Some(&primary) = node_slots.last()
         && text_preserves_newlines(layout_arena, primary)
     {
+        // The empty line after a text control's trailing newline holds a zero-length fragment, so its line is already
+        // in the list.
+        let empty_lines_with_fragments: Vec<usize> = lines
+            .iter()
+            .filter(|line| line.start_offset == line.end_offset)
+            .map(|line| line.start_offset)
+            .collect();
         for_each_empty_visual_line_position(layout_arena, node_slots, |position| {
+            if empty_lines_with_fragments.contains(&position) {
+                return true;
+            }
             lines.push(RecordVisualLine {
                 start_offset: position,
                 end_offset: position,

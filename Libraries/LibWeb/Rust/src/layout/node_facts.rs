@@ -1154,6 +1154,12 @@ impl<'pass> NodeFacts<'pass> {
         has_flag(self.data(), NodeFlag::ProducesLineBoxFragmentWhenEmpty)
     }
 
+    /// Whether the node is the text of a text control, such as a textarea's value. Only that text and the text directly
+    /// in an editing host produce a line box fragment when empty, and no editing host is in a user agent shadow tree.
+    pub(crate) fn is_text_control_text(&self) -> bool {
+        has_flag(self.data(), NodeFlag::IsInUserAgentShadowTree) && self.produces_line_box_fragment_when_empty()
+    }
+
     pub(crate) fn uses_button_layout(&self) -> bool {
         has_flag(self.data(), NodeFlag::UsesButtonLayout)
     }
