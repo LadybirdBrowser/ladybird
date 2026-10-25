@@ -2,14 +2,13 @@ Harness status: OK
 
 Found 9 tests
 
-8 Pass
-1 Fail
+9 Pass
 Pass	The detail property in the mark constructor should be structured-clone.
 Pass	The detail property in the mark method should be structured-clone.
 Pass	When accessing detail from a mark entry and the detail is not provided, just return a null value.
 Pass	Mark: Throw an exception when the detail property cannot be structured-serialized.
 Pass	The detail property in the measure method should be structured-clone.
-Fail	The detail property in the measure method should be the same reference.
+Pass	The detail property in the measure method should be the same reference.
 Pass	When accessing detail from a measure entry and the detail is not provided, just return a null value.
 Pass	Measure: Throw an exception when the detail property cannot be structured-serialized.
 Pass	The detail object is cloned when passed to mark API.
