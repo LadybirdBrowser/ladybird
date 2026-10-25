@@ -121,6 +121,8 @@ fn asynchronously_compile_a_webassembly_module(
             let realm = vm.current_realm().expect("the steps run in the realm of the promise");
             let result = compile_a_webassembly_module(vm, realm, &job.bytes.borrow()).map_err(|throw| throw.value());
             *job.result.borrow_mut() = Some(result);
+            // NB: The compiled module keeps the bytes it was compiled from.
+            job.bytes.take();
 
             // 2. Queue a task on taskSource, if provided, to perform the following steps:
             queue_a_task(vm, realm, task_source, (promise, job), |vm, (promise, job)| {
@@ -163,10 +165,8 @@ fn asynchronously_compile_a_webassembly_module(
                 else {
                     // 1. Construct a WebAssembly module object from module, bytes, builtinSetNames, importedStringModule, and
                     //    let moduleObject be the result.
-                    let bytes = job.bytes.take();
-                    let module_object = allocate(vm, |_| {
-                        Module::new(module, bytes, builtin_set_names, imported_string_module)
-                    });
+                    let module_object =
+                        allocate(vm, |_| Module::new(module, builtin_set_names, imported_string_module));
 
                     // 2. Resolve promise with moduleObject.
                     let cx = CallContext::new(vm, realm);
