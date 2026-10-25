@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html><head>
+        <title> scheduler: stylesheets blocking external parser-blocking scripts</title>
+        <script src="../../../../../resources/testharness.js"></script>
+        <script src="../../../../../resources/testharnessreport.js"></script>
+        <!-- this stylesheet blocks scripts -->
+        <link rel="stylesheet" href="css/import.css?pipe=trickle(d2)">
+</head>
+<body>
+        <div id="log">FAILED (This TC requires JavaScript enabled)</div>
+        <div id="test">Test</div>
+
+        <script src="scripts/check-style-sheet.js"></script>
+</body></html>
