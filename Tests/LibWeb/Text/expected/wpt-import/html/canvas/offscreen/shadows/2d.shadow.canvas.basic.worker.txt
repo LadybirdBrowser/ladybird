@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Shadows are drawn for canvases
+1 Pass
+Pass	Shadows are drawn for canvases

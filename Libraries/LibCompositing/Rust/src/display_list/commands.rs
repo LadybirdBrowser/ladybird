@@ -1815,8 +1815,26 @@ ffi_bytes_fields!(Canvas2DPaint {
     pattern_transform
 });
 
+/// The shadow that a 2D canvas draw casts, with its offset and blur in the coordinates of the canvas, which the
+/// current transformation matrix does not affect.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct Canvas2DShadow {
+    pub color: Color,
+    pub offset_x: f32,
+    pub offset_y: f32,
+    pub blur: f32,
+}
+ffi_bytes_fields!(Canvas2DShadow {
+    color,
+    offset_x,
+    offset_y,
+    blur
+});
+
 /// How a 2D canvas draw composites onto the canvas: through the serialized filter graph of the context, if it has one,
-/// with the global alpha of the context, and with its compositing and blending operator.
+/// with the global alpha of the context, with its compositing and blending operator, and with the shadow that it
+/// casts, if it casts one.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct Canvas2DCompositing {
@@ -1824,30 +1842,30 @@ pub struct Canvas2DCompositing {
     pub has_filter: bool,
     pub global_alpha: f32,
     pub compositing_and_blending_operator: CompositingAndBlendingOperator,
+    pub has_shadow: bool,
+    pub shadow: Canvas2DShadow,
 }
 ffi_bytes_fields!(Canvas2DCompositing {
     filter,
     has_filter,
     global_alpha,
-    compositing_and_blending_operator
+    compositing_and_blending_operator,
+    has_shadow,
+    shadow
 });
 
-// A path fill. A solid color fill with a blur radius is a shadow, which is blurred and drawn without the filter and the
-// global alpha.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct Canvas2DFillPath {
     pub path_data: DisplayListDataSpan,
     pub paint: Canvas2DPaint,
     pub winding_rule: WindingRule,
-    pub blur_radius: f32,
     pub compositing: Canvas2DCompositing,
 }
 ffi_bytes_fields!(Canvas2DFillPath {
     path_data,
     paint,
     winding_rule,
-    blur_radius,
     compositing
 });
 
@@ -1866,7 +1884,6 @@ pub struct Canvas2DStrokePath {
     pub miter_limit: f32,
     pub dash_array: DisplayListDataSpan,
     pub dash_offset: f32,
-    pub blur_radius: f32,
     pub compositing: Canvas2DCompositing,
 }
 ffi_bytes_fields!(Canvas2DStrokePath {
@@ -1878,7 +1895,6 @@ ffi_bytes_fields!(Canvas2DStrokePath {
     miter_limit,
     dash_array,
     dash_offset,
-    blur_radius,
     compositing
 });
 
