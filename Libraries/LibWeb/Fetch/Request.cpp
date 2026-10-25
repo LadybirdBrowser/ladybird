@@ -15,9 +15,43 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Request.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/Streams/ReadableStream.h>
+#include <LibWeb/Streams/TransformStream.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::Fetch {
+
+// https://streams.spec.whatwg.org/#create-an-identity-transformstream
+static GC::Ref<Streams::TransformStream> create_an_identity_transform_stream(HTML::EnvironmentSettingsObject& settings_object)
+{
+    auto& realm = settings_object.realm();
+
+    // 1. Let transformStream be a new TransformStream.
+    auto transform_stream = Streams::TransformStream::create(realm);
+
+    // 2. Set up transformStream with transformAlgorithm set to an algorithm which, given chunk, enqueues chunk in
+    //    transformStream.
+    auto transform_algorithm = GC::create_function(GC::Heap::the(), [&realm, transform_stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
+        if (auto result = transform_stream->enqueue(chunk); result.is_error())
+            return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
+        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+    });
+    transform_stream->set_up(realm, transform_algorithm);
+
+    // 3. Return transformStream.
+    return transform_stream;
+}
+
+// https://streams.spec.whatwg.org/#readablestream-create-a-proxy
+static GC::Ref<Streams::ReadableStream> create_a_proxy(HTML::EnvironmentSettingsObject& settings_object, GC::Ref<Streams::ReadableStream> stream)
+{
+    // 1. Let identityTransform be the result of creating an identity TransformStream.
+    auto identity_transform = create_an_identity_transform_stream(settings_object);
+
+    // 2. Return the result of stream piped through identityTransform.
+    return stream->piped_through(identity_transform);
+}
 
 static Bindings::ReferrerPolicy referrer_policy_to_bindings(ReferrerPolicy::ReferrerPolicy referrer_policy)
 {
@@ -641,20 +675,26 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::create_with_settings(HTML::Enviro
     }
 
     // 40. Let finalBody be inputOrInitBody.
-    auto const& final_body = input_or_init_body;
+    Optional<Infrastructure::Request::BodyType> final_body;
+    if (input_or_init_body.has_value())
+        final_body = *input_or_init_body;
 
     // 41. If initBody is null and inputBody is non-null, then:
     if (!init_body.has_value() && input_body.has_value()) {
-        // 2. If input is unusable, then throw a TypeError.
+        // 1. If inputBody is unusable, then throw a TypeError.
         if (input.has<GC::Ref<Request>>() && input.get<GC::Ref<Request>>()->is_unusable())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request is unusable"_utf16 };
 
-        // FIXME: 2. Set finalBody to the result of creating a proxy for inputBody.
+        // 2. Set finalBody to the result of creating a proxy for inputBody.
+        // NB: The proxy is a new body whose stream is the proxy of inputBody's stream. It keeps inputBody's source and
+        //     length, so that it can still be transmitted and recreated like inputBody.
+        if (auto const* body = input_body->get_pointer<GC::Ref<Infrastructure::Body>>())
+            final_body = Infrastructure::Body::create(create_a_proxy(relevant_settings_object, (*body)->stream()), (*body)->fetch_body());
     }
 
     // 42. Set this’s request’s body to finalBody.
     if (final_body.has_value())
-        request_object->request()->set_body(*final_body);
+        request_object->request()->set_body(final_body.release_value());
 
     return GC::Ref { *request_object };
 }
