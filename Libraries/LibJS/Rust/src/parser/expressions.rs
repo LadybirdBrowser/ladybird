@@ -1209,8 +1209,20 @@ impl Parser<'_> {
             self.parse_expression(PRECEDENCE_MEMBER, Associativity::Right, forbidden)
         };
 
-        if matches!(callee.inner, ExpressionKind::ImportCall(_)) && !callee_starts_with_grouping_paren {
-            self.syntax_error("Cannot call new on dynamic import");
+        // NB: An ImportCall is a CallExpression, not a MemberExpression, so neither it nor a member access or tagged
+        //     template on it can be the operand of `new` unless it is parenthesized.
+        if !callee_starts_with_grouping_paren {
+            let mut base = &callee;
+            loop {
+                match &base.inner {
+                    ExpressionKind::Member(member) => base = &member.object,
+                    ExpressionKind::TaggedTemplateLiteral(tagged_template) => base = &tagged_template.tag,
+                    _ => break,
+                }
+            }
+            if matches!(base.inner, ExpressionKind::ImportCall(_)) {
+                self.syntax_error("Cannot call new on dynamic import");
+            }
         }
 
         if self.match_token(TokenType::ParenOpen) {
