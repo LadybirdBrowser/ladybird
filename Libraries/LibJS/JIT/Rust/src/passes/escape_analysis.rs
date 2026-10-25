@@ -163,13 +163,13 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
             };
             let accesses_object = match &data.op {
                 Op::EmptyToUndefined | Op::CellAddress | Op::CheckObject => true,
-                Op::LoadNamed { offset } => *offset < count,
+                Op::LoadNamed { offset, .. } => *offset < count,
                 Op::CheckShape { shapes } => shapes
                     .iter()
                     .any(|check| check.shape == shape && check.dictionary_generation.is_none()),
-                Op::InitializeNamed { offset } | Op::StoreNamed { offset } if index != 1 => *offset < count,
+                Op::InitializeNamed { offset } | Op::StoreNamed { offset, .. } if index != 1 => *offset < count,
                 Op::AddNamed { offset, .. } if index != 1 => *offset == count,
-                Op::InitializeNamed { offset } | Op::StoreNamed { offset } | Op::AddNamed { offset, .. } => {
+                Op::InitializeNamed { offset } | Op::StoreNamed { offset, .. } | Op::AddNamed { offset, .. } => {
                     stored_into.push((root, roots.get(&data.inputs[0]).copied(), *offset));
                     true
                 }
@@ -184,7 +184,7 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
     let loaded = placed
         .iter()
         .filter_map(|node| match graph.node(*node).op {
-            Op::LoadNamed { offset } => roots.get(&graph.node(*node).inputs[0]).map(|root| (*root, offset)),
+            Op::LoadNamed { offset, .. } => roots.get(&graph.node(*node).inputs[0]).map(|root| (*root, offset)),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -483,14 +483,14 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
                     shapes.insert(root, (shape, property_count));
                     removed.insert(node.index());
                 }
-                Op::InitializeNamed { offset } | Op::StoreNamed { offset } if object.is_some() => {
+                Op::InitializeNamed { offset } | Op::StoreNamed { offset, .. } if object.is_some() => {
                     let root = analysis
                         .root(object.expect("checked"))
                         .expect("replaced objects have roots");
                     properties.insert((root, offset), replacements.resolve(data.inputs[1]));
                     removed.insert(node.index());
                 }
-                Op::LoadNamed { offset } if object.is_some() => {
+                Op::LoadNamed { offset, .. } if object.is_some() => {
                     let root = analysis
                         .root(object.expect("checked"))
                         .expect("replaced objects have roots");

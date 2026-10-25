@@ -481,6 +481,15 @@ fn find_intrinsic_accessor(vm: &Vm, object: &Object, property_key: &PropertyKey)
     intrinsics.remove(property_key.as_string())
 }
 
+/// The attributes a property holding `value` gets: accessor properties have no [[Writable]] attribute, so that a shape
+/// tells that its writable properties hold data (which JIT code relies on).
+fn attributes_for(value: Value, mut attributes: PropertyAttributes) -> PropertyAttributes {
+    if value.is_accessor() {
+        attributes.set_writable(false);
+    }
+    attributes
+}
+
 fn remove_intrinsic_accessor(vm: &Vm, object: &Object, property_key: &PropertyKey) {
     if let Some(intrinsics) = vm
         .intrinsic_accessors()
@@ -2824,6 +2833,7 @@ impl Object {
         value_and_attributes: ValueAndAttributes,
     ) -> Option<u32> {
         let ValueAndAttributes { value, attributes, .. } = value_and_attributes;
+        let attributes = attributes_for(value, attributes);
 
         if property_key.is_number() && self.indexed_has(property_key.as_number()) {
             self.indexed_put(property_key.as_number(), value, attributes);
@@ -2860,6 +2870,7 @@ impl Object {
     ) -> Option<u32> {
         debug_assert!(!self.storage_has(property_key));
         let ValueAndAttributes { value, attributes, .. } = value_and_attributes;
+        let attributes = attributes_for(value, attributes);
 
         if property_key.is_number() {
             self.indexed_put(property_key.as_number(), value, attributes);

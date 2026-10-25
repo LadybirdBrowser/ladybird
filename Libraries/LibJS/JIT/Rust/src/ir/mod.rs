@@ -876,10 +876,12 @@ pub enum Op {
         part: AccessorPart,
     },
     /// Loads the named property at `offset` of the object in input 0. Exits
-    /// if the property holds an accessor. An optional input 1 is the
-    /// object's `CellAddress`.
+    /// if the property holds an accessor, unless checks before it ensure
+    /// that it `holds_data`. An optional input 1 is the object's
+    /// `CellAddress`.
     LoadNamed {
         offset: u32,
+        holds_data: bool,
     },
     /// Adds a property to the object in input 0 (whose `CellAddress` is
     /// input 2), made by an `AllocateObject` with room for it, which has the
@@ -893,10 +895,12 @@ pub enum Op {
         property_count: u32,
     },
     /// Stores input 1 into the named property at `offset` of the object in
-    /// input 0, which already exists. Exits if the property holds an accessor.
-    /// An optional input 2 is the object's `CellAddress`.
+    /// input 0, which already exists. Exits if the property holds an accessor,
+    /// unless checks before it ensure that it `holds_data`. An optional input
+    /// 2 is the object's `CellAddress`.
     StoreNamed {
         offset: u32,
+        holds_data: bool,
     },
 
     // Control nodes. Each block ends with exactly one of these.
@@ -1858,8 +1862,8 @@ impl Op {
             | Op::CheckPrototypeChainValid { .. }
             | Op::LoadGlobalBinding { .. }
             | Op::StoreGlobalBinding { .. }
-            | Op::LoadNamed { .. }
-            | Op::StoreNamed { .. }
+            | Op::LoadNamed { holds_data: false, .. }
+            | Op::StoreNamed { holds_data: false, .. }
             | Op::ShapeSwitch { .. } => Some(ExitKind::BadShape),
             _ => None,
         }

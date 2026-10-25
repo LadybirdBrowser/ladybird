@@ -260,8 +260,12 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         Op::CheckAccessorFunction { offset, part, function } => {
             with_inputs(&format!("CheckAccessorFunction +{offset} {part:?} {:#x}", function.0))
         }
-        Op::LoadNamed { offset } => with_inputs(&format!("LoadNamed +{offset}")),
-        Op::StoreNamed { offset } => with_inputs(&format!("StoreNamed +{offset}")),
+        Op::LoadNamed { offset, holds_data } => {
+            with_inputs(&format!("LoadNamed +{offset}")) + if *holds_data { " data" } else { "" }
+        }
+        Op::StoreNamed { offset, holds_data } => {
+            with_inputs(&format!("StoreNamed +{offset}")) + if *holds_data { " data" } else { "" }
+        }
         Op::AddNamed { offset, shape, .. } => with_inputs(&format!("AddNamed +{offset} to {:#x}", shape.0)),
         Op::ShapeSwitch { cases } => {
             let cases = cases

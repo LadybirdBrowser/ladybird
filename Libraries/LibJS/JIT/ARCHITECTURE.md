@@ -167,8 +167,8 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | AssumeValid | Exits if the code was invalidated; a patchable no-op (section 5). | E | Any | | |
 | AssumeLegacyArgumentsUnread | After an instruction whose calls may run code reading the legacy `arguments` of inlined frames; escape analysis makes it an `AssumeValid` or removes it (section 4, "Legacy arguments"). | E | Any | | |
 | **Object memory** | | | | | |
-| LoadNamed | A named property at an offset; exits for accessors. | E | Named | | cse |
-| StoreNamed | Stores an existing named property; exits for accessors. | E | Named | Named | |
+| LoadNamed | A named property at an offset; exits for accessors, unless the shape check of its object input ensures that it `holds_data` (the own property is writable in the checked shape, and accessor properties never are). Loads from prototypes always check: no check guards their constant object as an input, so they could move above their guards. | E unless `holds_data` | Named | | cse |
+| StoreNamed | Stores an existing named property; exits for accessors, unless it `holds_data` like a `LoadNamed`. | E unless `holds_data` | Named | Named | |
 | AddNamed | Adds a property to a fresh object and gives it the new shape. | | Named | Named | |
 | LoadAccessorFunction | The getter or setter of an accessor property. | E | Named | | |
 | HasInPrototypeChain | Whether input 1 is on input 0's prototype chain (the OrdinaryHasInstance loop). | E | Named | | |

@@ -254,6 +254,30 @@ fn prototype_property_object(entry: &PropertyLookupCacheEntryData) -> Option<Gc<
     value.is_object().then(|| value.as_object())
 }
 
+/// Whether the own property an entry reads or writes is writable in the shape of the object, which makes it a data
+/// property for as long as the object keeps the shape (see `Object::storage_set()`). Loads of the properties of
+/// prototypes always check, as they are guarded by no check of the object they load from.
+fn property_holds_data(entry: &PropertyLookupCacheEntryData) -> bool {
+    if !matches!(
+        entry.entry_type,
+        PropertyLookupCacheEntryType::GetOwnProperty | PropertyLookupCacheEntryType::ChangeOwnProperty
+    ) {
+        return false;
+    }
+    let Some(shape) = entry.shape else {
+        return false;
+    };
+    let mut writable = false;
+    shape.for_each_property_in_insertion_order(|_, metadata| {
+        if metadata.offset != entry.property_offset {
+            return core::ops::ControlFlow::Continue(());
+        }
+        writable = metadata.attributes.is_writable();
+        core::ops::ControlFlow::Break(())
+    });
+    writable
+}
+
 /// The value the prototype of a GetPropertyInPrototypeChain or ChangePropertyInPrototypeChain entry holds in the
 /// property, if the entry still applies.
 fn prototype_property_value(entry: &PropertyLookupCacheEntryData) -> Option<Value> {
@@ -480,6 +504,7 @@ impl SnapshotBuilder<'_> {
                     })
                     .map(|set| self.cell(set)),
                 accessor_function,
+                property_holds_data: property_holds_data(&entry),
                 holds_accessor: entry_holds_accessor(&entry),
             });
         }
