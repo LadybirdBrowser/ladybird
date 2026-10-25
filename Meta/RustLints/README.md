@@ -14,6 +14,9 @@ plugin:
 - `gc_pointer_in_drop`: the `Drop` of a type that the crate's cells own, by value or through heap memory, dereferences a
   `Gc`. Cells are dropped while the collector sweeps, when the cells they point to may be gone already. What needs other
   cells belongs in `Finalize`, which runs while every cell that dies is intact.
+- `gc_container_in_untraced_type`: a type that does not implement `Trace` keeps a GC pointer in a field through heap
+  memory, an `Rc` or a `Box` included. Nothing traces its values wherever they are held: implement `Trace` for it, so
+  that its owner traces it, or tie it to a deferral.
 
 A GC pointer is a reference to a `GcCell`, a value of a type of the crate that implements `Trace` by hand, as `Gc`,
 `Value` and `PropertyKey` do, or a trait object whose trait requires `Trace`. A type that hides cell pointers in its

@@ -7,6 +7,7 @@
 // Mirrors Tests/ClangPlugins/LibJSGCTests/gc_pointer_container_on_stack.cpp.
 
 #![allow(unused, clippy::all)]
+#![allow(gc_container_in_untraced_type, reason = "the fixtures are only held where the test says")]
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
