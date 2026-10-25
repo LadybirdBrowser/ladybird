@@ -1,4 +1,4 @@
-$9619613b chained-member-call.js:12:1
+$9355702b chained-member-call.js:12:1
   Registers: 10
   Blocks:    6
   Constants:
@@ -7,37 +7,39 @@ $9619613b chained-member-call.js:12:1
 
 block0:
   [   0] Enter
-  [   8] Jump target:block3
+  [   8] MovSrcUndefined dst:reg5
+  [  10] Jump target:block3
 
 block1:
-  [  10] Catch value_feedback:0, dst:reg5
-  [  18] Mov2 c0_dst:reg6, c0_src:Undefined, c1_dst:reg7, c1_src:reg6
+  [  18] Catch value_feedback:0, dst:reg6
+  [  20] Mov2 c0_dst:reg7, c0_src:Undefined, c1_dst:reg5, c1_src:reg7
 
 block2:
-  [  30] Jump target:block5
+  [  38] MovSrcUndefined dst:reg6
+  [  40] Jump target:block5
 
 block3:
-  [  38] MovSrcUndefined dst:reg5
-  [  40] GetGlobal value_feedback:1, dst:reg8, `chained_computed_call`
-  [  50] Call value_feedback:2, call_feedback:0, dst:reg6, callee:reg8, this_value:Undefined, chained_computed_call, arguments:[Int32(0), Int32(0), Int32(0)]
-  [  80] Mov2 c0_dst:reg5, c0_src:reg6, c1_dst:reg6, c1_src:reg5
-  [  98] JumpLoop target:block2
+  [  48] MovSrcUndefined dst:reg6
+  [  50] GetGlobal value_feedback:1, dst:reg8, `chained_computed_call`
+  [  60] Call value_feedback:2, call_feedback:0, dst:reg7, callee:reg8, this_value:Undefined, chained_computed_call, arguments:[Int32(0), Int32(0), Int32(0)]
+  [  90] Mov2 c0_dst:reg6, c0_src:reg7, c1_dst:reg5, c1_src:reg6
+  [  a8] JumpLoop target:block2
 
 block4:
-  [  a0] Catch value_feedback:3, dst:reg5
-  [  a8] Mov2 c0_dst:reg7, c0_src:Undefined, c1_dst:reg8, c1_src:reg7
-  [  c0] End value:reg7
+  [  b0] Catch value_feedback:3, dst:reg7
+  [  b8] Mov2 c0_dst:reg8, c0_src:Undefined, c1_dst:reg6, c1_src:reg8
+  [  d0] End value:reg6
 
 block5:
-  [  c8] MovSrcUndefined dst:reg5
-  [  d0] GetGlobal value_feedback:4, dst:reg9, `chained_dot_call`
-  [  e0] Call value_feedback:5, call_feedback:1, dst:reg7, callee:reg9, this_value:Undefined, chained_dot_call, arguments:[Int32(0)]
-  [ 108] Mov2 c0_dst:reg5, c0_src:reg7, c1_dst:reg7, c1_src:reg5
-  [ 120] End value:reg7
+  [  d8] MovSrcUndefined dst:reg7
+  [  e0] GetGlobal value_feedback:4, dst:reg9, `chained_dot_call`
+  [  f0] Call value_feedback:5, call_feedback:1, dst:reg8, callee:reg9, this_value:Undefined, chained_dot_call, arguments:[Int32(0)]
+  [ 118] Mov2 c0_dst:reg7, c0_src:reg8, c1_dst:reg6, c1_src:reg7
+  [ 130] End value:reg6
 
 Exception handlers:
-  [  38 ..   a0] => handler block1
-  [  c8 ..  128] => handler block4
+  [  48 ..   b0] => handler block1
+  [  d8 ..  138] => handler block4
 
 
 chained_computed_call$7b82f37a chained-member-call.js:5:5

@@ -8828,7 +8828,7 @@ fn generate_try_statement(
     let saved_env = generator.current_lexical_environment();
 
     let mut next_block: Option<Label> = None;
-    let mut completion: Option<ScopedOperand> = None;
+    let completion = generator.allocate_completion_register();
 
     // --- Set up FinallyContext if we have a finalizer ---
     let has_finally = data.finalizer.is_some();
@@ -8977,13 +8977,11 @@ fn generate_try_statement(
 
         // Save catch completion BEFORE restoring the lexical environment
         // from the catch scope.
-        if generator.must_propagate_completion
+        if let Some(ref completion) = completion
             && let Some(ref cc) = catch_completion
             && !generator.is_current_block_terminated()
         {
-            let reg = generator.allocate_register();
-            generator.emit_mov(&reg, cc);
-            completion = Some(reg);
+            generator.emit_mov(completion, cc);
         }
 
         if created_catch_scope {
@@ -9056,12 +9054,10 @@ fn generate_try_statement(
         generator.current_completion_register = saved_completion;
 
         if !generator.is_current_block_terminated()
-            && generator.must_propagate_completion
+            && let Some(ref completion) = completion
             && let Some(ref tc) = try_completion
         {
-            let reg = generator.allocate_register();
-            generator.emit_mov(&reg, tc);
-            completion = Some(reg);
+            generator.emit_mov(completion, tc);
         }
     }
 
@@ -9142,9 +9138,6 @@ fn generate_try_statement(
     // saved_block (which is already terminated) so no dead block is emitted.
     generator.switch_to_basic_block(next_block.unwrap_or(saved_block));
 
-    if generator.must_propagate_completion && completion.is_none() {
-        return Some(generator.add_constant_undefined());
-    }
     completion
 }
 

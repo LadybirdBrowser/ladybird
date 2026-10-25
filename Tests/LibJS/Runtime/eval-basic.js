@@ -37,6 +37,11 @@ test("a for-in iterator does not leak through a labelled break", () => {
     expect(leaked).toBeUndefined();
 });
 
+test("completion value of a try statement whose catch clause runs", () => {
+    expect(eval("try { class C extends null.x {} } catch (e) {}")).toBeUndefined();
+    expect(eval("try { function f() {} null.x; } catch (e) { 3; } finally {}")).toBe(3);
+});
+
 test("syntax error", () => {
     expect(() => {
         eval("{");
