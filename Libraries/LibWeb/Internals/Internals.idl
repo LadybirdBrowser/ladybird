@@ -387,6 +387,10 @@ interface Internals {
 
     DOMString viewportOverflowX();
 
+    // A byte stream that pulls at most pullSize of the bytes at a time through
+    // https://streams.spec.whatwg.org/#readablestream-pull-from-bytes, and closes once it has pulled them all.
+    ReadableStream createStreamPullingFromBytes(ByteString bytes, unsigned long pullSize);
+
 };
 
 enum InternalsNavigatorCompatibilityMode { "chrome", "gecko", "webkit" };

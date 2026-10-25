@@ -12,6 +12,7 @@ use core::ptr::NonNull;
 
 use libjs_rust::api::{RawNativeFunctionResult, Realm, ThrowCompletionOr, Value, Vm};
 
+use crate::bindings::conversions::BufferSource;
 use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_into_abi, realm_arguments};
 use crate::bindings::promise::WebIdlPromise;
 use crate::bindings::{CallContext, MustNotThrow, WebIdlResult};
@@ -200,6 +201,44 @@ pub unsafe extern "C" fn web_rust_readable_stream_enqueue_native_bytes(
     };
     let result = readable_byte_stream_controller_enqueue_native_bytes(&cx, controller, bytes.as_slice());
     completion(&cx, result)
+}
+
+/// The byte length of the current BYOB request view of the stream, if it has one,
+/// https://streams.spec.whatwg.org/#readablestream-current-byob-request-view
+///
+/// # Safety
+///
+/// The pointers must be the VM and a live ReadableStream.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_readable_stream_current_byob_request_view_byte_length(
+    vm: *mut c_void,
+    stream: *mut c_void,
+    byte_length: &mut u64,
+) -> bool {
+    // SAFETY: The caller passes the VM and a live ReadableStream.
+    let (vm, stream) = unsafe { (vm_argument(vm), cell_from_abi::<ReadableStream>(stream)) };
+    let Some(view) = ReadableStream::current_byob_request_view(stream, vm) else {
+        return false;
+    };
+    *byte_length = BufferSource::from(view).extent().byte_length as u64;
+    true
+}
+
+/// https://streams.spec.whatwg.org/#readablestream-pull-from-bytes
+///
+/// # Safety
+///
+/// The pointers must be the VM and a live ReadableStream, and the bytes must be lent for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_readable_stream_pull_from_bytes(
+    vm: *mut c_void,
+    stream: *mut c_void,
+    bytes: ak::Span<'_, u8>,
+) -> RawNativeFunctionResult {
+    // SAFETY: The caller passes the VM and a live ReadableStream.
+    let (vm, stream) = unsafe { (vm_argument(vm), cell_from_abi::<ReadableStream>(stream)) };
+    let result = ReadableStream::pull_from_bytes(stream, vm, bytes.as_slice());
+    completion(&stream.context(vm), result)
 }
 
 /// https://streams.spec.whatwg.org/#readablestream-close

@@ -1,0 +1,3 @@
+BYOB reads of 4 bytes: abcd, ef, done
+BYOB reads of at least 3 bytes, pulled one at a time: abc, d, done
+Default reads, pulled 4 bytes at a time: abcd, ef, done

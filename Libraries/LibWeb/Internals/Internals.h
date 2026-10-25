@@ -316,6 +316,8 @@ public:
     void set_page_muted(bool muted);
     String viewport_overflow_x();
 
+    GC::Ref<Streams::ReadableStream> create_stream_pulling_from_bytes(String const& bytes, WebIDL::UnsignedLong pull_size);
+
 private:
     GC::Ref<JS::Object> first_wheel_step_route_to_object(Compositing::FirstWheelStepRouteForTesting const&);
     Web::MouseEvent mouse_event_through_ui_process_at(Web::MouseEvent::Type, double x, double y);

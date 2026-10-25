@@ -34,9 +34,9 @@ use crate::streams::queuing_strategy::{QueuingStrategy, extract_high_water_mark,
 use crate::streams::read_request::{ReadIntoRequest, ReadRequest};
 use crate::streams::readable_byte_stream_controller::{
     ReadableByteStreamController, readable_byte_stream_controller_close, readable_byte_stream_controller_enqueue,
-    readable_byte_stream_controller_error, readable_byte_stream_controller_get_byob_request,
-    readable_byte_stream_controller_respond, set_up_readable_byte_stream_controller,
-    set_up_readable_byte_stream_controller_from_underlying_source,
+    readable_byte_stream_controller_enqueue_native_bytes, readable_byte_stream_controller_error,
+    readable_byte_stream_controller_get_byob_request, readable_byte_stream_controller_respond,
+    set_up_readable_byte_stream_controller, set_up_readable_byte_stream_controller_from_underlying_source,
 };
 use crate::streams::readable_stream_byob_reader::{ReadableStreamBYOBReader, set_up_readable_stream_byob_reader};
 use crate::streams::readable_stream_default_controller::{
@@ -765,6 +765,56 @@ impl ReadableStream {
                 }
             }
         }
+        Ok(())
+    }
+
+    // https://streams.spec.whatwg.org/#readablestream-pull-from-bytes
+    pub(crate) fn pull_from_bytes(this: Ref<Self>, vm: &Vm, bytes: &[u8]) -> WebIdlResult<()> {
+        let cx = &this.context(vm);
+
+        // 1. Assert: stream.[[controller]] implements ReadableByteStreamController.
+        let Some(ReadableStreamController::ReadableByteStreamController(controller)) = this.controller() else {
+            panic!("the stream has a ReadableByteStreamController");
+        };
+
+        // 2. Let available be bytes’s length.
+        let available = bytes.len();
+
+        // 3. Let desiredSize be available.
+        // 4. If stream’s current BYOB request view is non-null, then set desiredSize to stream’s current BYOB request
+        //    view's byte length.
+        let byob_view = Self::current_byob_request_view(this, vm);
+        let desired_size = byob_view.map_or(available, |byob_view| {
+            BufferSource::from(byob_view).extent().byte_length
+        });
+
+        // 5. Let pullSize be the smaller value of available and desiredSize.
+        let pull_size = available.min(desired_size);
+
+        // 6. Let pulled be the first pullSize bytes of bytes.
+        let pulled = &bytes[..pull_size];
+
+        // 7. Remove the first pullSize bytes from bytes.
+        // NB: The caller removes them from its own buffer, having sized bytes by the current BYOB request view.
+        assert!(pull_size == available);
+
+        // 8. If stream’s current BYOB request view is non-null, then:
+        if let Some(byob_view) = byob_view {
+            // 1. Write pulled into stream’s current BYOB request view.
+            let extent = BufferSource::from(byob_view).extent();
+            extent.buffer.overwrite(extent.byte_offset, pulled);
+
+            // 2. Perform ? ReadableByteStreamControllerRespond(stream.[[controller]], pullSize).
+            readable_byte_stream_controller_respond(cx, controller, pull_size as u64)?;
+        }
+        // 9. Otherwise,
+        else {
+            // 1. Set view to the result of creating a Uint8Array from pulled in stream’s relevant Realm.
+            // 2. Perform ? ReadableByteStreamControllerEnqueue(stream.[[controller]], view).
+            // NB: The bytes are enqueued without the view, which nothing could observe.
+            readable_byte_stream_controller_enqueue_native_bytes(cx, controller, pulled)?;
+        }
+
         Ok(())
     }
 

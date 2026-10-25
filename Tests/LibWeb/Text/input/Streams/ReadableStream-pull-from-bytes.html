@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function text(view) {
+        return String.fromCharCode(...view);
+    }
+
+    asyncTest(async done => {
+        {
+            const reader = internals.createStreamPullingFromBytes("abcdef", 16).getReader({ mode: "byob" });
+            const reads = [];
+            for (let i = 0; i < 3; ++i) {
+                const { value, done } = await reader.read(new Uint8Array(4));
+                reads.push(done ? "done" : text(value));
+            }
+            println(`BYOB reads of 4 bytes: ${reads.join(", ")}`);
+        }
+
+        {
+            const reader = internals.createStreamPullingFromBytes("abcd", 1).getReader({ mode: "byob" });
+            const reads = [];
+            let read = await reader.read(new Uint8Array(4), { min: 3 });
+            reads.push(text(read.value));
+            read = await reader.read(new Uint8Array(4));
+            reads.push(text(read.value));
+            read = await reader.read(new Uint8Array(4));
+            reads.push(read.done ? "done" : text(read.value));
+            println(`BYOB reads of at least 3 bytes, pulled one at a time: ${reads.join(", ")}`);
+        }
+
+        {
+            const reader = internals.createStreamPullingFromBytes("abcdef", 4).getReader();
+            const reads = [];
+            for (let i = 0; i < 3; ++i) {
+                const { value, done } = await reader.read();
+                reads.push(done ? "done" : text(value));
+            }
+            println(`Default reads, pulled 4 bytes at a time: ${reads.join(", ")}`);
+        }
+
+        done();
+    });
+</script>

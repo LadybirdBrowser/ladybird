@@ -62,6 +62,15 @@ public:
     // the bytes.
     WebIDL::ExceptionOr<void> enqueue_bytes(ReadonlyBytes);
 
+    // The byte length of https://streams.spec.whatwg.org/#readablestream-current-byob-request-view, if the stream,
+    // which is set up with byte reading support, has one.
+    Optional<u64> current_byob_request_view_byte_length();
+
+    // https://streams.spec.whatwg.org/#readablestream-pull-from-bytes
+    // NB: The stream is set up with byte reading support, and the caller removes the pulled bytes from its own buffer,
+    //     having sized them by the current BYOB request view.
+    WebIDL::ExceptionOr<void> pull_from_bytes(ReadonlyBytes);
+
     // https://streams.spec.whatwg.org/#readablestream-close
     void close();
 
