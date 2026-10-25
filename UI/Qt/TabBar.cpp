@@ -2182,18 +2182,20 @@ void TabBar::update_tab_button_geometry()
             ? x - 6 >= icon_left + TAB_ICON_SIZE
             : x + button_size.width() + 6 + TAB_ICON_SIZE <= shape_rect.right() - TAB_CONTENT_HORIZONTAL_INSET;
 
-        auto should_be_visible = index != dragged_index && has_room_for_icon
-            && (position != QTabBar::RightSide || index == currentIndex() || index == m_hovered_tab_index);
+        // NB: Move a button before showing it. Shown where it was, under the pointer, it would take a hover that it
+        //     keeps at its new place until the pointer moves.
         auto did_update_button = false;
-        if (button->isVisible() != should_be_visible) {
-            button->setVisible(should_be_visible);
-            did_update_button = true;
-        }
-
         auto y = shape_rect.top() + ((shape_rect.height() - button_size.height()) / 2);
         QRect button_geometry { { x, y }, button_size };
         if (button->geometry() != button_geometry) {
             button->setGeometry(button_geometry);
+            did_update_button = true;
+        }
+
+        auto should_be_visible = index != dragged_index && has_room_for_icon
+            && (position != QTabBar::RightSide || index == currentIndex() || index == m_hovered_tab_index);
+        if (button->isVisible() != should_be_visible) {
+            button->setVisible(should_be_visible);
             did_update_button = true;
         }
 
@@ -2206,14 +2208,6 @@ void TabBar::update_tab_button_geometry()
         if (!button)
             return;
         prepare_button(button, true);
-
-        auto should_be_visible = index != dragged_index
-            && (position == QTabBar::LeftSide || (index == m_hovered_tab_index && !m_tab_widget->can_expand_vertical_tabs_on_hover()));
-        bool did_update_button = false;
-        if (button->isVisible() != should_be_visible) {
-            button->setVisible(should_be_visible);
-            did_update_button = true;
-        }
 
         auto button_size = button->size();
         if (button_size.isEmpty())
@@ -2233,9 +2227,18 @@ void TabBar::update_tab_button_geometry()
             button_position = { x, y };
         }
 
+        // NB: As above, move the button before showing it.
+        bool did_update_button = false;
         QRect button_geometry { button_position, button_size };
         if (button->geometry() != button_geometry) {
             button->setGeometry(button_geometry);
+            did_update_button = true;
+        }
+
+        auto should_be_visible = index != dragged_index
+            && (position == QTabBar::LeftSide || (index == m_hovered_tab_index && !m_tab_widget->can_expand_vertical_tabs_on_hover()));
+        if (button->isVisible() != should_be_visible) {
+            button->setVisible(should_be_visible);
             did_update_button = true;
         }
 
