@@ -1404,26 +1404,6 @@ impl Executable {
         }
     }
 
-    pub fn new(
-        bytecode: Box<[u8]>,
-        number_of_registers: u32,
-        number_of_locals: u32,
-        number_of_arguments: u32,
-        constants: Box<[Value]>,
-        cache_counts: &ExecutableCacheCounts,
-        is_strict_mode: bool,
-    ) -> Self {
-        Self::new_with_bytecode(
-            ExecutableBytecode::Owned(bytecode),
-            number_of_registers,
-            number_of_locals,
-            number_of_arguments,
-            constants,
-            cache_counts,
-            is_strict_mode,
-        )
-    }
-
     pub fn new_with_bytecode(
         bytecode: ExecutableBytecode,
         number_of_registers: u32,
