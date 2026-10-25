@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	onerror, "not handled" with only window.onerror defined
+1 Pass
+Pass	onerror, "not handled" with only window.onerror defined

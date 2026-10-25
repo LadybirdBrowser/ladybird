@@ -20,7 +20,10 @@ use crate::layout::cell::Gc;
 use crate::layout::host_class::{JSObject, JSVM, JSValue};
 use crate::layout::value::Value;
 use crate::runtime::console_object::ConsoleObject;
+use crate::runtime::error_data::ErrorData;
 use crate::runtime::print::{PrintContext, print};
+use crate::source_code::SourceCode;
+use crate::source_range::{Position, SourceRange};
 
 /// The Console of a realm's console object, which keeps its counters, timers and group stack and hands what it logs
 /// to its client.
@@ -172,6 +175,32 @@ pub unsafe extern "C" fn js_console_report_exception(
     // SAFETY: The caller guarantees that the views are valid for the call.
     let (name, message) = unsafe { (name.as_view(), message.as_view()) };
     console.report_exception(name, message, error_data, in_promise);
+}
+
+/// Reports an exception whose source location came from another agent. The location becomes its console stack frame.
+///
+/// # Safety
+///
+/// `console` must point to a live console, and the views must be valid for the call. Call on the VM's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_console_report_exception_with_location(
+    console: *mut JSConsole,
+    name: JSUtf16View,
+    message: JSUtf16View,
+    filename: JSUtf16View,
+    line: u32,
+    column: u32,
+    in_promise: bool,
+) {
+    // SAFETY: The caller passes a live console.
+    let console = unsafe { console_from_abi(console) };
+    // SAFETY: The caller guarantees that the views are valid for the call.
+    let (name, message, filename) = unsafe { (name.as_view(), message.as_view(), filename.as_view()) };
+    let error_data = ErrorData::from_source_range(SourceRange {
+        code: SourceCode::create(filename.to_utf16_string(), ak::Utf16String::default()),
+        start: Position { line, column },
+    });
+    console.report_exception(name, message, &error_data, in_promise);
 }
 
 /// The stream a PrintContext writes to, which hands the bytes to the embedder's sink.

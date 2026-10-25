@@ -69,6 +69,11 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
 // https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
 void report_an_exception(JS::Object& global, JS::Value exception, OmitError omit_error, GC::Ptr<Script> script)
 {
+    report_an_exception(global, exception, {}, omit_error, script);
+}
+
+void report_an_exception(JS::Object& global, JS::Value exception, Optional<ErrorInformation> precomputed_error_info, OmitError omit_error, GC::Ptr<Script> script)
+{
     auto& realm = relevant_realm(global);
     auto& vm = realm.vm();
 
@@ -76,7 +81,10 @@ void report_an_exception(JS::Object& global, JS::Value exception, OmitError omit
     bool not_handled = true;
 
     // 2. Let errorInfo be the result of extracting error information from exception.
-    auto error_info = extract_error_information(vm, exception);
+    // NB: An exception from a dedicated worker stays in the worker, so its Worker object's relevant global object
+    //     reports it with the information the worker sent along with it.
+    bool has_precomputed_error_info = precomputed_error_info.has_value();
+    auto error_info = has_precomputed_error_info ? precomputed_error_info.release_value() : extract_error_information(vm, exception);
 
     // 3. Let script be a script found in an implementation-defined way, or null. This should usually be the
     //    running script (most notably during run a classic script).
@@ -159,7 +167,11 @@ void report_an_exception(JS::Object& global, JS::Value exception, OmitError omit
             }
         }
         // 3. Otherwise, the user agent may report exception to a developer console.
-        else {
+        else if (has_precomputed_error_info) {
+            dbgln("\033[31;1mUnhandled JavaScript exception:\033[0m {}", error_info.message);
+            dbgln("    at {}:{}:{}", error_info.filename, error_info.lineno, error_info.colno);
+            realm.intrinsics().console_object()->console().report_exception("Error"_utf16, error_info.message, error_info.filename, error_info.lineno, error_info.colno, false);
+        } else {
             report_exception_to_console(exception, realm, ErrorInPromise::No);
         }
     }

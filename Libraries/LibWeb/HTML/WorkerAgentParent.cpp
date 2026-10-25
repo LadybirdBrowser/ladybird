@@ -43,7 +43,14 @@ static void report_worker_exception(WindowOrWorkerGlobalScopeMixin& window_or_wo
 {
     auto& realm = relevant_realm(window_or_worker);
     auto wrapped_error = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { error });
-    report_an_exception(relevant_global_object(window_or_worker), wrapped_error, OmitError::Yes);
+    ErrorInformation error_info {
+        .message = error.message(),
+        .filename = error.filename(),
+        .error = wrapped_error,
+        .lineno = error.lineno(),
+        .colno = error.colno(),
+    };
+    report_an_exception(relevant_global_object(window_or_worker), wrapped_error, move(error_info), OmitError::Yes);
 }
 
 GC::Ref<WorkerAgentParent> WorkerAgentParent::create(URL::URL url, WorkerOptions const& options,

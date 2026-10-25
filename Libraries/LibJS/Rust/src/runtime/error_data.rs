@@ -85,6 +85,17 @@ impl ErrorData {
         }
     }
 
+    /// Error data for an exception whose source location came from another agent.
+    pub fn from_source_range(source_range: SourceRange) -> Self {
+        Self {
+            traceback: vec![TracebackFrame {
+                function_name: Utf16String::default(),
+                cached_source_range: Some(source_range),
+            }],
+            cached_string: Cell::new(None),
+        }
+    }
+
     pub fn traceback_storage_size(&self) -> usize {
         self.traceback.capacity() * size_of::<TracebackFrame>()
     }
