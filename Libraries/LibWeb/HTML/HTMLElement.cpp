@@ -934,6 +934,7 @@ int HTMLElement::offset_top() const
     if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
+    // INTEROP: The result is rounded to the nearest integer rather than truncated, as browsers do.
     CSSPixels top_border_edge_of_element = Painting::absolute_border_box_rect(*layout_node).y() + sticky_offset_of(*layout_node).y();
 
     // 2. If the offsetParent of the element is null
@@ -943,7 +944,7 @@ int HTMLElement::offset_top() const
     auto offset_parent = this->offset_parent();
     auto const* offset_parent_layout_node = offset_parent ? offset_parent->layout_node(read) : nullptr;
     if (!offset_parent_layout_node || !Painting::has_committed_box(*offset_parent_layout_node)) {
-        return top_border_edge_of_element.to_int();
+        return round(top_border_edge_of_element).to_int();
     }
 
     // 3. Return the result of subtracting the y-coordinate of the top padding edge
@@ -961,7 +962,7 @@ int HTMLElement::offset_top() const
     } else {
         top_padding_edge_of_offset_parent = Painting::absolute_padding_box_rect(*offset_parent_layout_node).y() + sticky_offset_of(*offset_parent_layout_node).y();
     }
-    return (top_border_edge_of_element - top_padding_edge_of_offset_parent).to_int();
+    return round(top_border_edge_of_element - top_padding_edge_of_offset_parent).to_int();
 }
 
 // https://www.w3.org/TR/cssom-view-1/#dom-htmlelement-offsetleft
@@ -979,6 +980,7 @@ int HTMLElement::offset_left() const
     if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
+    // INTEROP: The result is rounded to the nearest integer rather than truncated, as browsers do.
     CSSPixels left_border_edge_of_element = Painting::absolute_border_box_rect(*layout_node).x() + sticky_offset_of(*layout_node).x();
 
     // 2. If the offsetParent of the element is null
@@ -988,7 +990,7 @@ int HTMLElement::offset_left() const
     auto offset_parent = this->offset_parent();
     auto const* offset_parent_layout_node = offset_parent ? offset_parent->layout_node(read) : nullptr;
     if (!offset_parent_layout_node || !Painting::has_committed_box(*offset_parent_layout_node)) {
-        return left_border_edge_of_element.to_int();
+        return round(left_border_edge_of_element).to_int();
     }
 
     // 3. Return the result of subtracting the x-coordinate of the left padding edge
@@ -1006,7 +1008,7 @@ int HTMLElement::offset_left() const
     } else {
         left_padding_edge_of_offset_parent = Painting::absolute_padding_box_rect(*offset_parent_layout_node).x() + sticky_offset_of(*offset_parent_layout_node).x();
     }
-    return (left_border_edge_of_element - left_padding_edge_of_offset_parent).to_int();
+    return round(left_border_edge_of_element - left_padding_edge_of_offset_parent).to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-htmlelement-offsetwidth
