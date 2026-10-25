@@ -120,9 +120,10 @@ fn clamp(value: f64, min: f64, max: f64) -> f64 {
     value
 }
 
-/// The native functions of Array.prototype.push and slice, which JIT code knows.
+/// The native functions of Array.prototype.push, slice and splice, which JIT code knows.
 pub(crate) static PUSH_FUNCTION: RawNativeFunctionPointer = raw_native!(ArrayPrototype::push);
 pub(crate) static SLICE_FUNCTION: RawNativeFunctionPointer = raw_native!(ArrayPrototype::slice);
+pub(crate) static SPLICE_FUNCTION: RawNativeFunctionPointer = raw_native!(ArrayPrototype::splice);
 
 impl ArrayPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ArrayPrototype> {
@@ -178,7 +179,7 @@ impl ArrayPrototype {
         define_native_function(&names.slice, SLICE_FUNCTION, 2);
         define_native_javascript_backed_function(&names.some, intrinsics.some_array_prototype_function(vm));
         define_native_function(&names.sort, raw_native!(ArrayPrototype::sort), 1);
-        define_native_function(&names.splice, raw_native!(ArrayPrototype::splice), 2);
+        define_native_function(&names.splice, SPLICE_FUNCTION, 2);
         define_native_function(&names.toLocaleString, raw_native!(ArrayPrototype::to_locale_string), 0);
         define_native_function(&names.toReversed, raw_native!(ArrayPrototype::to_reversed), 0);
         define_native_function(&names.toSorted, raw_native!(ArrayPrototype::to_sorted), 1);

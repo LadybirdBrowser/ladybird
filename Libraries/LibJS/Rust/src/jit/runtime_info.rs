@@ -499,6 +499,7 @@ pub fn runtime_info(
             0
         },
         array_push: super::calls::libjs_jit_array_push as *const () as u64,
+        array_splice: super::intrinsics::libjs_jit_array_splice as *const () as u64,
         store_holey_element: super::calls::libjs_jit_store_holey_element as *const () as u64,
         slice_arguments: super::calls::libjs_jit_slice_arguments as *const () as u64,
         open_array_iteration: super::intrinsics::libjs_jit_open_array_iteration as *const () as u64,

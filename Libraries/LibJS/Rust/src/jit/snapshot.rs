@@ -181,11 +181,12 @@ fn intrinsic_of(vm: &Vm, cell: Option<Gc<CellHeader>>) -> Option<Intrinsic> {
 }
 
 /// The intrinsics the compiler knows by their native functions (of any realm).
-static NATIVE_INTRINSICS: [(&RawNativeFunctionPointer, Intrinsic); 23] = [
+static NATIVE_INTRINSICS: [(&RawNativeFunctionPointer, Intrinsic); 24] = [
     (&function_prototype::APPLY_FUNCTION, Intrinsic::FunctionPrototypeApply),
     (&function_prototype::CALL_FUNCTION, Intrinsic::FunctionPrototypeCall),
     (&array_prototype::PUSH_FUNCTION, Intrinsic::ArrayPrototypePush),
     (&array_prototype::SLICE_FUNCTION, Intrinsic::ArrayPrototypeSlice),
+    (&array_prototype::SPLICE_FUNCTION, Intrinsic::ArrayPrototypeSplice),
     (
         &object_prototype::HAS_OWN_PROPERTY_FUNCTION,
         Intrinsic::ObjectPrototypeHasOwnProperty,

@@ -338,6 +338,18 @@ fn constraints(node: &Node, registers: &RegisterSet) -> Constraints {
                 .collect();
             constraints.output = OutputConstraint::FixedRegister(registers.return_gpr);
         }
+        Op::CallArraySplice => {
+            constraints.inputs = (0..node.inputs.len())
+                .map(|index| {
+                    if index < 3 {
+                        InputConstraint::FixedRegister(registers.argument_gprs[index + 1])
+                    } else {
+                        InputConstraint::RegisterOrConstant
+                    }
+                })
+                .collect();
+            constraints.output = OutputConstraint::FixedRegister(registers.return_gpr);
+        }
         Op::Generic { .. } => {
             if node.repr.is_some() {
                 constraints.output = OutputConstraint::FixedRegister(registers.return_gpr);

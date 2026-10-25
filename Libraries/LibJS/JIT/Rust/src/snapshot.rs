@@ -749,6 +749,8 @@ pub enum Intrinsic {
     ArrayPrototypePush,
     /// `Array.prototype.slice`.
     ArrayPrototypeSlice,
+    /// `Array.prototype.splice`.
+    ArrayPrototypeSplice,
     /// `Object.prototype.hasOwnProperty`.
     ObjectPrototypeHasOwnProperty,
     /// `String.fromCharCode`.
@@ -1067,6 +1069,10 @@ pub struct RuntimeInfo {
     /// observable step, growing its packed elements, and returns the new
     /// length as a value.
     pub array_push: u64,
+    /// `u64 (VM*, u64 receiver, i32 start, i32 delete_count, Value* items,
+    /// u32 item_count)`: splices a plain packed array without running code,
+    /// or returns the empty value without observable effects.
+    pub array_splice: u64,
     /// `void libjs_jit_store_holey_element(Object*, u32 index, u64 value)`:
     /// stores `value` at `index`, below the length of the holey elements of
     /// an array whose prototype chain has no indexed properties, growing the

@@ -4483,6 +4483,35 @@ impl Object {
         assert!(index < self.indexed_packed_element_count());
         self.set_indexed_element(index, value);
     }
+
+    /// Splices packed storage whose ordinary property operations the caller
+    /// has established have no observable effects. Storage growth never
+    /// collects, and `items` must come from outside this object's storage.
+    #[cfg(feature = "jit")]
+    pub(crate) fn splice_packed_indexed_elements(&self, start: u32, delete_count: u32, items: &[Value]) {
+        assert_eq!(self.indexed_storage_kind(), IndexedStorageKind::Packed);
+        let old_size = self.indexed_array_like_size();
+        assert!(start <= old_size && delete_count <= old_size - start);
+        let new_size = u32::try_from(u64::from(old_size - delete_count) + items.len() as u64)
+            .expect("the caller checked the new array length");
+        self.ensure_indexed_elements(new_size);
+        let elements = self.indexed_elements.get();
+        // SAFETY: Packed storage holds all old_size elements, and growing it
+        // above made room for new_size. Both ranges are in that storage and
+        // may overlap. The inserted values do not alias the storage.
+        unsafe {
+            core::ptr::copy(
+                elements.add((start + delete_count) as usize),
+                elements.add(start as usize + items.len()),
+                (old_size - start - delete_count) as usize,
+            );
+            core::ptr::copy_nonoverlapping(items.as_ptr(), elements.add(start as usize), items.len());
+            for index in new_size..old_size {
+                elements.add(index as usize).write(Value::EMPTY);
+            }
+        }
+        self.indexed_array_like_size.set(new_size);
+    }
 }
 
 fn create_data_property_for_set(

@@ -17,6 +17,7 @@ use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::array::Array;
+use crate::runtime::completion::Must;
 use crate::runtime::module_namespace_object::ModuleNamespaceObject;
 use crate::runtime::property_key::{PropertyKey, StringMayBeNumber};
 use crate::runtime::proxy_object::ProxyObject;
@@ -24,6 +25,65 @@ use crate::runtime::realm_watchpoints;
 use crate::runtime::string_object::StringObject;
 use crate::runtime::typed_array::{ContentType, TypedArrayBase};
 use crate::utf16::{has_fly_string_storage, to_utf16_fly_string};
+
+/// The packed-array path of Array.prototype.splice, without coercions or
+/// calls of species constructors. All checks precede its observable work.
+///
+/// # Safety
+///
+/// `items` points to `item_count` live, aligned values on the caller's native
+/// stack, outside any object's element storage, for the duration of the call.
+pub unsafe extern "C" fn libjs_jit_array_splice(
+    vm: &Vm,
+    receiver: u64,
+    start: i32,
+    delete_count: i32,
+    items: *const Value,
+    item_count: u32,
+) -> u64 {
+    let receiver = Value::from_bits(receiver);
+    if !receiver.is_object() {
+        return Value::EMPTY.0;
+    }
+    let Some(array) = receiver.as_object().downcast::<Array>() else {
+        return Value::EMPTY.0;
+    };
+    let realm = vm.current_realm().expect("JIT code runs in a realm");
+    if array.realm() != realm
+        || !array.is_simple_packed_array()
+        || !array.extensible()
+        || !array.length_is_writable()
+        || array.shape().property_count() != 0
+        || !array.default_prototype_chain_intact()
+        || !realm_watchpoints::array_species_is_unchanged(vm, realm)
+    {
+        return Value::EMPTY.0;
+    }
+    let length = array.indexed_array_like_size();
+    let start = if start < 0 {
+        (i64::from(length) + i64::from(start)).max(0) as u32
+    } else {
+        (start as u32).min(length)
+    };
+    let delete_count = (delete_count.max(0) as u32).min(length - start);
+    if u64::from(length - delete_count) + u64::from(item_count) > u64::from(u32::MAX) {
+        return Value::EMPTY.0;
+    }
+    let removed = Array::create(vm, realm, 0, None).must();
+    removed.set_indexed_property_elements_to_undefined(delete_count);
+    for index in 0..delete_count {
+        let value = array
+            .indexed_get(start + index)
+            .expect("packed arrays have every element")
+            .value;
+        removed.set_packed_indexed_element(index, value);
+    }
+    // SAFETY: The caller keeps these values on its native stack, which GC
+    // scans while allocating the result. Element storage growth does not collect.
+    let items = unsafe { ak::slice_from_raw_parts(items, item_count as usize) };
+    array.splice_packed_indexed_elements(start, delete_count, items);
+    Value::from_object(removed).0
+}
 
 /// The property key of a string or symbol, which converting runs no code for.
 fn string_or_symbol_key(vm: &Vm, key: Value) -> Option<PropertyKey> {

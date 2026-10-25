@@ -1661,6 +1661,9 @@ impl<'a> GraphBuilder<'a> {
                 if let Some(flow) = self.try_build_array_push(instruction)? {
                     return Ok(Some(flow));
                 }
+                if let Some(flow) = self.try_build_array_splice(instruction)? {
+                    return Ok(Some(flow));
+                }
                 if let Some(flow) = self.try_build_math_min_max(instruction)? {
                     return Ok(Some(flow));
                 }

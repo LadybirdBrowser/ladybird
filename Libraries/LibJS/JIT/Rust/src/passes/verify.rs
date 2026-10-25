@@ -530,6 +530,15 @@ fn expected_input_reprs(graph: &Graph, node: NodeId) -> Option<Vec<Repr>> {
                 .collect()
         }),
         Op::ArrayCreate => Some(vec![Repr::Int32, Repr::Tagged]),
+        Op::CallArraySplice => {
+            let mut inputs = tagged(node.inputs.len());
+            if inputs.len() < 3 {
+                return Some(vec![Repr::Tagged, Repr::Int32, Repr::Int32]);
+            }
+            inputs[1] = Repr::Int32;
+            inputs[2] = Repr::Int32;
+            Some(inputs)
+        }
         Op::LoadStringCodeUnit => Some(vec![Repr::Pointer, Repr::Int32]),
         Op::SingleCharacterString | Op::Int32Abs | Op::Int32ToFloat64 => Some(vec![Repr::Int32]),
         Op::AppendElement | Op::CallStoreHoleyElement => Some(vec![Repr::Pointer, Repr::Int32, Repr::Tagged]),
