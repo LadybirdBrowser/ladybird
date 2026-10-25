@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>Performance Paint Timing Test: SVG in iframe does not trigger FCP</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<iframe src="../resources/svg.html"></iframe>
+<script>
+  promise_test(async (t) => {
+    await new Promise(resolve => {
+      window.addEventListener("message", resolve);
+    });
+    return assertNoFirstContentfulPaint(t);
+  }, "SVG in an iframe does not trigger FCP in the main frame");
+</script>

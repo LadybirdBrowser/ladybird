@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	First paint is not reported for an iframe inside an invisible ancestor.

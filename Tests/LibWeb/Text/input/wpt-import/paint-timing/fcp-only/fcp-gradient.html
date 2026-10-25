@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<head>
+<title>Performance Paint Timing Test: FCP should not fire with gradient-only backgrounds</title>
+<style>
+    #main {
+        width: 100px;
+        height: 100px;
+        background-image: linear-gradient(to bottom, orange, blue);
+    }
+</style>
+</head>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="main"></div>
+<script>
+  setup({"hide_test_state": true});
+  promise_test(async t => {
+      assert_implements(window.PerformancePaintTiming, "Paint Timing isn't supported.");
+      await new Promise(r => window.addEventListener('load', r));
+      await assertNoFirstContentfulPaint(t);
+  },  'Gradients should not count as contentful');
+</script>
+</body>
+
+</html>

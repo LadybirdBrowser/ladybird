@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<head>
+<title>Performance Paint Timing Test: FCP due to background size</title>
+<style>
+    #main {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        background-image: url(../resources/circles.png);
+        background-size: 0 0;
+    }
+
+    /* contentful class is defined in test_fcp script. */
+    #main.contentful {
+        background-size: 100% 100%;
+    }
+</style>
+</head>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="main"></div>
+<script>
+    // Load the image into memory first to make sure it's decoded.
+    function load_image() {
+      const img = document.createElement("img");
+      img.src = "../resources/circles.png";
+
+      return new Promise(resolve => {
+        img.onload = async () => resolve();
+      });
+    }
+
+    test_fcp("First contentful paint fires due to background size.", load_image);
+</script>
+</body>
+</html>

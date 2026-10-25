@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<head>
+<title>Performance Paint Timing Test: FCP due to ancestor opacity</title>
+<style>
+    #main {
+        width: 100px;
+        height: 100px;
+        left: 0px;
+        position: relative;
+        top: 0;
+        opacity: 0;
+    }
+
+    #child {
+        opacity: 1;
+    }
+
+    #main.contentful {
+        opacity: 0.5;
+    }
+</style>
+</head>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="main">
+    <div id="child">Text</div>
+</div>
+<script>
+    test_fcp("First contentful paint fires due to its ancestor getting positive opacity.");
+</script>
+</body>
+</html>

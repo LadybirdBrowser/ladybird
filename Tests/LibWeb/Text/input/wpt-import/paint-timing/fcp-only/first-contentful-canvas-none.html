@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+
+<head>
+  <title>Performance Paint Timing Test: FCP due to canvas</title>
+</head>
+
+<body>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../resources/utils.js"></script>
+  <canvas id="canvas" width="200" height="200"></canvas>
+
+  <script>
+    setup({"hide_test_state": true});
+    promise_test(async t => {
+        assert_implements(window.PerformancePaintTiming, "Paint Timing isn't supported.");
+        await new Promise(r => window.addEventListener('load', r));
+        await assertNoFirstContentfulPaint(t);
+    }, 'First contentful paint should not fire for canvas type none');
+  </script>
+</body>
+
+</html>

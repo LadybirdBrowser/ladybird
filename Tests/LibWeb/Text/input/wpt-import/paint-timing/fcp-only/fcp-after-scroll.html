@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<head>
+<title>Performance Paint Timing Test: FCP is reported after a scroll event</title>
+<style>
+    #scroller {
+        width: 100px;
+        height: 50px;
+        overflow: scroll;
+        scrollbar-width: none;
+    }
+
+    #scroller > div {
+        height: 500px;
+    }
+</style>
+</head>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="scroller"><div></div></div>
+<div id="main"></div>
+<script>
+    setup({"hide_test_state": true});
+
+    // Bounded wait, so that a missing entry fails the assert below instead of
+    // timing out the whole file.
+    async function waitForFirstContentfulPaint(maxFrames) {
+      for (let i = 0; i < maxFrames; ++i) {
+        if (performance.getEntriesByName('first-contentful-paint').length) {
+          return true;
+        }
+        await waitForAnimationFrames(1);
+      }
+      return performance.getEntriesByName('first-contentful-paint').length > 0;
+    }
+
+    promise_test(async t => {
+        assert_implements(window.PerformancePaintTiming, "Paint Timing isn't supported.");
+        await new Promise(r => window.addEventListener('load', r));
+        await assertNoFirstContentfulPaint(t);
+
+        const scroller = document.getElementById('scroller');
+        const scrolled = new Promise(resolve =>
+            scroller.addEventListener('scroll', resolve, {once: true}));
+        scroller.scrollTop = 100;
+        await scrolled;
+        await assertNoFirstContentfulPaint(t);
+
+        document.getElementById('main').textContent = 'Contentful text';
+        assert_true(await waitForFirstContentfulPaint(30),
+            'first-contentful-paint should be reported after a scroll event');
+    }, 'First contentful paint is reported even though a scroll event was dispatched before it.');
+</script>
+</body>
+</html>

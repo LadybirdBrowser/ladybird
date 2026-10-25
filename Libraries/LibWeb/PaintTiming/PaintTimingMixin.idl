@@ -1,0 +1,6 @@
+// https://w3c.github.io/paint-timing/#sec-PaintTimingMixin
+[Exposed=Window]
+interface mixin PaintTimingMixin {
+    readonly attribute DOMHighResTimeStamp paintTime;
+    readonly attribute DOMHighResTimeStamp? presentationTime;
+};

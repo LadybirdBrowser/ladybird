@@ -57,6 +57,7 @@
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
+#include <LibWeb/PaintTiming/DocumentPaintTimingState.h>
 #include <LibWeb/Painting/DisplayListRecording.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/Forward.h>
@@ -636,6 +637,9 @@ public:
     // Whether the last layout committed a box whose `content-visibility` is `auto`.
     bool has_boxes_with_auto_content_visibility() const;
     Compositing::AccumulatedVisualContextTree visual_context_tree() const;
+
+    PaintTiming::DocumentPaintTimingState& paint_timing_state() { return m_paint_timing_state; }
+
     Compositing::ScrollStateSnapshot const& scroll_state_snapshot() const;
 
     GC::Ref<NodeList> get_elements_by_name(Utf16View);
@@ -2160,6 +2164,8 @@ private:
     HashTable<URL::URL> m_list_of_speculative_fetch_urls;
 
     GC::Ptr<CSS::VisualViewport> m_visual_viewport;
+
+    PaintTiming::DocumentPaintTimingState m_paint_timing_state;
 
     // NOTE: Not in the spec per se, but Document must be able to access all IntersectionObservers whose root is in the document.
     GC::WeakHashSet<IntersectionObserver::IntersectionObserver> m_intersection_observers;

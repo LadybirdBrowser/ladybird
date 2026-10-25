@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<div id="main">
+  <svg viewBox="0 0 10 10">
+    <defs>
+      <circle id="myCircle" cx="5" cy="5" r="4" stroke="blue" />
+    </defs>
+    <use id="circle" href="#myCircle" fill="green" />
+  </svg>
+</div>
+<script>
+  const observer = new PerformanceObserver(list => {
+    const fcp = list.getEntriesByName("first-contentful-paint");
+    if (!fcp.length)
+      return;
+
+    // Message the parent when FCP has been reached.
+    parent.postMessage("GotFCP", '*');
+  });
+  observer.observe({ type: "paint", buffered: true });
+</script>

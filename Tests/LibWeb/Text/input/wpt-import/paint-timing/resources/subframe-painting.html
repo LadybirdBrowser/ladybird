@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<body>
+<div id="image"></div>
+<script>
+  const img = document.createElement('IMG');
+  img.src = 'circles.png';
+
+  var observer = new PerformanceObserver(function(list, obj) {
+    var paintEntries = list.getEntries();
+      for (let i = 0; i < paintEntries.length; i++) {
+          // postMessage doesn't allow sending the entry object over directly
+          var dataToSend = {
+              "entryType": paintEntries[i]["entryType"],
+              "name": paintEntries[i]["name"]
+          };
+          parent.postMessage(dataToSend, '*');
+      }
+  });
+
+  observer.observe({"type": "paint"});
+  document.getElementById('image').appendChild(img);
+</script>
+</body>
+</html>

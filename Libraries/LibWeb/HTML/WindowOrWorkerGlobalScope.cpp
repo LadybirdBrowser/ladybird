@@ -67,6 +67,7 @@
 #include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
+#include <LibWeb/PaintTiming/PerformancePaintTiming.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/PerformanceTimeline/EventNames.h>
@@ -108,29 +109,20 @@ WindowOrWorkerGlobalScopeMixin::~WindowOrWorkerGlobalScopeMixin() = default;
 
 void WindowOrWorkerGlobalScopeMixin::initialize()
 {
-#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
-    m_performance_entry_buffer_map.set(entry_type,                           \
-        PerformanceTimeline::PerformanceEntryTuple {                         \
-            .performance_entry_buffer = {},                                  \
-            .max_buffer_size = cpp_class::max_buffer_size(),                 \
-            .available_from_timeline = cpp_class::available_from_timeline(), \
-            .dropped_entries_count = 0,                                      \
-        });
+    bool global_is_window = is<HTML::Window>(this_impl());
+
+#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class, globals)                                                       \
+    if (HighResolutionTime::is_supported_for_global(HighResolutionTime::SupportedPerformanceEntryTypeGlobals::globals, global_is_window)) { \
+        m_performance_entry_buffer_map.set(entry_type,                                                                                      \
+            PerformanceTimeline::PerformanceEntryTuple {                                                                                    \
+                .performance_entry_buffer = {},                                                                                             \
+                .max_buffer_size = cpp_class::max_buffer_size(),                                                                            \
+                .available_from_timeline = cpp_class::available_from_timeline(),                                                            \
+                .dropped_entries_count = 0,                                                                                                 \
+            });                                                                                                                             \
+    }
     ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
 #undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-
-    if (is<HTML::Window>(this_impl())) {
-#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
-    m_performance_entry_buffer_map.set(entry_type,                           \
-        PerformanceTimeline::PerformanceEntryTuple {                         \
-            .performance_entry_buffer = {},                                  \
-            .max_buffer_size = cpp_class::max_buffer_size(),                 \
-            .available_from_timeline = cpp_class::available_from_timeline(), \
-            .dropped_entries_count = 0,                                      \
-        });
-        ENUMERATE_WINDOW_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-#undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-    }
 }
 
 void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)

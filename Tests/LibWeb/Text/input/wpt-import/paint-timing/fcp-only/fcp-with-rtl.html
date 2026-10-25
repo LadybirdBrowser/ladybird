@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<head>
+<title>Performance Paint Timing Test: FCP due to direction change</title>
+<style>
+  #text {
+    right: -100px;
+    position: absolute;
+  }
+
+  body {
+    direction: rtl;
+  }
+</style>
+</head>
+<body>
+<script src="../resources/utils.js"></script>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="text">TEXT</div>
+<script>
+  setup({"hide_test_state": true});
+  promise_test(async t => {
+      assert_implements(window.PerformancePaintTiming, "Paint Timing isn't supported.");
+      await new Promise(r => window.addEventListener('load', r));
+      await assertNoFirstContentfulPaint(t);
+      document.body.style.direction = 'ltr'
+      await assertFirstContentfulPaint(t);
+  }, 'FCP should fire when coordinates are negative, if within document scrollable area');
+</script>
+</body>
+</html>

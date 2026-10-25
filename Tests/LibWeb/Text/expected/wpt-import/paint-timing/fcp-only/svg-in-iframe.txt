@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	SVG in an iframe does not trigger FCP in the main frame

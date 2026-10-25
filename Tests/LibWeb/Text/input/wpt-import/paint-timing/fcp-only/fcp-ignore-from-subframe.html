@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<head>
+    <title>
+        Performance Paint Timing Test: Paints in the iframe should be reported in the iframe
+        and not in the top document
+    </title>
+</head>
+<body>
+<script src="../resources/utils.js"></script>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+setup({"hide_test_state": true});
+promise_test(async t => {
+    assert_implements(window.PerformancePaintTiming, "Paint Timing isn't supported.");
+    const iframe = document.createElement('iframe');
+    iframe.src = '../resources/subframe-painting.html';
+    document.body.appendChild(iframe);
+    await new Promise(resolve => window.addEventListener('message', e => {
+        if (e.data.entryType == "paint" && e.data.name == "first-contentful-paint")
+            resolve()
+    }));
+    await assertNoFirstContentfulPaint(t);
+}, 'Parent frame should not fire own paint-timing events for subframes.');
+</script>
+</body>
+</html>

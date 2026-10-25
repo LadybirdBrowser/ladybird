@@ -775,6 +775,8 @@ set(SOURCES
     Page/PageCursor.cpp
     Page/RenderingStats.cpp
     Page/ScreenWakeLockHandle.cpp
+    PaintTiming/PaintTiming.cpp
+    PaintTiming/PerformancePaintTiming.cpp
     Painting/Blending.cpp
     Painting/BoxModelMetrics.cpp
     Painting/BoxViews.cpp

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	FCP should fire when coordinates are negative, if within document scrollable area

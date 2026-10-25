@@ -367,6 +367,7 @@ PerformanceNavigation
 PerformanceNavigationTiming
 PerformanceObserver
 PerformanceObserverEntryList
+PerformancePaintTiming
 PerformanceResourceTiming
 PerformanceServerTiming
 PerformanceTiming

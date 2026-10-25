@@ -46,26 +46,30 @@ static GC::Ref<JS::Object> create_supported_entry_types_array(JS::Object& releva
     auto& vm = realm.vm();
     GC::RootVector<JS::Value> supported_entry_types;
 
-#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
-    supported_entry_types.append(JS::PrimitiveString::create(vm, entry_type));
-    ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES_BEFORE_NAVIGATION
-#undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+    bool global_is_window = HTML::window_from_global_object(relevant_global_object);
 
-    if (HTML::window_from_global_object(relevant_global_object)) {
-#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
-    supported_entry_types.append(JS::PrimitiveString::create(vm, entry_type));
-        ENUMERATE_WINDOW_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-#undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-    }
-
-#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
-    supported_entry_types.append(JS::PrimitiveString::create(vm, entry_type));
-    ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES_AFTER_NAVIGATION
+#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class, globals)                                                     \
+    if (HighResolutionTime::is_supported_for_global(HighResolutionTime::SupportedPerformanceEntryTypeGlobals::globals, global_is_window)) \
+        supported_entry_types.append(JS::PrimitiveString::create(vm, entry_type));
+    ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
 #undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
 
     auto supported_entry_types_array = JS::Array::create_from(realm, supported_entry_types);
     MUST(supported_entry_types_array->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
     return supported_entry_types_array;
+}
+
+static bool is_supported_entry_type(HTML::WindowOrWorkerGlobalScopeMixin const& relevant_global, Utf16FlyString const& type)
+{
+    bool global_is_window = is<HTML::Window>(relevant_global.this_impl());
+
+#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class, globals) \
+    if (type == entry_type)                                                           \
+        return HighResolutionTime::is_supported_for_global(HighResolutionTime::SupportedPerformanceEntryTypeGlobals::globals, global_is_window);
+    ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+#undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+
+    return false;
 }
 
 GC::Ref<PerformanceObserver> PerformanceObserver::create(GC::Ptr<WebIDL::CallbackType> callback, HTML::WindowOrWorkerGlobalScopeMixin& relevant_global)
@@ -149,19 +153,8 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit o
         //    The user agent SHOULD notify developers if entry types is modified. For example, a console warning listing removed
         //    types might be appropriate.
         entry_types.remove_all_matching([&relevant_global](Utf16FlyString const& type) {
-#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
-    if (type == entry_type)                                                  \
-        return false;
-            ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-#undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-
-            if (is<HTML::Window>(relevant_global.this_impl())) {
-#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
-    if (type == entry_type)                                                  \
-        return false;
-                ENUMERATE_WINDOW_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-#undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-            }
+            if (is_supported_entry_type(relevant_global, type))
+                return false;
 
             dbgln("Potential FIXME: Removing unsupported PerformanceEntry type '{}' from list of observed types in PerformanceObserver::observe()", type);
             return true;
@@ -195,21 +188,7 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit o
         //    The user agent SHOULD notify developers when this happens, for instance via a console warning.
         VERIFY(observer_options.type.has_value());
         auto& type = observer_options.type.value();
-        bool recognized_type = false;
-
-#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
-    if (!recognized_type && type == entry_type)                              \
-        recognized_type = true;
-        ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-#undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-
-        if (is<HTML::Window>(relevant_global.this_impl())) {
-#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
-    if (!recognized_type && type == entry_type)                              \
-        recognized_type = true;
-            ENUMERATE_WINDOW_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-#undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
-        }
+        bool recognized_type = is_supported_entry_type(relevant_global, type);
 
         if (!recognized_type) {
             dbgln("Potential FIXME: Returning from PerformanceObserver::observe() as we don't support the PerformanceEntry type '{}'", type);
