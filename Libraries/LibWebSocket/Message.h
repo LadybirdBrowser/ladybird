@@ -28,6 +28,7 @@ public:
 
     bool is_text() const { return m_is_text; }
     ByteBuffer const& data() const { return m_data; }
+    ByteBuffer release_data() { return move(m_data); }
 
 private:
     bool m_is_text { false };
