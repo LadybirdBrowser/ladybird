@@ -210,7 +210,7 @@ WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Realm& 
     //    with navigationType set to historyHandling, isSameDocument set to true, destinationURL set to newURL,
     //    and classicHistoryAPIState set to serializedData.
     auto navigation_type = history_handling == HistoryHandlingBehavior::Push ? NavigationType::Push : NavigationType::Replace;
-    auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, new_url, true, UserNavigationInvolvement::None, {}, {}, serialized_data);
+    auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, new_url, true, UserNavigationInvolvement::None, {}, {}, {}, serialized_data);
     // 9. If continue is false, then return.
     if (!continue_)
         return {};
