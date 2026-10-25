@@ -601,7 +601,10 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::show_picker()
         return WebIDL::NotAllowedError::create("Too long since user activation to show picker"_utf16);
     }
 
-    // FIXME: 4. If this is a select element, and this is not being rendered, then throw a "NotSupportedError" DOMException.
+    // 4. If this is a select element, and this is not being rendered, then throw a "NotSupportedError" DOMException.
+    // NB: This treats an element outside a display: none subtree as being rendered, without forcing layout.
+    if (!meets_focusable_area_rendering_requirements())
+        return WebIDL::NotSupportedError::create("Element is not being rendered"_utf16);
 
     // 5. Show the picker, if applicable, for this.
     show_the_picker_if_applicable();
