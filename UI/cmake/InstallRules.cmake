@@ -53,15 +53,21 @@ if (APPLE)
     # Fixup the app bundle and copy:
     #   - Shared libraries from lib/ to Ladybird.app/Contents/lib
     # Static libraries are linked into the executables, so nothing loads them from the bundle.
+    # CMake strips every executable it installs except the one inside an application bundle, so strip that one here.
     # Remove the symlink we created at build time for the lib directory first
     install(CODE "
-    file(REMOVE \${CMAKE_INSTALL_PREFIX}/bundle/Ladybird.app/Contents/lib)
-    set(lib_dir \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+    set(contents_dir \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/bundle/Ladybird.app/Contents)
+    file(REMOVE \${contents_dir}/lib)
+    set(lib_dir \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
     if (IS_ABSOLUTE ${CMAKE_INSTALL_LIBDIR})
-      set(lib_dir ${CMAKE_INSTALL_LIBDIR})
+      set(lib_dir \$ENV{DESTDIR}${CMAKE_INSTALL_LIBDIR})
     endif()
 
-    set(contents_dir \${CMAKE_INSTALL_PREFIX}/bundle/Ladybird.app/Contents)
+    if (CMAKE_INSTALL_DO_STRIP)
+      execute_process(COMMAND \"${CMAKE_STRIP}\" -u -r \${contents_dir}/MacOS/$<TARGET_FILE_NAME:ladybird>
+        COMMAND_ERROR_IS_FATAL ANY)
+    endif()
+
     file(GLOB shared_libraries \${lib_dir}/*.dylib)
     if (shared_libraries)
       file(COPY \${shared_libraries} DESTINATION \${contents_dir}/lib)
