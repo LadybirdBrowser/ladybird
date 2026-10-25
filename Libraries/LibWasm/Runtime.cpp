@@ -542,6 +542,21 @@ ValueType Store::global_type(Entity global, bool& is_mutable)
     return from_ffi(FFI::wasm_store_global_type(m_store, to_ffi(global), &is_mutable));
 }
 
+u32 Store::array_length(u64 array)
+{
+    return FFI::wasm_array_length(array);
+}
+
+u64 Store::array_element(u64 array, u32 index)
+{
+    return FFI::wasm_array_element(array, index);
+}
+
+void Store::set_array_element(u64 array, u32 index, u64 bits)
+{
+    FFI::wasm_array_set_element(array, index, bits);
+}
+
 Value Store::global_get(Entity global)
 {
     return from_ffi(FFI::wasm_store_global_get(m_store, to_ffi(global)));

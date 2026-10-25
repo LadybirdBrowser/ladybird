@@ -265,6 +265,63 @@ pub(super) unsafe extern "C" fn object_external_memory_size(cell: *const c_void)
     unsafe { out_of_line_data(cell).map_or(0, |(_, words)| words * 8) }
 }
 
+/// The number of elements of an array.
+///
+/// # Safety
+///
+/// `array` must be a live array reference.
+pub unsafe fn array_length(array: u64) -> u32 {
+    unsafe { read::<u64>(array as *const c_void, OBJECT_LENGTH_OFFSET) as u32 }
+}
+
+/// The address and storage kind of the element at `index` of an array of numbers (whose elements are neither
+/// references nor v128s).
+unsafe fn numeric_array_element(array: u64, index: u32) -> (*mut u8, u8) {
+    unsafe {
+        let cell = array as *const c_void;
+        let rtt = &*read::<*const Rtt>(cell, 0);
+        assert_eq!(rtt.kind, RTT_KIND_ARRAY, "the object is an array");
+        let kind = *rtt.field_kinds;
+        assert!(
+            matches!(kind, STORAGE_I8 | STORAGE_I16 | STORAGE_32 | STORAGE_64),
+            "the array's elements are numbers"
+        );
+        assert!(index < array_length(array), "the index is in bounds");
+        let data: *mut u8 = read(cell, OBJECT_DATA_OFFSET);
+        (data.add(index as usize * rtt.size as usize), kind)
+    }
+}
+
+/// The bits of the element at `index` of an array of numbers, with packed elements zero-extended.
+///
+/// # Safety
+///
+/// `array` must be a live array reference.
+pub unsafe fn array_element(array: u64, index: u32) -> u64 {
+    unsafe {
+        let (address, _) = numeric_array_element(array, index);
+        address.cast::<u64>().read()
+    }
+}
+
+/// Set the element at `index` of an array of numbers to `bits`, which packed elements wrap.
+///
+/// # Safety
+///
+/// `array` must be a live array reference.
+pub unsafe fn set_array_element(array: u64, index: u32, bits: u64) {
+    unsafe {
+        let (address, kind) = numeric_array_element(array, index);
+        let mask = match kind {
+            STORAGE_I8 => 0xff,
+            STORAGE_I16 => 0xffff,
+            STORAGE_32 => 0xffff_ffff,
+            _ => u64::MAX,
+        };
+        address.cast::<u64>().write(bits & mask);
+    }
+}
+
 /// An exception: a tag and the values thrown with it, in operand stack order (the last value in the lowest slot).
 pub struct Exception {
     pub tag: TagAddress,
