@@ -180,17 +180,6 @@ impl LayoutTrace {
         })
     }
 
-    /// A measurement of the content of the table cell `cell` that the table cell measurement cache holds.
-    pub(super) fn table_cell_measurement_hit(&self, cell: NodeSlotId) {
-        drop(self.scope("", Some(cell), || " MEASURE CELL (cache=hit)".into()));
-    }
-
-    /// A measurement of the content of the table cell `cell` that the table cell measurement cache does not hold. The
-    /// work that measures it nests under it.
-    pub(super) fn table_cell_measurement_miss(&self, cell: NodeSlotId) -> Option<Scope<'_>> {
-        self.scope("", Some(cell), || " MEASURE CELL (cache=miss)".into())
-    }
-
     pub(super) fn run(
         &self,
         root: NodeSlotId,
@@ -373,8 +362,6 @@ mod tests {
                 miss.append(" FROM ITEMS");
             }
             trace.intrinsic_size_hit(NodeSlotId::new(1, 1), IntrinsicSizeCacheKind::MinContentInline);
-            drop(trace.table_cell_measurement_miss(NodeSlotId::new(3, 1)));
-            trace.table_cell_measurement_hit(NodeSlotId::new(3, 1));
         }
         // The owners are not named, so each line starts with the indentation and the space before the event.
         assert_eq!(
@@ -384,8 +371,6 @@ mod tests {
                 "   MEASURE max-content inline (cache=miss) FROM ITEMS\n",
                 "     MEASURE max-content inline (cache=miss)\n",
                 "   MEASURE min-content inline (cache=hit)\n",
-                "   MEASURE CELL (cache=miss)\n",
-                "   MEASURE CELL (cache=hit)\n",
             )
         );
     }

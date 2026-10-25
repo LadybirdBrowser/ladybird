@@ -31,11 +31,9 @@
                                 BlockContainer<TD>#cell/block (intrinsic) RUN (cache=bypass)
                                   BlockContainer<DIV>#nested/block (intrinsic) RUN (cache=miss)
                               BlockContainer<TD>#cell MEASURE max-content block (cache=hit)
-                              BlockContainer<TD>#cell MEASURE CELL (cache=miss)
-                                BlockContainer<TD>#cell/block RUN (cache=miss)
-                                  BlockContainer<DIV>#nested/block RUN (cache=miss)
-                              BlockContainer<TD>#cell/block RUN (cache=miss)
-                                BlockContainer<DIV>#nested/block REPLAY FRAGMENTS
+                              BlockContainer<TD>#cell/block RUN AHEAD OF INTRINSIC BLOCK PADDING
+                                BlockContainer<DIV>#nested/block RUN (cache=miss)
+                              BlockContainer<TD>#cell/block REPLAY FRAGMENTS
                 `,
                 check: equal => {
                     equal(nested.getBoundingClientRect().width, 80, "nested width");
@@ -60,11 +58,9 @@
                                 BlockContainer<TD>#cell/block (intrinsic) RUN (cache=bypass)
                                   BlockContainer<DIV>#nested/block (intrinsic) READ RESULT
                               BlockContainer<TD>#cell MEASURE max-content block (cache=hit)
-                              BlockContainer<TD>#cell MEASURE CELL (cache=miss)
-                                BlockContainer<TD>#cell/block RUN (cache=miss)
-                                  BlockContainer<DIV>#nested/block REUSE SUBTREE
-                              BlockContainer<TD>#cell/block RUN (cache=miss)
+                              BlockContainer<TD>#cell/block RUN AHEAD OF INTRINSIC BLOCK PADDING
                                 BlockContainer<DIV>#nested/block REUSE SUBTREE
+                              BlockContainer<TD>#cell/block REPLAY FRAGMENTS
                 `,
                 check: equal => {
                     const rect = nested.getBoundingClientRect();

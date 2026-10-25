@@ -37,9 +37,8 @@
                                 TableWrapper(anonymous) MEASURE max-content block (cache=miss)
                                   TableWrapper(anonymous)/block (intrinsic) RUN (cache=bypass)
                                     Box<TABLE>#table/table (intrinsic) RUN (cache=miss)
-                                      BlockContainer<TD>#cell MEASURE CELL (cache=miss)
-                                        BlockContainer<TD>#cell/block (intrinsic) RUN (cache=miss)
-                                      BlockContainer<TD> MEASURE CELL (cache=hit)
+                                      BlockContainer<TD>#cell/block (intrinsic) RUN (cache=miss)
+                                      BlockContainer<TD>/block (intrinsic) READ RESULT
                                 TableWrapper(anonymous) MEASURE max-content block (cache=hit)
                                 TableWrapper(anonymous) MEASURE max-content block (cache=hit)
                             Box<DIV>#item/flex RUN (cache=miss)
@@ -47,9 +46,9 @@
                               TableWrapper(anonymous) MEASURE max-content block (cache=hit)
                               TableWrapper(anonymous)/block RUN (cache=miss)
                                 Box<TABLE>#table/table RUN (cache=miss)
-                                  BlockContainer<TD>#cell MEASURE CELL (cache=miss)
-                                    BlockContainer<TD>#cell/block RUN (cache=miss)
-                                  BlockContainer<TD> MEASURE CELL (cache=hit)
+                                  BlockContainer<TD>#cell/block RUN AHEAD OF INTRINSIC BLOCK PADDING
+                                    BlockContainer<DIV> REUSE IN-FLOW SUBTREE
+                                  BlockContainer<TD>/block READ RESULT AHEAD OF INTRINSIC BLOCK PADDING
                                   BlockContainer<TD>#cell/block RUN (cache=miss)
                                     BlockContainer<DIV> REUSE IN-FLOW SUBTREE
                                   BlockContainer<TD>/block REUSE SUBTREE

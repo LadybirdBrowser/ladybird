@@ -112,12 +112,6 @@ pub(crate) enum TableWrapperInlineSizeMode {
     UseTableUsedInlineSizeIfNotAuto,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RootFragments {
-    WhereTheRunInputAllows,
-    LeftOut,
-}
-
 pub(crate) fn run_builds_fragments(
     layout_mode: LayoutMode,
     input: &LayoutInput,
@@ -152,39 +146,11 @@ impl<'pass> MeasurementState<'pass> {
         layout_mode: LayoutMode,
         input: LayoutInput,
     ) -> ChildLayoutResult {
-        self.launch(
-            RootFragments::WhereTheRunInputAllows,
-            node,
-            node_used,
-            layout_mode,
-            input,
-        )
-    }
-
-    pub(crate) fn run_without_root_fragments(
-        &self,
-        node: Node,
-        node_used: &UsedValues,
-        layout_mode: LayoutMode,
-        input: LayoutInput,
-    ) -> ChildLayoutResult {
-        self.launch(RootFragments::LeftOut, node, node_used, layout_mode, input)
-    }
-
-    fn launch(
-        &self,
-        root_fragments: RootFragments,
-        node: Node,
-        node_used: &UsedValues,
-        layout_mode: LayoutMode,
-        input: LayoutInput,
-    ) -> ChildLayoutResult {
         let fc_type = independent_formatting_context_type(node, &self.callbacks);
         let root_containing_block = self
             .callbacks
             .containing_block_for_child_run(node, &input.participation);
         run_formatting_context(
-            root_fragments,
             None,
             node_used,
             node,
@@ -1922,7 +1888,6 @@ fn body_input_with_inner_available_space(run: &FormattingContextRun, input: &Lay
 
 #[expect(clippy::too_many_arguments)]
 pub(super) fn run_formatting_context(
-    root_fragments: RootFragments,
     parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
     parent_used: &UsedValues,
     box_: Node,
@@ -1941,8 +1906,7 @@ pub(super) fn run_formatting_context(
         parent_fragments.clear_reused_subtree_root(box_, parent_used);
     }
     let root_cells = used_values::RootInputCells::capture(parent_used);
-    let builds_fragments = root_fragments == RootFragments::WhereTheRunInputAllows
-        && run_builds_fragments(layout_mode, &input, parent_fragments.is_some());
+    let builds_fragments = run_builds_fragments(layout_mode, &input, parent_fragments.is_some());
     assert!(
         parent_fragments.is_none() || builds_fragments,
         "the run of {box_:?} builds no fragments for its parent to commit"
@@ -2739,7 +2703,7 @@ pub(crate) fn layout_inside_child(
     parent_grid: Option<&grid_formatting_context::GridFormattingContext>,
     child: Node,
     layout_mode: LayoutMode,
-    mut input: LayoutInput,
+    input: LayoutInput,
     force_independent_context_run: bool,
 ) -> ChildLayoutOutcome {
     let facts = NodeFacts::new(&run.callbacks, child);
@@ -2817,37 +2781,21 @@ pub(crate) fn layout_inside_child(
         return ChildLayoutOutcome::Skipped;
     }
 
-    let fc_type = formatting_context_type_created_by_box(facts)
-        .or_else(|| force_independent_context_run.then(|| independent_formatting_context_type(child, &run.callbacks)));
-    let Some(fc_type) = fc_type else {
+    let Some(ChildRunPlan {
+        fc_type,
+        root_containing_block,
+        mut input,
+    }) = child_run_plan(run, child, input, force_independent_context_run)
+    else {
         if force_independent_context_run {
             note_skipped_child_dependency();
             return ChildLayoutOutcome::Skipped;
         }
         return ChildLayoutOutcome::ReenterCurrent;
     };
-    let root_containing_block = run
-        .callbacks
-        .containing_block_for_child_run(child, &input.participation);
-    // https://drafts.csswg.org/css-sizing-3/#definite
-    // "Additionally, the size of the containing block of an absolutely positioned element is always definite with
-    //  respect to that element."
-    // NB: That containing block may also have been laid out by a run other than this one, which holds no record of it.
-    input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root = match input.participation {
-        ParticipationInParentFormattingContext::AbsolutelyPositioned(_) => false,
-        _ => treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_root(
-            run.records,
-            &run.callbacks,
-            child,
-            root_containing_block,
-            run.box_,
-            run.treat_block_axis_percentage_insets_as_auto_beyond_root,
-        ),
-    };
     input.sizing.flex_self_block_size_resolution_space =
         dimension_root_in_parent_scope(parent_block, child, &input, child_run_builds_fragments);
     let result = run_formatting_context(
-        RootFragments::WhereTheRunInputAllows,
         run.fragments.as_deref(),
         used,
         child,
@@ -2870,54 +2818,103 @@ pub(crate) fn layout_inside_child(
     ChildLayoutOutcome::Created(result)
 }
 
-/// Runs a table cell's committing layout while its table still sizes rows, beside the cell's record, and keeps the
-/// outputs in the run cache. The cell's committing run, once the rows are sized, replays them: its input differs only
-/// in the intrinsic block padding, which the contents of an eligible cell never observe (see
-/// fc_run_cache::table_cell_contents_never_observe_intrinsic_block_padding). Returns None for any other cell.
-pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
+/// The run a table cell's committing run will be (see layout_inside_child), but for the intrinsic block padding that
+/// its table hands it once rows are sized. Laid out ahead of that padding, its outputs stay in the run cache, and the
+/// committing run replays them unless they show that the run observed the root's block padding (see
+/// fc_run_cache::run_observes_root_block_padding).
+pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
     run: &FormattingContextRun,
     cell: Node,
     mut input: LayoutInput,
-) -> Option<ChildLayoutResult> {
+) -> Option<ChildRunShape> {
     debug_assert!(matches!(
         input.participation,
         ParticipationInParentFormattingContext::Item
     ));
-    if run.fragments.is_none()
-        || formatting_context_type_created_by_box(NodeFacts::new(&run.callbacks, cell))
-            != Some(FormattingContextType::Block)
-        || !fc_run_cache::table_cell_contents_never_observe_intrinsic_block_padding(&run.callbacks, cell)
-    {
-        return None;
-    }
-    // Everything layout_inside_child() hands the committing run, but the intrinsic block padding.
     input.sizing.table_cell_intrinsic_block_padding = Some((CssPixels::default(), CssPixels::default()));
-    let root_containing_block = run.callbacks.containing_block_for_child_run(cell, &input.participation);
-    input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root =
-        treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_root(
+    let plan = child_run_plan(run, cell, input, false)?;
+    Some(ChildRunShape {
+        node: cell,
+        fc_type: plan.fc_type,
+        input: plan.input,
+        root_cells: used_values::RootInputCells::capture(run.records.used_values(cell)),
+        root_containing_block: plan.root_containing_block,
+    })
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct ChildRunShape {
+    pub(crate) node: Node,
+    pub(crate) fc_type: FormattingContextType,
+    pub(crate) input: LayoutInput,
+    pub(crate) root_cells: used_values::RootInputCells,
+    pub(crate) root_containing_block: Node,
+}
+
+pub(crate) struct ChildRunPlan {
+    pub(crate) fc_type: FormattingContextType,
+    pub(crate) root_containing_block: Node,
+    pub(crate) input: LayoutInput,
+}
+
+pub(crate) fn child_run_plan(
+    run: &FormattingContextRun,
+    child: Node,
+    mut input: LayoutInput,
+    force_independent_context_run: bool,
+) -> Option<ChildRunPlan> {
+    let fc_type = formatting_context_type_created_by_box(NodeFacts::new(&run.callbacks, child)).or_else(|| {
+        force_independent_context_run.then(|| independent_formatting_context_type(child, &run.callbacks))
+    })?;
+    let root_containing_block = run
+        .callbacks
+        .containing_block_for_child_run(child, &input.participation);
+    // https://drafts.csswg.org/css-sizing-3/#definite
+    // "Additionally, the size of the containing block of an absolutely positioned element is always definite with
+    //  respect to that element."
+    // NB: That containing block may also have been laid out by a run other than this one, which holds no record of it.
+    input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root = match input.participation {
+        ParticipationInParentFormattingContext::AbsolutelyPositioned(_) => false,
+        _ => treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_root(
             run.records,
             &run.callbacks,
-            cell,
+            child,
             root_containing_block,
             run.box_,
             run.treat_block_axis_percentage_insets_as_auto_beyond_root,
-        );
-    input.sizing.flex_self_block_size_resolution_space = None;
-    let root_cells = used_values::RootInputCells::capture(run.records.used_values(cell));
-    let cache_key =
-        fc_run_cache::FcRunCacheKey::new(FormattingContextType::Block, LayoutMode::Normal, input, root_cells);
-    let builds_fragments = run_builds_fragments(LayoutMode::Normal, &input, false);
-    let execute_at = |root_cells, input, previous_line_data| {
+        ),
+    };
+    Some(ChildRunPlan {
+        fc_type,
+        root_containing_block,
+        input,
+    })
+}
+
+pub(crate) fn lay_out_shape_for_its_result(
+    callbacks: LayoutPass<'_>,
+    shape: ChildRunShape,
+    layout_mode: LayoutMode,
+) -> ChildLayoutResult {
+    let ChildRunShape {
+        node,
+        fc_type,
+        input,
+        root_cells,
+        root_containing_block,
+    } = shape;
+    let builds_fragments = run_builds_fragments(layout_mode, &input, false);
+    let lay_out = |root_cells, input, previous_line_data| {
         execute_formatting_context_run(
             builds_fragments,
             root_cells,
-            cell,
+            node,
             root_containing_block,
             None,
-            FormattingContextType::Block,
-            LayoutMode::Normal,
-            run.should_collect_devtools_layout_data,
-            run.callbacks,
+            fc_type,
+            layout_mode,
+            false,
+            callbacks,
             input,
             None,
             previous_line_data,
@@ -2925,63 +2922,61 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
             None,
         )
     };
-    if run.callbacks.scratch().reads_no_memoized_layout() {
-        if !fc_run_cache::can_describe_run(
-            cell,
-            false,
-            run.should_collect_devtools_layout_data,
-            &run.callbacks,
-            &cache_key,
-        ) {
-            return None;
-        }
-        return Some(execute_at(root_cells, input, None).result);
-    }
-    let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
-        cell,
-        false,
-        builds_fragments,
-        run.should_collect_devtools_layout_data,
-        &run.callbacks,
-        &cache_key,
-    ) {
-        Ok(fc_run_cache::FcRunCacheAttempt::Bypass) => return None,
-        Ok(attempt) => attempt,
-        Err(hit) => {
-            let _trace = run.callbacks.arena().layout_trace.run(
-                cell,
-                FormattingContextType::Block,
-                LayoutMode::Normal,
-                || "READ RESULT AHEAD OF INTRINSIC BLOCK PADDING",
-            );
-            return Some(hit.entry.outputs.result);
-        }
+    let result_with_host_findings = |outputs: &RunOutputs| {
+        callbacks.scratch().receive_host_findings(outputs.host_findings.clone());
+        outputs.result
     };
-    let _trace = run.callbacks.arena().layout_trace.run(
-        cell,
-        FormattingContextType::Block,
-        LayoutMode::Normal,
-        || "RUN AHEAD OF INTRINSIC BLOCK PADDING",
-    );
-    let previous_line_data = cache_attempt.previous_line_data();
-    let discarded_outputs =
-        run_repeatability::lay_out_discarded_run(&run.callbacks, || execute_at(root_cells, input, None));
-    let outputs = execute_at(root_cells, input, previous_line_data);
-    if let Some(discarded_outputs) = &discarded_outputs {
-        run_repeatability::verify_repeated_run(&run.callbacks, cell, discarded_outputs, &outputs);
+    if callbacks.scratch().reads_no_memoized_layout() {
+        return result_with_host_findings(&lay_out(root_cells, input, None));
     }
-    run_repeatability::verify_run_ignores_its_unobserved_own_block_size(
-        &run.callbacks,
-        cell,
-        root_cells,
-        input,
-        &outputs,
-        |root_cells_at_other_own_block_size, input_at_other_own_block_size| {
-            execute_at(root_cells_at_other_own_block_size, input_at_other_own_block_size, None)
-        },
-    );
-    cache_attempt.conclude(&run.callbacks, cell, cache_key, &input, &outputs);
-    Some(outputs.result)
+    let runs_ahead_of_intrinsic_block_padding =
+        builds_fragments && input.sizing.table_cell_intrinsic_block_padding.is_some();
+    let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, layout_mode, input, root_cells);
+    let cache_attempt =
+        match fc_run_cache::FcRunCacheAttempt::probe(node, false, builds_fragments, false, &callbacks, &cache_key) {
+            Ok(attempt) => attempt,
+            Err(hit) => {
+                let action = if runs_ahead_of_intrinsic_block_padding {
+                    "READ RESULT AHEAD OF INTRINSIC BLOCK PADDING"
+                } else {
+                    "READ RESULT"
+                };
+                let _trace = callbacks
+                    .arena()
+                    .layout_trace
+                    .run(node, fc_type, layout_mode, || action);
+                return result_with_host_findings(&hit.entry.outputs);
+            }
+        };
+    let action = if runs_ahead_of_intrinsic_block_padding {
+        "RUN AHEAD OF INTRINSIC BLOCK PADDING"
+    } else {
+        cache_attempt.trace_action()
+    };
+    let _trace = callbacks
+        .arena()
+        .layout_trace
+        .run(node, fc_type, layout_mode, || action);
+    let previous_line_data = cache_attempt.previous_line_data();
+    let discarded_outputs = run_repeatability::lay_out_discarded_run(&callbacks, || lay_out(root_cells, input, None));
+    let outputs = lay_out(root_cells, input, previous_line_data);
+    if let Some(discarded_outputs) = &discarded_outputs {
+        run_repeatability::verify_repeated_run(&callbacks, node, discarded_outputs, &outputs);
+    }
+    if cache_attempt.stores_outputs() {
+        run_repeatability::verify_run_ignores_its_unobserved_own_block_size(
+            &callbacks,
+            node,
+            root_cells,
+            input,
+            &outputs,
+            |root_cells_at_other_own_block_size, input_at_other_own_block_size| {
+                lay_out(root_cells_at_other_own_block_size, input_at_other_own_block_size, None)
+            },
+        );
+    }
+    cache_attempt.conclude(&callbacks, node, cache_key, &input, &outputs);
+    result_with_host_findings(&outputs)
 }
 
 // NB: An item that establishes an orthogonal flow sizes itself along its container's block axis, so its run owns its
@@ -3375,7 +3370,6 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         .with_forced_sizes(viewport_inline_size, viewport_block_size);
         let fc_type = independent_formatting_context_type(root_for_layout, &callbacks);
         run_formatting_context(
-            RootFragments::WhereTheRunInputAllows,
             Some(&entry_fragments),
             root_for_layout_used,
             root_for_layout,
@@ -3534,7 +3528,6 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     let fc_type = formatting_context_type_created_by_box(facts)
         .expect("partial relayout root must establish an independent formatting context");
     run_formatting_context(
-        RootFragments::WhereTheRunInputAllows,
         Some(fragments),
         root_used,
         root,

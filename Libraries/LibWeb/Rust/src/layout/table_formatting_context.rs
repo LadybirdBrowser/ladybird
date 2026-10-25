@@ -605,6 +605,13 @@ pub(crate) fn distribute_inline_size(columns: &mut [Column], available: CssPixel
     distribute_excess(columns, available, fixed);
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct TableCellMeasurement {
+    automatic_content_block_size: CssPixels,
+    baselines: DerivedBaselines,
+    depends_on_percentage_block_size: bool,
+}
+
 #[derive(Clone, Copy)]
 pub(crate) struct TableCell {
     pub(crate) box_: Node,
@@ -2635,12 +2642,12 @@ impl<'pass> TableFormattingContext<'pass> {
         );
     }
 
-    /// Measures a cell's content ahead of its committing layout. With the table's committing `run`, a cell whose
-    /// committing run can replay the measuring one runs ahead of its intrinsic block padding instead of being
-    /// measured in a throwaway layout (see run_table_cell_ahead_of_its_intrinsic_block_padding).
+    /// Measures a cell's content ahead of its committing layout, with everything that layout will be handed but the
+    /// intrinsic block padding, so that the committing run of a cell in a normal-mode table can replay the measuring
+    /// one (see table_cell_run_shape_ahead_of_its_intrinsic_block_padding).
     fn measure_cell(
         &self,
-        run: Option<&FormattingContextRun<'pass>>,
+        run: &FormattingContextRun<'pass>,
         cell: TableCell,
         used: &UsedValues,
         inner: AvailableSpace,
@@ -2658,119 +2665,9 @@ impl<'pass> TableFormattingContext<'pass> {
         if !facts.can_have_children() {
             return None;
         }
-
-        // OPTIMIZATION: A cell whose content repeats its measurement at every inline size at or above its max-content
-        //               inline size shares one entry for all of them, so that a table whose columns grow and shrink
-        //               measures such a cell again only when its content wraps differently.
-        let mut content_inline_size = used.content_inline_size.get();
-        let mut available_space = inner;
-        if let Some(threshold) = self.cell_measurement_repeats_at_or_above(cell)
-            && content_inline_size >= threshold
-            && let AvailableSize::Definite(available_inline_size) = inner.inline_size
-            && available_inline_size >= threshold
-        {
-            content_inline_size = threshold;
-            available_space.inline_size = AvailableSize::Definite(threshold);
-        }
-        let key = TableCellMeasurementKey {
-            layout_mode: self.run.layout_mode,
-            available_space,
-            content_inline_size,
-            content_block_size: used.content_block_size.get(),
-            has_definite_inline_size: used.has_definite_inline_size(),
-            has_definite_block_size: used.has_definite_block_size(),
-            block_size_constraint: used.block_size_constraint.get(),
-            uses_collapsing_borders_model: used.uses_collapsing_borders_model.get(),
-            adopt_automatic_content_block_size,
-        };
-        let caches = self.run.callbacks.intrinsic_size_caches();
-        let stamp = self.run.callbacks.intrinsic_size_cache_stamp(cell.box_);
-        let layout_trace = &self.run.callbacks.arena().layout_trace;
-        if let Some(cached) = caches.table_cell_measurement_cache_get(stamp, key) {
-            layout_trace.table_cell_measurement_hit(cell.box_);
-            return Some(cached);
-        }
-        let _trace = layout_trace.table_cell_measurement_miss(cell.box_);
-
-        let measured = run
-            .filter(|_| {
-                adopt_automatic_content_block_size
-                    && self.style(cell.box_).height().is_auto()
-                    && !self.anonymous_cell_wraps_flex_or_grid(cell)
-            })
-            .and_then(|run| {
-                formatting_context::run_table_cell_ahead_of_its_intrinsic_block_padding(
-                    run,
-                    cell.box_,
-                    LayoutInput {
-                        available_space: inner,
-                        containing_block_constraints: ContainingBlockConstraints::default(),
-                        content_box_position_in_bfc_root: None,
-                        sizing: RootSizingDirectives {
-                            adopt_automatic_content_block_size,
-                            ..RootSizingDirectives::default()
-                        },
-                        participation: ParticipationInParentFormattingContext::Item,
-                    },
-                )
-            })
-            .map(|result| TableCellMeasurement {
-                automatic_content_block_size: result.automatic_content_block_size,
-                baselines: result.baselines,
-                depends_on_percentage_block_size: result.depends_on_percentage_block_size,
-            })
-            .unwrap_or_else(|| self.measure_cell_content(cell, used, inner, adopt_automatic_content_block_size));
-        caches.table_cell_measurement_cache_put(
-            self.run.callbacks.intrinsic_size_cache_stamp(cell.box_),
-            key,
-            measured,
-        );
-        Some(measured)
-    }
-
-    /// The inline size at or above which measuring the cell's content always gives the same result, if there is one.
-    /// That is its max-content inline size when the content is only text, which reads the inline size only to break
-    /// lines and breaks none at or above it, unless a percentage text-indent reads it too.
-    fn cell_measurement_repeats_at_or_above(&self, cell: TableCell) -> Option<CssPixels> {
-        let threshold = cell.max_content_inline_size?;
-        if self.style(cell.box_).text_indent().contains_percentage() {
-            return None;
-        }
-        for child in self.run.callbacks.children(cell.box_) {
-            let facts = NodeFacts::new(&self.run.callbacks, child);
-            if !facts.is_text_node() && !facts.is_break_node() {
-                return None;
-            }
-        }
-        Some(threshold)
-    }
-
-    fn measure_cell_content(
-        &self,
-        cell: TableCell,
-        used: &UsedValues,
-        inner: AvailableSpace,
-        adopt_automatic_content_block_size: bool,
-    ) -> TableCellMeasurement {
-        // The table formatting context owns the cell's outer geometry. Seed the inputs
-        // needed to lay out its contents without copying placement or layout outputs.
-        let measurement = formatting_context::MeasurementState::create(self.run.callbacks);
-        let measured_root = measurement.create_used_values(cell.box_, ContainingBlockConstraints::default());
-        used.mirror_box_metrics_and_size_constraints_into(&measured_root);
-        measured_root
-            .has_definite_inline_size
-            .set(used.has_definite_inline_size());
-        measured_root
-            .has_definite_block_size
-            .set(used.has_definite_block_size());
-        measured_root
-            .uses_collapsing_borders_model
-            .set(used.uses_collapsing_borders_model.get());
-
-        let result = measurement.run_without_root_fragments(
+        let shape = formatting_context::table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
+            run,
             cell.box_,
-            &measured_root,
-            self.run.layout_mode,
             LayoutInput {
                 available_space: inner,
                 containing_block_constraints: ContainingBlockConstraints::default(),
@@ -2781,12 +2678,13 @@ impl<'pass> TableFormattingContext<'pass> {
                 },
                 participation: ParticipationInParentFormattingContext::Item,
             },
-        );
-        TableCellMeasurement {
+        )?;
+        let result = formatting_context::lay_out_shape_for_its_result(run.callbacks, shape, self.run.layout_mode);
+        Some(TableCellMeasurement {
             automatic_content_block_size: result.automatic_content_block_size,
             baselines: result.baselines,
             depends_on_percentage_block_size: result.depends_on_percentage_block_size,
-        }
+        })
     }
 
     fn compute_table_block_size(&mut self, run: &FormattingContextRun<'pass>) {
@@ -2871,8 +2769,8 @@ impl<'pass> TableFormattingContext<'pass> {
             let mut content_baselines = None;
             if defer_inside_layout {
                 // This cell's final inside layout happens once row heights are final; measure its
-                // content in a throwaway state instead of laying out the committing state twice.
-                if let Some(measured) = self.measure_cell(Some(run), cell, used, inner, true) {
+                // content ahead of its intrinsic padding instead of laying out the committing state twice.
+                if let Some(measured) = self.measure_cell(run, cell, used, inner, true) {
                     self.cell_measurements[cell_index] = Some(measured);
                     used.set_content_block_size(measured.automatic_content_block_size);
                     content_baselines = Some(measured.baselines);
@@ -3000,7 +2898,7 @@ impl<'pass> TableFormattingContext<'pass> {
             // The first pass measured this cell at its automatic block size; measure it again at
             // the percentage-resolved size to preserve the baseline its final inside layout will use.
             let content_baselines = self
-                .measure_cell(None, cell, used, inner, false)
+                .measure_cell(run, cell, used, inner, false)
                 .map(|measured| measured.baselines);
             let baseline = self.cell_baseline(cell.box_, content_baselines);
             self.cells[cell_index].baseline = baseline;

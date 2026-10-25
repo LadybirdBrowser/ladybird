@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/table-cell-vertical-align-scroll-container-ref.html">
+<style>
+    body { margin: 0; }
+    table { border-spacing: 0; table-layout: fixed; width: 300px; }
+    td { padding: 0; width: 100px; overflow: hidden; }
+    tr { height: 100px; }
+    .middle { vertical-align: middle; }
+    .bottom { vertical-align: bottom; }
+    .positioned { position: relative; }
+    .content { height: 20px; background: green; }
+    .bar { position: absolute; left: 0; top: -5px; width: 100px; height: 10px; background: blue; }
+    .wide { width: 150px; height: 20px; background: green; }
+</style>
+<table><tr id="row">
+    <td class="middle"><div class="content"></div></td>
+    <td class="bottom positioned"><div class="content"></div><div class="bar"></div></td>
+    <td class="middle"><div class="wide"></div></td>
+</tr></table>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("row").style.height = "140px";
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    document.documentElement.classList.remove("reftest-wait");
+                });
+            });
+        });
+    });
+</script>
+</html>

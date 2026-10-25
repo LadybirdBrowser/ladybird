@@ -1,0 +1,20 @@
+row 100px middle-fieldset: legend 0, block 54
+row 100px bottom-fieldset: legend 0, block 84
+row 100px baseline-fieldset: legend 0, block 24
+row 100px middle-markup: block 30, float 40, inline-block 46, table 60, block 60
+row 100px bottom-markup: block 60, float 70, inline-block 76, table 90, block 90
+row 140px middle-fieldset: legend 0, block 74
+row 140px bottom-fieldset: legend 0, block 124
+row 140px baseline-fieldset: legend 0, block 24
+row 140px middle-markup: block 50, float 60, inline-block 66, table 80, block 80
+row 140px bottom-markup: block 100, float 110, inline-block 116, table 130, block 130
+row 60px middle-fieldset: legend 0, block 34
+row 60px bottom-fieldset: legend 0, block 44
+row 60px baseline-fieldset: legend 0, block 24
+row 60px middle-markup: block 10, float 20, inline-block 26, table 40, block 40
+row 60px bottom-markup: block 20, float 30, inline-block 36, table 50, block 50
+row 100px middle-fieldset: legend 0, block 54
+row 100px bottom-fieldset: legend 0, block 84
+row 100px baseline-fieldset: legend 0, block 24
+row 100px middle-markup: block 30, float 40, inline-block 46, table 60, block 60
+row 100px bottom-markup: block 60, float 70, inline-block 76, table 90, block 90

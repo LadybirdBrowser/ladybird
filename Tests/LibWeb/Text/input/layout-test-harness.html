@@ -74,9 +74,8 @@ test(() => {
         "      Box<DIV>#item MEASURE max-content block (cache=miss)",
         "        Box<DIV>#item/flex (intrinsic) RUN (cache=bypass)",
         "      Box<TABLE>#table/table (intrinsic) RUN (cache=bypass)",
-        "        BlockContainer<TD>.cell MEASURE CELL (cache=miss)",
-        "          BlockContainer<TD>.cell/block RUN AHEAD OF INTRINSIC BLOCK PADDING",
-        "        BlockContainer<TD>.cell MEASURE CELL (cache=hit)",
+        "        BlockContainer<TD>.cell/block RUN AHEAD OF INTRINSIC BLOCK PADDING",
+        "        BlockContainer<TD>.cell/block READ RESULT AHEAD OF INTRINSIC BLOCK PADDING",
         "        BlockContainer<DIV> REUSE IN-FLOW SUBTREE",
         "layout PARTIAL Box<DIV>#flex",
         "  Box<DIV>#flex/flex REPLAY FRAGMENTS",
@@ -92,9 +91,8 @@ test(() => {
         { depth: 3, event: "measure", box: "Box<DIV>#item", size: "max-content block", cache: "miss" },
         { depth: 4, event: "run", box: "Box<DIV>#item", formattingContext: "flex", intrinsic: true, action: "RUN", cache: "bypass" },
         { depth: 3, event: "run", box: "Box<TABLE>#table", formattingContext: "table", intrinsic: true, action: "RUN", cache: "bypass" },
-        { depth: 4, event: "measure cell", box: "BlockContainer<TD>.cell", cache: "miss" },
-        { depth: 5, event: "run", box: "BlockContainer<TD>.cell", formattingContext: "block", intrinsic: false, action: "RUN AHEAD OF INTRINSIC BLOCK PADDING" },
-        { depth: 4, event: "measure cell", box: "BlockContainer<TD>.cell", cache: "hit" },
+        { depth: 4, event: "run", box: "BlockContainer<TD>.cell", formattingContext: "block", intrinsic: false, action: "RUN AHEAD OF INTRINSIC BLOCK PADDING" },
+        { depth: 4, event: "run", box: "BlockContainer<TD>.cell", formattingContext: "block", intrinsic: false, action: "READ RESULT AHEAD OF INTRINSIC BLOCK PADDING" },
         { depth: 4, event: "reuse in-flow subtree", box: "BlockContainer<DIV>" },
         { depth: 0, event: "layout", partial: true, box: "Box<DIV>#flex" },
         { depth: 1, event: "run", box: "Box<DIV>#flex", formattingContext: "flex", intrinsic: false, action: "REPLAY FRAGMENTS" },
@@ -135,7 +133,7 @@ test(() => {
     exerciseWork("work rejects asynchronous mutations", () => Promise.resolve(),
         "flush,begin,take", "mutate must be synchronous");
     exerciseWork("work counts the events a filter object matches", () => {}, "flush,begin,flush,take", null,
-        work => work.count({ event: "measure", cache: "miss" }) === 3 && work.count({ event: "measure cell" }) === 2);
+        work => work.count({ event: "measure", cache: "miss" }) === 3 && work.count({ event: "run", box: "BlockContainer<TD>.cell" }) === 2);
     exerciseWork("work counts the events a filter function matches", () => {}, "flush,begin,flush,take", null,
         work => work.count(event => event.depth === 0) === 2);
     exerciseWork("work names each matching box once, in trace order", () => {}, "flush,begin,flush,take", null,
