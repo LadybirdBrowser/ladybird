@@ -23,7 +23,7 @@ use rustc_middle::ty::print::with_forced_trimmed_paths;
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_session::{declare_lint, impl_lint_pass};
 
-use rustc_span::{DesugaringKind, Span};
+use rustc_span::{DesugaringKind, Span, Symbol};
 
 declare_lint! {
     /// A local, parameter or return value owns GC pointers through heap memory that the collector does not scan.
@@ -44,7 +44,15 @@ declare_lint! {
     "`Root` held by a type that implements `Trace`"
 }
 
-pub static LINTS: &[&Lint] = &[GC_CONTAINER_ON_STACK, ROOT_IN_TRACED_TYPE];
+declare_lint! {
+    /// A field marked `#[gc(untraced)]`, which `#[derive(Trace)]` skips, can hold GC pointers. Say what keeps them
+    /// alive instead: `#[gc(untraced = "...")]`.
+    pub UNTRACED_GC_POINTER,
+    Deny,
+    "GC pointers in a field that `#[derive(Trace)]` skips"
+}
+
+pub static LINTS: &[&Lint] = &[GC_CONTAINER_ON_STACK, ROOT_IN_TRACED_TYPE, UNTRACED_GC_POINTER];
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
@@ -93,6 +101,7 @@ pub struct GcLints<'tcx> {
 impl_lint_pass!(GcLints<'_> => [
     GC_CONTAINER_ON_STACK,
     ROOT_IN_TRACED_TYPE,
+    UNTRACED_GC_POINTER,
 ]);
 
 const LIBJS_CRATE: &str = "libjs_rust";
@@ -606,6 +615,31 @@ impl<'tcx> LateLintPass<'tcx> for GcLints<'tcx> {
         }
         let tcx = cx.tcx;
         let adt = tcx.adt_def(item.owner_id);
+        let gc = Symbol::intern("gc");
+        let untraced = Symbol::intern("untraced");
+        for field in adt.all_fields() {
+            let field_id = tcx.local_def_id_to_hir_id(field.did.expect_local());
+            // NB: A reason, as in #[gc(untraced = "...")], says what keeps the cells alive.
+            let untraced_without_reason = tcx.hir_attrs(field_id).iter().any(|attribute| {
+                attribute.has_name(gc)
+                    && attribute
+                        .meta_item_list()
+                        .is_some_and(|items| items.iter().any(|item| item.has_name(untraced) && item.is_word()))
+            });
+            let ty = normalize(cx, tcx.type_of(field.did).instantiate_identity().skip_normalization());
+            if untraced_without_reason && self.reaches_gc_pointer(cx, ty, &mut Vec::new()) {
+                self.emit(
+                    cx,
+                    UNTRACED_GC_POINTER,
+                    field_id,
+                    tcx.def_span(field.did),
+                    with_forced_trimmed_paths!(format!(
+                        "untraced field of type '{ty}' can hold GC pointers; say what keeps them alive with \
+                         #[gc(untraced = \"...\")]"
+                    )),
+                );
+            }
+        }
         for field in adt.all_fields() {
             let ty = tcx.type_of(field.did).instantiate_identity().skip_normalization();
             if let Some((root, _)) = self.find(cx, ty, Target::Root, &mut Vec::new(), None) {

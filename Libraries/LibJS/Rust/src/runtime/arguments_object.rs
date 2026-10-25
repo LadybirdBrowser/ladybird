@@ -35,7 +35,7 @@ pub struct ArgumentsObject {
     base: Object,
     /// OPTIMIZATION: The named properties of arguments objects, "length", "callee" and @@iterator, fit in the inline
     ///               named storage with this slot after it.
-    #[gc(untraced)]
+    #[gc(untraced = "the object traces it as the last slot of its inline named storage")]
     extra_inline_named_storage: Cell<Value>,
     environment: Cell<Gc<Environment>>,
     #[gc(untraced)]
