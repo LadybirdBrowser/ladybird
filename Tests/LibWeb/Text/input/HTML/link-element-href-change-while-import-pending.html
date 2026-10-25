@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+function registerEcho(path, body, delay_ms) {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/echo", false);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.send(JSON.stringify({
+        method: "GET",
+        path,
+        status: 200,
+        headers: { "Content-Type": "text/css", "Cache-Control": "no-store" },
+        body,
+        delay_ms,
+    }));
+}
+
+registerEcho("/echo/link-href-change-old.css", '@import url("/echo/link-href-change-old-import.css");', 0);
+registerEcho("/echo/link-href-change-old-import.css", "#target { width: 10px; }", 300);
+registerEcho("/echo/link-href-change-new.css", "#target { width: 20px; }", 1000);
+
+const link = document.createElement("link");
+link.rel = "stylesheet";
+link.href = "/echo/link-href-change-old.css";
+document.head.appendChild(link);
+
+function changeHrefOnceOldSheetIsAssociated() {
+    if (!link.sheet) {
+        setTimeout(changeHrefOnceOldSheetIsAssociated, 0);
+        return;
+    }
+    link.href = "/echo/link-href-change-new.css";
+}
+changeHrefOnceOldSheetIsAssociated();
+
+asyncTest(done => {
+    window.addEventListener("load", () => {
+        println(`Replacement style sheet applied before load event: ${getComputedStyle(document.getElementById("target")).width === "20px"}`);
+        done();
+    });
+});
+</script>

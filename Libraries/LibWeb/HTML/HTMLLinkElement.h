@@ -223,6 +223,8 @@ private:
     unsigned m_relationship { 0 };
     u64 m_current_fetch_generation { 0 };
     bool m_stylesheet_processing_pending { false };
+    Optional<u64> m_fetch_generation_waiting_for_critical_subresources;
+    u64 m_loaded_style_sheet_fetch_generation { 0 };
 
     // https://html.spec.whatwg.org/multipage/semantics.html#explicitly-enabled
     bool m_explicitly_enabled { false };

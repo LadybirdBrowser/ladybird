@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	 scheduler: stylesheets blocking defer scripts
+1 Pass
+Pass	 scheduler: stylesheets blocking defer scripts
