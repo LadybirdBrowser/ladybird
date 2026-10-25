@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/EnumBits.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
 #include <AK/kmalloc.h>
@@ -62,12 +63,14 @@
 #include <QVariantAnimation>
 #include <QWheelEvent>
 #include <QWindow>
+#include <QtMath>
 
 namespace Ladybird {
 
 static constexpr auto LADYBIRD_TAB_MIME_TYPE = "application/x-ladybird-tab";
-static constexpr int HORIZONTAL_TAB_STRIP_HEIGHT = 40;
-static constexpr int HORIZONTAL_TAB_HEIGHT = 36;
+static constexpr int HORIZONTAL_TAB_STRIP_HEIGHT = 39;
+// Horizontal tabs reach the bottom of the strip, where the selected tab flows into the toolbar below it.
+static constexpr int HORIZONTAL_TAB_HEIGHT = 37;
 // Horizontal tabs shrink until only their favicon is left, then overflow the strip and get clipped.
 static constexpr int HORIZONTAL_TAB_MIN_WIDTH = 40;
 // Narrower background tabs drop their close button to keep room for the title.
@@ -77,8 +80,7 @@ static constexpr int HORIZONTAL_ACTIVE_TAB_CLOSE_BUTTON_MIN_WIDTH = 68;
 // Below this content width, a horizontal tab shows its favicon alone.
 static constexpr int HORIZONTAL_TAB_MIN_CONTENT_WIDTH_FOR_TITLE = 48;
 static constexpr int HORIZONTAL_TAB_MAX_WIDTH = 232;
-// A pinned tab's tile: wide enough for a square card inside TAB_CARD_SHAPE_HORIZONTAL_INSET and
-// TAB_CARD_SHAPE_VERTICAL_INSET on a HORIZONTAL_TAB_HEIGHT row.
+// A pinned tab's tile, which shows only its favicon.
 static constexpr int PINNED_TAB_TILE_WIDTH = 40;
 static constexpr int PINNED_TABS_SEPARATOR_HEIGHT = 9;
 static constexpr int VERTICAL_TAB_HEIGHT = 38;
@@ -91,9 +93,31 @@ static constexpr int VERTICAL_TABS_COLLAPSED_SIDE_MARGIN = 6;
 static constexpr int VERTICAL_TABS_EXPANDED_SIDE_MARGIN = 5;
 static constexpr int VERTICAL_TABS_TOP_MARGIN = 8;
 static constexpr int TAB_CARD_SHAPE_HORIZONTAL_INSET = 5;
-static constexpr qreal HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET = 4.0;
 static constexpr int TAB_CARD_SHAPE_VERTICAL_INSET = 3;
-static constexpr int HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE = 32;
+// A horizontal tab's card holds its contents, and is what lights up when the tab is hovered. The selected tab is its card
+// extended down to the toolbar. The card sits above the middle of the tab, so its contents line up with the window
+// controls.
+static constexpr qreal HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET = 2.5;
+static constexpr int HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET = 4;
+static constexpr int HORIZONTAL_TAB_CARD_SHAPE_BOTTOM_INSET = 5;
+static constexpr qreal HORIZONTAL_TAB_CARD_RADIUS = (HORIZONTAL_TAB_HEIGHT - HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET - HORIZONTAL_TAB_CARD_SHAPE_BOTTOM_INSET) / 2.0;
+// The new tab button's circle is as tall as a tab's card, so its top is level with the top of the selected tab.
+static constexpr qreal HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE = 2 * HORIZONTAL_TAB_CARD_RADIUS;
+// The selected horizontal tab's sides flare out at the bottom into the toolbar. Each flare reaches into the tab beside
+// it, which has no fill of its own, and curves around the end of that tab's card at a constant distance.
+// NB: For that curve to also meet the toolbar in a tangent, the distance from the card's middle to the bottom of the tab
+//     must equal the curve's radius, which the card's insets are chosen for.
+static constexpr qreal HORIZONTAL_TAB_FLARE_RADIUS = HORIZONTAL_TAB_CARD_RADIUS + (2 * HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET);
+static_assert(HORIZONTAL_TAB_FLARE_RADIUS == HORIZONTAL_TAB_HEIGHT - HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET - HORIZONTAL_TAB_CARD_RADIUS);
+// The first and last tabs are this much wider, on the outer side, to make room for their flares at the ends of the tab
+// bar.
+static constexpr int HORIZONTAL_TAB_END_ROOM = 17;
+static_assert(HORIZONTAL_TAB_END_ROOM + HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET >= HORIZONTAL_TAB_FLARE_RADIUS);
+// The new tab button sits over the last tab's room for its flare, with its circle centered where the flare's curve is, as
+// a tab's card beside the last tab would be. The curve then keeps clear of the circle.
+static constexpr int HORIZONTAL_NEW_TAB_BUTTON_OVERLAP = static_cast<int>(HORIZONTAL_TAB_END_ROOM + HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET - HORIZONTAL_TAB_FLARE_RADIUS + (HORIZONTAL_TAB_HEIGHT / 2.0));
+static constexpr qreal HORIZONTAL_TAB_SEPARATOR_WIDTH = 1.5;
+static constexpr qreal HORIZONTAL_TAB_SEPARATOR_HEIGHT = 20.0;
 static constexpr int TAB_CONTENT_HORIZONTAL_INSET = 8;
 static constexpr int VERTICAL_TABS_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
 static constexpr int TAB_PREVIEW_HOVER_DELAY_MS = 350;
@@ -205,16 +229,59 @@ static QRectF tab_card_shape_rect(QRectF const& rect)
     return rect.adjusted(TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_VERTICAL_INSET, -TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_VERTICAL_INSET);
 }
 
-static QRectF horizontal_tab_card_shape_rect(QRectF const& rect)
+enum class TabBarEdge : u8 {
+    None = 0,
+    Left = 1 << 0,
+    Right = 1 << 1,
+};
+AK_ENUM_BITWISE_OPERATORS(TabBarEdge);
+
+static TabBarEdge tab_bar_edges(int index, int count)
 {
-    return rect.adjusted(HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_VERTICAL_INSET, -HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_VERTICAL_INSET);
+    auto edges = TabBarEdge::None;
+    if (index == 0)
+        edges |= TabBarEdge::Left;
+    if (index == count - 1)
+        edges |= TabBarEdge::Right;
+    return edges;
 }
 
+static QRectF horizontal_tab_card_shape_rect(QRectF const& rect, TabBarEdge edges = TabBarEdge::None)
+{
+    auto left_inset = HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET + (has_flag(edges, TabBarEdge::Left) ? HORIZONTAL_TAB_END_ROOM : 0);
+    auto right_inset = HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET + (has_flag(edges, TabBarEdge::Right) ? HORIZONTAL_TAB_END_ROOM : 0);
+    return rect.adjusted(left_inset, HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET, -right_inset, -HORIZONTAL_TAB_CARD_SHAPE_BOTTOM_INSET);
+}
+
+// The selected horizontal tab's outline, from the bottom of its left flare, over the top of its body, to the bottom of
+// its right flare. The path is left open, so the loading swirl does not run along the bottom edge, where the tab meets
+// the toolbar. Filling it closes it.
+static QPainterPath horizontal_selected_tab_path(QRectF const& body)
+{
+    // NB: The top corners are as round as a card's ends.
+    auto top_radius = HORIZONTAL_TAB_CARD_RADIUS;
+    auto flare = HORIZONTAL_TAB_FLARE_RADIUS;
+    auto left = body.left();
+    auto right = body.right();
+
+    QPainterPath path;
+    path.moveTo(left - flare, body.bottom());
+    path.arcTo(QRectF(left - (2 * flare), body.bottom() - (2 * flare), 2 * flare, 2 * flare), 270, 90);
+    path.lineTo(left, body.top() + top_radius);
+    path.arcTo(QRectF(left, body.top(), 2 * top_radius, 2 * top_radius), 180, -90);
+    path.lineTo(right - top_radius, body.top());
+    path.arcTo(QRectF(right - (2 * top_radius), body.top(), 2 * top_radius, 2 * top_radius), 90, -90);
+    path.lineTo(right, body.bottom() - flare);
+    path.arcTo(QRectF(right, body.bottom() - (2 * flare), 2 * flare, 2 * flare), 180, 90);
+    return path;
+}
+
+// The new tab button lines up with the cards of the tabs beside it.
 static QRectF horizontal_new_tab_button_shape_rect(QRectF const& rect)
 {
-    auto x = rect.left() + (rect.width() - HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE) / 2.0;
-    auto y = rect.top() + (rect.height() - HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE) / 2.0;
-    return { x, y, HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE, HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE };
+    auto center = horizontal_tab_card_shape_rect(rect).center();
+    auto half_size = HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE / 2.0;
+    return { center.x() - half_size, center.y() - half_size, HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE, HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE };
 }
 
 static QRect tab_card_shape_rect(QRect const& rect)
@@ -262,36 +329,21 @@ static QColor tab_hover_surface(QPalette const& palette, qreal hover_progress)
 {
     auto dark = ChromeStyle::is_dark(palette);
     auto color = dark ? QColor(255, 255, 255) : QColor(0, 0, 0);
-    color.setAlpha(static_cast<int>((dark ? 24 : 16) * hover_progress));
+    color.setAlpha(static_cast<int>((dark ? 24 : 22) * hover_progress));
     return color;
 }
 
-static QColor selected_tab_border(QPalette const& palette, bool collapsed)
+static QColor horizontal_tab_separator(QPalette const& palette)
 {
     auto dark = ChromeStyle::is_dark(palette);
-    auto color = dark ? QColor(255, 255, 255) : QColor(0, 0, 0);
-    color.setAlpha(collapsed ? (dark ? 32 : 30) : (dark ? 26 : 24));
-    return color;
+    return ChromeStyle::mix(ChromeStyle::chrome_tab_strip_background(palette), ChromeStyle::chrome_text(palette), dark ? 0.18 : 0.25);
 }
 
-static QColor selected_tab_top_edge_highlight(QPalette const& palette, QColor border)
-{
-    if (!ChromeStyle::is_dark(palette))
-        return border;
-    auto highlight = QColor(255, 255, 255);
-    highlight.setAlpha(border.alpha() + 26);
-    return highlight;
-}
-
-static QColor selected_tab_shadow(QPalette const& palette, int layer)
+// The selected vertical tab is a flat card that stands out from the sidebar a little more than a hovered tab does.
+static QColor vertical_selected_tab_surface(QPalette const& palette)
 {
     auto dark = ChromeStyle::is_dark(palette);
-    auto color = QColor(0, 0, 0);
-    if (layer == 0)
-        color.setAlpha(dark ? 112 : 22);
-    else
-        color.setAlpha(dark ? 50 : 10);
-    return color;
+    return ChromeStyle::mix(ChromeStyle::chrome_background(palette), dark ? QColor(255, 255, 255) : QColor(0, 0, 0), dark ? 0.14 : 0.09);
 }
 
 static QRectF collapsed_vertical_tab_shape_rect(QRectF const& rect)
@@ -370,7 +422,6 @@ private:
             icon_size.height(),
         };
         if (is_horizontal_new_tab_button) {
-            icon_rect.translate(0, 1);
             painter.translate(0.5, 0);
         } else if (!expanded) {
             painter.translate(1.0, 0);
@@ -602,7 +653,9 @@ TabBar::TabBar(TabWidget* tab_widget)
             if (!is_tab_loading(index))
                 continue;
             any_tab_loading = true;
-            update(visual_tab_rect(index));
+            // NB: The selected horizontal tab's flares, which the swirl runs along, reach past its rect.
+            auto flare = qCeil(HORIZONTAL_TAB_FLARE_RADIUS);
+            update(visual_tab_rect(index).adjusted(-flare, 0, flare, 0));
         }
         if (!any_tab_loading || !isVisible())
             update_loading_swirl_animation();
@@ -751,19 +804,21 @@ QSize TabBar::tabSizeHint(int index) const
 
     if (auto count = this->count(); count > 0) {
         auto pinned_count = pinned_tab_count();
+        // The first and last tabs also take room for their flares at the ends of the tab bar.
+        auto end_room = (index == 0 ? HORIZONTAL_TAB_END_ROOM : 0) + (index == count - 1 ? HORIZONTAL_TAB_END_ROOM : 0);
         if (index < pinned_count) {
-            hint.setWidth(PINNED_TAB_TILE_WIDTH);
+            hint.setWidth(PINNED_TAB_TILE_WIDTH + end_room);
             hint.setHeight(HORIZONTAL_TAB_HEIGHT);
             return hint;
         }
 
-        // The unpinned tabs share whatever width the pinned tiles leave.
-        auto available_width = (m_available_width > 0 ? m_available_width : this->width()) - (pinned_count * PINNED_TAB_TILE_WIDTH);
+        // The unpinned tabs share whatever width the pinned tiles and the room at the ends leave.
+        auto available_width = (m_available_width > 0 ? m_available_width : this->width()) - (pinned_count * PINNED_TAB_TILE_WIDTH) - (2 * HORIZONTAL_TAB_END_ROOM);
         auto width = available_width / max(1, count - pinned_count);
         width = min(HORIZONTAL_TAB_MAX_WIDTH, width);
         width = max(HORIZONTAL_TAB_MIN_WIDTH, width);
 
-        hint.setWidth(width);
+        hint.setWidth(width + end_room);
     }
 
     hint.setHeight(HORIZONTAL_TAB_HEIGHT);
@@ -833,6 +888,9 @@ void TabBar::paintEvent(QPaintEvent*)
     auto is_vertical = tab_layout() != TabLayout::Horizontal;
     auto is_collapsed_vertical = tab_layout() == TabLayout::VerticalCollapsed;
     auto dragged_index = dragged_tab_index();
+    auto hover_progress_of = [&](int index) {
+        return index == m_hover_animation_tab_index ? m_hover_progress : (index == m_hovered_tab_index ? 1.0 : 0.0);
+    };
     auto region = pinned_region();
     auto pinned_count = is_vertical ? region.count : pinned_tab_count();
     // While tabs make way for a pinned tab dragged in from another window, the pinned tabs can take up another row.
@@ -873,7 +931,7 @@ void TabBar::paintEvent(QPaintEvent*)
             continue;
 
         bool is_selected = index == currentIndex();
-        auto hover_progress = index == m_hover_animation_tab_index ? m_hover_progress : (index == m_hovered_tab_index ? 1.0 : 0.0);
+        auto hover_progress = hover_progress_of(index);
         bool is_hovered = hover_progress > 0.0;
         // A pinned tab is a tile that shows only its favicon, except where the pinned tabs keep their rows.
         auto is_pinned_tile = index < pinned_count && pinned_tabs_are_tiles();
@@ -881,27 +939,42 @@ void TabBar::paintEvent(QPaintEvent*)
         QRectF shape_rect;
         if (is_collapsed_vertical)
             shape_rect = collapsed_vertical_tab_shape_rect(QRectF(tab_rect));
-        else if (m_tab_layout == TabLayout::Horizontal)
-            shape_rect = horizontal_tab_card_shape_rect(QRectF(tab_rect));
+        else if (!is_vertical)
+            shape_rect = horizontal_tab_card_shape_rect(QRectF(tab_rect), tab_bar_edges(index, count()));
         else
             shape_rect = tab_card_shape_rect(QRectF(tab_rect));
         QPainterPath tab_path;
-        tab_path.addRoundedRect(shape_rect, shape_rect.height() / 2.0, shape_rect.height() / 2.0);
+        if (!is_vertical && is_selected)
+            tab_path = horizontal_selected_tab_path(QRectF(shape_rect.left(), shape_rect.top(), shape_rect.width(), tab_rect.bottom() + 1 - shape_rect.top()));
+        else
+            tab_path.addRoundedRect(shape_rect, shape_rect.height() / 2.0, shape_rect.height() / 2.0);
 
-        if (is_selected) {
+        // Horizontal tabs are divided by lines, except around the selected tab and the hovered one.
+        if (!is_vertical) {
+            auto next_index = index + 1;
+            auto next_is_selected = next_index == currentIndex();
+            auto separator_opacity = 1.0 - max(hover_progress, hover_progress_of(next_index));
+            if (!is_selected && !next_is_selected && separator_opacity > 0.0) {
+                auto separator_center_y = shape_rect.center().y();
+                // NB: The separator sits as far from the card as the edge between two tabs, which is also where it sits after
+                //     the last tab, whose room for its flare lies beyond. This keeps it on whole device pixels at a pixel
+                //     ratio of 2.
+                auto separator_x = shape_rect.right() + HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET - 1;
+                QRectF separator_rect { separator_x, separator_center_y - (HORIZONTAL_TAB_SEPARATOR_HEIGHT / 2.0), HORIZONTAL_TAB_SEPARATOR_WIDTH, HORIZONTAL_TAB_SEPARATOR_HEIGHT };
+                painter.save();
+                painter.setOpacity(separator_opacity);
+                painter.fillRect(separator_rect, horizontal_tab_separator(palette()));
+                painter.restore();
+            }
+        }
+
+        if (!is_vertical && is_selected) {
             painter.setPen(Qt::NoPen);
-            painter.setBrush(selected_tab_shadow(palette(), 1));
-            painter.drawPath(tab_path.translated(0, 2));
-            painter.setBrush(selected_tab_shadow(palette(), 0));
-            painter.drawPath(tab_path.translated(0, 1));
-
-            // The fill is flat; only the border brightens toward the top edge, for a little depth.
-            auto border_color = selected_tab_border(palette(), is_collapsed_vertical);
-            auto border_gradient = QLinearGradient(shape_rect.topLeft(), shape_rect.bottomLeft());
-            border_gradient.setColorAt(0.0, selected_tab_top_edge_highlight(palette(), border_color));
-            border_gradient.setColorAt(0.45, border_color);
             painter.setBrush(ChromeStyle::chrome_active_tab_surface(palette()));
-            painter.setPen(QPen(QBrush(border_gradient), 1));
+            painter.drawPath(tab_path);
+        } else if (is_selected) {
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(vertical_selected_tab_surface(palette()));
             painter.drawPath(tab_path);
         } else if (is_hovered) {
             painter.setBrush(tab_hover_surface(palette(), hover_progress));
@@ -912,7 +985,7 @@ void TabBar::paintEvent(QPaintEvent*)
         if (is_tab_loading(index))
             ChromeStyle::paint_loading_swirl(painter, tab_path);
         if (auto progress = load_sheen_progress(index); progress.has_value())
-            paint_load_sheen(painter, palette(), tab_path, shape_rect, *progress);
+            paint_load_sheen(painter, palette(), tab_path, tab_path.boundingRect(), *progress);
 
         auto icon = tabIcon(index);
         if (icon.isNull())
@@ -923,9 +996,11 @@ void TabBar::paintEvent(QPaintEvent*)
             if (is_pinned_tile && tabButton(index, QTabBar::LeftSide))
                 continue;
 
+            // NB: A QRect's center is rounded down, so add 1 to center the icon in the tab.
+            auto icon_center = is_vertical ? QPointF(tab_rect.center() + QPoint(1, 1)) : shape_rect.center();
             QRect icon_rect {
-                tab_rect.center().x() - (TAB_ICON_SIZE / 2) + 1,
-                tab_rect.center().y() - (TAB_ICON_SIZE / 2) + 1,
+                qRound(icon_center.x()) - (TAB_ICON_SIZE / 2),
+                qRound(icon_center.y()) - (TAB_ICON_SIZE / 2),
                 TAB_ICON_SIZE,
                 TAB_ICON_SIZE,
             };
@@ -1287,11 +1362,18 @@ QRect TabBar::incoming_drop_layout_rect(int position) const
 
     auto unpinned_count = count() + 1 - pinned_count;
     auto first_tab_rect = tabRect(0);
-    auto strip_width = tabRect(count() - 1).right() + 1 - first_tab_rect.left();
+    auto strip_width = tabRect(count() - 1).right() + 1 - first_tab_rect.left() - (2 * HORIZONTAL_TAB_END_ROOM);
     auto unpinned_width = unpinned_count > 0 ? max(0.0, static_cast<qreal>(strip_width - (pinned_count * PINNED_TAB_TILE_WIDTH)) / unpinned_count) : 0.0;
 
-    auto left = first_tab_rect.left() + (min(position, pinned_count) * PINNED_TAB_TILE_WIDTH) + (max(0, position - pinned_count) * unpinned_width);
+    auto left = first_tab_rect.left() + HORIZONTAL_TAB_END_ROOM + (min(position, pinned_count) * PINNED_TAB_TILE_WIDTH) + (max(0, position - pinned_count) * unpinned_width);
     auto width = position < pinned_count ? PINNED_TAB_TILE_WIDTH : unpinned_width;
+    // NB: The first and last places also take room for their flares at the ends of the tab bar.
+    if (position == 0) {
+        left -= HORIZONTAL_TAB_END_ROOM;
+        width += HORIZONTAL_TAB_END_ROOM;
+    }
+    if (position == count())
+        width += HORIZONTAL_TAB_END_ROOM;
     return QRectF { left, static_cast<qreal>(first_tab_rect.top()), width, static_cast<qreal>(first_tab_rect.height()) }.toRect();
 }
 
@@ -1940,13 +2022,19 @@ void TabBar::update_tab_button_geometry()
         set_button_collapsed_overlay(button, collapsed_overlay);
     };
 
-    // The audio button takes the favicon's place, in the middle of a pinned tile.
-    auto center_button_in = [](QWidget* button, QRect const& tile) {
+    // The audio button takes the favicon's place, in the middle of a pinned tile's card.
+    auto center_button_in = [](QWidget* button, QRectF const& card) {
         auto button_size = button->size().isEmpty() ? button->sizeHint() : button->size();
-        auto center = tile.center();
-        QRect button_geometry { center.x() - (button_size.width() / 2) + 1, center.y() - (button_size.height() / 2) + 1, button_size.width(), button_size.height() };
+        auto center = card.center();
+        QRect button_geometry { qRound(center.x() - (button_size.width() / 2.0)), qRound(center.y() - (button_size.height() / 2.0)), button_size.width(), button_size.height() };
         if (button->geometry() != button_geometry)
             button->setGeometry(button_geometry);
+    };
+
+    // The buttons of a horizontal tab are centered on its card, rather than on the whole tab.
+    auto button_y_in = [](QWidget* button, QRectF const& card) {
+        auto button_height = button->size().isEmpty() ? button->sizeHint().height() : button->height();
+        return qRound(card.center().y() - (button_height / 2.0));
     };
 
     auto dragged_index = dragged_tab_index();
@@ -1956,25 +2044,25 @@ void TabBar::update_tab_button_geometry()
         for (int index = 0; index < count(); ++index) {
             auto is_dragged = index == dragged_index;
             auto tab_rect = shifted_tab_rect(index);
-            auto shape_rect = horizontal_tab_card_shape_rect(QRectF(tab_rect));
+            auto shape_rect = horizontal_tab_card_shape_rect(QRectF(tab_rect), tab_bar_edges(index, count()));
             auto* left_button = tabButton(index, QTabBar::LeftSide);
             prepare_button(left_button, false);
 
             if (index < pinned_count) {
                 if (!left_button)
                     continue;
-                center_button_in(left_button, tab_rect);
+                center_button_in(left_button, shape_rect);
                 if (left_button->isVisible() == is_dragged)
                     left_button->setVisible(!is_dragged);
                 continue;
             }
 
-            // NB: The style puts a tab's left button 1pt inside the tab's pill, where its icon looks flush against the
-            //     pill's edge. Give it 3pt.
+            // NB: The style puts a tab's left button 1pt inside the tab's card, where its icon looks flush against the
+            //     card's edge. Give it 3pt.
             if (left_button) {
-                auto x = qRound(shape_rect.left()) + 3;
-                if (left_button->x() != x)
-                    left_button->move(x, left_button->y());
+                QPoint position { qRound(shape_rect.left()) + 3, button_y_in(left_button, shape_rect) };
+                if (left_button->pos() != position)
+                    left_button->move(position);
                 if (left_button->isVisible() == is_dragged)
                     left_button->setVisible(!is_dragged);
             }
@@ -1982,10 +2070,11 @@ void TabBar::update_tab_button_geometry()
             prepare_button(close_button, false);
             if (!close_button)
                 continue;
-            // NB: Likewise, keep the close button's center 14pt in from the pill's right edge.
-            auto close_button_x = qRound(shape_rect.right()) - 14 - (close_button->width() / 2);
-            if (close_button->x() != close_button_x)
-                close_button->move(close_button_x, close_button->y());
+            // The close button's circle shares its center with the round end of the card.
+            auto close_button_center_x = shape_rect.right() - (shape_rect.height() / 2.0);
+            QPoint close_button_position { qRound(close_button_center_x - (close_button->width() / 2.0)), button_y_in(close_button, shape_rect) };
+            if (close_button->pos() != close_button_position)
+                close_button->move(close_button_position);
             auto minimum_width = index == currentIndex() ? HORIZONTAL_ACTIVE_TAB_CLOSE_BUTTON_MIN_WIDTH : HORIZONTAL_TAB_CLOSE_BUTTON_MIN_WIDTH;
             auto show_close_button = !is_dragged && tab_rect.width() >= minimum_width;
             if (close_button->isVisible() != show_close_button)
@@ -2009,8 +2098,10 @@ void TabBar::update_tab_button_geometry()
         if (button_size.isEmpty())
             return;
 
-        // Buttons are centered 18pt in from the card's edges.
-        auto x = position == QTabBar::RightSide ? shape_rect.right() - 18 - (button_size.width() / 2) : shape_rect.left() + 18 - (button_size.width() / 2);
+        // A button's circle shares its center with the round end of the card it sits in.
+        // NB: A QRect's right() is its last column, one short of its right edge.
+        auto end_radius = shape_rect.height() / 2;
+        auto x = position == QTabBar::RightSide ? shape_rect.right() + 1 - end_radius - (button_size.width() / 2) : shape_rect.left() + end_radius - (button_size.width() / 2);
         auto icon_left = shape_rect.left() + TAB_CONTENT_HORIZONTAL_INSET;
         if (position == QTabBar::RightSide) {
             if (auto* left_button = tabButton(index, QTabBar::LeftSide); left_button && left_button->isVisible())
@@ -2178,7 +2269,8 @@ TabWidget::TabWidget(QWidget* parent)
     m_new_tab_button->installEventFilter(this);
 
     if constexpr (use_native_macos_window_controls()) {
-        m_window_controls = create_window_controls_spacer(*this, "LadybirdTabStripWindowControls", { NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + NATIVE_MACOS_WINDOW_CONTROLS_GAP, HORIZONTAL_TAB_HEIGHT });
+        // NB: The first tab's room for its flare takes the place of the gap after the window controls.
+        m_window_controls = create_window_controls_spacer(*this, "LadybirdTabStripWindowControls", { NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + max(0, NATIVE_MACOS_WINDOW_CONTROLS_GAP - HORIZONTAL_TAB_END_ROOM), HORIZONTAL_TAB_HEIGHT });
     } else {
         auto window_control_buttons = create_window_control_buttons(*this, "LadybirdTabStripWindowControls", { 18, 18 }, { 40, 40 });
         m_window_controls = window_control_buttons.container;
@@ -2539,6 +2631,9 @@ void TabWidget::dropEvent(QDropEvent* event)
 
 bool TabWidget::eventFilter(QObject* watched, QEvent* event)
 {
+    if (watched == m_tab_bar && (event->type() == QEvent::Move || event->type() == QEvent::Resize))
+        place_horizontal_new_tab_button();
+
     if (watched == m_tab_bar_row || watched == m_vertical_tab_bar_column) {
         auto* tab_strip = static_cast<QWidget*>(watched);
 
@@ -2889,7 +2984,8 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
 {
     m_tab_bar_row->setMinimumHeight(HORIZONTAL_TAB_STRIP_HEIGHT);
     m_tab_bar_row_layout->setSpacing(0);
-    m_tab_bar_row_layout->setContentsMargins(12, 2, 4, 1);
+    // NB: Without window controls before it, the first tab's room for its flare takes the place of the strip's margin.
+    m_tab_bar_row_layout->setContentsMargins(use_native_macos_window_controls() ? 12 : max(0, 12 - HORIZONTAL_TAB_END_ROOM), 2, 4, 0);
 
     m_new_tab_button->setText({});
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_EXPANDED_PROPERTY, false);
@@ -2898,17 +2994,34 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
     m_new_tab_button->setFixedSize(HORIZONTAL_TAB_HEIGHT, HORIZONTAL_TAB_HEIGHT);
     m_new_tab_button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
+    // NB: The tabs sit on the bottom of the strip, so the selected tab meets the toolbar however tall the strip is.
+    // NB: The new tab button overlaps the tab bar, which a layout cannot do, so the row only leaves room for the rest of
+    //     it, and place_horizontal_new_tab_button() puts it in place.
+    m_new_tab_button->setParent(m_tab_bar_row);
+    m_new_tab_button->show();
+    auto new_tab_button_room = HORIZONTAL_TAB_HEIGHT - HORIZONTAL_NEW_TAB_BUTTON_OVERLAP;
     if constexpr (use_native_macos_window_controls()) {
         m_tab_bar_row_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
-        m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignTop);
-        m_tab_bar_row_layout->addWidget(m_new_tab_button, 0, Qt::AlignTop);
+        m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignBottom);
+        m_tab_bar_row_layout->addSpacing(new_tab_button_room);
         m_tab_bar_row_layout->addStretch(1);
     } else {
-        m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignTop);
-        m_tab_bar_row_layout->addWidget(m_new_tab_button, 0, Qt::AlignTop);
+        m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignBottom);
+        m_tab_bar_row_layout->addSpacing(new_tab_button_room);
         m_tab_bar_row_layout->addStretch(1);
         m_tab_bar_row_layout->addWidget(m_window_controls);
     }
+    place_horizontal_new_tab_button();
+}
+
+void TabWidget::place_horizontal_new_tab_button()
+{
+    if (m_tab_bar->tab_layout() != TabLayout::Horizontal)
+        return;
+
+    auto tab_bar_geometry = m_tab_bar->geometry();
+    m_new_tab_button->move(tab_bar_geometry.right() + 1 - HORIZONTAL_NEW_TAB_BUTTON_OVERLAP, tab_bar_geometry.bottom() + 1 - m_new_tab_button->height());
+    m_new_tab_button->raise();
 }
 
 void TabWidget::rebuild_layout_for_vertical_tabs()
@@ -3106,7 +3219,7 @@ void TabWidget::update_tab_layout()
     m_tab_bar->set_available_width(available_for_tabs);
 
     auto pinned_count = m_tab_bar->pinned_tab_count();
-    auto tabs_width = (pinned_count * PINNED_TAB_TILE_WIDTH) + ((m_tab_bar->count() - pinned_count) * HORIZONTAL_TAB_MAX_WIDTH);
+    auto tabs_width = (pinned_count * PINNED_TAB_TILE_WIDTH) + ((m_tab_bar->count() - pinned_count) * HORIZONTAL_TAB_MAX_WIDTH) + (2 * HORIZONTAL_TAB_END_ROOM);
     auto tab_bar_width = min(available_for_tabs, tabs_width);
     m_tab_bar->setFixedWidth(max(0, tab_bar_width));
 }
@@ -3302,15 +3415,9 @@ void TabBarButton::set_collapsed_vertical_overlay(bool enabled)
 
     setProperty(COLLAPSED_VERTICAL_TAB_BUTTON_PROPERTY, enabled);
 
-    QSize button_size { TAB_BUTTON_SIZE, TAB_BUTTON_SIZE };
-    QSize icon_size { TAB_BUTTON_ICON_SIZE, TAB_BUTTON_ICON_SIZE };
-    if (enabled) {
-        button_size = { COLLAPSED_VERTICAL_TAB_BUTTON_SIZE, COLLAPSED_VERTICAL_TAB_BUTTON_SIZE };
-        icon_size = { COLLAPSED_VERTICAL_TAB_ICON_SIZE, COLLAPSED_VERTICAL_TAB_ICON_SIZE };
-    }
-
-    setFixedSize(button_size);
-    setIconSize(icon_size);
+    auto button_size = enabled ? COLLAPSED_VERTICAL_TAB_BUTTON_SIZE : TAB_BUTTON_SIZE;
+    setFixedSize(button_size, button_size);
+    update_icon_size();
     style()->unpolish(this);
     style()->polish(this);
     update();
@@ -3321,10 +3428,23 @@ TabBarButton::TabBarButton(QIcon const& icon, QWidget* parent)
 {
     setObjectName("LadybirdTabButton");
     setFixedSize({ TAB_BUTTON_SIZE, TAB_BUTTON_SIZE });
-    setIconSize({ TAB_BUTTON_ICON_SIZE, TAB_BUTTON_ICON_SIZE });
+    update_icon_size();
     setFocusPolicy(Qt::NoFocus);
     setFlat(true);
     hide();
+}
+
+void TabBarButton::set_icon_inset(int inset)
+{
+    m_icon_inset = inset;
+    update_icon_size();
+}
+
+void TabBarButton::update_icon_size()
+{
+    auto collapsed = property(COLLAPSED_VERTICAL_TAB_BUTTON_PROPERTY).toBool();
+    auto icon_size = (collapsed ? COLLAPSED_VERTICAL_TAB_ICON_SIZE : TAB_BUTTON_ICON_SIZE) - (2 * m_icon_inset);
+    setIconSize({ icon_size, icon_size });
 }
 
 bool TabBarButton::event(QEvent* event)

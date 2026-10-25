@@ -275,6 +275,7 @@ private:
 
     void rebuild_layout();
     void rebuild_layout_for_horizontal_tabs();
+    void place_horizontal_new_tab_button();
     void rebuild_layout_for_vertical_tabs();
     void rebuild_page_column();
     void update_toolbar_placement();
@@ -354,10 +355,17 @@ public:
 
     explicit TabBarButton(QIcon const& icon, QWidget* parent = nullptr);
     void set_collapsed_vertical_overlay(bool);
+    // Shrinks the icon by this much on each side, within the same button.
+    void set_icon_inset(int);
 
 protected:
     virtual bool event(QEvent* event) override;
     virtual void paintEvent(QPaintEvent*) override;
+
+private:
+    void update_icon_size();
+
+    int m_icon_inset { 0 };
 };
 
 }

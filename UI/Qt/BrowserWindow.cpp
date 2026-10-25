@@ -1245,6 +1245,8 @@ void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlay
         auto* button = new TabBarButton(icon_for_page_mute_state(*tab));
         button->setToolTip(tool_tip_for_page_mute_state(*tab));
         button->setObjectName("LadybirdAudioState");
+        // NB: The speaker fills more of its icon than the close button's cross does, so it is drawn a little smaller.
+        button->set_icon_inset(2);
 
         connect(button, &QPushButton::clicked, this, [this, tab]() {
             tab->view().toggle_page_mute_state();
