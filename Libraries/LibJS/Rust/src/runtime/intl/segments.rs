@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ops::Deref;
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Finalize, GcCell, define_cell};
-use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -27,7 +26,7 @@ use crate::utf16::Utf16View;
 pub struct Segments {
     base: Object,
     #[gc(untraced)]
-    segments_segmenter: GcRefCell<Option<unicode::Segmenter>>, // [[SegmentsSegmenter]]
+    segments_segmenter: RefCell<Option<unicode::Segmenter>>, // [[SegmentsSegmenter]]
     segments_string_value: Cell<Gc<PrimitiveString>>, // [[SegmentsStringValue]]
     #[gc(untraced)]
     segments_string: Utf16String,  // [[SegmentsString]]
@@ -74,14 +73,14 @@ impl Segments {
                     realm.intrinsics().intl_segments_prototype(),
                     MayInterfereWithIndexedPropertyAccess::No,
                 ),
-                segments_segmenter: GcRefCell::new(Some(segmenter)),
+                segments_segmenter: RefCell::new(Some(segmenter)),
                 segments_string_value: Cell::new(string),
                 segments_string,
             },
         )
     }
 
-    pub fn segments_segmenter(&self) -> &GcRefCell<Option<unicode::Segmenter>> {
+    pub fn segments_segmenter(&self) -> &RefCell<Option<unicode::Segmenter>> {
         &self.segments_segmenter
     }
 

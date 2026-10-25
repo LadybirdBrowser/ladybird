@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ops::Deref;
 use std::rc::Rc;
 
@@ -12,7 +12,6 @@ use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Finalize, GcCell, define_cell};
-use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -134,16 +133,16 @@ const PARAGRAPH_SEPARATOR: u16 = 0x2029;
 pub struct RegExpObject {
     base: Object,
     #[gc(untraced)]
-    pattern: GcRefCell<Utf16String>,
+    pattern: RefCell<Utf16String>,
     #[gc(untraced)]
-    flags: GcRefCell<Utf16String>,
+    flags: RefCell<Utf16String>,
     #[gc(untraced)]
     flag_bits: Cell<RegExpFlags>,
     #[gc(untraced)]
     legacy_features_enabled: Cell<bool>, // [[LegacyFeaturesEnabled]]
     /// The compiled pattern, which RegExp objects with the same pattern and flags share through the regex cache.
     #[gc(untraced)]
-    cached_regex: GcRefCell<Option<Rc<EcmaScriptRegex>>>,
+    cached_regex: RefCell<Option<Rc<EcmaScriptRegex>>>,
     // Note: This is initialized in RegExpAlloc, but will be non-null afterwards
     realm: Cell<Option<Gc<Realm>>>, // [[Realm]]
 }
@@ -199,11 +198,11 @@ impl RegExpObject {
             vm,
             RegExpObject {
                 base: Object::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No),
-                pattern: GcRefCell::new(pattern),
-                flags: GcRefCell::new(flags),
+                pattern: RefCell::new(pattern),
+                flags: RefCell::new(flags),
                 flag_bits: Cell::new(flag_bits),
                 legacy_features_enabled: Cell::new(false),
-                cached_regex: GcRefCell::new(None),
+                cached_regex: RefCell::new(None),
                 realm: Cell::new(None),
             },
         );
@@ -215,11 +214,11 @@ impl RegExpObject {
         let flag_bits = to_flag_bits(Utf16View::of_string(&flags));
         RegExpObject {
             base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
-            pattern: GcRefCell::new(pattern),
-            flags: GcRefCell::new(flags),
+            pattern: RefCell::new(pattern),
+            flags: RefCell::new(flags),
             flag_bits: Cell::new(flag_bits),
             legacy_features_enabled: Cell::new(false),
-            cached_regex: GcRefCell::new(None),
+            cached_regex: RefCell::new(None),
             realm: Cell::new(None),
         }
     }

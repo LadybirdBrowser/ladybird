@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use core::cell::RefCell;
 use core::hash::BuildHasher;
 use core::ops::ControlFlow;
 
@@ -45,7 +46,7 @@ impl Entry {
 pub struct DescriptorArray {
     header: CellHeader,
     entries: GcRefCell<Vec<Entry>>,
-    entry_indices_by_enum_index: GcRefCell<Vec<u32>>,
+    entry_indices_by_enum_index: RefCell<Vec<u32>>,
 }
 
 define_cell!(DescriptorArray, Other);
@@ -127,7 +128,7 @@ impl DescriptorArray {
         Self {
             header: CellHeader::for_class(Self::CLASS),
             entries: GcRefCell::new(entries),
-            entry_indices_by_enum_index: GcRefCell::new(entry_indices_by_enum_index),
+            entry_indices_by_enum_index: RefCell::new(entry_indices_by_enum_index),
         }
     }
 

@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ops::Deref;
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Finalize, GcCell, define_cell};
-use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -28,7 +27,7 @@ use crate::utf16::Utf16View;
 pub struct Collator {
     base: Object,
     #[gc(untraced)]
-    locale: GcRefCell<Utf16String>, // [[Locale]]
+    locale: RefCell<Utf16String>, // [[Locale]]
     #[gc(untraced)]
     usage: Cell<Usage>, // [[Usage]]
     #[gc(untraced)]
@@ -36,7 +35,7 @@ pub struct Collator {
     #[gc(untraced)]
     case_first: Cell<CaseFirst>, // [[CaseFirst]]
     #[gc(untraced)]
-    collation: GcRefCell<Utf16String>, // [[Collation]]
+    collation: RefCell<Utf16String>, // [[Collation]]
     #[gc(untraced)]
     ignore_punctuation: Cell<bool>, // [[IgnorePunctuation]]
     #[gc(untraced)]
@@ -45,7 +44,7 @@ pub struct Collator {
 
     // Non-standard. Stores the ICU collator for the Intl object's collation options.
     #[gc(untraced)]
-    collator: GcRefCell<Option<unicode::Collator>>,
+    collator: RefCell<Option<unicode::Collator>>,
 }
 
 define_cell!(Collator, Object, extends: [Object], finalize: finalize);
@@ -68,15 +67,15 @@ impl Collator {
     pub fn new(vm: &Vm, prototype: Gc<Object>) -> Collator {
         Collator {
             base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
-            locale: GcRefCell::default(),
+            locale: RefCell::default(),
             usage: Cell::new(Usage::Sort),
             sensitivity: Cell::new(Sensitivity::Variant),
             case_first: Cell::new(CaseFirst::False),
-            collation: GcRefCell::default(),
+            collation: RefCell::default(),
             ignore_punctuation: Cell::new(false),
             numeric: Cell::new(false),
             bound_compare: Cell::new(None),
-            collator: GcRefCell::new(None),
+            collator: RefCell::new(None),
         }
     }
 

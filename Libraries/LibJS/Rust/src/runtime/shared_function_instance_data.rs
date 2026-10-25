@@ -76,7 +76,8 @@ pub struct SharedFunctionInstanceDataStorage {
     //     dynamically created functions via Function constructor).
     #[gc(untraced)]
     source_code: RefCell<Option<Rc<SourceCode>>>,
-    source_text_owner: GcRefCell<Utf16String>,
+    #[gc(untraced)]
+    source_text_owner: RefCell<Utf16String>,
     source_text_offset: Cell<usize>,
     source_text_length: Cell<usize>, // [[SourceText]]
 
@@ -229,7 +230,7 @@ impl SharedFunctionInstanceData {
             storage: SharedFunctionInstanceDataStorage {
                 name,
                 source_code: RefCell::new(None),
-                source_text_owner: GcRefCell::new(Utf16String::default()),
+                source_text_owner: RefCell::new(Utf16String::default()),
                 source_text_offset: Cell::new(0),
                 source_text_length: Cell::new(0),
                 function_length,
