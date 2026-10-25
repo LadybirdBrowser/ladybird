@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	FCP and LCP are the same when there is a single text element in the page.

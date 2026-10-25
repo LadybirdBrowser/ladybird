@@ -938,6 +938,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     m_style_scope.visit_edges(visitor);
+    m_paint_timing_state.visit_edges(visitor);
     m_commit_messages->visit_edges(visitor);
     for (auto const& import : m_pending_css_import_rules)
         import->visit_edges(visitor);

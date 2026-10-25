@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>LCP: element removed after image paints</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/largest-contentful-paint-helpers.js"></script>
+<link rel="author" title="Shubham Gupta" href="mailto:shubhamg13.work@gmail.com">
+<body>
+<script>
+promise_test(async (t) => {
+  const img = document.createElement('img');
+  img.src = '../images/blue.png';
+  img.id = 'test-image';
+  document.body.appendChild(img);
+
+  const { promise, resolve } = Promise.withResolvers();
+  const observer = new PerformanceObserver((list) => {
+    resolve(list.getEntries()[0]);
+  });
+  observer.observe({ type: 'largest-contentful-paint', buffered: true });
+
+  const entry = await promise;
+
+  assert_not_equals(entry.element, null,
+    'entry.element should be non-null when element is in DOM');
+
+  img.remove();
+  await raf();
+  await raf();
+
+  assert_equals(entry.element, null,
+    'entry.element should be null after element is removed');
+}, 'Element removed after LCP entry should reflect in entry.element');
+</script>
+</body>
+</html>

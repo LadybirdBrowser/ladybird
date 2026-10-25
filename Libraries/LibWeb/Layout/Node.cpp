@@ -28,6 +28,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/PaintTiming/PaintTiming.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Painting/ScrollSnap.h>
@@ -253,6 +254,29 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
 {
     VERIFY(m_owner);
     Painting::push_layer_image_paint_facts(*m_owner);
+    report_to_paint_timing_if_available();
+}
+
+void NodeWithStyle::ImageObserver::set_observes_background_image_of(DOM::Element& element, bool reported_to_paint_timing)
+{
+    m_background_image_element = element;
+    m_reported_to_paint_timing = reported_to_paint_timing;
+    report_to_paint_timing_if_available();
+}
+
+// https://w3c.github.io/paint-timing/#sec-modifications-CSS
+void NodeWithStyle::ImageObserver::report_to_paint_timing_if_available()
+{
+    // Whenever an image request in an Element element's associated background image requests becomes completely
+    // available, run the algorithm to process an image that finished loading with element and image request as
+    // inputs.
+    if (!m_background_image_element || m_reported_to_paint_timing || !m_resource)
+        return;
+    auto image_data = decoded_image_data();
+    if (!image_data)
+        return;
+    m_reported_to_paint_timing = true;
+    PaintTiming::process_an_image_that_finished_loading(*m_background_image_element, PaintTiming::image_request_info(Utf16String::from_utf8(m_resource->url().serialize()), image_data));
 }
 
 NodeWithStyle::~NodeWithStyle()
@@ -278,9 +302,29 @@ void NodeWithStyle::rebuild_image_observers(Vector<RefPtr<CSS::CursorStyleValue 
         return make<ImageObserver>(*this, *image_to_observe);
     };
 
+    // NB: A background image the old observers told paint timing of is not told of again.
+    auto background_image_was_reported_to_paint_timing = [&](CSS::ImageStyleValue const& image) {
+        auto const* old_observers = image_observers();
+        if (!old_observers)
+            return false;
+        for (auto const& old_observer : old_observers->background_layers) {
+            if (old_observer && &old_observer->image() == &image && old_observer->reported_to_paint_timing())
+                return true;
+        }
+        return false;
+    };
+
+    auto* background_image_element = as_if<DOM::Element>(dom_node());
+    if (!background_image_element && is_generated_for_pseudo_element())
+        background_image_element = pseudo_element_generator().ptr();
+
     auto new_observers = make<ImageObserverSlots>();
-    for (auto const& image : background_images())
-        new_observers->background_layers.append(observer_for(image.ptr()));
+    for (auto const& image : background_images()) {
+        auto observer = observer_for(image.ptr());
+        if (observer && background_image_element)
+            observer->set_observes_background_image_of(*background_image_element, background_image_was_reported_to_paint_timing(observer->image()));
+        new_observers->background_layers.append(move(observer));
+    }
     for (auto const& image : mask_images())
         new_observers->mask_layers.append(observer_for(image.ptr()));
     for (auto const& cursor_style_value : cursor_style_values)

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="200" height="200">
+    <image id="target" width="200" height="200"></image>
+</svg>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const svg = size => `<svg xmlns="http://www.w3.org/2000/svg"${size ? ` width="${size}" height="${size}"` : ""}><rect width="100%" height="100%" fill="green"/></svg>`;
+        const echo = (path, size, delay) => server.createEcho("GET", path, {
+            status: 200,
+            headers: { "Content-Type": "image/svg+xml", "Cache-Control": "no-store" },
+            body: svg(size),
+            delay_ms: delay,
+        });
+        const slowURL = await echo("/svg-image-href-changed-while-loading-slow.svg", 200, 500);
+        const fastURL = await echo("/svg-image-href-changed-while-loading-fast.svg", null, 0);
+
+        const entries = [];
+        const observer = new PerformanceObserver(list => entries.push(...list.getEntries()));
+        observer.observe({ type: "largest-contentful-paint", buffered: true });
+
+        // The first request is still loading when href changes, so it is no longer the element's image request once
+        // it finishes, and is not reported. The second image has no natural size, so it is not reported either.
+        const target = document.getElementById("target");
+        target.setAttribute("href", slowURL);
+        target.setAttribute("href", fastURL);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await animationFrame();
+        await animationFrame();
+        entries.push(...observer.takeRecords());
+
+        const urls = entries.filter(entry => entry.element === target).map(entry => entry.url.endsWith("-fast.svg") ? "fast" : entry.url.endsWith("-slow.svg") ? "slow" : entry.url);
+        println(`Entries: ${urls.join(", ")}`);
+        done();
+    });
+</script>

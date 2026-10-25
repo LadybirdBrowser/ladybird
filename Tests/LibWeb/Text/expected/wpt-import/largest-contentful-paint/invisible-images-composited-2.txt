@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Images with opacity: 0, visibility: hidden, or display: none are not observable by LargestContentfulPaint.

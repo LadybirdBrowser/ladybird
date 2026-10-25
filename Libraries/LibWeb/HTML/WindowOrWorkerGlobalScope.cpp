@@ -64,6 +64,7 @@
 #include <LibWeb/IndexedDB/IDBFactory.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Infra/SerializedURL.h>
+#include <LibWeb/LargestContentfulPaint/LargestContentfulPaint.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/Page/Page.h>

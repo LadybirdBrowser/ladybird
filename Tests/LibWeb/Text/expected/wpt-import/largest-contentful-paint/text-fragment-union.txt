@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Text fragment union: wrapped text LCP size reflects the union of all line boxes.

@@ -126,6 +126,8 @@ public:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
+    void associated_image_request_became_completely_available(ImageRequest const&);
+
     CSSPixelSize density_corrected_natural_width_and_height() const;
     struct Dimensions {
         double width { 0 };

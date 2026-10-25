@@ -36,6 +36,7 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/PaintTiming/PaintTiming.h>
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/PictureInPicture/PictureInPictureWindow.h>
@@ -299,7 +300,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     m_load_event_delayer.emplace(document());
 
     // 7. If an image is thus obtained, the poster frame is that image. Otherwise, there is no poster frame.
-    fetch_algorithms_input.process_response = [weak_self = GC::Weak(*this)](auto response) {
+    fetch_algorithms_input.process_response = [weak_self = GC::Weak(*this), poster_url = request->url()](auto response) {
         if (!weak_self)
             return;
         auto& self = *weak_self;
@@ -321,19 +322,29 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
             return;
         }
 
-        auto on_image_data_read = GC::create_function(GC::Heap::the(), [weak_self](ByteBuffer image_data) {
+        auto on_image_data_read = GC::create_function(GC::Heap::the(), [weak_self, poster_url](ByteBuffer image_data) {
             if (!weak_self)
                 return;
             // 6. If an image is thus obtained, the poster frame is that image. Otherwise, there is no poster frame.
             (void)Platform::ImageCodecPlugin::the().decode_image(
                 image_data,
-                [weak_self](Web::Platform::DecodedImage& image) -> ErrorOr<void> {
+                [weak_self, poster_url](Web::Platform::DecodedImage& image) -> ErrorOr<void> {
                     if (!weak_self)
                         return {};
                     RefPtr<Gfx::Bitmap> poster_frame;
                     if (!image.frames.is_empty())
                         poster_frame = move(image.frames[0].bitmap);
+                    Optional<CSSPixelSize> natural_size;
+                    if (poster_frame)
+                        natural_size = CSSPixelSize { poster_frame->width(), poster_frame->height() };
                     finalize(*weak_self, move(poster_frame));
+
+                    // https://w3c.github.io/paint-timing/#sec-modifications-dom
+                    // When an Element element's associated image request has become completely available, run the
+                    // algorithm to process an image that finished loading passing in element and its associated image
+                    // request as inputs.
+                    if (natural_size.has_value())
+                        PaintTiming::process_an_image_that_finished_loading(*weak_self, { .url = Utf16String::from_utf8(poster_url.serialize()), .natural_size = natural_size });
                     return {};
                 },
                 [weak_self](auto&) {

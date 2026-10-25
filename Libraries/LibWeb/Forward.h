@@ -979,6 +979,12 @@ class Notification;
 
 }
 
+namespace Web::LargestContentfulPaint {
+
+class LargestContentfulPaint;
+
+}
+
 namespace Web::PaintTiming {
 
 class PerformancePaintTiming;

@@ -318,6 +318,10 @@ public:
 
     EventTiming::WindowEventTimingState& event_timing_state() { return m_event_timing_state; }
 
+    // https://w3c.github.io/largest-contentful-paint/#has-dispatched-scroll-event
+    bool has_dispatched_scroll_event() const { return m_has_dispatched_scroll_event; }
+    void set_has_dispatched_scroll_event() { m_has_dispatched_scroll_event = true; }
+
 private:
     Window();
 
@@ -406,6 +410,10 @@ private:
     GC::Ptr<External> m_external;
 
     EventTiming::WindowEventTimingState m_event_timing_state;
+
+    // https://w3c.github.io/largest-contentful-paint/#has-dispatched-scroll-event
+    // Each Window has has dispatched scroll event, a boolean which is initially set to false.
+    bool m_has_dispatched_scroll_event { false };
 };
 
 void run_animation_frame_callbacks(DOM::Document&, double now);

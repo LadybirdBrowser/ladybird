@@ -17,6 +17,7 @@
 #include <AK/kmalloc.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Root.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
@@ -327,9 +328,22 @@ public:
 
         virtual void image_style_value_did_update(CSS::ImageStyleValue&) override;
 
+        CSS::ImageStyleValue const& image() const { return m_image; }
+
+        // https://w3c.github.io/paint-timing/#associated-background-image-requests
+        // NB: The element whose associated background image requests have the image request this observes, and
+        //     whether paint timing was told that it became completely available.
+        void set_observes_background_image_of(DOM::Element&, bool reported_to_paint_timing);
+        bool reported_to_paint_timing() const { return m_reported_to_paint_timing; }
+
     private:
+        void report_to_paint_timing_if_available();
+
         WeakPtr<NodeWithStyle> m_owner;
         NonnullRefPtr<CSS::ImageStyleValue const> m_image;
+        // NB: The image may finish decoding beside a frame in flight, which the owner's box can't be read from.
+        GC::Weak<DOM::Element> m_background_image_element;
+        bool m_reported_to_paint_timing { false };
     };
 
     // The image resources a node's style asks for, which the layout arena's host tables hold by the

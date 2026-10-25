@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Resized Image Is Not Reconsidered as LCP.</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<body>
+  <img src="../images/lcp-256x256.png" id="testpic" height="100" width="50" />
+  <script>
+    promise_test(async (t) => {
+      // Set up an observer that looks for LCP entries for the testpic,
+      // identified by its id.
+      const entries = [];
+      const observer = new PerformanceObserver((l) => {
+        entries.push(...l.getEntries().filter((e) => e.id == "testpic"));
+      });
+      observer.observe({ type: "largest-contentful-paint", buffered: true });
+
+      // Wait for the initial LCP entry to be emitted, and verify it's as expected.
+      await t.step_wait(() => entries.length > 0, "Waiting for initial LCP entry to be emitted.");
+      assert_equals(entries.length, 1);
+      assert_equals(entries[0].id, "testpic");
+      assert_equals(entries[0].size, 100 * 50);
+
+      // Now resize image, then wait, then observe that no additional
+      // entries are emitted.
+      document.getElementById("testpic").height = 150;
+
+      // Wait for the image to be resized - after a requestAnimationFrame
+      // cycle and 1 second, disconnect the observer.
+      await new Promise((resolve) => {
+        requestAnimationFrame(() => {
+          t.step_timeout(() => {
+            observer.disconnect();
+            resolve();
+          }, 1000);
+        });
+      });
+
+      // Verify that the image was not reconsidered as LCP: it's still
+      // the same entry, reflecting the initial size with width and height from
+      // the img tag.
+      assert_equals(entries.length, 1);
+      assert_equals(entries[0].id, "testpic");
+      assert_equals(entries[0].size, 100 * 50);
+    }, "Resized image should not be reconsidered as LCP");
+  </script>
+</body>

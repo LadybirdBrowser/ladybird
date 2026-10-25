@@ -5,6 +5,7 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
@@ -13,6 +14,8 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/Text.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
@@ -20,6 +23,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/LargestContentfulPaint/LargestContentfulPaint.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -233,7 +237,7 @@ static bool paints_non_default_content(Layout::Node const& node)
     return border_is_painted(node_with_style->border_left()) || border_is_painted(node_with_style->border_top()) || border_is_painted(node_with_style->border_right()) || border_is_painted(node_with_style->border_bottom());
 }
 
-static CSSPixelRect client_rect_of_box(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
+CSSPixelRect client_rect_of_box(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
 {
     if (!node.is_text_node())
         return Painting::bounding_client_rect(node, rect_to_viewport_transform);
@@ -276,10 +280,16 @@ public:
         m_rect_to_viewport_transform = Painting::rect_to_viewport_transform(document, document.visual_context_tree());
     }
 
+    Layout::BegunRead const& read() const { return m_read; }
     Layout::Viewport const* viewport() const { return m_scrolling_area.has_value() ? m_viewport : nullptr; }
 
+    enum class CheckAncestorOpacity {
+        No,
+        Yes,
+    };
+
     // https://w3c.github.io/paint-timing/#paintable
-    bool is_paintable(Layout::Node const& node) const
+    bool is_paintable(Layout::Node const& node, CheckAncestorOpacity check_ancestor_opacity) const
     {
         if (!viewport())
             return false;
@@ -296,7 +306,12 @@ public:
             return false;
 
         // - el and all of its ancestors' used opacity is greater than zero.
-        // NB: The subtrees of boxes with an opacity of zero are not looked at.
+        if (check_ancestor_opacity == CheckAncestorOpacity::Yes) {
+            for (auto const* ancestor = &node; ancestor; ancestor = ancestor->parent_ptr()) {
+                if (auto const* ancestor_with_style = as_if<Layout::NodeWithStyle>(*ancestor); ancestor_with_style && ancestor_with_style->opacity() <= 0)
+                    return false;
+            }
+        }
 
         // - el's paintable bounding rect intersects with the scrolling area of the document.
         // https://w3c.github.io/paint-timing/#paintable-bounding-rect
@@ -337,10 +352,10 @@ static PaintedContent find_painted_content(PaintableChecker const& checker, Pain
         if (auto const* node_with_style = as_if<Layout::NodeWithStyle>(node); node_with_style && node_with_style->opacity() <= 0)
             return TraversalDecision::SkipChildrenAndContinue;
 
-        if (!result.has_non_default_content && paints_non_default_content(node) && checker.is_paintable(node))
+        if (!result.has_non_default_content && paints_non_default_content(node) && checker.is_paintable(node, PaintableChecker::CheckAncestorOpacity::No))
             result.has_non_default_content = true;
 
-        if (is_contentful(node) && checker.is_paintable(node)) {
+        if (is_contentful(node) && checker.is_paintable(node, PaintableChecker::CheckAncestorOpacity::No)) {
             result.has_non_default_content = true;
             result.has_contentful_content = true;
             return TraversalDecision::Break;
@@ -357,6 +372,67 @@ static PaintedContent find_painted_content(PaintableChecker const& checker, Pain
     return result;
 }
 
+// NB: Largest contentful paint is the only user of the images pending rendering and of the text nodes that are
+//     painted, and it reports nothing once the window has dispatched a scroll event or an input event.
+// FIXME: Keep tracking these for element timing, once it is implemented.
+static bool tracks_painted_images_and_text(DOM::Document& document)
+{
+    if (!document.browsing_context())
+        return false;
+    auto window = document.window();
+    if (!window)
+        return false;
+    return !window->has_dispatched_scroll_event() && !window->event_timing_state().has_dispatched_input_event;
+}
+
+// https://w3c.github.io/paint-timing/#process-an-image-that-finished-loading
+void process_an_image_that_finished_loading(DOM::Element& element, ImageRequestInfo image_request)
+{
+    // 1. Let root be element's root.
+    // 2. If root is not a Document, return.
+    auto* root = as_if<DOM::Document>(element.root());
+    if (!root)
+        return;
+
+    // OPTIMIZATION: An image that nothing would report once it is painted is not recorded.
+    if (!tracks_painted_images_and_text(*root))
+        return;
+
+    // 3. Let now be the current high resolution time given element's relevant global object.
+    auto now = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(element));
+
+    // 4. Let record be a pending image record with element element, request imageRequest and loadTime now.
+    // 5. Add record to root's images pending rendering.
+    root->paint_timing_state().images_pending_rendering.append({
+        .element = element,
+        .request = move(image_request),
+        .load_time = now,
+    });
+}
+
+void text_node_may_be_painted_for_the_first_time(DOM::Text& text)
+{
+    // OPTIMIZATION: A text node that nothing would report once it is painted is not looked at.
+    auto& document = text.document();
+    if (!tracks_painted_images_and_text(document))
+        return;
+    document.paint_timing_state().text_nodes_pending_first_paint.set(text);
+}
+
+// NB: The element whose box is the containing block of the given text box.
+static GC::Ptr<DOM::Element> element_which_determines_the_containing_block_of(Layout::Node const& text_box)
+{
+    for (auto const* box = static_cast<Layout::Node const*>(text_box.containing_block()); box; box = box->parent_ptr()) {
+        if (auto const* element = as_if<DOM::Element>(box->dom_node()))
+            return const_cast<DOM::Element*>(element);
+        if (box->is_generated_for_pseudo_element()) {
+            if (auto generator = box->pseudo_element_generator())
+                return const_cast<DOM::Element*>(generator.ptr());
+        }
+    }
+    return nullptr;
+}
+
 // https://w3c.github.io/paint-timing/#mark-paint-timing
 void mark_paint_timing(DOM::Document& document)
 {
@@ -365,10 +441,19 @@ void mark_paint_timing(DOM::Document& document)
     if (!document.browsing_context())
         return;
 
-    auto& reported_paints = document.paint_timing_state().set_of_previously_reported_paints;
+    auto& state = document.paint_timing_state();
+    auto& reported_paints = state.set_of_previously_reported_paints;
 
-    // OPTIMIZATION: Nothing below reports anything once first paint and first contentful paint have been reported.
-    if (reported_paints.contains(first_paint_name()) && reported_paints.contains(first_contentful_paint_name()))
+    // OPTIMIZATION: Nothing reports the images and text nodes that are painted from now on.
+    if (!tracks_painted_images_and_text(document)) {
+        state.images_pending_rendering.clear();
+        state.text_nodes_pending_first_paint.clear();
+    }
+
+    // OPTIMIZATION: Nothing below reports anything once first paint and first contentful paint have been reported,
+    //               unless an image or a text node may be painted for the first time.
+    if (reported_paints.contains(first_paint_name()) && reported_paints.contains(first_contentful_paint_name())
+        && state.images_pending_rendering.is_empty() && state.text_nodes_pending_first_paint.is_empty())
         return;
 
     // AD-HOC: Nothing is painted for a document whose initial paint is deferred until its fonts load.
@@ -384,17 +469,84 @@ void mark_paint_timing(DOM::Document& document)
         .implementation_defined_presentation_time = {},
     };
 
-    // FIXME: 3. Let paintedImages be a new ordered set
-    // FIXME: 4. Let paintedTextNodes be a new ordered set
-    // FIXME: 5. For each record in doc's images pending rendering list:
-    //           1. If record's request is available and ready to be painted, then run the following steps:
-    //              1. Append record to paintedImages.
-    //              2. Remove record from doc's images pending rendering list.
-    // FIXME: 6. For each Element element in doc's descendants:
-    //           1. If element is contained in doc's set of elements with rendered text, continue.
-    //           2. If element's set of owned text nodes is empty, continue.
-    //           3. Append element to doc's set of elements with rendered text.
-    //           4. Append element to paintedTextNodes.
+    // 3. Let paintedImages be a new ordered set
+    GC::ConservativeVector<PendingImageRecord> painted_images;
+
+    // 4. Let paintedTextNodes be a new ordered set
+    PaintedTextNodes painted_text_nodes;
+
+    // 5. For each record in doc's images pending rendering list:
+    state.images_pending_rendering.remove_all_matching([&](PendingImageRecord& record) {
+        // AD-HOC: An image whose element left the document is never painted.
+        if (!record.element->is_connected() || &record.element->document() != &document)
+            return true;
+
+        // 1. If record's request is available and ready to be painted, then run the following steps:
+        // NB: The request is available, as the record was made once it was. The image is ready to be painted once its
+        //     element is paintable.
+        auto const* layout_node = record.element->layout_node(checker.read());
+        if (!layout_node || !checker.is_paintable(*layout_node, PaintableChecker::CheckAncestorOpacity::Yes))
+            return false;
+
+        // 1. Append record to paintedImages.
+        painted_images.append(record);
+
+        // 2. Remove record from doc's images pending rendering list.
+        return true;
+    });
+
+    // NB: This is when the user agent paints a Text node for the first time.
+    GC::ConservativeVector<GC::Ref<DOM::Text>> text_nodes_no_longer_pending;
+    auto is_no_longer_pending = [&](GC::Ref<DOM::Text> text) {
+        if (!text->is_connected() || &text->document() != &document)
+            return true;
+        auto const* text_box = text->layout_node(checker.read());
+        if (!text_box) {
+            // OPTIMIZATION: Text that is all white space paints nothing, and is not looked at again until its data
+            //               changes to something else.
+            return !is_non_empty(text->data().utf16_view());
+        }
+        if (!checker.is_paintable(*text_box, PaintableChecker::CheckAncestorOpacity::Yes))
+            return false;
+
+        // https://w3c.github.io/paint-timing/#sec-modifications-dom
+        // When the user agent paints a Text node text for the first time, it should execute the following steps:
+        // FIXME: - If text will not be painted due to the font face being in its font block period, then return.
+
+        // - Let element be the Element which determines the containing block of text.
+        auto element = element_which_determines_the_containing_block_of(*text_box);
+        if (!element)
+            return true;
+
+        // - Append text to element's set of owned text nodes.
+        // NB: The set of owned text nodes is only read for the elements that are appended to paintedTextNodes below,
+        //     in this frame, so only their text nodes are kept.
+        if (!element->is_in_set_of_elements_with_rendered_text())
+            painted_text_nodes.ensure(*element).append(text);
+        return true;
+    };
+    for (auto text : state.text_nodes_pending_first_paint) {
+        if (is_no_longer_pending(text))
+            text_nodes_no_longer_pending.append(text);
+    }
+    for (auto text : text_nodes_no_longer_pending)
+        state.text_nodes_pending_first_paint.remove(text);
+
+    // 6. For each Element element in doc's descendants:
+    // OPTIMIZATION: Only the elements that got their first owned text nodes in this frame can be appended below.
+    for (auto& it : painted_text_nodes) {
+        auto& element = it.key;
+
+        // 1. If element is contained in doc's set of elements with rendered text, continue.
+        // 2. If element's set of owned text nodes is empty, continue.
+        // NB: Both were checked as the text nodes were appended.
+
+        // 3. Append element to doc's set of elements with rendered text.
+        element->append_to_set_of_elements_with_rendered_text();
+
+        // 4. Append element to paintedTextNodes.
+        // NB: The element is in paintedTextNodes already.
+    }
 
     // 7. Let reportedPaints be the document's set of previously reported paints.
     // FIXME: 8. Let frameTimingInfo be document's current frame timing info.
@@ -402,12 +554,15 @@ void mark_paint_timing(DOM::Document& document)
 
     // 10. Let flushPaintTimings be the following steps:
     auto flush_paint_timings = [&] {
-        // NB: The boxes are looked at once for both first paint and first contentful paint.
+        // NB: The boxes are looked at once for both first paint and first contentful paint, and not at all once both
+        //     have been reported.
         PaintedContent already_found {
             .has_non_default_content = reported_paints.contains(first_paint_name()),
             .has_contentful_content = reported_paints.contains(first_contentful_paint_name()),
         };
-        auto painted_content = find_painted_content(checker, already_found);
+        auto painted_content = already_found.has_non_default_content && already_found.has_contentful_content
+            ? already_found
+            : find_painted_content(checker, already_found);
 
         // 1. If reportedPaints does not contain "first-paint", and the user agent is configured to mark first paint,
         //    then report paint timing given document, "first-paint", and paintTimingInfo.
@@ -425,8 +580,9 @@ void mark_paint_timing(DOM::Document& document)
             report_paint_timing(document, first_contentful_paint_name(), paint_timing_info);
         }
 
-        // FIXME: 3. Report largest contentful paint given document, paintTimingInfo, paintedImages and
-        //           paintedTextNodes.
+        // 3. Report largest contentful paint given document, paintTimingInfo, paintedImages and paintedTextNodes.
+        if (!painted_images.is_empty() || !painted_text_nodes.is_empty())
+            LargestContentfulPaint::report_largest_contentful_paint(document, paint_timing_info, painted_images, painted_text_nodes);
 
         // FIXME: 4. Report element timing given document, paintTimingInfo, paintedImages and paintedTextNodes.
         // FIXME: 5. If frameTimingInfo is not null, then queue a long animation frame entry given document,
@@ -437,6 +593,18 @@ void mark_paint_timing(DOM::Document& document)
     //     return.
     // NB: The frame is presented by another process, which does not report back when it was presented.
     flush_paint_timings();
+}
+
+ImageRequestInfo image_request_info(Utf16String url, GC::Ptr<HTML::DecodedImageData const> image_data)
+{
+    ImageRequestInfo info { .url = move(url), .natural_size = {} };
+    if (image_data) {
+        auto width = image_data->intrinsic_width();
+        auto height = image_data->intrinsic_height();
+        if (width.has_value() && height.has_value())
+            info.natural_size = CSSPixelSize { *width, *height };
+    }
+    return info;
 }
 
 // https://w3c.github.io/paint-timing/#report-paint-timing
@@ -482,6 +650,15 @@ bool is_exposed_for_paint_timing(DOM::Element const& element, GC::Ptr<DOM::Docum
 
     // 5. Return true.
     return true;
+}
+
+void DocumentPaintTimingState::visit_edges(GC::Cell::Visitor& visitor)
+{
+    for (auto& record : images_pending_rendering)
+        visitor.visit(record.element);
+    visitor.visit(text_nodes_pending_first_paint);
+    if (current_largest_contentful_paint_candidate.has_value())
+        visitor.visit(current_largest_contentful_paint_candidate->element);
 }
 
 }

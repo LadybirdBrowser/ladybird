@@ -1,0 +1,49 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>LargestContentfulPaint compared with FirstPaint and FirstContentfulPaint on single text page.</title>
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+  setup({"hide_test_state": true});
+  async_test(function (t) {
+    assert_implements(window.PerformancePaintTiming, "PerformancePaintTiming is not implemented");
+    assert_implements(window.LargestContentfulPaint, "LargestContentfulPaint is not implemented");
+    let firstPaintTime = 0;
+    let firstContentfulPaintTime = 0;
+    let largestContentfulPaintTime = 0;
+    const observer = new PerformanceObserver(
+      t.step_func(function(entryList) {
+      entryList.getEntries().forEach(entry => {
+          if (entry.name === 'first-paint') {
+            assert_equals(firstPaintTime, 0, 'Only one first-paint entry.');
+            assert_equals(entry.entryType, 'paint');
+            firstPaintTime = entry.startTime;
+          } else if (entry.name === 'first-contentful-paint') {
+            assert_equals(firstContentfulPaintTime, 0, 'Only one first-contentful-paint entry.');
+            assert_equals(entry.entryType, 'paint');
+            firstContentfulPaintTime = entry.startTime;
+          } else {
+            assert_equals(largestContentfulPaintTime, 0, 'Only one largest-contentful-paint entry.');
+            assert_equals(entry.entryType, 'largest-contentful-paint');
+            largestContentfulPaintTime = entry.renderTime;
+          }
+          // LCP fires necessarily after first-paint and first-contentful-paint.
+          if (largestContentfulPaintTime) {
+            assert_equals(firstContentfulPaintTime, largestContentfulPaintTime, 'FCP should equal LCP.');
+            // In PaintTiming spec, first-paint isn't a hard requirement, browsers can support
+            // first-contentful-paint only.
+            if (firstPaintTime) {
+              assert_less_than_equal(firstPaintTime, firstContentfulPaintTime, 'FP should be less than or equal to FCP.');
+            }
+            t.done();
+          }
+        });
+      })
+    );
+    observer.observe({type: 'largest-contentful-paint', buffered: true});
+    observer.observe({type: 'paint', buffered: true});
+  }, 'FCP and LCP are the same when there is a single text element in the page.');
+</script>
+<p>Text</p>
+</body>
