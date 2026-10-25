@@ -879,16 +879,25 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
                 auto& settings_object = relevant_settings_object(*this);
 
                 // 3. Let fetch options be the default classic script fetch options.
-                ScriptFetchOptions options {};
+                auto options = default_script_fetch_options();
 
                 // 4. Let base URL be settings object's API base URL.
                 auto base_url = settings_object.api_base_url();
 
                 // 5. If initiating script is not null, then:
                 if (initiating_script) {
-                    // FIXME: 1. Set fetch options to a script fetch options whose cryptographic nonce is initiating script's fetch options's cryptographic nonce,
-                    //           integrity metadata is the empty string, parser metadata is "not-parser-inserted", credentials mode is initiating script's fetch
-                    //           options's credentials mode, referrer policy is initiating script's fetch options's referrer policy, and fetch priority is "auto".
+                    // 1. Set fetch options to a script fetch options whose cryptographic nonce is initiating script's fetch options's cryptographic nonce,
+                    //    integrity metadata is the empty string, parser metadata is "not-parser-inserted", credentials mode is initiating script's fetch
+                    //    options's credentials mode, referrer policy is initiating script's fetch options's referrer policy, and fetch priority is "auto".
+                    auto const& initiating_options = initiating_script->fetch_options();
+                    options = ScriptFetchOptions {
+                        .cryptographic_nonce = initiating_options.cryptographic_nonce,
+                        .integrity_metadata = {},
+                        .parser_metadata = Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted,
+                        .credentials_mode = initiating_options.credentials_mode,
+                        .referrer_policy = initiating_options.referrer_policy,
+                        .fetch_priority = Fetch::Infrastructure::Request::Priority::Auto,
+                    };
 
                     // 2. Set base URL to initiating script's base URL.
                     base_url = initiating_script->base_url().value();
@@ -898,9 +907,9 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
                 }
 
                 // 6. Let script be the result of creating a classic script given handler, settings object, base URL, and fetch options.
-                // FIXME: Pass fetch options.
                 auto filename = base_url.to_byte_string();
                 auto script = ClassicScript::create(move(filename), source, settings_object, move(base_url));
+                script->set_fetch_options(move(options));
 
                 // 7. Run the classic script script.
                 (void)script->run();

@@ -47,7 +47,8 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, Utf16View sour
     // 5. Set script's base URL to baseURL.
     auto script = GC::Heap::the().allocate<ClassicScript>(move(base_url), move(filename), settings);
 
-    // FIXME: 6. Set script's fetch options to options.
+    // 6. Set script's fetch options to options.
+    // NB: Callers set the script's fetch options once it has been created.
 
     // 7. Set script's muted errors to muted errors.
     script->m_muted_errors = muted_errors;
