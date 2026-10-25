@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Fail	location.replace() should use document encoding (windows-1252)
+Fail	location.assign() should use document encoding (windows-1252)
+Pass	location.href setter should use document encoding (windows-1252)
