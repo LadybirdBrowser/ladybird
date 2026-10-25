@@ -6,6 +6,7 @@
 
 #include <AK/Array.h>
 #include <AK/Base64.h>
+#include <AK/StringBuilder.h>
 #include <AK/Vector.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibWeb/SRI/SRI.h>
@@ -99,8 +100,10 @@ ErrorOr<Vector<Metadata>> parse_metadata(Utf16View metadata)
         auto algorithm = hash_expr_token_list[0];
 
         // 6. If hash-expr-token-list[1] exists, set base64-value to hash-expr-token-list[1].
+        // INTEROP: A base64url-encoded value contains "-" itself, so like other engines, take everything after the
+        //          first "-" as the value.
         if (hash_expr_token_list.size() > 1)
-            base64_value = hash_expr_token_list[1];
+            base64_value = hash_expression.substring_view(algorithm.length_in_code_units() + 1);
 
         // 7. If algorithm is not a hash function recognized by the user agent, continue.
         if (!is_supported_hash_function(algorithm))
@@ -162,6 +165,21 @@ ErrorOr<Vector<Metadata>> get_strongest_metadata_from_set(Vector<Metadata> const
     return result;
 }
 
+// Converts a base64 or base64url-encoded value to base64 without padding, so values in either encoding compare equal.
+static String normalize_base64_value(StringView value)
+{
+    StringBuilder builder;
+    for (auto character : value.trim("="sv, TrimMode::Right)) {
+        if (character == '-')
+            builder.append('+');
+        else if (character == '_')
+            builder.append('/');
+        else
+            builder.append(character);
+    }
+    return builder.to_string_without_validation();
+}
+
 // https://w3c.github.io/webappsec-subresource-integrity/#does-response-match-metadatalist
 ErrorOr<bool> do_bytes_match_metadata_list(ByteBuffer const& bytes, Utf16View metadata_list)
 {
@@ -187,7 +205,8 @@ ErrorOr<bool> do_bytes_match_metadata_list(ByteBuffer const& bytes, Utf16View me
         auto actual_value = TRY(apply_algorithm_to_bytes(algorithm, bytes));
 
         // 4. If actualValue is a case-sensitive match for expectedValue, return true.
-        if (actual_value == expected_value)
+        // INTEROP: Other engines also accept an expectedValue that is base64url-encoded or that lacks its padding.
+        if (normalize_base64_value(actual_value) == normalize_base64_value(expected_value))
             return true;
     }
 
