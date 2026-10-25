@@ -101,6 +101,62 @@ static bool g_disk_cache_enabled_for_navigations_for_testing = false;
         _temporary_result.release_value();                                                           \
     })
 
+// AD-HOC: Reads one chunk of a response body's readable byte stream and forwards it into another readable byte stream,
+//         running processResponseEndOfBody once the stream has no more chunks. See fetch_response_handover().
+class ResponseBodyForwardingReadRequest final : public Streams::ReadRequest {
+    GC_CELL(ResponseBodyForwardingReadRequest, Streams::ReadRequest);
+    GC_DECLARE_ALLOCATOR(ResponseBodyForwardingReadRequest);
+
+public:
+    ResponseBodyForwardingReadRequest(GC::Ref<Streams::ReadableStream> destination, GC::Ref<WebIDL::Promise> pull_promise, GC::Ref<GC::Function<void()>> process_response_end_of_body)
+        : m_destination(destination)
+        , m_pull_promise(pull_promise)
+        , m_process_response_end_of_body(process_response_end_of_body)
+    {
+    }
+
+    virtual void on_chunk(JS::Value chunk) override
+    {
+        if (m_destination->enqueue(chunk).is_error())
+            m_destination->error(JS::TypeError::create(WebIDL::promise_realm(*m_pull_promise), "Response body chunk could not be enqueued"sv));
+        WebIDL::resolve_promise(*m_pull_promise);
+    }
+
+    virtual void on_close() override
+    {
+        // NB: Canceling the destination cancels the source, which closes this read request. As with a TransformStream
+        //     whose readable side is canceled, processResponseEndOfBody does not run then.
+        if (m_destination->is_readable()) {
+            // NB: Like the flush algorithm of a TransformStream, run processResponseEndOfBody before the stream closes,
+            //     so that it runs before anything that waits for the stream to close.
+            m_process_response_end_of_body->function()();
+            m_destination->close();
+        }
+        WebIDL::resolve_promise(*m_pull_promise);
+    }
+
+    virtual void on_error(JS::Value error) override
+    {
+        m_destination->error(error);
+        WebIDL::resolve_promise(*m_pull_promise);
+    }
+
+private:
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_destination);
+        visitor.visit(m_pull_promise);
+        visitor.visit(m_process_response_end_of_body);
+    }
+
+    GC::Ref<Streams::ReadableStream> m_destination;
+    GC::Ref<WebIDL::Promise> m_pull_promise;
+    GC::Ref<GC::Function<void()>> m_process_response_end_of_body;
+};
+
+GC_DEFINE_ALLOCATOR(ResponseBodyForwardingReadRequest);
+
 class HTTPCache {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -1001,27 +1057,52 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         case Engine::BodyIntent::ConsumeForCallback: {
             HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-            // 1. Let transformStream be a new TransformStream.
-            auto transform_stream = Streams::TransformStream::create(realm);
+            // AD-HOC: Piping a readable byte stream through a TransformStream results in a stream without byte reading
+            //         support, which can no longer be read with a BYOB reader. Response bodies remain readable byte streams
+            //         in other engines, so forward the chunks of such a stream into a new readable byte stream instead, and
+            //         run processResponseEndOfBody once there are no more chunks, as the flush algorithm below would.
+            if (auto stream = internal_response->body()->stream(); stream->is_readable_byte_stream() && !stream->is_locked()) {
+                auto reader = MUST(stream->get_a_reader());
+                auto forwarded_stream = Streams::ReadableStream::create(realm);
+                auto end_of_body_steps = GC::create_function(GC::Heap::the(), [process_response_end_of_body] {
+                    process_response_end_of_body();
+                });
 
-            // 2. Let identityTransformAlgorithm be an algorithm which, given chunk, enqueues chunk in transformStream.
-            auto identity_transform_algorithm = GC::create_function(GC::Heap::the(), [&realm, transform_stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
-                if (auto result = transform_stream->enqueue(chunk); result.is_error())
-                    return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
+                auto pull_algorithm = GC::create_function(GC::Heap::the(), [&realm, reader, forwarded_stream, end_of_body_steps] {
+                    auto promise = WebIDL::create_promise(realm);
+                    reader->read_a_chunk(*GC::Heap::the().allocate<ResponseBodyForwardingReadRequest>(forwarded_stream, promise, end_of_body_steps));
+                    return promise;
+                });
 
-                return WebIDL::create_resolved_promise(realm, JS::js_undefined());
-            });
+                auto cancel_algorithm = GC::create_function(GC::Heap::the(), [reader](JS::Value reason) {
+                    return reader->cancel(reason);
+                });
 
-            // 3. Set up transformStream with transformAlgorithm set to identityTransformAlgorithm and flushAlgorithm set
-            //    to processResponseEndOfBody.
-            auto flush_algorithm = GC::create_function(GC::Heap::the(), [&realm, process_response_end_of_body]() -> GC::Ref<WebIDL::Promise> {
-                process_response_end_of_body();
-                return WebIDL::create_resolved_promise(realm, JS::js_undefined());
-            });
-            transform_stream->set_up(realm, identity_transform_algorithm, flush_algorithm);
+                forwarded_stream->set_up_with_byte_reading_support(realm, pull_algorithm, cancel_algorithm);
+                internal_response->body()->set_stream(forwarded_stream);
+            } else {
+                // 1. Let transformStream be a new TransformStream.
+                auto transform_stream = Streams::TransformStream::create(realm);
 
-            // 4. Set internalResponse’s body’s stream to the result of internalResponse’s body’s stream piped through transformStream.
-            internal_response->body()->set_stream(internal_response->body()->stream()->piped_through(transform_stream));
+                // 2. Let identityTransformAlgorithm be an algorithm which, given chunk, enqueues chunk in transformStream.
+                auto identity_transform_algorithm = GC::create_function(GC::Heap::the(), [&realm, transform_stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
+                    if (auto result = transform_stream->enqueue(chunk); result.is_error())
+                        return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
+
+                    return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+                });
+
+                // 3. Set up transformStream with transformAlgorithm set to identityTransformAlgorithm and flushAlgorithm set
+                //    to processResponseEndOfBody.
+                auto flush_algorithm = GC::create_function(GC::Heap::the(), [&realm, process_response_end_of_body]() -> GC::Ref<WebIDL::Promise> {
+                    process_response_end_of_body();
+                    return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+                });
+                transform_stream->set_up(realm, identity_transform_algorithm, flush_algorithm);
+
+                // 4. Set internalResponse’s body’s stream to the result of internalResponse’s body’s stream piped through transformStream.
+                internal_response->body()->set_stream(internal_response->body()->stream()->piped_through(transform_stream));
+            }
             break;
         }
         case Engine::BodyIntent::DrainAndDiscard: {

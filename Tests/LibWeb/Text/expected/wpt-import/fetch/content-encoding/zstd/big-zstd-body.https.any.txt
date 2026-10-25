@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	large zstd data should be decompressed successfully
-Fail	large zstd data should be decompressed successfully with byte stream
+Pass	large zstd data should be decompressed successfully with byte stream

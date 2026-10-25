@@ -158,6 +158,21 @@ pub unsafe extern "C" fn web_rust_readable_stream_close_requested(stream: *mut c
     }
 }
 
+/// Whether the stream's controller is a ReadableByteStreamController.
+///
+/// # Safety
+///
+/// `stream` must be a live ReadableStream.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_readable_stream_is_readable_byte_stream(stream: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live ReadableStream.
+    let stream = unsafe { cell_from_abi::<ReadableStream>(stream) };
+    matches!(
+        stream.controller(),
+        Some(ReadableStreamController::ReadableByteStreamController(_))
+    )
+}
+
 /// https://streams.spec.whatwg.org/#readablestream-enqueue
 ///
 /// # Safety

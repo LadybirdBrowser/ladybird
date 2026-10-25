@@ -37,6 +37,9 @@ public:
     // https://streams.spec.whatwg.org/#readablestream-set-up-with-byte-reading-support
     void set_up_with_byte_reading_support(JS::Realm&, GC::Ptr<PullAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {}, double high_water_mark = 0);
 
+    // Whether the stream's controller is a ReadableByteStreamController.
+    bool is_readable_byte_stream() const;
+
     // https://streams.spec.whatwg.org/#readablestream-readable
     bool is_readable() const;
 
