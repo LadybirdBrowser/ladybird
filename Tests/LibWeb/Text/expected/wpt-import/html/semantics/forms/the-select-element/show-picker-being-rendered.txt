@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	select showPicker() throws when not being rendered
+1 Pass
+Pass	select showPicker() throws when not being rendered
