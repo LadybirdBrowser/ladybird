@@ -1,0 +1,35 @@
+<!DOCTYPE quirks>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .column { display: flex; flex-direction: column; height: 300px; width: 400px; }
+    .row { display: flex; height: 300px; width: 400px; }
+    .start { align-items: flex-start; }
+    .grid { display: grid; width: 400px; height: 300px; align-content: start; }
+    .line { height: 20px; }
+</style>
+<div class="column"><div id="columnItem"><div id="columnItemChild" style="height: 50%"><div class="line"></div></div></div></div>
+<div class="column"><div id="columnItemWithMinHeight"><div id="columnItemWithMinHeightChild" style="min-height: 50%"><div class="line"></div></div></div></div>
+<div class="column"><div id="columnItemWithWrapper"><div><div id="columnItemWithWrapperChild" style="height: 50%"><div class="line"></div></div></div></div></div>
+<div class="row start"><div id="rowItem"><div id="rowItemChild" style="height: 50%"><div class="line"></div></div></div></div>
+<div class="row start"><div id="rowItemWithMinHeight"><div id="rowItemWithMinHeightChild" style="min-height: 50%"><div class="line"></div></div></div></div>
+<div class="grid"><div id="gridItem"><div id="gridItemChild" style="height: 50%"><div class="line"></div></div></div></div>
+<div class="grid"><div id="startGridItem" style="align-self: start"><div id="startGridItemChild" style="min-height: 50%"><div class="line"></div></div></div></div>
+<div class="grid" style="grid-template-rows: 100px"><div id="fixedRowGridItem"><div id="fixedRowGridItemChild" style="height: 50%"><div class="line"></div></div></div></div>
+<div class="grid" style="align-content: normal"><div id="startGridItemInStretchedRow" style="align-self: start"><div id="startGridItemInStretchedRowChild" style="height: 50%"><div class="line"></div></div></div></div>
+<div class="grid" style="grid-template-rows: 1fr"><div id="centerGridItemInFlexibleRow" style="align-self: center"><div id="centerGridItemInFlexibleRowChild" style="height: 50%"><div class="line"></div></div></div></div>
+<div class="grid" style="grid-template-rows: 100px"><div id="startGridItemInFixedRow" style="align-self: start"><div id="startGridItemInFixedRowChild" style="height: 50%"><div class="line"></div></div></div></div>
+<div class="column start" id="columnTurningIntoRow"><div id="itemOfColumnTurningIntoRow"><div id="itemOfColumnTurningIntoRowChild" style="height: 50%"><div class="line"></div></div></div></div>
+<div class="row start" id="rowTurningIntoColumn"><div id="itemOfRowTurningIntoColumn"><div id="itemOfRowTurningIntoColumnChild" style="height: 50%"><div class="line"></div></div></div></div>
+<script>
+    test(() => {
+        const height = id => document.getElementById(id).getBoundingClientRect().height;
+        println(`quirks mode: ${document.compatMode === "BackCompat"}`);
+        for (const id of ["columnItem", "columnItemWithMinHeight", "columnItemWithWrapper", "rowItem", "rowItemWithMinHeight", "gridItem", "startGridItem", "fixedRowGridItem", "startGridItemInStretchedRow", "centerGridItemInFlexibleRow", "startGridItemInFixedRow", "itemOfColumnTurningIntoRow", "itemOfRowTurningIntoColumn"])
+            println(`${id} and its child: ${height(id)} ${height(id + "Child")}`);
+        document.getElementById("columnTurningIntoRow").style.flexDirection = "row";
+        document.getElementById("rowTurningIntoColumn").style.flexDirection = "column";
+        for (const id of ["itemOfColumnTurningIntoRow", "itemOfRowTurningIntoColumn"])
+            println(`${id} and its child after the flex direction changes: ${height(id)} ${height(id + "Child")}`);
+    });
+</script>

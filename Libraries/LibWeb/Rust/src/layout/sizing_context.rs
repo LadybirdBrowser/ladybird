@@ -1165,6 +1165,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             Some(used.content_block_size.get())
         } else if facts.lays_out_in_columns() {
             None
+        } else if facts.parent_is_flex_or_grid_container() && used.has_definite_block_size() {
+            Some(used.content_block_size.get())
         } else {
             constraints.quirks_mode_percentage_basis_block_size
         };
@@ -1387,6 +1389,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             // Flex/grid items resolve percentage heights against their container, not via quirk.
             // The quirk should not apply inside user agent shadow trees.
             let quirk_applies = facts.document_in_quirks_mode()
+                && constraints.quirks_mode_percentage_basis_block_size.is_some()
                 && !facts.is_anonymous()
                 && !facts.is_table_box()
                 && !facts.parent_is_flex_or_grid_container()
@@ -1632,9 +1635,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if is_table_box {
             return available_space;
         }
+        let Some(quirks_mode_percentage_basis_block_size) = constraints.quirks_mode_percentage_basis_block_size else {
+            return available_space;
+        };
         let mut resolution_space = available_space;
-        resolution_space.block_size =
-            AvailableSize::definite(constraints.quirks_mode_percentage_basis_block_size.unwrap_or_default());
+        resolution_space.block_size = AvailableSize::definite(quirks_mode_percentage_basis_block_size);
         resolution_space
     }
 
