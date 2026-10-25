@@ -5317,8 +5317,7 @@ pub(crate) fn expand_flexible_tracks_indefinite(tracks: &mut [Track<'_>], items:
     // the track’s base size by its flex factor; otherwise, the track’s base size.
     for track in tracks.iter() {
         if let Some(factor) = track.max_sizing.flex_factor() {
-            let divisor = CssPixels::nearest_value_for(factor.max(1.0));
-            flex_fraction = flex_fraction.max(formatting_context::PixelFraction::new(track.base_size, divisor));
+            flex_fraction = flex_fraction.max(fr_size_fraction(track.base_size, factor.max(1.0)));
         }
     }
     // For each grid item that crosses a flexible track, the result of finding the size of an fr using all the
@@ -5335,9 +5334,7 @@ pub(crate) fn expand_flexible_tracks_indefinite(tracks: &mut [Track<'_>], items:
     }
     for track in tracks {
         if let Some(factor) = track.max_sizing.flex_factor() {
-            track.base_size = track
-                .base_size
-                .max(flex_fraction.multiply(CssPixels::nearest_value_for(factor)));
+            track.base_size = track.base_size.max(size_of_flex_factor(flex_fraction, factor));
         }
     }
 }
@@ -6028,6 +6025,20 @@ pub(crate) fn initialize_track_sizes(tracks: &mut [Track<'_>], available: Availa
     has_flexible_tracks
 }
 
+/// The size of an fr as `space` divided by a sum of flex factors, keeping the precision of fractional flex factors.
+fn fr_size_fraction(space: CssPixels, flex_factor_sum: f64) -> formatting_context::PixelFraction {
+    let (numerator, denominator) = CssPixels::fraction_nearest_values_for(space.to_double(), flex_factor_sum);
+    if denominator == CssPixels::default() {
+        return formatting_context::PixelFraction::zero();
+    }
+    formatting_context::PixelFraction::new(numerator, denominator)
+}
+
+/// The product of the size of an fr and a flex factor.
+fn size_of_flex_factor(fr_size: formatting_context::PixelFraction, flex_factor: f64) -> CssPixels {
+    CssPixels::nearest_value_for(fr_size.numerator.to_double() / fr_size.denominator.to_double() * flex_factor)
+}
+
 pub(crate) fn find_fr_size(tracks: &[Track<'_>], space_to_fill: CssPixels) -> formatting_context::PixelFraction {
     // https://www.w3.org/TR/css-grid-2/#algo-find-fr-size
     let mut inflexible = vec![false; tracks.len()];
@@ -6042,20 +6053,20 @@ pub(crate) fn find_fr_size(tracks: &[Track<'_>], space_to_fill: CssPixels) -> fo
 
         // 2. Let flex factor sum be the sum of the flex factors of the flexible tracks.
         //    If this value is less than 1, set it to 1 instead.
-        let mut flex_factor_sum = CssPixels::default();
+        let mut flex_factor_sum = 0.0;
         for (index, track) in tracks.iter().enumerate() {
             if inflexible[index] {
                 continue;
             }
             if let Some(factor) = track.max_sizing.flex_factor() {
-                flex_factor_sum += CssPixels::nearest_value_for(factor);
+                flex_factor_sum += factor;
             }
         }
-        if flex_factor_sum < CssPixels::from_integer(1) {
-            flex_factor_sum = CssPixels::from_integer(1);
+        if flex_factor_sum < 1.0 {
+            flex_factor_sum = 1.0;
         }
         // 3. Let the hypothetical fr size be the leftover space divided by the flex factor sum.
-        let hypothetical_fr_size = formatting_context::PixelFraction::new(leftover_space, flex_factor_sum);
+        let hypothetical_fr_size = fr_size_fraction(leftover_space, flex_factor_sum);
 
         // 4. If the product of the hypothetical fr size and a flexible track’s flex factor is less than the track’s
         //    base size, restart this algorithm treating all such tracks as inflexible.
@@ -6067,7 +6078,7 @@ pub(crate) fn find_fr_size(tracks: &[Track<'_>], space_to_fill: CssPixels) -> fo
             let Some(factor) = track.max_sizing.flex_factor() else {
                 continue;
             };
-            let scaled = hypothetical_fr_size.multiply(CssPixels::nearest_value_for(factor));
+            let scaled = size_of_flex_factor(hypothetical_fr_size, factor);
             if scaled < track.base_size {
                 inflexible[index] = true;
                 restart = true;
@@ -6088,7 +6099,7 @@ pub(crate) fn expand_flexible_tracks(tracks: &mut [Track<'_>], space_to_fill: Cs
         let Some(factor) = track.max_sizing.flex_factor() else {
             continue;
         };
-        let scaled = flex_fraction.multiply(CssPixels::nearest_value_for(factor));
+        let scaled = size_of_flex_factor(flex_fraction, factor);
         if scaled > track.base_size {
             track.base_size = scaled;
         }
