@@ -246,10 +246,13 @@ void NavigateEvent::process_scroll_behavior()
     // 2. Set event's interception state to "scrolled".
     m_interception_state = InterceptionState::Scrolled;
 
-    // FIXME: 3. If event's navigationType was initialized to "traverse" or "reload", then restore scroll position data
-    //           given event's relevant global object's navigable's active session history entry.
-    if (m_navigation_type == NavigationType::Traverse || m_navigation_type == NavigationType::Reload) {
-        dbgln("FIXME: restore scroll position data after traversal or reload navigation");
+    // 3. If event's navigationType was initialized to "traverse", then restore scroll position data given event's
+    //    relevant global object's navigable's active session history entry.
+    if (m_navigation_type == NavigationType::Traverse) {
+        if (auto navigable = m_relevant_window->navigable()) {
+            if (auto entry = navigable->active_session_history_entry())
+                navigable->restore_scroll_position_data(*entry);
+        }
     }
 
     // 4. Otherwise:
