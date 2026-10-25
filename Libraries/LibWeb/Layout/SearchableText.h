@@ -16,8 +16,8 @@
 
 namespace Web::Layout {
 
-// Non-spec infrastructure shared by find-in-page and text-fragment matching. Matching policy is
-// deliberately left to callers.
+// Non-spec infrastructure for text-fragment matching. Matching policy is deliberately left to
+// callers.
 class SearchableText {
 public:
     enum class Searchability : u8 {
@@ -35,7 +35,6 @@ public:
         size_t start_offset { 0 };
         Searchability searchability { Searchability::Searchable };
         Boundary boundary_before { Boundary::None };
-        bool is_inert { false };
     };
 
     struct Block {
@@ -47,18 +46,15 @@ public:
     static SearchableText collect(Viewport&);
 
     Vector<Block> const& blocks() const { return m_blocks; }
-    Vector<Block> const& find_in_page_blocks() const { return m_find_in_page_blocks.has_value() ? *m_find_in_page_blocks : m_blocks; }
     Optional<DOM::BoundaryPoint> boundary_point_at_offset(Block const&, size_t offset, bool is_end) const;
 
 private:
-    explicit SearchableText(Vector<Block> blocks, Optional<Vector<Block>> find_in_page_blocks)
+    explicit SearchableText(Vector<Block> blocks)
         : m_blocks(move(blocks))
-        , m_find_in_page_blocks(move(find_in_page_blocks))
     {
     }
 
     Vector<Block> m_blocks;
-    Optional<Vector<Block>> m_find_in_page_blocks;
 };
 
 class SearchableTextCache {
