@@ -788,8 +788,9 @@ void LocationEdit::highlight_location()
     auto url = ak_string_from_qstring(text());
     QList<QInputMethodEvent::Attribute> attributes;
 
+    // The parts of the URL around the domain are secondary, but should not look disabled.
     auto darkened_text_color = ChromeStyle::chrome_text(palette());
-    darkened_text_color.setAlpha(127);
+    darkened_text_color.setAlpha(ChromeStyle::is_dark(palette()) ? 178 : 148);
 
     QTextCharFormat dark_attributes;
     dark_attributes.setForeground(darkened_text_color);
