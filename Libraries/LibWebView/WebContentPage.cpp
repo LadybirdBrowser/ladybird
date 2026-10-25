@@ -1343,7 +1343,7 @@ void WebContentPage::webdriver_did_set_current_browsing_context(u64 command_id, 
 
 void WebContentPage::webdriver_command_complete(u64 command_id, Web::WebDriver::Response response)
 {
-    view().did_complete_webdriver_content_command({}, command_id, move(response));
+    view().did_complete_webdriver_content_command(*this, command_id, move(response));
 }
 
 void WebContentPage::did_update_resource_count(i32 count_waiting)
