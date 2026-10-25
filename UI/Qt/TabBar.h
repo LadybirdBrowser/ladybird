@@ -157,6 +157,7 @@ private:
     QRect vertical_tab_rect(int index, PinnedRegion const&) const;
     bool pinned_tabs_are_tiles() const;
     int vertical_bar_width() const;
+    int vertical_tabs_left() const;
 
     QRect visual_tab_rect(int index) const;
     int tab_index_at(QPoint const&) const;
@@ -272,12 +273,16 @@ private:
     bool vertical_tabs_are_on_right() const;
     int vertical_tabs_layout_width() const;
     bool should_show_window_controls_in_tab_toolbar() const;
+    bool vertical_tabs_hold_window_controls() const;
+    int vertical_tabs_column_top_margin() const;
 
     void rebuild_layout();
     void rebuild_layout_for_horizontal_tabs();
     void place_horizontal_new_tab_button();
     void rebuild_layout_for_vertical_tabs();
     void rebuild_page_column();
+    void update_vertical_tabs_column_margins();
+    void paint_collapsed_vertical_tabs_column();
     void update_toolbar_placement();
     void update_tab_toolbar_window_controls_visibility();
     int current_vertical_tabs_width() const;
@@ -296,6 +301,7 @@ private:
     void update_web_view_frame(Tab&);
 #endif
     void recreate_icons();
+    void update_vertical_tabs_toggle_icon();
     void update_chrome_style();
     void update_vertical_tabs_overlay_geometry();
     void update_vertical_tabs_content_overlay();
@@ -312,6 +318,7 @@ private:
 
     QStackedWidget* m_stacked_widget { nullptr };
     QToolButton* m_new_tab_button { nullptr };
+    QToolButton* m_vertical_tabs_toggle_button { nullptr };
     QToolButton* m_minimize_window_button { nullptr };
     QToolButton* m_maximize_window_button { nullptr };
     QToolButton* m_close_window_button { nullptr };

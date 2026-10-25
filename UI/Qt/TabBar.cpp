@@ -54,6 +54,7 @@
 #include <QStaticText>
 #include <QStyle>
 #include <QStyleOptionButton>
+#include <QStyleOptionToolButton>
 #include <QStylePainter>
 #include <QTimer>
 #include <QToolButton>
@@ -83,7 +84,7 @@ static constexpr int HORIZONTAL_TAB_MAX_WIDTH = 232;
 // A pinned tab's tile, which shows only its favicon.
 static constexpr int PINNED_TAB_TILE_WIDTH = 40;
 static constexpr int PINNED_TABS_SEPARATOR_HEIGHT = 9;
-static constexpr int VERTICAL_TAB_HEIGHT = 38;
+static constexpr int VERTICAL_TAB_HEIGHT = 37;
 static constexpr int VERTICAL_TABS_COLLAPSED_WIDTH = browser_chrome_layout_policy().collapsed_sidebar_width;
 static constexpr int VERTICAL_TABS_DEFAULT_EXPANDED_WIDTH = browser_chrome_layout_policy().expanded_sidebar_width;
 static constexpr int VERTICAL_TABS_MIN_EXPANDED_WIDTH = 190;
@@ -92,8 +93,17 @@ static constexpr int VERTICAL_TABS_RESIZE_HIT_AREA_WIDTH = 5;
 static constexpr int VERTICAL_TABS_COLLAPSED_SIDE_MARGIN = 6;
 static constexpr int VERTICAL_TABS_EXPANDED_SIDE_MARGIN = 5;
 static constexpr int VERTICAL_TABS_TOP_MARGIN = 8;
+static constexpr int VERTICAL_TABS_TOGGLE_BUTTON_SIZE = 32;
+// The collapsed sidebar's corner below the toolbar, beside the page, is as round as the page's own corners.
+static constexpr qreal VERTICAL_TABS_COLLAPSED_CORNER_RADIUS = 10.0;
 static constexpr int TAB_CARD_SHAPE_HORIZONTAL_INSET = 5;
-static constexpr int TAB_CARD_SHAPE_VERTICAL_INSET = 3;
+// A vertical tab's card sits a point higher than the middle of its row, so the cards in the sidebar sit close together
+// while they keep an even height.
+static constexpr int TAB_CARD_SHAPE_TOP_INSET = 3;
+static constexpr int TAB_CARD_SHAPE_BOTTOM_INSET = 2;
+// The selected vertical tab reaches across to the page's frame, with its sides flaring out into it above and below. The
+// bar leaves this much room above its first tab and below its last, so the flares there are not cut off.
+static constexpr int VERTICAL_TAB_FLARE_RADIUS = 6;
 // A horizontal tab's card holds its contents, and is what lights up when the tab is hovered. The selected tab is its card
 // extended down to the toolbar. The card sits above the middle of the tab, so its contents line up with the window
 // controls.
@@ -226,7 +236,7 @@ static char const* vertical_tabs_position_property_value(WebView::VerticalTabsPo
 
 static QRectF tab_card_shape_rect(QRectF const& rect)
 {
-    return rect.adjusted(TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_VERTICAL_INSET, -TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_VERTICAL_INSET);
+    return rect.adjusted(TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_TOP_INSET, -TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_BOTTOM_INSET);
 }
 
 enum class TabBarEdge : u8 {
@@ -276,6 +286,39 @@ static QPainterPath horizontal_selected_tab_path(QRectF const& body)
     return path;
 }
 
+// The selected vertical tab's outline: Its card reaches across to the page's edge of the sidebar at x = page_edge, and
+// flares out above and below into the page's frame there. As with the horizontal tab, the path is left open along the
+// edge it shares with the frame, and runs clockwise, which is the way the loading swirl goes around it. Filling it closes
+// it.
+static QPainterPath vertical_selected_tab_path(QRectF const& card, qreal page_edge)
+{
+    auto top = card.top();
+    auto bottom = card.bottom();
+    auto radius = card.height() / 2.0;
+    qreal flare = VERTICAL_TAB_FLARE_RADIUS;
+
+    QPainterPath path;
+    if (page_edge > card.center().x()) {
+        // From the bottom of the page's edge, along the bottom, around the round end, and along the top.
+        path.moveTo(page_edge, bottom + flare);
+        path.arcTo(QRectF(page_edge - (2 * flare), bottom, 2 * flare, 2 * flare), 0, 90);
+        path.lineTo(card.left() + radius, bottom);
+        path.arcTo(QRectF(card.left(), top, 2 * radius, 2 * radius), 270, -180);
+        path.lineTo(page_edge - flare, top);
+        path.arcTo(QRectF(page_edge - (2 * flare), top - (2 * flare), 2 * flare, 2 * flare), 270, 90);
+        return path;
+    }
+
+    // From the top of the page's edge, along the top, around the round end, and along the bottom.
+    path.moveTo(page_edge, top - flare);
+    path.arcTo(QRectF(page_edge, top - (2 * flare), 2 * flare, 2 * flare), 180, 90);
+    path.lineTo(card.right() - radius, top);
+    path.arcTo(QRectF(card.right() - (2 * radius), top, 2 * radius, 2 * radius), 90, -180);
+    path.lineTo(page_edge + flare, bottom);
+    path.arcTo(QRectF(page_edge, bottom, 2 * flare, 2 * flare), 90, 90);
+    return path;
+}
+
 // The new tab button lines up with the cards of the tabs beside it.
 static QRectF horizontal_new_tab_button_shape_rect(QRectF const& rect)
 {
@@ -286,7 +329,7 @@ static QRectF horizontal_new_tab_button_shape_rect(QRectF const& rect)
 
 static QRect tab_card_shape_rect(QRect const& rect)
 {
-    return rect.adjusted(TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_VERTICAL_INSET, -TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_VERTICAL_INSET);
+    return rect.adjusted(TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_TOP_INSET, -TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_BOTTOM_INSET);
 }
 
 // When a tab finishes loading, a soft band of light sweeps across its pill from left to right.
@@ -339,21 +382,14 @@ static QColor horizontal_tab_separator(QPalette const& palette)
     return ChromeStyle::mix(ChromeStyle::chrome_tab_strip_background(palette), ChromeStyle::chrome_text(palette), dark ? 0.18 : 0.25);
 }
 
-// The selected vertical tab is a flat card that stands out from the sidebar a little more than a hovered tab does.
-static QColor vertical_selected_tab_surface(QPalette const& palette)
-{
-    auto dark = ChromeStyle::is_dark(palette);
-    return ChromeStyle::mix(ChromeStyle::chrome_background(palette), dark ? QColor(255, 255, 255) : QColor(0, 0, 0), dark ? 0.14 : 0.09);
-}
-
 static QRectF collapsed_vertical_tab_shape_rect(QRectF const& rect)
 {
-    return rect.adjusted(4.0, 3.0, -4.0, -3.0);
+    return rect.adjusted(4.0, TAB_CARD_SHAPE_TOP_INSET, -4.0, -TAB_CARD_SHAPE_BOTTOM_INSET);
 }
 
 static QRect collapsed_vertical_tab_shape_rect(QRect const& rect)
 {
-    return rect.adjusted(4, 3, -4, -3);
+    return rect.adjusted(4, TAB_CARD_SHAPE_TOP_INSET, -4, -TAB_CARD_SHAPE_BOTTOM_INSET);
 }
 
 class NewTabButton final : public QToolButton {
@@ -397,7 +433,7 @@ private:
             ? tab_card_shape_rect(QRectF(rect()))
             : (is_horizontal_new_tab_button
                       ? horizontal_new_tab_button_shape_rect(QRectF(rect()))
-                      : QRectF(rect()).adjusted(4.0, 3.0, -4.0, -3.0));
+                      : QRectF(rect()).adjusted(4.0, TAB_CARD_SHAPE_TOP_INSET, -4.0, -TAB_CARD_SHAPE_BOTTOM_INSET));
         // NB: The horizontal new tab button's shape is square, so this pill is a circle.
         QPainterPath tab_path;
         tab_path.addRoundedRect(shape_rect, shape_rect.height() / 2.0, shape_rect.height() / 2.0);
@@ -446,6 +482,24 @@ private:
     }
 
     TabBar& m_tab_bar;
+};
+
+class VerticalTabsToggleButton final : public QToolButton {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    using QToolButton::QToolButton;
+
+private:
+    virtual void paintEvent(QPaintEvent*) override
+    {
+        QStyleOptionToolButton option;
+        initStyleOption(&option);
+
+        QStylePainter painter(this);
+        ChromeStyle::paint_circular_control_frame(painter, *this);
+        painter.drawComplexControl(QStyle::CC_ToolButton, option);
+    }
 };
 
 class TabPreviewThumbnail final : public QWidget {
@@ -788,7 +842,7 @@ QSize TabBar::minimumSizeHint() const
 {
     // However many tabs are pinned, one row is enough: Pinned tabs that don't fit in half the bar scroll with the rest.
     if (tab_layout() != TabLayout::Horizontal)
-        return { vertical_tab_width(m_available_width, tab_layout()), count() > 0 ? VERTICAL_TAB_HEIGHT : 0 };
+        return { vertical_tab_width(m_available_width, tab_layout()), count() > 0 ? (2 * VERTICAL_TAB_FLARE_RADIUS) + VERTICAL_TAB_HEIGHT : 0 };
     return QTabBar::minimumSizeHint();
 }
 
@@ -896,7 +950,9 @@ void TabBar::paintEvent(QPaintEvent*)
     // While tabs make way for a pinned tab dragged in from another window, the pinned tabs can take up another row.
     auto pinned_region_growth = qRound(current_pinned_region_growth());
     auto fixed_height = region.scrolls ? 0 : region.height + pinned_region_growth;
-    QRect unpinned_clip { 0, fixed_height, width(), max(0, height() - fixed_height) };
+    // NB: Without pinned tabs in the way, the unpinned tabs also use the room above them.
+    auto unpinned_clip_top = fixed_height > 0 ? VERTICAL_TAB_FLARE_RADIUS + fixed_height : 0;
+    QRect unpinned_clip { 0, unpinned_clip_top, width(), max(0, height() - unpinned_clip_top) };
 
     // Titles are shaped once and kept for as long as some tab shows them, since resizing the window repaints the tab
     // bar on every step without changing any title.
@@ -946,6 +1002,8 @@ void TabBar::paintEvent(QPaintEvent*)
         QPainterPath tab_path;
         if (!is_vertical && is_selected)
             tab_path = horizontal_selected_tab_path(QRectF(shape_rect.left(), shape_rect.top(), shape_rect.width(), tab_rect.bottom() + 1 - shape_rect.top()));
+        else if (is_selected && !is_pinned_tile)
+            tab_path = vertical_selected_tab_path(shape_rect, vertical_tabs_are_on_right() ? 0.0 : static_cast<qreal>(width()));
         else
             tab_path.addRoundedRect(shape_rect, shape_rect.height() / 2.0, shape_rect.height() / 2.0);
 
@@ -974,7 +1032,7 @@ void TabBar::paintEvent(QPaintEvent*)
             painter.drawPath(tab_path);
         } else if (is_selected) {
             painter.setPen(Qt::NoPen);
-            painter.setBrush(vertical_selected_tab_surface(palette()));
+            painter.setBrush(ChromeStyle::chrome_active_tab_surface(palette()));
             painter.drawPath(tab_path);
         } else if (is_hovered) {
             painter.setBrush(tab_hover_surface(palette(), hover_progress));
@@ -1117,7 +1175,7 @@ void TabBar::paintEvent(QPaintEvent*)
         auto separator = ChromeStyle::chrome_border(palette());
         separator.setAlpha(dark ? 40 : 32);
         painter.setPen(separator);
-        auto separator_y = region.height + pinned_region_growth - (PINNED_TABS_SEPARATOR_HEIGHT / 2) - (region.scrolls ? m_vertical_scroll_offset : 0);
+        auto separator_y = VERTICAL_TAB_FLARE_RADIUS + region.height + pinned_region_growth - (PINNED_TABS_SEPARATOR_HEIGHT / 2) - (region.scrolls ? m_vertical_scroll_offset : 0);
         painter.drawLine(QPoint(10, separator_y), QPoint(width() - 10, separator_y));
     }
 }
@@ -1846,11 +1904,18 @@ QPoint TabBar::tab_preview_position_for(int index, QSize const& popup_size) cons
     return position;
 }
 
+// The width of the tabs, which the bar reaches past on the page's side, where the selected tab joins the page's frame.
 int TabBar::vertical_bar_width() const
 {
+    auto tab_width = vertical_tab_width(m_available_width, tab_layout());
     if (auto bar_width = width(); bar_width > 0)
-        return bar_width;
-    return vertical_tab_width(m_available_width, tab_layout());
+        return min(bar_width, tab_width);
+    return tab_width;
+}
+
+int TabBar::vertical_tabs_left() const
+{
+    return vertical_tabs_are_on_right() ? max(0, width() - vertical_bar_width()) : 0;
 }
 
 TabBar::PinnedRegion TabBar::pinned_region() const
@@ -1905,12 +1970,12 @@ QRect TabBar::vertical_tab_rect(int index, PinnedRegion const& region) const
     if (index < region.count) {
         auto row = index / region.columns;
         auto column = index % region.columns;
-        auto top = (row * VERTICAL_TAB_HEIGHT) - (region.scrolls ? m_vertical_scroll_offset : 0);
-        return { column * region.tile_width, top, region.tile_width, VERTICAL_TAB_HEIGHT };
+        auto top = VERTICAL_TAB_FLARE_RADIUS + (row * VERTICAL_TAB_HEIGHT) - (region.scrolls ? m_vertical_scroll_offset : 0);
+        return { vertical_tabs_left() + (column * region.tile_width), top, region.tile_width, VERTICAL_TAB_HEIGHT };
     }
 
     auto unpinned_index = index - region.count;
-    return { 0, region.height + (unpinned_index * VERTICAL_TAB_HEIGHT) - m_vertical_scroll_offset, vertical_bar_width(), VERTICAL_TAB_HEIGHT };
+    return { vertical_tabs_left(), VERTICAL_TAB_FLARE_RADIUS + region.height + (unpinned_index * VERTICAL_TAB_HEIGHT) - m_vertical_scroll_offset, vertical_bar_width(), VERTICAL_TAB_HEIGHT };
 }
 
 int TabBar::tab_index_at(QPoint const& position) const
@@ -1922,17 +1987,23 @@ int TabBar::tab_index_at(QPoint const& position) const
         return -1;
 
     auto region = pinned_region();
-    auto pinned_y = position.y() + (region.scrolls ? m_vertical_scroll_offset : 0);
+    auto y = position.y() - VERTICAL_TAB_FLARE_RADIUS;
+    if (y < 0)
+        return -1;
+    auto pinned_y = y + (region.scrolls ? m_vertical_scroll_offset : 0);
     if (pinned_y < region.height) {
         if (pinned_y >= region.height - PINNED_TABS_SEPARATOR_HEIGHT)
             return -1;
+        auto x = position.x() - vertical_tabs_left();
+        if (x < 0)
+            return -1;
         auto row = pinned_y / VERTICAL_TAB_HEIGHT;
-        auto column = min(position.x() / region.tile_width, region.columns - 1);
+        auto column = min(x / region.tile_width, region.columns - 1);
         auto index = (row * region.columns) + column;
         return index < region.count ? index : -1;
     }
 
-    auto index = region.count + ((position.y() - region.height + m_vertical_scroll_offset) / VERTICAL_TAB_HEIGHT);
+    auto index = region.count + ((y - region.height + m_vertical_scroll_offset) / VERTICAL_TAB_HEIGHT);
     if (index >= count())
         return -1;
 
@@ -1945,7 +2016,7 @@ int TabBar::tab_index_at(QPoint const& position) const
 QSize TabBar::vertical_size_hint(int tab_count) const
 {
     auto region = pinned_region();
-    return { vertical_tab_width(m_available_width, tab_layout()), region.height + (max(0, tab_count - region.count) * VERTICAL_TAB_HEIGHT) };
+    return { vertical_tab_width(m_available_width, tab_layout()), (2 * VERTICAL_TAB_FLARE_RADIUS) + region.height + (max(0, tab_count - region.count) * VERTICAL_TAB_HEIGHT) };
 }
 
 bool TabBar::vertical_tabs_are_on_right() const
@@ -1958,7 +2029,7 @@ int TabBar::max_vertical_scroll_offset() const
     if (tab_layout() == TabLayout::Horizontal)
         return 0;
     auto region = pinned_region();
-    return max(0, region.height + ((count() - region.count) * VERTICAL_TAB_HEIGHT) - height());
+    return max(0, (2 * VERTICAL_TAB_FLARE_RADIUS) + region.height + ((count() - region.count) * VERTICAL_TAB_HEIGHT) - height());
 }
 
 void TabBar::set_vertical_scroll_offset(int offset)
@@ -1987,7 +2058,7 @@ void TabBar::ensure_tab_visible(int index)
         ? (index / region.columns) * VERTICAL_TAB_HEIGHT
         : region.height + ((index - region.count) * VERTICAL_TAB_HEIGHT) - region.fixed_height();
     auto tab_bottom = tab_top + VERTICAL_TAB_HEIGHT;
-    auto visible_height = height() - region.fixed_height();
+    auto visible_height = height() - (2 * VERTICAL_TAB_FLARE_RADIUS) - region.fixed_height();
 
     if (tab_top < m_vertical_scroll_offset)
         set_vertical_scroll_offset(tab_top);
@@ -2310,6 +2381,14 @@ TabWidget::TabWidget(QWidget* parent)
     m_vertical_tab_bar_column->setProperty(VERTICAL_TABS_RESIZE_HANDLE_ACTIVE_PROPERTY, false);
     m_vertical_tab_bar_column->installEventFilter(this);
 
+    m_vertical_tabs_toggle_button = new VerticalTabsToggleButton(m_vertical_tab_bar_column);
+    m_vertical_tabs_toggle_button->setObjectName("LadybirdVerticalTabsToggleButton");
+    m_vertical_tabs_toggle_button->setDefaultAction(create_application_action(*this, Application::the().toggle_vertical_tabs_expanded_action()));
+    m_vertical_tabs_toggle_button->setAutoRaise(true);
+    m_vertical_tabs_toggle_button->setFocusPolicy(Qt::NoFocus);
+    m_vertical_tabs_toggle_button->setIconSize({ 20, 20 });
+    m_vertical_tabs_toggle_button->setFixedSize(VERTICAL_TABS_TOGGLE_BUTTON_SIZE, VERTICAL_TABS_TOGGLE_BUTTON_SIZE);
+
     m_vertical_tabs_content_separator = new QWidget(this);
     m_vertical_tabs_content_separator->setObjectName("LadybirdVerticalTabsContentSeparator");
     m_vertical_tabs_content_separator->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -2457,7 +2536,6 @@ void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
     m_toolbar_container->insertWidget(index, widget->toolbar_container());
 
     widget->set_vertical_tabs_enabled(m_vertical_tabs_enabled);
-    widget->set_vertical_tabs_position(m_vertical_tabs_position);
 #ifdef AK_OS_MACOS
     update_web_view_frame(*widget);
 #endif
@@ -2587,8 +2665,6 @@ void TabWidget::set_vertical_tabs_position(WebView::VerticalTabsPosition positio
 
     m_vertical_tabs_position = position;
     set_vertical_tabs_hover_expanded(false);
-    for (int index = 0; index < m_stacked_widget->count(); ++index)
-        tab(index)->set_vertical_tabs_position(position);
     rebuild_layout();
 }
 
@@ -2633,6 +2709,11 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
 {
     if (watched == m_tab_bar && (event->type() == QEvent::Move || event->type() == QEvent::Resize))
         place_horizontal_new_tab_button();
+
+    if (watched == m_vertical_tab_bar_column && event->type() == QEvent::Paint && !m_vertical_tabs_expanded) {
+        paint_collapsed_vertical_tabs_column();
+        return true;
+    }
 
     if (watched == m_tab_bar_row || watched == m_vertical_tab_bar_column) {
         auto* tab_strip = static_cast<QWidget*>(watched);
@@ -2890,7 +2971,19 @@ int TabWidget::vertical_tabs_layout_width() const
 
 bool TabWidget::should_show_window_controls_in_tab_toolbar() const
 {
-    return m_window_controls_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal;
+    return m_window_controls_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal && !vertical_tabs_hold_window_controls();
+}
+
+// The native window controls sit in the window's top left corner, so the open sidebar on the left holds them.
+bool TabWidget::vertical_tabs_hold_window_controls() const
+{
+    return use_native_macos_window_controls() && m_window_controls_visible && m_vertical_tabs_expanded && !vertical_tabs_are_on_right();
+}
+
+int TabWidget::vertical_tabs_column_top_margin() const
+{
+    // NB: The open sidebar's top row is level with the toolbar, at the top of the window.
+    return m_vertical_tabs_expanded ? 0 : VERTICAL_TABS_TOP_MARGIN;
 }
 
 void TabWidget::update_toolbar_placement()
@@ -2953,15 +3046,25 @@ void TabWidget::rebuild_layout()
 
     if (m_tab_bar->tab_layout() != TabLayout::Horizontal) {
         rebuild_layout_for_vertical_tabs();
-        m_main_layout->addWidget(m_toolbar_container);
-        m_page_column->hide();
+
+        // The open sidebar runs the full height of the window, with the toolbar beside it above the page. The collapsed
+        // sidebar sits below a toolbar across the whole window.
+        QWidget* page = m_stacked_widget;
+        if (m_vertical_tabs_expanded) {
+            rebuild_page_column();
+            page = m_page_column;
+            m_page_column->show();
+        } else {
+            m_main_layout->addWidget(m_toolbar_container);
+            m_page_column->hide();
+        }
 
         if (vertical_tabs_are_on_right()) {
-            m_vertical_tabs_content_layout->addWidget(m_stacked_widget, 1);
+            m_vertical_tabs_content_layout->addWidget(page, 1);
             m_vertical_tabs_content_layout->addWidget(m_vertical_tabs_reserved_space);
         } else {
             m_vertical_tabs_content_layout->addWidget(m_vertical_tabs_reserved_space);
-            m_vertical_tabs_content_layout->addWidget(m_stacked_widget, 1);
+            m_vertical_tabs_content_layout->addWidget(page, 1);
         }
         m_main_layout->addWidget(m_vertical_tabs_content, 1);
         m_vertical_tabs_content->show();
@@ -3026,6 +3129,7 @@ void TabWidget::place_horizontal_new_tab_button()
 
 void TabWidget::rebuild_layout_for_vertical_tabs()
 {
+    update_vertical_tabs_toggle_icon();
     auto reserved_width = vertical_tabs_layout_width();
     auto side_bar_width = current_vertical_tabs_width();
     m_vertical_tabs_reserved_space->setFixedWidth(reserved_width);
@@ -3033,17 +3137,80 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
     set_dynamic_property_if_needed(*m_vertical_tab_bar_column, VERTICAL_TABS_POSITION_PROPERTY, vertical_tabs_position_property_value(m_vertical_tabs_position));
 
     m_vertical_tab_bar_column_layout->setSpacing(0);
-    auto tab_layout = m_tab_bar->tab_layout();
-    auto side_margin = vertical_tabs_side_margin(tab_layout != TabLayout::VerticalCollapsed);
     if (auto* window_controls_layout = m_window_controls->layout())
         window_controls_layout->setContentsMargins(0, 0, 0, 0);
-    m_vertical_tab_bar_column_layout->setContentsMargins(side_margin, VERTICAL_TABS_TOP_MARGIN, side_margin, 8);
+    update_vertical_tabs_column_margins();
 
     update_vertical_tabs_button_layout();
 
+    auto* top_row_layout = new QHBoxLayout;
+    top_row_layout->setSpacing(0);
+    if (m_vertical_tabs_expanded) {
+        // The open sidebar runs the full height of the window. Its top row sits beside the toolbar, and holds the window
+        // controls when they are on its side, with the sidebar's toggle at the edge toward the page.
+        auto page_side_margin = vertical_tabs_side_margin(true);
+        top_row_layout->setContentsMargins(vertical_tabs_are_on_right() ? page_side_margin : 0, 0, vertical_tabs_are_on_right() ? 0 : page_side_margin, 0);
+        top_row_layout->addStrut(Tab::toolbar_height(should_show_window_controls_in_tab_toolbar()));
+        if (vertical_tabs_hold_window_controls())
+            top_row_layout->addSpacing(NATIVE_MACOS_WINDOW_CONTROLS_WIDTH);
+        if (!vertical_tabs_are_on_right())
+            top_row_layout->addStretch(1);
+        top_row_layout->addWidget(m_vertical_tabs_toggle_button, 0, Qt::AlignVCenter);
+        if (vertical_tabs_are_on_right())
+            top_row_layout->addStretch(1);
+    } else {
+        // The collapsed sidebar's toggle sits above its tabs, centered on the collapsed sidebar, and stays put while
+        // the sidebar opens on hover.
+        auto collapsed_tab_width = VERTICAL_TABS_COLLAPSED_WIDTH - vertical_tabs_horizontal_margin_width(TabLayout::VerticalCollapsed);
+        auto inset = (collapsed_tab_width - VERTICAL_TABS_TOGGLE_BUTTON_SIZE) / 2;
+        top_row_layout->setContentsMargins(vertical_tabs_are_on_right() ? 0 : inset, 0, vertical_tabs_are_on_right() ? inset : 0, 0);
+        // NB: The tab bar below leaves room above its first tab.
+        top_row_layout->addStrut(VERTICAL_TAB_HEIGHT - VERTICAL_TAB_FLARE_RADIUS);
+        if (vertical_tabs_are_on_right())
+            top_row_layout->addStretch(1);
+        top_row_layout->addWidget(m_vertical_tabs_toggle_button, 0, Qt::AlignVCenter);
+        if (!vertical_tabs_are_on_right())
+            top_row_layout->addStretch(1);
+    }
+    m_vertical_tab_bar_column_layout->addLayout(top_row_layout);
+    if (m_vertical_tabs_expanded)
+        m_vertical_tab_bar_column_layout->addSpacing(VERTICAL_TABS_TOP_MARGIN - VERTICAL_TAB_FLARE_RADIUS);
+
     m_vertical_tab_bar_column_layout->addWidget(m_tab_bar);
-    m_vertical_tab_bar_column_layout->addWidget(m_new_tab_button);
+    m_vertical_tab_bar_column_layout->addWidget(m_new_tab_button, 0, vertical_tabs_are_on_right() ? Qt::AlignRight : Qt::AlignLeft);
     m_vertical_tab_bar_column_layout->addStretch(1);
+}
+
+// The collapsed sidebar sits below the toolbar, which flows around its rounded corner beside the page into the frame
+// around the page.
+void TabWidget::paint_collapsed_vertical_tabs_column()
+{
+    QPainter painter(m_vertical_tab_bar_column);
+    QStyleOption option;
+    option.initFrom(m_vertical_tab_bar_column);
+    m_vertical_tab_bar_column->style()->drawPrimitive(QStyle::PE_Widget, &option, &painter, m_vertical_tab_bar_column);
+
+    auto radius = VERTICAL_TABS_COLLAPSED_CORNER_RADIUS;
+    auto page_edge = vertical_tabs_are_on_right() ? 0.0 : static_cast<qreal>(m_vertical_tab_bar_column->width());
+    auto corner_left = vertical_tabs_are_on_right() ? page_edge : page_edge - radius;
+
+    QPainterPath corner;
+    corner.addRect(corner_left, 0, radius, radius);
+    QPainterPath inside;
+    inside.addEllipse(QPointF(vertical_tabs_are_on_right() ? page_edge + radius : page_edge - radius, radius), radius, radius);
+
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.fillPath(corner.subtracted(inside), ChromeStyle::chrome_background(palette()));
+}
+
+void TabWidget::update_vertical_tabs_column_margins()
+{
+    // NB: The tab bar reaches the page's side of the sidebar, where its selected tab joins the page's frame, so the
+    //     column has no margin on that side.
+    auto side_margin = vertical_tabs_side_margin(m_tab_bar->tab_layout() != TabLayout::VerticalCollapsed);
+    auto left = vertical_tabs_are_on_right() ? 0 : side_margin;
+    auto right = vertical_tabs_are_on_right() ? side_margin : 0;
+    m_vertical_tab_bar_column_layout->setContentsMargins(left, vertical_tabs_column_top_margin(), right, 8);
 }
 
 void TabWidget::rebuild_page_column()
@@ -3141,12 +3308,9 @@ void TabWidget::update_vertical_tabs_hover_layout()
     m_tab_bar->set_pinned_tabs_in_rows(m_vertical_tabs_hover_expanded && !m_vertical_tabs_expanded);
     m_tab_bar->set_tab_layout(current_tab_layout());
 
-    auto tab_layout = m_tab_bar->tab_layout();
-    auto side_margin = vertical_tabs_side_margin(tab_layout != TabLayout::VerticalCollapsed);
-
     m_tab_bar->set_vertical_tabs_position(m_vertical_tabs_position);
     set_dynamic_property_if_needed(*m_vertical_tab_bar_column, VERTICAL_TABS_POSITION_PROPERTY, vertical_tabs_position_property_value(m_vertical_tabs_position));
-    m_vertical_tab_bar_column_layout->setContentsMargins(side_margin, VERTICAL_TABS_TOP_MARGIN, side_margin, 8);
+    update_vertical_tabs_column_margins();
     update_vertical_tabs_button_layout();
 
     update_tab_button_visibility();
@@ -3155,7 +3319,8 @@ void TabWidget::update_vertical_tabs_hover_layout()
 
 QRect TabWidget::vertical_tabs_chrome_rect() const
 {
-    auto chrome_height = m_toolbar_container->height();
+    // NB: The open sidebar runs the full height of the window, and the collapsed one starts below the toolbar.
+    auto chrome_height = m_vertical_tabs_expanded ? 0 : m_toolbar_container->height();
     auto chrome_width = current_vertical_tabs_width();
     return {
         vertical_tabs_are_on_right() ? max(0, width() - chrome_width) : 0,
@@ -3279,9 +3444,21 @@ void TabWidget::update_web_view_frame(Tab& tab)
 void TabWidget::recreate_icons()
 {
     m_tab_bar->recreate_icons();
+    update_vertical_tabs_toggle_icon();
     m_new_tab_button->setIcon(create_chrome_icon(ChromeIcon::NewTab, palette()));
     update_vertical_tabs_action_labels();
     update_window_button_icons();
+}
+
+void TabWidget::update_vertical_tabs_toggle_icon()
+{
+    // NB: The icons are first made before the sidebar and its toggle are.
+    if (!m_vertical_tabs_toggle_button)
+        return;
+    auto icon = vertical_tabs_are_on_right()
+        ? (m_vertical_tabs_expanded ? ChromeIcon::VerticalTabBarCollapseRight : ChromeIcon::VerticalTabBarExpandRight)
+        : (m_vertical_tabs_expanded ? ChromeIcon::VerticalTabBarCollapse : ChromeIcon::VerticalTabBarExpand);
+    m_vertical_tabs_toggle_button->defaultAction()->setIcon(create_chrome_icon(icon, palette()));
 }
 
 void TabWidget::update_chrome_style()

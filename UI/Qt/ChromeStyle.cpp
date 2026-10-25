@@ -1193,10 +1193,8 @@ QWidget#LadybirdDevToolsBanner QPushButton:pressed {{
 QString tab_widget_style_sheet(QPalette const& palette)
 {
     auto dark = is_dark(palette);
-    auto chrome_background_color = chrome_background(palette);
-    auto background = style_sheet_color(chrome_tab_strip_background(palette));
-    // The sidebar shares the toolbar's color, so the toolbar and the sidebar frame the page as one surface.
-    auto sidebar_background = style_sheet_color(chrome_background_color);
+    auto tab_strip_background = chrome_tab_strip_background(palette);
+    auto background = style_sheet_color(tab_strip_background);
     auto hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto control_border = style_sheet_color(chrome_control_border(palette));
@@ -1205,7 +1203,7 @@ QString tab_widget_style_sheet(QPalette const& palette)
     auto close_text = style_sheet_color(chrome_destructive_text());
     auto sidebar_separator = style_sheet_color(chrome_content_separator(palette));
     // The sidebar's edge shows up clearly while it can be dragged, to show that the sidebar can be resized.
-    auto sidebar_separator_hover = style_sheet_color(mix(chrome_background_color, chrome_text(palette), dark ? 0.30 : 0.28));
+    auto sidebar_separator_hover = style_sheet_color(mix(tab_strip_background, chrome_text(palette), dark ? 0.30 : 0.28));
 
     return qformatted(R"(
 QWidget#LadybirdTabStrip {{
@@ -1216,7 +1214,7 @@ QWidget#LadybirdTabStrip {{
 
 QWidget#LadybirdVerticalTabBar {{
     color: {4};
-    background: {9};
+    background: {0};
     border: 0;
     border-right: 1px solid {7};
 }}
@@ -1235,6 +1233,12 @@ QWidget#LadybirdVerticalTabBar[verticalTabsPosition="right"][hovered="true"],
 QWidget#LadybirdVerticalTabBar[verticalTabsPosition="right"][active="true"] {{
     border-right: 0;
     border-left: 1px solid {8};
+}}
+
+QToolButton#LadybirdVerticalTabsToggleButton {{
+    background: transparent;
+    border: 0;
+    padding: 0;
 }}
 
 QWidget#LadybirdVerticalTabsResizeHandle {{
@@ -1370,7 +1374,7 @@ QWidget#LadybirdVerticalTabsContentSeparator {{
 )"
 #endif
         ,
-        background, hover, pressed, control_border, text, close_hover, close_text, sidebar_separator, sidebar_separator_hover, sidebar_background);
+        background, hover, pressed, control_border, text, close_hover, close_text, sidebar_separator, sidebar_separator_hover);
 }
 
 QString autocomplete_popup_style_sheet(QPalette const& palette)
