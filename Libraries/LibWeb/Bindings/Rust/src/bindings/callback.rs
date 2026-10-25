@@ -106,7 +106,7 @@ impl CallbackFunction {
             web_bindings_invoke_callback_function(
                 self.0.0.as_ptr(),
                 this_value.is_some(),
-                this_value.unwrap_or(Value::UNDEFINED).0,
+                this_value.unwrap_or(Value::UNDEFINED).to_raw(),
                 ak::Span::new(arguments),
             )
         }
@@ -129,7 +129,7 @@ impl PromiseCallbackFunction {
             promise_from_abi(web_bindings_invoke_promise_callback_function(
                 self.0.0.as_ptr(),
                 this_value.is_some(),
-                this_value.unwrap_or(Value::UNDEFINED).0,
+                this_value.unwrap_or(Value::UNDEFINED).to_raw(),
                 ak::Span::new(arguments),
             ))
         }

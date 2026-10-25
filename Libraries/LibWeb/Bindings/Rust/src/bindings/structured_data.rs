@@ -67,7 +67,7 @@ impl SerializationWriter<'_> {
     /// https://html.spec.whatwg.org/multipage/structured-data.html#sub-serialization
     pub(crate) fn write_value(&mut self, value: Value) -> WebIdlResult<()> {
         // SAFETY: The writer is lent for the steps, and the value is live while they run.
-        unsafe { web_bindings_serialize_value(self.raw.as_ptr(), value.0) }.into_completion()?;
+        unsafe { web_bindings_serialize_value(self.raw.as_ptr(), value.to_raw()) }.into_completion()?;
         Ok(())
     }
 

@@ -406,8 +406,13 @@ fn run_with_temporary_execution_context<F: FnOnce() -> R, R>(realm: Gc<Realm>, c
 pub(crate) fn rejected_promise(vm: &Vm, throw: Throw) -> Value {
     let current_realm = vm.current_realm().expect("a native function runs in a realm");
     // SAFETY: The realm is live, and the values are live while the native function runs.
-    let promise =
-        unsafe { web_bindings_rejected_promise(current_realm.as_ptr().cast(), vm.this_value().0, throw.value().0) };
+    let promise = unsafe {
+        web_bindings_rejected_promise(
+            current_realm.as_ptr().cast(),
+            vm.this_value().to_raw(),
+            throw.value().to_raw(),
+        )
+    };
     let promise = NonNull::new(promise.cast::<Object>()).expect("LibWeb returns the promise");
     // SAFETY: LibWeb returns a live promise.
     Value::from_object(unsafe { Gc::from_non_null(promise) })

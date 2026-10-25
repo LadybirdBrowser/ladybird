@@ -108,7 +108,7 @@ pub(crate) fn structured_clone(cx: &CallContext, value: Value) -> WebIdlResult<V
     // 1. Let serialized be ? StructuredSerialize(v).
     // 2. Return ? StructuredDeserialize(serialized, the current Realm).
     // SAFETY: The realm and the value are live.
-    Ok(unsafe { web_streams_structured_clone(cx.realm().as_ptr().cast(), value.0) }.into_completion()?)
+    Ok(unsafe { web_streams_structured_clone(cx.realm().as_ptr().cast(), value.to_raw()) }.into_completion()?)
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-cancopydatablockbytes
