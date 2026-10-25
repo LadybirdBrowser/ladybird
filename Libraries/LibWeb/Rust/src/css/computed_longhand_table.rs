@@ -591,6 +591,9 @@ pub struct ComputedLonghandTable {
     /// The longhands the table's `transition-*` values make transitionable, resolved once per
     /// frozen table because every drive seeded from it asks for them.
     frozen_transition_longhands: OnceLock<Box<[u16]>>,
+    /// https://drafts.csswg.org/css-viewport/#effective-zoom
+    /// The product of the computed value of zoom and the computed values of zoom of all flat tree ancestors.
+    effective_zoom: f32,
     frozen: bool,
 }
 
@@ -649,6 +652,7 @@ impl ComputedLonghandTable {
             overflow_before_adjustment: None,
             slot_hash_sum: MemoizedHashSum::default(),
             frozen_transition_longhands: OnceLock::new(),
+            effective_zoom: 1.0,
             frozen: false,
         }
     }
@@ -936,6 +940,20 @@ impl ComputedLonghandTable {
         self.metadata = source.metadata;
         self.overflow_before_adjustment = source.overflow_before_adjustment;
         self.raw_cascaded_font_size.clone_from(&source.raw_cascaded_font_size);
+        self.effective_zoom = source.effective_zoom;
+    }
+
+    /// https://drafts.csswg.org/css-viewport/#effective-zoom
+    pub(crate) fn effective_zoom(&self) -> f32 {
+        self.effective_zoom
+    }
+
+    pub(crate) fn set_effective_zoom(&mut self, effective_zoom: f32) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        self.effective_zoom = effective_zoom;
     }
 
     fn copy_from(&mut self, source: &ComputedLonghandTable) {
@@ -1292,6 +1310,7 @@ impl ComputedLonghandTable {
         use crate::css::style_value::{optional_style_values_equal, retained_style_values_equal};
         self.important_bits == other.important_bits
             && self.inherited_bits == other.inherited_bits
+            && self.effective_zoom.to_bits() == other.effective_zoom.to_bits()
             && self.publication_sidecars() == other.publication_sidecars()
             && self.publication_dependency_flags() == other.publication_dependency_flags()
             && self.pseudo_element_styles() == other.pseudo_element_styles()

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  border-image-outset: 5px;
+  display: inline-block;
+  padding: 10px;
+}
+.container {
+  border: 10px solid red;
+  border-image: url("../../../../images/green.png") 2;
+}
+.container-zoom {
+  border: 20px solid red;
+  border-image: url("../../../../images/green.png") 2;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="border-image-outset: 5px;">
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="border-image-outset: 5px;">
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container-zoom" style="border-image-outset: 10px;">
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container-zoom" style="border-image-outset: 10px;">
+    </div>
+  </div>
+</div>
+</body>
+</html>

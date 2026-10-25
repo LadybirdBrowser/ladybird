@@ -870,6 +870,8 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
 
     // The longhands other longhands' computation reads, which are computed first.
     let manual_order = [
+        // zoom is required to compute every length, including font-size.
+        "zoom",
         // math-depth is required to compute font-size.
         "math-depth",
         // Font properties are required to absolutize font-relative units used in other properties, including line-height.

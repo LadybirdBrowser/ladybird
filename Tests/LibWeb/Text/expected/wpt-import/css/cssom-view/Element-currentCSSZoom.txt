@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	Element.currentCSSZoom basic test
-Fail	Element.currentCSSZoom reacts to style changes
+2 Pass
+Pass	Element.currentCSSZoom basic test
+Pass	Element.currentCSSZoom reacts to style changes

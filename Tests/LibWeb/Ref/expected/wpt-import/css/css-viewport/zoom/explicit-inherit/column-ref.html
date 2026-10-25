@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>column:inherit applies zoom (ref)</title>
+<link rel=help href=https://drafts.csswg.org/css-viewport/>
+<style>
+  .zoomed {
+    background: skyblue;
+    font-size: 32px;
+    width: 600px;
+    height: 400px;
+    column-width: 80px;
+    column-height: 300px;
+    column-gap: 20px;
+    column-rule-color: black;
+    column-rule-style: solid;
+    column-rule-width: 10px;
+    column-fill: auto;
+  }
+  .inner {
+    background: coral;
+  }
+</style>
+<div class=zoomed>
+  <div class=inner>1</div>
+  <div class=inner>2</div>
+  <div class=inner>3</div>
+  <div class=inner>4</div>
+  <div class=inner>5</div>
+  <div class=inner>6</div>
+  <div class=inner>7</div>
+  <div class=inner>8</div>
+  <div class=inner>9</div>
+  <div class=inner>10</div>
+  <div class=inner>11</div>
+  <div class=inner>12</div>
+  <div class=inner>13</div>
+  <div class=inner>14</div>
+</div>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to transform: perspective()</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/transform-perspective-ref.html">
+<meta name="fuzzy" content="maxDifference=0-62; totalPixels=0-40">
+<style>
+.box {
+  padding: 10px;
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+.box-zoom {
+  padding: 5px;
+  width: 50px;
+  height: 50px;
+  background: red;
+}
+.outer {
+  border: solid black 1px;
+  display: inline-block;
+  width: 200px;
+  height: 200px;
+  overflow: clip;
+}
+.container {
+  width: 200px;
+  height: 200px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each box below should match the corresponding box in references/transform-perspective-ref.html</p>
+<div class="outer">
+  <div class="container">
+    <div class="box" style="transform: perspective(100px) rotateY(60deg); zoom: 1;"></div>
+  </div>
+</div>
+<div class="spacer"></div>
+<div class="outer" >
+  <div class="container" style="transform: perspective(100px) rotateY(60deg);">
+    <div class="box" style="transform: inherit; zoom: 1;"></div>
+  </div>
+</div>
+<div class="spacer"></div>
+<div class="outer">
+  <div class="container">
+    <div class="box-zoom"  style="transform: perspective(50px) rotateY(60deg); zoom: 2;"></div>
+  </div>
+</div>
+<div class="spacer"></div>
+<div class="outer">
+  <div class="container" style="transform: perspective(50px) rotateY(60deg);">
+    <div class="box-zoom" style="transform: inherit; zoom: 2;"></div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  border: solid black 1px;
+  display: inline-block;
+  width: 300px;
+  height: 200px;
+  overflow: clip;
+}
+.outer > p {
+  margin: 0;
+}
+.rect {
+  float: left;
+  width: 200px;
+  height: 200px;
+  margin: 0px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="rect" style="shape-outside: rect(40px 140px 160px 0 round 60px);"></div>
+    <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="rect" style="shape-outside: rect(40px 140px 160px 0 round 60px);"></div>
+    <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="rect" style="shape-outside: rect(40px 140px 160px 0 round 60px);"></div>
+    <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="rect" style="shape-outside: rect(40px 140px 160px 0 round 60px);"></div>
+    <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+  </div>
+</div>
+</body>
+</html>

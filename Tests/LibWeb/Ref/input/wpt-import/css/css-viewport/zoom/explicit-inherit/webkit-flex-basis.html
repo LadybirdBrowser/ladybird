@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>-webkit-flex-basis:inherit applies zoom</title>
+<link rel=help href=https://drafts.csswg.org/css-flexbox/>
+<link rel=help href=https://drafts.csswg.org/css-viewport/>
+<link rel=help href=https://compat.spec.whatwg.org/#propdef--webkit-flex-basis>
+<link rel=match href=../../../../../../expected/wpt-import/css/css-viewport/zoom/explicit-inherit/flex-basis-ref.html>
+<style>
+  .container {
+    display: flex;
+    background: skyblue;
+    -webkit-flex-basis: 50px; /* For explicit inheritance. */
+  }
+  .zoomed {
+    background: coral;
+    -webkit-flex-basis: inherit;
+    height: 100px;
+    zoom: 2;
+  }
+</style>
+<div class=container>
+  <div class=zoomed></div>
+</div>

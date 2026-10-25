@@ -69,6 +69,9 @@ pub struct InheritedBoxValues {
     pub content_visibility: u8,
     pub image_rendering: u8,
     pub text_orientation: u8,
+    /// https://drafts.csswg.org/css-viewport/#effective-zoom
+    /// The bits of the effective zoom, as an `f32`.
+    pub effective_zoom_bits: u32,
 }
 
 impl ComputedStyleValueHandle {
@@ -335,6 +338,7 @@ impl_content_hash_by_field!(InheritedBoxValues {
     content_visibility,
     image_rendering,
     text_orientation,
+    effective_zoom_bits,
 });
 // The anchor-inset wrappers are pure derivatives of the anchor-inset fields, so payload equality
 // excludes them and the hash follows it field for field.
@@ -2809,6 +2813,7 @@ pub(crate) fn build_inherited_box_group(
     content_visibility: &RetainedStyleValueData,
     image_rendering: &RetainedStyleValueData,
     text_orientation: &RetainedStyleValueData,
+    effective_zoom: f32,
     parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
@@ -2829,6 +2834,7 @@ pub(crate) fn build_inherited_box_group(
         ),
         image_rendering: keyword_code(image_rendering, crate::css::style_compute::keyword_to_image_rendering),
         text_orientation: keyword_code(text_orientation, crate::css::style_compute::keyword_to_text_orientation),
+        effective_zoom_bits: effective_zoom.to_bits(),
     };
 
     share_or_publish_group_payload::<InheritedBoxValues>(group_index, built, parent)
@@ -4230,7 +4236,13 @@ impl InheritedBoxValues {
             content_visibility: content_visibility::VISIBLE,
             image_rendering: image_rendering::AUTO,
             text_orientation: text_orientation::MIXED,
+            effective_zoom_bits: 1.0f32.to_bits(),
         }
+    }
+
+    /// https://drafts.csswg.org/css-viewport/#effective-zoom
+    pub(crate) fn effective_zoom(&self) -> f32 {
+        f32::from_bits(self.effective_zoom_bits)
     }
 }
 

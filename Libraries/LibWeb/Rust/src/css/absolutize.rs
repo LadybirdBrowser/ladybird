@@ -1814,7 +1814,24 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             values,
         } => {
             let mut changed = false;
-            let values = absolutize_list(values, context, &mut changed)?;
+            let mut values = absolutize_list(values, context, &mut changed)?;
+            // https://drafts.csswg.org/css-viewport/#zoom-property
+            // NB: The translation of a matrix is a length given in pixels, which zoom applies to as it does to a
+            //     <length>.
+            let translation = match *transform_function {
+                crate::css::serialize::transform_function::MATRIX => 4..6,
+                crate::css::serialize::transform_function::MATRIX3D => 12..15,
+                _ => 0..0,
+            };
+            let zoom = context.length.zoom;
+            if zoom != 1.0 && !translation.is_empty() && values.len() >= translation.end {
+                for value in &mut values[translation] {
+                    if let Some(StyleValueData::Number { value: number }) = value.optional_data() {
+                        *value = retain_new(StyleValueData::Number { value: number * zoom });
+                        changed = true;
+                    }
+                }
+            }
             rebuild!(
                 changed,
                 StyleValueData::Transformation {

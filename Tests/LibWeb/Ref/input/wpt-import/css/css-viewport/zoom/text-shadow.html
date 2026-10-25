@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to text-shadow when specified and inherited</title>
+<link rel="author" title="Stefan Zager" href="mailto:szager@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/text-shadow-ref.html">
+
+<style>
+.shadow {
+  text-shadow: 5px 5px hotpink;
+}
+.zoom {
+  zoom: 2;
+}
+</style>
+
+<div class="shadow">unzoomed</div>
+<div class="zoom"><div class="shadow">zoomed</div></div>
+<div class="shadow"><div class="zoom">zoomed inherited</div></div>

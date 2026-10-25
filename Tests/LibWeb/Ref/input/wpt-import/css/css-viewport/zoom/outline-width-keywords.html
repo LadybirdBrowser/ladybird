@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>CSS zoom applies to outline-width keywords</title>
+  <link rel="help" href="https://drafts.csswg.org/css-viewport/">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/outline-width-keywords-ref.html">
+  <style>
+    .initial {
+      width: 50px;
+      height: 50px;
+      margin-bottom: 10px;
+      outline-color: blue;
+      outline-style: solid;
+      outline-width: initial;
+      zoom: 2;
+    }
+
+    .thin {
+      width: 50px;
+      height: 50px;
+      margin-bottom: 10px;
+      outline: thin solid blue;
+      zoom: 2;
+    }
+
+    .medium {
+      width: 50px;
+      height: 50px;
+      margin-bottom: 10px;
+      outline: medium solid blue;
+      zoom: 2;
+    }
+
+    .thick {
+      width: 50px;
+      height: 50px;
+      margin-bottom: 10px;
+      outline: thick solid blue;
+      zoom: 2;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="initial"></div>
+  <div class="thin"></div>
+  <div class="medium"></div>
+  <div class="thick"></div>
+</body>
+
+</html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>-webkit-border-radius:inherit applies zoom</title>
+<link rel=help href=https://drafts.csswg.org/css-viewport/>
+<link rel=help href=https://compat.spec.whatwg.org/#propdef--webkit-border-radius>
+<link rel=match href=../../../../../../expected/wpt-import/css/css-viewport/zoom/explicit-inherit/border-radius-ref.html>
+<style>
+  .zoomed {
+    background: coral;
+    width: 100px;
+    height: 100px;
+    border: 5px solid black;
+    -webkit-border-radius: inherit;
+    zoom: 2;
+  }
+</style>
+<div style="-webkit-border-radius:20px; display:contents">
+  <div class=zoomed></div>
+</div>

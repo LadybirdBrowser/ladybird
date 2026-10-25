@@ -216,6 +216,20 @@ impl RetainedState {
             ancestor = self.tree.inheritance_parent(node);
         }
         views.reverse();
+        let mut inherited_zoom = 1.0;
+        let zooms: Vec<_> = views
+            .iter()
+            .map(|(_, view)| {
+                if let Some(table) = view.as_ref().and_then(|view| view.longhand_table) {
+                    inherited_zoom = f64::from(table.effective_zoom());
+                }
+                inherited_zoom
+            })
+            .collect();
+        let applies_zoom_at = |index: usize| {
+            self.computed_group_sets.adjustment_facts(views[index].0) & bridge::element_adjustment_fact::IS_SVG_ELEMENT
+                == 0
+        };
         let value_at = |index: usize| {
             views[index]
                 .1
@@ -228,6 +242,8 @@ impl RetainedState {
         let mut batch = recascade_font_size_batch(
             views.len(),
             value_at,
+            |index| zooms[index],
+            applies_zoom_at,
             0,
             default_size,
             false,
@@ -237,13 +253,25 @@ impl RetainedState {
         );
         while batch.status != FontSizeRecascadeStatus::Complete {
             let index = batch.next_index;
+            let zoom = zooms[index];
+            let parent_zoom = index.checked_sub(1).map_or(1.0, |parent| zooms[parent]);
+            let applies_zoom = applies_zoom_at(index);
+            let own_zoom = if applies_zoom { zoom / parent_zoom } else { 1.0 };
+            let inherited_size = CssPixels::from_raw(batch.current_size_raw).scaled(own_zoom);
+            let root_zoom = if !applies_zoom {
+                1.0
+            } else if inputs.root_effective_zoom > 0.0 {
+                zoom / inputs.root_effective_zoom
+            } else {
+                zoom
+            };
             // AD-HOC: C++ measures the platform's monospace font directly, where this resolves the
             //         generic `monospace` family like any other request. The two differ only where
             //         an @font-face takes the platform monospace font's name.
             let request = bridge::FfiFontResolutionRequest {
                 font_family: bridge::FfiHostHandle::from_pointer(self.monospace_font_family.pointer().cast()),
                 font_feature_values: [bridge::FfiHostHandle::default(); bridge::FONT_RESOLUTION_FEATURE_INPUT_COUNT],
-                font_size_raw: batch.current_size_raw,
+                font_size_raw: inherited_size.raw_value(),
                 font_slope: 0,
                 font_weight: 400.0,
                 font_width: 100.0,
@@ -273,7 +301,7 @@ impl RetainedState {
                             .deref()
                     };
                     (
-                        font.line_height_used.to_double(),
+                        font.line_height_used.to_double() * own_zoom,
                         view.dependency_flags & FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS != 0,
                     )
                 });
@@ -290,18 +318,18 @@ impl RetainedState {
                 viewport_width: inputs.viewport_width,
                 viewport_height: inputs.viewport_height,
                 font_metrics: FfiFontMetrics {
-                    font_size: CssPixels::from_raw(batch.current_size_raw).to_double(),
+                    font_size: inherited_size.to_double(),
                     x_height: drive_font_metric(resolved.x_height),
                     cap_height: drive_font_metric(resolved.ascent),
                     zero_advance: drive_font_metric(resolved.zero_advance),
                     line_height,
                 },
                 root_font_metrics: FfiFontMetrics {
-                    font_size: inputs.root_font_size,
-                    x_height: inputs.root_font_x_height,
-                    cap_height: inputs.root_font_cap_height,
-                    zero_advance: inputs.root_font_zero_advance,
-                    line_height: inputs.root_line_height,
+                    font_size: inputs.root_font_size * root_zoom,
+                    x_height: inputs.root_font_x_height * root_zoom,
+                    cap_height: inputs.root_font_cap_height * root_zoom,
+                    zero_advance: inputs.root_font_zero_advance * root_zoom,
+                    line_height: inputs.root_line_height * root_zoom,
                 },
                 font_metrics_depend_on_viewport_metrics: batch.depends_on_viewport_metrics
                     || inherited_font_metrics_depend_on_viewport_metrics,
@@ -314,12 +342,15 @@ impl RetainedState {
                 container_height_basis_depends_on_viewport_metrics: false,
                 subject_inline_axis_is_horizontal,
                 resolved_viewport_relative_length: std::ptr::null_mut(),
+                zoom: if applies_zoom { zoom } else { 1.0 },
             };
             // The ancestor's container-relative font size resolves against its own containers.
             self.container_unit_bases(*ancestor_node).apply_to(&mut context);
             batch = recascade_font_size_batch(
                 views.len(),
                 value_at,
+                |index| zooms[index],
+                applies_zoom_at,
                 index,
                 batch.current_size_raw,
                 batch.depends_on_viewport_metrics,
@@ -463,6 +494,7 @@ impl RetainedState {
             subject_inline_axis_is_horizontal: inherited_box.writing_mode
                 == crate::css::css_enums::writing_mode::HORIZONTAL_TB,
             resolved_viewport_relative_length: &raw mut resolved_viewport_relative_length,
+            zoom: 1.0,
         };
         if reads_container_units {
             self.container_unit_bases(node).apply_to(&mut length);
@@ -497,6 +529,7 @@ impl RetainedState {
             device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
             initial_font_size_raw: inputs.initial_font_size_raw,
             default_font_size_raw: inputs.default_font_size_raw,
+            root_effective_zoom: inputs.root_effective_zoom,
         };
         let mut table = view.longhand_table_for_partial_drive();
         let mut results = empty_longhand_driver_results();
@@ -872,6 +905,7 @@ impl RetainedState {
             device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
             initial_font_size_raw: inputs.initial_font_size_raw,
             default_font_size_raw: inputs.default_font_size_raw,
+            root_effective_zoom: inputs.root_effective_zoom,
         };
         let mut resolved_viewport_relative_length = false;
         let resolved_viewport_relative_length_pointer = &raw mut resolved_viewport_relative_length;
@@ -898,6 +932,7 @@ impl RetainedState {
                 container_height_basis_depends_on_viewport_metrics: false,
                 subject_inline_axis_is_horizontal,
                 resolved_viewport_relative_length: resolved_viewport_relative_length_pointer,
+                zoom: 1.0,
             };
             if let Some(bases) = &container_unit_bases {
                 bases.apply_to(&mut length);
@@ -1077,6 +1112,7 @@ impl RetainedState {
                     line_height_before_adjustments.to_bits(),
                 ],
                 depends_on_viewport: results.font_metrics_depend_on_viewport_metrics,
+                effective_zoom: f64::from(table.effective_zoom()).to_bits(),
             };
             font_scratch.pending = Some(PendingFontDrive {
                 target,

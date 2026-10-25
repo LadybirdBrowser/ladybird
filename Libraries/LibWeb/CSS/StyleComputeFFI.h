@@ -55,6 +55,7 @@ inline ComputedValuesFFI::FfiLengthResolutionContext to_ffi_length_resolution_co
         .container_height_basis_depends_on_viewport_metrics = false,
         .subject_inline_axis_is_horizontal = context.subject_inline_axis_is_horizontal,
         .resolved_viewport_relative_length = context.viewport_metric_dependency_flag(),
+        .zoom = 1,
     };
 }
 

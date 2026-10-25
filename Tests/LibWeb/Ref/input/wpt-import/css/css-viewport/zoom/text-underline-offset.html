@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to text-underline-offset when specified and inherited</title>
+<link rel="author" title="Stefan Zager" href="mailto:szager@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/text-underline-offset-ref.html">
+
+<style>
+.underline-offset {
+  text-underline-offset: 5px;
+}
+.zoom {
+  zoom: 2;
+}
+#unzoomed, #zoomed, #zoomed-inherited {
+  text-decoration: underline hotpink;
+}
+</style>
+
+<div id="unzoomed" class="underline-offset">unzoomed</div>
+<div class="zoom"><div id="zoomed" class="underline-offset">zoomed</div></div>
+<div class="underline-offset"><div id="zoomed-inherited" class="zoom">zoomed inherited</div></div>

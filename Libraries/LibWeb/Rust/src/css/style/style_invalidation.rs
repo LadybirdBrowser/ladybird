@@ -556,7 +556,12 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
         result.repaint_text_decorations = property != property_id::COLOR
             || old.text_reset().text_decoration_color != new.text_reset().text_decoration_color;
     }
-    if matches!(property, property_id::DIRECTION | property_id::WRITING_MODE) {
+    // https://drafts.csswg.org/css-viewport/#effective-zoom
+    // NB: The lengths of each descendant are zoomed by its effective zoom, which the element's zoom is part of.
+    if matches!(
+        property,
+        property_id::DIRECTION | property_id::WRITING_MODE | property_id::ZOOM
+    ) {
         result.recompute_descendants = true;
     }
     if property == property_id::VISIBILITY {

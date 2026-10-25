@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to width when specified and inherited</title>
+<link rel="author" title="Chris Harrelson" href="mailto:chrishtr@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-viewport/zoom/explicit-inherit/width-ref.html">
+<style>
+  #parent {
+    width: 100px;
+    background: red;
+  }
+  #child-zoomed {
+    zoom: 2;
+    width: inherit;
+    background: lime;
+    height: 100px;
+  }
+  #child {
+    width: 200px;
+    height: 200px;
+    background: green;
+  }
+</style>
+<p>You should see two squares below. One lime, and one green.</p>
+<div id="parent">
+  <div id="child-zoomed"></div>
+  <div id="child"></div>
+</div>

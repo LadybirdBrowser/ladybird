@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+canvas {
+  width: 600px;
+  height: 200px;
+}
+</style>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const ctx = document.getElementById("canvas").getContext("2d");
+  ctx.font = "48px serif";
+  ctx.fillText(ctx.font, 10, 50);
+});
+</script>
+<canvas id="canvas" width="300" height="100"></canvas>

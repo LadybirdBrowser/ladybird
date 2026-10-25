@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>max-width:inherit applies zoom</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-viewport/zoom/explicit-inherit/../green-square-100px.html">
+<style>
+  div > div {
+    background-color: green;
+  }
+</style>
+<div style="max-width:50px">
+  <div style="zoom:2; max-width:inherit; height:50px; width:300px;"></div>
+</div>

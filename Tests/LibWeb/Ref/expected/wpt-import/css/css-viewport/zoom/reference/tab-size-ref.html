@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  display: inline-block;
+  tab-size: 40px;
+  border: solid black 1px;
+}
+.container {
+  display: inline-block;
+  font-size: 16px;
+}
+.container-zoom {
+  display: inline-block;
+  font-size: 32px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <pre class="container" style="tab-size: 40px;">	hello</pre>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <pre class="container" style="tab-size: 40px;">	hello</pre>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <pre class="container-zoom" style="tab-size: 80px;">	hello</pre>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <pre class="container-zoom" style="tab-size: 80px;">	hello</pre>
+  </div>
+</div>
+</body>
+</html>

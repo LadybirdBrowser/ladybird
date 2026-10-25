@@ -385,7 +385,8 @@ All properties associated with getComputedStyle(document.body):
     "will-change",
     "x",
     "y",
-    "z-index"
+    "z-index",
+    "zoom"
 ]
 All properties associated with document.body.style by default:
 []

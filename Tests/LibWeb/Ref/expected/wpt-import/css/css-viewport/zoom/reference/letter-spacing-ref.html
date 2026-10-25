@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to letter-spacing when specified and inherited</title>
+<link rel="author" title="Stefan Zager" href="mailto:szager@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<div style="letter-spacing: 2px; font-size: 12px">
+  12px font text with 2px letter-spacing
+</div>
+
+<hr>
+
+<div style="letter-spacing: 4px; font-size: 24px;">
+  12px font zoomed text with 2px letter-spacing
+</div>
+
+<hr>
+
+<div style="letter-spacing: 2px; font-size: 12px">
+  <div style="letter-spacing: 4px; font-size: 24px">
+    12px font zoomed inherited text with 2px letter-spacing
+  </div>
+</div>
+
+<hr>

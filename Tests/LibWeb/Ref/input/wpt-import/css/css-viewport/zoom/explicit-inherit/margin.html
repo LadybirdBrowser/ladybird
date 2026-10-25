@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<title>margin:inherit applies zoom</title>
+<link rel=help href=https://drafts.csswg.org/css-viewport/>
+<link rel=match href=../../../../../../expected/wpt-import/css/css-viewport/zoom/explicit-inherit/margin-ref.html>
+<style>
+  .zoomed {
+    background: coral;
+    width: 50px;
+    height: 50px;
+    zoom: 2;
+    margin: inherit;
+  }
+</style>
+<div style="margin:10px; display:contents">
+  <div class=zoomed></div>
+</div>

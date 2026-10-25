@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Zoom property on elements with a transformation matrix used</title>
+<link rel="author" href="mailto:salipov@mozilla.com" title="Seva Alipov">
+<link rel="author" href="https://mozilla.com" title="Mozilla">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1927186">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/matrix-zoom-ref.html">
+<style>
+div {
+  width: 100px;
+  height: 100px;
+  background-color: green;
+  zoom: 2;
+}
+</style>
+<div style="transform: translate(100px, 100px)"></div>
+<div style="transform: matrix(1, 0, 0, -1, 100, 100)"></div>

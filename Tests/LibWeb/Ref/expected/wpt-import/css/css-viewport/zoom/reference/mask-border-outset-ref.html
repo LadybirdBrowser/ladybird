@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  mask-border-outset: 5px;
+  display: inline-block;
+}
+.container {
+  mask-border-source: url("../../../../images/green.png");
+  mask-border-slice: 20;
+  background-color: black;
+  width: 50px;
+  height: 50px;
+}
+.container-zoom {
+  mask-border-source: url("../../../../images/green.png");
+  mask-border-slice: 20;
+  background-color: black;
+  width: 100px;
+  height: 100px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="mask-border-outset: 5px;">
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="mask-border-outset: inherit;">
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container-zoom" style="mask-border-outset: 10px;">
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container-zoom" style="mask-border-outset: 10px;">
+    </div>
+  </div>
+</div>
+</body>
+</html>

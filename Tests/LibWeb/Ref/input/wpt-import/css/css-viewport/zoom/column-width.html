@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to column-width</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/column-width-ref.html">
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  display: block;
+  border: 1px solid black;
+  padding: 10px;
+  column-width: 100px;
+}
+.container {
+  height: 200px;
+  width: 300px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="column-width: 100px; zoom: 1; font-size: 16px;">
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="column-width: inherit; zoom: 1; font-size: 16px;">
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="column-width: 100px; zoom: 2; font-size: 8px;">
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="column-width: inherit; zoom: 2; font-size: 8px;">
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+    </div>
+  </div>
+</div>
+</body>
+</html>

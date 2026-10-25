@@ -488,6 +488,7 @@ fn resolve_layers<'a, O: Observer>(
     border_radii: crate::painting::border_radii::BorderRadii,
     edges: Option<(FfiPixelBox, FfiPixelBox)>,
     layer_type: LayerType,
+    zoom: f32,
 ) -> ResolvedBackground<'a> {
     use css_enums::{background_attachment, repetition};
     let border_box = BackgroundBox {
@@ -539,7 +540,14 @@ fn resolve_layers<'a, O: Observer>(
             transparent_mask_layer(&mut resolved_layers);
             continue;
         };
-        let intrinsics = layer_image_intrinsics(recorder, &image);
+        let mut intrinsics = layer_image_intrinsics(recorder, &image);
+        // https://drafts.csswg.org/css-viewport/#zoom-property
+        // It also multiplies the natural size of [...] background images [...] by the used value of 'zoom'.
+        if zoom != 1.0 {
+            let zoomed = |size: Option<CssPixels>| size.map(|size| size.scaled(f64::from(zoom)));
+            intrinsics.natural.width = zoomed(intrinsics.natural.width);
+            intrinsics.natural.height = zoomed(intrinsics.natural.height);
+        }
         image.selected_image_value = intrinsics.selected_image_value;
         if !intrinsics.is_paintable {
             transparent_mask_layer(&mut resolved_layers);
@@ -793,6 +801,7 @@ pub(crate) fn resolve_background_layers<'a, O: Observer>(
         border_radii,
         edges,
         LayerType::Background,
+        style.effective_zoom(),
     )
 }
 
@@ -813,6 +822,7 @@ pub(crate) fn resolve_mask_layers<'a, O: Observer>(
         crate::painting::border_radii::BorderRadii::default(),
         None,
         LayerType::Mask,
+        style.effective_zoom(),
     )
 }
 

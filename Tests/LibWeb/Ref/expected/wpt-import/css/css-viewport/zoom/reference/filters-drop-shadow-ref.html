@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to drop-shadow when specified and inherited</title>
+<link rel="author" title="Brent Fulgham" href="mailto:bfulgham@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<style>
+body {
+    --scale: 1;
+}
+.container {
+    filter: drop-shadow(calc(5px * var(--scale)) calc(5px * var(--scale)) calc(5px * var(--scale)) black);
+    padding: calc(20px * var(--scale));
+}
+.circle-mask {
+    border-radius: calc(80px * var(--scale));;
+    overflow: hidden;
+    width: calc(100px * var(--scale));
+    height: calc(100px * var(--scale));
+}
+.green-box {
+    width: calc(100px * var(--scale));
+    height: calc(100px * var(--scale));
+    background-color: green;
+    font-size: calc(1rem * var(--scale));
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+.zoom {
+    --scale: 2;
+}
+</style>
+<div class="container">
+  <div class="circle-mask">
+    <div class="green-box">unzoomed</div>
+  </div>
+</div>
+<div class="container">
+  <div class="circle-mask zoom">
+    <div class="green-box">zoomed</div>
+  </div>
+</div>
+<div class="container zoom">
+  <div class="circle-mask">
+    <div class="green-box">zoomed inherited</div>
+  </div>
+</div>

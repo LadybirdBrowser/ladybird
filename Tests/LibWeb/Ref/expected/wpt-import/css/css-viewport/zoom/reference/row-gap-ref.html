@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  display: inline-block;
+  border: 1px solid black;
+  padding: 10px;
+  row-gap: 20px;
+}
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  width: 150px;
+}
+.container-zoom {
+  display: flex;
+  flex-wrap: wrap;
+  width: 300px;
+}
+.container > div {
+  background-color: black;
+  flex: 1 1 auto;
+  width: 100px;
+  height: 20px;
+}
+.container-zoom > div {
+  background-color: black;
+  flex: 1 1 auto;
+  width: 200px;
+  height: 40px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="row-gap: 20px;">
+      <div></div>
+      <div></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="row-gap: 20px;">
+      <div></div>
+      <div></div>
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container-zoom" style="row-gap: 40px;">
+      <div></div>
+      <div></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container-zoom" style="row-gap: 40px;">
+      <div></div>
+      <div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

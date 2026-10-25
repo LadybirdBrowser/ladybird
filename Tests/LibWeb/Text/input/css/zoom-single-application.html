@@ -1,0 +1,221 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: ZoomAhem;
+        src: url("../wpt-import/fonts/Ahem.ttf");
+    }
+    .control {
+        appearance: none;
+        overflow: hidden;
+        border: 0;
+        padding: 0;
+        margin: 0;
+        font: 20px / 1 ZoomAhem;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("20px ZoomAhem");
+        const show = (label, condition) => println(`${label}: ${condition}`);
+        const same = (a, b) => Math.abs(a - b) < 1 / 64;
+        const make = (markup, style = "") => {
+            const node = document.createElement("div");
+            node.style.cssText = style;
+            node.innerHTML = markup;
+            document.body.append(node);
+            return node;
+        };
+        const layout = make(
+            '<div id="box" style="margin:1px 2px 3px 4px;padding:5px 6px 7px 8px;border:9px solid"></div>',
+            "zoom:2"
+        );
+        const box = layout.querySelector("#box");
+        let style = getComputedStyle(box);
+        show("layout margin shorthand", style.margin === "1px 2px 3px 4px");
+        show("layout padding shorthand", style.padding === "5px 6px 7px 8px");
+        show("layout border-width shorthand", style.borderWidth === "9px");
+        show("zoom stays a number", getComputedStyle(layout).zoom === "2");
+        show("typed style length", box.computedStyleMap().get("padding-top").toString() === "5px");
+        box.style.display = "none";
+        show("no-layout margin shorthand", getComputedStyle(box).margin === "1px 2px 3px 4px");
+
+        const calc = make(
+            '<div id="sum" style="width:calc(10px + 5px)"></div><div id="sum-ref" style="width:15px"></div>' +
+                '<div id="mixed" style="width:calc(10px + 50%)"></div><div id="mixed-ref" style="width:60px"></div>' +
+                '<div id="border" style="width:10px;border:calc(2px + 3px) solid"></div><div id="border-ref" style="width:10px;border:5px solid"></div>',
+            "zoom:2;width:100px"
+        );
+        for (const id of ["sum", "mixed", "border"])
+            show(
+                `calc ${id}`,
+                same(
+                    calc.querySelector(`#${id}`).getBoundingClientRect().width,
+                    calc.querySelector(`#${id}-ref`).getBoundingClientRect().width
+                )
+            );
+        const product = make(
+            '<div></div><div id="product" style="width:calc((10px + 50%) * sibling-index())"></div><div id="reference" style="width:120px"></div>',
+            "zoom:2;width:100px"
+        );
+        show(
+            "computed product distribution",
+            same(
+                product.querySelector("#product").getBoundingClientRect().width,
+                product.querySelector("#reference").getBoundingClientRect().width
+            )
+        );
+
+        for (const [label, markup] of [
+            ["textarea", '<textarea class="control" cols="3" rows="2"></textarea>'],
+            ["text input", '<input class="control" type="text" size="3">'],
+            ["range", '<input class="control" type="range">'],
+            ["canvas", '<canvas width="13" height="17"></canvas>'],
+            ["contained canvas", '<canvas style="contain:size;contain-intrinsic-size:30px 40px"></canvas>'],
+        ]) {
+            const plain = make(markup).firstElementChild;
+            const zoomed = make(markup, "zoom:2").firstElementChild;
+            const a = plain.getBoundingClientRect();
+            const b = zoomed.getBoundingClientRect();
+            if (label === "textarea" || label === "text input") {
+                // Compare character-count increments so fixed native-control extras cancel out.
+                // Allow one pixel per added character for native font-metric rounding.
+                const wider = markup.replace('cols="3"', 'cols="7"').replace('size="3"', 'size="7"');
+                const widePlain = make(wider).firstElementChild.getBoundingClientRect();
+                const wideZoomed = make(wider, "zoom:2").firstElementChild.getBoundingClientRect();
+                show(
+                    `${label} width once`,
+                    Math.abs(wideZoomed.width - b.width - 2 * (widePlain.width - a.width)) <= 4
+                );
+            } else {
+                show(`${label} width once`, Math.abs(b.width - a.width * 2) <= 1);
+            }
+            show(`${label} height once`, same(b.height, a.height * 2));
+        }
+
+        const fontCase = (label, ancestorStyle, targetStyle = "", rootStyle = null) => {
+            const saved = document.documentElement.style.cssText;
+            if (rootStyle !== null) document.documentElement.style.cssText = rootStyle;
+            const outer = make(
+                `<span id="target" style="display:block;font-family:monospace;line-height:1;${targetStyle}">x</span><span id="reference" style="display:block;font-family:monospace;font-size:inherit;line-height:1;${targetStyle}">x</span>`,
+                ancestorStyle
+            );
+            const target = outer.querySelector("#target");
+            const reference = outer.querySelector("#reference");
+            // Both see the same ancestor sizes. Only the target takes the monospace recascade's inherited result.
+            show(`${label} font`, getComputedStyle(target).fontSize === getComputedStyle(reference).fontSize);
+            show(
+                `${label} height`,
+                same(target.getBoundingClientRect().height, reference.getBoundingClientRect().height)
+            );
+            outer.remove();
+            document.documentElement.style.cssText = saved;
+        };
+        const defaultPlain = make(
+            '<span style="display:block;font-family:monospace;line-height:1">x</span>'
+        ).firstElementChild;
+        const defaultZoomed = make(
+            '<span style="display:block;font-family:monospace;line-height:1">x</span>',
+            "zoom:2"
+        ).firstElementChild;
+        show(
+            "monospace default font",
+            getComputedStyle(defaultPlain).fontSize === getComputedStyle(defaultZoomed).fontSize
+        );
+        show(
+            "monospace default height",
+            same(defaultZoomed.getBoundingClientRect().height, defaultPlain.getBoundingClientRect().height * 2)
+        );
+        const undeclared = make(
+            '<div style="zoom:3"><span id="target" style="display:block;font-family:monospace;line-height:1">x</span><span id="reference" style="display:block;font-family:monospace;font-size:inherit;line-height:1">x</span></div>',
+            "zoom:2;font-size:10px"
+        );
+        show(
+            "monospace undeclared ancestor font",
+            getComputedStyle(undeclared.querySelector("#target")).fontSize ===
+                getComputedStyle(undeclared.querySelector("#reference")).fontSize
+        );
+        show(
+            "monospace undeclared ancestor height",
+            same(
+                undeclared.querySelector("#target").getBoundingClientRect().height,
+                undeclared.querySelector("#reference").getBoundingClientRect().height
+            )
+        );
+        // An explicit ancestor size avoids depending on a platform's default proportional/monospace size difference.
+        fontCase("monospace px", "zoom:2;font-size:10px");
+        fontCase("monospace target zoom", "font-size:10px", "zoom:2");
+        fontCase("monospace rem", "zoom:3;font-size:2rem", "", "zoom:2;font-size:20px");
+        fontCase("monospace viewport", "zoom:2;font-size:5vw");
+        const fontChain = make(
+            '<div style="zoom:3;font-size:200%"><div style="font-size:2em"><span id="target" style="display:block;font-family:monospace;line-height:1;zoom:.5">x</span><span id="reference" style="display:block;font-family:monospace;font-size:inherit;line-height:1;zoom:.5">x</span></div></div>',
+            "zoom:2;font-size:10px"
+        );
+        show(
+            "monospace nested chain font",
+            getComputedStyle(fontChain.querySelector("#target")).fontSize ===
+                getComputedStyle(fontChain.querySelector("#reference")).fontSize
+        );
+        show(
+            "monospace nested chain height",
+            same(
+                fontChain.querySelector("#target").getBoundingClientRect().height,
+                fontChain.querySelector("#reference").getBoundingClientRect().height
+            )
+        );
+        for (const [label, unit] of [
+            ["ex", "2ex"],
+            ["lh", "1lh"],
+        ]) {
+            const scope = make(
+                `<div style="zoom:2;font-size:${unit}"><span id="target" style="display:block;font-family:monospace;line-height:1">x</span><span id="reference" style="display:block;font-family:monospace;font-size:inherit;line-height:1">x</span></div>`,
+                "font-family:monospace;font-size:20px;line-height:1.5;zoom:2"
+            );
+            show(
+                `monospace ${label} font`,
+                getComputedStyle(scope.querySelector("#target")).fontSize ===
+                    getComputedStyle(scope.querySelector("#reference")).fontSize
+            );
+            show(
+                `monospace ${label} height`,
+                same(
+                    scope.querySelector("#target").getBoundingClientRect().height,
+                    scope.querySelector("#reference").getBoundingClientRect().height
+                )
+            );
+        }
+
+        const svgScope = make(
+            '<svg style="zoom:2;font-size:10px"><text id="target" style="font-family:monospace">x</text><text id="reference" style="font-family:monospace;font-size:inherit">x</text></svg>'
+        );
+        show(
+            "SVG recascade matches inherited font",
+            getComputedStyle(svgScope.querySelector("#target")).fontSize ===
+                getComputedStyle(svgScope.querySelector("#reference")).fontSize
+        );
+        show(
+            "SVG recascade matches inherited width",
+            same(
+                svgScope.querySelector("#target").getBoundingClientRect().width,
+                svgScope.querySelector("#reference").getBoundingClientRect().width
+            )
+        );
+
+        const geometry = make(
+            "",
+            "zoom:2;width:15.5px;height:9.25px;padding:2px;border:1px solid;box-sizing:content-box"
+        );
+        show("client width unscaled", geometry.clientWidth === 20);
+        show("offset width unscaled", geometry.offsetWidth === 22);
+        const entry = await new Promise(resolve => {
+            const observer = new ResizeObserver(entries => {
+                observer.disconnect();
+                resolve(entries[0]);
+            });
+            observer.observe(geometry);
+        });
+        show("observer content width unscaled", entry.contentBoxSize[0].inlineSize === 15.5);
+        show("observer border width unscaled", entry.borderBoxSize[0].inlineSize === 21.5);
+        show("observer padding unscaled", entry.contentRect.x === 2 && entry.contentRect.y === 2);
+    });
+</script>

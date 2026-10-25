@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to tab-size</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/tab-size-ref.html">
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  display: inline-block;
+  tab-size: 40px;
+  border: solid black 1px;
+}
+.container {
+  display: inline-block;
+  font-size: 16px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <pre class="container" style="tab-size: 40px; zoom: 1;">	hello</pre>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <pre class="container" style="tab-size: inherit; zoom: 1;">	hello</pre>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <pre class="container" style="tab-size: 40px; zoom: 2;">	hello</pre>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <pre class="container" style="tab-size: inherit; zoom: 2;">	hello</pre>
+  </div>
+</div>
+</body>
+</html>

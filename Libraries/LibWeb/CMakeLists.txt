@@ -199,6 +199,7 @@ set(SOURCES
     CSS/StyleInvalidation.cpp
     CSS/StyleProperty.cpp
     CSS/StylePropertyMapReadOnly.cpp
+    CSS/Zoom.cpp
     CSS/StylePropertyMap.cpp
     CSS/StyleScope.cpp
     CSS/StyleSheet.cpp

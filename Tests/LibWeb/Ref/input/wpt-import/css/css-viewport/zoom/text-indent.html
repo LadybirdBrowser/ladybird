@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to text-indent when specified and inherited</title>
+<link rel="author" title="Stefan Zager" href="mailto:szager@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/text-indent-ref.html">
+
+<style>
+.indent {
+  text-indent: 1rem;
+}
+.zoom {
+  zoom: 2;
+}
+</style>
+
+<div class="indent">unzoomed</div>
+<div class="zoom"><div class="indent">zoomed</div></div>
+<div class="indent"><div class="zoom">zoomed inherited</div></div>

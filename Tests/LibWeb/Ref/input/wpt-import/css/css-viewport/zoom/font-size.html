@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to font-size when specified and inherited</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/font-size-ref.html">
+<div style="font-size: 12px">
+  12px text
+</div>
+<hr>
+<div style="font-size: 12px; zoom: 2">
+  12px zoomed text
+</div>
+<hr>
+<div style="font-size: 12px">
+  <div style="zoom:2">
+    12px zoomed inherited text
+  </div>
+</div>

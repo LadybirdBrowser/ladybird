@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Inset box-shadow 1px spread stays even under fractional zoom</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#box-shadow">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/box-shadow-inset-spread-ref.html">
+<style>
+  body { margin: 0; }
+  .zoom { zoom: 1.2; }
+  .box {
+    margin: 8px;
+    width: 100px; height: 60px;
+    box-shadow: inset 0 0 0 1px green;
+    background: white;
+  }
+</style>
+<div class="zoom"><div class="box"></div></div>

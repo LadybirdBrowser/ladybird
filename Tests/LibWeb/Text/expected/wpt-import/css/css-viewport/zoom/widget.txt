@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	checkbox
-Fail	radio
+2 Pass
+Pass	checkbox
+Pass	radio

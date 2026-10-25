@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to scroll-padding</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/scroll-padding-ref.html">
+<style>
+#container {
+  display: inline-block;
+  width: 200px;
+  height: 100px;
+  border: solid black 1px;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  scroll-snap-type: y mandatory;
+}
+
+.buffer {
+  scroll-snap-align: start;
+  background-color: lightblue;
+  height: 1000px;
+  width: 200px;
+}
+
+.target {
+  scroll-snap-align: start;
+  background-color: black;
+  height: 20px;
+  width: 200px;
+}
+</style>
+</head>
+<body>
+
+<div id="container" style="scroll-padding-top: 20px; zoom: 1;">
+  <div class="buffer"></div>
+  <div class="target"></div>
+  <div class="buffer"></div>
+</div>
+
+<div style="display: inline-block; scroll-padding-top: 20px;">
+  <div id="container" style="scroll-padding-top: inherit; zoom: 1;">
+    <div class="buffer"></div>
+    <div class="target"></div>
+    <div class="buffer"></div>
+  </div>
+</div>
+
+<div id="container" style="scroll-padding-top: 20px; zoom: 2;">
+  <div class="buffer"></div>
+  <div class="target"></div>
+  <div class="buffer"></div>
+</div>
+
+<div style="display: inline-block; scroll-padding-top: 20px;">
+  <div id="container" style="scroll-padding-top: inherit; zoom: 2;">
+    <div class="buffer"></div>
+    <div class="target"></div>
+    <div class="buffer"></div>
+  </div>
+</div>
+
+<script>
+  for (match of document.querySelectorAll(".target")) {
+    match.scrollIntoView();
+  }
+</script>
+</body>
+</html>

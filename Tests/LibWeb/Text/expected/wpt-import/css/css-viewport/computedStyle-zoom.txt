@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-1 Pass
-5 Fail
+6 Pass
 Pass	getComputedStyle for elements with css zoom
-Fail	getComputedStyle for elements with css zoom 1
-Fail	getComputedStyle for elements with css zoom 2
-Fail	getComputedStyle for elements with css zoom 3
-Fail	getComputedStyle for elements with css zoom 4
-Fail	getComputedStyle for elements with css zoom 5
+Pass	getComputedStyle for elements with css zoom 1
+Pass	getComputedStyle for elements with css zoom 2
+Pass	getComputedStyle for elements with css zoom 3
+Pass	getComputedStyle for elements with css zoom 4
+Pass	getComputedStyle for elements with css zoom 5

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<title>CSS Zoom applies to margins</title>
+<link rel="author" title="Brent Fulgham" href="mailto:bfulgham@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/margin-ref.html">
+<style>
+#reference-overlapped-red {
+  background-color: red;
+  width: 100px;
+  height: 100px;
+  z-index: -1;
+}
+#reference-overlapped-big-red {
+  background-color: red;
+  width: 200px;
+  height: 200px;
+  z-index: -1;
+}
+
+.container {
+  padding: 20px;
+}
+.margin-container {
+  width: 200px;
+  margin-left: -50px;
+}
+.margin-big-container {
+  width: 400px;
+  margin-left: -100px;
+}
+.green-box {
+  background-color: green;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  margin: auto;
+  margin-top: -100px;
+  justify-self: right;
+}
+.zoom {
+  zoom: 2;
+}
+</style>
+
+<div class="container">
+  <div id=reference-overlapped-red></div>
+
+  <div class="margin-container">
+    <div class="green-box">unzoomed</div>
+  </div>
+</div>
+
+<div class="container">
+  <div id=reference-overlapped-big-red></div>
+
+  <div class="margin-big-container">
+    <div class="green-box zoom">zoomed</div>
+  </div>
+</div>
+
+<div class="container zoom">
+  <div id=reference-overlapped-red></div>
+
+  <div class="margin-container">
+    <div class="green-box">zoomed inherited</div>
+  </div>
+</div>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  outline: 1px solid black;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+  position: relative;
+  top: 250px;
+}
+.spacer {
+  height: 500px;
+}
+.scroller {
+  outline: 1px solid black;
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0;
+  border: 0;
+  overflow-y: auto;
+  width: 200px;
+  height: 200px;
+}
+
+.indicator {
+  display: block;
+  position: fixed;
+  width: 100px;
+  height: 100px;
+  top: 100px;
+  margin: 0;
+  padding: 0;
+  background-color: green
+}
+#indicator1 {
+  left: 100px;
+}
+
+#indicator2 {
+  left: 300px;
+}
+
+#indicator3 {
+  left: 500px;
+}
+
+#indicator4 {
+  left: 700px;
+}
+
+.target {
+  height: 100px;
+  width: 100px;
+  background-color: black;
+}
+</style>
+</head>
+<body>
+<p>There should be 4 green boxes below.</p>
+<div class="group">
+  <div class="scroller" id="scroller1">
+    <div class="spacer"></div>
+    <div class="target" id="target1">
+      <div class="indicator" id="indicator1"></div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+
+  <div class="scroller" id="scroller2">
+    <div class="spacer"></div>
+    <div class="target" id="target2">
+      <div class="indicator" id="indicator2"></div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+<div class="group">
+  <div class="scroller" id="scroller3">
+    <div class="spacer"></div>
+    <div class="target" id="target3">
+      <div class="indicator" id="indicator3"></div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+
+  <div class="scroller" id="scroller4">
+    <div class="spacer"></div>
+    <div class="target" id="target4">
+      <div class="indicator" id="indicator4"></div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+</div>
+<script>
+  window.addEventListener('load', function() {
+    const target1 = document.getElementById('target1');
+    const target2 = document.getElementById('target2');
+    const target3 = document.getElementById('target3');
+    const target4 = document.getElementById('target4');
+
+    const scroller1 = document.getElementById('scroller1');
+    const scroller2 = document.getElementById('scroller2');
+    const scroller3 = document.getElementById('scroller3');
+    const scroller4 = document.getElementById('scroller4');
+
+    const maxScroll1 = scroller1.scrollHeight - scroller1.clientHeight;
+    scroller1.scrollTop = (maxScroll1 - 250) * 0.5;
+
+    const maxScroll2 = scroller2.scrollHeight - scroller2.clientHeight;
+    scroller2.scrollTop = (maxScroll2 - 250) * 0.5;
+
+    const maxScroll3 = scroller3.scrollHeight - scroller3.clientHeight;
+    scroller3.scrollTop = (maxScroll3 - 250) * 0.5;
+
+    const maxScroll4 = scroller4.scrollHeight - scroller4.clientHeight;
+    scroller4.scrollTop = (maxScroll4 - 250) * 0.5;
+  });
+</script>
+</body>
+</html>

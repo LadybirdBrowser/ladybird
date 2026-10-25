@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to text-indent when specified and inherited</title>
+<link rel="author" title="Stefan Zager" href="mailto:szager@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+
+<style>
+body {
+  --scale: 1;
+}
+div {
+  font-size: calc(1rem * var(--scale));
+  text-indent: calc(1rem * var(--scale));
+}
+.zoom {
+  --scale: 2;
+}
+</style>
+
+<div>unzoomed</div>
+<div class="zoom">zoomed</div></div>
+<div class="zoom">zoomed inherited</div></div>

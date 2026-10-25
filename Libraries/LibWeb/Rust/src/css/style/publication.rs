@@ -32,6 +32,9 @@ use drive::{DrivenTable, FontDriveGoal, FullDrive, PartialDrive};
 pub(super) struct RootFontInputs {
     metrics: [u64; 5],
     depends_on_viewport: bool,
+    /// https://drafts.csswg.org/css-viewport/#effective-zoom
+    /// The bits of the effective zoom of the document element, which the metrics are zoomed by.
+    effective_zoom: u64,
 }
 
 /// An element's old and new style records.
@@ -83,6 +86,11 @@ impl RootFontInputs {
         )
     }
 
+    /// https://drafts.csswg.org/css-viewport/#effective-zoom
+    pub(super) fn effective_zoom(self) -> f64 {
+        f64::from_bits(self.effective_zoom)
+    }
+
     fn apply_to(self, inputs: &mut bridge::FfiDocumentStyleComputationInputs) {
         inputs.root_font_size = f64::from_bits(self.metrics[0]);
         inputs.root_font_x_height = f64::from_bits(self.metrics[1]);
@@ -90,6 +98,7 @@ impl RootFontInputs {
         inputs.root_font_zero_advance = f64::from_bits(self.metrics[3]);
         inputs.root_line_height = f64::from_bits(self.metrics[4]);
         inputs.root_font_metrics_depend_on_viewport_metrics = self.depends_on_viewport;
+        inputs.root_effective_zoom = f64::from_bits(self.effective_zoom);
     }
 
     pub(super) fn from_document(inputs: &bridge::FfiDocumentStyleComputationInputs) -> Self {
@@ -102,6 +111,7 @@ impl RootFontInputs {
                 inputs.root_line_height.to_bits(),
             ],
             depends_on_viewport: inputs.root_font_metrics_depend_on_viewport_metrics,
+            effective_zoom: inputs.root_effective_zoom.to_bits(),
         }
     }
 }
@@ -2611,11 +2621,16 @@ impl RetainedState {
     }
 
     pub(super) fn root_font_inputs_from_record(&self, record: computed::FinalStyleRecordID) -> Option<RootFontInputs> {
-        use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
+        use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
         let view = self.computed_group_sets.style_record_view(record.raw())?;
         let font = unsafe {
             view.payloads[STYLE_GROUP_INDEX_FONT]
                 .cast::<crate::css::computed_value_types::FontValues>()
+                .deref()
+        };
+        let inherited_box = unsafe {
+            view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX]
+                .cast::<crate::css::computed_values::InheritedBoxValues>()
                 .deref()
         };
         Some(RootFontInputs {
@@ -2627,6 +2642,7 @@ impl RetainedState {
                 font.line_height_used.to_double().to_bits(),
             ],
             depends_on_viewport: view.dependency_flags & FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS != 0,
+            effective_zoom: f64::from(inherited_box.effective_zoom()).to_bits(),
         })
     }
 

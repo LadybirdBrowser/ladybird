@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to mask-border-width when specified and inherited</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="help" href="https://drafts.csswg.org/css-masking-1/#the-mask-border-width">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/mask-border-width-ref.html">
+<style>
+    .box {
+        width: 50px;
+        height: 50px;
+        background-color: red;
+        mask-border-slice: 10;
+        mask-border-source: linear-gradient(45deg, pink, blue, white, black, green);
+        mask-border-width: 8px;
+        margin: 10px;
+    }
+
+    .zoom {
+        zoom: 2;
+    }
+</style>
+
+<div class="box"></div>
+
+<div class="zoom">
+    <div class="box"></div>
+</div>
+
+<div class="zoom box"></div>

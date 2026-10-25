@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to border-width when specified and inherited</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/border-width-ref.html">
+<style>
+.box {
+  width: 60px;
+  height: 60px;
+  border: 8px solid red;
+  margin: 10px;
+  display: inline-block;
+}
+.box-rem {
+  width: 60px;
+  height: 60px;
+  border: 0.5rem solid blue;
+  margin: 10px;
+  display: inline-block;
+}
+.zoom {
+  zoom: 2;
+}
+.box-left {
+  border-left-style: solid;
+  display: inline-block;
+}
+.box-left-medium {
+  border-left-width: medium;
+}
+</style>
+
+<div class="box">unzoomed px</div>
+<div class="box-rem">unzoomed rem</div>
+
+<div class="zoom">
+  <div class="box">zoomed px</div>
+</div>
+
+<div class="zoom box">zoomed inherited px</div>
+<div class="zoom box-rem">zoomed inherited rem</div>
+
+<div>
+  <div class="zoom box-left box-left-medium">zoomed px</div>
+  <div class="zoom box-left">zoomed px</div>
+</div>

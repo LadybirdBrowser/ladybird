@@ -768,6 +768,7 @@ NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sam
         .device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel(),
         .initial_font_size_raw = InitialValues::font_size().raw_value(),
         .default_font_size_raw = default_user_font_size().raw_value(),
+        .root_effective_zoom = root_element_effective_zoom(),
     };
 
     using SampleContext = AnimationSample::Context;
@@ -1861,6 +1862,7 @@ void StyleComputer::update_root_element_font_metrics(ComputedValues const& value
 {
     m_root_element_font_metrics = Length::FontMetrics { values.font_size(), values.font_list().first_available_font().pixel_metrics(), values.line_height() };
     m_root_element_font_metrics_depend_on_viewport_metrics = values.font_metrics_depend_on_viewport_metrics();
+    m_root_element_effective_zoom = values.effective_zoom();
 }
 
 CSSPixels StyleComputer::default_user_font_size()

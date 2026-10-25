@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+#container {
+  display: inline-block;
+  width: 200px;
+  height: 100px;
+  outline-style: solid;
+}
+#container-zoomed {
+  display: inline-block;
+  width: 400px;
+  height: 200px;
+  outline-style: solid;
+}
+#spacer {
+  display: inline-block;
+  width: 40px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two boxes with matching outlines.</p>
+<div class="group">
+  <div id="container" style="outline-offset: 5px; outline-width: 1px;">
+  </div>
+  <div id="spacer"></div>
+  <div style="display: inline-block;">
+    <div id="container" style="outline-offset: 5px; outline-width: 1px;">
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div id="container-zoomed" style="outline-offset: 10px; outline-width: 2px;">
+  </div>
+  <div id="spacer"></div>
+  <div style="display: inline-block;">
+    <div id="container-zoomed" style="outline-offset: 10px; outline-width: 2px;">
+    </div>
+  </div>
+</div>
+</body>
+</html>

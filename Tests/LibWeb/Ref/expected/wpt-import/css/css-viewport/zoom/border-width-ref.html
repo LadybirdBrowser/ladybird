@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to border-width when specified and inherited</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+
+<style>
+body {
+  --scale: 1;
+}
+.box {
+  width: calc(60px * var(--scale));
+  height: calc(60px * var(--scale));
+  border: calc(8px * var(--scale)) solid red;
+  margin: calc(10px * var(--scale));
+  display: inline-block;
+  font-size: calc(16px * var(--scale));
+}
+.box-rem {
+  width: calc(60px * var(--scale));
+  height: calc(60px * var(--scale));
+  border: calc(0.5rem * var(--scale)) solid blue;
+  margin: calc(10px * var(--scale));
+  display: inline-block;
+  font-size: calc(1rem * var(--scale));
+}
+.zoom {
+  --scale: 2;
+}
+.box-left {
+  border-left-width: calc(3px * var(--scale, 1));
+  border-left-style: solid;
+  font-size: calc(1rem * var(--scale));
+  display: inline-block;
+}
+</style>
+
+<div class="box">unzoomed px</div>
+<div class="box-rem">unzoomed rem</div>
+
+<div class="zoom">
+  <div class="box">zoomed px</div>
+</div>
+
+<div class="zoom box">zoomed inherited px</div>
+<div class="zoom box-rem">zoomed inherited rem</div>
+
+<div>
+  <div class="zoom box-left">zoomed px</div>
+  <div class="zoom box-left">zoomed px</div>
+</div>

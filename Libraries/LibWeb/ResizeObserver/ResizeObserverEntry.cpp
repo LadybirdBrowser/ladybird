@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/CSS/Zoom.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -50,10 +51,13 @@ WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_an
     // 7. If target is not an SVG element or target is an SVG element with an associated CSS layout box do these steps:
     if (!target.is_svg_element() && layout_node && !layout_node->is_inline_node() && Painting::has_committed_box(*layout_node)) {
         auto box_model = Painting::box_model(*layout_node);
+        // NB: The padding is unscaled, as the sizes are.
+        //     https://drafts.csswg.org/css-viewport/#zoom-om
+        auto const zoom = CSS::effective_zoom(*layout_node);
         // Set this.contentRect.top to target.padding top.
-        y = box_model.padding.top.to_double();
+        y = CSS::unscaled(box_model.padding.top.to_double(), zoom);
         // Set this.contentRect.left to target.padding left.
-        x = box_model.padding.left.to_double();
+        x = CSS::unscaled(box_model.padding.left.to_double(), zoom);
     } else if (target.is_svg_element() && layout_node && Painting::has_committed_box(*layout_node)) {
         // 8. If target is an SVG element without an associated CSS layout box do these steps:
         // Set this.contentRect.top and this.contentRect.left to 0.

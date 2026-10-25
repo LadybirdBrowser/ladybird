@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	x and y properties for image elements with css zoom
-Fail	x and y properties for image elements with css zoom 1
+Pass	x and y properties for image elements with css zoom 1

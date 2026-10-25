@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+<link rel="match" href="../../../../../expected/wpt-import//css/reference/ref-filled-green-100px-square-only.html">
+<style>
+html {
+  font-size: 1px;
+}
+p {
+  font-size: initial;
+}
+.containment {
+  zoom: 10;
+  width: 10px;
+  contain-intrinsic-height: 10rem;
+  contain: size;
+  background-color: green;
+}
+</style>
+</head>
+<body>
+  <p>Test passes if there is a filled green square.</p>
+  <div class="containment">
+    <div style="width: 10px; height: 10px;"></div>
+  </div>
+</body>
+</html>

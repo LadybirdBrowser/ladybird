@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to border-spacing when specified and inherited</title>
+<link rel="author" title="Stefan Zager" href="mailto:szager@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+
+<style>
+body {
+  --scale: 1;
+}
+.table {
+  display: table;
+}
+.row {
+  display: table-row;
+}
+.cell {
+  display: table-cell;
+  border: calc(0.5rem * var(--scale)) solid hotpink;
+  font-size: calc(1rem * var(--scale));
+}
+.spacing {
+  border-collapse: separate;
+  border-spacing: calc(17px * var(--scale)) calc(11px * var(--scale));
+}
+.zoom {
+  --scale: 2;
+}
+</style>
+
+<div class="table spacing">
+  <div class="row">
+    <div class="cell">unzoomed</div>
+    <div class="cell">unzoomed</div>
+  </div>
+  <div class="row">
+    <div class="cell">unzoomed</div>
+    <div class="cell">unzoomed</div>
+  </div>
+</div>
+
+<div class="table spacing zoom">
+  <div class="row">
+    <div class="cell">zoomed</div>
+    <div class="cell">zoomed</div>
+  </div>
+  <div class="row">
+    <div class="cell">zoomed</div>
+    <div class="cell">zoomed</div>
+  </div>
+</div>
+
+<div class="table spacing zoom">
+  <div class="row">
+    <div class="cell">zoomed inherited</div>
+    <div class="cell">zoomed inherited</div>
+  </div>
+  <div class="row">
+    <div class="cell">zoomed inherited</div>
+    <div class="cell">zoomed inherited</div>
+  </div>
+</div>

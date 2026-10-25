@@ -34,6 +34,7 @@
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
+#include <LibWeb/CSS/Zoom.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -812,8 +813,12 @@ Optional<RefPtr<StyleValue const>> CSSStyleProperties::resolved_value_read_from_
     if (!prepared.has_value())
         return RefPtr<StyleValue const> {};
 
-    if (auto style = abstract_element.computed_style())
-        return RefPtr<StyleValue const> { style->computed_style_value(property_id) };
+    if (auto style = abstract_element.computed_style()) {
+        auto value = style->computed_style_value(property_id);
+        if (value)
+            value = unscaled_by_zoom(property_id, value.release_nonnull(), style->effective_zoom());
+        return value;
+    }
 
     // Only a synthetic pseudo-element with no matching rules lacks a style record after the preparation above; its
     // transient style needs the full declaration path.
@@ -947,12 +952,13 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                 }
             };
 
+            auto const zoom = computed_values->effective_zoom();
             if (property_is_shorthand(property_id)) {
                 auto longhand_ids = longhands_for_shorthand(property_id);
                 StyleValueVector longhand_values;
                 longhand_values.ensure_capacity(longhand_ids.size());
                 for (auto longhand_id : longhand_ids)
-                    longhand_values.append(computed_value_for_property(longhand_id));
+                    longhand_values.append(unscaled_by_zoom(longhand_id, computed_value_for_property(longhand_id), zoom));
                 return StyleProperty {
                     .property_id = property_id,
                     .value = ShorthandStyleValue::create(property_id, move(longhand_ids), move(longhand_values)),
@@ -961,7 +967,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
 
             return StyleProperty {
                 .property_id = property_id,
-                .value = computed_value_for_property(property_id),
+                .value = unscaled_by_zoom(property_id, computed_value_for_property(property_id), zoom),
             };
         }
 
@@ -970,7 +976,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             return {};
         return StyleProperty {
             .property_id = property_id,
-            .value = *value,
+            .value = unscaled_by_zoom(property_id, value.release_nonnull(), layout_node->style_group<ComputedValues::InheritedBoxValues>().effective_zoom_value()),
         };
     }
 
@@ -1044,6 +1050,10 @@ Optional<Utf16String> CSSStyleProperties::serialized_computed_value_from_stored_
 
     auto style = abstract_element.computed_style();
     if (!style)
+        return {};
+
+    // NB: A value of an element with a zoom must be unscaled, which the value path does.
+    if (style->effective_zoom() != 1)
         return {};
 
     // letter-spacing: a used value of zero resolves to `normal`; leave that to the value path.

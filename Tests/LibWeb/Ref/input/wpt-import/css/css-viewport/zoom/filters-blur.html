@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to filter: blur()</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/filters-blur-ref.html">
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  display: inline-block;
+  border: 1px solid black;
+  filter: blur(1px);
+}
+.container {
+  padding: 10px;
+  width: 25px;
+  height: 50px;
+}
+.swatch {
+  width: 25px;
+  height: 25px;
+}
+.red {
+  background-color: red;
+}
+.blue {
+  background-color: blue;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="filter: blur(1px); zoom: 1;">
+       <div class="swatch red"></div>
+       <div class="swatch blue"></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="filter: inherit; zoom: 1;">
+       <div class="swatch red"></div>
+       <div class="swatch blue"></div>
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="filter: blur(1px); zoom: 3;">
+       <div class="swatch red"></div>
+       <div class="swatch blue"></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="filter: inherit; zoom: 3;">
+       <div class="swatch red"></div>
+       <div class="swatch blue"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

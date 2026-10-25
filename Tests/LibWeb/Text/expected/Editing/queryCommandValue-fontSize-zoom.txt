@@ -1,0 +1,10 @@
+plain: 16px, selected=3, collapsed=3
+zoomed: 16px, selected=3, collapsed=3
+reduced: 16px, selected=3, collapsed=3
+nested zoom: 16px, selected=3, collapsed=3
+cancelled zoom: 16px, selected=3, collapsed=3
+large font: 24px, selected=5, collapsed=5
+changed zoom 1: 3
+changed zoom 2: 3
+changed zoom 0.5: 3
+changed zoom 1: 3

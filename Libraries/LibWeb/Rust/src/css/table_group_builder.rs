@@ -3358,6 +3358,7 @@ pub(crate) fn rebuild_group_from_table_and_overlay(
             values.handle(property_id::CONTENT_VISIBILITY),
             values.handle(property_id::IMAGE_RENDERING),
             values.handle(property_id::TEXT_ORIENTATION),
+            table.effective_zoom(),
             parent,
         ),
         group_index::SIZING => build_sizing_group(
@@ -3442,6 +3443,7 @@ pub(crate) unsafe fn build_group_payloads_from_table(
                     values.handle(property_id::CONTENT_VISIBILITY),
                     values.handle(property_id::IMAGE_RENDERING),
                     values.handle(property_id::TEXT_ORIENTATION),
+                    table.effective_zoom(),
                     parent,
                 ),
                 group_index::SIZING => build_sizing_group(

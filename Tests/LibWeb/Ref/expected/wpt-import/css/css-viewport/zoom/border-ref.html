@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>border:inherit applies zoom (ref)</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<style>
+  body > div {
+    border: 1px solid black;
+  }
+  body > div > div {
+    width: 100px;
+    height: 100px;
+    border: 10px solid black;
+    background: green;
+  }
+</style>
+<div>
+  <div></div>
+</div>

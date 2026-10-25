@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Zoom: foreignObject font-size should not be double-zoomed</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/svg-foreignObject-font-size-ref.html">
+<style>
+  :root {
+      zoom: 4;
+      font-size: 16px;
+  }
+</style>
+<svg width="50" height="25">
+  <foreignObject width="50" height="25">
+    <div>TEST</div>
+  </foreignObject>
+</svg>
+<svg width="50" height="25">
+  <foreignObject width="50" height="25">
+    <div style="font-size:16px">TEST</div>
+  </foreignObject>
+</svg>
+<svg width="50" height="25">
+  <foreignObject width="50" height="25">
+    <div style="font-size:inherit">TEST</div>
+  </foreignObject>
+</svg>
+<svg width="50" height="25" style="font-size:inherit">
+  <foreignObject width="50" height="25">
+    <div>TEST</div>
+  </foreignObject>
+</svg>

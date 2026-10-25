@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to -webkit-text-stroke-width when specified and inherited</title>
+<link rel="author" title="Stefan Zager" href="mailto:szager@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/text-stroke-width-ref.html">
+
+<style>
+div {
+  font-size: 3rem;
+  color: cornflowerblue;
+  -webkit-text-stroke-color: hotpink;
+}
+.text-stroke-width {
+  -webkit-text-stroke-width: 2px;
+}
+.zoom {
+  zoom: 2;
+}
+</style>
+
+<div class="text-stroke-width" >unzoomed</div>
+<div class="zoom"><div class="text-stroke-width">zoomed</div></div>
+<div class="text-stroke-width"><div class="zoom">zoomed inherited</div></div>

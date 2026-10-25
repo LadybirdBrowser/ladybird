@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>flex-basis:inherit applies zoom (ref)</title>
+<link rel=help href=https://drafts.csswg.org/css-viewport/>
+<style>
+  .container {
+    display: flex;
+    background: skyblue;
+  }
+  .zoomed {
+    background: coral;
+    flex-basis: 100px;
+    height: 200px;
+  }
+</style>
+<div class=container>
+  <div class=zoomed></div>
+</div>

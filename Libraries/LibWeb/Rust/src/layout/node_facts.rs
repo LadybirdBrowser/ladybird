@@ -854,6 +854,35 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     fn physical_replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
+        let mut facts = self.unzoomed_physical_replaced_content();
+        // NB: SVG geometry and explicit intrinsic inner sizes already resolve against computed lengths.
+        if self.data().kind.get() == NodeKind::SVGSVGBox
+            || (self.data().kind.get() != NodeKind::SVGImageBox && self.node_has_size_containment())
+        {
+            return facts;
+        }
+        // https://drafts.csswg.org/css-viewport/#zoom-property
+        // It also multiplies the natural size of all replaced elements [...] by the used value of 'zoom'.
+        let zoom = self
+            .computed_values_view_if_styled()
+            .map_or(1.0, |style| style.effective_zoom());
+        if zoom != 1.0 {
+            match self.data().kind.get() {
+                // NB: These dimensions are derived from font metrics that already include zoom.
+                NodeKind::TextAreaBox | NodeKind::TextInputBox => {}
+                NodeKind::RangeInputBox => {
+                    facts.auto_content_height = facts.auto_content_height.scaled(f64::from(zoom));
+                }
+                _ => {
+                    facts.auto_content_width = facts.auto_content_width.scaled(f64::from(zoom));
+                    facts.auto_content_height = facts.auto_content_height.scaled(f64::from(zoom));
+                }
+            }
+        }
+        facts
+    }
+
+    fn unzoomed_physical_replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
         if self.data().kind.get() == NodeKind::SVGSVGBox {
             return self.svg_root_replaced_content();
         }

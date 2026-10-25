@@ -61,6 +61,7 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/VisualViewport.h>
+#include <LibWeb/CSS/Zoom.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -3194,7 +3195,7 @@ int Element::client_top() const
     auto const& border_top = style_group<CSS::ComputedValues::BorderValues>()->border_top_value();
     if (border_top.line_style == CSS::LineStyle::None || border_top.line_style == CSS::LineStyle::Hidden)
         return 0;
-    return border_top.width.to_int();
+    return CSS::unscaled(border_top.width, CSS::effective_zoom(*this)).to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-clientleft
@@ -3219,7 +3220,7 @@ int Element::client_left() const
     auto const& border_left = style_group<CSS::ComputedValues::BorderValues>()->border_left_value();
     if (border_left.line_style == CSS::LineStyle::None || border_left.line_style == CSS::LineStyle::Hidden)
         return 0;
-    return border_left.width.to_int();
+    return CSS::unscaled(border_left.width, CSS::effective_zoom(*this)).to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-clientwidth
@@ -3247,7 +3248,7 @@ int Element::client_width() const
     // 3. Return the width of the padding edge excluding the width of any rendered scrollbar between the padding edge and the border edge,
     // ignoring any transforms that apply to the element and its ancestors.
     // INTEROP: The result is rounded to the nearest integer rather than truncated, as browsers do.
-    return round(Painting::absolute_padding_box_rect(*layout_node).width()).to_int();
+    return round(CSS::unscaled(Painting::absolute_padding_box_rect(*layout_node).width(), CSS::effective_zoom(*layout_node))).to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-clientheight
@@ -3275,14 +3276,19 @@ int Element::client_height() const
     // 3. Return the height of the padding edge excluding the height of any rendered scrollbar between the padding edge and the border edge,
     //    ignoring any transforms that apply to the element and its ancestors.
     // INTEROP: The result is rounded to the nearest integer rather than truncated, as browsers do.
-    return round(Painting::absolute_padding_box_rect(*layout_node).height()).to_int();
+    return round(CSS::unscaled(Painting::absolute_padding_box_rect(*layout_node).height(), CSS::effective_zoom(*layout_node))).to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-currentcsszoom
 double Element::current_css_zoom() const
 {
-    dbgln("FIXME: Implement Element::current_css_zoom()");
-    return 1.0;
+    // The currentCSSZoom attribute must return the effective zoom of the element, or 1.0 if the element isn't being
+    // rendered.
+    const_cast<Document&>(document()).update_style_for_element(AbstractElement { const_cast<Element&>(*this) }, Document::StyleUpdateMode::OnlyIfNeeded);
+    auto const* box_values = style_group<CSS::ComputedValues::BoxValues>();
+    if (!box_values || CSS::display_from_ffi_display(box_values->display).is_none())
+        return 1.0;
+    return CSS::effective_zoom(*this);
 }
 
 static bool style_attribute_is_blocked_by_content_security_policy(Element& element, Utf16View value)
@@ -3848,7 +3854,7 @@ double Element::scroll_top() const
 
     // 9. Return the y-coordinate of the scrolling area at the alignment point with the top of the padding edge of the element.
     // FIXME: Is this correct?
-    return Painting::scroll_offset(*layout_node).y().to_double();
+    return CSS::unscaled(Painting::scroll_offset(*layout_node).y(), CSS::effective_zoom(*layout_node)).to_double();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollleft
@@ -3894,7 +3900,7 @@ double Element::scroll_left() const
 
     // 9. Return the x-coordinate of the scrolling area at the alignment point with the left of the padding edge of the element.
     // FIXME: Is this correct?
-    return Painting::scroll_offset(*layout_node).x().to_double();
+    return CSS::unscaled(Painting::scroll_offset(*layout_node).x(), CSS::effective_zoom(*layout_node)).to_double();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollleft
@@ -3952,7 +3958,8 @@ void Element::set_scroll_left(double x)
 
     // 11. Scroll the element to x,scrollTop, with the scroll behavior being "auto".
     auto scroll_offset = Painting::scroll_offset(*layout_node);
-    scroll_offset.set_x(CSSPixels::nearest_value_for(x));
+    // NB: The value is unscaled, as scrollLeft answers it.
+    scroll_offset.set_x(CSSPixels::nearest_value_for(x * CSS::effective_zoom(*layout_node)));
     if (auto navigable = document.navigable())
         navigable->perform_a_scroll_of_an_element(*this, scroll_offset, Bindings::ScrollBehavior::Auto);
 }
@@ -4011,7 +4018,8 @@ void Element::set_scroll_top(double y)
 
     // 11. Scroll the element to scrollLeft,y, with the scroll behavior being "auto".
     auto scroll_offset = Painting::scroll_offset(*layout_node);
-    scroll_offset.set_y(CSSPixels::nearest_value_for(y));
+    // NB: The value is unscaled, as scrollTop answers it.
+    scroll_offset.set_y(CSSPixels::nearest_value_for(y * CSS::effective_zoom(*layout_node)));
     if (auto navigable = document.navigable())
         navigable->perform_a_scroll_of_an_element(*this, scroll_offset, Bindings::ScrollBehavior::Auto);
 }
@@ -4058,7 +4066,7 @@ int Element::scroll_width()
     // 7. Return the width of the element’s scrolling area.
     // INTEROP: The result is rounded to the nearest integer rather than truncated, as browsers do.
     if (auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node); scrollable_overflow_rect.has_value())
-        return round(scrollable_overflow_rect->width()).to_int();
+        return round(CSS::unscaled(scrollable_overflow_rect->width(), CSS::effective_zoom(*layout_node))).to_int();
 
     return 0;
 }
@@ -4105,7 +4113,7 @@ int Element::scroll_height()
     // 7. Return the height of the element’s scrolling area.
     // INTEROP: The result is rounded to the nearest integer rather than truncated, as browsers do.
     if (auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node); scrollable_overflow_rect.has_value()) {
-        return round(scrollable_overflow_rect->height()).to_int();
+        return round(CSS::unscaled(scrollable_overflow_rect->height(), CSS::effective_zoom(*layout_node))).to_int();
     }
     return 0;
 }
@@ -5921,7 +5929,11 @@ void Element::scroll(Bindings::ScrollToOptions options, GC::Ptr<WebIDL::Promise>
 
     // 11. Scroll the element to x,y, with the scroll behavior being the value of the behavior dictionary member of
     //     options. Let scrollPromise be the Promise returned from this step.
-    auto scroll_offset = CSSPixelPoint { CSSPixels::nearest_value_for(x), CSSPixels::nearest_value_for(y) };
+    // NB: The position is unscaled, as scrollLeft and scrollTop answer it.
+    auto const zoom = CSS::effective_zoom(*layout_node);
+    auto scroll_offset = CSSPixelPoint { CSSPixels::nearest_value_for(x * zoom), CSSPixels::nearest_value_for(y * zoom) };
+    if (relative_displacement.has_value() && zoom != 1)
+        relative_displacement = CSSPixelPoint { CSSPixels::nearest_value_for(relative_displacement->x().to_double() * zoom), CSSPixels::nearest_value_for(relative_displacement->y().to_double() * zoom) };
     if (auto navigable = document.navigable()) {
         auto scroll_promise = navigable->perform_a_scroll_of_an_element(*this, scroll_offset, options.behavior, relative_displacement);
         if (promise)

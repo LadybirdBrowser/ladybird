@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  display: inline-block;
+  border: solid black 1px;
+  padding: 10px;
+}
+
+#container {
+  display: inline-block;
+  width: 200px;
+  height: 100px;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  padding: 40px 0;
+  margin: auto;
+  scroll-snap-type: y mandatory;
+}
+
+.buffer {
+  scroll-snap-align: start;
+  background-color: lightblue;
+  height: 300px;
+  width: 200px;
+}
+
+.target {
+  scroll-snap-align: start;
+  background-color: black;
+  height: 10px;
+  width: 200px;
+}
+.target-zoomed {
+  scroll-snap-align: start;
+  background-color: black;
+  height: 20px;
+  width: 400px;
+}
+</style>
+</head>
+<body>
+<p>The black bars should line up in each group</p>
+<div class="group">
+  <div id="container">
+    <div class="buffer"></div>
+    <div class="target" style="scroll-margin-top: 20px;"></div>
+    <div class="buffer"></div>
+  </div>
+
+  <div id="container">
+    <div class="buffer"></div>
+    <div class="target" style="scroll-margin-top: 20px;"></div>
+    <div class="buffer"></div>
+  </div>
+</div>
+<div class="group">
+  <div id="container">
+    <div class="buffer"></div>
+    <div class="target-zoomed" style="scroll-margin-top: 40px;"></div>
+    <div class="buffer"></div>
+  </div>
+
+  <div id="container">
+    <div class="buffer"></div>
+    <div class="target-zoomed" style="scroll-margin-top: 40px;"></div>
+    <div class="buffer"></div>
+  </div>
+</div>
+<script>
+  for (match of document.querySelectorAll(".target, .target-zoomed")) {
+    match.scrollIntoView();
+  }
+</script>
+</body>
+</html>

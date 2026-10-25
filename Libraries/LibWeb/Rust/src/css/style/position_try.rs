@@ -898,6 +898,8 @@ impl StyleEngine {
             container_height_basis_depends_on_viewport_metrics: false,
             subject_inline_axis_is_horizontal: own.inline_axis_is_horizontal(),
             resolved_viewport_relative_length: &raw mut resolved_viewport_relative_length,
+            // NB: The drive zooms the lengths by the effective zoom of the element itself.
+            zoom: 1.0,
         };
         self.container_unit_bases(node).apply_to(&mut length);
         let environment = FfiStyleComputationEnvironment {
@@ -926,6 +928,7 @@ impl StyleEngine {
             device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
             initial_font_size_raw: inputs.initial_font_size_raw,
             default_font_size_raw: inputs.default_font_size_raw,
+            root_effective_zoom: inputs.root_effective_zoom,
         };
 
         const LONGHAND_WORD_COUNT: usize = crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);

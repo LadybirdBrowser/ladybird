@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>border:inherit applies zoom</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-viewport/zoom/explicit-inherit/../border-ref.html">
+<style>
+  body > div {
+    border: 1px solid black;
+  }
+  body > div > div {
+    zoom: 10;
+    width: 10px;
+    height: 10px;
+    border: 0px solid black;
+    border-width: inherit;
+    background: green;
+  }
+</style>
+<div>
+  <div></div>
+</div>

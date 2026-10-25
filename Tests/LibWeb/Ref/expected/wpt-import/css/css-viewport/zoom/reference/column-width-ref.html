@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  display: block;
+  border: 1px solid black;
+  padding: 10px;
+  column-width: 100px;
+}
+.container {
+  height: 200px;
+  width: 300px;
+}
+.container-zoom {
+  height: 400px;
+  width: 600px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="column-width: 100px; font-size: 16px;">
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="column-width: 100px; font-size: 16px;">
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container-zoom" style="column-width: 200px; font-size: 16px;">
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container-zoom" style="column-width: 200px; font-size: 16px;">
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+    </div>
+  </div>
+</div>
+</body>
+</html>
