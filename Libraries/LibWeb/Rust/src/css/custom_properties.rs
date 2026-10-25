@@ -47,6 +47,7 @@ use crate::css::serialize::{
 };
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::StyleValueData;
+use crate::fast_hash::FastMap;
 
 include!(concat!(env!("OUT_DIR"), "/environment_variables_generated.rs"));
 
@@ -111,7 +112,7 @@ pub(crate) struct CustomPropertyEntry {
 }
 
 pub struct CustomPropertyStore {
-    pub(crate) own_values: HashMap<usize, CustomPropertyEntry>,
+    pub(crate) own_values: FastMap<usize, CustomPropertyEntry>,
     pub(crate) declared_names: Vec<usize>,
     parent: Option<Arc<CustomPropertyStore>>,
     inheritance_parent: Option<Arc<CustomPropertyStore>>,
@@ -126,7 +127,7 @@ unsafe impl Send for CustomPropertyStore {}
 unsafe impl Sync for CustomPropertyStore {}
 
 pub struct CustomPropertyRegistry {
-    registrations: HashMap<Utf16FlyString, RegisteredCustomProperty>,
+    registrations: FastMap<Utf16FlyString, RegisteredCustomProperty>,
     document_url: Vec<u8>,
     document_base_url: Vec<u8>,
     /// What a value parses to with a registration's syntax, by registration and value identity,
@@ -292,7 +293,7 @@ impl CustomPropertyRegistry {
     /// The registry of a document that registers no custom property.
     fn empty() -> Self {
         Self {
-            registrations: HashMap::new(),
+            registrations: FastMap::default(),
             document_url: Vec::new(),
             document_base_url: Vec::new(),
             parses: Default::default(),
@@ -699,7 +700,7 @@ impl CustomPropertyStore {
                 base.inheritance_parent.clone(),
                 base.ancestor_count,
             ),
-            None => (HashMap::new(), None, None, 0),
+            None => (FastMap::default(), None, None, 0),
         };
         let mut declared_names = Vec::with_capacity(animated.len());
         for (name_raw, entry) in animated {
@@ -757,7 +758,7 @@ impl CustomPropertyStore {
             return None;
         }
         let inherits = |entry: &CustomPropertyEntry| registry.name_inherits(&entry.name);
-        let own_values: HashMap<usize, CustomPropertyEntry> = self
+        let own_values: FastMap<usize, CustomPropertyEntry> = self
             .own_values
             .iter()
             .filter(|(_, entry)| inherits(entry))
@@ -817,7 +818,7 @@ impl CustomPropertyStore {
         mut parent: Option<Arc<CustomPropertyStore>>,
         entries: Vec<(usize, CustomPropertyEntry)>,
     ) -> Arc<CustomPropertyStore> {
-        let mut own_values = HashMap::with_capacity(entries.len());
+        let mut own_values = FastMap::with_capacity_and_hasher(entries.len(), Default::default());
         let mut declared_names = Vec::with_capacity(entries.len());
         for (name_raw, entry) in entries {
             declared_names.push(name_raw);
@@ -1029,7 +1030,7 @@ struct ASFResolutionContext<'a> {
     custom_property_finalization: CustomPropertyFinalization<'a>,
     registered_value_reads: Option<&'a mut RegisteredValueReads>,
     element_store: Option<&'a CustomPropertyStore>,
-    element_values: Option<&'a mut HashMap<usize, RetainedStyleValueData>>,
+    element_values: Option<&'a mut FastMap<usize, RetainedStyleValueData>>,
     substitution_limit_hits: u64,
     function_local_scopes: Vec<FunctionLocalScope<'a>>,
     token_cache: Option<&'a mut CustomPropertyTokenCache>,
@@ -1418,7 +1419,7 @@ pub(crate) fn resolve_element_custom_properties(
         custom_property_finalization: finalization,
         registered_value_reads: Some(&mut reads),
         element_store: Some(store),
-        element_values: Some(&mut HashMap::new()),
+        element_values: Some(&mut FastMap::default()),
         token_cache: Some(&mut environment.token_cache),
         ..Default::default()
     };
