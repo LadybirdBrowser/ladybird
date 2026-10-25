@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 16 tests
 
-14 Pass
-2 Fail
+15 Pass
+1 Fail
 Pass	.item 1
 Pass	.item 2
 Pass	.item 3
@@ -16,7 +16,7 @@ Pass	.item 9
 Pass	.item 10
 Pass	.item 11
 Pass	.item 12
-Fail	.item 13
+Pass	.item 13
 Pass	.item 14
 Pass	.item 15
 Pass	.item 16

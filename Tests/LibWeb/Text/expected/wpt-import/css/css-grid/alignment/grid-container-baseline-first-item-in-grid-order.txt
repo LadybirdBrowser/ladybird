@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Grid container first baseline uses the first baseline-participating item in grid order
+1 Pass
+Pass	Grid container first baseline uses the first baseline-participating item in grid order
