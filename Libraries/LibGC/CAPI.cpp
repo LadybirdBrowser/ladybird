@@ -159,6 +159,11 @@ struct CAPI {
     static void* foreign_context(Heap& heap) { return heap.m_foreign_context; }
     static void defer_gc(Heap& heap) { heap.defer_gc(); }
     static void undefer_gc(Heap& heap) { heap.undefer_gc(); }
+    static void deferral_state(Heap& heap, size_t*& deferrals, bool*& collect_when_deferrals_end)
+    {
+        deferrals = &heap.m_gc_deferrals;
+        collect_when_deferrals_end = &heap.m_should_gc_when_deferral_ends;
+    }
     static StackInfo const& stack_info(Heap const& heap) { return heap.m_stack_info; }
 };
 
@@ -257,6 +262,11 @@ void gc_heap_defer_gc(GCHeap* heap)
 void gc_heap_undefer_gc(GCHeap* heap)
 {
     CAPI::undefer_gc(as_heap(heap));
+}
+
+void gc_heap_deferral_state(GCHeap* heap, size_t** deferrals, bool** collect_when_deferrals_end)
+{
+    CAPI::deferral_state(as_heap(heap), *deferrals, *collect_when_deferrals_end);
 }
 
 bool gc_heap_should_collect_on_every_allocation(GCHeap const* heap)
