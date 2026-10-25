@@ -6,7 +6,6 @@
 
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
 #include <LibCompositing/RustFFI.h>
-#include <LibGfx/Path.h>
 
 namespace Compositing {
 
