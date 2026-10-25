@@ -1051,9 +1051,12 @@ void HTMLParserEndState::complete()
 
         // 13. Queue the navigation timing entry for the Document.
         document->queue_navigation_timing_entry();
-    }));
 
-    // FIXME: 10. If the Document's print when loaded flag is set, then run the printing steps.
+        // 10. If the Document's print when loaded flag is set, then run the printing steps.
+        // NB: This runs inside the task queued above, like step 11; see there.
+        if (document->print_when_loaded())
+            document->run_the_printing_steps();
+    }));
 
     // NB: Step 11 (the Document is now ready for post-load tasks) runs inside the task queued above; see there.
 }
