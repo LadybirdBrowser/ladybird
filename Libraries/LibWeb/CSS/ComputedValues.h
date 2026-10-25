@@ -424,7 +424,6 @@ public:
     // Callers can serialize straight from the returned handle without minting a wrapper.
     RustStyleValueHandle const* stored_style_value_handle(PropertyID) const;
 
-    RefPtr<StyleValue const> color_style_value() const;
     ComputedValues const& base_values() const { return m_borrowed_base_values ? *m_borrowed_base_values : m_base_values ? *m_base_values
                                                                                                                         : *this; }
     bool has_animated_values() const { return m_borrowed_base_values || m_base_values; }
@@ -464,8 +463,6 @@ public:
     bool depends_on_viewport_metrics() const { return m_depends_on_viewport_metrics; }
     bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
     bool in_display_none_subtree() const { return m_in_display_none_subtree; }
-    bool highlight_colors_authored() const { return m_highlight_colors_authored; }
-    bool highlight_color_is_current_color() const { return m_highlight_color_is_current_color; }
     bool has_pseudo_element_style(PseudoElement pseudo_element) const { return m_pseudo_element_styles & (1ull << to_underlying(pseudo_element)); }
     u64 pseudo_element_style_mask() const { return m_pseudo_element_styles; }
     ReadonlySpan<ComputedValuesFFI::FfiTableInheritanceDependentValue const> inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
@@ -503,53 +500,20 @@ public:
     bool content_uses_list_item_counter() const { return generated_content_facts() & ComputedValuesFFI::GENERATED_CONTENT_SHOWS_LIST_ITEM_COUNTER; }
     Display display() const { return display_from_ffi_display(m_noninherited.box->display); }
     Display display_before_box_type_transformation() const { return display_from_ffi_display(m_noninherited.box->display_before_box_type_transformation); }
-    Optional<int> z_index() const
-    {
-        if (!m_noninherited.box->has_z_index)
-            return {};
-        return m_noninherited.box->z_index;
-    }
-    TextAlign text_align() const { return m_inherited.text->text_align_value(); }
-    TextDecorationStyle text_decoration_style() const { return static_cast<TextDecorationStyle>(m_noninherited.text_reset->text_decoration_style); }
     Color text_decoration_color() const { return Color::from_bgra(m_noninherited.text_reset->text_decoration_color); }
     ReadonlySpan<ShadowData> text_shadow() const { return m_inherited.text->text_shadow_span(); }
     Positioning position() const { return static_cast<Positioning>(m_noninherited.box->position); }
-    WhiteSpaceCollapse white_space_collapse() const { return m_inherited.text->white_space_collapse_value(); }
-    FlexDirection flex_direction() const { return static_cast<FlexDirection>(m_noninherited.alignment->flex_direction); }
-    AlignSelf align_self() const { return static_cast<AlignSelf>(m_noninherited.alignment->align_self); }
-    int order() const { return m_noninherited.alignment->order; }
     Appearance appearance() const { return static_cast<Appearance>(m_noninherited.misc->appearance); }
     float opacity() const { return m_noninherited.effects->opacity; }
     Visibility visibility() const { return static_cast<Visibility>(m_inherited.box->visibility); }
-    JustifyContent justify_content() const { return static_cast<JustifyContent>(m_noninherited.alignment->justify_content); }
-    JustifySelf justify_self() const { return static_cast<JustifySelf>(m_noninherited.alignment->justify_self); }
     ComputedFilterView backdrop_filter() const { return m_noninherited.effects->backdrop_filter_value(); }
     ComputedFilterView filter() const { return m_noninherited.effects->filter_value(); }
     ReadonlySpan<ShadowData> box_shadow() const { return m_noninherited.effects->box_shadow_span(); }
     ComputedValuesFFI::ComputedSize const& width() const { return m_noninherited.sizing->width; }
     ComputedValuesFFI::ComputedSize const& height() const { return m_noninherited.sizing->height; }
-    Variant<VerticalAlign, LengthPercentage> vertical_align() const
-    {
-        auto const& value = m_noninherited.box->vertical_align;
-        if (value.is_keyword)
-            return static_cast<VerticalAlign>(value.keyword);
-        return LengthPercentage::view(value.value);
-    }
     Direction direction() const { return static_cast<Direction>(m_inherited.box->direction); }
     WritingMode writing_mode() const { return static_cast<WritingMode>(m_inherited.box->writing_mode); }
 
-    Isolation isolation() const { return m_noninherited.effects->isolation_value(); }
-    Containment contain() const
-    {
-        auto const& box = *m_noninherited.box;
-        return Containment {
-            .size_containment = box.size_containment,
-            .inline_size_containment = box.inline_size_containment,
-            .layout_containment = box.layout_containment,
-            .style_containment = box.style_containment,
-            .paint_containment = box.paint_containment,
-        };
-    }
     ContainerType container_type() const
     {
         auto const& box = *m_noninherited.box;
@@ -594,28 +558,20 @@ public:
     // counter style.
     bool reads_counter_style_environment(bool is_pseudo) const { return ComputedValuesFFI::rust_style_reads_counter_style_environment(static_cast<StyleValueFFI::StyleValueData const*>(m_noninherited.content_data->content.pointer), static_cast<StyleValueFFI::StyleValueData const*>(list_style_type_data()), is_pseudo); }
 
-    Optional<URL> clip_path() const { return m_noninherited.mask_data->clip_path_value(); }
     Color flood_color() const { return Gfx::Color::from_bgra(m_noninherited.svg_reset->flood_color); }
     float flood_opacity() const { return m_noninherited.svg_reset->flood_opacity; }
 
-    LengthPercentage const& cx() const { return LengthPercentage::view(m_noninherited.svg_reset->cx); }
-    LengthPercentage const& cy() const { return LengthPercentage::view(m_noninherited.svg_reset->cy); }
     NonnullRefPtr<StyleValue const> d() const
     {
         auto const* handle = &m_noninherited.svg_reset->d;
         static_assert(sizeof(RustStyleValueHandle) == sizeof(*handle));
         return style_value_from_handle(PropertyID::D, reinterpret_cast<RustStyleValueHandle const&>(*handle)).release_nonnull();
     }
-    LengthPercentage const& r() const { return LengthPercentage::view(m_noninherited.svg_reset->r); }
-    LengthPercentageOrAuto rx() const { return m_noninherited.svg_reset->rx.is_auto ? LengthPercentageOrAuto::make_auto() : LengthPercentage::view(m_noninherited.svg_reset->rx.value); }
-    LengthPercentageOrAuto ry() const { return m_noninherited.svg_reset->ry.is_auto ? LengthPercentageOrAuto::make_auto() : LengthPercentage::view(m_noninherited.svg_reset->ry.value); }
     LengthPercentage const& x() const { return LengthPercentage::view(m_noninherited.svg_reset->x); }
     LengthPercentage const& y() const { return LengthPercentage::view(m_noninherited.svg_reset->y); }
 
     bool has_transformations() const { return m_noninherited.transform->has_transformations(); }
     TransformOrigin transform_origin() const { return m_noninherited.transform->transform_origin_value(); }
-    TransformStyle transform_style() const { return m_noninherited.transform->transform_style_value(); }
-    BackfaceVisibility backface_visibility() const { return m_noninherited.transform->backface_visibility_value(); }
     RefPtr<TransformationStyleValue const> rotate() const { return m_noninherited.transform->rotate_value(); }
     RefPtr<TransformationStyleValue const> translate() const { return m_noninherited.transform->translate_value(); }
     RefPtr<TransformationStyleValue const> scale() const { return m_noninherited.transform->scale_value(); }
@@ -632,9 +588,7 @@ public:
     Color outline_color() const { return Color::from_bgra(m_noninherited.misc->outline_color); }
     Color column_rule_color() const { return Color::from_bgra(m_noninherited.misc->column_rule_color); }
     OutlineStyle outline_style() const { return static_cast<OutlineStyle>(m_noninherited.misc->outline_style); }
-    CSSPixels outline_width() const { return m_noninherited.misc->outline_width; }
 
-    MathStyle math_style() const { return static_cast<MathStyle>(m_inherited.font->math_style); }
     int math_depth() const { return m_inherited.font->math_depth; }
 
 private:
@@ -1211,8 +1165,6 @@ private:
     bool m_depends_on_viewport_metrics { false };
     bool m_font_metrics_depend_on_viewport_metrics { false };
     bool m_in_display_none_subtree { false };
-    bool m_highlight_colors_authored { false };
-    bool m_highlight_color_is_current_color { false };
     bool m_is_style_record_view { false };
 };
 
@@ -1269,61 +1221,6 @@ private:
 public:
     void set_animated_properties(AnimatedProperties const*);
 
-    void set_color(Color color)
-    {
-        if (m_values.m_inherited.text->color_value() == color)
-            return;
-        m_values.m_inherited.text.access().color = color.value();
-    }
-    void set_color_scheme(PreferredColorScheme color_scheme)
-    {
-        if (m_values.m_inherited.ui->color_scheme_value() == color_scheme)
-            return;
-        m_values.m_inherited.ui.access().color_scheme = to_underlying(color_scheme);
-    }
-    void set_text_align(TextAlign text_align)
-    {
-        if (m_values.m_inherited.text->text_align_value() == text_align)
-            return;
-        m_values.m_inherited.text.access().text_align = to_underlying(text_align);
-    }
-    void set_letter_spacing(CSSPixels value)
-    {
-        if (m_values.m_inherited.text->letter_spacing_value() == value)
-            return;
-        m_values.m_inherited.text.access().letter_spacing = value;
-    }
-    void set_display(Display value)
-    {
-        if (m_values.display() == value)
-            return;
-        m_values.m_noninherited.box.access().display = to_ffi_display(value);
-    }
-    void set_display_before_box_type_transformation(Display value)
-    {
-        if (m_values.display_before_box_type_transformation() == value)
-            return;
-        m_values.m_noninherited.box.access().display_before_box_type_transformation = to_ffi_display(value);
-    }
-    void set_rotate(RefPtr<TransformationStyleValue const> value)
-    {
-        if (m_values.rotate() == value)
-            return;
-        TransformValues::set_transformation(m_values.m_noninherited.transform.access().rotate, value.ptr());
-    }
-    void set_scale(RefPtr<TransformationStyleValue const> value)
-    {
-        if (m_values.scale() == value)
-            return;
-        TransformValues::set_transformation(m_values.m_noninherited.transform.access().scale, value.ptr());
-    }
-    void set_translate(RefPtr<TransformationStyleValue const> value)
-    {
-        if (m_values.translate() == value)
-            return;
-        TransformValues::set_transformation(m_values.m_noninherited.transform.access().translate, value.ptr());
-    }
-
     ComputedValues& m_values;
 };
 
@@ -1352,12 +1249,7 @@ public:
         m_values->m_depends_on_viewport_metrics = values.m_depends_on_viewport_metrics;
         m_values->m_font_metrics_depend_on_viewport_metrics = values.m_font_metrics_depend_on_viewport_metrics;
         m_values->m_in_display_none_subtree = values.m_in_display_none_subtree;
-        m_values->m_highlight_colors_authored = values.m_highlight_colors_authored;
-        m_values->m_highlight_color_is_current_color = values.m_highlight_color_is_current_color;
     }
-
-    Mutator* operator->() { return &m_mutator; }
-    Mutator const* operator->() const { return &m_mutator; }
 
     NonnullRefPtr<ComputedValues const> build() && { return move(m_values); }
 
