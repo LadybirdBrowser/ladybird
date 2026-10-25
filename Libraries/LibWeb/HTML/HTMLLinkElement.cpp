@@ -45,6 +45,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
+#include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
 
@@ -1484,7 +1485,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
             // location stays the URL it was linked at.
             CSS::Parser::Parser::parse_stylesheet_off_thread(
                 CSS::Parser::ParsingParams { document() }, maybe_decoded_string.release_value(),
-                [link = GC::make_root(*this), loaded_document = GC::make_root(document()), fetch_generation = m_current_fetch_generation, location = response.url_list().first(), base_url = response.url_list().last(), origin_clean](CSS::Parser::RustStyleSheetParse parsed) mutable {
+                [link = GC::make_root(*this), loaded_document = GC::make_root(document()), fetch_generation = m_current_fetch_generation, location = response.url_list().first(), base_url = response.url_list().last(), origin_clean, referrer_policy = ReferrerPolicy::parse_a_referrer_policy_from_a_referrer_policy_header(response)](CSS::Parser::RustStyleSheetParse parsed) mutable {
                     if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
                         return;
                     // NB: An inactive document's element tasks cannot run. Release its result here.
@@ -1497,7 +1498,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                     //     roots: the roots of a function that died would keep them alive through the collection that
                     //     finds it dead.
                     link->queue_an_element_task(Task::Source::Networking,
-                        [link = GC::Ref { *link }, loaded_document = GC::Ref { *loaded_document }, fetch_generation, location = move(location), base_url = move(base_url), parsed = move(parsed), origin_clean] {
+                        [link = GC::Ref { *link }, loaded_document = GC::Ref { *loaded_document }, fetch_generation, location = move(location), base_url = move(base_url), parsed = move(parsed), origin_clean, referrer_policy] {
                             if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
                                 return;
                             if (&link->document() != loaded_document.ptr() || !loaded_document->is_fully_active()
@@ -1507,8 +1508,8 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                                 return;
                             }
 
-                            CSS::Parser::Parser parser { CSS::Parser::ParsingParams { *loaded_document } };
-                            auto sheet = parser.create_css_stylesheet(parsed, location);
+                            // NB: The sheet records its referrer policy as it is created, before its imports start to load.
+                            auto sheet = CSS::StyleSheetState::create(parsed.native_rules(), loaded_document.ptr(), {}, location, referrer_policy);
                             if (base_url != location)
                                 sheet->set_base_url(move(base_url));
                             link->associate_style_sheet(*sheet, origin_clean);

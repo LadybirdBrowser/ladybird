@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Font from external stylesheet.
+1 Pass
+Pass	Font from external stylesheet.
