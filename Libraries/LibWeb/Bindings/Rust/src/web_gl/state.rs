@@ -13,7 +13,7 @@ use core::marker::PhantomData;
 use core::ops::Deref;
 
 use ak::Utf16String;
-use libjs_rust::api::{ForeignCellSlot, Gc, Realm, Trace, Visitor, Vm};
+use libjs_rust::api::{ForeignCellSlot, Gc, GcRefCell, Realm, Trace, Visitor, Vm};
 
 use super::canvas::{
     Canvas, TexImageSourceFrame, TexImageSourceKind, read_tex_image_frame, read_tex_image_pixels, read_tex_image_source,
@@ -173,7 +173,7 @@ pub(crate) struct ContextState {
 
     #[gc(untraced)]
     pub(crate) enabled_compressed_texture_formats: RefCell<Vec<u32>>,
-    pub(crate) enabled_extensions: RefCell<Vec<EnabledExtension>>,
+    pub(crate) enabled_extensions: GcRefCell<Vec<EnabledExtension>>,
     #[gc(untraced)]
     pub(crate) enabled_empty_extensions: RefCell<Vec<EnabledEmptyExtension>>,
 
@@ -234,7 +234,7 @@ impl ContextState {
             unpack_premultiply_alpha: Cell::new(false),
             unpack_colorspace_conversion: Cell::new(GL_BROWSER_DEFAULT_WEBGL),
             enabled_compressed_texture_formats: RefCell::new(Vec::new()),
-            enabled_extensions: RefCell::new(Vec::new()),
+            enabled_extensions: GcRefCell::new(Vec::new()),
             enabled_empty_extensions: RefCell::new(Vec::new()),
             array_buffer_binding: Cell::new(None),
             element_array_buffer_binding: Cell::new(None),
