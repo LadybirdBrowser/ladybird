@@ -52,6 +52,7 @@ struct FlexItem<'pass> {
     // content. The content resolves percentages against it.
     cross_size_transferred_through_aspect_ratio: Option<CssPixels>,
     flex_base_size: CssPixels,
+    automatic_minimum_size_before_flexing: Option<CssPixels>,
     hypothetical_main_size: CssPixels,
     hypothetical_cross_size: CssPixels,
     target_main_size: CssPixels,
@@ -85,6 +86,7 @@ impl FlexItem<'_> {
             cross_size_was_resolved_from_aspect_ratio: false,
             cross_size_transferred_through_aspect_ratio: None,
             flex_base_size: CssPixels::default(),
+            automatic_minimum_size_before_flexing: None,
             hypothetical_main_size: CssPixels::default(),
             hypothetical_cross_size: CssPixels::default(),
             target_main_size: CssPixels::default(),
@@ -1258,6 +1260,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
         // NOTE: We don't clamp the main size until we have them for all items.
         self.flex_items[index].flex_base_size = flex_base_size;
+        self.flex_items[index].automatic_minimum_size_before_flexing = None;
     }
 
     // https://drafts.csswg.org/css-flexbox-1/#min-size-auto
@@ -1295,6 +1298,43 @@ impl<'pass> FlexFormattingContext<'pass> {
             .then(|| self.inner_main_size_used(container));
         self.sizing()
             .resolve_calc_size(node, axis, min_size, size, percentage_basis)
+    }
+
+    fn automatic_minimum_size_for_clamping(
+        &mut self,
+        index: usize,
+        size_capped_by_max_main_size: CssPixels,
+    ) -> CssPixels {
+        if let Some(size) = self.flex_items[index].automatic_minimum_size_before_flexing {
+            return size;
+        }
+        if let Some(upper_bound) = self.automatic_minimum_size_upper_bound_without_content(index)
+            && upper_bound <= size_capped_by_max_main_size
+        {
+            return upper_bound;
+        }
+        let size = self.automatic_minimum_size(index);
+        self.flex_items[index].automatic_minimum_size_before_flexing = Some(size);
+        size
+    }
+
+    fn automatic_minimum_size_upper_bound_without_content(&self, index: usize) -> Option<CssPixels> {
+        let node = self.flex_items[index].box_;
+        let style = self.style(node);
+        if self
+            .select_main(style.min_width(), style.min_height())
+            .calc_size()
+            .is_some()
+        {
+            return None;
+        }
+        let max_main_size = self
+            .has_main_max_size(node)
+            .then(|| self.specified_main_max_size(index));
+        match (self.specified_size_suggestion(index), max_main_size) {
+            (Some(specified), Some(max)) => Some(specified.min(max)),
+            (specified, max) => specified.or(max),
+        }
     }
 
     // https://drafts.csswg.org/css-flexbox-1/#specified-size-suggestion
@@ -1672,17 +1712,17 @@ impl<'pass> FlexFormattingContext<'pass> {
                     continue;
                 }
                 let node = self.flex_items[index].box_;
-                let min_size = if self.has_main_min_size(node) {
-                    self.specified_main_min_size(index)
-                } else {
-                    self.automatic_minimum_size(index)
-                };
                 let max_size = if self.has_main_max_size(node) {
                     self.specified_main_max_size(index)
                 } else {
                     CssPixels::from_raw(i32::MAX)
                 };
                 let original = self.flex_items[index].target_main_size;
+                let min_size = if self.has_main_min_size(node) {
+                    self.specified_main_min_size(index)
+                } else {
+                    self.automatic_minimum_size_for_clamping(index, original.min(max_size))
+                };
                 let target = css_clamp(original, min_size, max_size).max(CssPixels::default());
                 self.flex_items[index].target_main_size = target;
                 if target < original {
@@ -1733,6 +1773,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             let index = self.flex_lines[line_index].items[item_position];
             let target = self.flex_items[index].target_main_size;
             self.flex_items[index].main_size = Some(target);
+            self.flex_items[index].automatic_minimum_size_before_flexing = None;
             self.set_main_size(index, target);
             // https://drafts.csswg.org/css-flexbox-1/#definite-sizes
             // 1. If the flex container has a definite main size, then the post-flexing main sizes of its flex items are treated as definite.
@@ -3508,19 +3549,6 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .fold(CssPixels::default(), |sum, item| sum + item.flex_base_size)
                 <= self.available_space_for_items.unwrap().main.to_px_or_zero();
 
-        // OPTIMIZATION: Skip automatic_minimum_size calculation when we can prove it won't affect the result.
-        //               We compute:
-        //                   hypothetical_main_size = clamp(flex_base_size, automatic_minimum_size, max_size)
-        //               For non-replaced elements without aspect ratio, the spec defines:
-        //                   automatic_minimum_size = content_based_minimum_size
-        //                   content_based_minimum_size = min(content_size_suggestion, specified_size_suggestion)
-        //               This means:
-        //                   automatic_minimum_size <= specified_size_suggestion (when specified exists).
-        //.              So if flex_base_size == specified_size_suggestion, then automatic_minimum_size <= flex_base_size,
-        //               and the lower clamp becomes a no-op. We can substitute 0 and get the same result.
-        //.              We exclude: scroll containers (content can overflow, different behavior), replaced elements (use
-        //               different formula with intrinsic sizes), and items with aspect-ratio (transferred_size_suggestion
-        //               complicates the calculation).
         for index in 0..self.flex_items.len() {
             let node = self.flex_items[index].box_;
             let clamp_max = if self.has_main_max_size(node) {
@@ -3528,28 +3556,23 @@ impl<'pass> FlexFormattingContext<'pass> {
             } else {
                 CssPixels::from_raw(i32::MAX)
             };
-            let facts = self.facts(node);
-            let can_skip_for_item = !facts.is_scroll_container()
-                && !facts.is_replaced_box()
-                && !facts.has_preferred_aspect_ratio()
-                && self.flex_items[index].used_flex_basis_is_definite
-                && self.specified_size_suggestion(index) == Some(self.flex_items[index].flex_base_size);
             // NB: A calc-size() minimum can resolve to more than the automatic minimum size.
             let style = self.style(node);
             let min_is_calc_size = self
                 .select_main(style.min_width(), style.min_height())
                 .calc_size()
                 .is_some();
+            let flex_base_size = self.flex_items[index].flex_base_size;
             let clamp_min = if self.has_main_min_size(node) {
                 self.specified_main_min_size(index)
-            } else if !min_is_calc_size && (should_skip_automatic_minimum_size_clamp || can_skip_for_item) {
+            } else if !min_is_calc_size && should_skip_automatic_minimum_size_clamp {
                 CssPixels::default()
             } else {
-                self.automatic_minimum_size(index)
+                self.automatic_minimum_size_for_clamping(index, flex_base_size.min(clamp_max))
             };
             // The hypothetical main size is the item’s flex base size clamped according to its used min and max main sizes (and flooring the content box size at zero).
             self.flex_items[index].hypothetical_main_size =
-                css_clamp(self.flex_items[index].flex_base_size, clamp_min, clamp_max).max(CssPixels::default());
+                css_clamp(flex_base_size, clamp_min, clamp_max).max(CssPixels::default());
         }
     }
 
