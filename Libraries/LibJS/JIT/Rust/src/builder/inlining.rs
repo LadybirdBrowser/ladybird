@@ -523,8 +523,64 @@ impl GraphBuilder<'_> {
             return Ok(None);
         }
         let Some(target) = feedback.direct_call else {
+            return self.try_direct_call_of_constant(instruction);
+        };
+        self.build_direct_call(instruction, target, None)
+    }
+
+    /// Builds a `Call` of a function the code holds as a constant, like a
+    /// method of a prototype, as a `CallDirect` node, or returns `None` if
+    /// it cannot call the callee directly.
+    fn try_direct_call_of_constant(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
+        let Instruction::Call { callee, .. } = instruction else {
             return Ok(None);
         };
+        let SlotState::Value { node, .. } = self.peek(*callee) else {
+            return Ok(None);
+        };
+        match self.graph.constant_value(node) {
+            Some(bits) => self.try_direct_call_of_function(instruction, bits),
+            None => Ok(None),
+        }
+    }
+
+    /// Builds a `Call` whose callee is the function `bits` as a `CallDirect`
+    /// node, or returns `None` if it cannot call the function directly.
+    fn try_direct_call_of_function(
+        &mut self,
+        instruction: &Instruction,
+        bits: u64,
+    ) -> Result<Option<Flow>, CompileFailure> {
+        let Some(target) = self.direct_call_functions.get(&bits).copied() else {
+            return Ok(None);
+        };
+        let index = u32::try_from(self.graph.direct_call_targets.len()).expect("target count fits in u32");
+        self.graph.direct_call_targets.push(target);
+        self.build_direct_call(instruction, target, Some(index))
+    }
+
+    /// Builds a `Call` that calls `target` directly as a `CallDirect` node,
+    /// whose `target` is `constant_target` (see `Op::CallDirect`).
+    fn build_direct_call(
+        &mut self,
+        instruction: &Instruction,
+        target: crate::snapshot::DirectCallTarget,
+        constant_target: Option<u32>,
+    ) -> Result<Option<Flow>, CompileFailure> {
+        let Instruction::Call {
+            argument_count,
+            callee,
+            this_value,
+            arguments,
+            ..
+        } = instruction
+        else {
+            unreachable!("direct calls are of Call instructions");
+        };
+        let Handling::Generic(info) = handling(OpCode::Call) else {
+            unreachable!("calls are generic instructions");
+        };
+        let slots_offset = u64::from(self.runtime.offsets.execution_context_slots);
         let slot_count = u64::from(target.registers_and_locals_and_constants_count)
             + u64::from((*argument_count).max(target.function.formal_parameter_count));
         self.reserve_call_frame(slots_offset + 8 * slot_count);
@@ -564,6 +620,7 @@ impl GraphBuilder<'_> {
                 pc: self.function.pc,
                 inlined_frame_bytes,
                 stores_operands: false,
+                target: constant_target,
             };
             return self
                 .build_call_without_inlined_frames(instruction, op, &inputs)
@@ -578,6 +635,7 @@ impl GraphBuilder<'_> {
             pc: self.function.pc,
             inlined_frame_bytes: 0,
             stores_operands: stores_operands && !inputs.is_empty(),
+            target: constant_target,
         };
         self.build_generic_node_with_inputs(instruction, info, op, &inputs, None)
             .map(Some)
@@ -888,7 +946,12 @@ impl GraphBuilder<'_> {
                 cases.push((bits, self.inlinable_functions.get(&bits).copied()));
             }
         }
-        if cases.len() < 2 || cases.len() > MAX_CALLEE_CASES || cases.iter().all(|(_, index)| index.is_none()) {
+        if cases.len() < 2
+            || cases.len() > MAX_CALLEE_CASES
+            || cases
+                .iter()
+                .all(|(bits, index)| index.is_none() && !self.direct_call_functions.contains_key(bits))
+        {
             return None;
         }
         Some(cases)
@@ -992,12 +1055,12 @@ impl GraphBuilder<'_> {
         let Some(cases) = self.callee_cases(*callee) else {
             return Ok(None);
         };
-        // NB: Without a case to inline, one generic call does better than a
-        //     slow path call for each case.
-        if !cases
-            .iter()
-            .any(|(_, index)| index.is_some_and(|index| self.may_inline_callee_case(index)))
-        {
+        // NB: Without a case to inline or call directly, one generic call does
+        //     better than a slow path call for each case.
+        if !cases.iter().any(|(bits, index)| {
+            index.is_some_and(|index| self.may_inline_callee_case(index))
+                || self.direct_call_functions.contains_key(bits)
+        }) {
             return Ok(None);
         }
         let Handling::Generic(info) = handling(OpCode::Call) else {
@@ -1086,6 +1149,10 @@ impl GraphBuilder<'_> {
                     *dst,
                 ))?,
                 _ => None,
+            };
+            let inlined = match inlined {
+                Some(flow) => Some(flow),
+                None => self.try_direct_call_of_function(instruction, *bits)?,
             };
             let flow = match inlined {
                 Some(flow) => flow,

@@ -168,11 +168,26 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let Instruction::Call { call_feedback, .. } = decoded.instruction else {
             return Err(invalid("direct call of a non-Call instruction"));
         };
-        let target: DirectCallTarget = snapshot
-            .feedback
-            .call
-            .get(usize::from(call_feedback))
-            .and_then(|feedback| feedback.direct_call)
+        let constant_target = match self.graph.node(node).op {
+            Op::CallDirect {
+                target: Some(target), ..
+            } => Some(
+                *self
+                    .graph
+                    .direct_call_targets
+                    .get(target as usize)
+                    .ok_or(invalid("direct call of a missing constant target"))?,
+            ),
+            _ => None,
+        };
+        let target: DirectCallTarget = constant_target
+            .or_else(|| {
+                snapshot
+                    .feedback
+                    .call
+                    .get(usize::from(call_feedback))
+                    .and_then(|feedback| feedback.direct_call)
+            })
             .ok_or(invalid("direct call without a target"))?;
         if self.stores_operands(node) {
             let operands = crate::builder::js_call_operands(&decoded.instruction).inputs;

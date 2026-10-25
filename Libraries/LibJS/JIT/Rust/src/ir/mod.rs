@@ -558,11 +558,16 @@ pub enum Op {
     /// holding an arguments object the code never created), the node reads
     /// its operands from the frame and writes the result there, like a
     /// `Generic` node.
+    ///
+    /// The callee it calls is its call feedback's `DirectCallTarget`, or
+    /// with `target`, the graph's `direct_call_targets[target]`, a function
+    /// the code holds as a constant.
     CallDirect {
         executable: u32,
         pc: u32,
         inlined_frame_bytes: u32,
         stores_operands: bool,
+        target: Option<u32>,
     },
     /// The `Call` instruction at `pc` of `executable`, like `Generic`, but
     /// calling its call feedback's `NativeCallTarget` directly, in the
@@ -2067,6 +2072,8 @@ pub struct Graph {
     /// Immutable properties of embedded typed arrays. Their fixed lengths
     /// require a valid cached storage offset before each access.
     pub typed_array_constants: Vec<(u64, crate::snapshot::TypedArraySnapshot)>,
+    /// The targets of `Op::CallDirect` nodes that call function constants.
+    pub direct_call_targets: Vec<crate::snapshot::DirectCallTarget>,
     /// The most bytes of interpreter stack that materializing the frames of
     /// inlined calls, and the frames of direct and native calls on top of
     /// them, take at once. Compiled code checks at entry that they fit.

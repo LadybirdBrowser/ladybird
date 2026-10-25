@@ -691,6 +691,11 @@ pub struct PropertyCacheEntrySnapshot {
     /// it is a function JIT code may inline: code that calls the property's
     /// value as a constant can inline the call without feedback for it.
     pub prototype_property_inline_executable: Option<u32>,
+    /// `prototype_property`, if it is a function JIT code can call directly
+    /// whose calls need no function environment: code that calls the
+    /// property's value as a constant can call it directly without feedback
+    /// for it.
+    pub prototype_property_direct_call: Option<DirectCallTarget>,
     /// The `WatchpointSet` cell that stays valid while `prototype` keeps
     /// `prototype_property` in the property and its shape (see
     /// `Shape::watch_slot_for_replacements()` in the runtime), if there is

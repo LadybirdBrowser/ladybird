@@ -207,6 +207,9 @@ impl GraphBuilder<'_> {
                 if let Some(index) = entry.prototype_property_inline_executable {
                     self.inlinable_functions.insert(bits, index);
                 }
+                if let Some(target) = entry.prototype_property_direct_call {
+                    self.direct_call_functions.insert(bits, target);
+                }
                 // NB: While the watchpoint set is valid, the prototype holds
                 //     the object in the property, which needs no load.
                 if let Some(watchpoint) = entry.prototype_property_watchpoint {

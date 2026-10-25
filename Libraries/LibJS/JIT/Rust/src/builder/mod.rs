@@ -552,6 +552,9 @@ struct GraphBuilder<'a> {
     /// The functions among the constants that calls may inline, by value:
     /// their indices in `Snapshot::executables`.
     inlinable_functions: HashMap<u64, u32>,
+    /// The functions among the constants that calls may call directly, by
+    /// value.
+    direct_call_functions: HashMap<u64, crate::snapshot::DirectCallTarget>,
     /// How `instanceof` runs with the functions the code uses as constants
     /// on its right-hand side (see `GlobalValueSnapshot::has_instance`), by
     /// their bits.
@@ -598,6 +601,7 @@ impl<'a> GraphBuilder<'a> {
             build_osr_entries,
             intrinsics: HashMap::default(),
             inlinable_functions: HashMap::default(),
+            direct_call_functions: HashMap::default(),
             has_instance: HashMap::default(),
         })
     }
