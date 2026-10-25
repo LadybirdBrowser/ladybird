@@ -106,7 +106,7 @@ public:
     void set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Selection::Selection>);
 
     WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment(TrustedTypes::TrustedHTMLOrString const&);
-    WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment(StringView fragment);
+    WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment(StringView fragment, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> = nullptr);
 
     template<typename Callback>
     void for_each_contained(Callback callback) const

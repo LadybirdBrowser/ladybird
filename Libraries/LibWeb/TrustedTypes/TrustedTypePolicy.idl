@@ -8,6 +8,7 @@ interface TrustedTypePolicy {
     [NeedsCallerRealm] TrustedHTML createHTML(DOMString input, any... arguments);
     [NeedsCallerRealm] TrustedScript createScript(DOMString input, any... arguments);
     [NeedsCallerRealm] TrustedScriptURL createScriptURL(DOMString input, any... arguments);
+    [Exposed=Window, NeedsCallerRealm, ImplementedInBindings] TrustedHTMLParserOptions createParserOptions(optional SetHTMLUnsafeOptions options = {}, any... arguments);
 };
 
 // https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy-options
@@ -15,7 +16,9 @@ dictionary TrustedTypePolicyOptions {
     CreateHTMLCallback createHTML;
     CreateScriptCallback createScript;
     CreateScriptURLCallback createScriptURL;
+    CreateParserOptionsCallback createParserOptions;
 };
 callback CreateHTMLCallback = DOMString? (DOMString input, any... arguments);
 callback CreateScriptCallback = DOMString? (DOMString input, any... arguments);
 callback CreateScriptURLCallback = USVString? (DOMString input, any... arguments);
+callback CreateParserOptionsCallback = SetHTMLUnsafeOptions? (SetHTMLUnsafeOptions options, any... arguments);

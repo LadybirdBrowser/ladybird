@@ -27,7 +27,15 @@ def bindings_glue_header_for_interface(interface: Interface, wrapper_interface_n
     if module == "CustomElements":
         return "LibWeb/HTML/CustomElements/BindingsGlue.h"
 
-    if name in ("Document", "Event", "EventTarget", "NodeIterator", "ShadowRoot", "TreeWalker"):
+    if name in (
+        "Document",
+        "Event",
+        "EventTarget",
+        "NodeIterator",
+        "NonDocumentTypeChildNode",
+        "ShadowRoot",
+        "TreeWalker",
+    ):
         return "LibWeb/DOM/BindingsGlue.h"
 
     if name == "WindowOrWorkerGlobalScope":

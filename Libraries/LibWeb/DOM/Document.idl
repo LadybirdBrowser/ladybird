@@ -59,9 +59,8 @@ dictionary ImportNodeOptions {
 // https://html.spec.whatwg.org/multipage/dom.html#document
 [LegacyOverrideBuiltIns]
 partial interface Document {
-    // FIXME: parseHTMLUnsafe is missing the ParseHTMLUnsafeOptions parameter.
-    [NeedsCallerRealm, ImplementedInBindings] static Document parseHTMLUnsafe((TrustedHTML or DOMString) html);
-    [FIXME] static Document parseHTML(DOMString html, optional SetHTMLOptions options = {});
+    [NeedsCallerRealm, ImplementedInBindings] static Document parseHTMLUnsafe((TrustedHTML or DOMString) html, optional (ParseHTMLUnsafeOptions or TrustedHTMLParserOptions) options = {});
+    [NeedsCallerRealm, ImplementedInBindings] static Document parseHTML(DOMString html, optional SetHTMLOptions options = {});
 
     // resource metadata management
     [PutForwards=href, LegacyUnforgeable] readonly attribute Location? location;

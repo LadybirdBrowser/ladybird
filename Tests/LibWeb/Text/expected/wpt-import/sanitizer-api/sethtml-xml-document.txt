@@ -2,12 +2,13 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	Testcase #0 with xmlDoc.setHTML("Hello!")
+4 Pass
+4 Fail
+Pass	Testcase #0 with xmlDoc.setHTML("Hello!")
 Fail	Testcase #0, shadow inside xmlDoc, shadowroot.setHTML("Hello!")
-Fail	Testcase #1 with xmlDoc.setHTML("<br>")
+Pass	Testcase #1 with xmlDoc.setHTML("<br>")
 Fail	Testcase #1, shadow inside xmlDoc, shadowroot.setHTML("<br>")
-Fail	Testcase #2 with xmlDoc.setHTML("<p>Hi</p>")
+Pass	Testcase #2 with xmlDoc.setHTML("<p>Hi</p>")
 Fail	Testcase #2, shadow inside xmlDoc, shadowroot.setHTML("<p>Hi</p>")
-Fail	Testcase #3 with xmlDoc.setHTML("<iframe></iframe><p>text</p>")
+Pass	Testcase #3 with xmlDoc.setHTML("<iframe></iframe><p>text</p>")
 Fail	Testcase #3, shadow inside xmlDoc, shadowroot.setHTML("<iframe></iframe><p>text</p>")

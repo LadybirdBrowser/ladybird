@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	removeUnsafe removes the right elements and attributes
-Fail	removeUnsafe with default config
-Fail	removeUnsafe sets javascriptURLs to false
-Fail	Baseline remove list is namespace specific #0: {"name":"script","namespace":"http://www.w3.org/1999/xhtml"}
-Fail	Baseline remove list is namespace specific #1: {"name":"script","namespace":"http://www.w3.org/2000/svg"}
-Fail	Baseline remove list is namespace specific #2: {"name":"use","namespace":"http://www.w3.org/2000/svg"}
-Fail	Baseline remove list is namespace specific #3: {"name":"use","namespace":"http://www.w3.org/1999/xhtml"}
-Fail	Baseline remove list is namespace specific #4: {"name":"script","namespace":"http://www.w3.org/1998/Math/MathML"}
+8 Pass
+Pass	removeUnsafe removes the right elements and attributes
+Pass	removeUnsafe with default config
+Pass	removeUnsafe sets javascriptURLs to false
+Pass	Baseline remove list is namespace specific #0: {"name":"script","namespace":"http://www.w3.org/1999/xhtml"}
+Pass	Baseline remove list is namespace specific #1: {"name":"script","namespace":"http://www.w3.org/2000/svg"}
+Pass	Baseline remove list is namespace specific #2: {"name":"use","namespace":"http://www.w3.org/2000/svg"}
+Pass	Baseline remove list is namespace specific #3: {"name":"use","namespace":"http://www.w3.org/1999/xhtml"}
+Pass	Baseline remove list is namespace specific #4: {"name":"script","namespace":"http://www.w3.org/1998/Math/MathML"}

@@ -48,6 +48,7 @@
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/Bindings/Document.h>
+#include <LibWeb/Bindings/Sanitizer.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/Angle.h>
@@ -171,6 +172,7 @@
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLInsertion.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
@@ -199,6 +201,7 @@
 #include <LibWeb/HTML/PopStateEvent.h>
 #include <LibWeb/HTML/RadioButtonGroupRegistry.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
+#include <LibWeb/HTML/SanitizerConfiguration.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -10801,21 +10804,24 @@ void Document::set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclara
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#parse-html-from-a-string
-void Document::parse_html_from_a_string(Utf16View html)
+void Document::parse_html_from_a_string(Utf16View html, HTML::SanitizerConfiguration const* configuration)
 {
     // 1. Set document's type to "html".
     set_document_type(DOM::Document::Type::HTML);
 
     // OPTIMIZATION: Simple markup builds the document directly, without a parser.
-    if (HTML::HTMLParser::try_parse_document_fast(*this, html))
+    // NB: This does not sanitize, so it is never used with a sanitizer configuration.
+    if (!configuration && HTML::HTMLParser::try_parse_document_fast(*this, html))
         return;
 
-    // 2. Let parser be a new HTML parser whose allow declarative shadow roots is document's allow declarative shadow roots,
-    //    associated with document.
+    // 2. Let parser be a new HTML parser whose allow declarative shadow roots is document's allow declarative shadow
+    //    roots and parser sanitizer configuration is configuration, associated with document.
     // 3. Place html into the input stream for parser. The encoding confidence is irrelevant.
     auto scripting_mode = is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
     auto parser = HTML::HTMLParser::create_for_decoded_string(*this, html, scripting_mode, "UTF-8"_utf16);
     parser->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots());
+    if (configuration)
+        parser->set_sanitizer_configuration(*configuration);
 
     // 4. Start parser and let it run until it has consumed all the characters just inserted into the input stream.
     parser->run(url());
@@ -12273,37 +12279,75 @@ WebIDL::ExceptionOr<void> set_adopted_style_sheets(DOM::Document& document, JS::
     return {};
 }
 
-WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::Realm& realm, TrustedTypes::TrustedHTMLOrString const& html)
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsehtml
+WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html(JS::Object& global, Utf16String const& html, SetHTMLOptions const& options)
 {
-    // FIXME: update description once https://github.com/whatwg/html/issues/11778 gets solved
-    // 1. Let compliantHTML to the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, html, "Document parseHTMLUnsafe", and "script".
-    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
+    auto& realm = HTML::relevant_realm(global);
+    // AD-HOC: Setting the origin to match that of the associated document matches the behavior of existing browsers.
+    auto* window = HTML::window_from_global_object(realm.global_object());
+    VERIFY(window);
+
+    // 1. Let document be a new Document, whose content type is "text/html" and origin is this's relevant global
+    //    object's associated Document's origin.
+    // NOTE: Since document does not have a browsing context, scripting is disabled.
+    auto document = DOM::Document::create_for_fragment_parsing(window->page(), *window);
+    document->set_content_type("text/html"_utf16_fly_string);
+    document->set_origin(window->associated_document().origin());
+
+    // 2. Set document's allow declarative shadow roots to true.
+    document->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
+
+    // 3. Let sanitizerConfig be the result of getting a sanitizer config from options given options and true.
+    auto sanitizer_config = TRY(HTML::get_a_sanitizer_config_from_options(&options, HTML::SanitizerSafety::Safe));
+
+    // 4. Assert: sanitizerConfig is non-null.
+    // NOTE: The sanitizer member of SetHTMLOptions defaults to "default".
+    VERIFY(sanitizer_config.has_value());
+
+    // 5. Parse HTML from a string given document, html, and sanitizerConfig.
+    [[maybe_unused]] auto wrapper = wrap(host_defined_wrapper_world(realm), realm, GC::Ref { *document });
+    document->parse_html_from_a_string(html.utf16_view(), &*sanitizer_config);
+
+    // 6. Return document.
+    return document;
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsehtmlunsafe
+WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::Realm& realm, TrustedTypes::TrustedHTMLOrString const& html, Variant<ParseHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const& options)
+{
+    // 1. Let (compliantHTML, compliantOptions) be the result of invoking the get trusted type compliant input algorithm
+    //    with the current global object, html, options, and "Document parseHTMLUnsafe".
+    auto const [compliant_html, compliant_options] = TRY(TrustedTypes::get_trusted_type_compliant_input(
         HTML::current_global_object(),
         html,
-        TrustedTypes::InjectionSink::Document_parseHTMLUnsafe,
-        "script"_utf16));
+        options,
+        TrustedTypes::InjectionSink::Document_parseHTMLUnsafe));
 
     // AD-HOC: Setting the origin to match that of the associated document matches the behavior of existing browsers.
     auto* window = HTML::window_from_global_object(realm.global_object());
     VERIFY(window);
 
-    // 2. Let document be a new Document, whose content type is "text/html".
+    // 2. Let document be a new Document, whose content type is "text/html" and origin is this's relevant global
+    //    object's associated Document's origin.
+    // NOTE: Since document does not have a browsing context, scripting is disabled.
     auto document = DOM::Document::create_for_fragment_parsing(window->page(), *window);
     document->set_content_type("text/html"_utf16_fly_string);
 
     // 3. Set document's allow declarative shadow roots to true.
     document->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
 
-    // 4. Parse HTML from a string given document and compliantHTML.
+    // 4. Let sanitizerConfig be the result of getting a sanitizer config from options given compliantOptions and
+    //    false.
+    auto sanitizer_config = TRY(HTML::get_a_sanitizer_config_from_options(HTML::to_sanitizer_options(compliant_options), HTML::SanitizerSafety::Unsafe));
+
+    // 5. Parse HTML from a string given document, compliantHTML, and sanitizerConfig.
     [[maybe_unused]] auto wrapper = wrap(host_defined_wrapper_world(realm), realm, GC::Ref { *document });
-    document->parse_html_from_a_string(compliant_html.utf16_view());
+    document->parse_html_from_a_string(compliant_html.utf16_view(), sanitizer_config.has_value() ? &*sanitizer_config : nullptr);
 
     auto& associated_document = window->associated_document();
     document->set_origin(associated_document.origin());
 
-    // 5. Return document.
+    // 6. Return document.
     return document;
 }
 

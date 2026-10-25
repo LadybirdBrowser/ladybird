@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLTokenizer.h>
 #include <LibWeb/HTML/Parser/ParserScriptingMode.h>
+#include <LibWeb/HTML/SanitizerConfiguration.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
 
@@ -62,7 +63,7 @@ public:
     };
 
     static WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> parse_html_fragment(Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target, Utf16View markup,
-        AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No, ParserScriptingMode = ParserScriptingMode::Inert, FragmentFastPath = FragmentFastPath::Allow);
+        AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No, ParserScriptingMode = ParserScriptingMode::Inert, FragmentFastPath = FragmentFastPath::Allow, SanitizerConfiguration const* = nullptr);
 
     // Parses a restricted subset of in-body markup in context. On success, appends the parsed top-level nodes to
     // top_level_nodes. Their subtrees are linked without running the insertion steps, which inserting each top-level
@@ -84,6 +85,10 @@ public:
     void did_exhaust_streaming_body(Badge<IncrementalDocumentParser>) { m_streaming_body_is_exhausted = true; }
 
     void set_allow_declarative_shadow_roots(AllowDeclarativeShadowRoots allow) { m_allow_declarative_shadow_roots = allow; }
+
+    // https://html.spec.whatwg.org/multipage/parsing.html#parser-sanitizer-configuration
+    SanitizerConfiguration const* sanitizer_configuration() const { return m_sanitizer_configuration.has_value() ? &*m_sanitizer_configuration : nullptr; }
+    void set_sanitizer_configuration(SanitizerConfiguration const&);
 
     void configure_element_created_by_rust_parser(DOM::Element&);
     GC::Ref<DOM::Element> create_element_for_rust_parser(Utf16FlyString const&, ReadonlySpan<RustFfiHtmlParserAttribute>, Optional<Utf16FlyString> const& namespace_, DOM::Node& intended_parent, bool had_duplicate_attribute, GC::Ptr<HTMLFormElement>, bool has_template_element_on_stack);
@@ -162,6 +167,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/parsing.html#allow-declarative-shadow-roots
     AllowDeclarativeShadowRoots m_allow_declarative_shadow_roots { AllowDeclarativeShadowRoots::No };
+
+    // https://html.spec.whatwg.org/multipage/parsing.html#parser-sanitizer-configuration
+    Optional<SanitizerConfiguration> m_sanitizer_configuration;
 
     bool m_script_created { false };
 

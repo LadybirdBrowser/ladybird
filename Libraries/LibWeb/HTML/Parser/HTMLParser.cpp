@@ -58,6 +58,7 @@
 #include <LibWeb/HTML/Parser/SpeculativeHTMLParser.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/PreloadEntry.h>
+#include <LibWeb/HTML/SanitizerConfiguration.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
@@ -183,7 +184,10 @@ extern "C" bool ladybird_html_parser_document_is_iframe_srcdoc_document(void*);
 extern "C" size_t ladybird_html_parser_create_document_type(void*, u16 const*, size_t, u16 const*, size_t, u16 const*, size_t);
 extern "C" size_t ladybird_html_parser_create_comment(void*, u16 const*, size_t);
 extern "C" void ladybird_html_parser_insert_text(size_t, size_t, u8 const*, size_t);
-extern "C" void ladybird_html_parser_add_missing_attribute(size_t, size_t, u16 const*, size_t);
+extern "C" void ladybird_html_parser_add_missing_attribute(void*, size_t, size_t, u16 const*, size_t);
+extern "C" u8 ladybird_html_parser_sanitizer_action(void*, size_t);
+extern "C" size_t ladybird_html_parser_child_at_index(size_t, size_t);
+extern "C" u32 ladybird_html_parser_declarative_shadow_root_attributes(size_t);
 extern "C" void ladybird_html_parser_remove_node(size_t);
 extern "C" void ladybird_html_parser_handle_element_popped(size_t);
 extern "C" void ladybird_html_parser_prepare_svg_script(void*, size_t, size_t);
@@ -330,6 +334,12 @@ void HTMLParser::pop_all_open_elements()
     rust_html_parser_pop_all_open_elements(m_rust_parser);
 }
 
+void HTMLParser::set_sanitizer_configuration(SanitizerConfiguration const& configuration)
+{
+    m_sanitizer_configuration = configuration;
+    rust_html_parser_set_sanitizer(m_rust_parser, true, sanitizer_config_allows_comments(configuration));
+}
+
 void HTMLParser::configure_element_created_by_rust_parser(DOM::Element& element)
 {
     if (element.local_name() != HTML::TagNames::script || element.namespace_uri() != Namespace::HTML)
@@ -358,7 +368,9 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for_rust_parser(Utf16FlyString 
     //     the element pointed to by the form element pointer, and the parser's insertion target redirection map[the
     //     element pointed to by the form element pointer] does not exist, then associate element with the form
     //     element pointed to by the form element pointer and set element's parser inserted flag.
-    // FIXME: Check the fragment context element, the full parsing-template-contents predicate, and the redirection map.
+    // FIXME: Check the fragment context element and the full parsing-template-contents predicate.
+    // NB: The Rust tree builder passes a null form element if the insertion target redirection map has an entry for
+    //     the element pointed to by the form element pointer.
     if (form_element && !has_template_element_on_stack) {
         auto* html_element = as_if<HTML::HTMLElement>(*element);
         if (html_element && html_element->is_form_associated_element() && !html_element->is_form_associated_custom_element()) {
@@ -1107,29 +1119,46 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
         return {};
     };
 
-    // FIXME: 5. Let sanitizerConfig be the parser's parser sanitizer configuration.
-    // FIXME: 6. Let sanitizerAction be "Keep".
-    // FIXME: 7. If sanitizerConfig is not null, then set sanitizerAction to the result of getting the sanitizer action
-    //           for an element name given localName, namespace, and sanitizerConfig.
+    // 5. Let sanitizerConfig be the parser's parser sanitizer configuration.
+    auto const* sanitizer_config = sanitizer_configuration();
+
+    // 6. Let sanitizerAction be "Keep".
+    auto sanitizer_action = SanitizerAction::Keep;
+
+    // 7. If sanitizerConfig is not null, then set sanitizerAction to the result of getting the sanitizer action for an
+    //    element name given localName, namespace, and sanitizerConfig.
+    if (sanitizer_config)
+        sanitizer_action = sanitizer_action_for_element_name(local_name, namespace_, *sanitizer_config);
 
     // 8. Let is be the value of the "is" attribute in token, if such an attribute exists; otherwise null.
     Optional<Utf16FlyString> is_value;
     if (auto is_attribute = attribute_value(AttributeNames::is); is_attribute.has_value())
         is_value = Utf16FlyString::from_utf8_without_validation(*is_attribute);
 
-    // FIXME: 9. If is is non-null, sanitizerConfig is non-null, and the result of checking if a sanitizer config allows
-    //           an attribute given "is", null, is, localName, namespace, and sanitizerConfig is false, then set is to null.
+    // 9. If is is non-null, sanitizerConfig is non-null, and the result of checking if a sanitizer config allows an
+    //    attribute given "is", null, is, localName, namespace, and sanitizerConfig is false, then set is to null.
+    if (is_value.has_value() && sanitizer_config
+        && !sanitizer_config_allows_attribute(AttributeNames::is, {}, is_value->view(), local_name, namespace_, *sanitizer_config)) {
+        is_value = {};
+    }
 
     // 10. Let registry be the result of looking up a custom element registry given intendedParent.
     auto registry = look_up_a_custom_element_registry(intended_parent);
 
     // 11. Let creationRegistry be registry if sanitizerAction is "Keep"; otherwise null.
-    // NB: Without a sanitizer configuration, creationRegistry is registry.
+    // NOTE: Elements that the sanitizer will remove or replace with their children are created with a null custom
+    //       element registry, so creating an element finds no custom element definition and no custom element
+    //       constructor runs for them. Removed elements keep the null registry, so their descendants, which look up
+    //       their registry from them, don't run constructors either. Replaced elements have their registry set to
+    //       registry after creation so that their children inherit it. Likewise, an is attribute that the sanitizer
+    //       will remove does not create a customized built-in element.
+    GC::Ptr<CustomElementRegistry> creation_registry = sanitizer_action == SanitizerAction::Keep ? registry : nullptr;
 
     // 12. Let definition be null if sanitizerAction is not "Keep"; otherwise the result of looking up a custom element
     //     definition given registry, namespace, localName, and is.
-    // FIXME: Handle sanitizer actions other than "Keep".
-    auto definition = look_up_a_custom_element_definition(registry, namespace_, local_name, is_value);
+    GC::Ptr<CustomElementDefinition> definition;
+    if (sanitizer_action == SanitizerAction::Keep)
+        definition = look_up_a_custom_element_definition(registry, namespace_, local_name, is_value);
 
     // 13. Let willExecuteScript be true if definition is non-null and the parser's fragment context element is null;
     //     otherwise false.
@@ -1151,8 +1180,8 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
 
     // 15. Let element be the result of creating an element given document, localName, namespace, prefix, is,
     //     willExecuteScript, and creationRegistry.
-    // NB: This helper currently implements only the default null prefix and the unsanitized creation registry.
-    auto element = DOM::create_element(*document, local_name, namespace_, {}, is_value, will_execute_script, registry).release_value_but_fixme_should_propagate_errors();
+    // NB: This helper currently implements only the default null prefix.
+    auto element = DOM::create_element(*document, local_name, namespace_, {}, is_value, will_execute_script, creation_registry).release_value_but_fixme_should_propagate_errors();
 
     // AD-HOC: Let <link> elements know which document they were originally parsed for.
     //         This is used for the render-blocking logic.
@@ -1167,23 +1196,34 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
     if (auto* style_element = as_if<DOM::StyleElementBase>(*element))
         style_element->set_parser_document({}, document);
 
-    // FIXME: 16. If sanitizerAction is "Replace with children", then set element's custom element registry to registry.
+    // 16. If sanitizerAction is "Replace with children", then set element's custom element registry to registry.
+    if (sanitizer_action == SanitizerAction::ReplaceWithChildren)
+        element->set_custom_element_registry(registry);
 
     // 17. For each attribute of token's attributes:
     element->ensure_attribute_capacity(attributes.size());
     for (auto const& attribute : attributes) {
-        // FIXME: 1. If sanitizerConfig is not null:
-        //           1. Let attrLocalName be attribute's local name if attribute is a namespaced attribute; otherwise
-        //              attribute's name.
-        //           2. Let attrNamespace be attribute's namespace if attribute is a namespaced attribute; otherwise null.
-        //           3. If the result of checking if a sanitizer config allows an attribute given attrLocalName,
-        //              attrNamespace, attribute's value, localName, namespace, and sanitizerConfig is false, then continue.
+        auto attribute_local_name = Utf16FlyString::from_raw(attribute.local_name);
+        auto attribute_namespace = attribute_namespace_from_html_parser_ffi(attribute.namespace_);
+        auto value = utf8_string_from_ffi(attribute.value_ptr, attribute.value_len);
+
+        // 1. If sanitizerConfig is not null:
+        if (sanitizer_config) {
+            // 1. Let attrLocalName be attribute's local name if attribute is a namespaced attribute; otherwise
+            //    attribute's name.
+            // 2. Let attrNamespace be attribute's namespace if attribute is a namespaced attribute; otherwise null.
+            // 3. If the result of checking if a sanitizer config allows an attribute given attrLocalName,
+            //    attrNamespace, attribute's value, localName, namespace, and sanitizerConfig is false, then continue.
+            if (!sanitizer_config_allows_attribute(attribute_local_name, attribute_namespace, value.utf16_view(), local_name, namespace_, *sanitizer_config))
+                continue;
+        }
+
         Optional<Utf16FlyString> prefix;
         if (attribute.prefix_len != 0)
             prefix = Utf16FlyString::from_utf8_without_validation({ reinterpret_cast<char const*>(attribute.prefix_ptr), attribute.prefix_len });
-        DOM::QualifiedName qualified_name { Utf16FlyString::from_raw(attribute.local_name), move(prefix), attribute_namespace_from_html_parser_ffi(attribute.namespace_) };
+        DOM::QualifiedName qualified_name { move(attribute_local_name), move(prefix), move(attribute_namespace) };
         // 2. Append attribute to element.
-        element->append_attribute(move(qualified_name), utf8_string_from_ffi(attribute.value_ptr, attribute.value_len));
+        element->append_attribute(move(qualified_name), move(value));
     }
 
     // AD-HOC: The muted attribute on media elements is only set if the muted content attribute is present when the element is first created.
@@ -1800,10 +1840,8 @@ GC::Ptr<DOM::DocumentFragment> HTMLParser::try_parse_html_fragment_fast(DOM::Ele
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-html-fragments
-WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragment(Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target, Utf16View input, AllowDeclarativeShadowRoots allow_declarative_shadow_roots, ParserScriptingMode scripting_mode, FragmentFastPath fast_path)
+WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragment(Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target, Utf16View input, AllowDeclarativeShadowRoots allow_declarative_shadow_roots, ParserScriptingMode scripting_mode, FragmentFastPath fast_path, SanitizerConfiguration const* configuration)
 {
-    // FIXME: Support the optional sanitizer configuration argument.
-
     // 1. Assert: scriptingMode is either Inert or Fragment.
     VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
 
@@ -1816,18 +1854,29 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
     VERIFY(context);
 
     // OPTIMIZATION: A validated subset of in-body fragments can be constructed directly from input spans.
-    if (fast_path == FragmentFastPath::Allow && target.has<GC::Ref<DOM::Element>>()) {
+    // NB: The fast path does not sanitize, so it is never used with a sanitizer configuration.
+    if (fast_path == FragmentFastPath::Allow && !configuration && target.has<GC::Ref<DOM::Element>>()) {
         if (auto fragment = try_parse_html_fragment_fast(*context, input))
             return GC::Ref { *fragment };
     }
 
     // 4. Let document be a Document node whose type is "html".
-
     // 5. Let contextDocument be context's node document.
     auto& context_document = context->document();
 
-    // 6. If contextDocument is in quirks mode, then set document's mode to "quirks".
-    // 7. Otherwise, if contextDocument is in limited-quirks mode, then set document's mode to "limited-quirks".
+    // OPTIMIZATION: Without a sanitizer configuration, the parser uses the context document directly, see below.
+    //               When sanitizing, the nodes are created in a new document instead, so that elements that the
+    //               sanitizer removes are never created in the context document, where their creation could have
+    //               side effects.
+    GC::Ref<DOM::Document> document = context_document;
+    if (configuration) {
+        document = DOM::Document::create_for_fragment_parsing(context_document.page(), context_document.relevant_global_event_target());
+        document->set_document_type(DOM::Document::Type::HTML);
+
+        // 6. If contextDocument is in quirks mode, then set document's mode to "quirks".
+        // 7. Otherwise, if contextDocument is in limited-quirks mode, then set document's mode to "limited-quirks".
+        document->set_quirks_mode(context_document.mode());
+    }
 
     // 8. If contextDocument's scripting is disabled, then set scriptingMode to Disabled.
     if (context_document.is_scripting_disabled())
@@ -1836,11 +1885,12 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
     // 9. Create a new HTML parser whose parser sanitizer configuration is configuration, allow declarative shadow
     //    roots is allowDeclarativeShadowRoots, scripting mode is scriptingMode, and fragment context element is
     //    context, and associate it with document.
-    // NB: The currently supported calls use a null sanitizer configuration.
-    // OPTIMIZATION: Use the context document directly while keeping the parser detached from its document parser state.
-    //               The detached root below supplies the temporary tree-builder state, while all output nodes are
-    //               created for their final document. This avoids initializing a complete Document for every fragment.
-    auto parser = GC::Heap::the().allocate<HTMLParser>(context_document, scripting_mode, input, FragmentParser::Yes);
+    // NB: The parser sanitizer configuration is set below, once the Rust parser state has been initialized.
+    // OPTIMIZATION: Without a sanitizer configuration, use the context document directly while keeping the parser
+    //               detached from its document parser state. The detached root below supplies the temporary
+    //               tree-builder state, while all output nodes are created for their final document. This avoids
+    //               initializing a complete Document for every fragment.
+    auto parser = GC::Heap::the().allocate<HTMLParser>(*document, scripting_mode, input, FragmentParser::Yes);
     parser->initialize(context_document.relevant_settings_object().realm());
     parser->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots);
     parser->m_context_element = context; // FIXME: Is this needed?
@@ -1890,7 +1940,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
     // 11. Let root be the result of creating an element given document, "html", the HTML namespace, null, null, false,
     //     and the result of looking up a custom element registry given target.
     auto root_registry = look_up_a_custom_element_registry(target_node);
-    auto root = MUST(DOM::create_element(context_document, HTML::TagNames::html, Namespace::HTML, {}, {}, false, root_registry));
+    auto root = MUST(DOM::create_element(*document, HTML::TagNames::html, Namespace::HTML, {}, {}, false, root_registry));
 
     // 12. Append root to document.
     // OPTIMIZATION: Keep the root detached. It is only a sentinel for the tree builder, whose root insertions are
@@ -1899,7 +1949,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
     // 13. Set up the HTML parser's stack of open elements so that it contains just the single element root.
     // 14. Let fragment be the result of creating a document fragment given document if configuration is non-null;
     //     otherwise target's node document.
-    auto fragment = DOM::DocumentFragment::create(target_node->document());
+    auto fragment = DOM::DocumentFragment::create(configuration ? *document : target_node->document());
 
     // 15. Set the parser's insertion target redirection map[root] to (fragment, null).
     // NB: m_root_insertion_target represents the root entry of the insertion target redirection map.
@@ -1968,13 +2018,19 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
         allow_declarative_shadow_roots == AllowDeclarativeShadowRoots::Yes,
         parser->m_form_element ? reinterpret_cast<size_t>(parser->m_form_element.ptr()) : 0);
 
+    // NB: The parser sanitizer configuration is set after the Rust parser state has been initialized for the fragment.
+    if (configuration)
+        parser->set_sanitizer_configuration(*configuration);
+
     // 20. Place the input into the input stream for the HTML parser just created. The encoding confidence is irrelevant.
     // NB: The input was supplied when constructing the parser above.
     // 21. Start the HTML parser and let it run until it has consumed all the characters just inserted into the input stream.
     parser->run_until_completion();
 
     // 22. Adopt fragment into target's node document.
-    // NB: The fragment is already in the target's node document.
+    // NB: Without a sanitizer configuration, the fragment is already in the target's node document.
+    if (configuration)
+        target_node->document().adopt_node_steps(fragment);
 
     // 23. Return fragment.
     return fragment;
@@ -2945,14 +3001,71 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u
     insert_node_for_parser(parent_node, *text, insertion_location.child_at_offset());
 }
 
-extern "C" void ladybird_html_parser_add_missing_attribute(size_t element, size_t local_name_raw, u16 const* value_ptr, size_t value_len)
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inbody
+// NB: The steps for each attribute of an "html" or "body" start tag token in the "in body" insertion mode.
+extern "C" void ladybird_html_parser_add_missing_attribute(void* parser, size_t element, size_t local_name_raw, u16 const* value_ptr, size_t value_len)
 {
     auto& dom_element = as<DOM::Element>(node_from_html_parser_ffi(element));
     auto local_name = Utf16FlyString::from_raw(local_name_raw);
+    auto value = utf16_string_from_ffi(value_ptr, value_len);
+
+    // 1. If the parser's parser sanitizer configuration is not null and the result of checking if a sanitizer config
+    //    allows an attribute given attribute's name, null, attribute's value, element's local name, element's
+    //    namespace, and the parser's parser sanitizer configuration is false, then continue.
+    if (auto const* sanitizer_config = parser_from_html_parser_ffi(parser).sanitizer_configuration();
+        sanitizer_config && !sanitizer_config_allows_attribute(local_name, {}, value.utf16_view(), dom_element.local_name(), dom_element.namespace_uri(), *sanitizer_config)) {
+        return;
+    }
+
+    // 2. If element does not have an attribute whose name is attribute's name, then add attribute's name and its
+    //    corresponding value to element.
     if (dom_element.has_attribute(local_name))
         return;
-    auto value = utf16_string_from_ffi(value_ptr, value_len);
     dom_element.append_attribute(DOM::QualifiedName { move(local_name), {}, {} }, move(value));
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#get-the-sanitizer-action-for-an-element-name
+// NB: Returns the sanitizer action for element's local name and namespace, given the parser's parser sanitizer
+//     configuration, which must not be null.
+extern "C" u8 ladybird_html_parser_sanitizer_action(void* parser, size_t element)
+{
+    auto const* sanitizer_config = parser_from_html_parser_ffi(parser).sanitizer_configuration();
+    VERIFY(sanitizer_config);
+    auto& dom_element = as<DOM::Element>(node_from_html_parser_ffi(element));
+    return to_underlying(sanitizer_action_for_element_name(dom_element.local_name(), dom_element.namespace_uri(), *sanitizer_config));
+}
+
+extern "C" size_t ladybird_html_parser_child_at_index(size_t parent, size_t index)
+{
+    auto& parent_node = node_from_html_parser_ffi(parent);
+    if (index >= parent_node.child_count())
+        return 0;
+    return reinterpret_cast<size_t>(parent_node.child_at_index(index));
+}
+
+// NB: Returns the shadowroot* attribute states of a template element, encoded as bit flags for the Rust tree builder.
+extern "C" u32 ladybird_html_parser_declarative_shadow_root_attributes(size_t element)
+{
+    auto& template_element = as<HTMLTemplateElement>(node_from_html_parser_ffi(element));
+    u32 result = 0;
+    auto mode = template_element.get_attribute(HTML::AttributeNames::shadowrootmode);
+    if (mode.has_value()) {
+        if (mode->equals_ignoring_ascii_case("open"sv))
+            result |= 1;
+        else if (mode->equals_ignoring_ascii_case("closed"sv))
+            result |= 2;
+    }
+    if (template_element.has_attribute(HTML::AttributeNames::shadowrootdelegatesfocus))
+        result |= 1 << 2;
+    if (template_element.has_attribute(HTML::AttributeNames::shadowrootserializable))
+        result |= 1 << 3;
+    if (auto slot_assignment = template_element.get_attribute(HTML::AttributeNames::shadowrootslotassignment); slot_assignment.has_value() && slot_assignment->equals_ignoring_ascii_case("manual"sv))
+        result |= 1 << 4;
+    if (template_element.has_attribute(HTML::AttributeNames::shadowrootclonable))
+        result |= 1 << 5;
+    if (template_element.has_attribute(HTML::AttributeNames::shadowrootcustomelementregistry))
+        result |= 1 << 6;
+    return result;
 }
 
 extern "C" void ladybird_html_parser_remove_node(size_t node)

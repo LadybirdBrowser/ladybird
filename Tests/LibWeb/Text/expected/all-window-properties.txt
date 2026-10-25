@@ -501,6 +501,7 @@ SVGTransformList
 SVGUnitTypes
 SVGUseElement
 SVGViewElement
+Sanitizer
 Screen
 ScreenOrientation
 ScriptProcessorNode
@@ -562,6 +563,7 @@ TransformStreamDefaultController
 TransitionEvent
 TreeWalker
 TrustedHTML
+TrustedHTMLParserOptions
 TrustedScript
 TrustedScriptURL
 TrustedTypePolicy

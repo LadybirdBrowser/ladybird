@@ -9,6 +9,7 @@
 #include <LibGC/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/DOM/NodeFilter.h>
 #include <LibWeb/Export.h>
@@ -33,6 +34,10 @@ class ShadowRoot;
 }
 
 namespace Web::Bindings {
+
+struct ParseHTMLUnsafeOptions;
+struct SetHTMLOptions;
+struct SetHTMLUnsafeOptions;
 
 WEB_API JS::ThrowCompletionOr<DOM::NodeFilter::Result> accept_node(JS::Realm&, DOM::NodeFilter&, DOM::Node&);
 WEB_API JS::Value filter(DOM::NodeIterator&);
@@ -66,7 +71,12 @@ WEB_API JS::Value document(JS::Realm&, GC::Ref<DOM::Document>);
 WEB_API GC::Ref<CSS::StyleSheetList> style_sheets(DOM::Document&);
 WEB_API JS::Value adopted_style_sheets(DOM::Document&);
 WEB_API WebIDL::ExceptionOr<void> set_adopted_style_sheets(DOM::Document&, JS::Value);
-WEB_API WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::Realm&, TrustedTypes::TrustedHTMLOrString const&);
+WEB_API WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::Realm&, TrustedTypes::TrustedHTMLOrString const&, Variant<ParseHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const&);
+WEB_API WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html(JS::Object&, Utf16String const&, SetHTMLOptions const&);
+inline WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html(JS::Realm& realm, Utf16String const& html, SetHTMLOptions const& options)
+{
+    return parse_html(realm.global_object(), html, options);
+}
 WEB_API WebIDL::ExceptionOr<void> write(DOM::Document&, Vector<TrustedTypes::TrustedHTMLOrString> const&);
 WEB_API WebIDL::ExceptionOr<void> writeln(DOM::Document&, Vector<TrustedTypes::TrustedHTMLOrString> const&);
 WEB_API GC::Ptr<ViewTransition::ViewTransition> start_view_transition(DOM::Document&, GC::Ptr<WebIDL::CallbackType> update_callback);
@@ -74,9 +84,15 @@ WEB_API JS::Value document_named_item_value(WrapperWorld&, JS::Realm&, DOM::Docu
 
 WEB_API WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> inner_html(DOM::ShadowRoot&);
 WEB_API WebIDL::ExceptionOr<void> set_inner_html(DOM::ShadowRoot&, TrustedTypes::TrustedHTMLOrString const&);
-WEB_API WebIDL::ExceptionOr<void> set_html_unsafe(DOM::ShadowRoot&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html);
+WEB_API WebIDL::ExceptionOr<void> set_html_unsafe(DOM::ShadowRoot&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const&);
+WEB_API WebIDL::ExceptionOr<void> append_html_unsafe(DOM::ShadowRoot&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const&);
+WEB_API WebIDL::ExceptionOr<void> prepend_html_unsafe(DOM::ShadowRoot&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const&);
 WEB_API GC::Ref<CSS::StyleSheetList> style_sheets(DOM::ShadowRoot&);
 WEB_API JS::Value adopted_style_sheets(DOM::ShadowRoot&);
 WEB_API WebIDL::ExceptionOr<void> set_adopted_style_sheets(DOM::ShadowRoot&, JS::Value);
+
+WEB_API WebIDL::ExceptionOr<void> before_html_unsafe(DOM::Node&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const&);
+WEB_API WebIDL::ExceptionOr<void> after_html_unsafe(DOM::Node&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const&);
+WEB_API WebIDL::ExceptionOr<void> replace_with_html_unsafe(DOM::Node&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const&);
 
 }

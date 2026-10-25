@@ -1,0 +1,85 @@
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sanitizerpresets
+enum SanitizerPresets { "default" };
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sethtmloptions
+dictionary SetHTMLOptions {
+    (Sanitizer or SanitizerConfig or SanitizerPresets) sanitizer = "default";
+};
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sethtmlunsafeoptions
+dictionary SetHTMLUnsafeOptions {
+    (Sanitizer or SanitizerConfig or SanitizerPresets) sanitizer;
+    boolean runScripts = false;
+};
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#parsehtmlunsafeoptions
+dictionary ParseHTMLUnsafeOptions {
+    (Sanitizer or SanitizerConfig or SanitizerPresets) sanitizer;
+};
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sanitizer
+[Exposed=Window]
+interface Sanitizer {
+    constructor(optional (SanitizerConfig or SanitizerPresets) configuration = "default");
+
+    // Query configuration:
+    SanitizerConfig get();
+
+    // Modify a Sanitizer's lists and fields:
+    boolean allowElement(SanitizerElementWithAttributes element);
+    boolean removeElement(SanitizerElement element);
+    boolean replaceElementWithChildren(SanitizerElement element);
+    boolean allowProcessingInstruction(SanitizerPI pi);
+    boolean removeProcessingInstruction(SanitizerPI pi);
+    boolean allowAttribute(SanitizerAttribute attribute);
+    boolean removeAttribute(SanitizerAttribute attribute);
+    boolean setComments(boolean allow);
+    boolean setDataAttributes(boolean allow);
+    [ImplementedAs=set_javascript_urls] boolean setJavascriptURLs(boolean allow);
+
+    // Remove markup that executes script.
+    boolean removeUnsafe();
+};
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sanitizerelementnamespace
+dictionary SanitizerElementNamespace {
+    required DOMString name;
+    DOMString? _namespace = "http://www.w3.org/1999/xhtml";
+};
+
+// Used by "elements"
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sanitizerelementnamespacewithattributes
+dictionary SanitizerElementNamespaceWithAttributes : SanitizerElementNamespace {
+    sequence<SanitizerAttribute> attributes;
+    sequence<SanitizerAttribute> removeAttributes;
+};
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sanitizerattributenamespace
+dictionary SanitizerAttributeNamespace {
+    required DOMString name;
+    DOMString? _namespace = null;
+};
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sanitizerprocessinginstruction
+dictionary SanitizerProcessingInstruction {
+    required DOMString target;
+};
+
+typedef (DOMString or SanitizerElementNamespace) SanitizerElement;
+typedef (DOMString or SanitizerElementNamespaceWithAttributes) SanitizerElementWithAttributes;
+typedef (DOMString or SanitizerProcessingInstruction) SanitizerPI;
+typedef (DOMString or SanitizerAttributeNamespace) SanitizerAttribute;
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sanitizerconfig
+dictionary SanitizerConfig {
+    sequence<SanitizerElementWithAttributes> elements;
+    sequence<SanitizerElement> removeElements;
+    sequence<SanitizerElement> replaceWithChildrenElements;
+    sequence<SanitizerPI> processingInstructions;
+    sequence<SanitizerPI> removeProcessingInstructions;
+    sequence<SanitizerAttribute> attributes;
+    sequence<SanitizerAttribute> removeAttributes;
+    boolean comments;
+    boolean dataAttributes;
+    boolean javascriptURLs;
+};

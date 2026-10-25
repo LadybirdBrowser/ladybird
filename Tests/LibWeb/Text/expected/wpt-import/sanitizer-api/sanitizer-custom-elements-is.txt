@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	The is= attribute is removed by the default sanitizer config.
-Fail	The is= attribute is removed by the global removeAttributes
-Fail	The is= attribute is removed by the local removeAttributes
-Fail	The is= attribute is removed by the local missing attributes
-Fail	The is= attribute is kept when allowed with an empty config.
-Fail	The is= attribute is kept when allowed by global attributes.
-Fail	The is= attribute is kept when allowed by global removeAttributes.
-Fail	The is= attribute is kept when allowed by local attributes.
+8 Pass
+Pass	The is= attribute is removed by the default sanitizer config.
+Pass	The is= attribute is removed by the global removeAttributes
+Pass	The is= attribute is removed by the local removeAttributes
+Pass	The is= attribute is removed by the local missing attributes
+Pass	The is= attribute is kept when allowed with an empty config.
+Pass	The is= attribute is kept when allowed by global attributes.
+Pass	The is= attribute is kept when allowed by global removeAttributes.
+Pass	The is= attribute is kept when allowed by local attributes.

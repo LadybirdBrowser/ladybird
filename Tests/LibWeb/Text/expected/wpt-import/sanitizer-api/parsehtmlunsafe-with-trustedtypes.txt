@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	Document.parseHTMLUnsafe: createParserOptions can inject a sanitizer config
-Fail	Document.parseHTMLUnsafe: passing TrustedHTMLParserOptions directly works
-Fail	Document.parseHTMLUnsafe: createParserOptions returning null fails
-Fail	Document.parseHTMLUnsafe: createParserOptions returning undefined fails
-Fail	Document.parseHTMLUnsafe: createParserOptions returning 0 fails
-Fail	Document.parseHTMLUnsafe: createParserOptions returning 123 fails
-Fail	Document.parseHTMLUnsafe: createParserOptions returning "foo" fails
+7 Pass
+Pass	Document.parseHTMLUnsafe: createParserOptions can inject a sanitizer config
+Pass	Document.parseHTMLUnsafe: passing TrustedHTMLParserOptions directly works
+Pass	Document.parseHTMLUnsafe: createParserOptions returning null fails
+Pass	Document.parseHTMLUnsafe: createParserOptions returning undefined fails
+Pass	Document.parseHTMLUnsafe: createParserOptions returning 0 fails
+Pass	Document.parseHTMLUnsafe: createParserOptions returning 123 fails
+Pass	Document.parseHTMLUnsafe: createParserOptions returning "foo" fails

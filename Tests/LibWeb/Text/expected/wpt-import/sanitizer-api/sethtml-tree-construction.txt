@@ -1,11 +1,147 @@
 Harness status: OK
 
-Found 6 tests
+Found 126 tests
 
-6 Fail
-Fail	wrapper
-Fail	Non-string input: empty object.
-Fail	Non-string input: number.
-Fail	Non-string input: octal number.
-Fail	Non-string input: expression.
-Fail	Non-string input: undefined.
+126 Pass
+Pass	wrapper
+Pass	Non-string input: empty object.
+Pass	Non-string input: number.
+Pass	Non-string input: octal number.
+Pass	Non-string input: expression.
+Pass	Non-string input: undefined.
+Pass	Testcase #0, "test", config: "undefined".
+Pass	Testcase #1, "<b>bla</b>", config: "undefined".
+Pass	Testcase #2, "<a<embla", config: "undefined".
+Pass	Testcase #3, "<html><head></head><body>test</body></html>", config: "undefined".
+Pass	Testcase #4, "<div>test", config: "undefined".
+Pass	Testcase #5, "<script>alert('i am a test')</script>", config: "undefined".
+Pass	Testcase #6, "hello<script>alert('i am a test')</script>", config: "undefined".
+Pass	Testcase #7, "<div><b>hello<script>alert('i am a test')</script>", config: "undefined".
+Pass	Testcase #8, "<p onclick='a= 123'>Click.</p>", config: "undefined".
+Pass	Testcase #9, "<plaintext><p>text</p>", config: "{}".
+Pass	Testcase #10, "<xmp>TEXT</xmp>", config: "{}".
+Pass	Testcase #11, "test", config: "{ "test": 123 }".
+Pass	Testcase #12, "test", config: "{ "removeElements": [] }".
+Pass	Testcase #13, "<div>test</div><p>bla", config: "{ "removeElements": ["div"] }".
+Pass	Testcase #14, "<custom-element>test1</custom-element>bla", config: "undefined".
+Pass	Testcase #15, "<custom-element>test3</custom-element>bla", config: "{ "elements": ["custom-element"] }".
+Pass	Testcase #16, "<custom-element>test5</custom-element>bla", config: "{ "removeElements": ["custom-element"] }".
+Pass	Testcase #17, "<script>alert('i am a test')</script>", config: "{ "removeElements": ["script"] }".
+Pass	Testcase #18, "<div>balabala<i>test</i></div><test-element>t</test-element>", config: "{ "removeElements": ["test-element", "i"] }".
+Pass	Testcase #19, "<div>balabala<i>i</i><p>t</p></div>", config: "{ "removeElements": ["dl", "p"] }".
+Pass	Testcase #20, "<div>test<div>p</div>tt<p>div</p></div>", config: "{ "elements": ["p"], "replaceWithChildrenElements": ["div"] }".
+Pass	Testcase #21, "<div>test</div><p>bla", config: "{ "removeElements": ["div"], "elements": ["div"] }".
+Pass	Testcase #22, "<p id='test'>Click.</p>", config: "{ "removeAttributes": [] }".
+Pass	Testcase #23, "<p id='test'>Click.</p>", config: "{ "removeAttributes": ["id"] }".
+Pass	Testcase #24, "<p id='test'>Click.</p>", config: "{ "elements": ["p"], "removeAttributes": ["id"] }".
+Pass	Testcase #25, "<p id='p' data-attribute-with-dashes='123'>Click.</p><script>document.getElementById('p').dataset.attributeWithDashes=123;</script>", config: "{ "elements": ["p"], "removeAttributes": ["data-attribute-with-dashes"] }".
+Pass	Testcase #26, "<p id='p' title='p'>P</p><div id='div' title='div'>DIV</div>", config: "{ "elements": [
+  { "name": "p", "attributes": ["title"] },
+  { "name": "div", "attributes": ["id"] }
+]}".
+Pass	Testcase #27, "<p id='p' title='p'>P</p><div id='div' title='div'>DIV</div>", config: "{ "elements":
+  [
+    { "name": "p", "removeAttributes": ["title"] },
+    { "name": "div", "removeAttributes": ["id"] }
+  ]
+}".
+Pass	Testcase #28, "<div id='div' title='div'>DIV</div>", config: "{ "elements": [{ "name": "div", "attributes": ["id"], "removeAttributes": ["id"] }]}".
+Pass	Testcase #29, "<div id='div' title='div'>DIV</div>", config: "{ "elements": [{ "name": "div", "attributes": ["id", "title"] }],
+  "attributes": []}".
+Pass	Testcase #30, "<div id='div' title='div'>DIV</div>", config: "{
+  "elements": [{ "name": "div", "attributes": [] }],
+  "removeAttributes": ["id", "title"]
+}".
+Pass	Testcase #31, "<div id='div' title='div'>DIV</div>", config: "{
+  "elements": [{ "name": "div", "removeAttributes": ["id", "title"] }],
+  "attributes": ["id", "title"]
+}".
+Pass	Testcase #32, "<p id='test' onclick='a= 123'>Click.</p>", config: "{ "attributes": ["id"] }".
+Pass	Testcase #33, "<p style='color: black'>Click.</p>", config: "{ "removeAttributes": ["style"], "attributes": ["style"] }".
+Pass	Testcase #34, "<template><script>test</script><div>hello</div></template>", config: "{ "elements": ["template", "div"] }".
+Pass	Testcase #35, "<a href='javascript:evil.com'>Click.</a>", config: "undefined".
+Pass	Testcase #36, "<a href='  javascript:evil.com'>Click.</a>", config: "undefined".
+Pass	Testcase #37, "<a href='http:evil.com'>Click.</a>", config: "undefined".
+Pass	Testcase #38, "<area href='javascript:evil.com'>", config: "{}".
+Pass	Testcase #39, "<area href=' javascript:evil.com'>", config: "{}".
+Pass	Testcase #40, "<area href='http:evil.com'>", config: "{}".
+Pass	Testcase #41, "<form action='javascript:evil.com'>Click.</form>", config: "{}".
+Pass	Testcase #42, "<form action=' javascript:evil.com'>Click.</form>", config: "{}".
+Pass	Testcase #43, "<form action='http:evil.com'>Click.</form>", config: "{}".
+Pass	Testcase #44, "<input formaction='javascript:evil.com'>", config: "{}".
+Pass	Testcase #45, "<input formaction=' javascript:evil.com'>", config: "{}".
+Pass	Testcase #46, "<input formaction='http:evil.com'>", config: "{}".
+Pass	Testcase #47, "<button formaction='javascript:evil.com'>Click.</button>", config: "{}".
+Pass	Testcase #48, "<button formaction=' javascript:evil.com'>Click.</button>", config: "{}".
+Pass	Testcase #49, "<button formaction='http:evil.com'>Click.</button>", config: "{}".
+Pass	Testcase #50, "<p>Some text</p></body><!-- 1 --></html><!-- 2 --><p>Some more text</p>", config: "undefined".
+Pass	Testcase #51, "<p>Some text</p><!-- 1 --><!-- 2 --><p>Some more text</p>", config: "undefined".
+Pass	Testcase #52, "<p>Some text</p><!-- 1 --><!-- 2 --><p>Some more text</p>", config: "{ "comments": true }".
+Pass	Testcase #53, "<p>Some text</p><!-- 1 --><!-- 2 --><p>Some more text</p>", config: "{ "comments": false }".
+Pass	Testcase #54, "<p>comment<!-- hello -->in<!-- </p> -->text</p>", config: "undefined".
+Pass	Testcase #55, "<p>comment<!-- hello -->in<!-- </p> -->text</p>", config: "{ "comments": true }".
+Pass	Testcase #56, "<p>comment<!-- hello -->in<!-- </p> -->text</p>", config: "{ "comments": false }".
+Pass	Testcase #57, "<svg></svg>", config: "{ "elements": ["svg"] }".
+Pass	Testcase #58, "<div><svg></svg></div>", config: "{ "elements": ["div", "svg"] }".
+Pass	Testcase #59, "<div>balabala<dl>test</dl></div>", config: "{ "removeElements": ["I", "DL"] }".
+Pass	Testcase #60, "<div>balabala<dl>test</dl></div>", config: "{ "removeElements": ["i", "dl"] }".
+Pass	Testcase #61, "<DIV>balabala<DL>test</DL></DIV>", config: "{ "removeElements": ["i", "dl"] }".
+Pass	Testcase #62, "<p id="test">Click.</p>", config: "{ "removeAttributes": ["ID"] }".
+Pass	Testcase #63, "<p ID="test">Click.</p>", config: "{ "removeAttributes": ["ID"] }".
+Pass	Testcase #64, "<p ID="test">Click.</p>", config: "{ "removeAttributes": ["id"] }".
+Pass	Testcase #65, "<div>balabala<i>test</i></div><test>t</test><custom-element>custom-element</custom-element>", config: "{ "removeElements": [123, "test", "i", "custom-element"] }".
+Pass	Testcase #66, "<div>balabala<i>test</i></div><test>t</test><custom-element>custom-element</custom-element>", config: "{ "replaceWithChildrenElements": [123, "test", "i", "custom-element"],
+  "elements": ["div"]}".
+Pass	Testcase #67, "<div>test<div>p</div>tt<p>div</p></div><test>test</test>", config: "{ "elements": ["p", "test"], "replaceWithChildrenElements": ["div"] }".
+Pass	Testcase #68, "test<div>p</div>tt<p>div</p><test>test</test>", config: "{ "elements": ["p", "test"], "replaceWithChildrenElements": ["div"] }".
+Pass	Testcase #69, "<div hello='1' world='2'><b hello='3' world='4'>", config: "{ "elements": ["div", "b"], "attributes": ["hello", "world"] }".
+Pass	Testcase #70, "<div hello='1' world='2'><b hello='3' world='4'>", config: "{ "elements": ["div", "b"], "removeAttributes": ["hello", "world"] }".
+Pass	Testcase #71, "<table><div><td>", config: "{ "replaceWithChildrenElements": ["table"] }".
+Pass	Testcase #72, "<template><div>Hello</div></template>", config: "{}".
+Pass	Testcase #73, "<template><div>Hello</div></template>", config: "{ "elements": ["div"]}".
+Pass	Testcase #74, "<template><div>Hello</div></template>", config: "{ "elements": ["template"]}".
+Pass	Testcase #75, "<template><div>Hello</div></template>", config: "{ "elements": ["div", "template"]}".
+Pass	Testcase #76, "<template><div>Hello</div></template>", config: "{ "elements": ["template"], "replaceWithChildrenElements": ["div"]}".
+Pass	Testcase #77, "<a href="about:blank" rel="opener">Click.</a>", config: "undefined".
+Pass	Testcase #78, "<div><b><em><foo><foob><fooc><aside></b></em></div>", config: "{ "removeElements": ["em"] }".
+Pass	Testcase #79, "<template><b>Hello</b></template>", config: "{ "replaceWithChildrenElements": ["template"] }".
+Pass	Testcase #80, "<div><template><b>Hello</b></template>after</div>", config: "{ "replaceWithChildrenElements": ["template"] }".
+Pass	Testcase #81, "<b>before</b><template><span>A</span><template><i>nested</i></template></template><b>after</b>", config: "{ "replaceWithChildrenElements": ["template"] }".
+Pass	Testcase #82, "<table><template><span>A</span></template><td>cell</td></table>", config: "{ "replaceWithChildrenElements": ["template"] }".
+Pass	Testcase #83, "<div><div><b>Hello</b></div>after</div>", config: "{ "replaceWithChildrenElements": ["div"] }".
+Pass	Testcase #84, "<div><table><tr>foster<td>cell</td></tr></table></div>", config: "{ "replaceWithChildrenElements": ["div"] }".
+Pass	Testcase #85, "<table><div><span>Content</span></div><td>cell</td></table>", config: "{ "replaceWithChildrenElements": ["div"] }".
+Pass	Testcase #86, "<table><tr><div><span>Content</span></div><td>cell</td></tr></table>", config: "{ "replaceWithChildrenElements": ["div"] }".
+Pass	Testcase #87, "<table>x<tr><td>y", config: "{ "replaceWithChildrenElements": ["table"] }".
+Pass	Testcase #88, "<table><tr><td>y</td></tr>x</table>", config: "{ "replaceWithChildrenElements": ["table"] }".
+Pass	Testcase #89, "<table><tr><td>y</td></tr><div>x</div></table>", config: "{ "replaceWithChildrenElements": ["table"] }".
+Pass	Testcase #90, "a<table><tr><td>y</td></tr>b</table>c", config: "{ "replaceWithChildrenElements": ["table"] }".
+Pass	Testcase #91, "<table><tbody><tr><td>y</td></tr>x</table>", config: "{ "replaceWithChildrenElements": ["table", "tbody"] }".
+Pass	Testcase #92, "<table><tr><div>x</div><td>y", config: "{ "replaceWithChildrenElements": ["div"] }".
+Pass	Testcase #93, "<table>a<b>y</b>c<tr><td>z", config: "{ "replaceWithChildrenElements": ["b"] }".
+Pass	Testcase #94, "<table><template>x</template><tr><td>y", config: "{ "replaceWithChildrenElements": ["template"] }".
+Pass	Testcase #95, "<template><table>x</table></template>", config: "{ "replaceWithChildrenElements": ["table"] }".
+Pass	Testcase #96, "a<table>b<tr><td>c</table>d", config: "{ "removeElements": ["table"] }".
+Pass	Testcase #97, "<table><tr>x<td>y", config: "{ "removeElements": ["tr"] }".
+Pass	Testcase #98, "<div><table>x", config: "{ "removeElements": ["div"] }".
+Pass	Testcase #99, "<b><table>x", config: "{ "replaceWithChildrenElements": ["b"] }".
+Pass	Testcase #100, "<b><table><div>x", config: "{ "replaceWithChildrenElements": ["b"], "removeElements": ["table"] }".
+Pass	Testcase #101, "<table><div><input type="hidden"><td>x", config: "{ "replaceWithChildrenElements": ["div"] }".
+Pass	Testcase #102, "<table><div><template>t</template><td>x", config: "{ "replaceWithChildrenElements": ["div"] }".
+Pass	Testcase #103, "<table><div><!-- c --><td>x", config: "{ "replaceWithChildrenElements": ["div"], "comments": true }".
+Pass	Testcase #104, "<table><tr><td>y", config: "{ "replaceWithChildrenElements": ["tr"] }".
+Pass	Testcase #105, "<table><!-- x --><tr><td>y", config: "{ "replaceWithChildrenElements": ["table"], "comments": true }".
+Pass	Testcase #106, "<template><!-- x --></template>", config: "{ "comments": true }".
+Pass	Testcase #107, "<td>a</td><div>b</div>", config: "{ "replaceWithChildrenElements": ["td"] }".
+Pass	Testcase #108, "<select><option>a<option>b</select>", config: "{ "replaceWithChildrenElements": ["option"] }".
+Pass	Testcase #109, "<select><option>a</option></select>", config: "{ "replaceWithChildrenElements": ["select"] }".
+Pass	Testcase #110, "<title>a&amp;b<b></title>c", config: "{ "replaceWithChildrenElements": ["title"] }".
+Pass	Testcase #111, "<plaintext>x</plaintext>y", config: "{ "replaceWithChildrenElements": ["plaintext"] }".
+Pass	Testcase #112, "<xmp><b>x</xmp>y", config: "{ "removeElements": ["xmp"] }".
+Pass	Testcase #113, "<image src="x">", config: "{ "removeElements": ["image"] }".
+Pass	Testcase #114, "<image src="x">", config: "{ "elements": ["img"] }".
+Pass	Testcase #115, "<table><tr><td>x", config: "{ "replaceWithChildrenElements": ["tbody"] }".
+Pass	Testcase #116, "<table><col></table>", config: "{ "replaceWithChildrenElements": ["colgroup"] }".
+Pass	Testcase #117, "<p>a<div>b</div>c", config: "{ "removeElements": ["p"] }".
+Pass	Testcase #118, "<svg><g><rect></g></svg>", config: "{ "replaceWithChildrenElements": [{ "name": "g", "namespace": "http://www.w3.org/2000/svg" }] }".
+Pass	Testcase #119, "<svg><foreignObject><div>x</div></foreignObject></svg>", config: "{ "replaceWithChildrenElements": [{ "name": "foreignObject", "namespace": "http://www.w3.org/2000/svg" }] }".

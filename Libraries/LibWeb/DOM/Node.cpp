@@ -20,6 +20,7 @@
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Bindings/Node.h>
+#include <LibWeb/Bindings/Sanitizer.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/GeneratedContent.h>
@@ -32,6 +33,7 @@
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/Attr.h>
+#include <LibWeb/DOM/BindingsGlue.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Comment.h>
@@ -69,6 +71,7 @@
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLInsertion.h>
 #include <LibWeb/HTML/HTMLLegendElement.h>
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
@@ -102,6 +105,8 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/VisualLines.h>
 #include <LibWeb/XLink/AttributeNames.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
@@ -3544,20 +3549,46 @@ WebIDL::ExceptionOr<Utf16String> Node::serialize_fragment(HTML::RequireWellForme
     return HTML::serialize_node_to_xml_string(*this, require_well_formed);
 }
 
-// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#unsafely-set-html
-WebIDL::ExceptionOr<void> Node::unsafely_set_html(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target, Utf16View html)
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-nondocumenttypechildnode-beforehtml
+WebIDL::ExceptionOr<void> Node::before_html(Utf16String const& html, Bindings::SetHTMLOptions const& options)
 {
-    // FIXME: Update for sanitizer API.
-    // 7. Let fragment be the result of invoking the HTML fragment parsing algorithm given target, html, true, and scriptingMode.
-    auto fragment = TRY(HTML::HTMLParser::parse_html_fragment(target, html, HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes));
+    // 1. Let parent be the parent for HTML insertion given this.
+    auto parent = TRY(HTML::parent_for_html_insertion(*this));
 
-    // 2. Let fragment be a new DocumentFragment whose node document is contextElement’s node document.
-    // The parser already produced the fragment.
+    // 2. If parent is null, then return.
+    if (!parent.has_value())
+        return {};
 
-    // Replace all with fragment within target.
-    target.visit([&](auto node) { node->replace_all(fragment); });
+    // 3. Filter and pre-insert HTML given parent, this, html, options, and Safe.
+    return HTML::filter_and_pre_insert_html(*parent, this, html.utf16_view(), &options, HTML::FragmentParserMode::Safe);
+}
 
-    return {};
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-nondocumenttypechildnode-afterhtml
+WebIDL::ExceptionOr<void> Node::after_html(Utf16String const& html, Bindings::SetHTMLOptions const& options)
+{
+    // 1. Let parent be the parent for HTML insertion given this.
+    auto parent = TRY(HTML::parent_for_html_insertion(*this));
+
+    // 2. If parent is null, then return.
+    if (!parent.has_value())
+        return {};
+
+    // 3. Filter and pre-insert HTML given parent, this's next sibling, html, options, and Safe.
+    return HTML::filter_and_pre_insert_html(*parent, next_sibling(), html.utf16_view(), &options, HTML::FragmentParserMode::Safe);
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-nondocumenttypechildnode-replacewithhtml
+WebIDL::ExceptionOr<void> Node::replace_with_html(Utf16String const& html, Bindings::SetHTMLOptions const& options)
+{
+    // 1. Let parent be the parent for HTML insertion given this.
+    auto parent = TRY(HTML::parent_for_html_insertion(*this));
+
+    // 2. If parent is null, then return.
+    if (!parent.has_value())
+        return {};
+
+    // 3. Filter and replace with HTML given parent, this, html, options, and Safe.
+    return HTML::filter_and_replace_with_html(*parent, *this, html.utf16_view(), &options, HTML::FragmentParserMode::Safe);
 }
 
 // https://dom.spec.whatwg.org/#dom-node-issamenode
@@ -4986,6 +5017,76 @@ GC::Ptr<ShadowRoot> Node::containing_shadow_root()
     if (auto* shadow_root = as_if<ShadowRoot>(root()))
         return shadow_root;
     return nullptr;
+}
+
+}
+
+namespace Web::Bindings {
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-nondocumenttypechildnode-beforehtmlunsafe
+WebIDL::ExceptionOr<void> before_html_unsafe(DOM::Node& node, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const& options)
+{
+    // 1. Let (compliantHTML, compliantOptions) be the result of invoking the get trusted type compliant input algorithm
+    //    with this's relevant global object, html, options, and "Node beforeHTMLUnsafe".
+    auto const [compliant_html, compliant_options] = TRY(TrustedTypes::get_trusted_type_compliant_input(
+        HTML::relevant_global_object(node),
+        html,
+        options,
+        TrustedTypes::InjectionSink::Node_beforeHTMLUnsafe));
+
+    // 2. Let parent be the parent for HTML insertion given this.
+    auto parent = TRY(HTML::parent_for_html_insertion(node));
+
+    // 3. If parent is null, then return.
+    if (!parent.has_value())
+        return {};
+
+    // 4. Filter and pre-insert HTML given parent, this, compliantHTML, compliantOptions, and Unsafe.
+    return HTML::filter_and_pre_insert_html(*parent, node, compliant_html.utf16_view(), HTML::to_sanitizer_options(compliant_options), HTML::FragmentParserMode::Unsafe);
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-nondocumenttypechildnode-afterhtmlunsafe
+WebIDL::ExceptionOr<void> after_html_unsafe(DOM::Node& node, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const& options)
+{
+    // 1. Let (compliantHTML, compliantOptions) be the result of invoking the get trusted type compliant input algorithm
+    //    with this's relevant global object, html, options, and "Node afterHTMLUnsafe".
+    auto const [compliant_html, compliant_options] = TRY(TrustedTypes::get_trusted_type_compliant_input(
+        HTML::relevant_global_object(node),
+        html,
+        options,
+        TrustedTypes::InjectionSink::Node_afterHTMLUnsafe));
+
+    // 2. Let parent be the parent for HTML insertion given this.
+    auto parent = TRY(HTML::parent_for_html_insertion(node));
+
+    // 3. If parent is null, then return.
+    if (!parent.has_value())
+        return {};
+
+    // 4. Filter and pre-insert HTML given parent, this's next sibling, compliantHTML, compliantOptions, and Unsafe.
+    return HTML::filter_and_pre_insert_html(*parent, node.next_sibling(), compliant_html.utf16_view(), HTML::to_sanitizer_options(compliant_options), HTML::FragmentParserMode::Unsafe);
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-nondocumenttypechildnode-replacewithhtmlunsafe
+WebIDL::ExceptionOr<void> replace_with_html_unsafe(DOM::Node& node, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const& options)
+{
+    // 1. Let (compliantHTML, compliantOptions) be the result of invoking the get trusted type compliant input algorithm
+    //    with this's relevant global object, html, options, and "Node replaceWithHTMLUnsafe".
+    auto const [compliant_html, compliant_options] = TRY(TrustedTypes::get_trusted_type_compliant_input(
+        HTML::relevant_global_object(node),
+        html,
+        options,
+        TrustedTypes::InjectionSink::Node_replaceWithHTMLUnsafe));
+
+    // 2. Let parent be the parent for HTML insertion given this.
+    auto parent = TRY(HTML::parent_for_html_insertion(node));
+
+    // 3. If parent is null, then return.
+    if (!parent.has_value())
+        return {};
+
+    // 4. Filter and replace with HTML given parent, this, compliantHTML, compliantOptions, and Unsafe.
+    return HTML::filter_and_replace_with_html(*parent, node, compliant_html.utf16_view(), HTML::to_sanitizer_options(compliant_options), HTML::FragmentParserMode::Unsafe);
 }
 
 }

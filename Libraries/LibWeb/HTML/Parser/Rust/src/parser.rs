@@ -15,6 +15,7 @@ use crate::token::TokenPayload;
 use crate::token::TokenType;
 use crate::tokenizer::HtmlTokenizer;
 use crate::tokenizer::State;
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ops::Deref;
 use std::ops::DerefMut;
@@ -122,6 +123,7 @@ unsafe extern "C" {
     fn ladybird_html_parser_create_comment(parser: *mut c_void, data_ptr: *const u16, data_len: usize) -> usize;
     fn ladybird_html_parser_insert_text(parent: usize, offset: usize, data_ptr: *const u8, data_len: usize);
     fn ladybird_html_parser_add_missing_attribute(
+        parser: *mut c_void,
         element: usize,
         local_name: usize,
         value_ptr: *const u16,
@@ -169,7 +171,35 @@ unsafe extern "C" {
     ) -> usize;
     fn ladybird_html_parser_set_template_content(element: usize, content: usize);
     fn ladybird_html_parser_is_shadow_host(node: usize) -> bool;
+    fn ladybird_html_parser_sanitizer_action(parser: *mut c_void, element: usize) -> u8;
+    fn ladybird_html_parser_child_at_index(parent: usize, index: usize) -> usize;
+    fn ladybird_html_parser_declarative_shadow_root_attributes(element: usize) -> u32;
     fn ladybird_html_parser_set_script_text_from_parser(element: usize);
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sanitizer-action
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SanitizerAction {
+    Keep,
+    Remove,
+    ReplaceWithChildren,
+}
+
+// NB: Bit flags returned by ladybird_html_parser_declarative_shadow_root_attributes().
+const SHADOW_ROOT_MODE_OPEN: u32 = 1;
+const SHADOW_ROOT_MODE_CLOSED: u32 = 1 << 1;
+const SHADOW_ROOT_DELEGATES_FOCUS: u32 = 1 << 2;
+const SHADOW_ROOT_SERIALIZABLE: u32 = 1 << 3;
+const SHADOW_ROOT_SLOT_ASSIGNMENT_MANUAL: u32 = 1 << 4;
+const SHADOW_ROOT_CLONABLE: u32 = 1 << 5;
+const SHADOW_ROOT_CUSTOM_ELEMENT_REGISTRY: u32 = 1 << 6;
+
+// NB: An insertion location whose reference child is stored as a node, so that it stays valid while nodes are inserted
+//     before it. A null reference child is represented by 0.
+#[derive(Clone, Copy, Debug)]
+struct RedirectedInsertionLocation {
+    parent: usize,
+    reference_child: usize,
 }
 
 /// Opaque handle for the Rust HTML parser, passed across the FFI boundary.
@@ -366,6 +396,14 @@ struct ParserState {
     parser_pause_requested: bool,
     foster_parenting_enabled: bool,
     frameset_ok: bool,
+    // https://html.spec.whatwg.org/multipage/parsing.html#parser-sanitizer-configuration
+    // NB: The configuration itself lives on the C++ side. These record whether it is non-null and whether it allows
+    //     comments.
+    sanitizing: bool,
+    sanitizer_allows_comments: bool,
+    // https://html.spec.whatwg.org/multipage/parsing.html#insertion-target-redirection-map
+    // NB: The entry for the root element of the HTML fragment parsing algorithm is represented by root_insertion_target.
+    insertion_target_redirection_map: HashMap<usize, RedirectedInsertionLocation>,
 }
 
 impl ParserState {
@@ -394,6 +432,9 @@ impl ParserState {
             parser_pause_requested: false,
             foster_parenting_enabled: false,
             frameset_ok: true,
+            sanitizing: false,
+            sanitizer_allows_comments: false,
+            insertion_target_redirection_map: HashMap::new(),
         }
     }
 
@@ -456,6 +497,11 @@ impl ParserState {
         }
         visit_node(visitor, self.pending_script.unwrap_or(0));
         visit_node(visitor, self.pending_svg_script.unwrap_or(0));
+        for (element, location) in &self.insertion_target_redirection_map {
+            visit_node(visitor, *element);
+            visit_node(visitor, location.parent);
+            visit_node(visitor, location.reference_child);
+        }
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#reset-the-insertion-mode-appropriately
@@ -3419,7 +3465,12 @@ impl TreeBuilder {
             token.had_duplicate_attribute(),
         );
         self.recycle_attribute_buffers(attributes);
-        self.append_child(document, element);
+        // NB: When the parser's parser sanitizer configuration is not null, the element is inserted as described in
+        //     "insert an element at the adjusted insertion location" with (the Document, null), so that a removed html
+        //     element is not inserted.
+        if self.sanitizer_action(element) == SanitizerAction::Keep {
+            self.append_child(document, element);
+        }
         self.stack_of_open_elements.push(StackNode {
             handle: element,
             local_name: local_name.clone(),
@@ -3488,7 +3539,7 @@ impl TreeBuilder {
         //       the DOM.
         // NB: Deferred template insertion skips this step using the implementation parameter.
         if !only_add_to_element_stack {
-            self.insert_element_at_adjusted_insertion_location(element, None);
+            self.insert_element_at_adjusted_insertion_location(element, None, false);
         }
         let template_content = if namespace_ == RustFfiHtmlNamespace::Html && local_name == tag_name!("template") {
             Some(self.template_content(element))
@@ -3515,7 +3566,7 @@ impl TreeBuilder {
     ) -> usize {
         let adjusted_insertion_location = self.appropriate_place_for_inserting_node(Some(parent));
         let element = self.create_html_element_for_active_formatting_element(entry, adjusted_insertion_location.parent);
-        self.insert_element_at_adjusted_insertion_location(element, None);
+        self.insert_element_at_adjusted_insertion_location(element, None, false);
         self.stack_of_open_elements.push(StackNode {
             handle: element,
             local_name: entry.local_name.clone(),
@@ -3566,7 +3617,12 @@ impl TreeBuilder {
     ) -> usize {
         // https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token
         // AD-HOC: DOM node construction stays on the C++ side of LibWeb, so this step crosses the FFI boundary.
-        let form_element = self.form_element.unwrap_or(0);
+        // NB: An element is not associated with a form element that was replaced with its children as part of
+        //     sanitization, see step 21 of "create an element for the token".
+        let form_element = self
+            .form_element
+            .filter(|form_element| !self.insertion_target_redirection_map.contains_key(form_element))
+            .unwrap_or(0);
         let has_template_element_on_stack = self.has_template_element_on_stack_of_open_elements();
         let namespace_uri = namespace_uri.map(|namespace_uri| namespace_uri.encode_utf16().collect::<Vec<_>>());
         unsafe {
@@ -3673,11 +3729,59 @@ impl TreeBuilder {
         };
     }
 
+    // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#get-the-sanitizer-action-for-an-element-name
+    // NB: Returns "Keep" when the parser's parser sanitizer configuration is null.
+    fn sanitizer_action(&self, element: usize) -> SanitizerAction {
+        if !self.sanitizing {
+            return SanitizerAction::Keep;
+        }
+        match unsafe { ladybird_html_parser_sanitizer_action(self.host, element) } {
+            0 => SanitizerAction::Keep,
+            1 => SanitizerAction::Remove,
+            2 => SanitizerAction::ReplaceWithChildren,
+            _ => unreachable!(),
+        }
+    }
+
+    fn set_insertion_target_redirection(&mut self, element: usize, location: AdjustedInsertionLocation) {
+        let reference_child = if location.offset == APPEND_CHILD_OFFSET {
+            0
+        } else {
+            unsafe { ladybird_html_parser_child_at_index(location.parent, location.offset) }
+        };
+        self.insertion_target_redirection_map.insert(
+            element,
+            RedirectedInsertionLocation {
+                parent: location.parent,
+                reference_child,
+            },
+        );
+    }
+
+    fn insertion_target_redirection(&self, target_parent: usize) -> Option<AdjustedInsertionLocation> {
+        if self.insertion_target_redirection_map.is_empty() {
+            return None;
+        }
+        let location = self.insertion_target_redirection_map.get(&target_parent)?;
+        // AD-HOC: If the reference child has been removed or moved to another node, nodes are instead appended to the
+        //         parent.
+        let offset = if location.reference_child != 0 && self.parent_node(location.reference_child) == location.parent {
+            self.node_index(location.reference_child)
+        } else {
+            APPEND_CHILD_OFFSET
+        };
+        Some(AdjustedInsertionLocation {
+            parent: location.parent,
+            offset,
+        })
+    }
+
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-an-element-at-the-adjusted-insertion-location
     fn insert_element_at_adjusted_insertion_location(
         &mut self,
         element: usize,
         insertion_location: Option<AdjustedInsertionLocation>,
+        already_sanitized: bool,
     ) {
         // 1. Let (targetParent, referenceChild) be the adjusted insertion location given overrideLocation.
         // NB: The implementation names overrideLocation insertion_location.
@@ -3688,8 +3792,43 @@ impl TreeBuilder {
         //           - element is a host-including inclusive ancestor of targetParent; or
         //           - targetParent is a Document node that already has an element child,
         //           then return.
-        // FIXME: 3. If alreadySanitized is false and the parser's parser sanitizer configuration is not null:
-        // FIXME: Implement the sanitizer action, attribute assertions, and insertion-target redirection for this step.
+
+        // 3. If alreadySanitized is false and the parser's parser sanitizer configuration is not null:
+        if !already_sanitized && self.sanitizing {
+            // 1. Let action be the result of getting the sanitizer action for an element name given element's local
+            //    name, element's namespace, and the parser's parser sanitizer configuration.
+            let action = self.sanitizer_action(element);
+
+            // 2. For each attribute of element's attribute list:
+            //    1. Assert: the result of checking if a sanitizer config allows an attribute given attribute's local
+            //       name, attribute's namespace, attribute's value, element's local name, element's namespace, and the
+            //       parser's parser sanitizer configuration is true.
+            //    NOTE: Attributes are sanitized when the element is created from the token.
+
+            // 3. Assert: if targetParent is a Document, then action is not "Replace with children".
+            debug_assert!(
+                action != SanitizerAction::ReplaceWithChildren
+                    || insertion_location.parent != unsafe { ladybird_html_parser_document_node(self.host) }
+            );
+
+            // 4. Switch on action:
+            match action {
+                // -> "Replace with children"
+                //    Set the parser's insertion target redirection map[element] to (targetParent, referenceChild),
+                //    and return.
+                SanitizerAction::ReplaceWithChildren => {
+                    self.set_insertion_target_redirection(element, insertion_location);
+                    return;
+                }
+                // -> "Remove"
+                //    Return.
+                SanitizerAction::Remove => return,
+                // -> "Keep"
+                //    Do nothing.
+                SanitizerAction::Keep => {}
+            }
+        }
+
         // FIXME: 4. Assert: ensure pre-insert validity given element, targetParent, referenceChild, and « » does not throw.
         // 5. If the parser's fragment context element is null, then push a new element queue onto element's relevant
         //    agent's custom element reactions stack.
@@ -3780,145 +3919,160 @@ impl TreeBuilder {
         self.stack_of_template_insertion_modes.push(InsertionMode::InTemplate);
 
         // FIXME: 6. Let declarativeShadowHostElement be the current node.
+        // FIXME: Use the current node for declarativeShadowHostElement, rather than the adjusted current node. A top-level
+        //        template in a fragment must not attach a shadow root to its fragment context element.
+        let adjusted_current_node = self.adjusted_current_node().map(|node| node.handle);
+        let declarative_shadow_host_element = adjusted_current_node.unwrap_or(0);
+
         // 7. Let hostIsRoot be true if declarativeShadowHostElement is the topmost element in the stack of open elements;
         //    otherwise false.
-        // FIXME: 8. Let template be the result of creating an element for the token given templateStartTag, the HTML
-        //           namespace, and the target parent of the appropriate place for inserting a node.
-        // 9. Let insertionLocation be the appropriate place for inserting a node.
-        // FIXME: Create template before computing insertionLocation and inspecting its attributes.
-        // NB: The implementation still selects a host and mode before the deferred template-creation helper below.
-        let adjusted_insertion_location = self.appropriate_place_for_inserting_node(None);
-
-        // 10. Push template onto the stack of open elements so that it is the new current node.
-        // NB: The deferred template-creation helper below performs this push.
-        // 11. Let sanitizerAction be "Keep".
-        // FIXME: 12. If the parser's parser sanitizer configuration is not null, then set sanitizerAction to the result of
-        //            getting the sanitizer action for an element name given template's local name, template's namespace,
-        //            and the parser's parser sanitizer configuration.
-        // 13. Switch on sanitizerAction:
-        // FIXME: -> "Remove"
-        //        -> "Replace with children"
-        //           Return.
-        // -> "Keep"
-        //    If template's shadowrootmode attribute is not in the None state:
-        // FIXME: Read the mode and flags from the created template, rather than from templateStartTag.
-        let mode = match token.attribute(attribute_name!("shadowrootmode")) {
-            Some(value) if value.eq_ignore_ascii_case("open") => Some(RustFfiHtmlShadowRootMode::Open),
-            Some(value) if value.eq_ignore_ascii_case("closed") => Some(RustFfiHtmlShadowRootMode::Closed),
-            _ => None,
-        };
-
-        // NB: The mode and allow-declarative-shadow-roots checks are combined with the host check below.
-        let parser_allows_declarative_shadow_roots = self.allow_declarative_shadow_roots;
-
-        // FIXME: Use the current node for declarativeShadowHostElement (step 6), rather than the adjusted current node.
-        //        A top-level template in a fragment must not attach a shadow root to its fragment context element.
-        let adjusted_current_node = self.adjusted_current_node().map(|node| node.handle);
-        let adjusted_current_node_is_not_topmost_element = adjusted_current_node.is_some_and(|adjusted_current_node| {
+        let host_is_root = !adjusted_current_node.is_some_and(|adjusted_current_node| {
             self.stack_of_open_elements
                 .first()
                 .is_none_or(|topmost_element| topmost_element.handle != adjusted_current_node)
         });
 
-        // If any of the following are true:
-        // - the parser's allow declarative shadow roots is false;
-        // - hostIsRoot is true; or
-        // - the parser's insertion target redirection map[declarativeShadowHostElement] exists,
-        // then insert an element at the adjusted insertion location with template, insertionLocation, and true, and return.
-        // FIXME: Check the insertion target redirection map when sanitizer redirection is supported.
-        // NB: The ordinary-template case is also handled by this combined fallback.
-        if mode.is_none() || !parser_allows_declarative_shadow_roots || !adjusted_current_node_is_not_topmost_element {
-            // FIXME: Otherwise, if template has a for attribute:
-            //        1. Let scope be the target parent of the adjusted insertion location given insertionLocation.
-            //        2. If scope is the body element of its node document, then set scope to its parent.
-            //        3. Let success be the result of preparing content patching given scope and template.
-            //        4. If success is false, then insert an element at the adjusted insertion location with template,
-            //           insertionLocation, and true.
-            // NB: Templates currently fall back to ordinary insertion without content-patching support.
-            self.insert_html_element_for(token);
+        // 8. Let template be the result of creating an element for the token given templateStartTag, the HTML
+        //    namespace, and the target parent of the appropriate place for inserting a node.
+        // 9. Let insertionLocation be the appropriate place for inserting a node.
+        // NOTE: This is computed after template is created, since creating a customized built-in element can run
+        //       script that changes the DOM, and before template is pushed onto the stack of open elements, since
+        //       afterwards the appropriate place for inserting a node would be inside template's template contents.
+        // 10. Push template onto the stack of open elements so that it is the new current node.
+        // NB: This helper creates template (step 8) and pushes it (step 10) without inserting it into the DOM. It computes
+        //     the target parent before creating template, and we compute insertionLocation (step 9) afterwards, below.
+        let template = self.insert_foreign_element_for(token, RustFfiHtmlNamespace::Html, true);
+        let template_node = self.stack_of_open_elements.pop().unwrap();
+        let insertion_location = self.appropriate_place_for_inserting_node(None);
+        self.stack_of_open_elements.push(template_node);
+
+        // 11. Let sanitizerAction be "Keep".
+        // 12. If the parser's parser sanitizer configuration is not null, then set sanitizerAction to the result of
+        //     getting the sanitizer action for an element name given template's local name, template's namespace, and
+        //     the parser's parser sanitizer configuration.
+        let sanitizer_action = self.sanitizer_action(template);
+
+        // 13. Switch on sanitizerAction:
+        match sanitizer_action {
+            // -> "Remove"
+            // -> "Replace with children"
+            //    Return.
+            //    NOTE: A template element has no children (its parsed contents are placed in its template contents
+            //          DocumentFragment), so replacing it with its children has the same effect as removing it.
+            SanitizerAction::Remove | SanitizerAction::ReplaceWithChildren => return,
+            // -> "Keep"
+            SanitizerAction::Keep => {}
+        }
+
+        // NB: The shadowroot* attributes are read from template, whose attributes were sanitized when it was created
+        //     from the token.
+        let shadow_root_attributes = unsafe { ladybird_html_parser_declarative_shadow_root_attributes(template) };
+
+        // 1. If template's shadowrootmode attribute is not in the None state:
+        let mode = if shadow_root_attributes & SHADOW_ROOT_MODE_OPEN != 0 {
+            Some(RustFfiHtmlShadowRootMode::Open)
+        } else if shadow_root_attributes & SHADOW_ROOT_MODE_CLOSED != 0 {
+            Some(RustFfiHtmlShadowRootMode::Closed)
+        } else {
+            None
+        };
+        let Some(mode) = mode else {
+            // FIXME: 2. Otherwise, if template has a for attribute:
+            //           1. Let scope be the target parent of the adjusted insertion location given insertionLocation.
+            //           2. If scope is the body element of its node document, then set scope to its parent.
+            //           3. Let success be the result of preparing content patching given scope and template.
+            //           4. If success is false, then insert an element at the adjusted insertion location with template,
+            //              insertionLocation, and true.
+            // 3. Otherwise, insert an element at the adjusted insertion location with template, insertionLocation, and
+            //    true.
+            self.insert_element_at_adjusted_insertion_location(template, Some(insertion_location), true);
+            return;
+        };
+
+        // 1. If any of the following are true:
+        //    - the parser's allow declarative shadow roots is false;
+        //    - hostIsRoot is true; or
+        //    - the parser's insertion target redirection map[declarativeShadowHostElement] exists,
+        //    then insert an element at the adjusted insertion location with template, insertionLocation, and true, and
+        //    return.
+        //    NOTE: The last condition applies when declarativeShadowHostElement is replaced with its children as part
+        //          of sanitization. Since that element is never inserted, a shadow root attached to it would be lost.
+        //          Instead, template is inserted as a regular template element, where the replaced element's children
+        //          are inserted.
+        if !self.allow_declarative_shadow_roots
+            || host_is_root
+            || self
+                .insertion_target_redirection_map
+                .contains_key(&declarative_shadow_host_element)
+        {
+            self.insert_element_at_adjusted_insertion_location(template, Some(insertion_location), true);
             return;
         }
 
-        // NB: Continue with the host selected by the checks above.
-        let declarative_shadow_host_element = adjusted_current_node.unwrap();
+        // 2. Let mode be template's shadowrootmode attribute's value.
+        // 3. Let delegatesFocus be true if template has a shadowrootdelegatesfocus attribute; otherwise false.
+        let delegates_focus = shadow_root_attributes & SHADOW_ROOT_DELEGATES_FOCUS != 0;
 
-        // NB: This helper creates template (step 8) and pushes it (step 10) without inserting it into the DOM.
-        let template = self.insert_foreign_element_for(token, RustFfiHtmlNamespace::Html, true);
+        // 4. Let serializable be true if template has a shadowrootserializable attribute; otherwise false.
+        let serializable = shadow_root_attributes & SHADOW_ROOT_SERIALIZABLE != 0;
 
-        // Let mode be template's shadowrootmode attribute's value.
-        let mode = mode.unwrap();
+        // 5. Let slotAssignment be "named".
+        // 6. If template's shadowrootslotassignment attribute is in the Manual state, then set slotAssignment to
+        //    "manual".
+        let slot_assignment = if shadow_root_attributes & SHADOW_ROOT_SLOT_ASSIGNMENT_MANUAL != 0 {
+            RustFfiHtmlSlotAssignmentMode::Manual
+        } else {
+            RustFfiHtmlSlotAssignmentMode::Named
+        };
 
-        // Let slotAssignment be "named".
-        let mut slot_assignment = RustFfiHtmlSlotAssignmentMode::Named;
+        // 7. Let clonable be true if template has a shadowrootclonable attribute; otherwise false.
+        let clonable = shadow_root_attributes & SHADOW_ROOT_CLONABLE != 0;
 
-        // If template's shadowrootslotassignment attribute is in the Manual state, then set slotAssignment to "manual".
-        if token
-            .attribute(attribute_name!("shadowrootslotassignment"))
-            .is_some_and(|value| value.eq_ignore_ascii_case("manual"))
-        {
-            slot_assignment = RustFfiHtmlSlotAssignmentMode::Manual;
-        }
-
-        // Let clonable be true if template has a shadowrootclonable attribute; otherwise false.
-        let clonable = token.has_attribute(attribute_name!("shadowrootclonable"));
-
-        // Let serializable be true if template has a shadowrootserializable attribute; otherwise false.
-        let serializable = token.has_attribute(attribute_name!("shadowrootserializable"));
-
-        // Let delegatesFocus be true if template has a shadowrootdelegatesfocus attribute; otherwise false.
-        // NB: The spec reads delegatesFocus, serializable, slotAssignment, then clonable; these independent reads are
-        //     currently grouped in the order of the host helper's initialization fields.
-        let delegates_focus = token.has_attribute(attribute_name!("shadowrootdelegatesfocus"));
-
-        // If declarativeShadowHostElement is a shadow host, then insert an element at the adjusted insertion location
-        // with template, insertionLocation, and true.
+        // 8. If declarativeShadowHostElement is a shadow host, then insert an element at the adjusted insertion location
+        //    with template, insertionLocation, and true.
         if self.is_shadow_host(declarative_shadow_host_element) {
-            self.insert_element_at_adjusted_insertion_location(template, Some(adjusted_insertion_location));
+            self.insert_element_at_adjusted_insertion_location(template, Some(insertion_location), true);
+            return;
         }
-        // Otherwise:
-        else {
-            // 1. Let registry be null if template has a shadowrootcustomelementregistry attribute; otherwise
-            //    declarativeShadowHostElement's node document's custom element registry.
 
-            // 2. Attach a shadow root with declarativeShadowHostElement, mode, delegatesFocus, serializable,
-            //    slotAssignment, clonable, and registry.
-            let shadow_root = self.attach_declarative_shadow_root(DeclarativeShadowRootInit {
-                host: declarative_shadow_host_element,
-                mode,
-                slot_assignment,
-                clonable,
-                serializable,
-                delegates_focus,
-                keep_custom_element_registry_null: token
-                    .has_attribute(attribute_name!("shadowrootcustomelementregistry")),
-            });
+        // 9. Otherwise:
+        // 1. Let registry be null if template has a shadowrootcustomelementregistry attribute; otherwise
+        //    declarativeShadowHostElement's node document's custom element registry.
+        // 2. Attach a shadow root with declarativeShadowHostElement, mode, delegatesFocus, serializable,
+        //    slotAssignment, clonable, and registry.
+        let shadow_root = self.attach_declarative_shadow_root(DeclarativeShadowRootInit {
+            host: declarative_shadow_host_element,
+            mode,
+            slot_assignment,
+            clonable,
+            serializable,
+            delegates_focus,
+            keep_custom_element_registry_null: shadow_root_attributes & SHADOW_ROOT_CUSTOM_ELEMENT_REGISTRY != 0,
+        });
 
-            // If an exception is thrown, then catch it and:
-            if shadow_root == 0 {
-                // 1. Insert an element at the adjusted insertion location with template, insertionLocation, and true.
-                self.insert_element_at_adjusted_insertion_location(template, Some(adjusted_insertion_location));
+        //    If an exception is thrown, then catch it and:
+        if shadow_root == 0 {
+            // 1. Insert an element at the adjusted insertion location with template, insertionLocation, and true.
+            self.insert_element_at_adjusted_insertion_location(template, Some(insertion_location), true);
 
-                // 2. The user agent may report an error to the developer console.
+            // 2. The user agent may report an error to the developer console.
 
-                // 3. Return.
-                return;
-            }
-
-            // 3. Let shadow be declarativeShadowHostElement's shadow root.
-
-            // 4. Set shadow's available to element internals to true.
-
-            // 5. Set shadow's declarative to true.
-            // NB: The C++ attachment helper performs steps 3 through 5.
-
-            // 6. Set template's template contents to shadow.
-            self.set_template_content(template, shadow_root);
-            self.stack_of_open_elements.last_mut().unwrap().template_content = Some(shadow_root);
-
-            // 7. If template has a shadowrootcustomelementregistry attribute, then set shadow's keep custom element
-            //    registry null to true.
-            // NB: The C++ attachment helper also sets this flag, using the value supplied from the original token.
+            // 3. Return.
+            return;
         }
+
+        // 3. Let shadow be declarativeShadowHostElement's shadow root.
+        // 4. Set shadow's available to element internals to true.
+        // 5. Set shadow's declarative to true.
+        // NB: The C++ attachment helper performs steps 3 through 5.
+
+        // 6. Set template's template contents to shadow.
+        self.set_template_content(template, shadow_root);
+        self.stack_of_open_elements.last_mut().unwrap().template_content = Some(shadow_root);
+
+        // 7. If template has a shadowrootcustomelementregistry attribute, then set shadow's keep custom element
+        //    registry null to true.
+        // NB: The C++ attachment helper also sets this flag.
     }
 
     fn handle_template_end_tag(&mut self) {
@@ -3969,8 +4123,12 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-comment
     fn insert_comment(&mut self, data: &str, insertion_location: Option<AdjustedInsertionLocation>) {
-        // FIXME: 1. If the parser's parser sanitizer configuration is non-null and the parser's parser sanitizer
-        //           configuration does not allow comments, then return.
+        // 1. If the parser's parser sanitizer configuration is non-null and the parser's parser sanitizer configuration
+        //    does not allow comments, then return.
+        if self.sanitizing && !self.sanitizer_allows_comments {
+            return;
+        }
+
         // 2. Let data be the data given in the comment token being processed.
         self.flush_character_insertions();
 
@@ -4037,6 +4195,7 @@ impl TreeBuilder {
             let value = attribute.value.encode_utf16().collect::<Vec<_>>();
             unsafe {
                 ladybird_html_parser_add_missing_attribute(
+                    self.host,
                     element,
                     attribute.local_name.raw_identity(),
                     value.as_ptr(),
@@ -4454,9 +4613,23 @@ impl TreeBuilder {
         // 3. If the parser's insertion target redirection map[targetParent] does not exist, then return location.
         // 4. Assert: refChild is null.
         // 5. Return the parser's insertion target redirection map[targetParent].
-        // FIXME: Replace the root-only redirection with the insertion target redirection map, which also handles
-        //        elements replaced with children during sanitization.
+        if let Some(redirected_location) = self.insertion_target_redirection(adjusted_insertion_location.parent) {
+            return redirected_location;
+        }
         self.apply_root_insertion_target(adjusted_insertion_location)
+    }
+
+    // https://html.spec.whatwg.org/multipage/parsing.html#adjusted-insertion-location
+    // NB: The adjusted insertion location given an insertion location, without recomputing the appropriate place for
+    //     inserting a node from the location's parent.
+    fn adjusted_insertion_location_for_location(
+        &self,
+        location: AdjustedInsertionLocation,
+    ) -> AdjustedInsertionLocation {
+        if let Some(redirected_location) = self.insertion_target_redirection(location.parent) {
+            return redirected_location;
+        }
+        self.apply_root_insertion_target(location)
     }
 
     fn apply_root_insertion_target(
@@ -4477,6 +4650,9 @@ impl TreeBuilder {
 
     fn adjusted_insertion_location_for_text(&self) -> AdjustedInsertionLocation {
         let insertion_location = self.appropriate_place_for_inserting_node(None);
+        if let Some(redirected_location) = self.insertion_target_redirection(insertion_location.parent) {
+            return redirected_location;
+        }
         if self.root_insertion_target == 0 {
             return insertion_location;
         }
@@ -4696,21 +4872,35 @@ impl TreeBuilder {
             let mut bookmark = formatting_index;
 
             // 11. Let node and lastNode be furthestBlock.
+            // NB: A null lastNode is represented by 0.
             let mut node_index = furthest_block_index;
             let mut last_node = furthest_block.handle;
 
-            // FIXME: 12. Let pendingRedirects be an empty list.
-            // FIXME: 13. If the parser's parser sanitizer configuration is not null:
-            //            1. Let action be the result of getting the sanitizer action for an element name given
-            //               lastNode's local name, lastNode's namespace, and the parser's parser sanitizer configuration.
-            //            2. If action is not "Keep", then set lastNode to null.
-            //            3. If action is "Replace with children", then append furthestBlock to pendingRedirects.
+            // 12. Let pendingRedirects be an empty list.
+            let mut pending_redirects: Vec<usize> = Vec::new();
+
+            // 13. If the parser's parser sanitizer configuration is not null:
+            if self.sanitizing {
+                // 1. Let action be the result of getting the sanitizer action for an element name given lastNode's local
+                //    name, lastNode's namespace, and the parser's parser sanitizer configuration.
+                let action = self.sanitizer_action(last_node);
+
+                // 2. If action is not "Keep", then set lastNode to null.
+                if action != SanitizerAction::Keep {
+                    last_node = 0;
+                }
+
+                // 3. If action is "Replace with children", then append furthestBlock to pendingRedirects.
+                if action == SanitizerAction::ReplaceWithChildren {
+                    pending_redirects.push(furthest_block.handle);
+                }
+            }
 
             // 14. Let innerLoopCounter be 0.
             let mut inner_loop_counter: u8 = 0;
 
             // 15. Let bookmarkMoved be false.
-            // NB: Without sanitization, last_node == furthest_block.handle tracks whether the bookmark has moved.
+            let mut bookmark_moved = false;
 
             // 16. While true:
             loop {
@@ -4772,29 +4962,56 @@ impl TreeBuilder {
 
                 // 7. If bookmarkMoved is false, then move the aforementioned bookmark to be immediately after the new
                 //    node in the list of active formatting elements, and set bookmarkMoved to true.
-                if last_node == furthest_block.handle {
+                if !bookmark_moved {
                     bookmark = active_index + 1;
+                    bookmark_moved = true;
                 }
 
                 // 8. Let nodeAction be "Keep".
-                // FIXME: 9. If the parser's parser sanitizer configuration is not null, then set nodeAction to the result
-                //           of getting the sanitizer action for an element name given node's local name, node's namespace,
-                //           and the parser's parser sanitizer configuration.
-                // FIXME: 10. If nodeAction is not "Replace with children":
-                //             1. For each replacedElement of pendingRedirects: set the parser's insertion target
-                //                redirection map[replacedElement] to (node, null).
-                //             2. Empty pendingRedirects.
+                // 9. If the parser's parser sanitizer configuration is not null, then set nodeAction to the result of
+                //    getting the sanitizer action for an element name given node's local name, node's namespace, and the
+                //    parser's parser sanitizer configuration.
+                let node_action = self.sanitizer_action(new_element);
+
+                // 10. If nodeAction is not "Replace with children":
+                if node_action != SanitizerAction::ReplaceWithChildren {
+                    // 1. For each replacedElement of pendingRedirects: set the parser's insertion target redirection
+                    //    map[replacedElement] to (node, null).
+                    // 2. Empty pendingRedirects.
+                    for replaced_element in pending_redirects.drain(..) {
+                        self.insertion_target_redirection_map.insert(
+                            replaced_element,
+                            RedirectedInsertionLocation {
+                                parent: new_element,
+                                reference_child: 0,
+                            },
+                        );
+                    }
+                }
+
                 // 11. Switch on nodeAction:
-                // -> "Keep"
-                //    If lastNode is non-null, then append lastNode to node. Set lastNode to node.
-                // NB: The unsanitized path keeps lastNode non-null and always takes the "Keep" branch.
-                self.append_child(new_element, last_node);
-                last_node = new_element;
-                // FIXME: -> "Remove"
-                //           If lastNode is non-null and lastNode's parent is non-null, then remove lastNode. Set lastNode
-                //           to null.
-                // FIXME: -> "Replace with children"
-                //           Append node to pendingRedirects.
+                match node_action {
+                    // -> "Keep"
+                    //    If lastNode is non-null, then append lastNode to node. Set lastNode to node.
+                    SanitizerAction::Keep => {
+                        if last_node != 0 {
+                            self.append_child(new_element, last_node);
+                        }
+                        last_node = new_element;
+                    }
+                    // -> "Remove"
+                    //    If lastNode is non-null and lastNode's parent is non-null, then remove lastNode. Set lastNode
+                    //    to null.
+                    SanitizerAction::Remove => {
+                        if last_node != 0 && self.parent_node(last_node) != 0 {
+                            unsafe { ladybird_html_parser_remove_node(last_node) };
+                        }
+                        last_node = 0;
+                    }
+                    // -> "Replace with children"
+                    //    Append node to pendingRedirects.
+                    SanitizerAction::ReplaceWithChildren => pending_redirects.push(new_element),
+                }
             }
 
             // 17. Let insertionLocation be the appropriate place for inserting a node given commonAncestor.
@@ -4805,10 +5022,16 @@ impl TreeBuilder {
                 offset: APPEND_CHILD_OFFSET,
             }));
 
-            // FIXME: 19. For each replacedElement of pendingRedirects: set the parser's insertion target redirection
-            //            map[replacedElement] to (target, refNode).
-            // NB: Steps 20 and 21 implemented on C++ side.
-            self.reinsert_last_node_at_insertion_location(adjusted_insertion_location, last_node);
+            // 19. For each replacedElement of pendingRedirects: set the parser's insertion target redirection
+            //     map[replacedElement] to (target, refNode).
+            for replaced_element in pending_redirects {
+                self.set_insertion_target_redirection(replaced_element, adjusted_insertion_location);
+            }
+
+            // NB: Steps 20 and 21 implemented on C++ side. Both steps do nothing if lastNode is null.
+            if last_node != 0 {
+                self.reinsert_last_node_at_insertion_location(adjusted_insertion_location, last_node);
+            }
 
             // 22. Let newElement be the result of creating an element for the token for which formattingElement was
             //     created, in the HTML namespace, with furthestBlock as the intended parent.
@@ -4824,24 +5047,45 @@ impl TreeBuilder {
 
             // FIXME: Perform steps 23 and 24 before the child mutations in step 27.
             // 25. Let sanitizerAction be "Keep".
-            // FIXME: 26. If the parser's parser sanitizer configuration is not null, then set sanitizerAction to the result
-            //            of getting the sanitizer action for an element name given newElement's local name,
-            //            newElement's namespace, and the parser's parser sanitizer configuration.
-            // 27. Switch on sanitizerAction:
-            // FIXME: -> "Replace with children"
-            //           Set the parser's insertion target redirection map[newElement] to the adjusted insertion location
-            //           given (furthestBlock, null).
-            // FIXME: -> "Remove"
-            //           Take all of the child nodes of furthestBlock and append them to newElement.
-            // -> "Keep"
-            //    1. Take all of the child nodes of furthestBlock and append them to newElement.
-            self.move_all_children(furthest_block.handle, new_element);
+            // 26. If the parser's parser sanitizer configuration is not null, then set sanitizerAction to the result of
+            //     getting the sanitizer action for an element name given newElement's local name, newElement's
+            //     namespace, and the parser's parser sanitizer configuration.
+            let sanitizer_action = self.sanitizer_action(new_element);
 
-            // FIXME: 2. Let (newElementParent, newElementRefNode) be the adjusted insertion location given
-            //           (furthestBlock, null).
-            // 3. Insert newElement into newElementParent before newElementRefNode.
-            // NB: The current unsanitized path appends directly to furthestBlock.
-            self.append_child(furthest_block.handle, new_element);
+            // 27. Switch on sanitizerAction:
+            let furthest_block_location = AdjustedInsertionLocation {
+                parent: furthest_block.handle,
+                offset: APPEND_CHILD_OFFSET,
+            };
+            match sanitizer_action {
+                // -> "Replace with children"
+                //    Set the parser's insertion target redirection map[newElement] to the adjusted insertion location
+                //    given (furthestBlock, null).
+                SanitizerAction::ReplaceWithChildren => {
+                    let location = self.adjusted_insertion_location_for_location(furthest_block_location);
+                    self.set_insertion_target_redirection(new_element, location);
+                }
+                // -> "Remove"
+                //    Take all of the child nodes of furthestBlock and append them to newElement.
+                SanitizerAction::Remove => self.move_all_children(furthest_block.handle, new_element),
+                // -> "Keep"
+                SanitizerAction::Keep => {
+                    // 1. Take all of the child nodes of furthestBlock and append them to newElement.
+                    self.move_all_children(furthest_block.handle, new_element);
+
+                    // 2. Let (newElementParent, newElementRefNode) be the adjusted insertion location given
+                    //    (furthestBlock, null).
+                    // 3. Insert newElement into newElementParent before newElementRefNode.
+                    // NB: Without sanitization, the adjusted insertion location given (furthestBlock, null) is
+                    //     (furthestBlock, null).
+                    if self.sanitizing {
+                        let location = self.adjusted_insertion_location_for_location(furthest_block_location);
+                        self.insert_node_at_insertion_location(location, new_element);
+                    } else {
+                        self.append_child(furthest_block.handle, new_element);
+                    }
+                }
+            }
 
             // 23. Remove formattingElement from the list of active formatting elements, and insert newElement into the
             //     list of active formatting elements at the position of the aforementioned bookmark.
@@ -4887,13 +5131,33 @@ impl TreeBuilder {
                     template_content: None,
                 },
             );
-            // FIXME: 28. Let belowNode be the element immediately below newElement in the stack of open elements, if any;
-            //            otherwise null.
-            // FIXME: 29. While belowNode is non-null and the parser's insertion target redirection map[belowNode] exists:
-            //            1. Set the parser's insertion target redirection map[belowNode] to the adjusted insertion location
-            //               given (newElement, null).
-            //            2. Set belowNode to the element immediately below belowNode in the stack of open elements, if any;
-            //               otherwise null.
+            // 28. Let belowNode be the element immediately below newElement in the stack of open elements, if any;
+            //     otherwise null.
+            // 29. While belowNode is non-null and the parser's insertion target redirection map[belowNode] exists:
+            //     1. Set the parser's insertion target redirection map[belowNode] to the adjusted insertion location
+            //        given (newElement, null).
+            //     2. Set belowNode to the element immediately below belowNode in the stack of open elements, if any;
+            //        otherwise null.
+            //     NOTE: Elements below furthestBlock in the stack that were replaced with their children now have
+            //           newElement between them and furthestBlock. They are usually popped before anything else is
+            //           inserted, but if the outer loop reaches its limit they remain on the stack, so their entries are
+            //           updated here.
+            if !self.insertion_target_redirection_map.is_empty() {
+                let new_element_location = AdjustedInsertionLocation {
+                    parent: new_element,
+                    offset: APPEND_CHILD_OFFSET,
+                };
+                let mut below_node_index = furthest_block_stack_index + 2;
+                while below_node_index < self.stack_of_open_elements.len() {
+                    let below_node = self.stack_of_open_elements[below_node_index].handle;
+                    if !self.insertion_target_redirection_map.contains_key(&below_node) {
+                        break;
+                    }
+                    let location = self.adjusted_insertion_location_for_location(new_element_location);
+                    self.set_insertion_target_redirection(below_node, location);
+                    below_node_index += 1;
+                }
+            }
         }
     }
 
@@ -5789,6 +6053,22 @@ pub unsafe extern "C" fn rust_html_parser_begin_fragment(
         allow_declarative_shadow_roots,
         form_element,
     });
+}
+
+/// Record that the parser's parser sanitizer configuration is non-null, and whether it allows comments.
+///
+/// This must be called after `rust_html_parser_begin_fragment`, which resets the parser state.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_html_parser_set_sanitizer(
+    handle: Option<&mut RustFfiHtmlParserHandle>,
+    sanitizing: bool,
+    allows_comments: bool,
+) {
+    let Some(handle) = handle else {
+        return;
+    };
+    handle.state.sanitizing = sanitizing;
+    handle.state.sanitizer_allows_comments = allows_comments;
 }
 
 /// Run the Rust HTML parser.

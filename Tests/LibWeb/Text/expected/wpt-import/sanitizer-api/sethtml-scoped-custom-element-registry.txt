@@ -2,14 +2,13 @@ Harness status: OK
 
 Found 9 tests
 
-4 Pass
-5 Fail
-Fail	setHTML uses the target's scoped custom element registry
-Fail	setHTML with replaceWithChildrenElements preserves the scoped custom element registry for children
-Fail	setHTML on a shadow root uses the shadow root's registry, not the host's
-Fail	setHTML constructs nested custom elements with the scoped registry
+9 Pass
+Pass	setHTML uses the target's scoped custom element registry
+Pass	setHTML with replaceWithChildrenElements preserves the scoped custom element registry for children
+Pass	setHTML on a shadow root uses the shadow root's registry, not the host's
+Pass	setHTML constructs nested custom elements with the scoped registry
 Pass	setHTMLUnsafe uses the target's scoped custom element registry
 Pass	setHTMLUnsafe with a sanitizer uses the target's scoped custom element registry
-Fail	setHTMLUnsafe with replaceWithChildrenElements preserves the scoped custom element registry for children
+Pass	setHTMLUnsafe with replaceWithChildrenElements preserves the scoped custom element registry for children
 Pass	setHTMLUnsafe on a shadow root uses the shadow root's registry, not the host's
 Pass	setHTMLUnsafe constructs nested custom elements with the scoped registry

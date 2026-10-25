@@ -28,6 +28,7 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
 #include <LibWeb/Bindings/CSS.h>
+#include <LibWeb/Bindings/Sanitizer.h>
 #include <LibWeb/Bindings/Window.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
@@ -111,6 +112,7 @@
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLInsertion.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLMenuElement.h>
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
@@ -2804,7 +2806,7 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(Utf16View selectors) c
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-innerhtml
-WebIDL::ExceptionOr<void> Element::set_inner_html(Utf16View html)
+WebIDL::ExceptionOr<void> Element::set_inner_html(Utf16View html, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> trusted_options)
 {
     Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target = GC::Ref { *this };
     auto* template_element = as_if<HTML::HTMLTemplateElement>(*this);
@@ -2814,10 +2816,10 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(Utf16View html)
     // OPTIMIZATION: Markup the fast fragment parser supports needs no fragment. Inserting the parsed nodes directly
     //               runs their insertion steps once and skips removing them from a fragment no one can observe.
     GC::RootVector<GC::Ref<Node>> fast_parsed_nodes;
-    if (!template_element && HTML::HTMLParser::try_parse_html_fragment_fast_into_detached_nodes(*this, html, fast_parsed_nodes)) {
+    if (!template_element && !trusted_options && HTML::HTMLParser::try_parse_html_fragment_fast_into_detached_nodes(*this, html, fast_parsed_nodes)) {
         replace_all(move(fast_parsed_nodes));
     } else {
-        auto fragment = TRY(parse_fragment(target, html, HTML::ParserScriptingMode::Inert, HTML::FragmentFastPath::Skip));
+        auto fragment = TRY(parse_fragment(target, html, HTML::ParserScriptingMode::Inert, HTML::FragmentFastPath::Skip, trusted_options));
 
         // 5. Replace all with fragment within target.
         target.visit([&](auto node) {
@@ -4147,8 +4149,13 @@ bool Element::is_actually_disabled() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-parsing-algorithm-steps
-WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target, Utf16View markup, HTML::ParserScriptingMode scripting_mode, HTML::FragmentFastPath fast_path)
+WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target, Utf16View markup, HTML::ParserScriptingMode scripting_mode, HTML::FragmentFastPath fast_path, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> trusted_options)
 {
+    // NB: When a Trusted Types default policy supplied the options, they determine the sanitizer configuration and
+    //     the scripting mode.
+    if (trusted_options)
+        return HTML::fragment_parsing_algorithm_steps(target, markup, GC::Ref { *trusted_options }, HTML::FragmentParserMode::Legacy);
+
     // NB: This helper implements Legacy mode with no sanitizer configuration; callers supply scriptingMode.
     //     The HTML fragment parser requires scriptingMode to be either Inert or Fragment.
     VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
@@ -4171,7 +4178,7 @@ WebIDL::ExceptionOr<Utf16String> Element::outer_html() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml
-WebIDL::ExceptionOr<void> Element::set_outer_html(StringView html)
+WebIDL::ExceptionOr<void> Element::set_outer_html(StringView html, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> trusted_options)
 {
     // 2. Let parent be this's parent.
     GC::Ptr<Node> parent = this->parent();
@@ -4190,7 +4197,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(StringView html)
 
     // 6. Let fragment be the result of invoking the fragment parsing algorithm steps given parent and compliantString.
     auto markup = Utf16String::from_utf8(html);
-    auto fragment = TRY(parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> { GC::Ref { as<Element>(*parent) } }, markup.utf16_view()));
+    auto fragment = TRY(parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> { GC::Ref { as<Element>(*parent) } }, markup.utf16_view(), HTML::ParserScriptingMode::Inert, HTML::FragmentFastPath::Allow, trusted_options));
 
     // 6. Replace this with fragment within this's parent.
     TRY(this->parent()->replace_child(fragment, *this));
@@ -4199,7 +4206,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(StringView html)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#the-insertadjacenthtml()-method
-WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, StringView html)
+WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, StringView html, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> trusted_options)
 {
     // 2. Let context be null.
     GC::Ptr<Node> context;
@@ -4243,7 +4250,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 
     // 5. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
     auto markup = Utf16String::from_utf8(html);
-    auto fragment = TRY(parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> { GC::Ref { as<Element>(*context) } }, markup.utf16_view()));
+    auto fragment = TRY(parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> { GC::Ref { as<Element>(*context) } }, markup.utf16_view(), HTML::ParserScriptingMode::Inert, HTML::FragmentFastPath::Allow, trusted_options));
 
     // 6. Use the first matching item from this list:
 
@@ -6824,19 +6831,35 @@ WebIDL::ExceptionOr<Utf16String> Element::get_html(HTMLSerializationOptions cons
         options.shadow_roots);
 }
 
-// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-sethtmlunsafe
-WebIDL::ExceptionOr<void> Element::set_html_unsafe(StringView html)
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-sethtml
+WebIDL::ExceptionOr<void> Element::set_html(Utf16String const& html, Bindings::SetHTMLOptions const& options)
 {
-    // 2. Let target be this's template contents if this is a template element; otherwise this.
-    Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target = GC::Ref { *this };
-    if (is<HTML::HTMLTemplateElement>(*this))
-        target = as<HTML::HTMLTemplateElement>(*this).content();
+    // 1. Let target be the target for HTML insertion given this.
+    auto target = HTML::target_for_html_insertion(*this);
 
-    // 3. Unsafe set HTML given target, this, and compliantHTML.
-    auto markup = Utf16String::from_utf8(html);
-    TRY(unsafely_set_html(move(target), markup.utf16_view()));
+    // 2. Filter and set HTML given target, html, options, and Safe.
+    return HTML::filter_and_set_html(target, html.utf16_view(), &options, HTML::FragmentParserMode::Safe);
+}
 
-    return {};
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-appendhtml
+WebIDL::ExceptionOr<void> Element::append_html(Utf16String const& html, Bindings::SetHTMLOptions const& options)
+{
+    // 1. Let target be the target for HTML insertion given this.
+    auto target = HTML::target_for_html_insertion(*this);
+
+    // 2. Filter and pre-insert HTML given target, null, html, options, and Safe.
+    return HTML::filter_and_pre_insert_html(target, nullptr, html.utf16_view(), &options, HTML::FragmentParserMode::Safe);
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-prependhtml
+WebIDL::ExceptionOr<void> Element::prepend_html(Utf16String const& html, Bindings::SetHTMLOptions const& options)
+{
+    // 1. Let target be the target for HTML insertion given this.
+    auto target = HTML::target_for_html_insertion(*this);
+
+    // 2. Filter and pre-insert HTML given target, target's first child, html, options, and Safe.
+    auto first_child = target.visit([](auto node) { return GC::Ptr<Node> { node->first_child() }; });
+    return HTML::filter_and_pre_insert_html(target, first_child, html.utf16_view(), &options, HTML::FragmentParserMode::Safe);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#advisory-information
@@ -7434,16 +7457,12 @@ WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> inner_html(DOM::Element& 
 
 WebIDL::ExceptionOr<void> set_inner_html(DOM::Element& element, TrustedTypes::TrustedHTMLOrString const& value)
 {
-    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, the given value, "Element innerHTML", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::relevant_global_object(element),
-        value,
-        TrustedTypes::InjectionSink::Element_innerHTML,
-        "script"sv));
+    // 1. Let (compliantString, compliantOptions) be the result of invoking the get trusted type compliant input
+    //    algorithm with this's relevant global object, the given value, a new SetHTMLUnsafeOptions dictionary,
+    //    "Element innerHTML", this's node document's type, and false.
+    auto const [compliant_string, trusted_options] = TRY(HTML::get_trusted_type_compliant_input_for_legacy_sink(element, value, TrustedTypes::InjectionSink::Element_innerHTML));
 
-    return element.set_inner_html(compliant_string);
+    return element.set_inner_html(compliant_string, trusted_options);
 }
 
 WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> outer_html(DOM::Element& element)
@@ -7453,44 +7472,77 @@ WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> outer_html(DOM::Element& 
 
 WebIDL::ExceptionOr<void> set_outer_html(DOM::Element& element, TrustedTypes::TrustedHTMLOrString const& value)
 {
-    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, the given value, "Element outerHTML", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::relevant_global_object(element),
-        value,
-        TrustedTypes::InjectionSink::Element_outerHTML,
-        "script"sv));
+    // 1. Let (compliantString, compliantOptions) be the result of invoking the get trusted type compliant input
+    //    algorithm with this's relevant global object, the given value, a new SetHTMLUnsafeOptions dictionary,
+    //    "Element outerHTML", this's node document's type, and false.
+    auto const [compliant_string, trusted_options] = TRY(HTML::get_trusted_type_compliant_input_for_legacy_sink(element, value, TrustedTypes::InjectionSink::Element_outerHTML));
 
-    return element.set_outer_html(compliant_string.to_utf8_but_should_be_ported_to_utf16());
+    return element.set_outer_html(compliant_string.to_utf8_but_should_be_ported_to_utf16(), trusted_options);
 }
 
-WebIDL::ExceptionOr<void> set_html_unsafe(DOM::Element& element, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html)
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-sethtmlunsafe
+WebIDL::ExceptionOr<void> set_html_unsafe(DOM::Element& element, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const& options)
 {
-    // 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, html, "Element setHTMLUnsafe", and "script".
-    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
+    // 1. Let (compliantHTML, compliantOptions) be the result of invoking the get trusted type compliant input algorithm
+    //    with this's relevant global object, html, options, and "Element setHTMLUnsafe".
+    auto const [compliant_html, compliant_options] = TRY(TrustedTypes::get_trusted_type_compliant_input(
         HTML::relevant_global_object(element),
         html,
-        TrustedTypes::InjectionSink::Element_setHTMLUnsafe,
-        "script"sv));
+        options,
+        TrustedTypes::InjectionSink::Element_setHTMLUnsafe));
 
-    return element.set_html_unsafe(compliant_html.to_utf8_but_should_be_ported_to_utf16());
+    // 2. Let target be the target for HTML insertion given this.
+    auto target = HTML::target_for_html_insertion(element);
+
+    // 3. Filter and set HTML given target, compliantHTML, compliantOptions, and Unsafe.
+    return HTML::filter_and_set_html(target, compliant_html.utf16_view(), HTML::to_sanitizer_options(compliant_options), HTML::FragmentParserMode::Unsafe);
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-appendhtmlunsafe
+WebIDL::ExceptionOr<void> append_html_unsafe(DOM::Element& element, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const& options)
+{
+    // 1. Let (compliantHTML, compliantOptions) be the result of invoking the get trusted type compliant input algorithm
+    //    with this's relevant global object, html, options, and "Element appendHTMLUnsafe".
+    auto const [compliant_html, compliant_options] = TRY(TrustedTypes::get_trusted_type_compliant_input(
+        HTML::relevant_global_object(element),
+        html,
+        options,
+        TrustedTypes::InjectionSink::Element_appendHTMLUnsafe));
+
+    // 2. Let target be the target for HTML insertion given this.
+    auto target = HTML::target_for_html_insertion(element);
+
+    // 3. Filter and pre-insert HTML given target, null, compliantHTML, compliantOptions, and Unsafe.
+    return HTML::filter_and_pre_insert_html(target, nullptr, compliant_html.utf16_view(), HTML::to_sanitizer_options(compliant_options), HTML::FragmentParserMode::Unsafe);
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-prependhtmlunsafe
+WebIDL::ExceptionOr<void> prepend_html_unsafe(DOM::Element& element, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html, Variant<SetHTMLUnsafeOptions, GC::Ref<TrustedTypes::TrustedHTMLParserOptions>> const& options)
+{
+    // 1. Let (compliantHTML, compliantOptions) be the result of invoking the get trusted type compliant input algorithm
+    //    with this's relevant global object, html, options, and "Element prependHTMLUnsafe".
+    auto const [compliant_html, compliant_options] = TRY(TrustedTypes::get_trusted_type_compliant_input(
+        HTML::relevant_global_object(element),
+        html,
+        options,
+        TrustedTypes::InjectionSink::Element_prependHTMLUnsafe));
+
+    // 2. Let target be the target for HTML insertion given this.
+    auto target = HTML::target_for_html_insertion(element);
+
+    // 3. Filter and pre-insert HTML given target, target's first child, compliantHTML, compliantOptions, and Unsafe.
+    auto first_child = target.visit([](auto node) { return GC::Ptr<DOM::Node> { node->first_child() }; });
+    return HTML::filter_and_pre_insert_html(target, first_child, compliant_html.utf16_view(), HTML::to_sanitizer_options(compliant_options), HTML::FragmentParserMode::Unsafe);
 }
 
 WebIDL::ExceptionOr<void> insert_adjacent_html(DOM::Element& element, Utf16String const& position, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& text)
 {
-    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, string, "Element insertAdjacentHTML", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::relevant_global_object(element),
-        text,
-        TrustedTypes::InjectionSink::Element_insertAdjacentHTML,
-        "script"sv));
+    // 1. Let (compliantString, compliantOptions) be the result of invoking the get trusted type compliant input
+    //    algorithm with this's relevant global object, the given value, a new SetHTMLUnsafeOptions dictionary,
+    //    "Element insertAdjacentHTML", this's node document's type, and false.
+    auto const [compliant_string, trusted_options] = TRY(HTML::get_trusted_type_compliant_input_for_legacy_sink(element, text, TrustedTypes::InjectionSink::Element_insertAdjacentHTML));
 
-    return element.insert_adjacent_html(position.to_utf8(), compliant_string.to_utf8_but_should_be_ported_to_utf16());
+    return element.insert_adjacent_html(position.to_utf8(), compliant_string.to_utf8_but_should_be_ported_to_utf16(), trusted_options);
 }
 
 WebIDL::ExceptionOr<void> set_attribute(DOM::Element& element, Utf16String const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)

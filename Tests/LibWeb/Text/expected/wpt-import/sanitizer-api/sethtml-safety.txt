@@ -1,6 +1,38 @@
 Harness status: OK
 
-Found 1 tests
+Found 33 tests
 
-1 Fail
-Fail	wrapper
+33 Pass
+Pass	wrapper
+Pass	Testcase #0, setHTML("test").
+Pass	Testcase #1, setHTML("<p>Hello</p>").
+Pass	Testcase #2, setHTML("<div>Hello<script>World</script>xxx").
+Pass	Testcase #3, setHTML("<div>Hello<script>World</script>xxx").
+Pass	Testcase #4, setHTML("<svg>Hello<script>World</script>xxx").
+Pass	Testcase #5, setHTML("<a href="https://wpt.live/" onclick="2+2" one="two">").
+Pass	Testcase #6, setHTML("<a href="https://wpt.live/" onclick="2+2" one="two">").
+Pass	Testcase #7, setHTML("<img src="https://wpt.live/test-image" onclick="2+2" one="two">").
+Pass	Testcase #8, setHTML("<p data-x="1" data-y="2" data-z="3">").
+Pass	Testcase #9, setHTML("<div><base href="https://example.org/"></base></div>").
+Pass	Testcase #10, setHTML("<div><embed src="https://example.org/"></embed></div>").
+Pass	Testcase #11, setHTML("<div><iframe src="https://example.org/"></iframe></div>").
+Pass	Testcase #12, setHTML("<div><object data="https://example.org/"></object></div>").
+Pass	Testcase #13, setHTML("<div><script src="https://example.org/"></script></div>").
+Pass	Testcase #14, setHTML("<svg><script src="https://example.org/"></script></svg>").
+Pass	Testcase #15, setHTML("<svg><use href="https://example.org/"></use></svg>").
+Pass	Testcase #0, setHTMLUnsafe("test").
+Pass	Testcase #1, setHTMLUnsafe("<p>Hello</p>").
+Pass	Testcase #2, setHTMLUnsafe("<div>Hello<script>World</script>xxx").
+Pass	Testcase #3, setHTMLUnsafe("<div>Hello<script>World</script>xxx").
+Pass	Testcase #4, setHTMLUnsafe("<svg>Hello<script>World</script>xxx").
+Pass	Testcase #5, setHTMLUnsafe("<a href="https://wpt.live/" onclick="2+2" one="two">").
+Pass	Testcase #6, setHTMLUnsafe("<a href="https://wpt.live/" onclick="2+2" one="two">").
+Pass	Testcase #7, setHTMLUnsafe("<img src="https://wpt.live/test-image" onclick="2+2" one="two">").
+Pass	Testcase #8, setHTMLUnsafe("<p data-x="1" data-y="2" data-z="3">").
+Pass	Testcase #9, setHTMLUnsafe("<div><base href="https://example.org/"></base></div>").
+Pass	Testcase #10, setHTMLUnsafe("<div><embed src="https://example.org/"></embed></div>").
+Pass	Testcase #11, setHTMLUnsafe("<div><iframe src="https://example.org/"></iframe></div>").
+Pass	Testcase #12, setHTMLUnsafe("<div><object data="https://example.org/"></object></div>").
+Pass	Testcase #13, setHTMLUnsafe("<div><script src="https://example.org/"></script></div>").
+Pass	Testcase #14, setHTMLUnsafe("<svg><script src="https://example.org/"></script></svg>").
+Pass	Testcase #15, setHTMLUnsafe("<svg><use href="https://example.org/"></use></svg>").

@@ -781,6 +781,8 @@ class RadioButtonGroupRegistry;
 class RadioNodeList;
 class RemoteNavigable;
 class RemoteWindow;
+class Sanitizer;
+struct SanitizerConfiguration;
 class ScriptRegistry;
 class SessionHistoryEntry;
 class SharedResourceRequest;
@@ -1322,6 +1324,7 @@ struct FormDataEntry;
 namespace Web::TrustedTypes {
 
 class TrustedHTML;
+class TrustedHTMLParserOptions;
 class TrustedScript;
 class TrustedScriptURL;
 class TrustedTypePolicy;
