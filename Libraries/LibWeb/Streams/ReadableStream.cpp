@@ -38,6 +38,8 @@ bool web_rust_readable_stream_is_disturbed(void* stream);
 bool web_rust_readable_stream_close_requested(void* stream);
 JSCompletion web_rust_readable_stream_enqueue(JSVM*, void* stream, JSValue chunk);
 JSCompletion web_rust_readable_stream_enqueue_native_bytes(JSVM*, void* stream, ReadonlyBytes);
+bool web_rust_readable_stream_current_byob_request_view_byte_length(JSVM*, void* stream, u64* byte_length);
+JSCompletion web_rust_readable_stream_pull_from_bytes(JSVM*, void* stream, ReadonlyBytes);
 void web_rust_readable_stream_close(JSVM*, void* stream);
 void web_rust_readable_stream_error(JSVM*, void* stream, JSValue error);
 void* web_rust_readable_stream_cancel(JSVM*, void* stream, JSValue reason);
@@ -146,6 +148,19 @@ WebIDL::ExceptionOr<void> ReadableStream::enqueue(JS::Value chunk)
 WebIDL::ExceptionOr<void> ReadableStream::enqueue_bytes(ReadonlyBytes bytes)
 {
     return exception_or_void(web_rust_readable_stream_enqueue_native_bytes(vm_abi(), this, bytes));
+}
+
+Optional<u64> ReadableStream::current_byob_request_view_byte_length()
+{
+    u64 byte_length = 0;
+    if (!web_rust_readable_stream_current_byob_request_view_byte_length(vm_abi(), this, &byte_length))
+        return {};
+    return byte_length;
+}
+
+WebIDL::ExceptionOr<void> ReadableStream::pull_from_bytes(ReadonlyBytes bytes)
+{
+    return exception_or_void(web_rust_readable_stream_pull_from_bytes(vm_abi(), this, bytes));
 }
 
 void ReadableStream::close()

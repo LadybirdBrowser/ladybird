@@ -105,6 +105,7 @@
 #include <LibWeb/Painting/Scrolling.h>
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
+#include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -2749,6 +2750,45 @@ String Internals::viewport_overflow_x()
         return "visible"_string;
     }
     VERIFY_NOT_REACHED();
+}
+
+namespace {
+
+// The bytes of a stream from create_stream_pulling_from_bytes() that it has not pulled yet.
+struct UnpulledBytes final : public RefCounted<UnpulledBytes> {
+    explicit UnpulledBytes(ByteBuffer bytes)
+        : bytes(move(bytes))
+    {
+    }
+
+    ByteBuffer bytes;
+};
+
+}
+
+GC::Ref<Streams::ReadableStream> Internals::create_stream_pulling_from_bytes(String const& bytes, WebIDL::UnsignedLong pull_size)
+{
+    auto& realm = window().principal_realm();
+    auto stream = Streams::ReadableStream::create(realm);
+    auto unpulled = make_ref_counted<UnpulledBytes>(MUST(ByteBuffer::copy(bytes.bytes())));
+
+    auto pull_algorithm = GC::create_function(realm.heap(), [realm = GC::Ref { realm }, stream, unpulled, pull_size] {
+        auto& remaining = unpulled->bytes;
+        auto size = min(remaining.size(), static_cast<size_t>(pull_size));
+        if (auto view_byte_length = stream->current_byob_request_view_byte_length(); view_byte_length.has_value())
+            size = min(size, static_cast<size_t>(*view_byte_length));
+
+        if (size > 0) {
+            MUST(stream->pull_from_bytes(remaining.bytes().trim(size)));
+            remaining = MUST(remaining.slice(size, remaining.size() - size));
+        }
+        if (remaining.is_empty())
+            stream->close();
+        return WebIDL::create_resolved_promise(*realm, JS::js_undefined());
+    });
+
+    stream->set_up_with_byte_reading_support(realm, pull_algorithm);
+    return stream;
 }
 
 static GC::Ref<JS::Object> create_hit_testing_result(JS::Realm& realm, Painting::HitTestResult& result)
