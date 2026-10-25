@@ -13,6 +13,8 @@ fn compiler(architecture: Architecture) -> Compiler {
             object_format: ObjectFormat::Elf,
         },
         has_jscvt: false,
+        has_lzcnt: true,
+        has_bmi1: true,
         enable_assertions: true,
         profiling: false,
         profile: Profile::WebAssembly,
@@ -152,6 +154,8 @@ fn compile_for(target: Target, source: &str) -> Result<String, String> {
     Compiler::new(CompileOptions {
         target,
         has_jscvt: false,
+        has_lzcnt: false,
+        has_bmi1: false,
         enable_assertions: true,
         profiling: false,
         profile: Profile::WebAssembly,
@@ -927,6 +931,39 @@ handler Fallback() @fallback {
         "roundsd xmm0, xmm0, 3",
     ] {
         assert!(numeric.contains(instruction), "missing {instruction}:\n{numeric}");
+    }
+}
+
+#[test]
+fn counts_zeros_with_bit_scans_without_lzcnt_and_bmi1() {
+    let assembly = compile_for(
+        Target {
+            architecture: Architecture::X86_64,
+            object_format: ObjectFormat::Elf,
+        },
+        r#"
+handler Zeros() @opcode(0x01) {
+    let slots: Sequence<u64> = alias(vsp);
+    let leading = clz32(u32(slots[0]));
+    let trailing = ctz64(slots[1]);
+    let wide_leading: u64 = alias(leading);
+    slots[2] = wide_leading;
+    slots[3] = trailing;
+    dispatch_next;
+}
+
+handler Fallback() @fallback {
+    exit();
+}
+"#,
+    )
+    .unwrap();
+    let zeros = handler(&assembly, "Zeros");
+    for instruction in ["bsr e", ", 63", "xor e", ", 31", "bsf r", ", 64"] {
+        assert!(zeros.contains(instruction), "missing {instruction}:\n{zeros}");
+    }
+    for instruction in ["lzcnt", "tzcnt"] {
+        assert!(!zeros.contains(instruction), "unexpected {instruction}:\n{zeros}");
     }
 }
 

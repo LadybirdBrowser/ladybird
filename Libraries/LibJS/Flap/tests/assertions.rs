@@ -14,6 +14,8 @@ fn compile(body: &str, architecture: Architecture, enabled: bool) -> String {
             object_format: ObjectFormat::Elf,
         },
         has_jscvt: false,
+        has_lzcnt: false,
+        has_bmi1: false,
         enable_assertions: enabled,
         profiling: false,
         profile: flapc::Profile::JavaScript,

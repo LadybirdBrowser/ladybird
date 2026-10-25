@@ -77,6 +77,8 @@ fn parse_command_line() -> Result<CommandLine, String> {
     let mut output_path = None;
     let mut constants_path = None;
     let mut has_jscvt = false;
+    let mut has_lzcnt = false;
+    let mut has_bmi1 = false;
     let mut enable_assertions = false;
     let mut optimization_report_path = None;
     let mut dump_changed_ir = false;
@@ -86,6 +88,8 @@ fn parse_command_line() -> Result<CommandLine, String> {
     while let Some(argument) = args.next() {
         match argument.as_str() {
             "--has-jscvt" => has_jscvt = true,
+            "--has-lzcnt" => has_lzcnt = true,
+            "--has-bmi1" => has_bmi1 = true,
             "--enable-assertions" => enable_assertions = true,
             "--dump-changed-ir" => dump_changed_ir = true,
             "--profiling" => profiling = true,
@@ -132,6 +136,8 @@ fn parse_command_line() -> Result<CommandLine, String> {
                 object_format,
             },
             has_jscvt,
+            has_lzcnt,
+            has_bmi1,
             enable_assertions,
             profiling,
             profile,

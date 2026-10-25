@@ -33,6 +33,8 @@ pub(crate) struct Emit<'a> {
     pub(crate) object_format: ObjectFormat,
     pub(crate) enable_assertions: bool,
     pub(crate) has_jscvt: bool,
+    pub(crate) has_lzcnt: bool,
+    pub(crate) has_bmi1: bool,
     /// Whether this is the profiling build of the interpreter. Only its
     /// handlers switch to the dispatch table of the frame they continue in
     /// (see `VmDispatchTables`).
@@ -63,6 +65,8 @@ impl<'a> Emit<'a> {
             object_format: options.target.object_format,
             enable_assertions: options.enable_assertions,
             has_jscvt: options.has_jscvt,
+            has_lzcnt: options.has_lzcnt,
+            has_bmi1: options.has_bmi1,
             profiling: options.profiling,
             profile: options.profile,
             unique_counter: 0,

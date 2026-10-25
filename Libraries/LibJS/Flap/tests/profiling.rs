@@ -27,6 +27,8 @@ fn compile(architecture: Architecture, profiling: bool) -> String {
             object_format: ObjectFormat::Elf,
         },
         has_jscvt: false,
+        has_lzcnt: false,
+        has_bmi1: false,
         enable_assertions: true,
         profiling,
         profile: flapc::Profile::JavaScript,

@@ -91,6 +91,11 @@ pub struct Target {
 pub struct CompileOptions {
     pub target: Target,
     pub has_jscvt: bool,
+    /// Whether the x86-64 target has LZCNT. Without it, `lzcnt` runs as `bsr`, which counts from the other end.
+    pub has_lzcnt: bool,
+    /// Whether the x86-64 target has BMI1, and with it TZCNT. Without it, `tzcnt` runs as `bsf`, which leaves the
+    /// destination undefined for zero.
+    pub has_bmi1: bool,
     pub enable_assertions: bool,
     /// Compile the profiling variant of the interpreter: inline functions
     /// annotated with `@profiling` keep their bodies, and the entry points get
@@ -845,6 +850,8 @@ const HEAP_REGION_OFFSET_MASK = 0x3FFFFFFFFFF
                 object_format: ObjectFormat::Elf,
             },
             has_jscvt: false,
+            has_lzcnt: false,
+            has_bmi1: false,
             enable_assertions: false,
             profiling: false,
             profile: Profile::JavaScript,
