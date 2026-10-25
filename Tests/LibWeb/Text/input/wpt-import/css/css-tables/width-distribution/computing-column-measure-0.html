@@ -1,0 +1,76 @@
+<!doctype html>
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<link rel='stylesheet' href='../support/base.css' />
+
+<link rel="author" title="Greg Whitworth" href="gwhit@microsoft.com" />
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#computing-column-measures" />
+<main>
+    <h1>Width Distribution</h1>
+    <h4>"Computing column measures"</h4>
+    <p>This is testing that the table root's minimum is max(table-root width, capmin, gridmin) <a href="https://drafts.csswg.org/css-tables-3/#computing-the-table-width">Spec Text</a></p>
+
+    <hr/>
+    <table id="one" cellspacing="0" cellpadding="0">
+        <colgroup style="width: 1px;">
+            <col style="width: 10px;"></col>
+        </colgroup>
+        <tr>
+            <td style="width: 1px;"></td>
+        </tr>
+    </table>
+
+    <table id="two" cellspacing="0" cellpadding="0">
+        <colgroup style="width: 10px;">
+            <col style="width: 1px;"></col>
+        </colgroup>
+        <tr>
+            <td style="width: 1px;"></td>
+        </tr>
+    </table>
+
+    <table id="three" cellspacing="0" cellpadding="0">
+        <colgroup style="width: 1px;">
+            <col style="width: 1px;"></col>
+        </colgroup>
+        <tr>
+            <td style="width: 10px;"></td>
+        </tr>
+    </table>
+
+    <table id="four" cellspacing="0" cellpadding="0">
+        <colgroup style="width: 10px;">
+            <col></col>
+        </colgroup>
+        <tr>
+            <td style="width: 1px;"></td>
+        </tr>
+    </table>
+</main>
+
+<script>
+    var i = 1;
+    generate_tests(assert_equals, [
+        [
+            "Checking intermediate min-content width for span 1 (1)",
+            document.getElementById('one').offsetWidth,
+            10
+        ],
+        [
+            "Checking intermediate min-content width for span 1 (2)",
+            document.getElementById('two').offsetWidth,
+            1
+        ],
+        [
+            "Checking intermediate min-content width for span 1 (3)",
+            document.getElementById('three').offsetWidth,
+            10
+        ],
+        [
+            "Checking intermediate min-content width for span 1 (4)",
+            document.getElementById('four').offsetWidth,
+            10
+        ]
+    ]);
+</script>
+</html>
