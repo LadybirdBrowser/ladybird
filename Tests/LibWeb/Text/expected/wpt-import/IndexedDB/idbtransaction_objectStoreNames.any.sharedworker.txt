@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-6 Pass
-2 Fail
+8 Pass
 Pass	IDBTransaction.objectStoreNames - during upgrade transaction
 Pass	IDBTransaction.objectStoreNames - value after close
 Pass	IDBTransaction.objectStoreNames - transaction scope
 Pass	IDBTransaction.objectStoreNames - value after commit
 Pass	IDBTransaction.objectStoreNames - value after abort
 Pass	IDBTransaction.objectStoreNames - sorting
-Fail	IDBTransaction.objectStoreNames - no duplicates
-Fail	IDBTransaction.objectStoreNames - unusual names
+Pass	IDBTransaction.objectStoreNames - no duplicates
+Pass	IDBTransaction.objectStoreNames - unusual names
