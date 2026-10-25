@@ -56,6 +56,7 @@ protected:
 
     void process_the_url(Optional<Utf16String> const& href);
     void fetch_the_document(URL::URL const& url);
+    void abandon_the_current_fetch();
 
 private:
     virtual void finalize() override;
@@ -69,6 +70,7 @@ private:
 
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
+    u64 m_current_fetch_id { 0 };
     GC::Ptr<SVGAnimatedPreserveAspectRatio> m_preserve_aspect_ratio;
 };
 
