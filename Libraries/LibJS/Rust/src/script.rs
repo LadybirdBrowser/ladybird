@@ -356,16 +356,7 @@ impl Script {
         filename: &str,
         host_defined: ForeignCellSlot,
     ) -> Gc<Script> {
-        let functions_to_initialize: Vec<FunctionToInitialize> = rooted_shared_data
-            .to_vec()
-            .into_iter()
-            .zip(parts.function_names)
-            .map(|(shared_data, name)| FunctionToInitialize { shared_data, name })
-            .collect();
-        let declared_function_names = functions_to_initialize
-            .iter()
-            .map(|function| function.name.clone())
-            .collect();
+        let declared_function_names = parts.function_names.iter().cloned().collect();
 
         let script = vm.heap().allocate(Script {
             header: CellHeader::for_class(Self::CLASS),
@@ -377,7 +368,12 @@ impl Script {
             source_code,
             lexical_names: parts.lexical_names,
             var_names: parts.var_names,
-            functions_to_initialize,
+            functions_to_initialize: rooted_shared_data
+                .values()
+                .iter()
+                .zip(parts.function_names)
+                .map(|(&shared_data, name)| FunctionToInitialize { shared_data, name })
+                .collect(),
             declared_function_names,
             var_scoped_names: parts.var_scoped_names,
             annex_b_candidate_names: parts.annex_b_candidate_names,

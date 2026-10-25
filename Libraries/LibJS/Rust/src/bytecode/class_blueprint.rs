@@ -13,7 +13,7 @@ use libjs_abi::ClassElementKind;
 use libjs_runtime_macros::Trace;
 
 use crate::bytecode::generator::{PendingClassBlueprint, PendingClassElement, PendingLiteralValueKind};
-use crate::gc::root::MarkedVec;
+use crate::gc::defer_gc::DeferGc;
 use crate::interpreter::vm::Vm;
 use crate::layout::value::Value;
 use crate::runtime::primitive_string::PrimitiveString;
@@ -56,14 +56,12 @@ fn class_element_kind(kind: u8) -> ClassElementKind {
 }
 
 impl ClassBlueprint {
-    /// Creates the blueprint of a class the frontend compiled, as rust_create_class_blueprint does. The literal values
-    /// of its elements are also pushed to `rooted_literal_values`, which keeps them alive until something that traces
-    /// the blueprint holds it.
+    /// Creates the blueprint of a class the frontend compiled, as rust_create_class_blueprint does.
     pub fn create(
         vm: &Vm,
         blueprint: &PendingClassBlueprint,
         source_code: Option<&Rc<SourceCode>>,
-        rooted_literal_values: &MarkedVec<'_, Value>,
+        _defer_gc: &DeferGc<'_>,
     ) -> ClassBlueprint {
         let name = match &blueprint.name {
             Some(name) if !name.is_empty() => Utf16FlyString::from_utf16(name),
@@ -72,7 +70,7 @@ impl ClassBlueprint {
         let elements = blueprint
             .elements
             .iter()
-            .map(|element| Self::create_element(vm, element, rooted_literal_values))
+            .map(|element| Self::create_element(vm, element))
             .collect();
         ClassBlueprint {
             constructor_shared_function_data_index: blueprint.constructor_sfd_index,
@@ -86,11 +84,7 @@ impl ClassBlueprint {
         }
     }
 
-    fn create_element(
-        vm: &Vm,
-        element: &PendingClassElement,
-        rooted_literal_values: &MarkedVec<'_, Value>,
-    ) -> ClassElementDescriptor {
+    fn create_element(vm: &Vm, element: &PendingClassElement) -> ClassElementDescriptor {
         let private_identifier = element
             .private_identifier
             .as_ref()
@@ -107,9 +101,7 @@ impl ClassBlueprint {
                     .literal_value_string
                     .as_ref()
                     .map_or_else(Utf16String::default, |string| Utf16String::from_utf16(string));
-                let value = Value::from_string(PrimitiveString::create(vm, string));
-                rooted_literal_values.push(value);
-                Some(value)
+                Some(Value::from_string(PrimitiveString::create(vm, string)))
             }
         };
         ClassElementDescriptor {

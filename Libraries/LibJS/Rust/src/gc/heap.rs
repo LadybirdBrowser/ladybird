@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use super::capi::{self, GCAllocator, GCGatherRootsCallback, GCHeap, GCLayout};
 use super::class::{CellTypeInfo, Class, GcCell};
 use super::class_id::{CLASS_COUNT, ClassId};
+use super::defer_gc::DeferGc;
 use super::weak::WEAK_IMPL_POINTER_OFFSET;
 use crate::build_configuration::{HEAP_REGION_OFFSET_MASK, PRIMITIVE_STORAGE_CAGE_OFFSET_MASK};
 use crate::layout::cell::{CellHeader, CellState, Gc};
@@ -200,6 +201,15 @@ impl Heap {
         let allocator = self.allocator_for(T::CLASS);
         // SAFETY: The allocator is the one of the cell's static class, whose cells have the size and alignment of a T.
         unsafe { self.allocate_with(allocator, size_of::<T>(), AllocationKind::Cell, cell, |_| {}) }
+    }
+
+    /// Moves the cell that `build` returns into the heap, with collections deferred from before `build` runs until
+    /// the cell is in the heap.
+    pub fn allocate_deferring_gc<T: GcCell>(&self, build: impl FnOnce(&DeferGc<'_>) -> T) -> Gc<T> {
+        let defer_gc = DeferGc::of_heap(self);
+        let cell = self.allocate(build(&defer_gc));
+        drop(defer_gc);
+        cell
     }
 
     /// Moves `cell`, whose class is the one `allocator` was created for or a class derived from it, into the storage
