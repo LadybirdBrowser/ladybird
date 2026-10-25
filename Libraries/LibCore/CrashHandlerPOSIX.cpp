@@ -38,7 +38,10 @@ static int s_assertion_state;
 static Assertion s_assertion;
 static int s_backtrace_state;
 static u32 s_backtrace_frame_count;
+static u32 s_backtrace_generation;
 static thread_local bool s_owns_assertion;
+static thread_local u32 s_captured_backtrace_generation;
+static thread_local bool s_writing_backtrace;
 alignas(16) static Array<u8, 64 * 1024> s_signal_stack;
 
 #if defined(AK_OS_MACOS)
@@ -143,23 +146,40 @@ static ReportFrame frame_for_address(FlatPtr address)
 
 static void capture_assertion_backtrace(ReadonlySpan<AK::AssertionBacktraceFrame> frames)
 {
-    if (!s_owns_assertion || frames.is_empty())
+    // Without an assertion of its own, a thread captures the backtrace of a Rust panic that may still turn out to be
+    // caught. That backtrace stays provisional (state 3) and gives way to any later one.
+    bool provisional = !s_owns_assertion;
+    if (frames.is_empty() || (provisional && !AK::current_rust_panic_message()))
         return;
     int expected = 0;
-    if (!__atomic_compare_exchange_n(&s_backtrace_state, &expected, 1, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
-        return;
+    if (!__atomic_compare_exchange_n(&s_backtrace_state, &expected, 1, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+        expected = 3;
+        if (!__atomic_compare_exchange_n(&s_backtrace_state, &expected, 1, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
+            return;
+    }
+    s_writing_backtrace = true;
     auto count = min(frames.size(), maximum_frames);
     for (size_t i = 0; i < count; ++i) {
         auto frame = frame_for_address(frames[i].address);
         if (frame.binary.size)
             describe_backtrace_frame(frame, frames[i]);
-        if (!write_record(&frame, sizeof(frame), sizeof(ReportHeader) + i * sizeof(frame)))
+        if (!write_record(&frame, sizeof(frame), sizeof(ReportHeader) + i * sizeof(frame))) {
+            __atomic_store_n(&s_backtrace_state, 0, __ATOMIC_RELEASE);
+            s_writing_backtrace = false;
             return;
+        }
     }
     s_backtrace_frame_count = count;
+    if (provisional) {
+        s_captured_backtrace_generation = __atomic_add_fetch(&s_backtrace_generation, 1, __ATOMIC_RELAXED);
+        __atomic_store_n(&s_backtrace_state, 3, __ATOMIC_RELEASE);
+        s_writing_backtrace = false;
+        return;
+    }
     write_record(&s_backtrace_frame_count, sizeof(s_backtrace_frame_count), offsetof(ReportHeader, frame_count));
     // Only publish a complete trace. Signal capture remains available if resolution fails.
     __atomic_store_n(&s_backtrace_state, 2, __ATOMIC_RELEASE);
+    s_writing_backtrace = false;
 }
 
 static u32 capture_native_stack(void* context)
@@ -263,9 +283,23 @@ void CrashHandler::handle_fatal_signal(int signal, siginfo_t* info, void* contex
     // Persist the reason first, even if unwinding is impossible or interrupted.
     write_record(&header, sizeof(header), 0);
 
-    auto frame_count = __atomic_load_n(&s_backtrace_state, __ATOMIC_ACQUIRE) == 2
-        ? s_backtrace_frame_count
-        : capture_native_stack(context);
+    // Claim the backtrace, so that no capture on another thread replaces its frames while this handler reads them or
+    // writes its own. A provisional backtrace only describes this crash if this thread captured it and is still
+    // panicking. While another thread writes a backtrace, leave the frames out instead of writing over them; if this
+    // thread crashed while writing one, nothing else writes, so capture the native stack.
+    auto backtrace_state = __atomic_load_n(&s_backtrace_state, __ATOMIC_ACQUIRE);
+    while (backtrace_state == 0 || backtrace_state == 3) {
+        if (__atomic_compare_exchange_n(&s_backtrace_state, &backtrace_state, 2, false, __ATOMIC_ACQ_REL,
+                __ATOMIC_ACQUIRE))
+            break;
+    }
+    auto owns_provisional_backtrace = backtrace_state == 3 && AK::current_rust_panic_message()
+        && s_captured_backtrace_generation == __atomic_load_n(&s_backtrace_generation, __ATOMIC_RELAXED);
+    u32 frame_count = 0;
+    if (backtrace_state == 2 || owns_provisional_backtrace)
+        frame_count = s_backtrace_frame_count;
+    else if (backtrace_state != 1 || s_writing_backtrace)
+        frame_count = capture_native_stack(context);
     write_record(&frame_count, sizeof(frame_count), offsetof(ReportHeader, frame_count));
 
     // Preserve signal termination and the operating system's crash handling.

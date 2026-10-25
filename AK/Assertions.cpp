@@ -47,9 +47,15 @@ static AK::AssertionBacktraceCallback s_assertion_backtrace_callback;
 
 static thread_local Array<char, 8193> s_rust_panic_message;
 static thread_local bool (*s_rust_is_panicking)();
+static thread_local u32 s_rust_panic_hook_depth;
+static thread_local bool s_rust_panic_backtrace_captured;
+#if defined(AK_HAS_CPPTRACE)
+static thread_local bool s_capturing_backtrace_quietly;
+#endif
 
 void ladybird_rust_panic(char const* message, size_t message_length, char const* filename, size_t filename_length, u32 line, u32 column, bool (*is_panicking)())
 {
+    ++s_rust_panic_hook_depth;
     __atomic_store_n(&s_rust_is_panicking, nullptr, __ATOMIC_RELEASE);
     size_t length = 0;
     auto append = [&](StringView text) {
@@ -88,15 +94,30 @@ char const* AK::current_rust_panic_message()
     return nullptr;
 }
 
+void ladybird_rust_panic_hook_returned()
+{
+    if (s_rust_panic_hook_depth > 0 && --s_rust_panic_hook_depth == 0)
+        s_rust_panic_backtrace_captured = false;
+}
+
+void ladybird_rust_panic_may_abort()
+{
+    // The panic hooks of the process's Rust crates chain into each other, so capture the backtrace once per run of that
+    // chain. Code built with unwinding may still catch the panic, so only hand the backtrace to the crash handler,
+    // which uses it if the thread is still panicking when it crashes.
+    if (s_rust_panic_backtrace_captured)
+        return;
+    s_rust_panic_backtrace_captured = true;
+
+#if defined(AK_HAS_CPPTRACE)
+    s_capturing_backtrace_quietly = true;
+    dump_backtrace(1, 100);
+    s_capturing_backtrace_quietly = false;
+#endif
+}
+
 void ladybird_rust_panic_will_abort()
 {
-    // The panic hooks of the process's Rust crates chain into each other, and each of them that knows the panic is
-    // fatal asks for the backtrace.
-    static thread_local bool s_backtrace_captured;
-    if (s_backtrace_captured)
-        return;
-    s_backtrace_captured = true;
-
     if (__atomic_load_n(&s_rust_is_panicking, __ATOMIC_ACQUIRE)) {
         if (auto callback = __atomic_load_n(&s_assertion_failure_callback, __ATOMIC_ACQUIRE))
             callback(AK::AssertionFailureKind::RustPanic, s_rust_panic_message.data());
@@ -156,6 +177,8 @@ void dump_backtrace(unsigned frames_to_skip, unsigned max_depth)
         }
         callback(frames.span().trim(count));
     }
+    if (s_capturing_backtrace_quietly)
+        return;
     auto* var = getenv("LADYBIRD_BACKTRACE_SNIPPETS");
     bool print_snippets = var && strnlen(var, 1) > 0;
     static NeverDestroyed<cpptrace::formatter> formatter { cpptrace::formatter {}.snippets(print_snippets) };
