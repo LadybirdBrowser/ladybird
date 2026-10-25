@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	javascript: navigation using <a href target=_blank> should be refused due to wrong hash
+1 Pass
+Pass	javascript: navigation using <a href target=_blank> should be refused due to wrong hash
