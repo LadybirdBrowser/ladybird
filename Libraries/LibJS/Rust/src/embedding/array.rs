@@ -98,13 +98,10 @@ pub unsafe extern "C" fn js_array_indexed_append(object: *mut JSObject, value: J
     unsafe { cell_from_abi::<JSObject>(object) }.indexed_append(Value::from_bits(value), DEFAULT_ATTRIBUTES);
 }
 
-/// Removes the first element of the object's indexed storage, which must not be empty, shifting the others down, and
-/// returns its value, which is empty for a hole. Main thread only.
+/// Removes the first element of the object's indexed storage, which must not be empty, shifting the others down. Main
+/// thread only.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_array_indexed_take_first(object: *mut JSObject) -> JSValue {
+pub unsafe extern "C" fn js_array_indexed_take_first(object: *mut JSObject) {
     // SAFETY: See the module documentation.
-    unsafe { cell_from_abi::<JSObject>(object) }
-        .indexed_take_first()
-        .value
-        .0
+    unsafe { cell_from_abi::<JSObject>(object) }.indexed_take_first();
 }

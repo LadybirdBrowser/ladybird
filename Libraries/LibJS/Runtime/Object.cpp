@@ -392,9 +392,9 @@ void Object::indexed_append(Value value, PropertyAttributes attributes)
     js_array_indexed_append(object_to_abi(*this), value_to_abi(value));
 }
 
-ValueAndAttributes Object::indexed_take_first()
+void Object::indexed_take_first()
 {
-    return ValueAndAttributes { .value = value_from_abi(js_array_indexed_take_first(object_to_abi(*this))) };
+    js_array_indexed_take_first(object_to_abi(*this));
 }
 
 void Object::convert_to_prototype_if_needed()

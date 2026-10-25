@@ -19,8 +19,8 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/EngineCell.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibJS/Runtime/IndexedProperties.h>
 #include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/PropertyAttributes.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/Shape.h>
@@ -176,8 +176,8 @@ public:
     u32 indexed_array_like_size() const;
     // The runtime appends elements with the default attributes, the only ones LibJS's users append with.
     void indexed_append(Value value, PropertyAttributes attributes = default_attributes);
-    // The element taken has the default attributes, whatever the ones it was stored with.
-    ValueAndAttributes indexed_take_first();
+    // Removes the first element, which must exist, and shifts the others down.
+    void indexed_take_first();
 
     Shape& shape() { return *engine_field<Shape*>(JS_LAYOUT_OBJECT_SHAPE_OFFSET); }
     Shape const& shape() const { return *engine_field<Shape*>(JS_LAYOUT_OBJECT_SHAPE_OFFSET); }
