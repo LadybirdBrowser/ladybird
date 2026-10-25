@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	no observation is fired after the change of writing mode when box's specified size comes from logical size properties.

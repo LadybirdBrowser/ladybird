@@ -1,0 +1,59 @@
+<!doctype html>
+<title>ResizeObserver test: an observation is fired after the change of writing mode when box's specified size comes from physical size properties</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./resources/resizeTestHelper.js"></script>
+<body>
+<div id="log"></div>
+
+<script>
+'use strict';
+
+function test() {
+  let t = createAndAppendElement("div");
+  t.style.writingMode = "vertical-lr";
+  t.style.height = "100px";
+  t.style.width = "50px";
+
+  let helper = new ResizeTestHelper(
+    "an observation is fired after the change of writing mode when " +
+    "box's specified size comes from physical size properties.",
+  [
+    {
+      setup: observer => {
+        observer.observe(t);
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 50, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 100,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 50,
+                      "target content-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        t.style.writingMode = "horizontal-tb";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 50, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 50,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+      },
+    }
+  ]);
+
+  return helper.start(() => t.remove());
+}
+
+(async () => await test())();
+</script>

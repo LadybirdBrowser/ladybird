@@ -1,0 +1,72 @@
+<!doctype html>
+<title>ResizeObserver test: simple observation with vertical writing mode</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./resources/resizeTestHelper.js"></script>
+<body>
+<div id="log"></div>
+
+<script>
+'use strict';
+
+function test() {
+  let wrapper = createAndAppendElement("div");
+  wrapper.style.width = "100px";
+  wrapper.style.height = "100px";
+  wrapper.style.writingMode = "vertical-rl";
+  let t = createAndAppendElement("div", wrapper);
+  t.style.inlineSize = "50px";
+  t.style.blockSize = "50px";
+
+  let helper = new ResizeTestHelper(
+    "simple observation with vertical writing mode",
+  [
+    {
+      setup: observer => {
+        observer.observe(t);
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 50, "target width");
+        assert_equals(entries[0].contentRect.height, 50, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 50,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 50,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 50,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 50,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        t.style.blockSize = "75px";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 75, "target width");
+        assert_equals(entries[0].contentRect.height, 50, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 50,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 75,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 50,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 75,
+                      "target border-box block size");
+      }
+    }
+  ]);
+
+  return helper.start(() => {
+    t.remove();
+    wrapper.remove();
+  });
+}
+
+(async () => await test())();
+</script>
