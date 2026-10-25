@@ -27,7 +27,7 @@ use super::allocation::{
     allocation_infos, closure_template_snapshots, closure_templates, function_environment_template,
     lexical_environment_templates,
 };
-use super::code::{CapturedBindingAccesses, InlinedFunction, SnapshotExecutable};
+use super::code::{CapturedBindingAccesses, InlinedFunction, SnapshotExecutable, speculated_cache_size};
 use super::runtime_info::RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS;
 use crate::bytecode::executable::{Executable, PropertyLookupCacheEntryData, PropertyLookupCacheTier};
 use crate::bytecode::feedback::{CallFeedback, CallFeedbackForwarding, call_feedback_flags};
@@ -994,7 +994,7 @@ impl SnapshotBuilder<'_> {
                     handler_offset: handler.handler_offset,
                 })
                 .collect(),
-            exit_sites: executable.jit_exit_sites(),
+            exit_sites: executable.jit_exit_sites_for_recompile(),
             builtin_exit_sites: if entry.function.is_none() {
                 executable
                     .jit_builtin_exit_sites()
@@ -1324,6 +1324,12 @@ pub fn capture_snapshot(
                 function: entry.function,
                 known_exit_sites: entry.executable.jit_exit_site_count(),
                 known_builtin_exit_sites: entry.executable.jit_builtin_exit_site_count(),
+                property_cache_sizes: entry
+                    .executable
+                    .property_lookup_caches()
+                    .iter()
+                    .map(speculated_cache_size)
+                    .collect(),
             })
             .collect(),
     }

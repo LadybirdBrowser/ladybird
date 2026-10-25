@@ -175,6 +175,22 @@ pub struct DecodedInstruction {
     pub instruction: Instruction,
 }
 
+impl Instruction {
+    /// The property lookup cache whose entries compiled code speculates on
+    /// for this instruction, as shape checks that exit with
+    /// `ExitKind::BadShape`.
+    pub fn speculated_property_lookup_cache(&self) -> Option<u32> {
+        match *self {
+            Instruction::GetById { cache, .. }
+            | Instruction::PutById { cache, .. }
+            | Instruction::GetLength { cache, .. }
+            | Instruction::GetByValue { cache, .. }
+            | Instruction::PutByValue { cache, .. } => Some(cache),
+            _ => None,
+        }
+    }
+}
+
 impl DecodedInstruction {
     pub fn next_pc(&self) -> u32 {
         self.pc + self.length
