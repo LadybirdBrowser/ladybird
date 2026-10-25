@@ -93,6 +93,20 @@ pub(crate) fn for_each_client_rect(
             rect,
         ));
     };
+    // INTEROP: A line break has no box fragments of its own, but browsers report a zero-width rect where it ends its
+    //          line.
+    if arena.node_kind_if_live(layout_node) == Some(NodeKind::BreakNode) {
+        if let Some((line_root, rect)) = line_break_rect(arena, layout_node) {
+            push_rect(transform_rect_to_viewport_or_identity(
+                rect_to_viewport_transform,
+                arena,
+                line_root,
+                rect,
+            ));
+        }
+        return;
+    }
+
     let row_is_populated = arena.paintable_row_is_populated(layout_node);
 
     // FIXME: 2. If the element has an associated SVG layout box return a DOMRectList object containing a single
@@ -129,6 +143,50 @@ pub(crate) fn for_each_client_rect(
             ));
         }
     }
+}
+
+/// The line root whose line the forced line break ends, and the zero-width rect of the break at the inline end of
+/// that line's content, or at the inline start of the line where it is empty.
+fn line_break_rect(arena: &impl PaintRead, break_node: NodeSlotId) -> Option<(NodeSlotId, CssPixelRect)> {
+    let mut ancestor = arena.node(break_node)?.parent();
+    while let Some(row) = arena.node(ancestor) {
+        if arena.paintable_row_is_populated(ancestor) {
+            let side = arena.committed_side_data(ancestor);
+            if let Some(line) = side.lines().iter().find(|line| line.forced_break_node == break_node) {
+                let style = arena.node_style_if_live(ancestor)?;
+                let root_position =
+                    paintable_geometry::LineRootPositions::new(arena, ancestor).of_fragment(line.box_fragment);
+                let line_rect = CssPixelRect::from(line.rect).translated_by(root_position);
+                let inline_axis_is_horizontal =
+                    style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB;
+                let at_high_side = (line.fragment_count == 0) == style.inline_axis_is_reverse();
+                let zero = CssPixels::default();
+                let rect = match (inline_axis_is_horizontal, at_high_side) {
+                    (true, false) => CssPixelRect {
+                        width: zero,
+                        ..line_rect
+                    },
+                    (true, true) => CssPixelRect {
+                        x: line_rect.x + line_rect.width,
+                        width: zero,
+                        ..line_rect
+                    },
+                    (false, false) => CssPixelRect {
+                        height: zero,
+                        ..line_rect
+                    },
+                    (false, true) => CssPixelRect {
+                        y: line_rect.y + line_rect.height,
+                        height: zero,
+                        ..line_rect
+                    },
+                };
+                return Some((ancestor, rect));
+            }
+        }
+        ancestor = row.parent();
+    }
+    None
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-getboundingclientrect

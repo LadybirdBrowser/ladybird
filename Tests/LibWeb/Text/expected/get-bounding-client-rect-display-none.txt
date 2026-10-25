@@ -1,2 +1,2 @@
 {"x":0,"y":0,"width":0,"height":0,"top":0,"right":0,"bottom":0,"left":0}
-{"x":0,"y":0,"width":0,"height":0,"top":0,"right":0,"bottom":0,"left":0}
+{"x":8,"y":8,"width":0,"height":16,"top":8,"right":8,"bottom":24,"left":8}
