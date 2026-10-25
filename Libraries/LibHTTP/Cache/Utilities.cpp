@@ -552,7 +552,14 @@ AK::Duration calculate_freshness_lifetime(u32 status_code, HeaderList const& hea
 
     // * If the Expires response header field (Section 5.3) is present, use its value minus the value of the Date response
     //   header field (using the time the message was received if it is not present, as per Section 6.6.1 of [HTTP]), or
-    if (auto expires = parse_http_date(headers.get("Expires"sv)); expires.has_value()) {
+    if (auto expires_header = headers.get("Expires"sv); expires_header.has_value()) {
+        // https://httpwg.org/specs/rfc9111.html#field.expires
+        // A cache recipient MUST interpret invalid date formats, especially the value "0", as representing a time in
+        // the past (i.e., "already expired").
+        auto expires = parse_http_date(*expires_header);
+        if (!expires.has_value())
+            return {};
+
         auto date = parse_http_date(headers.get("Date"sv)).value_or_lazy_evaluated([&]() {
             return UnixDateTime::now() + current_time_offset_for_testing;
         });
