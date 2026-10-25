@@ -724,10 +724,20 @@ void CookieJar::TransientStorage::set_cookie(CookieStorageKey key, HTTP::Cookie:
     if (cookie.expiry_time < now && !m_cookies.contains(key))
         return;
 
+    auto cookie_changed = true;
     auto cookie_value_changed = true;
     if (cookie.expiry_time >= now) {
-        if (auto old_cookie = m_cookies.get(key); old_cookie.has_value())
+        if (auto old_cookie = m_cookies.get(key); old_cookie.has_value()) {
             cookie_value_changed = old_cookie->value != cookie.value;
+
+            // AD-HOC: Overwriting a cookie with an identical one is not a cookie change, as in other engines.
+            cookie_changed = cookie_value_changed
+                || old_cookie->same_site != cookie.same_site
+                || old_cookie->expiry_time != cookie.expiry_time
+                || old_cookie->secure != cookie.secure
+                || old_cookie->http_only != cookie.http_only
+                || old_cookie->persistent != cookie.persistent;
+        }
     }
 
     auto cookie_for_notification = cookie;
@@ -736,7 +746,7 @@ void CookieJar::TransientStorage::set_cookie(CookieStorageKey key, HTTP::Cookie:
 
     // We skip notifying about updating expired cookies, as they will be notified as being
     // expired immediately after instead.
-    if (cookie_for_notification.expiry_time >= now)
+    if (cookie_for_notification.expiry_time >= now && cookie_changed)
         send_cookie_changed_notifications({ { CookieEntry { {}, move(cookie_for_notification) } } }, cookie_value_changed);
 }
 
