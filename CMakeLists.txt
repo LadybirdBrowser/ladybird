@@ -150,6 +150,8 @@ if (ENABLE_GUI_TARGETS)
     endif()
 endif()
 
+include(packaging)
+
 add_custom_target(lint-shell-scripts
     COMMAND "${ladybird_SOURCE_DIR}/Meta/Linters/lint_shell_scripts.sh"
     USES_TERMINAL
