@@ -44,6 +44,26 @@ enum class ErrorCode {
     UnknownMethod,
     UnsupportedOperation,
 
+    // https://w3c.github.io/webdriver-bidi/#errors
+    InvalidWebExtension,
+    NoSuchClientWindow,
+    NoSuchHandle,
+    NoSuchHistoryEntry,
+    NoSuchNetworkCollector,
+    NoSuchIntercept,
+    NoSuchNetworkData,
+    NoSuchNode,
+    NoSuchRequest,
+    NoSuchScreencast,
+    NoSuchScript,
+    NoSuchStoragePartition,
+    NoSuchUserContext,
+    NoSuchWebExtension,
+    UnableToCloseBrowser,
+    UnderspecifiedStoragePartition,
+    UnableToSetFileInput,
+    UnavailableNetworkData,
+
     // Non-standard error codes:
     OutOfMemory,
 };

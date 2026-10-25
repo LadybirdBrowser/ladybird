@@ -49,6 +49,26 @@ static Vector<ErrorCodeData> const& error_code_data()
         { ErrorCode::UnknownError, 500, "unknown error"_string },
         { ErrorCode::UnknownMethod, 405, "unknown method"_string },
         { ErrorCode::UnsupportedOperation, 500, "unsupported operation"_string },
+        // https://w3c.github.io/webdriver-bidi/#errors
+        // NB: These errors are only sent over WebDriver BiDi, which has no HTTP status codes.
+        { ErrorCode::InvalidWebExtension, 500, "invalid web extension"_string },
+        { ErrorCode::NoSuchClientWindow, 500, "no such client window"_string },
+        { ErrorCode::NoSuchHandle, 500, "no such handle"_string },
+        { ErrorCode::NoSuchHistoryEntry, 500, "no such history entry"_string },
+        { ErrorCode::NoSuchNetworkCollector, 500, "no such network collector"_string },
+        { ErrorCode::NoSuchIntercept, 500, "no such intercept"_string },
+        { ErrorCode::NoSuchNetworkData, 500, "no such network data"_string },
+        { ErrorCode::NoSuchNode, 500, "no such node"_string },
+        { ErrorCode::NoSuchRequest, 500, "no such request"_string },
+        { ErrorCode::NoSuchScreencast, 500, "no such screencast"_string },
+        { ErrorCode::NoSuchScript, 500, "no such script"_string },
+        { ErrorCode::NoSuchStoragePartition, 500, "no such storage partition"_string },
+        { ErrorCode::NoSuchUserContext, 500, "no such user context"_string },
+        { ErrorCode::NoSuchWebExtension, 500, "no such web extension"_string },
+        { ErrorCode::UnableToCloseBrowser, 500, "unable to close browser"_string },
+        { ErrorCode::UnderspecifiedStoragePartition, 500, "underspecified storage partition"_string },
+        { ErrorCode::UnableToSetFileInput, 500, "unable to set file input"_string },
+        { ErrorCode::UnavailableNetworkData, 500, "unavailable network data"_string },
         { ErrorCode::OutOfMemory, 500, "out of memory"_string },
     };
     return data;
