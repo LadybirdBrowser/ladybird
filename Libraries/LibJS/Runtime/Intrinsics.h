@@ -21,7 +21,6 @@ namespace JS {
 class JS_API Intrinsics final : public EngineCell {
 public:
     GC::Ref<Object> object_prototype();
-    GC::Ref<Object> function_prototype();
     GC::Ref<Object> array_prototype();
     GC::Ref<Object> string_prototype();
     GC::Ref<Object> error_prototype();
@@ -31,7 +30,6 @@ public:
     GC::Ref<ErrorConstructor> error_constructor();
     GC::Ref<PromiseConstructor> promise_constructor();
     GC::Ref<SharedArrayBufferConstructor> shared_array_buffer_constructor();
-    GC::Ref<DataViewConstructor> data_view_constructor();
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
     GC::Ref<ConstructorName> snake_name##_constructor();

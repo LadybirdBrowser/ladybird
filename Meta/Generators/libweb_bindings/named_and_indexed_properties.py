@@ -701,7 +701,6 @@ def define_the_indexed_property_getter(
 
     operation = interface.indexed_property_getter
 
-    includes.add("LibJS/Runtime/ArrayPrototype.h")
     if operation.name:
         out.write(
             f"""    object.define_native_function(realm, "{operation.name}"_utf16_fly_string, {idl_identifier_cpp_name(operation)}, {len(operation.parameters)}, default_attributes);
