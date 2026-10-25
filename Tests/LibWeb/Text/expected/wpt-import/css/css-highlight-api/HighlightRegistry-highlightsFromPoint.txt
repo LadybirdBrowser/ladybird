@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+1 Pass
+7 Fail
+Pass	CSS.highlights.highlightsFromPoint() should throw when called with incorrect parameters.
+Fail	CSS.highlights.highlightsFromPoint() should return an empty array when called with a point outside the document.
+Fail	CSS.highlights.highlightsFromPoint() returns the Highlights with their corresponding ranges present at the given point in the right order.
+Fail	CSS.highlights.highlightsFromPoint() returns empty array when called on a display:none iframe document.
+Fail	CSS.highlights.highlightsFromPoint() returns empty array for coordinates outside the viewport.
+Fail	CSS.highlights.highlightsFromPoint() does not return highlights with only collapsed ranges.
+Fail	CSS.highlights.highlightsFromPoint() skips invalid StaticRanges.
+Fail	CSS.highlights.highlightsFromPoint() returns all overlapping ranges within the same highlight.

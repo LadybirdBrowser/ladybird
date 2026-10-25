@@ -1,0 +1,110 @@
+<!doctype html>
+<title>HighlightRegistry has a maplike interface</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  'use strict';
+
+  test(() => {
+    assert_not_equals(window.HighlightRegistry, undefined, 'HighlightRegistry is in window');
+    assert_equals(typeof HighlightRegistry, 'function', 'HighlightRegistry is a function');
+    assert_throws_js(TypeError, function () { var x = new HighlightRegistry(); },
+      'HighlightRegistry constructor throws');
+
+    assert_not_equals(CSS.highlights, undefined, 'CSS.highlights exists');
+    assert_equals(CSS.highlights.__proto__, window.HighlightRegistry.prototype,
+      'CSS.highlights and window.HighlightRegistry have same prototype');
+
+    assert_equals(CSS.highlights.size, 0, 'HighlightRegistry starts empty');
+  }, 'HighlightRegistry initializes as it should.');
+
+  test(() => {
+    let name1 = "example1";
+    let name2 = "example2";
+    let h1 = new Highlight();
+    let h2 = new Highlight();
+
+    assert_false(CSS.highlights.has(name1), 'HighlightRegistry.has returns false when it doesn\'t have the key which is called with as argument.');
+    CSS.highlights.set(name1, h1);
+    assert_true(CSS.highlights.has(name1), 'HighlightRegistry.has returns true when it has the key which is called with as argument.');
+    assert_equals(CSS.highlights.size, 1, 'HighlightRegistry.size is 1 after only inserting 1 key.');
+
+    assert_false(CSS.highlights.delete(name2), 'HighlightRegistry.delete returns false when trying to delete an key that is not in the map.');
+    assert_equals(CSS.highlights.size, 1, 'HighlightRegistry.size stays the same after trying to delete a non-existing key.');
+
+    CSS.highlights.set(name2, h2);
+    assert_true(CSS.highlights.has(name1), 'HighlightRegistry.has returns true when it is called with the key inserted first');
+    assert_true(CSS.highlights.has(name2), 'HighlightRegistry.has returns true when it is called with the key inserted second');
+    assert_equals(CSS.highlights.get(name1), h1, 'HighlightRegistry.get returns the first Highlight when it is called with the key inserted first');
+    assert_equals(CSS.highlights.get(name2), h2, 'HighlightRegistry.get returns the second Highlight when it is called with the key inserted second');
+    assert_equals(CSS.highlights.size, 2, 'HighlightRegistry.size is 2 after only inserting two different keys.');
+
+    assert_true(CSS.highlights.delete(name2), 'HighlightRegistry.delete returns true when trying to delete a key that is in the group.');
+    assert_true(CSS.highlights.has(name1), 'HighlightRegistry.has returns true when it is called with the key inserted first');
+    assert_false(CSS.highlights.has(name2), 'HighlightRegistry.has returns true when it is called with the key that was deleted');
+    assert_equals(CSS.highlights.get(name1), h1, 'HighlightRegistry.get still returns the first Highlight when it is called with the key inserted first');
+    assert_equals(CSS.highlights.get(name2), undefined, 'HighlightRegistry.get returns undefined when it is called with a key that was deleted');
+    assert_equals(CSS.highlights.size, 1, 'HighlightRegistry.size decreases in 1 after deleting an existing key.');
+
+    assert_false(CSS.highlights.delete(name2), 'HighlightRegistry.delete returns false when trying to delete a key that was already deleted.');
+    assert_true(CSS.highlights.has(name1), 'HighlightRegistry.has returns true when it is called with the key inserted first');
+    assert_false(CSS.highlights.has(name2), 'HighlightRegistry.has returns false when it is called with a key that was deleted twice');
+    assert_equals(CSS.highlights.get(name1), h1, 'HighlightRegistry.get still returns the first Highlight when it is called with the key inserted first');
+    assert_equals(CSS.highlights.get(name2), undefined, 'HighlightRegistry.get still returns undefined when it is called with a key that was deleted');
+    assert_equals(CSS.highlights.size, 1, 'HighlightRegistry.size stays the same after trying to delete the same key for a second time.');
+
+    assert_true(CSS.highlights.delete(name1), 'HighlightRegistry.delete returns true when trying to delete the remaining key');
+    assert_false(CSS.highlights.has(name1), 'HighlightRegistry.has returns false when it is called with the key inserted first and then deleted');
+    assert_false(CSS.highlights.has(name2), 'HighlightRegistry.has returns false when it is called with the key inserted second and then deleted');
+    assert_equals(CSS.highlights.get(name1), undefined, 'HighlightRegistry.get returns undefined when it is called with a key that was deleted');
+    assert_equals(CSS.highlights.get(name2), undefined, 'HighlightRegistry.get returns undefined when it is called with a key that was deleted');
+    assert_equals(CSS.highlights.size, 0, 'HighlightRegistry.size decreases in 1 after deleting an existing key.');
+
+    CSS.highlights.set(name1, h1);
+    CSS.highlights.set(name1, h2);
+    assert_equals(CSS.highlights.size, 1, 'HighlightRegistry.size keeps the same after an insertion of a Highlight with an existing name');
+    assert_equals(CSS.highlights.get(name1), h2, 'The Highlight inserted with the same name as an existing one was effectively inserted into the registry');
+
+    CSS.highlights.clear();
+    assert_equals(CSS.highlights.size, 0, 'HighlightRegistry.clear empties the map.');
+    CSS.highlights.clear();
+    assert_equals(CSS.highlights.size, 0, 'HighlightRegistry.clear called with an empty registry keeps it empty.');
+
+    CSS.highlights.set(name1, h1).set(name2, h2);
+    assert_equals(CSS.highlights.size, 2, 'HighlightRegistry.size is 2 after inserting two different Highlights by chaining the set method.');
+  }, 'HighlightRegistry has a maplike interface.');
+
+  test(() => {
+    let name1 = "example1";
+    let name2 = "example2";
+    let name3 = "example3";
+    let h1 = new Highlight();
+    let h2 = new Highlight();
+    let h3 = new Highlight();
+    let h4 = new Highlight();
+
+    // A Map with the same operations applied to it, used as the reference for
+    // the expected ordering.
+    let map = new Map();
+
+    CSS.highlights.clear();
+    for (let [name, highlight] of [[name1, h1], [name2, h2], [name3, h3]]) {
+      CSS.highlights.set(name, highlight);
+      map.set(name, highlight);
+    }
+
+    CSS.highlights.set(name1, h4);
+    map.set(name1, h4);
+
+    assert_array_equals([...CSS.highlights.keys()], [name1, name2, name3],
+      'Setting an existing name doesn\'t change the order of the highlight names');
+    assert_array_equals([...CSS.highlights.keys()], [...map.keys()],
+      'The highlight names are in the same order as the keys of a Map with the same insertions, following Map semantics');
+    assert_array_equals([...CSS.highlights.values()], [...map.values()],
+      'Setting an existing name replaces its Highlight without changing the order, following Map semantics');
+    assert_equals(CSS.highlights.size, map.size,
+      'Setting an existing name doesn\'t change the size of the registry');
+  }, 'HighlightRegistry.set() with an existing name preserves the insertion order (Map-like behavior)');
+
+</script>

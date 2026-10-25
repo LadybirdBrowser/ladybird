@@ -1,0 +1,115 @@
+<!doctype html>
+<title> Highlight has a setlike interface </title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id='testDiv'>abc</div>
+<script>
+  'use strict';
+  let priority = 123;
+
+  test(() => {
+    let customHighlight = new Highlight();
+    assert_equals(customHighlight.priority, 0, 'Highlight uses 0 as priority by default.');
+
+    customHighlight.priority = priority;
+    assert_equals(customHighlight.priority, priority, 'Highlight sets priority correctly.');
+
+    assert_equals(customHighlight.size, 0, 'Highlight starts empty');
+  }, 'Highlight initializes empty (if no ranges are provided) and with priority 0.');
+
+  let range0 = new Range();
+  let range1 = new Range();
+  let range2 = new Range();
+
+  let container = document.getElementById('testDiv');
+  let staticRange0 = new StaticRange({startContainer: container, startOffset: 0, endContainer: container, endOffset: 0});
+  let staticRange1 = new StaticRange({startContainer: container, startOffset: 0, endContainer: container, endOffset: 0});
+  let staticRange2 = new StaticRange({startContainer: container, startOffset: 0, endContainer: container, endOffset: 0});
+
+  let rangeCollections = [[range0,range1,range2], [staticRange0,staticRange1,staticRange2], [range0,staticRange1,range2], [staticRange0,range1,staticRange2]]
+
+  var i;
+  for(i=0; i<rangeCollections.length; i++){
+    let rangesCombinationDescription = " (using the following combination of ranges [";
+    var j;
+    for(j=0; j<rangeCollections[i].length; j++){
+      if(j!=0) rangesCombinationDescription += ", ";
+      rangesCombinationDescription = rangesCombinationDescription + Object.prototype.toString.call(rangeCollections[i][j]);
+    }
+    rangesCombinationDescription += "])";
+
+    test(() => {
+      let customHighlight = new Highlight();
+      assert_false(customHighlight.has(rangeCollections[i][0]), 'Highlight.has returns false when it doesn\'t contain the range which is passed as the argument');
+      assert_false(customHighlight.has(rangeCollections[i][1]), 'Highlight.has returns false when it doesn\'t contain the range which is passed as the argument');
+      assert_false(customHighlight.has(rangeCollections[i][2]), 'Highlight.has returns false when it doesn\'t contain the range which is passed as the argument');
+      customHighlight.add(rangeCollections[i][0]);
+      assert_true(customHighlight.has(rangeCollections[i][0]), 'Highlight.has returns true when it contains the range which is passed as the argument');
+      assert_false(customHighlight.has(rangeCollections[i][1]), 'Highlight.has returns false when it doesn\'t contain the range which is passed as the argument');
+      assert_false(customHighlight.has(rangeCollections[i][2]), 'Highlight.has returns false when it doesn\'t contain the range which is passed as the argument');
+
+      assert_equals(customHighlight.size, 1, 'Highlight.size is 1 after only adding 1 range');
+      customHighlight.add(rangeCollections[i][0]);
+      assert_equals(customHighlight.size, 1, 'Highlight.size is 1 after only adding same range twice');
+
+      customHighlight.add(rangeCollections[i][1]);
+      assert_true(customHighlight.has(rangeCollections[i][0]), 'Highlight.has returns true when it contains the range which is passed as the argument');
+      assert_true(customHighlight.has(rangeCollections[i][1]), 'Highlight.has returns true when it contains the range which is passed as the argument');
+      assert_false(customHighlight.has(rangeCollections[i][2]), 'Highlight.has returns false when it doesn\'t contain the range which is passed as the argument');
+
+      assert_equals(customHighlight.size, 2, 'Highlight.size is 2 after only adding two different ranges');
+    }, 'Highlight add and has methods work as expected' + rangesCombinationDescription);
+
+    test(() => {
+      let customHighlight = new Highlight();
+      customHighlight.add(rangeCollections[i][0]).add(rangeCollections[i][1]);
+      assert_true(customHighlight.has(rangeCollections[i][0]), 'Highlight.has returns true when it contains the first range added');
+      assert_true(customHighlight.has(rangeCollections[i][1]), 'Highlight.has returns true when it contains the second range added');
+      assert_false(customHighlight.has(rangeCollections[i][2]), 'Highlight.has returns false when it doesn\'t contain the range which is passed as the argument');
+      assert_equals(customHighlight.size, 2, 'Highlight.size is 2 after adding two different ranges by chaining the add method');
+    }, "Highlight add method is chainable" + rangesCombinationDescription);
+
+    test(() => {
+      let customHighlight = new Highlight(rangeCollections[i][0], rangeCollections[i][1]);
+      assert_false(customHighlight.delete(rangeCollections[i][2]), 'Highlight.delete returns false when trying to delete a range that is not in the highlight');
+      assert_true(customHighlight.delete(rangeCollections[i][1]), 'Highlight.delete returns true when trying to delete a range that is in the highlight');
+      assert_false(customHighlight.delete(rangeCollections[i][1]), 'Highlight.delete returns false when trying to delete a range that was in the highlight before but it\'s not there anymore');
+      assert_true(customHighlight.delete(rangeCollections[i][0]), 'Highlight.delete returns true when trying to delete a range that is in the highlight');
+      assert_false(customHighlight.delete(rangeCollections[i][0]), 'Highlight.delete returns false when trying to delete a range that was in the highlight before but it\'s not there anymore');
+    }, 'Highlight delete method works as expected' + rangesCombinationDescription);
+
+    test(() => {
+      let customHighlight = new Highlight(rangeCollections[i][0], rangeCollections[i][0]);
+      assert_true(customHighlight.has(rangeCollections[i][0]), 'Highlight.has returns true when it is called with the range used twice in the constructor');
+      assert_equals(customHighlight.size, 1, 'Highlight behaves like a set when constructing it with two equal ranges.');
+
+      customHighlight = new Highlight(rangeCollections[i][0], rangeCollections[i][1], rangeCollections[i][0], rangeCollections[i][1]);
+      assert_true(customHighlight.has(rangeCollections[i][0]), 'Highlight.has returns true when it is called with one of the ranges used twice in the constructor');
+      assert_true(customHighlight.has(rangeCollections[i][1]), 'Highlight.has returns true when it is called with the other range used twice in the constructor');
+      assert_equals(customHighlight.size, 2, 'Highlight behaves like a set when constructing it with two pairs of equal ranges.');
+    }, 'Highlight constructor behaves like a set when using equal ranges' + rangesCombinationDescription);
+
+    test(() => {
+      let customHighlight = new Highlight(rangeCollections[i][0]);
+      assert_true(customHighlight.has(rangeCollections[i][0]), 'Highlight.has returns true when it is called with the range used in its constructor');
+      assert_equals(customHighlight.size, 1, 'Highlight.size is 1 after constructing it with one range');
+    }, 'Highlight constructor works as expected when called with one range' + rangesCombinationDescription);
+
+    test(() => {
+      let customHighlight = new Highlight(rangeCollections[i][0], rangeCollections[i][1]);
+      assert_true(customHighlight.has(rangeCollections[i][0]), 'Highlight.has returns true when it is called with the first range used in its constructor');
+      assert_true(customHighlight.has(rangeCollections[i][1]), 'Highlight.has returns true when it is called with the second range used in its constructor');
+      assert_equals(customHighlight.size, 2, 'Highlight.size is 2 after constructing it with two ranges');
+    }, 'Highlight constructor works as expected when called with two ranges' + rangesCombinationDescription);
+
+    test(() => {
+      let customHighlight = new Highlight(rangeCollections[i][0], rangeCollections[i][1]);
+      assert_equals(customHighlight.size, 2, 'Highlight has size 2 after constructing it with two ranges');
+      customHighlight.clear();
+      assert_equals(customHighlight.size, 0, 'Highlight becomes empty after executing clear()');
+      customHighlight.clear();
+      assert_equals(customHighlight.size, 0, 'Highlight is still empty after executing clear() twice');
+    }, 'Highlight clear method works as expected' + rangesCombinationDescription);
+  }
+</script>

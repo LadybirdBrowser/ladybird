@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	HighlightRegistry initializes as it should.
+Fail	HighlightRegistry has a maplike interface.
+Fail	HighlightRegistry.set() with an existing name preserves the insertion order (Map-like behavior)

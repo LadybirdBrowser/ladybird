@@ -1,0 +1,88 @@
+<!doctype html>
+<title>Highlight iteration with insertions and deletions inbetween</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id='testDiv'>abc</div>
+<script>
+  'use strict';
+  let container = document.getElementById('testDiv');
+  let range1 = new StaticRange({startContainer: container, startOffset: 0, endContainer: container, endOffset: 1});
+  let range2 = new Range();
+
+  // Test insertions using .add
+  test(() => {
+    let customHighlight = new Highlight();
+    let iterator = customHighlight[Symbol.iterator]();
+    customHighlight.add(range1);
+    let element = iterator.next();
+    assert_false(element.done, 'The iteration continues when a new range is added after starting the iteration');
+    assert_equals(element.value, range1, 'A range added after starting the iteration is found during the current iteration, following Set semantics');
+    element = iterator.next();
+    assert_true(element.done, 'The iteration ends after visiting the added range');
+    assert_equals(element.value, undefined, '.next() returns undefined when the iteration ends');
+  }, 'Highlight iteration includes ranges added after starting the iteration (Set-like behavior)');
+
+  test(() => {
+    let customHighlight = new Highlight(range1);
+    let iterator = customHighlight[Symbol.iterator]();
+    customHighlight.add(range2);
+    let element = iterator.next();
+    assert_false(element.done, 'The iteration continues with the first range');
+    assert_equals(element.value, range1, 'The first range is returned');
+    element = iterator.next();
+    assert_false(element.done, 'The iteration continues to the range added after starting the iteration, following Set semantics');
+    assert_equals(element.value, range2, 'The range added after starting the iteration is visited');
+    element = iterator.next();
+    assert_true(element.done, 'The iteration ends after visiting both ranges');
+    assert_equals(element.value, undefined, '.next() returns undefined when the iteration ends');
+  }, 'Highlight iteration includes ranges added after starting the iteration when there were already ranges (Set-like behavior)');
+
+  // Test deletions using .delete
+  test(() => {
+    let customHighlight = new Highlight(range1);
+    let iterator = customHighlight[Symbol.iterator]();
+    customHighlight.delete(range1);
+    let element = iterator.next();
+    assert_true(element.done, 'The iteration ends when the only range is deleted before visiting it, following Set semantics');
+    assert_equals(element.value, undefined, 'A range deleted before being visited is not returned during iteration');
+  }, 'Highlight iteration skips ranges deleted before being visited (Set-like behavior)');
+
+  test(() => {
+    let customHighlight = new Highlight(range1, range2);
+    let iterator = customHighlight[Symbol.iterator]();
+    customHighlight.delete(range2);
+    let element = iterator.next();
+    assert_false(element.done, 'The iteration continues with the first range');
+    assert_equals(element.value, range1, 'The first range is returned');
+    element = iterator.next();
+    assert_true(element.done, 'The iteration ends after the first range since the second range was deleted before being visited, following Set semantics');
+    assert_equals(element.value, undefined, '.next() returns undefined when the iteration ends');
+  }, 'Highlight iteration skips ranges deleted before being visited even when other ranges remain (Set-like behavior)');
+
+  test(() => {
+    let customHighlight = new Highlight(range1, range2);
+    let iterator = customHighlight[Symbol.iterator]();
+    let element = iterator.next();
+    assert_false(element.done, 'The iteration doesn\'t end when there are still two ranges to visit');
+    assert_equals(element.value, range1, 'The range that was pointed to by the iterator is returned as it should');
+    customHighlight.delete(range1);
+    element = iterator.next();
+    assert_false(element.done, 'The iteration doesn\'t end when the range previously visited is deleted and there is still a range to visit');
+    assert_equals(element.value, range2, 'The range that was pointed to by the iterator is returned as it should although the previous range was deleted after calling .next');
+    element = iterator.next();
+    assert_true(element.done, 'The iteration ends after going through all the ranges although the first range was deleted after the first call to .next');
+    assert_equals(element.value, undefined, '.next() returns undefined when the iteration ends');
+  }, 'Highlight iteration is not modified when a range that was already visited is deleted and there are still ranges to visit');
+
+  // Test deletions using .clear
+  test(() => {
+    let customHighlight = new Highlight(range1);
+    let iterator = customHighlight[Symbol.iterator]();
+    customHighlight.clear();
+    let element = iterator.next();
+    assert_true(element.done, 'The iteration ends when all ranges are cleared before visiting them, following Set semantics');
+    assert_equals(element.value, undefined, '.clear() removes all ranges before iteration visits them');
+  }, 'Highlight iteration skips all ranges when .clear() is called before visiting them (Set-like behavior)');
+
+</script>

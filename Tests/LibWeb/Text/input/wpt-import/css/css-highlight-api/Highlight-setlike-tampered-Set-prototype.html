@@ -1,0 +1,55 @@
+<!doctype html>
+<title>Highlight is a setlike interface that works as expected even if Set.prototype is tampered</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<body>
+<script>
+"use strict";
+
+function tamperSetPrototype() {
+  delete Set.prototype.size;
+
+  Set.prototype.entries = null;
+  Set.prototype.forEach = undefined;
+  Set.prototype.has = "foo";
+  Set.prototype.keys = 0;
+  Set.prototype.values = Symbol();
+  Set.prototype[Symbol.iterator] = 1;
+  Set.prototype.add = true;
+  Set.prototype.clear = "";
+  Set.prototype.delete = -1.5;
+
+  Object.freeze(Set.prototype);
+}
+
+test(() => {
+  tamperSetPrototype();
+
+  const staticRange = new StaticRange({startContainer: document.body, endContainer: document.body, startOffset: 0, endOffset: 0});
+  const highlight = new Highlight(staticRange);
+
+  assert_equals(highlight.size, 1);
+  assert_true(highlight.has(staticRange));
+  assert_equals([...highlight.entries()][0][0], staticRange);
+
+  highlight.clear();
+  assert_equals(highlight.size, 0);
+
+  highlight.add(staticRange);
+  assert_equals(highlight.size, 1);
+
+  highlight.delete(staticRange);
+  assert_equals(highlight.size, 0);
+  assert_false(highlight.has(staticRange));
+
+  highlight.add(staticRange);
+  assert_equals([...highlight.keys()][0], staticRange);
+  assert_equals([...highlight.values()][0], staticRange);
+
+  let callbackCalled = false;
+  highlight.forEach(() => { callbackCalled = true; });
+  assert_true(callbackCalled);
+}, "Highlight is a setlike interface that works as expected even if Set.prototype is tampered.");
+</script>

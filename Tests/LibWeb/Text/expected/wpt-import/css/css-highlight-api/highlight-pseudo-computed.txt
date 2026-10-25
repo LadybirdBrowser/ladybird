@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+10 Pass
+2 Fail
+Fail	getComputedStyle() for ::highlight(foo)
+Fail	Different getComputedStyle() for ::highlight(bar) and same element
+Pass	getComputedStyle() for ::highlight(foo): should not return a style.
+Pass	getComputedStyle() for ::highlight(foo)) should not return a style.
+Pass	getComputedStyle() for ::highlight(foo)( should not return a style.
+Pass	getComputedStyle() for ::highlight should not return a style.
+Pass	getComputedStyle() for ::highlight(foo)(foo) should not return a style.
+Pass	getComputedStyle() for ::highlight(foo)() should not return a style.
+Pass	getComputedStyle() for :::highlight(foo) should not return a style.
+Pass	getComputedStyle() for ::highlight(foo). should not return a style.
+Pass	getComputedStyle() for ::highlight(foo,bar) should not return a style.
+Pass	getComputedStyle() for ::highlight(foo bar) should not return a style.

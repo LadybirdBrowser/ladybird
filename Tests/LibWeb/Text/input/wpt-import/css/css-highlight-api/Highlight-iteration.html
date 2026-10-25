@@ -1,0 +1,201 @@
+<!doctype html>
+<title>Highlight iteration</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id='testDiv'>abc</div>
+<script>
+  'use strict';
+  let range1 = new Range();
+  let container = document.getElementById('testDiv');
+  let range2 = new StaticRange({startContainer: container, startOffset: 0, endContainer: container, endOffset: 0});
+
+  let rangeAdditionModeCollection = ["constructor", "add function"];
+  let iterationInitializationCollection = ["customHighlight[Symbol.iterator]()", "customHighlight.values()", "customHighlight.keys()"];
+
+  function getIterator(customHighlight, iterationInitialization){
+    var iterator;
+    if(iterationInitialization === "customHighlight[Symbol.iterator]()"){
+      iterator = customHighlight[Symbol.iterator]();
+    }
+    else if(iterationInitialization === "customHighlight.values()"){
+      iterator = customHighlight.values();
+    }
+    else if(iterationInitialization === "customHighlight.keys()"){
+      iterator = customHighlight.keys();
+    }
+    return iterator;
+  }
+
+  // Test .keys, .values, [Symbol.iterator]
+
+  for(let iterationInitialization of iterationInitializationCollection){
+    test(() => {
+      let customHighlight = new Highlight();
+      let iterator = getIterator(customHighlight, iterationInitialization);
+      let element = iterator.next();
+      assert_true(element.done, 'Highlight is iterable and .next() returns an element with .done===true when there are no more ranges to iterate');
+      assert_equals(element.value, undefined, 'Highlight is iterable and .next() returns an element with .value undefined when there are no more ranges to iterate.');
+    }, 'Highlight can be iterated when it\'s empty initializing the iterator with ' + iterationInitialization);
+  }
+
+  for(let rangeAdditionMode of rangeAdditionModeCollection){
+    for(let iterationInitialization of iterationInitializationCollection){
+      test(() => {
+        var customHighlight;
+        if(rangeAdditionMode === "constructor"){
+          customHighlight = new Highlight(range1);
+        }
+        else if(rangeAdditionMode === "add function"){
+          customHighlight = new Highlight();
+          customHighlight.add(range1);
+        }
+
+        let iterator = getIterator(customHighlight, iterationInitialization);
+        let element = iterator.next();
+        assert_false(element.done, 'Highlight is iterable and .next() returns an element with .done===false when the iteration didn\'t go past the last range');
+        assert_equals(element.value, range1, '.next() returns an element with .value corresponding to the first range added to the Highlight');
+        element = iterator.next();
+        assert_true(element.done, 'Highlight is iterable and .next() returns an element with .done===true when there are no more ranges to iterate');
+        assert_equals(element.value, undefined, 'Highlight is iterable and .next() returns an element with .value undefined when there are no more ranges to iterate.');
+      }, 'Highlight can be iterated over all of its ranges initializing the iterator with ' + iterationInitialization + ' and adding a range by passing it to the ' + rangeAdditionMode);
+
+      test(() => {
+        var customHighlight;
+        if(rangeAdditionMode === "constructor"){
+          customHighlight = new Highlight(range1, range2);
+        }
+        else if(rangeAdditionMode === "add function"){
+          customHighlight = new Highlight();
+          customHighlight.add(range1);
+          customHighlight.add(range2);
+        }
+
+        let iterator = getIterator(customHighlight, iterationInitialization);
+        let element = iterator.next();
+        assert_false(element.done, 'Highlight is iterable and .next() returns an element with .done===false when the iteration didn\'t go past the last range');
+        assert_equals(element.value, range1, '.next() returns an element with .value corresponding to the first range added to the Highlight');
+        element = iterator.next();
+        assert_false(element.done, 'Highlight is iterable and .next() returns an element with .done===false when the iteration didn\'t go past the last range');
+        assert_equals(element.value, range2, '.next() returns an element with .value corresponding to the second range added to the Highlight');
+        element = iterator.next();
+        assert_true(element.done, 'Highlight is iterable and .next() returns an element with .done===true when there are no more ranges to iterate');
+        assert_equals(element.value, undefined, 'Highlight is iterable and .next() returns an element with .value undefined when there are no more ranges to iterate.');
+      }, 'Highlight can be iterated over all of its ranges initializing the iterator with ' + iterationInitialization + ' and adding two ranges by passing them to the ' + rangeAdditionMode);
+    }
+  }
+
+  // Test .entries()
+
+  test(() => {
+    let customHighlight = new Highlight();
+    let iterator = customHighlight.entries();
+    let element = iterator.next();
+    assert_true(element.done, 'Highlight is iterable and .next() returns an element with .done===true when there are no more ranges to iterate');
+    assert_equals(element.value, undefined, 'Highlight is iterable and .next() returns an element with .value undefined when there are no more ranges to iterate.');
+  }, 'Highlight can be iterated when it\'s empty initializing the iterator with .entries()');
+
+  for(let rangeAdditionMode of rangeAdditionModeCollection){
+    test(() => {
+      var customHighlight;
+      if(rangeAdditionMode === "constructor"){
+        customHighlight = new Highlight(range1);
+      }
+      else if(rangeAdditionMode === "add function"){
+        customHighlight = new Highlight();
+        customHighlight.add(range1);
+      }
+
+      let iterator = customHighlight.entries();
+      let element = iterator.next();
+      assert_false(element.done, 'Highlight is iterable and .next() returns an element with .done===false when the iteration didn\'t go past the last range');
+      assert_equals(element.value[0], range1, '.next() returns an element with .value[0] corresponding to the first range added to the Highlight');
+      assert_equals(element.value[1], range1, '.next() returns an element with .value[1] corresponding to the first range added to the Highlight');
+      element = iterator.next();
+      assert_true(element.done, 'Highlight is iterable and .next() returns an element with .done===true when there are no more ranges to iterate');
+      assert_equals(element.value, undefined, 'Highlight is iterable and .next() returns an element with .value undefined when there are no more ranges to iterate.');
+    }, 'Highlight can be iterated over all of its ranges initializing the iterator with .entries() and adding a range by passing it to the ' + rangeAdditionMode);
+
+    test(() => {
+      var customHighlight;
+      if(rangeAdditionMode === "constructor"){
+        customHighlight = new Highlight(range1, range2);
+      }
+      else if(rangeAdditionMode === "add function"){
+        customHighlight = new Highlight();
+        customHighlight.add(range1);
+        customHighlight.add(range2);
+      }
+
+      let iterator = customHighlight.entries();
+      let element = iterator.next();
+      assert_false(element.done, 'Highlight is iterable and .next() returns an element with .done===false when the iteration didn\'t go past the last highlight');
+      assert_equals(element.value[0], range1, '.next() returns an element with .value[0] corresponding to the first range added to the Highlight');
+      assert_equals(element.value[1], range1, '.next() returns an element with .value[1] corresponding to the first range added to the Highlight');
+      element = iterator.next();
+      assert_false(element.done, 'Highlight is iterable and .next() returns an element with .done===false when the iteration didn\'t go past the last highlight');
+      assert_equals(element.value[0], range2, '.next() returns an element with .value[0] corresponding to the second range added to the Highlight');
+      assert_equals(element.value[1], range2, '.next() returns an element with .value[1] corresponding to the second range added to the Highlight');
+      element = iterator.next();
+      assert_true(element.done, 'Highlight is iterable and .next() returns an element with .done===true when there are no more ranges to iterate');
+      assert_equals(element.value, undefined, 'Highlight is iterable and .next() returns an element with .value undefined when there are no more ranges to iterate.');
+    }, 'Highlight can be iterated over all of its ranges initializing the iterator with .entries() and adding two ranges by passing them to the ' + rangeAdditionMode);
+  }
+
+  // Test .forEach
+
+  function compareArrays(array1, array2){
+    if(array1.length != array2.length){
+      return false;
+    }
+    for(let index=0; index<array1.length; ++index){
+      if(array1[index] != array2[index])
+        return false;
+    }
+    return true;
+  }
+
+  test(() => {
+    let customHighlight = new Highlight();
+    let expectedResult = [];
+    let actualResult = [];
+    customHighlight.forEach((range) => {actualResult.push(range);});
+    assert_true(compareArrays(actualResult, expectedResult), 'The ranges seen match the ranges added');
+  }, 'Highlight can be iterated through when it\'s empty using forEach.');
+
+  for(let rangeAdditionMode of rangeAdditionModeCollection){
+    test(() => {
+      var customHighlight;
+      if(rangeAdditionMode === "constructor"){
+        customHighlight = new Highlight(range1);
+      }
+      else if(rangeAdditionMode === "add function"){
+        customHighlight = new Highlight();
+        customHighlight.add(range1);
+      }
+
+      let expectedResult = [range1];
+      let actualResult = [];
+      customHighlight.forEach((range) => {actualResult.push(range);});
+      assert_true(compareArrays(actualResult, expectedResult), 'The ranges seen match the ranges added');
+    }, 'Highlight can be iterated through using forEach when it has one range that was added by passing it to the ' + rangeAdditionMode);
+
+    test(() => {
+      var customHighlight;
+      if(rangeAdditionMode === "constructor"){
+        customHighlight = new Highlight(range1, range2);
+      }
+      else if(rangeAdditionMode === "add function"){
+        customHighlight = new Highlight();
+        customHighlight.add(range1);
+        customHighlight.add(range2);
+      }
+
+      let expectedResult = [range1, range2];
+      let actualResult = [];
+      customHighlight.forEach((range) => {actualResult.push(range);});
+      assert_true(compareArrays(actualResult, expectedResult), 'The ranges seen match the ranges added');
+    }, 'Highlight can be iterated through using forEach when it has two ranges that were added by passing them to the ' + rangeAdditionMode);
+  }
+
+</script>

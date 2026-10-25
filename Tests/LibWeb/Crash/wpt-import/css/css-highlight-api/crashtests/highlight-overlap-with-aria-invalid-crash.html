@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>
+  ::highlight(test) { background-color: yellow; }
+</style>
+<div aria-invalid="grammar" id="div1">This are a dog</div>
+<script>
+  const div1 = document.getElementById("div1");
+  const text_node = div1.firstChild;
+  const range = document.createRange();
+  range.setStart(div1, 0);
+  range.setEnd(div1, 1);
+  const highlight = new Highlight(range);
+  CSS.highlights.set("test", highlight);
+</script>

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<style>
+::highlight(h1) { background-color: rgba(255,0,0,.5); }
+::highlight(h2) { background-color: rgba(0,0,255,.5); }
+</style>
+<div id="t"><img src="../../../images/blank-highlight.png"></div>
+<script>
+const range = new StaticRange({startContainer: t, startOffset: 0, endContainer: t, endOffset: 1});
+CSS.highlights.set("h1", new Highlight(range));
+CSS.highlights.set("h2", new Highlight(range));
+</script>

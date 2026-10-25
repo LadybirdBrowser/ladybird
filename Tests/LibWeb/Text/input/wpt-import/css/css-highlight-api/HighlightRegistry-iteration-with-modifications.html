@@ -1,0 +1,154 @@
+<!doctype html>
+<title>HighlightRegistry iteration with insertions and deletions inbetween</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  'use strict';
+  let customHighlight1 = new Highlight();
+  let customHighlight2 = new Highlight();
+  let highlightName1 = "example1";
+  let highlightName2 = "example2";
+
+  // Test insertions using .set
+  test(() => {
+    let iterator = CSS.highlights[Symbol.iterator]();
+    CSS.highlights.set(highlightName1, customHighlight1);
+    let element = iterator.next();
+    assert_false(element.done, 'The iteration continues when a new Highlight is added after starting the iteration');
+    assert_equals(element.value[0], highlightName1, 'The highlight name added after starting the iteration is found during the current iteration, following Map semantics');
+    assert_equals(element.value[1], customHighlight1, 'The Highlight added after starting the iteration is found during the current iteration, following Map semantics');
+    element = iterator.next();
+    assert_true(element.done, 'The iteration ends after visiting the added Highlight');
+    assert_equals(element.value, undefined, '.next() returns undefined when the iteration ends');
+  }, 'HighlightRegistry iteration includes Highlights added after starting the iteration (Map-like behavior)');
+
+  CSS.highlights.clear();
+
+  test(() => {
+    CSS.highlights.set(highlightName1, customHighlight1);
+    let iterator = CSS.highlights[Symbol.iterator]();
+    CSS.highlights.set(highlightName2, customHighlight2);
+    let element = iterator.next();
+    assert_false(element.done, 'The iteration continues with the first Highlight');
+    assert_equals(element.value[0], highlightName1, 'The first highlight name is returned');
+    assert_equals(element.value[1], customHighlight1, 'The first Highlight is returned');
+
+    element = iterator.next();
+    assert_false(element.done, 'The iteration continues to the Highlight added after starting the iteration, following Map semantics');
+    assert_equals(element.value[0], highlightName2, 'The highlight name added after starting the iteration is visited');
+    assert_equals(element.value[1], customHighlight2, 'The Highlight added after starting the iteration is visited');
+    element = iterator.next();
+    assert_true(element.done, 'The iteration ends after visiting both Highlights');
+    assert_equals(element.value, undefined, '.next() returns undefined when the iteration ends');
+  }, 'HighlightRegistry iteration includes Highlights added after starting the iteration when there were already Highlights (Map-like behavior)');
+
+  CSS.highlights.clear();
+
+  // Test deletions using .delete
+  test(() => {
+    CSS.highlights.set(highlightName1, customHighlight1);
+    let iterator = CSS.highlights[Symbol.iterator]();
+    CSS.highlights.delete(highlightName1);
+    let element = iterator.next();
+    assert_true(element.done, 'The iteration ends when the only Highlight is deleted before visiting it, following Map semantics');
+    assert_equals(element.value, undefined, 'A Highlight deleted before being visited is not returned during iteration');
+  }, 'HighlightRegistry iteration skips Highlights deleted before being visited (Map-like behavior)');
+
+  CSS.highlights.clear();
+
+  test(() => {
+    CSS.highlights.set(highlightName1, customHighlight1);
+    CSS.highlights.set(highlightName2, customHighlight2);
+    let iterator = CSS.highlights[Symbol.iterator]();
+    CSS.highlights.delete(highlightName2);
+    let element = iterator.next();
+    assert_false(element.done, 'The iteration doesn\'t end although the Highlight following to the one that was pointed to by the iterator was deleted');
+    assert_equals(element.value[0], highlightName1, 'The highlight name that was pointed to by the iterator is returned as it should although the next Highlight was deleted immediately after starting the iteration');
+    assert_equals(element.value[1], customHighlight1, 'The Highlight that was pointed to by the iterator is returned as it should although the next Highlight was deleted immediately after starting the iteration');
+    element = iterator.next();
+    assert_true(element.done, 'The iteration ends after the first Highlight since the second Highlight was deleted before being visited, following Map semantics');
+    assert_equals(element.value, undefined, '.next() returns undefined when the iteration ends');
+  }, 'HighlightRegistry iteration skips Highlights deleted before being visited even when other Highlights remain (Map-like behavior)');
+
+  CSS.highlights.clear();
+
+  test(() => {
+    CSS.highlights.set(highlightName1, customHighlight1);
+    CSS.highlights.set(highlightName2, customHighlight2);
+    let iterator = CSS.highlights[Symbol.iterator]();
+    let element = iterator.next();
+    assert_false(element.done, 'The iteration doesn\'t end when there are still two Highlights to visit');
+    assert_equals(element.value[0], highlightName1, 'The highlight name that was pointed to by the iterator is returned as it should');
+    assert_equals(element.value[1], customHighlight1, 'The Highlight that was pointed to by the iterator is returned as it should');
+    CSS.highlights.delete(highlightName1);
+    element = iterator.next();
+    assert_false(element.done, 'The iteration doesn\'t end when the Highlight previously visited is deleted and there is still a Highlight to visit');
+    assert_equals(element.value[0], highlightName2, 'The highlight name that was pointed to by the iterator is returned as it should although the previous Highlight was deleted after calling .next');
+    assert_equals(element.value[1], customHighlight2, 'The Highlight that was pointed to by the iterator is returned as it should although the previous Highlight was deleted after calling .next');
+    element = iterator.next();
+    assert_true(element.done, 'The iteration ends after going through all the highlights although the first Highlight was deleted after the first call to .next');
+    assert_equals(element.value, undefined, '.next() returns undefined when the iteration ends');
+  }, 'HighlightRegistry iteration is not modified when a Highlight that was already visited is deleted and there are still Highlights to visit');
+
+  CSS.highlights.clear();
+
+  // Test deletions using .clear
+  test(() => {
+    CSS.highlights.set(highlightName1, customHighlight1);
+    let iterator = CSS.highlights[Symbol.iterator]();
+    CSS.highlights.clear();
+    let element = iterator.next();
+    assert_true(element.done, 'The iteration ends when all Highlights are cleared before visiting them, following Map semantics');
+    assert_equals(element.value, undefined, '.clear() removes all Highlights before iteration visits them');
+  }, 'HighlightRegistry iteration skips all Highlights when .clear() is called before visiting them (Map-like behavior)');
+
+  CSS.highlights.clear();
+
+  // Test overwriting an existing highlight name using .set
+  test(() => {
+    CSS.highlights.set(highlightName1, customHighlight1);
+    CSS.highlights.set(highlightName2, customHighlight2);
+    let iterator = CSS.highlights[Symbol.iterator]();
+    let element = iterator.next();
+    assert_false(element.done, 'The iteration doesn\'t end when there are still two Highlights to visit');
+    assert_equals(element.value[0], highlightName1, 'The first highlight name is returned');
+
+    // Overwriting an existing name replaces its Highlight in place, so the
+    // entry keeps its position and is not visited again.
+    let newHighlight = new Highlight();
+    CSS.highlights.set(highlightName1, newHighlight);
+
+    element = iterator.next();
+    assert_false(element.done, 'The iteration continues with the second Highlight after overwriting the first one');
+    assert_equals(element.value[0], highlightName2, 'The second highlight name is returned after overwriting the highlight name that was already visited');
+    assert_equals(element.value[1], customHighlight2, 'The second Highlight is returned after overwriting the highlight name that was already visited');
+    element = iterator.next();
+    assert_true(element.done, 'The iteration ends without visiting the overwritten highlight name a second time, following Map semantics');
+    assert_equals(element.value, undefined, '.next() returns undefined when the iteration ends');
+  }, 'HighlightRegistry iteration doesn\'t visit a highlight name again when it is overwritten with .set() after being visited (Map-like behavior)');
+
+  CSS.highlights.clear();
+
+  test(() => {
+    let names = ["example1", "example2", "example3", "example4", "example5"];
+    for (let name of names)
+      CSS.highlights.set(name, new Highlight());
+
+    // Overwriting the highlight name the iterator is pointing at must not move
+    // it to the end of the registry, otherwise the iteration never terminates.
+    let visited = [];
+    for (let [name] of CSS.highlights) {
+      visited.push(name);
+      assert_less_than_equal(visited.length, names.length,
+        'The iteration terminates when every visited highlight name is overwritten with .set()');
+      CSS.highlights.set(name, new Highlight());
+    }
+
+    assert_array_equals(visited, names,
+      'Every highlight name is visited exactly once and in insertion order, following Map semantics');
+  }, 'HighlightRegistry iteration terminates when every visited highlight name is overwritten with .set() (Map-like behavior)');
+
+  CSS.highlights.clear();
+
+</script>
