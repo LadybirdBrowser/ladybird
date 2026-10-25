@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>print() in a detached iframe</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<body>
+<script>
+"use strict";
+
+test(() => {
+  const iframe = document.createElement("iframe");
+  document.body.append(iframe);
+  const print = iframe.contentWindow.print;
+  iframe.remove();
+
+  print();
+});
+</script>

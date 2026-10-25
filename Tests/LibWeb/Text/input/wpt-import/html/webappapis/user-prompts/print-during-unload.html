@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>print() during unload</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<body>
+<script>
+"use strict";
+
+async_test(t => {
+  const w = window.open("resources/print-during-event.sub.html?event=unload");
+  t.add_cleanup(() => w.close());
+
+  const messages = [];
+  window.addEventListener("message", t.step_func(({ data }) => {
+    messages.push(data);
+
+    if (messages.length === 1) {
+      assert_array_equals(messages, ["start"]);
+      w.location.href = "resources/destination.html";
+    } else if (messages.length === 2) {
+      // The test passes if we've reached this point because the print() dialog did not block the navigation.
+      assert_array_equals(messages, ["start", "destination"]);
+      t.done();
+    }
+  }));
+});
+</script>
