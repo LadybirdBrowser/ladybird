@@ -2049,6 +2049,15 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             return EventResult::Handled;
         }
 
+        // AD-HOC: Like in other engines, the up and down arrow keys step the value of a number input.
+        if ((key == UIEvents::KeyCode::Key_Up || key == UIEvents::KeyCode::Key_Down) && (modifiers & ~UIEvents::Mod_Keypad) == UIEvents::Mod_None) {
+            if (auto* input_element = as_if<HTML::HTMLInputElement>(document->focused_area().ptr()); input_element && input_element->type_state() == HTML::HTMLInputElement::TypeAttributeState::Number) {
+                auto direction = key == UIEvents::KeyCode::Key_Up ? HTML::HTMLInputElement::StepDirection::Up : HTML::HTMLInputElement::StepDirection::Down;
+                input_element->step_for_user_interaction(direction, HTML::HTMLInputElement::CommitChange::Yes);
+                return EventResult::Handled;
+            }
+        }
+
         if (key == UIEvents::KeyCode::Key_Up || key == UIEvents::KeyCode::Key_Down) {
             auto collapse = modifiers & UIEvents::Mod_Shift ? InputEventsTarget::CollapseSelection::No : InputEventsTarget::CollapseSelection::Yes;
             if (key == UIEvents::KeyCode::Key_Up) {

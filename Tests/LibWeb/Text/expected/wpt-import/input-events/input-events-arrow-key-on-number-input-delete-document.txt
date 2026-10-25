@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Number input should not crash and not fire subsequent events when event handler removes document
+1 Pass
+Pass	Number input should not crash and not fire subsequent events when event handler removes document

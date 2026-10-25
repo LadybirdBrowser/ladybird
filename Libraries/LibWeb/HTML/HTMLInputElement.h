@@ -170,6 +170,16 @@ public:
     WebIDL::ExceptionOr<void> step_up(WebIDL::Long n = 1);
     WebIDL::ExceptionOr<void> step_down(WebIDL::Long n = 1);
 
+    enum class StepDirection : u8 {
+        Up,
+        Down,
+    };
+    enum class CommitChange : u8 {
+        No,
+        Yes,
+    };
+    void step_for_user_interaction(StepDirection, CommitChange);
+
     WebIDL::ExceptionOr<void> show_picker();
 
     // ^EventTarget
@@ -331,7 +341,15 @@ private:
     double step_scale_factor() const;
     Optional<double> allowed_value_step() const;
     double step_base() const;
-    WebIDL::ExceptionOr<void> step_up_or_down(bool is_down, WebIDL::Long n);
+    enum class StepTrigger : u8 {
+        Script,
+        UserInteraction,
+    };
+    enum class StepResult : u8 {
+        NotStepped,
+        Stepped,
+    };
+    WebIDL::ExceptionOr<StepResult> step_up_or_down(bool is_down, WebIDL::Long n, StepTrigger = StepTrigger::Script);
 
     static TypeAttributeState parse_type_attribute(Utf16View);
 
