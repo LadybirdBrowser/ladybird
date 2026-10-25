@@ -318,11 +318,11 @@ static bool parent_element_for_event_dispatch(Layout::Node& target_layout_node, 
     }
 
     // An event aimed at a disabled form control is not dispatched, and neither is one aimed at
-    // anything under one.
+    // anything under one, including the contents of its shadow tree.
     // NB: The document outlives every live row of its arena.
     VERIFY(arena.document());
     auto& document = *arena.document();
-    for (auto ancestor = identity.resolve(document); ancestor; ancestor = ancestor->parent()) {
+    for (GC::Ptr<DOM::Node> ancestor = identity.resolve(document); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
         if (auto const* form_associated_element = as_if<HTML::FormAssociatedElement>(*ancestor); form_associated_element && !form_associated_element->enabled())
             return false;
     }
