@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+test(() => {
+  const target1 = document.createElement("div");
+  document.body.append(target1);
+  const target2 = document.createElement("div");
+  document.body.append(target2);
+
+  try {
+    target1.style = "line-height: 20px; tab-size: 1lh;";
+    target2.style = "line-height: 20px; tab-size: 1lh; zoom: 2;";
+
+    assert_equals(getComputedStyle(target1).tabSize, getComputedStyle(target2).tabSize);
+    assert_equals(getComputedStyle(target1).tabSize, "20px");
+    assert_equals(getComputedStyle(target2).tabSize, "20px");
+  } finally {
+    target1.remove();
+    target2.remove();
+  }
+}, "element with px line-height");
+
+test(() => {
+  const target1 = document.createElement("div");
+  document.body.append(target1);
+  const target2 = document.createElement("div");
+  document.body.append(target2);
+
+  try {
+    target1.style = "font-size: 100px; line-height: 20%; tab-size: 1lh;";
+    target2.style = "font-size: 100px; line-height: 20%; tab-size: 1lh; zoom: 2;";
+
+    assert_equals(getComputedStyle(target1).tabSize, getComputedStyle(target2).tabSize);
+    assert_equals(getComputedStyle(target1).tabSize, "20px");
+    assert_equals(getComputedStyle(target2).tabSize, "20px");
+  } finally {
+    target1.remove();
+    target2.remove();
+  }
+}, "element with percentage line-height");
+
+test(() => {
+  const container1 = document.createElement("div");
+  const target1 = document.createElement("div");
+  container1.appendChild(target1);
+  document.body.append(container1);
+
+  const container2 = document.createElement("div");
+  const target2 = document.createElement("div");
+  container2.appendChild(target2);
+  document.body.append(container2);
+
+  try {
+    container1.style = "line-height: 20px;";
+    target1.style = "font-size: 1lh; line-height: 1lh;";
+
+    container2.style = "line-height: 20px; zoom: 2;";
+    target2.style = "font-size: 1lh; line-height: 1lh;";
+
+    assert_equals(getComputedStyle(target1).fontSize, getComputedStyle(target2).fontSize);
+    assert_equals(getComputedStyle(target1).lineHeight, getComputedStyle(target2).fontSize);
+
+    assert_equals(getComputedStyle(target1).fontSize, '20px');
+    assert_equals(getComputedStyle(target1).lineHeight, '20px');
+    assert_equals(getComputedStyle(target2).fontSize, '20px');
+    assert_equals(getComputedStyle(target2).lineHeight, '20px');
+  } finally {
+    container1.remove();
+    container2.remove()
+  }
+}, "parent with px line-height");
+
+test(() => {
+  const container1 = document.createElement("div");
+  const target1 = document.createElement("div");
+  container1.appendChild(target1);
+  document.body.append(container1);
+
+  const container2 = document.createElement("div");
+  const target2 = document.createElement("div");
+  container2.appendChild(target2);
+  document.body.append(container2);
+
+  try {
+    container1.style = "font-size: 100px; line-height: 20%;";
+    target1.style = "font-size: 1lh; line-height: 1lh;";
+
+    container2.style = "font-size: 100px; line-height: 20%; zoom: 2;";
+    target2.style = "font-size: 1lh; line-height: 1lh;";
+
+    assert_equals(getComputedStyle(target1).fontSize, getComputedStyle(target2).fontSize);
+    assert_equals(getComputedStyle(target1).lineHeight, getComputedStyle(target2).fontSize);
+
+    assert_equals(getComputedStyle(target1).fontSize, '20px');
+    assert_equals(getComputedStyle(target1).lineHeight, '20px');
+    assert_equals(getComputedStyle(target2).fontSize, '20px');
+    assert_equals(getComputedStyle(target2).lineHeight, '20px');
+  } finally {
+    container1.remove();
+    container2.remove()
+  }
+}, "parent with percentage line-height");
+
+test(() => {
+  const target = document.createElement("div");
+  document.body.append(target);
+
+  document.documentElement.style = "line-height: 20px;"
+
+  try {
+    target.style = "font-size: 1rlh; line-height: 1rlh;";
+
+    const unzoomedRootFontSize = getComputedStyle(target).fontSize;
+    const unzoomedRootLineHeight = getComputedStyle(target).lineHeight;
+
+    assert_equals(getComputedStyle(target).fontSize, '20px');
+    assert_equals(getComputedStyle(target).lineHeight, '20px');
+
+    document.documentElement.style = "line-height: 20px; zoom: 2";
+
+    assert_equals(getComputedStyle(target).fontSize, '20px');
+    assert_equals(getComputedStyle(target).lineHeight, '20px');
+
+    assert_equals(getComputedStyle(target).fontSize, unzoomedRootFontSize);
+    assert_equals(getComputedStyle(target).lineHeight, unzoomedRootLineHeight);
+  } finally {
+    document.documentElement.style = "";
+    target.remove();
+  }
+}, "root with px line-height");
+
+test(() => {
+  const target = document.createElement("div");
+  document.body.append(target);
+
+  document.documentElement.style = "font-size: 100px; line-height: 20%;"
+
+  try {
+    target.style = "font-size: 1rlh; line-height: 1rlh;";
+
+    const unzoomedRootFontSize = getComputedStyle(target).fontSize;
+    const unzoomedRootLineHeight = getComputedStyle(target).lineHeight;
+
+    assert_equals(getComputedStyle(target).fontSize, '20px');
+    assert_equals(getComputedStyle(target).lineHeight, '20px');
+
+    document.documentElement.style = "font-size: 100px; line-height: 20%; zoom: 2";
+
+    assert_equals(getComputedStyle(target).fontSize, '20px');
+    assert_equals(getComputedStyle(target).lineHeight, '20px');
+
+    assert_equals(getComputedStyle(target).fontSize, unzoomedRootFontSize);
+    assert_equals(getComputedStyle(target).lineHeight, unzoomedRootLineHeight);
+  } finally {
+    document.documentElement.style = "";
+    target.remove();
+  }
+}, "root with percentage line-height");
+</script>
+</body>

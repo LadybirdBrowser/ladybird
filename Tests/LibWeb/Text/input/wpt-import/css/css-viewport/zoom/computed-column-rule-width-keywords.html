@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS-viewport test: column-rule-width keyword values returned by getComputedStyle() are unscaled</title>
+<link rel="author" title="Ibrahim Bendebka" href="https://github.com/sb3nder">
+<meta name="assert" content="This test verifies that zoom does not scale column-rule-width keyword values returned by getComputedStyle()">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-om">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<style>
+  .thin, .medium, .thick {
+    column-rule-style: solid;
+    column-count: 2;
+    max-width: min-content;
+  }
+
+  .thin {
+    column-rule-width: thin;
+  }
+
+  .medium {
+    column-rule-width: medium;
+  }
+
+  .thick {
+    column-rule-width: thick;
+  }
+
+  .zoomed {
+    zoom: 10;
+    column-rule-color: blue;
+  }
+
+  #container {
+    /* needed for lengths snapped as a border width */
+    zoom: calc(1 / var(--device-pixel-ratio, 1));
+  }
+</style>
+
+<div id="container">
+  <div class="thin">Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore</div>
+  <div class="medium">Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore</div>
+  <div class="thick">Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore</div>
+
+  <div class="thin zoomed">Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore</div>
+  <div class="medium zoomed">Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore</div>
+  <div class="thick zoomed">Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore</div>
+</div>
+
+<script>
+  container.style.setProperty('--device-pixel-ratio', window.devicePixelRatio);
+
+  const keywords = ['thin', 'medium', 'thick'];
+  for (const keyword of keywords) {
+    const cs = getComputedStyle(document.querySelector(`.${keyword}`));
+    const csZoomed = getComputedStyle(document.querySelector(`.${keyword}.zoomed`));
+
+    test(() => {
+      assert_equals(csZoomed['column-rule-width'], cs['column-rule-width']);
+    }, `column-rule-width: ${keyword}`);
+  }
+</script>

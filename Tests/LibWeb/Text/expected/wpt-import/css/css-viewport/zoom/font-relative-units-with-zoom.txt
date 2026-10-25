@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	ic equals em for letter-spacing under CSS zoom 1.5
+Pass	ic equals em for letter-spacing under CSS zoom 2
+Pass	ic equals em for line-height under CSS zoom 1.5
+Pass	cap font-size resolves to identical unzoomed value across CSS zoom levels
+Pass	ex font-size resolves to identical unzoomed value across CSS zoom levels
+Pass	ch font-size resolves to identical unzoomed value across CSS zoom levels
+Pass	ic font-size resolves to identical unzoomed value across CSS zoom levels

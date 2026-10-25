@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	outline-width: thin
+Pass	outline-width: medium
+Pass	outline-width: thick

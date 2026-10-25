@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>scrollWidth equals clientWidth for a non-scrollable element with a fractional used width under CSS zoom</title>
+<link rel="author" title="Brent Fulgham" href="mailto:bfulgham@apple.com">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrollwidth">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-clientwidth">
+<meta name="assert" content="An element with no overflow reports the same integer for scrollWidth and clientWidth, even when CSS zoom makes its used border-box width fractional in unzoomed CSS pixels.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+/* Each width is chosen so that width * zoom is an exact integer: the used
+   border-box width is device-pixel aligned, while the unzoomed CSS-pixel value
+   is fractional. That is what exposes a size getter that rounds differently
+   from its siblings. See subpixel-sizes-and-offsets.tentative.html for the
+   unzoomed form of the same rule. */
+.box {
+  box-sizing: border-box;
+  height: 20px;
+  background: silver;
+}
+#zoom125a { zoom: 1.25; width: 203.2px; }
+#zoom125b { zoom: 1.25; width: 307.2px; }
+#zoom130  { zoom: 1.3;  width: 202.30769231px; }
+#zoom150  { zoom: 1.5;  width: 203.33333333px; }
+#zoom075  { zoom: 0.75; width: 202.66666667px; }
+</style>
+<div id="zoom125a" class="box"></div>
+<div id="zoom125b" class="box"></div>
+<div id="zoom130" class="box"></div>
+<div id="zoom150" class="box"></div>
+<div id="zoom075" class="box"></div>
+<script>
+const cases = [
+  { id: "zoom125a", zoom: "1.25", width: "203.2px" },
+  { id: "zoom125b", zoom: "1.25", width: "307.2px" },
+  { id: "zoom130",  zoom: "1.3",  width: "202.30769231px" },
+  { id: "zoom150",  zoom: "1.5",  width: "203.33333333px" },
+  { id: "zoom075",  zoom: "0.75", width: "202.66666667px" },
+];
+
+for (const testCase of cases) {
+  test(() => {
+    const box = document.getElementById(testCase.id);
+    // Pages detect scrollability with `elm.scrollWidth !== elm.clientWidth`.
+    assert_equals(box.scrollWidth, box.clientWidth,
+                  "scrollWidth must equal clientWidth when there is nothing to overflow");
+  }, `scrollWidth equals clientWidth for a non-scrollable ${testCase.width} box with 'zoom: ${testCase.zoom}'`);
+}
+</script>

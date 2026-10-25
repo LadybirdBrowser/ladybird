@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Property text-indent value '1px' single value no zoom
+Pass	Property text-indent value '1rem' rem value no zoom
+Pass	Property text-indent value 'inherit' inherit no zoom
+Pass	Property text-indent value '5px' explicit px value no zoom
+Pass	Property text-indent value '0' zero value no zoom
+Pass	Property text-indent value '1px' single value with zoom: 2
+Pass	Property text-indent value '1rem' rem value with zoom: 2
+Pass	Property text-indent value 'inherit' inherit with zoom: 2
+Pass	Property text-indent value '5px' explicit px value with zoom: 2
+Pass	Property text-indent value '0' zero value with zoom: 2

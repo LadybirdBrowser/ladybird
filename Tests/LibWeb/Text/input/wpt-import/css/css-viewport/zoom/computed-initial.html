@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+
+<meta charset="utf-8">
+<title>CSS-viewport test: initial property values returned by getComputedStyle() are unscaled</title>
+<link rel="author" title="Ibrahim Bendebka" href="https://github.com/sb3nder">
+<meta name="assert" content="This test verifies that zoom does not scale values returned by getComputedStyle() when properties are at their initial values.">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-om">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  .initial {
+    /* populated by script */
+  }
+</style>
+<style>
+  .all-initial {
+    all: initial;
+  }
+
+  .zoomed {
+    zoom: 10;
+  }
+
+  .none, .all-initial, .initial {
+    /* allows testing border-related properties */
+    border-style: solid;
+    border-color: gray;
+  }
+
+  #container {
+    /* needed for lengths snapped as a border width */
+    zoom: calc(1 / var(--device-pixel-ratio, 1));
+  }
+</style>
+
+<div id="container">
+  <div class="none"></div>
+  <div class="initial"></div>
+  <div class="all-initial"></div>
+
+  <div class="none zoomed"></div>
+  <div class="initial zoomed"></div>
+  <div class="all-initial zoomed"></div>
+
+  <div class="zoomed">
+    <div class="none"></div>
+    <div class="initial"></div>
+    <div class="all-initial"></div>
+  </div>
+
+  <div class="zoomed">
+    <div class="none zoomed"></div>
+    <div class="initial zoomed"></div>
+    <div class="all-initial zoomed"></div>
+  </div>
+</div>
+
+<script>
+  container.style.setProperty('--device-pixel-ratio', window.devicePixelRatio);
+
+  const excludedProps = [
+    'zoom',
+    '--device-pixel-ratio',
+    // exclude properties whose initial value is 'auto' or a percentage,
+    // and which return the 'used value' in getComputedStyle().
+    'width', 'height',
+    'inline-size', 'block-size',
+    'top', 'left', 'bottom', 'right',
+    'inset-inline-start', 'inset-inline-end', 'inset-block-start', 'inset-block-end',
+    'transform-origin', 'perspective-origin',
+    'min-width', 'min-height',
+    'min-inline-size', 'min-block-size'
+  ];
+
+  function isExcludedProp(prop, value) {
+    if (excludedProps.includes(prop)) return true;
+    // skip non-length props
+    if (!value.includes('px')) return true;
+    return false;
+  }
+
+  function populateInitialClass() {
+    const cs = getComputedStyle(document.querySelector('.none'));
+    let style = '.initial {';
+    for (let i = 0; i < cs.length; i++) {
+      const prop = cs.item(i);
+      const value = cs[prop];
+      if (isExcludedProp(prop, value)) continue;
+
+      style += prop + ': initial;';
+    }
+    style += '}';
+    document.querySelector('style').innerHTML = style;
+  }
+  populateInitialClass();
+
+  const testClasses = ['none', 'initial', 'all-initial'];
+  const testNameSuffixes = ['', ': initial;', ' (all: initial)'];
+
+  for (let t = 0; t < testClasses.length; t++) {
+    const el = document.querySelector(`.${testClasses[t]}`);
+    const elZoomed = document.querySelector(`.${testClasses[t]}.zoomed`);
+    const elParentZoomed = document.querySelector(`.zoomed .${testClasses[t]}`);
+    const elDoubleZoomed = document.querySelector(`.zoomed .${testClasses[t]}.zoomed`);
+
+    const cs = getComputedStyle(el);
+    const csZoomed = getComputedStyle(elZoomed);
+    const csParentZoomed = getComputedStyle(elParentZoomed);
+    const csDoubleZoomed = getComputedStyle(elDoubleZoomed);
+
+    for (let i = 0; i < cs.length; i++) {
+      const prop = cs.item(i);
+      const value = cs[prop];
+      const valueZoomed = csZoomed[prop];
+      const valueParentZoomed = csParentZoomed[prop];
+      const valueDoubleZoomed = csDoubleZoomed[prop];
+
+      if (isExcludedProp(prop, value) && isExcludedProp(prop, valueZoomed)) continue;
+
+      test(() => {
+        assert_equals(valueZoomed, value);
+        assert_equals(valueParentZoomed, value);
+        assert_equals(valueDoubleZoomed, value);
+      }, prop + testNameSuffixes[t]);
+    }
+  }
+</script>

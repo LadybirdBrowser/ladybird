@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Test: getComputedStyle().zoom, with a specified value that includes a sign() expression</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/computed-testcommon.js"></script>
+<style>
+  #container {
+    container-type: inline-size;
+    width: 100px;
+    font-size: 20px;
+  }
+</style>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+// The sign() expressions below are all expected to resolve to -1.
+
+// Same units:
+test_computed_value("zoom", 'calc(1 + (sign(2cqw - 3cqw) * 0.5))', '0.5');
+test_computed_value("zoom", 'calc(1 + (sign(5px - 10px) * 0.5))', '0.5');
+test_computed_value("zoom", 'calc(1 + (sign(5 - 10) * 0.5))', '0.5');
+test_computed_value("zoom", 'calc(1 + (sign(30deg - 40deg) * 0.5))', '0.5');
+test_computed_value("zoom", 'calc(1 + (sign(3em - 5em) * 0.5))', '0.5');
+
+// Mixed absolute units:
+test_computed_value("zoom", 'calc(1 + (sign(1cm - 1in) * 0.5))', '0.5');
+test_computed_value("zoom", 'calc(1 + (sign(1deg - 1rad) * 0.5))', '0.5');
+
+// Mixed units, one or more of which is context-dependent:
+test_computed_value("zoom", 'calc(1 + (sign(2cqw - 10px) * 0.5))', '0.5');
+test_computed_value("zoom", 'calc(100% + (sign(2cqw - 10px) * 50%))', '0.5');
+test_computed_value("zoom", 'calc(100% + (sign(1em - 30px) * 50%))', '0.5');
+test_computed_value("zoom", 'calc(100% + (sign(2cqw - 1em) * 50%))', '0.5');
+</script>

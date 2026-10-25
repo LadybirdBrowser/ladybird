@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#extension-to-the-element-interface">
+<meta name="assert" content="This test checks that the scroll offsets behave as expected on fractional zoom situations.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  .scrollable-area {
+    width: 100px;
+    height: 100px;
+    overflow: scroll;
+  }
+  .content {
+    width: 500px;
+    height: 500px;
+    background: lightgrey;
+  }
+</style>
+<div id="target" class="scrollable-area">
+  <div class="content"></div>
+</div>
+<script>
+  function runTest(zoom, x, y) {
+    // Scroll offsets might be snapped to device pixels for performance or
+    // rendering quality. Since scroll{Top,Left} round, we need to allow up to
+    // 1px of difference with the expected value.
+    const EPSILON = 1;
+
+    target.scrollTo(x, y);
+    test(() => {
+      assert_approx_equals(target.scrollLeft, x, EPSILON, `scrollLeft should be ${x}`);
+    }, `scrollLeft after scrollTo(${x}, ${y}) with 'zoom: ${zoom}'`);
+    test(() => {
+      assert_approx_equals(target.scrollTop, y, EPSILON, `scrollTop should be ${y}`);
+    }, `scrollTop after scrollTo(${x}, ${y}) with 'zoom: ${zoom}'`);
+  }
+
+  function runTests(zoom) {
+    target.style.zoom = zoom;
+
+    runTest(zoom, 0, 0);
+    runTest(zoom, 1, 2);
+    runTest(zoom, 13, 61);
+    runTest(zoom, 75, 100);
+  }
+
+  runTests(0.75);
+  runTests(0.9);
+  runTests(1);
+  runTests(1.13);
+  runTests(1.25);
+  runTests(1.5);
+  runTests(1.9);
+  runTests(2);
+  runTests(3.33);
+</script>

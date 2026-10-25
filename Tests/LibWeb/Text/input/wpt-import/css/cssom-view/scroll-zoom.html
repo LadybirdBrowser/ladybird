@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<title>scroll properties for elements with css zoom</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="author" title="Yotam Hacohen" href="mailto:yotha@chromium.org">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scroll">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+  <head>
+    <style>
+      .container {
+        height: 100px;
+        width: 100px;
+        overflow: scroll;
+      }
+      .content {
+        height: 250px;
+        width: 250px;
+        background-image: linear-gradient(red, yellow);
+      }
+      #x4_zoom_container {
+        zoom: 4;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="no_zoom_container">
+      <div class="content"></div>
+    </div>
+    <div class="container" id="x4_zoom_container">
+      <div class="content"></div>
+    </div>
+    <div class="container" id="container_with_zoomed_content">
+      <div class="content" style="zoom: 2;"></div>
+    </div>
+    <div style="zoom: 2;">
+      <div class="container" id="scroller_in_zoomed_element">
+        <div class="content"></div>
+      </div>
+    </div>
+    <script>
+        setup(() => {
+          window.noZoom = document.getElementById("no_zoom_container");
+          window.withZoom = document.getElementById("x4_zoom_container");
+          window.scrollerWithZoomContent = document.getElementById("container_with_zoomed_content");
+          window.scrollerInZoomedElement = document.getElementById("scroller_in_zoomed_element");
+        });
+        test(function() {
+          assert_true(!!noZoom, "no zoom target exists");
+          assert_true(!!withZoom, "zoom target exists");
+        });
+        test(function() {
+            // We remove zoom effects for scroll height and scroll width so values
+            // should be same for elements with and without zoom
+            // However scroll values should be changed by zoom on content
+          assert_equals(noZoom.scrollHeight, withZoom.scrollHeight, 'scrollHeight');
+          assert_equals(noZoom.scrollWidth, withZoom.scrollWidth, 'scrollWidth');
+          assert_equals(noZoom.scrollHeight*2, scrollerWithZoomContent.scrollHeight, 'scroll height for zoomed content');
+          assert_equals(noZoom.scrollWidth*2, scrollerWithZoomContent.scrollWidth, 'scroll width for zoomed content');
+          assert_equals(noZoom.scrollHeight, scrollerInZoomedElement.scrollHeight, 'scroll height for scroller in zoomed element');
+          assert_equals(noZoom.scrollWidth, scrollerInZoomedElement.scrollWidth, 'scroll width for scroller in zoomed element');
+        }, `scroll{Width, Height}`);
+
+        test(function() {
+          assert_equals(noZoom.scrollTop, 0, 'scrollTop should be 0');
+          assert_equals(noZoom.scrollLeft, 0, 'scrollLeft should be 0');
+
+          assert_equals(noZoom.scrollTop, withZoom.scrollTop, 'scrollTop');
+          assert_equals(noZoom.scrollLeft, withZoom.scrollLeft, 'scrollLeft');
+
+          noZoom.scrollTo(noZoom.scrollWidth / 2, noZoom.scrollHeight / 2);
+          withZoom.scrollTo(withZoom.scrollWidth / 2, withZoom.scrollHeight / 2);
+
+          assert_not_equals(noZoom.scrollTop, 0, 'scrollTop should not be 0');
+          assert_not_equals(noZoom.scrollLeft, 0, 'scrollLeft should not be 0');
+
+          assert_equals(noZoom.scrollTop, withZoom.scrollTop, 'scrollTop after scrollTo');
+          assert_equals(noZoom.scrollLeft, withZoom.scrollLeft, 'scrollLeft after scrollTo');
+
+          noZoom.scrollBy(2, 2);
+          withZoom.scrollBy(2, 2);
+
+          assert_equals(noZoom.scrollTop, withZoom.scrollTop, 'scrollTop after scrollBy');
+          assert_equals(noZoom.scrollLeft, withZoom.scrollLeft, 'scrollLeft after scrollBy');
+        }, `scroll{Top, Left}`);
+      </script>
+  </body>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <meta name="assert" content="test font-relative units and zoom">
+  <style>
+    html {
+      font-size: 20px;
+      line-height: 1;
+      zoom: 2;
+    }
+
+    .unit {
+      height: 20px;
+      outline: 1px solid black;
+      outline-offset: -1px;
+    }
+
+    .unit::after {
+      content: attr(id);
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="div"></div>
+  <script>
+    const units = [
+      ['em', 'rem'],
+      ['lh', 'rlh'],
+      ['ex', 'rex'],
+      ['cap', 'rcap'],
+      ['ch', 'rch'],
+      ['ic', 'ric'],
+    ];
+
+    for (const pair of units) {
+      for (const unit of pair) {
+        div.insertAdjacentHTML("beforeend", `<div class="unit" id="${unit}" style="width: 5${unit}"></div>`);
+      }
+    }
+
+    setup({ explicit_done: true });
+    document.fonts.ready.then(() => {
+      for (const [localUnit, rootUnit] of units) {
+        test(() => {
+          let localUnitWidth = document.getElementById(localUnit).getBoundingClientRect().width;
+          let rootUnitWidth = document.getElementById(rootUnit).getBoundingClientRect().width;
+          assert_equals(localUnitWidth, rootUnitWidth, `expect 1${localUnit} = 1${rootUnit} at the same effective zoom`);
+        }, `${localUnit} = ${rootUnit}`);
+      }
+      done();
+    });
+  </script>
+</body>
+</html>

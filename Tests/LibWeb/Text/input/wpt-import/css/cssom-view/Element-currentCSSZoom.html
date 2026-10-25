@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Element.currentCSSZoom</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-currentcsszoom">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="unzoomed">
+  <div id="unzoomedChild"></div>
+</div>
+<div style="zoom: 2" id="outer">
+  <div style="zoom: 2" id="inner">
+    <div id="renderedChild"></div>
+    <div style="display: none" id="nonRenderedChild"></div>
+  </div>
+</div>
+<script>
+test(() => {
+  assert_equals(unzoomed.currentCSSZoom, 1, "Unzoomed content");
+  assert_equals(outer.currentCSSZoom, 2, "Zoomed content");
+  assert_equals(inner.currentCSSZoom, 4, "Effective zoom gets multiplied properly");
+  assert_equals(renderedChild.currentCSSZoom, 4, "Effective zoom gets propagated to children");
+  assert_equals(nonRenderedChild.currentCSSZoom, 1, "Non-rendered elements return 1 for currentCSSZoom");
+}, "Element.currentCSSZoom basic test");
+
+test(() => {
+  unzoomed.style.zoom = 2;
+  assert_equals(unzoomed.currentCSSZoom, 2, "currentCSSZoom reacts to style changes");
+  assert_equals(unzoomedChild.currentCSSZoom, 2, "currentCSSZoom propagates to descendants after style changes");
+}, "Element.currentCSSZoom reacts to style changes");
+</script>

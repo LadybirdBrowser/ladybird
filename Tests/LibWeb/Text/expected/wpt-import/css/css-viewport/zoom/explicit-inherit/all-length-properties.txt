@@ -1,0 +1,151 @@
+Harness status: OK
+
+Found 146 tests
+
+146 Pass
+Pass	border-spacing: 10px; parent=10px; child=10px
+Pass	font-size: 10px; parent=10px; child=10px
+Pass	letter-spacing: 10px; parent=10px; child=10px
+Pass	line-height: 10px; parent=10px; child=10px
+Pass	list-style-image: linear-gradient(black 10px, white 20px); parent=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px); child=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px)
+Pass	stroke-dasharray: 10px; parent=10px; child=10px
+Pass	stroke-dashoffset: 10px; parent=10px; child=10px
+Pass	stroke-width: 10px; parent=10px; child=10px
+Pass	tab-size: 10px; parent=10px; child=10px
+Pass	text-indent: 10px; parent=10px; child=10px
+Pass	text-shadow: 10px 20px; parent=rgb(0, 0, 0) 10px 20px 0px; child=rgb(0, 0, 0) 10px 20px 0px
+Pass	text-underline-offset: 10px; parent=10px; child=10px
+Pass	word-spacing: 10px; parent=10px; child=10px
+Pass	animation-range-end: 10px; parent=10px; child=10px
+Pass	animation-range-start: 10px; parent=10px; child=10px
+Pass	backdrop-filter: blur(10px); parent=blur(10px); child=blur(10px)
+Pass	background-image: linear-gradient(black 10px, white 20px); parent=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px); child=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px)
+Pass	background-position-x: 10px; parent=10px; child=10px
+Pass	background-position-y: 10px; parent=10px; child=10px
+Pass	background-size: 10px; parent=10px auto; child=10px auto
+Pass	baseline-shift: 10px; parent=10px; child=10px
+Pass	block-size: 10px; parent=10px; child=10px
+Pass	border-block-end-width: 10px; parent=0px; child=0px
+Pass	border-block-start-width: 10px; parent=0px; child=0px
+Pass	border-bottom-left-radius: 10px; parent=10px; child=10px
+Pass	border-bottom-right-radius: 10px; parent=10px; child=10px
+Pass	border-bottom-width: 10px; parent=0px; child=0px
+Pass	border-end-end-radius: 10px; parent=10px; child=10px
+Pass	border-end-start-radius: 10px; parent=10px; child=10px
+Pass	border-image-outset: 10px; parent=10px; child=10px
+Pass	border-image-source: linear-gradient(black 10px, white 20px); parent=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px); child=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px)
+Pass	border-image-width: 10px; parent=10px; child=10px
+Pass	border-inline-end-width: 10px; parent=0px; child=0px
+Pass	border-inline-start-width: 10px; parent=0px; child=0px
+Pass	border-left-width: 10px; parent=0px; child=0px
+Pass	border-right-width: 10px; parent=0px; child=0px
+Pass	border-shape: inset(10px); parent=inset(10px); child=inset(10px)
+Pass	border-start-end-radius: 10px; parent=10px; child=10px
+Pass	border-start-start-radius: 10px; parent=10px; child=10px
+Pass	border-top-left-radius: 10px; parent=10px; child=10px
+Pass	border-top-right-radius: 10px; parent=10px; child=10px
+Pass	border-top-width: 10px; parent=0px; child=0px
+Pass	bottom: 10px; parent=10px; child=10px
+Pass	box-shadow: 10px 20px; parent=rgb(0, 0, 0) 10px 20px 0px 0px; child=rgb(0, 0, 0) 10px 20px 0px 0px
+Pass	clip: rect(10px 20px 30px 40px); parent=rect(10px, 20px, 30px, 40px); child=rect(10px, 20px, 30px, 40px)
+Pass	clip-path: inset(10px); parent=inset(10px); child=inset(10px)
+Pass	column-gap: 10px; parent=10px; child=10px
+Pass	column-height: 10px; parent=10px; child=10px
+Pass	column-rule-width: 10px; parent=10px; child=10px
+Pass	column-width: 10px; parent=10px; child=10px
+Pass	contain-intrinsic-block-size: 10px; parent=10px; child=10px
+Pass	contain-intrinsic-height: 10px; parent=10px; child=10px
+Pass	contain-intrinsic-inline-size: 10px; parent=10px; child=10px
+Pass	contain-intrinsic-width: 10px; parent=10px; child=10px
+Pass	content: linear-gradient(black 10px, white 20px); parent=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px); child=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px)
+Pass	cx: 10px; parent=10px; child=10px
+Pass	cy: 10px; parent=10px; child=10px
+Pass	filter: blur(10px); parent=blur(10px); child=blur(10px)
+Pass	flex-basis: 10px; parent=10px; child=10px
+Pass	grid-auto-columns: 10px; parent=10px; child=10px
+Pass	grid-auto-rows: 10px; parent=10px; child=10px
+Pass	grid-template-columns: 10px; parent=10px; child=10px
+Pass	grid-template-rows: 10px; parent=10px; child=10px
+Pass	height: 10px; parent=10px; child=10px
+Pass	inline-size: 10px; parent=10px; child=10px
+Pass	inset-block-end: 10px; parent=10px; child=10px
+Pass	inset-block-start: 10px; parent=10px; child=10px
+Pass	inset-inline-end: 10px; parent=10px; child=10px
+Pass	inset-inline-start: 10px; parent=10px; child=10px
+Pass	left: 10px; parent=10px; child=10px
+Pass	margin-block-end: 10px; parent=10px; child=10px
+Pass	margin-block-start: 10px; parent=10px; child=10px
+Pass	margin-bottom: 10px; parent=10px; child=10px
+Pass	margin-inline-end: 10px; parent=10px; child=10px
+Pass	margin-inline-start: 10px; parent=10px; child=10px
+Pass	margin-left: 10px; parent=10px; child=10px
+Pass	margin-right: 10px; parent=10px; child=10px
+Pass	margin-top: 10px; parent=10px; child=10px
+Pass	mask-image: linear-gradient(black 10px, white 20px); parent=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px); child=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px)
+Pass	mask-position: 10px; parent=10px 50%; child=10px 50%
+Pass	mask-size: 10px; parent=10px auto; child=10px auto
+Pass	max-block-size: 10px; parent=10px; child=10px
+Pass	max-height: 10px; parent=10px; child=10px
+Pass	max-inline-size: 10px; parent=10px; child=10px
+Pass	max-width: 10px; parent=10px; child=10px
+Pass	min-block-size: 10px; parent=10px; child=10px
+Pass	min-height: 10px; parent=10px; child=10px
+Pass	min-inline-size: 10px; parent=10px; child=10px
+Pass	min-width: 10px; parent=10px; child=10px
+Pass	object-position: 10px; parent=10px 50%; child=10px 50%
+Pass	offset-anchor: 10px; parent=10px 50%; child=10px 50%
+Pass	offset-distance: 10px; parent=10px; child=10px
+Pass	offset-path: inset(10px); parent=inset(10px); child=inset(10px)
+Pass	offset-position: 10px; parent=10px 50%; child=10px 50%
+Pass	outline-offset: 10px; parent=10px; child=10px
+Pass	outline-width: 10px; parent=10px; child=10px
+Pass	overflow-clip-margin-block-end: 10px; parent=10px; child=10px
+Pass	overflow-clip-margin-block-start: 10px; parent=10px; child=10px
+Pass	overflow-clip-margin-bottom: 10px; parent=10px; child=10px
+Pass	overflow-clip-margin-inline-end: 10px; parent=10px; child=10px
+Pass	overflow-clip-margin-inline-start: 10px; parent=10px; child=10px
+Pass	overflow-clip-margin-left: 10px; parent=10px; child=10px
+Pass	overflow-clip-margin-right: 10px; parent=10px; child=10px
+Pass	overflow-clip-margin-top: 10px; parent=10px; child=10px
+Pass	padding-block-end: 10px; parent=10px; child=10px
+Pass	padding-block-start: 10px; parent=10px; child=10px
+Pass	padding-bottom: 10px; parent=10px; child=10px
+Pass	padding-inline-end: 10px; parent=10px; child=10px
+Pass	padding-inline-start: 10px; parent=10px; child=10px
+Pass	padding-left: 10px; parent=10px; child=10px
+Pass	padding-right: 10px; parent=10px; child=10px
+Pass	padding-top: 10px; parent=10px; child=10px
+Pass	perspective: 10px; parent=10px; child=10px
+Pass	perspective-origin: 10px; parent=10px 0px; child=10px 0px
+Pass	r: 10px; parent=10px; child=10px
+Pass	right: 10px; parent=10px; child=10px
+Pass	row-gap: 10px; parent=10px; child=10px
+Pass	rx: 10px; parent=10px; child=10px
+Pass	ry: 10px; parent=10px; child=10px
+Pass	scroll-margin-block-end: 10px; parent=10px; child=10px
+Pass	scroll-margin-block-start: 10px; parent=10px; child=10px
+Pass	scroll-margin-bottom: 10px; parent=10px; child=10px
+Pass	scroll-margin-inline-end: 10px; parent=10px; child=10px
+Pass	scroll-margin-inline-start: 10px; parent=10px; child=10px
+Pass	scroll-margin-left: 10px; parent=10px; child=10px
+Pass	scroll-margin-right: 10px; parent=10px; child=10px
+Pass	scroll-margin-top: 10px; parent=10px; child=10px
+Pass	scroll-padding-block-end: 10px; parent=10px; child=10px
+Pass	scroll-padding-block-start: 10px; parent=10px; child=10px
+Pass	scroll-padding-bottom: 10px; parent=10px; child=10px
+Pass	scroll-padding-inline-end: 10px; parent=10px; child=10px
+Pass	scroll-padding-inline-start: 10px; parent=10px; child=10px
+Pass	scroll-padding-left: 10px; parent=10px; child=10px
+Pass	scroll-padding-right: 10px; parent=10px; child=10px
+Pass	scroll-padding-top: 10px; parent=10px; child=10px
+Pass	shape-margin: 10px; parent=10px; child=10px
+Pass	shape-outside: inset(10px); parent=inset(10px); child=inset(10px)
+Pass	text-decoration-thickness: 10px; parent=10px; child=10px
+Pass	top: 10px; parent=10px; child=10px
+Pass	transform-origin: 10px; parent=10px 0px; child=10px 0px
+Pass	translate: 10px; parent=10px; child=10px
+Pass	vertical-align: 10px; parent=10px; child=10px
+Pass	view-timeline-inset: 10px; parent=10px; child=10px
+Pass	width: 10px; parent=10px; child=10px
+Pass	x: 10px; parent=10px; child=10px
+Pass	y: 10px; parent=10px; child=10px

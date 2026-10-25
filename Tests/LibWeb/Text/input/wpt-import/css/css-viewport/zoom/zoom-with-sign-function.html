@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#sign-funcs">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/numeric-testcommon.js"></script>
+<style>
+#target {
+  font-size: 10px;
+}
+</style>
+<div id="target"></div>
+<script>
+  test_math_used('calc(sign(1em - 1px) * 2)', '2', {prop:'zoom'});
+  test_math_used('calc(sign(1em - 1px) * 2%)', '2%', {prop:'zoom'});
+</script>

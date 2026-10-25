@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="author" title="Vitor Roriz" href="https://github.com/vitorroriz">
+<!-- Based on css/css-viewport/zoom/word-spacing.html by Stefan Zager -->
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<style>
+.spacing {
+  word-spacing: 2rem;
+}
+.zoom {
+  zoom: 2;
+}
+</style>
+
+<div class="spacing">
+  <div id="inherited-word-spacing">unzoomed lorem ipsum</div>
+</div>
+
+<div class="zoom">
+  <div id="zoomed-word-spacing" class="spacing">zoomed lorem ipsum</div>
+</div>
+
+<div class="spacing">
+  <div id="zoomed-inherited-word-spacing" class="zoom">zoomed inherited lorem ipsum</div>
+</div>
+
+<script>
+test(() => {
+    assert_equals(getComputedStyle(document.getElementById("inherited-word-spacing")).wordSpacing, '32px');
+}, "computed inherited word-spacing");
+test(() => {
+    assert_equals(getComputedStyle(document.getElementById("zoomed-word-spacing")).wordSpacing, '32px');
+}, "computed zoomed word-spacing");
+test(() => {
+    assert_equals(getComputedStyle(document.getElementById("zoomed-inherited-word-spacing")).wordSpacing, '32px');
+}, "computed zoomed inherited word-spacing");
+</script>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Zoom property on computed values of transform with a transformation matrix and animation used</title>
+<link rel="author" href="mailto:salipov@mozilla.com" title="Seva Alipov">
+<link rel="author" href="https://mozilla.com" title="Mozilla">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1927186">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+@keyframes kf {
+  from { transform: matrix(1, 0, 0, 1, 50, 50); }
+  to { transform: matrix(1, 0, 0, 1, 0, 0); }
+}
+
+#foo {
+  width: 50px;
+  height: 50px;
+  background: purple;
+  animation: kf 99999s steps(5) infinite alternate;
+}
+</style>
+
+<div style="zoom: 2">
+  <div id="foo"></div>
+</div>
+
+<script>
+test(() => {
+  assert_equals(getComputedStyle(foo).transform, "matrix(1, 0, 0, 1, 50, 50)");
+}, "Zoom does not affect the computed transform matrix of an animated element");
+</script>

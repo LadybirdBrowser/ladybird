@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<title>x and y properties for image elements with css zoom</title>
+<link rel="author" title="Yotam Hacohen" href="mailto:yotha@chromium.org">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scroll">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+  <head>
+    <style>
+      img {
+        display: block;
+      }
+      .container {
+        height: 100px;
+        width: 100px;
+      }
+
+      #x4_zoom_container {
+        zoom: 4;
+      }
+
+    </style>
+  </head>
+  <body>
+    <div class="container" id="no_zoom_container">
+      <img src="support/1x1-green.png" id="no_zoom_image_no_zoom_container">
+      <img src="support/1x1-navy.png" style="zoom: 2;" id="x2_zoom_image_no_zoom_container">
+    </div>
+
+    <div class="container" id="x4_zoom_container">
+      <img style="position: relative; top: 10px;" src="support/1x1-maroon.png" id="no_zoom_image_x4_zoom_container">
+      <img src="support/1x1-navy.png" style="zoom: 2;" id="x2_zoom_image_x4_zoom_container">
+      <img src="support/1x1-red.png" style="transform: scale(5);" id="transformed_and_zoomed_image">
+    </div>
+    <script>
+        function compareXYCoordinatesToBoundingBox(object, object_name){
+          assert_equals(object.x, object.getBoundingClientRect().left, object_name + ' x');
+          assert_equals(object.y, object.getBoundingClientRect().top, object_name + ' y');
+        }
+
+        window.onload = function() {
+        test(function() {
+          // Values should be same as values of getBoundingClientRect
+          compareXYCoordinatesToBoundingBox(no_zoom_image_no_zoom_container, 'no-zoom image in a no-zoom container');
+          compareXYCoordinatesToBoundingBox(x2_zoom_image_no_zoom_container, 'image with css zoom in a no zoom container');
+          compareXYCoordinatesToBoundingBox(no_zoom_image_x4_zoom_container, 'no-zoom image in a container with css zoom');
+          compareXYCoordinatesToBoundingBox(x2_zoom_image_x4_zoom_container, 'both image and container have css zoom');
+        });
+        test(function() {
+          // Values should be in the root coordinate system, and affected by zoom
+          assert_equals(no_zoom_image_no_zoom_container.x, 8, 'no zoom image no zoom container x');
+          assert_equals(no_zoom_image_no_zoom_container.y, 8, 'no zoom image no zoom container y');
+          assert_equals(x2_zoom_image_no_zoom_container.x, 8, 'x2 zoom image no zoom container x');
+          assert_equals(x2_zoom_image_no_zoom_container.y, 9, 'x2 zoom image no zoom container y');
+          assert_equals(no_zoom_image_x4_zoom_container.x, 8, 'no zoom image x4 zoom container x');
+          // This element also has a position-top, which is affected by zoom
+          assert_equals(no_zoom_image_x4_zoom_container.y, 148, 'no zoom image x4 zoom container y');
+          assert_equals(x2_zoom_image_x4_zoom_container.x, 8, 'x2 zoom image x4 zoom container x');
+          assert_equals(x2_zoom_image_x4_zoom_container.y, 112, 'x2 zoom image x4 zoom container y');
+          assert_equals(transformed_and_zoomed_image.x, 8, 'image with transform properties x');
+          assert_equals(transformed_and_zoomed_image.y, 120, 'image with transform properties y');
+        });
+      };
+
+      </script>
+  </body>

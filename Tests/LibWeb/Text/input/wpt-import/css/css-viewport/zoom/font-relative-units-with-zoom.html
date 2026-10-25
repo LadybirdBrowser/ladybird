@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="author" title="WebKit" href="https://webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#font-relative-lengths">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+<style>
+.zoom-1-5 { zoom: 1.5; font-size: 20px; }
+.zoom-2   { zoom: 2;   font-size: 20px; }
+</style>
+
+<div class="zoom-1-5">
+  <div id="ls-ic-zoom-1-5" style="letter-spacing: 1ic">ic letter-spacing with zoom 1.5</div>
+  <div id="ls-em-zoom-1-5" style="letter-spacing: 1em">em letter-spacing with zoom 1.5</div>
+</div>
+
+<div class="zoom-2">
+  <div id="ls-ic-zoom-2" style="letter-spacing: 1ic">ic letter-spacing with zoom 2</div>
+  <div id="ls-em-zoom-2" style="letter-spacing: 1em">em letter-spacing with zoom 2</div>
+</div>
+
+<div class="zoom-1-5">
+  <div id="lh-ic-zoom-1-5" style="line-height: 1ic">ic line-height with zoom 1.5</div>
+  <div id="lh-em-zoom-1-5" style="line-height: 1em">em line-height with zoom 1.5</div>
+</div>
+
+<div class="zoom-1-5">
+  <div id="fs-cap-zoom-1-5" style="font-size: 1cap">cap font-size with zoom 1.5</div>
+  <div id="fs-ex-zoom-1-5" style="font-size: 1ex">ex font-size with zoom 1.5</div>
+  <div id="fs-ch-zoom-1-5" style="font-size: 1ch">ch font-size with zoom 1.5</div>
+  <div id="fs-ic-zoom-1-5" style="font-size: 1ic">ic font-size with zoom 1.5</div>
+</div>
+
+<div class="zoom-2">
+  <div id="fs-cap-zoom-2" style="font-size: 1cap">cap font-size with zoom 2</div>
+  <div id="fs-ex-zoom-2" style="font-size: 1ex">ex font-size with zoom 2</div>
+  <div id="fs-ch-zoom-2" style="font-size: 1ch">ch font-size with zoom 2</div>
+  <div id="fs-ic-zoom-2" style="font-size: 1ic">ic font-size with zoom 2</div>
+</div>
+
+<script>
+test(() => {
+    assert_equals(
+        getComputedStyle(document.getElementById("ls-ic-zoom-1-5")).letterSpacing,
+        getComputedStyle(document.getElementById("ls-em-zoom-1-5")).letterSpacing,
+        "1ic should equal 1em for letter-spacing under zoom: 1.5"
+    );
+}, "ic equals em for letter-spacing under CSS zoom 1.5");
+
+test(() => {
+    assert_equals(
+        getComputedStyle(document.getElementById("ls-ic-zoom-2")).letterSpacing,
+        getComputedStyle(document.getElementById("ls-em-zoom-2")).letterSpacing,
+        "1ic should equal 1em for letter-spacing under zoom: 2"
+    );
+}, "ic equals em for letter-spacing under CSS zoom 2");
+
+test(() => {
+    assert_equals(
+        getComputedStyle(document.getElementById("lh-ic-zoom-1-5")).lineHeight,
+        getComputedStyle(document.getElementById("lh-em-zoom-1-5")).lineHeight,
+        "1ic should equal 1em for line-height under zoom: 1.5"
+    );
+}, "ic equals em for line-height under CSS zoom 1.5");
+
+test(() => {
+    let zoom15 = parseFloat(getComputedStyle(document.getElementById("fs-cap-zoom-1-5")).fontSize);
+    let zoom2 = parseFloat(getComputedStyle(document.getElementById("fs-cap-zoom-2")).fontSize);
+    assert_approx_equals(zoom2, zoom15, 0.05,
+        "1cap font-size should resolve to the same unzoomed value regardless of CSS zoom (got " + zoom15 + "px at zoom 1.5, " + zoom2 + "px at zoom 2)");
+}, "cap font-size resolves to identical unzoomed value across CSS zoom levels");
+
+test(() => {
+    let zoom15 = parseFloat(getComputedStyle(document.getElementById("fs-ex-zoom-1-5")).fontSize);
+    let zoom2 = parseFloat(getComputedStyle(document.getElementById("fs-ex-zoom-2")).fontSize);
+    assert_approx_equals(zoom2, zoom15, 0.05,
+        "1ex font-size should resolve to the same unzoomed value regardless of CSS zoom (got " + zoom15 + "px at zoom 1.5, " + zoom2 + "px at zoom 2)");
+}, "ex font-size resolves to identical unzoomed value across CSS zoom levels");
+
+test(() => {
+    let zoom15 = parseFloat(getComputedStyle(document.getElementById("fs-ch-zoom-1-5")).fontSize);
+    let zoom2 = parseFloat(getComputedStyle(document.getElementById("fs-ch-zoom-2")).fontSize);
+    assert_approx_equals(zoom2, zoom15, 0.05,
+        "1ch font-size should resolve to the same unzoomed value regardless of CSS zoom (got " + zoom15 + "px at zoom 1.5, " + zoom2 + "px at zoom 2)");
+}, "ch font-size resolves to identical unzoomed value across CSS zoom levels");
+
+test(() => {
+    let zoom15 = parseFloat(getComputedStyle(document.getElementById("fs-ic-zoom-1-5")).fontSize);
+    let zoom2 = parseFloat(getComputedStyle(document.getElementById("fs-ic-zoom-2")).fontSize);
+    assert_approx_equals(zoom2, zoom15, 0.05,
+        "1ic font-size should resolve to the same unzoomed value regardless of CSS zoom (got " + zoom15 + "px at zoom 1.5, " + zoom2 + "px at zoom 2)");
+}, "ic font-size resolves to identical unzoomed value across CSS zoom levels");
+</script>

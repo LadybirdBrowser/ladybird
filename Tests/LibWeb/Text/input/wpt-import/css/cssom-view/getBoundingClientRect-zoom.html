@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<title>getBoundingClientRect for elements with css zoom</title>
+<link rel="author" title="Yotam Hacohen" href="mailto:yotha@chromium.org">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+  <head>
+    <style>
+      div {
+        width: 64px;
+        height: 64px;
+        background-color: blue
+      }
+      div.x4_zoom {
+        zoom: 4.0;
+        background-color: blueviolet;
+      }
+      div.x2_zoom {
+        background-color: chartreuse;
+        zoom: 2.0;
+      }
+
+      div.transform {
+        transform: scale(2);
+        transform-origin: top left;
+      }
+
+
+    </style>
+  </head>
+  <body>
+    <div id="no_zoom"></div>
+    <div class="x4_zoom" id="with_zoom">
+    </div>
+    <div class="x2_zoom">
+      <div class="x4_zoom" id="nested_zoom"></div>
+    </div>
+    <div id="transform_and_zoom" class="x4_zoom transform"></div>
+    <script>
+      setup(() => {
+        window.noZoom = document.getElementById("no_zoom");
+        window.withZoom = document.getElementById("with_zoom");
+        window.nestedZoom = document.getElementById("nested_zoom");
+        window.transformAndZoom = document.getElementById("transform_and_zoom");
+      });
+      test(function() {
+        assert_true(!!noZoom, "no zoom target exists");
+        assert_true(!!withZoom, "zoom target exists");
+      });
+      test(function() {
+        let noZoomRect = noZoom.getBoundingClientRect();
+        assert_equals(noZoomRect.left, 8, 'no zoom left');
+        assert_equals(noZoomRect.top, 8, 'no zoom top');
+        assert_equals(noZoomRect.width, 64, 'no zoom width');
+        assert_equals(noZoomRect.height, 64, 'no zoom height');
+      });
+      test(function() {
+        let ZoomRect = withZoom.getBoundingClientRect();
+        assert_equals(ZoomRect.left, 8, 'x4 zoom left');
+        assert_equals(ZoomRect.top, 8 + 64, 'x4 zoom top');
+        assert_equals(ZoomRect.width, 256, 'x4 zoom width');
+        assert_equals(ZoomRect.height, 256, 'x4 zoom height');
+      });
+      test(function() {
+        let nestedZoomRect = nestedZoom.getBoundingClientRect();
+        assert_equals(nestedZoomRect.left, 8, 'nested zoom left');
+        assert_equals(nestedZoomRect.top, 8 + 64 + 256, 'nested zoom top');
+        assert_equals(nestedZoomRect.width, 512, 'nested zoom width');
+        assert_equals(nestedZoomRect.height, 512, 'nested zoom height');
+      });
+      test(function() {
+        let transformAndZoomRect = transformAndZoom.getBoundingClientRect();
+        assert_equals(transformAndZoomRect.left, 8, 'transform and zoom left');
+        assert_equals(transformAndZoomRect.top, 8 + 64 + 256 + 128, 'transform and zoom top');
+        assert_equals(transformAndZoomRect.width, 512, 'transform and zoom width');
+        assert_equals(transformAndZoomRect.height, 512, 'transform and zoom height');
+      });
+    </script>
+  </body>
+`

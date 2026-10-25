@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text: text-indent computed values under zoom</title>
+<link rel="help" href="https://www.w3.org/TR/CSS22/text.html#indentation-prop">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#text-indent-property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div style="text-indent: 2rem;">
+  <p id="target">Test paragraph</p>
+</div>
+<script>
+const target = document.getElementById("target");
+
+test_computed_value("text-indent", "1px", "1px", "single value no zoom");
+test_computed_value("text-indent", "1rem", "16px", "rem value no zoom");
+test_computed_value("text-indent", "inherit", "32px", "inherit no zoom");
+test_computed_value("text-indent", "5px", "5px", "explicit px value no zoom");
+test_computed_value("text-indent", "0", "0px", "zero value no zoom");
+
+const parent = target.parentElement;
+parent.style.zoom = "2";
+
+test_computed_value("text-indent", "1px", "1px", "single value with zoom: 2");
+test_computed_value("text-indent", "1rem", "16px", "rem value with zoom: 2");
+test_computed_value("text-indent", "inherit", "32px", "inherit with zoom: 2");
+test_computed_value("text-indent", "5px", "5px", "explicit px value with zoom: 2");
+test_computed_value("text-indent", "0", "0px", "zero value with zoom: 2");
+</script>
+</body>
+</html>

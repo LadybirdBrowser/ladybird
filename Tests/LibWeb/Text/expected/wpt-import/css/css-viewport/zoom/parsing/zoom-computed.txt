@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Fail
+Fail	Property zoom value 'normal'
+Fail	Property zoom value '1'
+Fail	Property zoom value '1.5'
+Fail	Property zoom value '0.75'
+Fail	Property zoom value 'calc(1 - 0.5)'
+Fail	Property zoom value 'calc(1 * 0.5)'
+Fail	Property zoom value '100%'
+Fail	Property zoom value '150%'
+Fail	Property zoom value '75%'
+Fail	Property zoom value 'calc(100% - 50%)'
+Fail	Property zoom value 'calc(100% * 0.5)'
+Fail	Property zoom value '0'
+Fail	Property zoom value '0%'

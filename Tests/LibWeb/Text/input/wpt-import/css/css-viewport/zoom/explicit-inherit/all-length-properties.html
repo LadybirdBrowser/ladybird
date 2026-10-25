@@ -1,0 +1,105 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Explicit inheritance of length properties under zoom</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+<meta name="assert"
+      content="Explicitly inherited computed lengths are unchanged when the effective zoom changes.">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="parent"><div id="child"></div></div>
+<script>
+const candidates = [
+  '10px',
+  '10px 20px',
+  '10px 20px 30px',
+  '10px 20px 30px 40px',
+  '10px / 20px',
+  '10px 20px / 30px 40px',
+  '10px auto',
+  'auto 10px',
+  '10px normal',
+  'normal 10px',
+  '10px solid black',
+  'solid 10px black',
+  'translate(10px, 20px)',
+  'translateX(10px)',
+  'perspective(10px)',
+  'blur(10px)',
+  'drop-shadow(10px 20px 30px black)',
+  '10px 20px 30px black',
+  'inset 10px 20px 30px black',
+  'inset(10px)',
+  'circle(10px at 20px 30px)',
+  'ellipse(10px 20px at 30px 40px)',
+  'rect(10px 20px 30px 40px)',
+  'xywh(10px 20px 30px 40px)',
+  'polygon(10px 20px, 30px 40px, 50px 60px)',
+  'linear-gradient(black 10px, white 20px)',
+  'radial-gradient(circle 10px at 20px 30px, black, white)',
+  'below 10px',
+];
+const parentElement = document.querySelector('#parent');
+const childElement = document.querySelector('#child');
+const properties = [...getComputedStyle(parentElement)];
+for (const property of properties) {
+  for (const candidate of candidates) {
+    parentElement.style.cssText = '';
+    childElement.style.cssText = 'zoom: 3';
+    parentElement.style.setProperty(property, candidate);
+    if (!parentElement.style.getPropertyValue(property)) {
+      continue;
+    }
+    childElement.style.setProperty(property, 'inherit');
+    const parentValue =
+        getComputedStyle(parentElement).getPropertyValue(property);
+    if (!parentValue.includes('px')) {
+      continue;
+    }
+
+    childElement.style.zoom = 1;
+    const inheritedValue =
+        getComputedStyle(childElement).getPropertyValue(property);
+    if (inheritedValue !== parentValue) {
+      continue;
+    }
+
+    childElement.style.zoom = 3;
+    const zoomedInheritedValue =
+        getComputedStyle(childElement).getPropertyValue(property);
+    test(() => assert_equals(zoomedInheritedValue, parentValue),
+         `${property}: ${candidate}; parent=${parentValue}; ` +
+         `child=${zoomedInheritedValue}`);
+    break;
+  }
+}
+
+const legacyProperties = [
+  ['-webkit-perspective-origin-x', 'perspective-origin', '10px'],
+  ['-webkit-perspective-origin-y', 'perspective-origin', '10px'],
+  ['-webkit-transform-origin-x', 'transform-origin', '10px'],
+  ['-webkit-transform-origin-y', 'transform-origin', '10px'],
+  ['-webkit-transform-origin-z', 'transform-origin', '10px'],
+];
+for (const [property, computedProperty, value] of legacyProperties) {
+  if (!CSS.supports(property, value)) {
+    continue;
+  }
+  test(() => {
+    parentElement.style.cssText = 'width: 100px; height: 100px';
+    childElement.style.cssText = 'width: 100px; height: 100px';
+    parentElement.style.setProperty(property, value);
+    childElement.style.setProperty(property, 'inherit');
+
+    const parentValue =
+        getComputedStyle(parentElement).getPropertyValue(computedProperty);
+    assert_equals(
+        getComputedStyle(childElement).getPropertyValue(computedProperty),
+        parentValue, 'inherited value without zoom');
+
+    childElement.style.zoom = 3;
+    assert_equals(
+        getComputedStyle(childElement).getPropertyValue(computedProperty),
+        parentValue, 'inherited value under zoom');
+  }, property);
+}
+</script>
