@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleSheetState.h>
+#include <LibWeb/CSS/Zoom.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -203,7 +204,10 @@ RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& sourc
                         property_id = map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { computed_values->writing_mode(), computed_values->direction() });
                     if (property_id == PropertyID::BackgroundColor && computed_values->background_color_style_value())
                         return computed_values->background_color_style_value();
-                    return computed_values->computed_style_value(property_id);
+                    auto value = computed_values->computed_style_value(property_id);
+                    if (!value)
+                        return nullptr;
+                    return unscaled_by_zoom(property_id, value.release_nonnull(), computed_values->effective_zoom());
                 }
             }
 

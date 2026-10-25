@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 21 tests
+Found 22 tests
 
-20 Pass
+21 Pass
 1 Fail
 Pass	ResizeObserver implemented
 Pass	guard
@@ -25,3 +25,4 @@ Pass	test15: an observation is fired with box dimensions 0 when element's displa
 Pass	test16: observations fire once with 0x0 size for non-replaced inline elements
 Pass	test17: Box sizing snd Resize Observer notifications
 Pass	test18: an observation is fired when device-pixel-content-box is being observed
+Pass	test19: an observation is fired when device-pixel-content-box is being observed and zoom change

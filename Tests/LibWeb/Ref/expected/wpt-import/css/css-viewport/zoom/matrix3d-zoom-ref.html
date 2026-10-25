@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Zoom property on elements with a 3D transformation matrix used</title>
+<link rel="author" href="mailto:salipov@mozilla.com" title="Seva Alipov">
+<link rel="author" href="https://mozilla.com" title="Mozilla">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1927186">
+<style>
+div {
+  width: 200px;
+  height: 200px;
+  background: green;
+}
+</style>
+<div style="transform: translate(200px, 200px)"></div>
+<div style="transform: matrix3d(
+  0.5,0,-0.75,0,
+  0.75,1.25,-1,0,
+  0.75,0,0.5,0,
+  50,0,30,1
+);"></div>

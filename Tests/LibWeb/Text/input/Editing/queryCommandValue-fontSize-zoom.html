@@ -1,0 +1,44 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const selection = getSelection();
+        const check = (label, outerZoom, innerZoom, size) => {
+            const host = document.createElement("div");
+            host.contentEditable = "true";
+            host.style.zoom = outerZoom;
+            const span = document.createElement("span");
+            span.style.cssText = `zoom:${innerZoom};font-size:${size}px`;
+            span.textContent = "x";
+            host.append(span);
+            document.body.append(host);
+            host.focus();
+            selection.setBaseAndExtent(span.firstChild, 0, span.firstChild, 1);
+            const selected = document.queryCommandValue("fontSize");
+            selection.collapse(span.firstChild, 1);
+            const collapsed = document.queryCommandValue("fontSize");
+            println(`${label}: ${getComputedStyle(span).fontSize}, selected=${selected}, collapsed=${collapsed}`);
+            host.remove();
+        };
+        check("plain", 1, 1, 16);
+        check("zoomed", 2, 1, 16);
+        check("reduced", 0.5, 1, 16);
+        check("nested zoom", 2, 3, 16);
+        check("cancelled zoom", 2, 0.5, 16);
+        check("large font", 2, 1, 24);
+
+        const host = document.createElement("div");
+        host.contentEditable = "true";
+        host.style.fontSize = "16px";
+        host.textContent = "x";
+        document.body.append(host);
+        host.focus();
+        selection.setBaseAndExtent(host.firstChild, 0, host.firstChild, 1);
+        for (const zoom of [1, 2, 0.5, 1]) {
+            host.style.zoom = zoom;
+            println(`changed zoom ${zoom}: ${document.queryCommandValue("fontSize")}`);
+        }
+        host.remove();
+        selection.removeAllRanges();
+    });
+</script>

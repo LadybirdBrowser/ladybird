@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head>
+<title>CSS Zoom applies to view-timeline-inset</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/view-timeline-inset-ref.html">
+<script src="../../../web-animations/testcommon.js"></script>
+<script src="../../../common/reftest-wait.js"></script>
+<style>
+.group {
+  outline: 1px solid black;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+  position: relative;
+  top: 250px;
+}
+.spacer {
+  height: 500px;
+}
+.scroller {
+  outline: 1px solid black;
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0;
+  border: 0;
+  overflow-y: auto;
+  width: 200px;
+  height: 200px;
+  view-timeline-inset: 50px 50px;
+}
+
+.scroller-zoomed {
+  display: inline-block;
+  outline: 1px solid black;
+  margin: 0 10px;
+  padding: 0;
+  border: 0;
+  overflow-y: scroll;
+  width: 200px;
+  height: 200px;
+  view-timeline-inset: 25px 25px;
+}
+
+@keyframes grow {
+  from { --bg: yellow; }
+  to { --bg: red; }
+}
+
+.indicator {
+  display: block;
+  position: fixed;
+  width: 100px;
+  height: 100px;
+  top: 100px;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg);
+}
+#indicator1 {
+  left: 100px;
+}
+
+#indicator2 {
+  left: 300px;
+}
+
+#indicator3 {
+  top: 50px;
+  width: 50px;
+  height: 50px;
+  left: 250px;
+}
+
+#indicator4 {
+  top: 50px;
+  width: 50px;
+  height: 50px;
+  left: 350px;
+}
+
+.target {
+  height: 100px;
+  width: 100px;
+  --bg: green;
+  background-color: black;
+}
+.target-zoomed {
+  height: 50px;
+  width: 50px;
+  --bg: green;
+  background-color: black;
+}
+
+.anim-1 {
+  animation: grow step-end 1 forwards;
+  animation-timeline: --t1;
+
+  view-timeline-name: --t1;
+  view-timeline-inset: 50px 50px;
+}
+.anim-2 {
+  animation: grow step-end 1 forwards;
+  animation-timeline: --t1;
+
+  view-timeline-name: --t1;
+  view-timeline-inset: inherit;
+}
+.anim-3 {
+  animation: grow step-end 1 forwards;
+  animation-timeline: --t1;
+
+  view-timeline-name: --t1;
+  view-timeline-inset: 25px 25px;
+}
+.anim-4 {
+  animation: grow step-end 1 forwards;
+  animation-timeline: --t1;
+
+  view-timeline-name: --t1;
+  view-timeline-inset: inherit;
+}
+</style>
+</head>
+<body>
+<p>There should be 4 green boxes below.</p>
+<div class="group">
+  <div class="scroller" id="scroller1">
+    <div class="spacer"></div>
+    <div class="target" id="target1" style="zoom: 1">
+      <div class="indicator" id="indicator1"></div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+
+  <div class="scroller" id="scroller2">
+    <div class="spacer"></div>
+    <div class="target" id="target2" style="zoom: 1">
+      <div class="indicator" id="indicator2"></div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+<div class="group">
+  <div class="scroller-zoomed" id="scroller3">
+    <div class="spacer"></div>
+    <div class="target-zoomed" id="target3" style="zoom: 2">
+      <div class="indicator" id="indicator3"></div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+
+  <div class="scroller-zoomed" id="scroller4">
+    <div class="spacer"></div>
+    <div class="target-zoomed" id="target4" style="zoom: 2">
+      <div class="indicator" id="indicator4"></div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+<script>
+  const target1 = document.getElementById('target1');
+  const target2 = document.getElementById('target2');
+  const target3 = document.getElementById('target3');
+  const target4 = document.getElementById('target4');
+
+  const scroller1 = document.getElementById('scroller1');
+  const scroller2 = document.getElementById('scroller2');
+  const scroller3 = document.getElementById('scroller3');
+  const scroller4 = document.getElementById('scroller4');
+
+  target1.classList.add("anim-1");
+  const animation1 = target1.getAnimations()[0];
+
+  target2.classList.add("anim-2");
+  const animation2 = target2.getAnimations()[0];
+
+  target3.classList.add("anim-3");
+  const animation3 = target3.getAnimations()[0];
+
+  target4.classList.add("anim-4");
+  const animation4 = target4.getAnimations()[0];
+
+  Promise.all([animation1.ready, animation2.ready, animation3.ready, animation4.ready]).then(() => {
+    const maxScroll1 = scroller1.scrollHeight - scroller1.clientHeight;
+    scroller1.scrollTop = (maxScroll1 - 250) * 0.5;
+
+    const maxScroll2 = scroller2.scrollHeight - scroller2.clientHeight;
+    scroller2.scrollTop = (maxScroll2 - 250) * 0.5;
+
+    const maxScroll3 = scroller3.scrollHeight - scroller3.clientHeight;
+    scroller3.scrollTop = (maxScroll3 - 250) * 0.5;
+
+    const maxScroll4 = scroller4.scrollHeight - scroller4.clientHeight;
+    scroller4.scrollTop = (maxScroll4 - 250) * 0.5;
+
+    waitForAnimationFrames(2).then(takeScreenshot);
+  });
+</script>
+</body>
+</html>

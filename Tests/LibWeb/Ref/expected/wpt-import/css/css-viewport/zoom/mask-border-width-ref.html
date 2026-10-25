@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    body {
+        --scale: 1;
+    }
+
+    .box {
+        width: calc(50px * var(--scale));
+        height: calc(50px * var(--scale));
+        background-color: red;
+        mask-border-slice: 10;
+        mask-border-source: linear-gradient(45deg, pink, blue, white, black, green);
+        mask-border-width: calc(8px * var(--scale));
+        margin: calc(10px * var(--scale));
+    }
+
+    .zoom {
+        --scale: 2;
+    }
+</style>
+
+<div class="box"></div>
+
+<div class="zoom">
+    <div class="box"></div>
+</div>
+
+<div class="zoom box"></div>

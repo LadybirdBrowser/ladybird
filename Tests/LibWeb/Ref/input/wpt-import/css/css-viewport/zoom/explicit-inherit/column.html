@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<title>column-*:inherit applies zoom</title>
+<link rel=help href=https://drafts.csswg.org/css-multicol/>
+<link rel=help href=https://drafts.csswg.org/css-viewport/>
+<link rel=match href=../../../../../../expected/wpt-import/css/css-viewport/zoom/explicit-inherit/column-ref.html>
+<style>
+  .zoomed {
+    background: skyblue;
+    font-size: 16px;
+    width: 300px;
+    height: 200px;
+    column-width: inherit;
+    column-height: inherit;
+    column-gap: inherit;
+    column-rule-color: black;
+    column-rule-style: solid;
+    column-rule-width: inherit;
+    column-fill: auto;
+    zoom: 2;
+  }
+  .inner {
+    background: coral;
+  }
+</style>
+<div style="column-width:40px; column-height:150px; column-gap:10px; column-rule: 5px solid; display:contents">
+  <div class=zoomed>
+    <div class=inner>1</div>
+    <div class=inner>2</div>
+    <div class=inner>3</div>
+    <div class=inner>4</div>
+    <div class=inner>5</div>
+    <div class=inner>6</div>
+    <div class=inner>7</div>
+    <div class=inner>8</div>
+    <div class=inner>9</div>
+    <div class=inner>10</div>
+    <div class=inner>11</div>
+    <div class=inner>12</div>
+    <div class=inner>13</div>
+    <div class=inner>14</div>
+  </div>
+</div>

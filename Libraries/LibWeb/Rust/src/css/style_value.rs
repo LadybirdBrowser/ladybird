@@ -3610,6 +3610,40 @@ pub unsafe extern "C" fn rust_style_value_retain(value: *const StyleValueData) -
     unsafe { retain_style_value(value) }
 }
 
+/// https://drafts.csswg.org/css-viewport/#zoom-om
+/// Computed style APIs (i.e., all values returned by getComputedStyle()) that are non-auto and non-percentage lengths
+/// must be unscaled.
+/// The computed value `value` of an element whose effective zoom is `zoom`, with its lengths unscaled, retained for the
+/// caller; null where unscaling changes nothing.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_unscaled_by_zoom(value: &StyleValueData, zoom: f64) -> *const StyleValueData {
+    if zoom == 1.0 || !zoom.is_normal() || zoom < 0.0 {
+        return std::ptr::null();
+    }
+    let length = crate::css::style_compute::FfiLengthResolutionContext {
+        zoom: 1.0 / zoom,
+        ..Default::default()
+    };
+    let context = crate::css::absolutize::AbsolutizationContext {
+        length: &length,
+        scheme: None,
+        resolved_viewport_relative_length: std::cell::Cell::new(false),
+        tree_counting: None,
+        random_base_values: &[],
+        document_base_url: &[],
+        style_sheet_resource_context: None,
+        current_color: None,
+    };
+    match crate::css::absolutize::absolutize(value, &context) {
+        Some(crate::css::absolutize::Absolutized::Changed(unscaled)) => {
+            let pointer = unscaled.pointer();
+            std::mem::forget(unscaled);
+            pointer
+        }
+        _ => std::ptr::null(),
+    }
+}
+
 #[cfg(test)]
 mod substitution_clone_tests {
     use super::*;

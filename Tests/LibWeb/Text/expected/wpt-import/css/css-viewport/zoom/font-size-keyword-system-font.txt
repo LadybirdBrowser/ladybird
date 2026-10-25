@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	zoom scales font-size set via system font keyword
+1 Pass
+Pass	zoom scales font-size set via system font keyword

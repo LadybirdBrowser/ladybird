@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to box-shadow when specified and inherited</title>
+<link rel="author" title="Brent Fulgham" href="mailto:bfulgham@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+
+<style>
+body {
+  --scale: 1;
+  --shadowScaleOffsetX: 1;
+  --shadowScaleOffsetY: 1;
+  --shadowScaleBlurRadius: 1;
+}
+div {
+  font-size: calc(1rem * var(--scale));
+  box-shadow: calc(5px * var(--shadowScaleOffsetX)) calc(5px * var(--shadowScaleOffsetY)) calc(2px * var(--shadowScaleBlurRadius)) black;
+}
+.zoomFont {
+  --scale: 2;
+}
+.zoomShadow {
+  --shadowScaleOffsetX: 2;
+  --shadowScaleOffsetY: 2;
+  --shadowScaleBlurRadius: 2;
+}
+</style>
+<div>unzoomed</div>
+<div class="zoomFont zoomShadow">zoomed</div>
+<div class="zoomFont">zoomed inherited</div>

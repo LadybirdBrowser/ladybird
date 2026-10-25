@@ -1,0 +1,24 @@
+<title>CSS zoom applies to text-decoration-thickness when specified and inherited</title>
+<link rel="author" title="Brent Fulgham" href="mailto:bfulgham@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/text-decoration-thickness-ref.html">
+
+<style>
+.decoration-thickness {
+  text-decoration-thickness: 5px;
+}
+#unzoomed, #zoomed, #zoomed-inherited {
+  text-decoration-line: underline;
+  text-decoration-color: blue;
+}
+.zoom {
+  zoom: 2;
+}
+#zoomed-inherited {
+  text-decoration-thickness: inherit;
+}
+</style>
+
+<div id="unzoomed" class="decoration-thickness">unzoomed</div>
+<div class="zoom"><div id="zoomed" class="decoration-thickness">zoomed</div></div>
+<div class="decoration-thickness"><div id="zoomed-inherited" class="zoom">zoomed inherited</div></div>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  display: inline-block;
+  column-rule-style: solid;
+  column-rule-width: 5px;
+  column-rule-color: transparent;
+  border: solid black 1px;
+}
+.container {
+  display: inline-block;
+  width: 200px;
+  height: 100px;
+  font-size: 16px;
+  column-count: 2;
+  column-rule-style: solid;
+  overflow: clip;
+}
+.container-zoomed {
+  display: inline-block;
+  width: 400px;
+  height: 200px;
+  font-size: 32px;
+  column-count: 2;
+  column-rule-style: solid;
+  overflow: clip;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="column-rule-width: 5px;">
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="column-rule-width: 5px;">
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container-zoomed" style="column-rule-width: 10px;">
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container-zoomed" style="column-rule-width: 10px;">
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+    </div>
+  </div>
+</div>
+</body>
+</html>

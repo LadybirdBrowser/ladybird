@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 11 tests
 
-11 Fail
-Fail	Property zoom value 'calc(1 + (sign(2cqw - 3cqw) * 0.5))'
-Fail	Property zoom value 'calc(1 + (sign(5px - 10px) * 0.5))'
-Fail	Property zoom value 'calc(1 + (sign(5 - 10) * 0.5))'
-Fail	Property zoom value 'calc(1 + (sign(30deg - 40deg) * 0.5))'
-Fail	Property zoom value 'calc(1 + (sign(3em - 5em) * 0.5))'
-Fail	Property zoom value 'calc(1 + (sign(1cm - 1in) * 0.5))'
-Fail	Property zoom value 'calc(1 + (sign(1deg - 1rad) * 0.5))'
-Fail	Property zoom value 'calc(1 + (sign(2cqw - 10px) * 0.5))'
-Fail	Property zoom value 'calc(100% + (sign(2cqw - 10px) * 50%))'
-Fail	Property zoom value 'calc(100% + (sign(1em - 30px) * 50%))'
-Fail	Property zoom value 'calc(100% + (sign(2cqw - 1em) * 50%))'
+11 Pass
+Pass	Property zoom value 'calc(1 + (sign(2cqw - 3cqw) * 0.5))'
+Pass	Property zoom value 'calc(1 + (sign(5px - 10px) * 0.5))'
+Pass	Property zoom value 'calc(1 + (sign(5 - 10) * 0.5))'
+Pass	Property zoom value 'calc(1 + (sign(30deg - 40deg) * 0.5))'
+Pass	Property zoom value 'calc(1 + (sign(3em - 5em) * 0.5))'
+Pass	Property zoom value 'calc(1 + (sign(1cm - 1in) * 0.5))'
+Pass	Property zoom value 'calc(1 + (sign(1deg - 1rad) * 0.5))'
+Pass	Property zoom value 'calc(1 + (sign(2cqw - 10px) * 0.5))'
+Pass	Property zoom value 'calc(100% + (sign(2cqw - 10px) * 50%))'
+Pass	Property zoom value 'calc(100% + (sign(1em - 30px) * 50%))'
+Pass	Property zoom value 'calc(100% + (sign(2cqw - 1em) * 50%))'

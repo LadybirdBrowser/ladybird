@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  display: inline-block;
+  border: 1px solid black;
+  filter: blur(1px);
+}
+.container {
+  padding: 10px;
+  width: 25px;
+  height: 50px;
+}
+.container-zoom {
+  padding: 30px;
+  width: 75px;
+  height: 150px;
+}
+.swatch {
+  width: 25px;
+  height: 25px;
+}
+.swatch-zoom {
+  width: 75px;
+  height: 75px;
+}
+.red {
+  background-color: red;
+}
+.blue {
+  background-color: blue;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="filter: blur(1px);">
+       <div class="swatch red"></div>
+       <div class="swatch blue"></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="filter: blur(1px);">
+       <div class="swatch red"></div>
+       <div class="swatch blue"></div>
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container-zoom" style="filter: blur(3px);">
+       <div class="swatch-zoom red"></div>
+       <div class="swatch-zoom blue"></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container-zoom" style="filter: blur(3px);">
+       <div class="swatch-zoom red"></div>
+       <div class="swatch-zoom blue"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

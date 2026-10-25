@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to column-gap</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/column-gap-ref.html">
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  display: block;
+  border: 1px solid black;
+  padding: 10px;
+  column-gap: 20px;
+}
+.container {
+  display: flex;
+  flex-direction: row;
+  column-gap: 24px;
+  width: 100px;
+}
+.container > div {
+  background-color: black;
+  width: 40px;
+  height: 10px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="column-gap: 20px; zoom: 1;">
+      <div></div>
+      <div></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="column-gap: inherit; zoom: 1;">
+      <div></div>
+      <div></div>
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="column-gap: 20px; zoom: 2;">
+      <div></div>
+      <div></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="column-gap: inherit; zoom: 2;">
+      <div></div>
+      <div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

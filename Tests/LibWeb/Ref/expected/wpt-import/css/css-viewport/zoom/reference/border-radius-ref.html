@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  border: solid black 1px;
+  padding: 10px;
+  margin: 10px;
+  width: max-content;
+}
+
+#container {
+  display: inline-block;
+  width: 200px;
+  height: 100px;
+  border: solid black 1px;
+}
+
+#container-zoomed {
+  display: inline-block;
+  width: 400px;
+  height: 200px;
+  border: solid black 2px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two boxes with matching border radii.</p>
+<div class="group">
+  <div id="container" style="border-radius: 20px;">
+  </div>
+  <div style="display: inline-block; border-radius: 20px;">
+    <div id="container" style="border-radius: 20px;">
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div id="container-zoomed" style="border-radius: 40px;">
+  </div>
+  <div style="display: inline-block;">
+    <div id="container-zoomed" style="border-radius: 40px;">
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  display: inline-block;
+  border: solid black 1px;
+}
+.container {
+  width: 100px;
+  height: 100px;
+  display: grid;
+  gap: 10px;
+}
+.container-zoom {
+  width: 200px;
+  height: 200px;
+  display: grid;
+  gap: 20px;
+}
+.item {
+  background: black;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="grid-template-columns: 40px 1fr 20px; grid-template-rows: 10px 30px 40px;">
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="grid-template-columns: 40px 1fr 20px; grid-template-rows: 10px 30px 40px;">
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container-zoom" style="grid-template-columns: 80px 1fr 40px; grid-template-rows: 20px 60px 80px;">
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container-zoom" style="grid-template-columns: 80px 1fr 40px; grid-template-rows: 20px 60px 80px;">
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

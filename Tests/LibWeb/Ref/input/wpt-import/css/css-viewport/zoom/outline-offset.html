@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to outline-offset</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/outline-offset-ref.html">
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  display: inline-block;
+  outline-style: solid;
+  outline-width: 1px;
+  outline-offset: 5px;
+  outline-color: transparent;
+}
+.container {
+  display: inline-block;
+  width: 200px;
+  height: 100px;
+  outline-width: 1px;
+  outline-style: solid;
+  outline-color: black;
+}
+.spacer {
+  display: inline-block;
+  width: 40px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two boxes with matching outlines.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="outline-offset: 5px; zoom: 1;">
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="outline-offset: inherit; zoom: 1;">
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="outline-offset: 5px; zoom: 2;">
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="outline-offset: inherit; zoom: 2;">
+    </div>
+  </div>
+</div>
+</body>
+</html>

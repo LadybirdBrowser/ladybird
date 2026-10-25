@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to scroll-margin</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/scroll-margin-ref.html">
+<style>
+.group {
+  display: inline-block;
+  border: solid black 1px;
+  padding: 10px;
+}
+
+#container {
+  display: inline-block;
+  width: 200px;
+  height: 100px;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  padding: 40px 0;
+  margin: auto;
+  scroll-snap-type: y mandatory;
+}
+
+.buffer {
+  scroll-snap-align: start;
+  background-color: lightblue;
+  height: 300px;
+  width: 200px;
+}
+
+.target {
+  scroll-snap-align: start;
+  background-color: black;
+  height: 10px;
+  width: 200px;
+}
+</style>
+</head>
+<body>
+<p>The black bars should line up in each group</p>
+<div class="group">
+  <div id="container">
+    <div class="buffer"></div>
+    <div class="target" style="scroll-margin-top: 20px; zoom 1;"></div>
+    <div class="buffer"></div>
+  </div>
+
+  <div id="container" style="scroll-margin-top: 20px;">
+    <div class="buffer"></div>
+    <div class="target" style="scroll-margin-top: inherit; zoom: 1;"></div>
+    <div class="buffer"></div>
+  </div>
+</div>
+<div class="group">
+  <div id="container">
+    <div class="buffer"></div>
+    <div class="target" style="scroll-margin-top: 20px; zoom: 2;"></div>
+    <div class="buffer"></div>
+  </div>
+
+  <div id="container" style="scroll-margin-top: 20px;">
+    <div class="buffer"></div>
+    <div class="target" style="scroll-margin-top: inherit; zoom: 2;"></div>
+    <div class="buffer"></div>
+  </div>
+</div>
+<script>
+  for (match of document.querySelectorAll(".target")) {
+    match.scrollIntoView();
+  }
+</script>
+</body>
+</html>

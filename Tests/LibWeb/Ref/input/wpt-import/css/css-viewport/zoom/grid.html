@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to grid-template-columns/grid-template-rows</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/grid-ref.html">
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  display: inline-block;
+  border: solid black 1px;
+  grid-template-columns: 40px 1fr 20px;
+  grid-template-rows: 10px 30px 40px;
+}
+.container {
+  width: 100px;
+  height: 100px;
+  display: grid;
+  gap: 10px;
+}
+.item {
+  background: black;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="grid-template-columns: 40px 1fr 20px; grid-template-rows: 10px 30px 40px; zoom: 1;">
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="grid-template-columns: inherit; grid-template-rows: inherit; zoom: 1;">
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="grid-template-columns: 40px 1fr 20px; grid-template-rows: 10px 30px 40px; zoom: 2;">
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="grid-template-columns: inherit; grid-template-rows: inherit; zoom: 2;">
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+      <div class="item"> </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

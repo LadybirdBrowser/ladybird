@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to drop-shadow when specified and inherited</title>
+<link rel="author" title="Stephen White" href="mailto:senorblanco@chromium.org">
+<link rel="author" title="Brent Fulgham" href="mailto:bfulgham@apple.com">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-1/#FilterProperty">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/filters-drop-shadow-ref.html">
+<meta name="fuzzy" content="maxDifference=0-20; totalPixels=0-862" />
+<meta name="assert" content="Check that clipping gets correctly applied on children of a container with a drop-shadow filter in effect."/>
+
+<style>
+.container {
+    filter: drop-shadow(5px 5px 5px black);
+    padding: 20px;
+}
+.circle-mask {
+    border-radius: 80px;
+    overflow: hidden;
+    width: 100px;
+    height: 100px;
+}
+.green-box {
+    width: 100px;
+    height: 100px;
+    background-color: green;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+.zoom {
+  zoom: 2;
+}
+</style>
+<div class="container">
+  <div class="circle-mask">
+    <div class="green-box">unzoomed</div>
+  </div>
+</div>
+<div class="container">
+  <div class="circle-mask zoom">
+    <div class="green-box">zoomed</div>
+  </div>
+</div>
+<div class="container zoom">
+  <div class="circle-mask">
+    <div class="green-box">zoomed inherited</div>
+  </div>
+</div>

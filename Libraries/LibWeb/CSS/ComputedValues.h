@@ -502,6 +502,8 @@ public:
     ComputedValuesFFI::ComputedSize const& height() const { return m_noninherited.sizing->height; }
     Direction direction() const { return static_cast<Direction>(m_inherited.box->direction); }
     WritingMode writing_mode() const { return static_cast<WritingMode>(m_inherited.box->writing_mode); }
+    // https://drafts.csswg.org/css-viewport/#effective-zoom
+    double effective_zoom() const { return m_inherited.box->effective_zoom_value(); }
 
     ContainerType container_type() const
     {
@@ -735,6 +737,8 @@ public:
         Direction direction_value() const { return static_cast<Direction>(direction); }
         WritingMode writing_mode_value() const { return static_cast<WritingMode>(writing_mode); }
         ContentVisibility content_visibility_value() const { return static_cast<ContentVisibility>(content_visibility); }
+        // https://drafts.csswg.org/css-viewport/#effective-zoom
+        float effective_zoom_value() const { return bit_cast<float>(effective_zoom_bits); }
 
         bool operator==(InheritedBoxValues const& other) const
         {
@@ -743,7 +747,8 @@ public:
                 && writing_mode == other.writing_mode
                 && content_visibility == other.content_visibility
                 && image_rendering == other.image_rendering
-                && text_orientation == other.text_orientation;
+                && text_orientation == other.text_orientation
+                && effective_zoom_bits == other.effective_zoom_bits;
         }
     };
 

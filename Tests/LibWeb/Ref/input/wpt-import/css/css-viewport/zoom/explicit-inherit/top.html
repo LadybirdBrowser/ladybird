@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>top:inherit applies zoom</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-viewport/zoom/explicit-inherit/../green-square-100px.html">
+<style>
+  div > div {
+    background-color: green;
+    width: 50px;
+    height: 50px;
+  }
+</style>
+<div style="contain:layout; top:50px; translate:0 -100px">
+  <div style="zoom:2; position:absolute; top:inherit;"></div>
+</div>

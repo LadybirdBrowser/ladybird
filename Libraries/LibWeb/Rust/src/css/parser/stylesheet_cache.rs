@@ -20,6 +20,7 @@ struct LengthResolutionKey {
     font: [u64; 5],
     root_font: [u64; 5],
     container: [u64; 2],
+    zoom: u64,
     flags: [bool; 7],
 }
 
@@ -40,6 +41,7 @@ impl LengthResolutionKey {
             container_height_basis_depends_on_viewport_metrics,
             subject_inline_axis_is_horizontal,
             resolved_viewport_relative_length,
+            zoom,
         } = *context;
         // A cache hit cannot reproduce writes to an external dependency-tracking flag.
         if !resolved_viewport_relative_length.is_null() {
@@ -66,6 +68,7 @@ impl LengthResolutionKey {
             font: font_key(&font_metrics),
             root_font: font_key(&root_font_metrics),
             container: [container_width_basis.to_bits(), container_height_basis.to_bits()],
+            zoom: zoom.to_bits(),
             flags: [
                 font_metrics_depend_on_viewport_metrics,
                 root_font_metrics_depend_on_viewport_metrics,

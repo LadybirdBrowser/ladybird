@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.box {
+  padding: 10px;
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+.outer {
+  border: solid black 1px;
+  display: inline-block;
+  width: 200px;
+  height: 200px;
+  overflow: clip;
+}
+.container {
+  width: 200px;
+  height: 200px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each box below should match the corresponding box in references/transform-perspective-ref.html</p>
+<div class="outer">
+  <div class="container">
+    <div class="box" style="transform: perspective(100px) rotateY(60deg);"></div>
+  </div>
+</div>
+<div class="spacer"></div>
+<div class="outer" >
+  <div class="container" style="transform: perspective(100px) rotateY(60deg);">
+    <div class="box" style="transform: perspective(100px) rotateY(60deg);"></div>
+  </div>
+</div>
+<div class="spacer"></div>
+<div class="outer">
+  <div class="container">
+    <div class="box"  style="transform: perspective(100px) rotateY(60deg);"></div>
+  </div>
+</div>
+<div class="spacer"></div>
+<div class="outer">
+  <div class="container" style="transform: perspective(50px) rotateY(60deg);">
+    <div class="box" style="transform: perspective(100px) rotateY(60deg);"></div>
+  </div>
+</div>
+</body>
+</html>

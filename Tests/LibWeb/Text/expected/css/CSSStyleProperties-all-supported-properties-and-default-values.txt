@@ -1072,4 +1072,5 @@ All supported properties and their default values exposed from CSSStylePropertie
 'y': '0px'
 'zIndex': 'auto'
 'z-index': 'auto'
+'zoom': '1'
 'constructor': 'function CSSStyleProperties() { [native code] }'

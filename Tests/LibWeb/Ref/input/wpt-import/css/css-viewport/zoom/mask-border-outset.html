@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to mask-border-outset</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/mask-border-outset-ref.html">
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  mask-border-outset: 5px;
+  display: inline-block;
+}
+.container {
+  mask-border-source: url("../../../images/green.png");
+  mask-border-slice: 20;
+  background-color: black;
+  width: 50px;
+  height: 50px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="mask-border-outset: 5px; zoom: 1;">
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="mask-border-outset: inherit; zoom: 1;">
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="mask-border-outset: 5px; zoom: 2;">
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="mask-border-outset: inherit; zoom: 2;">
+    </div>
+  </div>
+</div>
+</body>
+</html>

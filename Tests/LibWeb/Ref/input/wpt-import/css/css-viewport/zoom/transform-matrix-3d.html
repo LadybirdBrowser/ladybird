@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to transform: matrix3d()</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/transform-matrix-3d-ref.html">
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.box {
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+.box-zoom {
+  width: 50px;
+  height: 50px;
+  background: red;
+}
+.outer {
+  border: solid black 1px;
+  display: inline-block;
+  width: 200px;
+  height: 200px;
+  overflow: clip;
+}
+.container {
+  width: 200px;
+  height: 200px;
+}
+.container-zoom {
+  width: 100px;
+  height: 100px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container">
+      <div class="box" style="transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 20, 40, 0, 1); zoom: 1;"></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer" >
+    <div class="container" style="transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10, 20, 0, 1);">
+      <div class="box" style="transform: inherit; zoom: 1;"></div>
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container-zoom">
+      <div class="box-zoom"  style="transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 15, 30, 0, 1); zoom: 2;"></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container-zoom" style="transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10, 20, 0, 1);">
+      <div class="box-zoom" style="transform: inherit; zoom: 2;"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

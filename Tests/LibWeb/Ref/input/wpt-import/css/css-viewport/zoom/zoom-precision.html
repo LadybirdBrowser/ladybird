@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/zoom-precision-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1973437">
+<link rel="author" href="mailto:dholbert@mozilla.com" title="Daniel Holbert">
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<style>
+  .s {
+    display: inline-block;
+    background: green;
+    width: 190px;
+    height: 100px;
+  }
+
+  .t {
+    font-size: 0;
+    width: 570px;
+    /* this is 3x the width of .s */
+    background: red;
+    zoom: 85%;
+  }
+</style>
+<div class="t">
+  <div class="s"></div>
+  <div class="s"></div>
+  <div class="s"></div>
+</div>

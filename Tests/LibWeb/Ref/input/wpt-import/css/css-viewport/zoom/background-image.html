@@ -1,0 +1,13 @@
+<!doctype html>
+<title>Zoom affects background-image intrinsic sizes</title>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/background-image-ref.html">
+<style>
+div {
+  width: 20px;
+  height: 20px;
+  zoom: 0.5;
+  background-image: url("../../../images/pattern.png"); /* 20x20 */
+}
+</style>
+<div></div>

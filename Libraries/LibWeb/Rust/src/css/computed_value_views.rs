@@ -743,6 +743,12 @@ impl<'a> ComputedValuesView<'a> {
         self.native_group(STYLE_GROUP_INDEX_INHERITED_BOX)
     }
 
+    /// https://drafts.csswg.org/css-viewport/#effective-zoom
+    #[inline]
+    pub(crate) fn effective_zoom(self) -> f32 {
+        self.inherited_box().effective_zoom()
+    }
+
     #[inline]
     fn inherited_table(self) -> &'a InheritedTableValues {
         self.native_group(STYLE_GROUP_INDEX_INHERITED_TABLE)

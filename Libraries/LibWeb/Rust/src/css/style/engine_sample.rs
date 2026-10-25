@@ -60,6 +60,16 @@ impl RetainedState {
         })
     }
 
+    /// https://drafts.csswg.org/css-viewport/#effective-zoom
+    /// The effective zoom of the document element, which the font a `rem` resolves against is zoomed by.
+    fn root_effective_zoom(&self) -> f64 {
+        self.held_root_font_inputs
+            .unwrap_or_else(|| {
+                super::publication::RootFontInputs::from_document(&self.document_style_computation_inputs)
+            })
+            .effective_zoom()
+    }
+
     /// The font a `rem` resolves against, and whether it reads the viewport: the font of the record
     /// the host holds for the document element, which the document inputs only describe as of the
     /// transaction they were published with.
@@ -653,6 +663,7 @@ impl super::StyleEngine {
             device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
             initial_font_size_raw: inputs.initial_font_size_raw,
             default_font_size_raw: inputs.default_font_size_raw,
+            root_effective_zoom: self.root_effective_zoom(),
         };
         // SAFETY: The record's table is frozen, and the record the caller holds keeps it alive throughout the
         //         sample, which writes only `overlay` and what the engine keeps of the element's animations.
@@ -1332,6 +1343,7 @@ fn length_resolution_context(
         container_height_basis_depends_on_viewport_metrics: false,
         subject_inline_axis_is_horizontal,
         resolved_viewport_relative_length: std::ptr::null_mut(),
+        zoom: 1.0,
     }
 }
 

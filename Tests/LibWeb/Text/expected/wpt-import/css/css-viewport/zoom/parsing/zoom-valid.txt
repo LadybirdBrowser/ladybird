@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 16 tests
 
-7 Pass
-9 Fail
-Fail	e.style['zoom'] = "normal" should set the property value
-Fail	e.style['zoom'] = "1" should set the property value
-Fail	e.style['zoom'] = "100%" should set the property value
-Fail	e.style['zoom'] = "0" should set the property value
-Fail	e.style['zoom'] = "0%" should set the property value
-Fail	e.style['zoom'] = "1.5" should set the property value
-Fail	e.style['zoom'] = "150%" should set the property value
-Fail	e.style['zoom'] = "75%" should set the property value
-Fail	e.style['zoom'] = "0.5" should set the property value
+16 Pass
+Pass	e.style['zoom'] = "normal" should set the property value
+Pass	e.style['zoom'] = "1" should set the property value
+Pass	e.style['zoom'] = "100%" should set the property value
+Pass	e.style['zoom'] = "0" should set the property value
+Pass	e.style['zoom'] = "0%" should set the property value
+Pass	e.style['zoom'] = "1.5" should set the property value
+Pass	e.style['zoom'] = "150%" should set the property value
+Pass	e.style['zoom'] = "75%" should set the property value
+Pass	e.style['zoom'] = "0.5" should set the property value
 Pass	e.style['zoom'] = "auto" should not set the property value
 Pass	e.style['zoom'] = "reset" should not set the property value
 Pass	e.style['zoom'] = "document" should not set the property value

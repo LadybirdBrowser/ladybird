@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	calc(sign(1em - 1px) * 2) should be used-value-equivalent to 2
-Fail	calc(sign(1em - 1px) * 2%) should be used-value-equivalent to 2%
+2 Pass
+Pass	calc(sign(1em - 1px) * 2) should be used-value-equivalent to 2
+Pass	calc(sign(1em - 1px) * 2%) should be used-value-equivalent to 2%

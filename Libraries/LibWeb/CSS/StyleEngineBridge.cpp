@@ -619,6 +619,7 @@ void StyleEngine::gather_computation_inputs(LentComputationInputs& lent)
         .root_font_zero_advance = root_font_metrics.zero_advance.to_double(),
         .root_line_height = root_font_metrics.line_height.to_double(),
         .root_font_metrics_depend_on_viewport_metrics = m_style_computer->root_element_font_metrics_depend_on_viewport_metrics(),
+        .root_effective_zoom = m_style_computer->root_element_effective_zoom(),
         .initial_font_size = initial_font_metrics.font_size.to_double(),
         .initial_font_x_height = initial_font_metrics.x_height.to_double(),
         .initial_font_cap_height = initial_font_metrics.cap_height.to_double(),

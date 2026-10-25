@@ -383,3 +383,4 @@ will-change: auto
 x: 0px
 y: 0px
 z-index: auto
+zoom: 1

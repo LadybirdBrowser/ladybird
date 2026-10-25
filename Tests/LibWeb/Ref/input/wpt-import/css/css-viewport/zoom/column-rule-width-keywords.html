@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>CSS zoom applies to column-rule-width keywords</title>
+  <link rel="help" href="https://drafts.csswg.org/css-viewport/">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/column-rule-width-keywords-ref.html">
+  <style>
+    .initial {
+      width: 100px;
+      height: 50px;
+      margin-bottom: 10px;
+      column-count: 2;
+      column-gap: 20px;
+      column-rule-color: blue;
+      column-rule-style: solid;
+      column-rule-width: initial;
+      zoom: 2;
+    }
+
+    .thin {
+      width: 100px;
+      height: 50px;
+      margin-bottom: 10px;
+      column-count: 2;
+      column-gap: 20px;
+      column-rule: thin solid blue;
+      zoom: 2;
+    }
+
+    .medium {
+      width: 100px;
+      height: 50px;
+      margin-bottom: 10px;
+      column-count: 2;
+      column-gap: 20px;
+      column-rule: medium solid blue;
+      zoom: 2;
+    }
+
+    .thick {
+      width: 100px;
+      height: 50px;
+      margin-bottom: 10px;
+      column-count: 2;
+      column-gap: 20px;
+      column-rule: thick solid blue;
+      zoom: 2;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="initial">Text content here to fill columns</div>
+  <div class="thin">Text content here to fill columns</div>
+  <div class="medium">Text content here to fill columns</div>
+  <div class="thick">Text content here to fill columns</div>
+</body>
+
+</html>

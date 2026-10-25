@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to shape-outside: xywh(...)</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/shape-outside-xywh-ref.html">
+<style>
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  border: solid black 1px;
+  display: inline-block;
+  width: 300px;
+  height: 200px;
+  overflow: clip;
+}
+.outer > p {
+  margin: 0;
+}
+.xywh {
+  float: left;
+  width: 200px;
+  height: 200px;
+  margin: 0px;
+}
+.xywh-zoom {
+  float: left;
+  width: 100px;
+  height: 100px;
+  margin: 0px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer" style="shape-outside: xywh(0 40px 140px 120px round 60px);">
+    <div class="xywh" style="shape-outside: xywh(0 40px 140px 120px round 60px); zoom: 1;"></div>
+    <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer" style="shape-outside: xywh(0 40px 140px 120px round 60px);">
+    <div class="xywh" style="shape-outside: inherit; zoom: 1;"></div>
+    <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+  </div>
+</div>
+<div class="group">
+  <div class="outer" style="shape-outside: xywh(0 20px 70px 60px round 30px);">
+    <div class="xywh-zoom" style="shape-outside: xywh(0 20px 70px 60px round 30px); zoom: 2;"></div>
+    <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer" style="shape-outside: xywh(0 20px 70px 60px round 30px);">
+    <div class="xywh-zoom" style="shape-outside: inherit; zoom: 2;"></div>
+    <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+  </div>
+</div>
+</body>
+</html>

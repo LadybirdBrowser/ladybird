@@ -175,6 +175,7 @@ impl RetainedState {
             subject_inline_axis_is_horizontal: values.writing_mode()
                 == crate::css::css_enums::writing_mode::HORIZONTAL_TB,
             resolved_viewport_relative_length: std::ptr::null_mut(),
+            zoom: 1.0,
         })
     }
 

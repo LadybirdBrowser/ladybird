@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to line-height when specified and inherited</title>
+<link rel="author" title="Chris Harrelson" href="mailto:chrishtr@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/line-height-ref.html">
+<div style="line-height: 12px; font-size: 12px">
+  Double-spaced<br>12px font text
+</div>
+
+<hr>
+
+<div style="line-height: 12px; font-size: 12px; zoom: 2">
+  Double-spaced<br>12px font zoomed text
+</div>
+
+<hr>
+
+<div style="line-height: 12px; font-size: 12px">
+  <div style="zoom:2">
+    Double-spaced<br>12px font zoomed inherited text
+  </div>
+</div>
+
+<hr>

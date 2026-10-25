@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Reference: Zoom property on transformed animated element</title>
+<link rel="author" href="mailto:salipov@mozilla.com" title="Seva Alipov">
+<link rel="author" href="https://mozilla.com" title="Mozilla">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1927186">
+
+<style>
+.container {
+  width: 200px;
+  height: 200px;
+  border: 1px solid;
+}
+
+#foo {
+  width: 100px;
+  height: 100px;
+  background: purple;
+  transform: matrix(1, 0, 0, 1, 100, 100);
+}
+</style>
+
+<div class="container">
+  <div id="foo"></div>
+</div>

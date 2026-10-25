@@ -6468,6 +6468,7 @@ fn animation_length_resolution_context(
         container_height_basis_depends_on_viewport_metrics: false,
         subject_inline_axis_is_horizontal: true,
         resolved_viewport_relative_length: std::ptr::null_mut(),
+        zoom: 1.0,
     })
 }
 

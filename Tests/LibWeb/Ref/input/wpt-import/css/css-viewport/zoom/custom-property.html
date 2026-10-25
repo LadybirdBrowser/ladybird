@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to custom properties</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/custom-property-ref.html">
+<style>
+@property --test {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.group {
+  border: solid black 1px;
+  padding: 20px;
+  margin: 10px;
+  width: max-content;
+}
+.outer {
+  --test: 100px;
+  display: inline-block;
+}
+.container {
+  background-color: black;
+  height: 20px;
+}
+.spacer {
+  display: inline-block;
+  width: 20px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two matching boxes.</p>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="--test: 100px; width: var(--test); zoom: 1;"></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="--test: inherit; width: var(--test); zoom: 1;"></div>
+  </div>
+</div>
+<div class="group">
+  <div class="outer">
+    <div class="container" style="--test: 100px; width: var(--test); zoom: 2;"></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="outer">
+    <div class="container" style="--test: inherit; width: var(--test); zoom: 2;"></div>
+  </div>
+</div>
+</body>
+</html>

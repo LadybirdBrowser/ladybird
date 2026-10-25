@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#container {
+  display: inline-block;
+  width: 200px;
+  height: 100px;
+  border: solid black 1px;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  scroll-snap-type: y mandatory;
+}
+
+#container-zoomed {
+  display: inline-block;
+  width: 400px;
+  height: 200px;
+  border: solid black 2px;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  scroll-snap-type: y mandatory;
+}
+
+.buffer {
+  scroll-snap-align: start;
+  background-color: lightblue;
+  height: 1000px;
+  width: 200px;
+}
+
+.buffer-zoomed {
+  scroll-snap-align: start;
+  background-color: lightblue;
+  height: 2000px;
+  width: 400px;
+}
+
+.target {
+  scroll-snap-align: start;
+  background-color: black;
+  height: 20px;
+  width: 200px;
+}
+
+.target-zoomed {
+  scroll-snap-align: start;
+  background-color: black;
+  height: 40px;
+  width: 400px;
+}
+</style>
+</head>
+<body>
+
+<div id="container" style="scroll-padding-top: 20px;">
+  <div class="buffer"></div>
+  <div class="target" id="target1"></div>
+  <div class="buffer"></div>
+</div>
+
+<div id="container" style="scroll-padding-top: 20px;">
+  <div class="buffer"></div>
+  <div class="target" id="target3"></div>
+  <div class="buffer"></div>
+</div>
+
+<div id="container-zoomed" style="scroll-padding-top: 40px;">
+  <div class="buffer-zoomed"></div>
+  <div class="target-zoomed" id="target2"></div>
+  <div class="buffer-zoomed"></div>
+</div>
+
+<div id="container-zoomed" style="scroll-padding-top: 40px;">
+  <div class="buffer-zoomed"></div>
+  <div class="target-zoomed" id="target4"></div>
+  <div class="buffer-zoomed"></div>
+</div>
+
+<script>
+  for (match of document.querySelectorAll(".target, .target-zoomed")) {
+    match.scrollIntoView();
+  }
+</script>
+</body>
+</html>

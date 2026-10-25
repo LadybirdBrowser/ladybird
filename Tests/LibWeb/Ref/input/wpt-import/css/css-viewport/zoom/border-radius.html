@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Zoom applies to border-radius</title>
+<link rel="author" title="Sam Weinig" href="mailto:sam@webkit.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/border-radius-ref.html">
+<style>
+.group {
+  border: solid black 1px;
+  padding: 10px;
+  margin: 10px;
+  width: max-content;
+}
+
+#container {
+  display: inline-block;
+  width: 200px;
+  height: 100px;
+  border: solid black 1px;
+}
+</style>
+</head>
+<body>
+<p>Each grouping below should have two boxes with matching border radii.</p>
+<div class="group">
+  <div id="container" style="border-radius: 20px; zoom: 1;">
+  </div>
+  <div style="display: inline-block; border-radius: 20px;">
+    <div id="container" style="border-radius: inherit; zoom: 1;">
+    </div>
+  </div>
+</div>
+<div class="group">
+  <div id="container" style="border-radius: 20px; zoom: 2;">
+  </div>
+  <div style="display: inline-block; border-radius: 20px;">
+    <div id="container" style="border-radius: inherit; zoom: 2;">
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -2095,6 +2095,22 @@ impl CalcNode {
                 return self.clone();
             }
 
+            // https://drafts.csswg.org/css-viewport/#zoom-property
+            // NB: An absolute length computes zoomed by the effective zoom of the element, as it does outside a
+            //     calculation.
+            if let CalcNumericValue::Length { value, unit } = *value
+                && let Some(length_context) = context.length_resolution.context
+                && length_context.zoom != 1.0
+            {
+                let ratio = crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[unit as usize];
+                if ratio.is_finite() {
+                    return shared(CalcNode::Numeric(CalcNumericValue::Length {
+                        value: value * ratio * length_context.zoom,
+                        unit: canonical_unit_code(&crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
+                    }));
+                }
+            }
+
             // 2. If root is a dimension that is not expressed in its canonical unit, and there is enough
             //    information available to convert it to the canonical unit, do so, and return the value.
             if !is_canonical_unit(*value)
@@ -2349,6 +2365,22 @@ impl CalcNode {
                                     shared(CalcNode::Numeric(value.with_raw(value.raw() * multiplier)))
                                 })
                                 .collect();
+                            if let Some(length_context) = context.length_resolution.context {
+                                // NB: The product's children already resolved their lengths before distribution.
+                                let mut neutral_length = *length_context;
+                                neutral_length.zoom = 1.0;
+                                let neutral_context = CalcEvaluationContext {
+                                    percentage_leaf_type: context.percentage_leaf_type,
+                                    resolve_as: context.resolve_as,
+                                    percentage_basis: context.percentage_basis,
+                                    length_resolution: LengthResolution {
+                                        context: Some(&neutral_length),
+                                        ..context.length_resolution
+                                    },
+                                    random_base_value: context.random_base_value,
+                                };
+                                return shared(CalcNode::Sum(multiplied)).simplify(&neutral_context, callbacks);
+                            }
                             return shared(CalcNode::Sum(multiplied)).simplify(context, callbacks);
                         }
                     }

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to word-spacing when specified and inherited</title>
+<link rel="author" title="Stefan Zager" href="mailto:szager@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+
+<style>
+html {
+  --scale: 1;
+}
+div {
+  font-size: calc(1rem * var(--scale));
+  word-spacing: calc(2rem * var(--scale));
+}
+.zoom {
+  --scale: 2;
+}
+</style>
+
+<div class="spacing">
+  <div>unzoomed lorem ipsum</div>
+</div>
+
+<div class="spacing zoom">
+  <div>zoomed lorem ipsum</div>
+</div>
+
+<div class="spacing zoom">
+  <div>zoomed inherited lorem ipsum</div>
+</div>

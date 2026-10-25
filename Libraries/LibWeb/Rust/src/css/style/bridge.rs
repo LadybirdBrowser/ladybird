@@ -303,6 +303,9 @@ pub struct FfiDocumentStyleComputationInputs {
     pub root_font_zero_advance: f64,
     pub root_line_height: f64,
     pub root_font_metrics_depend_on_viewport_metrics: bool,
+    /// https://drafts.csswg.org/css-viewport/#effective-zoom
+    /// The effective zoom of the document element, which its font metrics above are zoomed by.
+    pub root_effective_zoom: f64,
     /// The metrics of the document's initial font, which the document element's own font
     /// resolves against.
     pub initial_font_size: f64,
@@ -398,6 +401,7 @@ impl Default for FfiDocumentStyleComputationInputs {
             root_font_cap_height: 0.0,
             root_font_zero_advance: 0.0,
             root_line_height: 0.0,
+            root_effective_zoom: 1.0,
             root_font_metrics_depend_on_viewport_metrics: false,
             initial_font_size: 0.0,
             initial_font_x_height: 0.0,

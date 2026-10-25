@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Zoom property on elements with a transformation matrix used</title>
+<link rel="author" href="mailto:salipov@mozilla.com" title="Seva Alipov">
+<link rel="author" href="https://mozilla.com" title="Mozilla">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1927186">
+<style>
+div {
+  width: 200px;
+  height: 200px;
+  background-color: green;
+}
+</style>
+<div style="transform: translate(200px, 200px)"></div>
+<div style="transform: matrix(1, 0, 0, -1, 200, 200)"></div>

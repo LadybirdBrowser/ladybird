@@ -6,6 +6,7 @@
 
 #include <AK/Math.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/CSS/Zoom.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
@@ -32,20 +33,24 @@ ResizeObserverSize::RawSize ResizeObserverSize::compute_box_size(DOM::Element& t
     if (layout_node && !layout_node->is_inline_node() && Painting::has_committed_box(*layout_node)) {
         double width = 0;
         double height = 0;
+        // https://drafts.csswg.org/css-viewport/#zoom-om
+        // All other APIs related to element geometries must return unscaled lengths (except as detailed below).
+        // NB: The device pixel content box is measured in device pixels, so it stays scaled.
+        auto const zoom = CSS::effective_zoom(*layout_node);
         switch (observed_box) {
         // -> If observedBox is "border-box"
         case ObservedBox::BorderBox:
             // 1. Set computedSize's inlineSize attribute to target's border area inline length.
             // 2. Set computedSize's blockSize attribute to target's border area block length.
-            width = Painting::border_box_width(*layout_node).to_double();
-            height = Painting::border_box_height(*layout_node).to_double();
+            width = CSS::unscaled(Painting::border_box_width(*layout_node).to_double(), zoom);
+            height = CSS::unscaled(Painting::border_box_height(*layout_node).to_double(), zoom);
             break;
         // -> If observedBox is "content-box"
         case ObservedBox::ContentBox:
             // 1. Set computedSize's inlineSize attribute to target's content area inline length.
             // 2. Set computedSize's blockSize attribute to target's content area block length.
-            width = Painting::content_width(*layout_node).to_double();
-            height = Painting::content_height(*layout_node).to_double();
+            width = CSS::unscaled(Painting::content_width(*layout_node).to_double(), zoom);
+            height = CSS::unscaled(Painting::content_height(*layout_node).to_double(), zoom);
             break;
         // -> If observedBox is "device-pixel-content-box"
         case ObservedBox::DevicePixelContentBox: {

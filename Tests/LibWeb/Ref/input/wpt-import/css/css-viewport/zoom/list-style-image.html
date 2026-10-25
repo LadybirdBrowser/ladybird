@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<title>CSS zoom applies to list-style-image</title>
+<link rel="author" title="Stefan Zager" href="mailto:szager@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-viewport/zoom/reference/list-style-image-ref.html">
+
+<style>
+.marker {
+  list-style-image: url('#marker');
+}
+ul {
+  margin-block-start: 1rem;
+  margin-block-end: 1rem;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+  padding-inline-start: 40px;
+}
+.zoom {
+  zoom: 2;
+}
+</style>
+
+<div>
+  <ul>
+    <li class="marker">unzoomed</li>
+  </ul>
+</div>
+
+<div>
+  <ul class="zoom">
+    <li class="marker">zoomed</li>
+  </ul>
+</div>
+
+<div class="marker">
+  <ul class="zoom">
+    <li>zoomed inherited</li>
+  </ul>
+</div>
+
+<svg viewBox="0 0 100 100" style="display:none">
+  <defs>
+    <g id="marker">
+      <circle cx="50%" cy="50%" r="50%" stroke="none" />
+    </g>
+  </defs>
+</svg>
