@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: changing position-try-fallbacks to the same position-area value does not invalidate last successful position fallback</title>
+<link rel="author" title="Kiet Ho" href="mailto:kiet.ho@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#last-successful-position-fallback">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+  #container {
+    position: relative;
+    width: 600px;
+    height: 300px;
+    background: teal;
+  }
+  #anchor {
+    position: relative;
+    top: 100px;
+    left: 100px;
+    width: 100px;
+    height: 100px;
+    background: red;
+    anchor-name: --a;
+  }
+  #anchored {
+    position-anchor: --a;
+    position-try-fallbacks: right center;
+    position: absolute;
+    width: 200px;
+    height: 100px;
+    position-area: left center;
+    background: lime;
+  }
+</style>
+<div id="container">
+  <div id="anchor"></div>
+  <div id="anchored"></div>
+</div>
+<script>
+  promise_test(async () => {
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    assert_equals(anchored.offsetLeft, 200);
+  }, "Starts rendering with fallback");
+
+  promise_test(async () => {
+    anchor.style.left = "300px";
+    anchored.style.positionTryFallbacks = "right center";
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    assert_equals(anchored.offsetLeft, 400);
+  }, "Both base and fallback works, position-try-fallbacks is set to the same value, keeps fallback");
+
+  promise_test(async () => {
+    anchored.style.positionTryFallbacks = "right top";
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    assert_equals(anchored.offsetLeft, 100);
+  }, "position-try-fallbacks is set to a different value, both base and fallback works, uses base because last successful position option is invalidated");
+</script>

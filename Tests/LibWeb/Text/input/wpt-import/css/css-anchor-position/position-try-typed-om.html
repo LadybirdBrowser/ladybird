@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning Test: Effects from @position-try in CSS Typed OM</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#fallback-apply">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  @position-try --pt {
+    left: anchor(right);
+    top: 50px;
+    width: anchor-size(width);
+    height: 40px;
+  }
+  #cb {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border: 1px solid black;
+  }
+  #anchor {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    width: 20px;
+    height: 20px;
+    background: coral;
+    anchor-name: --a;
+  }
+  #target {
+    position: absolute;
+    background: skyblue;
+    position-anchor: --a;
+    left: 9999px; /* force overflow */
+    position-try-fallbacks: --pt;
+  }
+</style>
+
+<div id=cb>
+  <div id=anchor></div>
+  <div id=target></div>
+</div>
+<script>
+  function assert_unit_value(actual, expected) {
+    assert_true(actual instanceof CSSUnitValue);
+    assert_true(expected instanceof CSSUnitValue);
+    assert_equals(actual.value, expected.value);
+    assert_equals(actual.unit, expected.unit);
+  }
+
+  test(() => {
+    assert_unit_value(target.computedStyleMap().get('left'), CSS.px(30));
+    assert_unit_value(target.computedStyleMap().get('top'), CSS.px(50));
+    assert_unit_value(target.computedStyleMap().get('width'), CSS.px(20));
+    assert_unit_value(target.computedStyleMap().get('height'), CSS.px(40));
+  }, 'Effects of position-try-fallbacks are visible in the computed values');
+</script>

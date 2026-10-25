@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+
+<title>CSS Anchor Positioning: basic last successful position fallback on pseudo-elements</title>
+<link rel="author" title="Kiet Ho" href="mailto:kiet.ho@apple.com">
+
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#last-successful-position-fallback">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/test-common.js"></script>
+
+<style>
+  #container {
+    position: relative;
+    width: 400px;
+    height: 400px;
+    background: teal;
+  }
+  #anchor {
+    position: relative;
+    top: 100px;
+    left: 100px;
+    width: 100px;
+    height: 100px;
+    background: red;
+    anchor-name: --a;
+  }
+  #anchored::before {
+    position-anchor: --a;
+    /*
+        We can't use position-area, since there's no way to access offsetTop of
+        pseudo-elements to check for position. Instead, we have to use anchor()
+        and check the computed inset values.
+    */
+    bottom: anchor(top);
+    left: anchor(left);
+    position-try-fallbacks: flip-block;
+    position: absolute;
+    width: 100px;
+    height: 200px;
+    background: lime;
+    content: "";
+  }
+</style>
+
+<div id="container">
+  <div id="anchor"></div>
+  <div id="anchored"></div>
+</div>
+
+<script>
+  promise_test(async () => {
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    const anchoredStyle = getComputedStyle(anchored, "::before");
+    assert_equals(anchoredStyle.top, "200px");
+  }, "Starts rendering with flip-block");
+
+  promise_test(async () => {
+    anchor.style.top = "150px";
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    const anchoredStyle = getComputedStyle(anchored, "::before");
+    assert_equals(anchoredStyle.top, "250px");
+  }, "No successful position, keep flip-block");
+
+  promise_test(async () => {
+    anchor.style.top = "200px";
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    const anchoredStyle = getComputedStyle(anchored, "::before");
+    assert_equals(anchoredStyle.top, "0px");
+  }, "Base position without fallback now successful");
+</script>
+

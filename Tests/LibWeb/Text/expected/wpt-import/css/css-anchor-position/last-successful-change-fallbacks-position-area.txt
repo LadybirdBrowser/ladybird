@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Starts rendering with fallback
+Fail	Both base and fallback works, position-try-fallbacks is set to the same value, keeps fallback
+Fail	position-try-fallbacks is set to a different value, both base and fallback works, uses base because last successful position option is invalidated

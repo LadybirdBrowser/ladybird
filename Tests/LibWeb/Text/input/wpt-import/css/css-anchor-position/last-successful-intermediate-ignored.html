@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: last successful updated on resizeObserver timing</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#last-successful-position-fallback">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+  #container {
+    position: relative;
+    width: 400px;
+    height: 400px;
+    background: teal;
+  }
+  #anchor {
+    position: relative;
+    top: 100px;
+    left: 100px;
+    width: 100px;
+    height: 100px;
+    background: red;
+    anchor-name: --a;
+  }
+  #anchored {
+    position-anchor: --a;
+    position-try-fallbacks: flip-block;
+    position: absolute;
+    width: 100px;
+    height: 200px;
+    position-area: top center;
+    background: lime;
+  }
+</style>
+<div id="container">
+  <div id="anchor"></div>
+  <div id="anchored"></div>
+</div>
+<script>
+  promise_test(async () => {
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    assert_equals(anchored.offsetTop, 200);
+  }, "Starts rendering with flip-block");
+
+  promise_test(async () => {
+    anchor.style.top = "200px";
+    // Temporarily successful position for base style, but last successful is
+    // updated resize observer time.
+    assert_equals(anchored.offsetTop, 0);
+    anchor.style.top = "150px";
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    assert_equals(anchored.offsetTop, 200);
+  }, "No successful position (with intermediate successful), keep flip-block");
+</script>

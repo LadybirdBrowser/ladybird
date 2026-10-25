@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#fallback">
+<link rel="author" href="mailto:kojii@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+.cb {
+  position: relative;
+  width: 190px;
+  height: 70px;
+  background: yellow;
+  border-bottom: 1px solid black;
+}
+.spacer {
+  width: 1px;
+  height: 20px;
+}
+.anchor1 {
+  anchor-name: --a1;
+  margin-left: 45px;
+  width: 100px;
+  height: 30px;
+  background: blue;
+}
+.target {
+  position: absolute;
+  position-try-fallbacks: --f1, --f2, --f3, --f4;
+  width: 40px;
+  height: 15px;
+  margin: 5px;
+  background: orange;
+  /* Position to the right of the anchor. */
+  left: anchor(--a1 right);
+  top: anchor(--a1 top);
+}
+@position-try --f1 {
+  inset: auto;
+  /* Position to the left of the anchor. */
+  right: anchor(--a1 left);
+  top: anchor(--a1 top);
+}
+@position-try --f2 {
+  inset: auto;
+  /* Position to the bottom of the anchor. */
+  left: anchor(--a1 left);
+  top: anchor(--a1 bottom);
+}
+@position-try --f3 {
+  inset: auto;
+  /* Position to the top of the anchor. */
+  left: anchor(--a1 left);
+  bottom: anchor(--a1 top);
+}
+@position-try --f4 {
+  inset: auto;
+  /* Position to the left with the narrower width. */
+  left: anchor(--a1 right);
+  top: anchor(--a1 top);
+  width: 35px;
+  height: 40px;
+}
+</style>
+<body onload="checkLayoutForAnchorPos('.target')">
+  <!-- If the `cb` is wider, the base style fits. -->
+  <div class="cb" style="width: 195px">
+    <div class="spacer"></div>
+    <div class="anchor1"></div>
+    <div class="target"
+         data-offset-x=150 data-offset-y=25
+         data-expected-width=40 data-expected-height=15></div>
+  </div>
+  <!-- If the `margin-left` is wider, the first `@position-try` fits. -->
+  <div class="cb">
+    <div class="spacer"></div>
+    <div class="anchor1" style="margin-left: 50px"></div>
+    <div class="target"
+         data-offset-x=5 data-offset-y=25
+         data-expected-width=40 data-expected-height=15></div>
+  </div>
+  <!-- Without a spacer, the 2nd `@position-try` fits. -->
+  <div class="cb">
+    <div class="anchor1"></div>
+    <div class="target"
+         data-offset-x=50 data-offset-y=35
+         data-expected-width=40 data-expected-height=15></div>
+  </div>
+  <!-- With two spacers, the 3rd `@position-try` fits. -->
+  <div class="cb">
+    <div class="spacer"></div>
+    <div class="spacer"></div>
+    <div class="anchor1"></div>
+    <div class="target"
+         data-offset-x=50 data-offset-y=20
+         data-expected-width=40 data-expected-height=15></div>
+  </div>
+  <!-- With a spacer, the last `@position-try` fits. -->
+  <div class="cb">
+    <div class="spacer"></div>
+    <div class="anchor1"></div>
+    <div class="target"
+         data-offset-x=150 data-offset-y=25
+         data-expected-width=35 data-expected-height=40></div>
+  </div>
+  <!-- If the `cb` is narrower, no rules fit. The base style is used. -->
+  <div class="cb" style="width: 185px">
+    <div class="spacer"></div>
+    <div class="anchor1"></div>
+    <div class="target"
+    data-offset-x=150 data-offset-y=25
+         data-expected-width=40 data-expected-height=15></div>
+  </div>
+</body>

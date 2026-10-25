@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: position-try-fallbacks on ::backdrop</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#fallback-apply">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  @position-try --pt {
+    left: 300px;
+  }
+  #anchor {
+    width: 100px;
+    height: 100px;
+    margin-left: 150px;
+    margin-top: 50px;
+    background: coral;
+  }
+  dialog::backdrop {
+    background: seagreen;
+    width:100px;
+    height:100px;
+    left: 9999px; /* Force overflow */
+    position-try-fallbacks: --pt;
+  }
+</style>
+<div id=anchor>Anchor</div>
+<dialog id=dialog>Dialog</dialog>
+<script>
+  test((t) => {
+    dialog.showModal();
+    let style = getComputedStyle(dialog, '::backdrop');
+    assert_equals(style.left, '300px');
+  }, '::backdrop can use position-try-fallbacks');
+</script>

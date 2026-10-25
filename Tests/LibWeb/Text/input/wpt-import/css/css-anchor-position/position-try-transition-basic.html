@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: Transition when @position-try is applied</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#fallback-apply">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #cb {
+    display: inline-block;
+    position: relative;
+    width: 400px;
+    height: 250px;
+    border: 1px solid black;
+  }
+  #cb.shrink {
+    width: 300px;
+  }
+  #target {
+    position: absolute;
+    left: 300px;
+    width: 50px;
+    height: 50px;
+    background: skyblue;
+  }
+  #target.fallback {
+    position-try-fallbacks: --200;
+  }
+  #target.anim {
+    transition: left 1000s steps(2, start);
+  }
+  @position-try --200 {
+    left: 200px;
+  }
+</style>
+<div id=cb>
+  <div id=target></div>
+</div>
+<script>
+  function cleanup() {
+    target.className = '';
+    cb.className = '';
+    // Clean up running transition
+    target.getAnimations().forEach(a => a.cancel());
+  }
+
+  test((t) => {
+    t.add_cleanup(cleanup);
+    assert_equals(target.offsetLeft, 300);
+    cb.classList.add('shrink');
+    target.classList.add('fallback', 'anim');
+    // Now we take the --200 fallback:
+    assert_equals(target.offsetLeft, 250);
+  }, 'Transition when @position-try is applied');
+
+  test((t) => {
+    t.add_cleanup(cleanup);
+    cb.classList.add('shrink');
+    target.classList.add('fallback');
+    assert_equals(target.offsetLeft, 200);
+    cb.classList.remove('shrink');
+    target.classList.remove('fallback');
+    target.classList.add('anim');
+    assert_equals(target.offsetLeft, 250);
+  }, 'Transition when @position-try is unapplied');
+</script>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: position-try-order behavior with margins</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#position-try-order-property">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #cb {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border: 1px solid black;
+  }
+  #target, #ref {
+    position: absolute;
+    left: 450px; /* force fallback */
+    height: 40px;
+    background-color: skyblue;
+  }
+  #ref {
+    background-color: seagreen;
+  }
+
+  @position-try --margin {
+    left:0px;
+    right:0px;
+    margin: 100px;
+  }
+  @position-try --no-margin {
+    left:0px;
+    right:0px;
+  }
+
+</style>
+<style id=style>
+</style>
+<div id=cb>
+  <div id=target></div>
+  <div id=ref></div>
+</div>
+<script>
+
+// Test that an element with the specified `position_try` gets the same
+// position as a reference element with `position_try_expected`.
+function test_position_try_order(position_try, position_try_expected) {
+  test((t) => {
+    style.textContent = `
+      #target {
+        position-try: ${position_try};
+      }
+      #ref {
+        position-try: ${position_try_expected};
+      }
+    `;
+    assert_true(CSS.supports('position-try', 'normal --x'));
+    assert_equals(target.offsetLeft, ref.offsetLeft, 'offsetLeft');
+    assert_equals(getComputedStyle(target).marginLeft, getComputedStyle(ref).marginLeft, 'marginLeft');
+  }, `${position_try} | ${position_try_expected}`);
+}
+
+// Margin does not affect the inset-modified containing block size so the first option should get picked.
+test_position_try_order('most-width --margin, --no-margin', '--margin');
+test_position_try_order('most-width --no-margin, --margin', '--no-margin');
+test_position_try_order('most-height --margin, --no-margin', '--margin');
+test_position_try_order('most-height --no-margin, --margin', '--no-margin');
+
+</script>

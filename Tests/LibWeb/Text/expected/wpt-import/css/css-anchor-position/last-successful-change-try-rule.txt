@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Starts rendering with --try
+Fail	No successful position, keep --try
+Fail	No successful position, last successful invalidated by @position-try change

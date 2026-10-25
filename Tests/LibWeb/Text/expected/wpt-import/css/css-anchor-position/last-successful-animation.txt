@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Starts rendering with flip-block
+Fail	No successful position, keep flip-block
+Fail	Base position without fallback now successful

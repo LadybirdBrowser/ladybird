@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: no fallback fits after one fit in a previous layout</title>
+<meta name="description" content="Tests that a layout where no position option fits, following a layout (without an intervening rendering update) where a fallback did fit, settles on the base position rather than retrying forever.">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#fallback-apply">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#last-successful-position-fallback">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+  html, body { margin: 0; }
+  #container {
+    position: relative;
+    width: 400px;
+    height: 300px;
+  }
+  #anchor {
+    anchor-name: --a;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 20px;
+    height: 20px;
+  }
+  #anchored {
+    position: absolute;
+    position-anchor: --a;
+    top: anchor(outside);
+    left: 0;
+    position-try-fallbacks: flip-block;
+    width: 390px;
+    height: 100px;
+  }
+</style>
+<div id="container">
+  <div id="anchor"></div>
+  <div id="anchored"></div>
+</div>
+<script>
+  promise_test(async () => {
+    // Base position (below the anchor) never fits; flip-block fits here.
+    assert_equals(anchored.offsetTop, 180, "flip-block fits initially");
+    // Now make flip-block not fit either, before the last successful position
+    // option has been recorded.
+    container.style.width = "380px";
+    assert_equals(anchored.offsetTop, 300, "base position when nothing fits");
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    assert_equals(anchored.offsetTop, 300, "base position after rendering");
+  }, "Nothing fits after a fallback fit in a previous layout without rendering");
+</script>

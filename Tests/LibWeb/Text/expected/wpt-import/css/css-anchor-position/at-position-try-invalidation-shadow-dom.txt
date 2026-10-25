@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+2 Pass
+2 Fail
+Pass	#host is initially left: 999999px
+Pass	#slotted is initially left: 999999px
+Fail	#host with inserted @position-try applied
+Fail	#slotted with inserted @position-try applied

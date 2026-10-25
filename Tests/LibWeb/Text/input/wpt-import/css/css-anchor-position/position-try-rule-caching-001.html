@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+
+<title>Tests that given two sheets containing the same @position-try, modifying one sheet doesn't affect the other sheet</title>
+
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#fallback-rule">
+<link rel="author" title="Kiet Ho" href="mailto:kiet.ho@apple.com">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<script>
+  test(() => {
+    const style1 = new CSSStyleSheet();
+    const style2 = new CSSStyleSheet();
+
+    const cssText = "@position-try --try { position-area: center }";
+    style1.replaceSync(cssText);
+    style2.replaceSync(cssText);
+
+    style1.cssRules[0].style.positionArea = "bottom right";
+
+    assert_equals(style2.cssRules[0].style.positionArea, "center");
+  }, "Modifying one sheet containing @position-try rule doesn't affect another sheet");
+</script>

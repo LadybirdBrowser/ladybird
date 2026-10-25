@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	most-width --margin, --no-margin | --margin
+Pass	most-width --no-margin, --margin | --no-margin
+Pass	most-height --margin, --no-margin | --margin
+Pass	most-height --no-margin, --margin | --no-margin

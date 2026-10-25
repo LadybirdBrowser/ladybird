@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<title>Tests fallback positions that overflow the inset-modified containing block regardless of scrolling</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#fallback">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+body { margin: 0; }
+.ltr { direction: ltr; }
+.rtl { direction: rtl; }
+.vrl { writing-mode: vertical-rl; }
+.vlr { writing-mode: vertical-lr; }
+
+.cb {
+  width: 200px;
+  height: 200px;
+  transform: scale(1);
+}
+
+.spacer {
+  block-size: 50px;
+}
+
+.anchor {
+  width: 100px;
+  height: 100px;
+  margin-inline-start: 50px;
+  background: orange;
+  anchor-name: --a;
+}
+
+.anchored {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  background: lime;
+}
+
+/* Used on a element whose block and inline axes are the same with its
+   containing block, so that the first two positions will exceed the end edges
+   of the IMCB, and the last position will be used. */
+.exceeds-end {
+  position-try-fallbacks: --exceeds-end-1, --exceeds-end-2;
+  left: 0;
+  right: anchor(--a left);
+  width: 100px;
+}
+
+@position-try --exceeds-end-1 {
+  inset: auto;
+  top: 0;
+  bottom: anchor(--a top);
+  width: auto;
+  height: 100px;
+}
+
+@position-try --exceeds-end-2 {
+  inset: auto;
+  top: 11px;
+  left: 22px;
+  width: auto;
+  height: auto;
+}
+
+/* Used on a element whose block and inline axes are in the opposite directions
+   of its containing block, so that the first two positions will exceed the
+   start edges of the IMCB, and the last position will be used. */
+.exceeds-start {
+  position-try-fallbacks: --exceeds-start-1, --exceeds-start-2;
+  bottom: 0;
+  top: anchor(--a bottom);
+  height: 100px;
+}
+
+@position-try --exceeds-start-1 {
+  inset: auto;
+  right: 0;
+  left: anchor(--a right);
+  width: 100px;
+  height: auto;
+}
+
+@position-try --exceeds-start-2 {
+  inset: auto;
+  top: 11px;
+  left: 22px;
+  height: auto;
+}
+
+/* Both inset sides are `auto`, but the size is too big to fit in the containing
+   block. */
+.exceeds-size {
+  position-try-fallbacks: --exceeds-size-1, --exceeds-size-2;
+  top: anchor(--a bottom);
+  left: auto;
+  right: auto;
+  width: 300px;
+}
+
+@position-try --exceeds-size-1 {
+  inset: auto;
+  left: anchor(--a right);
+  width: auto;
+  height: 300px;
+}
+
+@position-try --exceeds-size-2 {
+  inset: auto;
+  width: auto;
+  top: 11px;
+  left: 22px;
+}
+</style>
+
+<body onload="checkLayoutForAnchorPos('.anchored')">
+  <div class=cb>
+    <div class=spacer></div>
+    <div class=anchor></div>
+    <div class="anchored exceeds-end"
+         data-offset-x=22 data-offset-y=11></div>
+  </div>
+
+  <div class="cb rtl vrl">
+    <div class=spacer></div>
+    <div class=anchor></div>
+    <div class="anchored ltr vlr exceeds-start"
+         data-offset-x=22 data-offset-y=11></div>
+  </div>
+
+  <div class="cb">
+    <div class=spacer></div>
+    <div class=anchor></div>
+    <div class="anchored exceeds-size"
+         data-offset-x=22 data-offset-y=11></div>
+  </div>
+</body>
