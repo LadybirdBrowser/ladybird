@@ -5843,6 +5843,8 @@ fn generate_switch_statement(
         generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
     }
 
+    let initialized_locals_at_entry = generator.initialized_locals.clone();
+
     // Create first test block and jump to it.
     let first_test_block = generator.make_block();
     generator.emit(Instruction::Jump {
@@ -5904,6 +5906,7 @@ fn generate_switch_statement(
     // Emit case bodies (fall-through by default).
     for (i, case) in data.cases.iter().enumerate() {
         generator.switch_to_basic_block(case_blocks[i]);
+        generator.initialized_locals.clone_from(&initialized_locals_at_entry);
 
         let saved_completion = generator.current_completion_register.clone();
         if let Some(ref c) = completion {
@@ -5953,6 +5956,7 @@ fn generate_switch_statement(
 
     generator.end_breakable_scope();
     generator.switch_to_basic_block(end_block);
+    generator.initialized_locals = initialized_locals_at_entry;
 
     if did_create_env {
         generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
