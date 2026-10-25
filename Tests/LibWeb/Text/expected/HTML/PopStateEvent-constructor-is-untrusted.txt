@@ -1,0 +1,2 @@
+new PopStateEvent("popstate").isTrusted is false
+new PopStateEvent("popstate", { state: 1 }).isTrusted is false

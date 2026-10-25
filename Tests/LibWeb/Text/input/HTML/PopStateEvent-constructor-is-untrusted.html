@@ -1,0 +1,10 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`new PopStateEvent("popstate").isTrusted is ${new PopStateEvent("popstate").isTrusted}`);
+        println(
+            `new PopStateEvent("popstate", { state: 1 }).isTrusted is ${new PopStateEvent("popstate", { state: 1 }).isTrusted}`
+        );
+    });
+</script>

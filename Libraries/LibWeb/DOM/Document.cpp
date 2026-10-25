@@ -7823,6 +7823,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
                     old_url.serialize(),
                     entry->url().serialize(),
                     HighResolutionTime::current_high_resolution_time(relevant_global_object));
+                hashchange_event->set_is_trusted(true);
                 HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(GC::Heap::the(), [hashchange_event, &window]() {
                     window.dispatch_event(hashchange_event);
                 }));
