@@ -54,7 +54,7 @@ def rust_to_js_value(
     if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "sequence":
         element_type = idl_type.parameters[0]
         # NB: The conversion of an element can allocate, as that of an object of an interface does for its wrapper,
-        #     and the elements after it must live through that.
+        #     and the elements after it must live through that, in the MarkedVec that holds them (see rust_type()).
         function = "rooted_sequence_to_js" if holds_cells(element_type, context) else "sequence_to_js"
         return f"{function}({call_context}, {expression}, |value| {inner(element_type)})"
     if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "record":
