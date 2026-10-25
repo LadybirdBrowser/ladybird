@@ -14,6 +14,7 @@ use crate::layout::value::Value;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::intl::intl::Intl;
 use crate::runtime::intl::number_format::{
     NumberFormat, format_numeric_range, format_numeric_range_to_parts, format_numeric_to_parts,
     to_intl_mathematical_value,
@@ -26,6 +27,7 @@ use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::prototype_object::typed_this_object;
 use crate::runtime::realm::Realm;
+use crate::runtime::value::ordinary_has_instance;
 
 /// 16.3 Properties of the Intl.NumberFormat Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-numberformat-prototype-object
 #[repr(C)]
@@ -41,6 +43,42 @@ define_object_class!(NumberFormatPrototype, extends: [Object], methods: {
 
 fn typed_this_number_format(vm: &Vm) -> ThrowCompletionOr<Gc<NumberFormat>> {
     typed_this_object::<NumberFormat>(vm, "Intl.NumberFormat")
+}
+
+// 16.5.9 UnwrapNumberFormat ( nf ), https://tc39.es/ecma402/#sec-unwrapnumberformat
+fn unwrap_number_format(vm: &Vm, value: Value) -> ThrowCompletionOr<Value> {
+    // 1. If nf is not an Object, throw a TypeError exception.
+    if !value.is_object() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
+    }
+
+    // 2. If nf does not have an [[InitializedNumberFormat]] internal slot and ? OrdinaryHasInstance(%Intl.NumberFormat%, nf) is true, then
+    if value.as_object().downcast::<NumberFormat>().is_none() {
+        let realm = vm.current_realm().expect("a built-in function runs in a realm");
+        let constructor = Value::from_object(realm.intrinsics().intl_number_format_constructor(vm));
+        if ordinary_has_instance(vm, value, constructor)?.to_boolean() {
+            // a. Return ? Get(nf, %Intl%.[[FallbackSymbol]]).
+            return value.as_object().get(vm, &Intl::fallback_symbol(vm, realm));
+        }
+    }
+
+    // 3. Return nf.
+    Ok(value)
+}
+
+/// The this value, unwrapped with UnwrapNumberFormat, which must have an [[InitializedNumberFormat]] internal slot.
+fn unwrapped_this_number_format(vm: &Vm) -> ThrowCompletionOr<Gc<NumberFormat>> {
+    let value = unwrap_number_format(vm, vm.this_value())?;
+    if value.is_object()
+        && let Some(number_format) = value.as_object().downcast::<NumberFormat>()
+    {
+        return Ok(number_format);
+    }
+    vm.throw_completion(
+        ErrorKind::TypeError,
+        ErrorType::NotAnObjectOfType,
+        &[&"Intl.NumberFormat"],
+    )
 }
 
 impl NumberFormatPrototype {
@@ -126,7 +164,7 @@ impl NumberFormatPrototype {
         // 2. If the implementation supports the normative optional constructor mode of 4.3 Note 1, then
         //     a. Set nf to ? UnwrapNumberFormat(nf).
         // 3. Perform ? RequireInternalSlot(nf, [[InitializedNumberFormat]]).
-        let number_format = typed_this_number_format(vm)?;
+        let number_format = unwrapped_this_number_format(vm)?;
 
         // 4. Let options be OrdinaryObjectCreate(%Object.prototype%).
         let options = Object::create(vm, realm, Some(realm.object_prototype()));
@@ -231,7 +269,7 @@ impl NumberFormatPrototype {
         // 2. If the implementation supports the normative optional constructor mode of 4.3 Note 1, then
         //     a. Set nf to ? UnwrapNumberFormat(nf).
         // 3. Perform ? RequireInternalSlot(nf, [[InitializedNumberFormat]]).
-        let number_format = typed_this_number_format(vm)?;
+        let number_format = unwrapped_this_number_format(vm)?;
 
         // 4. If nf.[[BoundFormat]] is undefined, then
         if number_format.bound_format().is_none() {

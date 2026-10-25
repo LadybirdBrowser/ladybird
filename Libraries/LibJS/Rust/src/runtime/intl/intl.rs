@@ -27,6 +27,7 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::symbol::{Kind as SymbolKind, Symbol};
 use crate::unicode::intl as unicode;
 use crate::utf16::Utf16View;
 
@@ -35,6 +36,7 @@ use crate::utf16::Utf16View;
 #[derive(Trace)]
 pub struct Intl {
     base: Object,
+    fallback_symbol: Gc<Symbol>, // [[FallbackSymbol]]
 }
 
 define_object_class!(Intl, extends: [Object], methods: {
@@ -53,8 +55,25 @@ impl Intl {
                     realm.object_prototype(),
                     MayInterfereWithIndexedPropertyAccess::No,
                 ),
+                // The Intl object has a [[FallbackSymbol]] internal slot, which is a new %Symbol% in the current realm
+                // with the [[Description]] "IntlLegacyConstructedSymbol".
+                fallback_symbol: Symbol::create(
+                    vm,
+                    Some(Utf16String::from_utf8("IntlLegacyConstructedSymbol")),
+                    SymbolKind::Unique,
+                ),
             },
         )
+    }
+
+    /// %Intl%.[[FallbackSymbol]] of the given realm.
+    pub fn fallback_symbol(vm: &Vm, realm: Gc<Realm>) -> PropertyKey {
+        let intl = realm
+            .intrinsics()
+            .intl_object(vm)
+            .downcast::<Intl>()
+            .expect("%Intl% is an Intl object");
+        PropertyKey::from(intl.fallback_symbol)
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

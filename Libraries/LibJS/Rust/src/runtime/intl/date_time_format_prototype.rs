@@ -20,6 +20,7 @@ use crate::runtime::intl::date_time_format::{
     format_date_time_range_to_parts, format_date_time_to_parts, to_date_time_formattable,
 };
 use crate::runtime::intl::date_time_format_function::DateTimeFormatFunction;
+use crate::runtime::intl::intl::Intl;
 use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
@@ -27,6 +28,7 @@ use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::prototype_object::typed_this_object;
 use crate::runtime::realm::Realm;
+use crate::runtime::value::ordinary_has_instance;
 use crate::unicode::date_time_format::{self as unicode, CalendarPatternFieldValue, HourCycle};
 
 /// 11.3 Properties of the Intl.DateTimeFormat Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-datetimeformat-prototype-object
@@ -43,6 +45,42 @@ define_object_class!(DateTimeFormatPrototype, extends: [Object], methods: {
 
 fn typed_this_date_time_format(vm: &Vm) -> ThrowCompletionOr<Gc<DateTimeFormat>> {
     typed_this_object::<DateTimeFormat>(vm, "Intl.DateTimeFormat")
+}
+
+// 11.5.13 UnwrapDateTimeFormat ( dtf ), https://tc39.es/ecma402/#sec-unwrapdatetimeformat
+fn unwrap_date_time_format(vm: &Vm, value: Value) -> ThrowCompletionOr<Value> {
+    // 1. If dtf is not an Object, throw a TypeError exception.
+    if !value.is_object() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
+    }
+
+    // 2. If dtf does not have an [[InitializedDateTimeFormat]] internal slot and ? OrdinaryHasInstance(%Intl.DateTimeFormat%, dtf) is true, then
+    if value.as_object().downcast::<DateTimeFormat>().is_none() {
+        let realm = vm.current_realm().expect("a built-in function runs in a realm");
+        let constructor = Value::from_object(realm.intrinsics().intl_date_time_format_constructor(vm));
+        if ordinary_has_instance(vm, value, constructor)?.to_boolean() {
+            // a. Return ? Get(dtf, %Intl%.[[FallbackSymbol]]).
+            return value.as_object().get(vm, &Intl::fallback_symbol(vm, realm));
+        }
+    }
+
+    // 3. Return dtf.
+    Ok(value)
+}
+
+/// The this value, unwrapped with UnwrapDateTimeFormat, which must have an [[InitializedDateTimeFormat]] internal slot.
+fn unwrapped_this_date_time_format(vm: &Vm) -> ThrowCompletionOr<Gc<DateTimeFormat>> {
+    let value = unwrap_date_time_format(vm, vm.this_value())?;
+    if value.is_object()
+        && let Some(date_time_format) = value.as_object().downcast::<DateTimeFormat>()
+    {
+        return Ok(date_time_format);
+    }
+    vm.throw_completion(
+        ErrorKind::TypeError,
+        ErrorType::NotAnObjectOfType,
+        &[&"Intl.DateTimeFormat"],
+    )
 }
 
 impl DateTimeFormatPrototype {
@@ -128,7 +166,7 @@ impl DateTimeFormatPrototype {
         // 2. If the implementation supports the normative optional constructor mode of 4.3 Note 1, then
         //     a. Set dtf to ? UnwrapDateTimeFormat(dtf).
         // 3. Perform ? RequireInternalSlot(dtf, [[InitializedDateTimeFormat]]).
-        let date_time_format = typed_this_date_time_format(vm)?;
+        let date_time_format = unwrapped_this_date_time_format(vm)?;
 
         // 4. Let options be OrdinaryObjectCreate(%Object.prototype%).
         let options = Object::create(vm, realm, Some(realm.object_prototype()));
@@ -220,7 +258,7 @@ impl DateTimeFormatPrototype {
         // 2. If the implementation supports the normative optional constructor mode of 4.3 Note 1, then
         //     a. Set dtf to ? UnwrapDateTimeFormat(dtf).
         // 3. Perform ? RequireInternalSlot(dtf, [[InitializedDateTimeFormat]]).
-        let date_time_format = typed_this_date_time_format(vm)?;
+        let date_time_format = unwrapped_this_date_time_format(vm)?;
 
         // 4. If dtf.[[BoundFormat]] is undefined, then
         if date_time_format.bound_format().is_none() {

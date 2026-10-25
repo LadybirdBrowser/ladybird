@@ -29,12 +29,15 @@ use crate::runtime::intl::abstract_operations::{
 use crate::runtime::intl::date_time_format::{
     DateTimeFormat, adjust_date_time_style_format, for_each_calendar_field, get_date_time_format,
 };
+use crate::runtime::intl::intl::Intl;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::native_function::{NativeFunction, define_native_function_class, raw_native};
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
+use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::temporal::iso8601::{SubMinutePrecision, parse_utc_offset};
+use crate::runtime::value::ordinary_has_instance;
 use crate::unicode::date_time_format::{
     self as unicode, CalendarPattern, CalendarPatternField, CalendarPatternFieldValue, HourCycle,
 };
@@ -98,11 +101,19 @@ impl DateTimeFormatConstructor {
 
     // 11.1.1 Intl.DateTimeFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.datetimeformat
     fn call(function: &NativeFunction, vm: &Vm) -> ThrowCompletionOr<Value> {
+        let this_value = vm.this_value();
+
         // 1. If NewTarget is undefined, let newTarget be the active function object, else let newTarget be NewTarget.
-        Ok(Value::from_object(Self::construct(
-            function,
+        let date_time_format = Self::construct(function, vm, function.as_function_object_gc())?;
+
+        // 3. If the implementation supports the normative optional constructor mode of 4.3 Note 1, then
+        //     a. Let this be the this value.
+        //     b. Return ? ChainDateTimeFormat(dateTimeFormat, NewTarget, this).
+        Ok(Value::from_object(chain_date_time_format(
             vm,
-            function.as_function_object_gc(),
+            date_time_format,
+            Value::UNDEFINED,
+            this_value,
         )?))
     }
 
@@ -125,6 +136,7 @@ impl DateTimeFormatConstructor {
         // 3. If the implementation supports the normative optional constructor mode of 4.3 Note 1, then
         //     a. Let this be the this value.
         //     b. Return ? ChainDateTimeFormat(dateTimeFormat, NewTarget, this).
+        // NB: ChainDateTimeFormat returns dateTimeFormat when NewTarget is not undefined, so only [[Call]] performs it.
 
         // 4. Return dateTimeFormat.
         Ok(date_time_format.upcast())
@@ -143,6 +155,37 @@ impl DateTimeFormatConstructor {
         // 3. Return ? FilterLocales(availableLocales, requestedLocales, options).
         Ok(Value::from_object(filter_locales(vm, &requested_locales, options)?))
     }
+}
+
+// 11.1.1.1 ChainDateTimeFormat ( dateTimeFormat, newTarget, this ), https://tc39.es/ecma402/#sec-chaindatetimeformat
+fn chain_date_time_format(
+    vm: &Vm,
+    date_time_format: Gc<Object>,
+    new_target: Value,
+    this_value: Value,
+) -> ThrowCompletionOr<Gc<Object>> {
+    let realm = vm.current_realm().expect("a constructor runs in a realm");
+    let constructor = Value::from_object(realm.intrinsics().intl_date_time_format_constructor(vm));
+
+    // 1. If newTarget is undefined and ? OrdinaryHasInstance(%Intl.DateTimeFormat%, this) is true, then
+    if new_target.is_undefined() && ordinary_has_instance(vm, this_value, constructor)?.to_boolean() {
+        // a. Perform ? DefinePropertyOrThrow(this, %Intl%.[[FallbackSymbol]], PropertyDescriptor { [[Value]]: dateTimeFormat, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
+        let this_object = this_value.as_object();
+        let mut descriptor = PropertyDescriptor {
+            value: Some(Value::from_object(date_time_format)),
+            writable: Some(false),
+            enumerable: Some(false),
+            configurable: Some(false),
+            ..Default::default()
+        };
+        this_object.define_property_or_throw(vm, &Intl::fallback_symbol(vm, realm), &mut descriptor)?;
+
+        // b. Return this.
+        return Ok(this_object);
+    }
+
+    // 2. Return dateTimeFormat.
+    Ok(date_time_format)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
