@@ -1,0 +1,55 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const url = await httpTestServer().createEcho("GET", "/integrity-metadata", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/plain",
+            },
+            body: "abc",
+        });
+        const sha256 = "sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=";
+        const sha384 = "sha384-ywB1P0WjXou1oD1pmsZQBycsMqsO3tFjGotgWkP/W+2AhgcroefMI1i67KE0yCWn";
+        const sha512 =
+            "sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==";
+        const base64url = metadata => metadata.replaceAll("+", "-").replaceAll("/", "_");
+        const unpadded = metadata => metadata.replace(/=+$/, "");
+        // NB: A different first base64 character keeps the encoding valid but changes the digest.
+        const wrong = metadata => metadata.replace(/-./, "-A");
+        const cases = [
+            ["SHA-256", sha256, true],
+            ["SHA-384", sha384, true],
+            ["SHA-512", sha512, true],
+            ["SHA-256 unpadded", unpadded(sha256), true],
+            ["SHA-512 unpadded", unpadded(sha512), true],
+            ["SHA-256 base64url", base64url(sha256), true],
+            ["SHA-384 base64url", base64url(sha384), true],
+            ["SHA-512 base64url", base64url(sha512), true],
+            ["SHA-256 base64url unpadded", unpadded(base64url(sha256)), true],
+            ["SHA-512 base64url unpadded", unpadded(base64url(sha512)), true],
+            ["Mismatching SHA-256", wrong(sha256), false],
+            ["Mismatching SHA-384 base64url", base64url(wrong(sha384)), false],
+            ["Mismatching SHA-512 base64url unpadded", unpadded(base64url(wrong(sha512))), false],
+            ["Valid stronger digest", `${wrong(sha256)} ${base64url(sha384)}`, true],
+            ["Invalid stronger digest", `${sha256} ${base64url(wrong(sha384))}`, false],
+            ["Invalid strongest digest", `${sha384} ${unpadded(base64url(wrong(sha512)))}`, false],
+            ["Valid strongest digest", `${wrong(sha384)} ${unpadded(base64url(sha512))}`, true],
+            ["Matching digest at same strength", `${wrong(sha512)} ${base64url(sha512)}`, true],
+        ];
+        for (const [label, integrity, shouldPass] of cases) {
+            let response;
+            try {
+                response = await fetch(url, { integrity });
+            } catch (error) {
+                println(`${label}: ${!shouldPass && error instanceof TypeError ? "PASS" : `FAIL (${error})`}`);
+                continue;
+            }
+            const body = await response.text();
+            println(
+                `${label}: ${shouldPass && response.status === 200 && body === "abc" ? "PASS" : "FAIL (resolved)"}`
+            );
+        }
+    });
+</script>

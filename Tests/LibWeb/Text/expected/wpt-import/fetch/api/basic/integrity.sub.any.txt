@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 18 tests
 
-13 Pass
-5 Fail
+16 Pass
+2 Fail
 Pass	Empty string integrity
 Pass	SHA-256 integrity
 Pass	SHA-384 integrity
 Pass	SHA-512 integrity
-Fail	SHA-512 integrity with missing padding
-Fail	SHA-512 integrity base64url encoded
-Fail	SHA-512 integrity base64url encoded with missing padding
+Pass	SHA-512 integrity with missing padding
+Pass	SHA-512 integrity base64url encoded
+Pass	SHA-512 integrity base64url encoded with missing padding
 Pass	Invalid integrity
 Pass	Multiple integrities: valid stronger than invalid
 Pass	Multiple integrities: invalid stronger than valid

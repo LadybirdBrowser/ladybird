@@ -1,0 +1,18 @@
+SHA-256: PASS
+SHA-384: PASS
+SHA-512: PASS
+SHA-256 unpadded: PASS
+SHA-512 unpadded: PASS
+SHA-256 base64url: PASS
+SHA-384 base64url: PASS
+SHA-512 base64url: PASS
+SHA-256 base64url unpadded: PASS
+SHA-512 base64url unpadded: PASS
+Mismatching SHA-256: PASS
+Mismatching SHA-384 base64url: PASS
+Mismatching SHA-512 base64url unpadded: PASS
+Valid stronger digest: PASS
+Invalid stronger digest: PASS
+Invalid strongest digest: PASS
+Valid strongest digest: PASS
+Matching digest at same strength: PASS
