@@ -89,6 +89,40 @@ install(TARGETS ${all_required_lagom_libraries}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
+if (LADYBIRD_GENERATE_SYMBOL_FILES)
+    set(symbol_files_dir "${CMAKE_BINARY_DIR}/symbols")
+    set(symbol_files)
+    foreach (target IN LISTS ladybird_applications)
+        get_target_property(name ${target} OUTPUT_NAME)
+        if (NOT name)
+            set(name ${target})
+        endif()
+        if (APPLE)
+            get_target_property(is_bundle ${target} MACOSX_BUNDLE)
+            if (is_bundle)
+                string(APPEND name ".app")
+            endif()
+            set(symbol_file "${symbol_files_dir}/${name}.dSYM")
+            set(output "${symbol_file}/Contents/Info.plist")
+            set(command dsymutil "$<TARGET_FILE:${target}>" -o "${symbol_file}")
+        else()
+            set(symbol_file "${symbol_files_dir}/${name}.debug")
+            set(output "${symbol_file}")
+            set(command "${CMAKE_OBJCOPY}" --only-keep-debug "$<TARGET_FILE:${target}>" "${symbol_file}")
+        endif()
+        add_custom_command(OUTPUT "${output}" COMMAND ${command} DEPENDS ${target}
+            COMMENT "Writing the symbols of ${name}" VERBATIM)
+        list(APPEND symbol_files "${output}")
+    endforeach()
+    add_custom_target(ladybird_symbol_files ALL DEPENDS ${symbol_files})
+
+    install(DIRECTORY "${symbol_files_dir}/"
+        DESTINATION .
+        COMPONENT ladybird_Symbols
+        EXCLUDE_FROM_ALL
+    )
+endif()
+
 write_basic_package_version_file(
     "${package}ConfigVersion.cmake"
     COMPATIBILITY SameMajorVersion

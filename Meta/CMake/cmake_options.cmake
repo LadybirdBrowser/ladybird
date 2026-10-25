@@ -34,6 +34,10 @@ option(ENABLE_INSTALL_HEADERS "Enable installing headers" ON)
 option(ENABLE_INSTALL_FREEDESKTOP_FILES "Enable installing .desktop and .service files" ${freedesktop_files_default})
 option(LADYBIRD_ENABLE_CPPTRACE "Enable use of cpptrace as the default library for stacktraces. If not available falls back to backtrace.h" ON)
 option(LADYBIRD_GENERATE_DSYM "Generate dSYM bundles for binaries and libraries (macOS only)" OFF)
+option(LADYBIRD_GENERATE_SYMBOL_FILES "Build with debug info and write the symbols of the installed executables to separate files" OFF)
+if (LADYBIRD_GENERATE_SYMBOL_FILES AND MSVC)
+    message(FATAL_ERROR "LADYBIRD_GENERATE_SYMBOL_FILES is not supported with MSVC-style toolchains")
+endif()
 option(ENABLE_CI_BASELINE_CPU "Use a baseline CPU target for improved ccache sharing" OFF)
 
 # lto1 uses a crazy amount of RAM in static builds.
