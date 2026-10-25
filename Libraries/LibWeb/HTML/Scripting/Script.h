@@ -8,6 +8,7 @@
 
 #include <AK/Utf16String.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibJS/Position.h>
 #include <LibJS/Script.h>
 #include <LibJS/SourceCode.h>
 #include <LibURL/URL.h>
@@ -38,7 +39,14 @@ public:
     void set_error_to_rethrow(JS::Value value) { m_error_to_rethrow = value; }
 
     [[nodiscard]] JS::Value parse_error() const { return m_parse_error; }
-    void set_parse_error(JS::Value value) { m_parse_error = value; }
+    void set_parse_error(JS::Value value, Optional<JS::Position> position = {})
+    {
+        m_parse_error = value;
+        m_parse_error_position = position;
+    }
+
+    // NB: A parse error is created before the script runs, so it has no source location of its own.
+    [[nodiscard]] Optional<JS::Position> const& parse_error_position() const { return m_parse_error_position; }
 
 protected:
     Script(Optional<URL::URL> base_url, ByteString filename, EnvironmentSettingsObject&);
@@ -60,6 +68,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-parse-error
     JS::Value m_parse_error;
+    Optional<JS::Position> m_parse_error_position;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-error-to-rethrow
     JS::Value m_error_to_rethrow;

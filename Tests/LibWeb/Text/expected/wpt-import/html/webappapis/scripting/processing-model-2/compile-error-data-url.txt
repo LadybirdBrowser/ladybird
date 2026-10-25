@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
-Fail	window.onerror - compile error in <script src=data:...>
+2 Pass
+Pass	window.onerror - compile error in <script src=data:...>
 Pass	window.onerror - compile error in <script src=data:...> (column)

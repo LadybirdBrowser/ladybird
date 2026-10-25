@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-1 Pass
-2 Fail
-Fail	correct url passed to window.onerror
-Fail	correct line number passed to window.onerror
+3 Pass
+Pass	correct url passed to window.onerror
+Pass	correct line number passed to window.onerror
 Pass	correct number of calls to window.onerror

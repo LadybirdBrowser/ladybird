@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
-Fail	<body onerror> - compile error in <script>
+2 Pass
+Pass	<body onerror> - compile error in <script>
 Pass	<body onerror> - compile error in <script> (column)
