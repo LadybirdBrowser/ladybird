@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	targeting-for-inline-handler-on-main-frame-element-moved-to-subframe
+1 Pass
+Pass	targeting-for-inline-handler-on-main-frame-element-moved-to-subframe

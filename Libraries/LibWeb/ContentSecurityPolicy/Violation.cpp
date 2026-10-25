@@ -6,6 +6,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <LibGC/Heap.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
@@ -56,10 +57,36 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_di
     //    directive, and resource is null.
     auto violation = GC::Heap::the().allocate<Violation>(global_scope_from_global_object(global_object), policy, move(directive));
 
-    // FIXME: 2. If the user agent is currently executing script, and can extract a source file’s URL, line number,
-    //           and column number from the global, set violation’s source file, line number, and column number
-    //           accordingly.
+    // 2. If the user agent is currently executing script, and can extract a source file’s URL, line number,
+    //    and column number from the global, set violation’s source file, line number, and column number
+    //    accordingly.
     // SPEC ISSUE 1:  Is this kind of thing specified anywhere? I didn’t see anything that looked useful in [ECMA262].
+    // NB: We use the innermost stack frame that has a source location.
+    for (auto const& frame : JS::VM::the().stack_trace()) {
+        if (!frame.source_range.has_value())
+            continue;
+        auto const& source_range = *frame.source_range;
+        auto source_file = URL::Parser::basic_parse(source_range.filename().utf16_view());
+        if (!source_file.has_value())
+            break;
+
+        // NB: The URL of a classic script is its response URL, which can reveal where a cross-origin request was
+        //     redirected to. Per the note in the spec, we strip such URLs down to their origin. Redirects only lead
+        //     to HTTP(S) URLs, so URLs with an opaque origin, such as file: URLs, are kept as they are.
+        if (global_object) {
+            auto source_origin = source_file->origin();
+            if (!source_origin.is_opaque() && !source_origin.is_same_origin(HTML::relevant_settings_object(*global_object).origin())) {
+                source_file = URL::Parser::basic_parse(source_origin.serialize());
+                if (!source_file.has_value())
+                    break;
+            }
+        }
+
+        violation->m_source_file = source_file.release_value();
+        violation->m_line_number = source_range.start.line;
+        violation->m_column_number = source_range.start.column;
+        break;
+    }
 
     // 3. If global is a Window object, set violation’s referrer to global’s document's referrer.
     if (auto* global = global_object.ptr()) {
