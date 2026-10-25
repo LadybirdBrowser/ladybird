@@ -1,0 +1,26 @@
+<!doctype html>
+<title>XMLHttpRequest: send() - Document with serialization errors</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+function serialize(input, output) {
+  async_test(t => {
+    const client = new XMLHttpRequest
+    client.open("POST", "resources/content.py")
+    client.send(input)
+    client.onload = t.step_func_done(() => {
+      assert_equals(client.responseText, output)
+    })
+  }, "Serializing documents through XMLHttpRequest: '" + output + "'")
+}
+
+var doc = document.implementation.createDocument(null, null, null)
+serialize(doc, "")
+doc.appendChild(doc.createElement("test:test"))
+serialize(doc, "<test:test/>")
+doc.childNodes[0].setAttribute("test:test", "gee")
+serialize(doc, "<test:test test:test=\"gee\"/>")
+doc.childNodes[0].setAttribute("x", "\uD800")
+serialize(doc, "<test:test test:test=\"gee\" x=\"\uFFFD\"/>")
+</script>
