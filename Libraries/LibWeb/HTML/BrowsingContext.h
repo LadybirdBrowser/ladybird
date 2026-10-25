@@ -62,10 +62,9 @@ public:
     Optional<u64> browsing_context_group_id() const { return m_browsing_context_group_id; }
     void set_browsing_context_group_id(Optional<u64> id) { m_browsing_context_group_id = id; }
 
-    void set_the_one_permitted_sandboxed_navigator(BrowsingContext const*)
-    {
-        // FIXME: Implement this
-    }
+    // https://html.spec.whatwg.org/multipage/browsers.html#one-permitted-sandboxed-navigator
+    GC::Ptr<BrowsingContext const> the_one_permitted_sandboxed_navigator() const { return m_the_one_permitted_sandboxed_navigator; }
+    void set_the_one_permitted_sandboxed_navigator(BrowsingContext const* browsing_context) { m_the_one_permitted_sandboxed_navigator = browsing_context; }
 
     bool has_navigable_been_destroyed() const;
 
@@ -102,6 +101,9 @@ private:
     // https://html.spec.whatwg.org/multipage/browsers.html#opener-browsing-context
     // NB: Held as its WindowProxy, which also stands for a browsing context another process holds.
     GC::Ptr<WindowProxy> m_opener_browsing_context_window_proxy;
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#one-permitted-sandboxed-navigator
+    GC::Ptr<BrowsingContext const> m_the_one_permitted_sandboxed_navigator;
 
     // https://html.spec.whatwg.org/multipage/browsers.html#is-popup
     TokenizedFeature::Popup m_is_popup { TokenizedFeature::Popup::No };

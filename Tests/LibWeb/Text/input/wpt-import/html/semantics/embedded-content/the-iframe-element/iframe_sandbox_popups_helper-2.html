@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<body>
+<script>
+  if (opener) {
+    // We're the popup.  Send back our state.  What we really want to send is
+    // our origin, but that will come automatically.
+    opener.postMessage(undefined, "*");
+    self.close();
+  } else {
+    // We're the child.  Start listening for messages from our parent and open
+    // ourselves as the popup when we get the "start" message.
+    onmessage = function (e) {
+      if (e.data == "start") {
+        // Now listen for messages from the thing we plan to open.
+        onmessage = function(e) {
+          parent.postMessage({ data: e.data, origin: e.origin }, "*");
+        }
+
+        var a = document.createElement("a");
+        a.href = location.href;
+        a.target = "_blank";
+        a.rel = "opener";
+        document.body.appendChild(a);
+        a.click();
+      }
+    };
+  }
+</script>

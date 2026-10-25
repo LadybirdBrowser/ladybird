@@ -325,6 +325,7 @@ void BrowsingContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_window_proxy);
     visitor.visit(m_active_document);
     visitor.visit(m_opener_browsing_context_window_proxy);
+    visitor.visit(m_the_one_permitted_sandboxed_navigator);
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#top-level-browsing-context

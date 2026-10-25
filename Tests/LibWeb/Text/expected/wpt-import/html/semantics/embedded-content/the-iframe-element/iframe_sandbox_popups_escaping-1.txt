@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Check that popups from a sandboxed iframe escape the sandbox if
+       allow-popups-to-escape-sandbox is used
