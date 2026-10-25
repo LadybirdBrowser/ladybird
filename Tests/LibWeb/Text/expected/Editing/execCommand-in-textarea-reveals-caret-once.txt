@@ -1,0 +1,2 @@
+layouts during edits: 50
+caret revealed after the next rendering update: true
