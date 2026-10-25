@@ -18,13 +18,17 @@ namespace Web::MixedContent {
 // https://w3c.github.io/webappsec-mixed-content/#upgrade-algorithm
 void upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropriate(Fetch::Infrastructure::Request& request)
 {
+    // INTEROP: Main fetch runs this algorithm again for every redirect. We upgrade request's current URL rather than
+    //          its URL, so that a redirect to an insecure URL is upgraded as well.
+    auto& url = request.current_url();
+
     // 1. If one or more of the following conditions is met, return without modifying request:
     if (
         // 1. request’s URL is a potentially trustworthy URL.
-        SecureContexts::is_url_potentially_trustworthy(request.url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy
+        SecureContexts::is_url_potentially_trustworthy(url) == SecureContexts::Trustworthiness::PotentiallyTrustworthy
 
         // 2. request’s URL’s host is an IP address.
-        || (request.url().host().has_value() && (request.url().host()->has<IPv4Address>() || request.url().host()->has<IPv6Address>()))
+        || (url.host().has_value() && (url.host()->has<IPv4Address>() || url.host()->has<IPv6Address>()))
 
         // 3. § 4.3 Does settings prohibit mixed security contexts? returns "Does Not Restrict Mixed Security Contents" when applied to request’s client.
         || does_settings_prohibit_mixed_security_contexts(request.client()) == ProhibitsMixedSecurityContexts::DoesNotRestrictMixedSecurityContexts
@@ -41,8 +45,13 @@ void upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropr
     }
 
     // 2. If request’s URL’s scheme is http, set request’s URL’s scheme to https, and return.
-    if (request.url().scheme() == "http")
-        request.url().set_scheme("https"sv);
+    if (url.scheme() == "http") {
+        url.set_scheme("https"sv);
+
+        // NB: Unlike the URL parser, setting the scheme does not remove a port that is the new scheme's default port.
+        if (url.port() == 443)
+            url.set_port({});
+    }
 }
 
 // https://w3c.github.io/webappsec-mixed-content/#categorize-settings-object
@@ -83,7 +92,9 @@ Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_bloc
         does_settings_prohibit_mixed_security_contexts(request.client()) == ProhibitsMixedSecurityContexts::DoesNotRestrictMixedSecurityContexts
 
         // 2. request’s URL is a potentially trustworthy URL.
-        || SecureContexts::is_url_potentially_trustworthy(request.url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy
+        // INTEROP: Main fetch runs this algorithm again for every redirect. We check request's current URL rather than
+        //          its URL, so that a redirect to an insecure URL is blocked as well.
+        || SecureContexts::is_url_potentially_trustworthy(request.current_url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy
 
         // FIXME: 3. The user agent has been instructed to allow mixed content, as described in § 7.2 User Controls).
         || false
@@ -95,7 +106,7 @@ Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_bloc
     }
 
     // 2. Return blocked.
-    dbgln("MixedContent: Blocked '{}' (request)", request.url().to_string());
+    dbgln("MixedContent: Blocked '{}' (request)", request.current_url().to_string());
     return Fetch::Infrastructure::RequestOrResponseBlocking::Blocked;
 }
 
