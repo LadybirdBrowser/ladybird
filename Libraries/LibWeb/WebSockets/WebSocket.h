@@ -54,6 +54,7 @@ public:
     Requests::WebSocket::ReadyState ready_state() const;
     Utf16String extensions() const;
     WebIDL::ExceptionOr<Utf16String> protocol() const;
+    u64 buffered_amount() const;
 
     Bindings::BinaryType binary_type() { return m_binary_type; }
     void set_binary_type(Bindings::BinaryType binary_type) { m_binary_type = binary_type; }
@@ -89,6 +90,7 @@ private:
     URL::URL m_url;
     Requests::WebSocket::ReadyState m_ready_state { Requests::WebSocket::ReadyState::Connecting };
     Bindings::BinaryType m_binary_type { Bindings::BinaryType::Blob };
+    u64 m_buffered_amount { 0 };
     RefPtr<Requests::WebSocket> m_websocket;
     GC::Ref<DOM::EventTarget> m_global_object;
     GC::ActivityRoot m_activity_root;

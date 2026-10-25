@@ -365,37 +365,70 @@ WebIDL::ExceptionOr<void> WebSocket::close(Optional<u16> code, Optional<Utf16Str
     return {};
 }
 
+// https://websockets.spec.whatwg.org/#dom-websocket-bufferedamount
+u64 WebSocket::buffered_amount() const
+{
+    // The bufferedAmount getter steps are to return the number of bytes of application data (UTF-8 text and binary
+    // data) that have been queued using send() but that, as of the last time the event loop reached step 1, had not
+    // yet been transmitted to the network.
+    return m_buffered_amount;
+}
+
 // https://websockets.spec.whatwg.org/#dom-websocket-send
 WebIDL::ExceptionOr<void> WebSocket::send(WebSocketSendData const& data)
 {
+    // 1. If this's ready state is CONNECTING, then throw an "InvalidStateError" DOMException.
     auto state = ready_state();
     if (state == Requests::WebSocket::ReadyState::Connecting)
         return WebIDL::InvalidStateError::create("Websocket is still CONNECTING"_utf16);
-    if (state == Requests::WebSocket::ReadyState::Open) {
-        ByteBuffer buffer_storage;
-        data.visit(
-            [this](Utf16String const& string) {
-                auto encoded_string = string.to_utf8();
+
+    // 2. Run the appropriate set of steps from the following list:
+    // NB: Every kind of data is sent if the WebSocket connection is established and the WebSocket closing handshake
+    //     has not yet started, and increases the bufferedAmount attribute by the number of bytes that make up the
+    //     message.
+    bool is_open = state == Requests::WebSocket::ReadyState::Open;
+    u64 message_size = 0;
+    data.visit(
+        [&](Utf16String const& string) {
+            auto encoded_string = string.to_utf8();
+            message_size = encoded_string.bytes().size();
+            if (is_open)
                 m_websocket->send(encoded_string);
-            },
-            [this, &buffer_storage](auto const& buffer_source_value) {
-                WebIDL::BufferSource buffer_source { WebIDL::BufferSourceVariant { buffer_source_value } };
-                ReadonlyBytes buffer;
+        },
+        [&](auto const& buffer_source_value) {
+            WebIDL::BufferSource buffer_source { WebIDL::BufferSourceVariant { buffer_source_value } };
+            auto array_buffer = buffer_source.viewed_array_buffer();
+            bool has_bytes = array_buffer && !array_buffer->is_detached() && !buffer_source.is_out_of_bounds();
+            message_size = has_bytes ? buffer_source.byte_length() : 0;
+            if (!is_open)
+                return;
 
-                if (auto array_buffer = buffer_source.viewed_array_buffer(); array_buffer && !array_buffer->is_detached() && !buffer_source.is_out_of_bounds()) {
-                    buffer_storage = MUST(ByteBuffer::create_uninitialized(buffer_source.byte_length()));
-                    array_buffer->copy_to(buffer_source.byte_offset(), buffer_storage);
-                    buffer = buffer_storage;
-                }
+            ByteBuffer buffer;
+            if (has_bytes) {
+                buffer = MUST(ByteBuffer::create_uninitialized(buffer_source.byte_length()));
+                array_buffer->copy_to(buffer_source.byte_offset(), buffer);
+            }
+            m_websocket->send(buffer.bytes(), false);
+        },
+        [&](GC::Ref<FileAPI::Blob> blob) {
+            auto bytes = blob->raw_bytes();
+            message_size = bytes.size();
+            if (is_open)
+                m_websocket->send(bytes, false);
+        });
+    // TODO: If the data cannot be sent, e.g. because it would need to be buffered but the buffer is full, the user
+    //       agent must flag the WebSocket as full and then close the WebSocket connection.
 
-                m_websocket->send(buffer, false);
-            },
-            [this](GC::Ref<FileAPI::Blob> blob) {
-                m_websocket->send(blob->raw_bytes(), false);
-            });
-        // TODO : If the data cannot be sent, e.g. because it would need to be buffered but the buffer is full, the user agent must flag the WebSocket as full and then close the WebSocket connection.
-        // TODO : Any invocation of this method with a string argument that does not throw an exception must increase the bufferedAmount attribute by the number of bytes needed to express the argument as UTF-8.
+    m_buffered_amount += message_size;
+
+    // NB: A sent message is handed to the network process right away, so it counts as transmitted to the network once
+    //     the event loop has moved on from the current task.
+    if (is_open && message_size > 0) {
+        HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [self = GC::Ref { *this }, message_size] {
+            self->m_buffered_amount -= message_size;
+        }));
     }
+
     return {};
 }
 

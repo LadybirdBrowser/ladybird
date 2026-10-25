@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 62 tests
 
-60 Pass
-2 Fail
+62 Pass
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	WebSocket interface: existence and properties of interface object
@@ -22,7 +21,7 @@ Pass	WebSocket interface: constant CLOSING on interface prototype object
 Pass	WebSocket interface: constant CLOSED on interface object
 Pass	WebSocket interface: constant CLOSED on interface prototype object
 Pass	WebSocket interface: attribute readyState
-Fail	WebSocket interface: attribute bufferedAmount
+Pass	WebSocket interface: attribute bufferedAmount
 Pass	WebSocket interface: attribute onopen
 Pass	WebSocket interface: attribute onerror
 Pass	WebSocket interface: attribute onclose
@@ -40,7 +39,7 @@ Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "O
 Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "CLOSING" with the proper type
 Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "CLOSED" with the proper type
 Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "readyState" with the proper type
-Fail	WebSocket interface: new WebSocket("ws://invalid") must inherit property "bufferedAmount" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "bufferedAmount" with the proper type
 Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "onopen" with the proper type
 Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "onerror" with the proper type
 Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "onclose" with the proper type
