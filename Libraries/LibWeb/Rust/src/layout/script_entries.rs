@@ -302,26 +302,13 @@ pub extern "C" fn layout_script_paintable_empty_line_caret_rect(
         style_source: NodeSlotId::INVALID,
     };
     *out = read_rows(host, |arena| {
-        let paintable_rows = arena;
-        if !paintable_rows.paintable_row_is_populated(block) {
-            return result;
-        }
         let fragments = arena.text_fragments(primary);
-        let node_slots = fragments.as_slice();
-        let side = arena.committed_side_data(block);
-        let Some(first_fragment) = side.fragments().first() else {
-            return result;
-        };
-        if !node_slots.contains(&first_fragment.layout_node) {
-            return result;
-        }
-        for target in crate::painting::visual_lines::empty_line_caret_targets(paintable_rows, block) {
-            if target.offset == offset {
-                result.has_value = true;
-                result.rect = target.rect.into();
-                result.style_source = crate::painting::text_fragment::style_source(paintable_rows, first_fragment);
-                break;
-            }
+        if let Some(caret) =
+            crate::painting::caret::caret_rect_on_empty_line(arena, block, fragments.as_slice(), offset)
+        {
+            result.has_value = true;
+            result.rect = caret.rect.into();
+            result.style_source = caret.style_source;
         }
         result
     });
