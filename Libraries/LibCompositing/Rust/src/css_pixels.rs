@@ -17,6 +17,9 @@
 // - Fraction-to-value conversion truncates (plain integer division).
 
 pub const FRACTIONAL_BITS: u32 = 6;
+/// The largest magnitude of the larger term of a fraction made from two floating-point terms, which keeps the fraction
+/// precise while products of its terms with any CSS pixel value still fit in 64 bits.
+const FRACTION_TERM_MAGNITUDE: f64 = (1 << 20) as f64;
 pub const FIXED_POINT_DENOMINATOR: i32 = 1 << FRACTIONAL_BITS;
 pub const RADIX_MASK: i32 = FIXED_POINT_DENOMINATOR - 1;
 pub const MAX_INTEGER_VALUE: i32 = i32::MAX >> FRACTIONAL_BITS;
@@ -177,10 +180,41 @@ impl CssPixels {
         Self::nearest_value_for(self.to_double() * factor)
     }
 
-    /// Matches the floating-point `CSSPixelFraction(double, double)`
-    /// constructor: a denominator that rounds to zero CSSPixels is rescued by
-    /// folding it into the numerator before the fixed-point conversion.
-    pub fn fraction_nearest_values_for(mut numerator: f64, mut denominator: f64) -> (CssPixels, CssPixels) {
+    /// Like the floating-point `CSSPixelFraction(double, double)` constructor,
+    /// a denominator that rounds to zero CSSPixels is rescued by folding it
+    /// into the numerator before the fixed-point conversion. Unlike it, the
+    /// terms are scaled by a power of two first, so the fraction keeps the
+    /// precision of the ratio.
+    pub fn fraction_nearest_values_for(numerator: f64, denominator: f64) -> (CssPixels, CssPixels) {
+        let ratio = numerator / denominator;
+        if !ratio.is_finite() || ratio == 0.0 {
+            return Self::unscaled_fraction_nearest_values_for(numerator, denominator);
+        }
+        // NB: The terms are scaled by a power of two before they are rounded to our fixed-point precision, so that a
+        //     ratio such as 1.6 / 1 keeps its precision instead of becoming 1.59375 / 1, while terms such as 16 / 9 stay
+        //     exact. Terms that are not exact in binary, such as 1e-13 / 1e-14, can still describe an exact ratio, so
+        //     the fraction rebuilt from the ratio is used where it is closer to it.
+        let scaled = |numerator: f64, denominator: f64| {
+            let largest_term = numerator.abs().max(denominator.abs());
+            let scale = (FRACTION_TERM_MAGNITUDE / largest_term).log2().floor().exp2();
+            Self::unscaled_fraction_nearest_values_for(numerator * scale, denominator * scale)
+        };
+        let error = |(numerator, denominator): (CssPixels, CssPixels)| {
+            if denominator.raw_value() == 0 {
+                return f64::INFINITY;
+            }
+            (numerator.to_double() / denominator.to_double() - ratio).abs()
+        };
+        let from_terms = scaled(numerator, denominator);
+        let from_ratio = scaled(ratio, 1.0);
+        if error(from_ratio) < error(from_terms) {
+            from_ratio
+        } else {
+            from_terms
+        }
+    }
+
+    fn unscaled_fraction_nearest_values_for(mut numerator: f64, mut denominator: f64) -> (CssPixels, CssPixels) {
         if Self::nearest_value_for(denominator).raw_value() == 0 {
             numerator /= denominator;
             denominator = 1.0;
