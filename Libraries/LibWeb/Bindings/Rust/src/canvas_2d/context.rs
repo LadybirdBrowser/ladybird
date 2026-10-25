@@ -18,7 +18,7 @@ use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpac
 use libcompositing_rust::display_list::commands::{Canvas2DShadow, CanvasId};
 use libgfx_rust::path::Path;
 use libgfx_rust::{AffineTransform, Color, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, WindingRule};
-use libjs_rust::api::{ForeignCellSlot, Gc, Realm, Trace, Visitor, Vm};
+use libjs_rust::api::{ForeignCellSlot, Gc, GcRefCell, Realm, Trace, Visitor, Vm};
 
 use super::canvas::{Canvas, FontMetricsSource, FontSelection, ResolvedFont, StyleValue, parse_color};
 use super::drawing_state::{CanvasColor, DrawingState, FillOrStrokeStyle};
@@ -145,7 +145,7 @@ pub(crate) struct ContextState {
     #[gc(untraced)]
     context_lost: Cell<bool>,
     /// The drawing state stack, with the current drawing state last.
-    states: RefCell<Vec<DrawingState>>,
+    states: GcRefCell<Vec<DrawingState>>,
     /// The current default path, in the coordinates of the current transformation matrix.
     #[gc(untraced)]
     path: RefCell<Path>,
@@ -203,7 +203,7 @@ impl ContextState {
             size: Cell::new(parameters.size),
             origin_clean: Cell::new(true),
             context_lost: Cell::new(false),
-            states: RefCell::new(vec![DrawingState::default()]),
+            states: GcRefCell::new(vec![DrawingState::default()]),
             path: RefCell::new(empty_path()),
             path_transform: Cell::new(AffineTransform::identity()),
             backing_storage: RefCell::new(None),

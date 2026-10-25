@@ -8,6 +8,7 @@
 
 use core::cell::{OnceCell, RefCell};
 
+use super::gc_ref_cell::GcRefCell;
 use super::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 
@@ -80,14 +81,7 @@ impl<T: Trace + 'static> Drop for Root<'_, T> {
 /// element, so an empty one costs nothing.
 pub struct MarkedVec<'vm, T: Trace + Clone + 'static> {
     vm: &'vm Vm,
-    values: OnceCell<Root<'vm, RefCell<Vec<T>>>>,
-}
-
-// SAFETY: Forwards to the values; the borrow is never held across anything that collects.
-unsafe impl<T: Trace> Trace for RefCell<Vec<T>> {
-    fn trace(&self, visitor: &mut Visitor) {
-        self.borrow().trace(visitor);
-    }
+    values: OnceCell<Root<'vm, GcRefCell<Vec<T>>>>,
 }
 
 impl<'vm, T: Trace + Clone + 'static> MarkedVec<'vm, T> {
@@ -106,9 +100,9 @@ impl<'vm, T: Trace + Clone + 'static> MarkedVec<'vm, T> {
         list
     }
 
-    fn rooted_values(&self) -> &RefCell<Vec<T>> {
+    fn rooted_values(&self) -> &GcRefCell<Vec<T>> {
         self.values
-            .get_or_init(|| Root::new(self.vm, RefCell::new(Vec::new())))
+            .get_or_init(|| Root::new(self.vm, GcRefCell::new(Vec::new())))
             .get()
     }
 

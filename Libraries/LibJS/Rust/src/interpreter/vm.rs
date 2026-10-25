@@ -566,7 +566,7 @@ pub struct Vm {
     weak_containers: RefCell<Vec<WeakContainer>>,
     /// The finalization registries whose targets died in the collection in progress, which are handed to
     /// HostEnqueueFinalizationRegistryCleanupJob once it is over.
-    finalization_registries_with_dead_cells: RefCell<Vec<Gc<FinalizationRegistry>>>,
+    finalization_registries_with_dead_cells: GcRefCell<Vec<Gc<FinalizationRegistry>>>,
     host_resize_array_buffer: Cell<HostResizeArrayBuffer>,
     host_grow_shared_array_buffer: Cell<HostGrowSharedArrayBuffer>,
     host_load_imported_module: Cell<HostLoadImportedModule>,
@@ -712,7 +712,7 @@ impl Vm {
             job_queues: OnceCell::new(),
             run_executable_depth: Cell::new(0),
             weak_containers: RefCell::new(Vec::new()),
-            finalization_registries_with_dead_cells: RefCell::new(Vec::new()),
+            finalization_registries_with_dead_cells: GcRefCell::new(Vec::new()),
             host_resize_array_buffer: Cell::new(default_host_resize_array_buffer),
             host_grow_shared_array_buffer: Cell::new(default_host_grow_shared_array_buffer),
             host_load_imported_module: Cell::new(Vm::load_imported_module),

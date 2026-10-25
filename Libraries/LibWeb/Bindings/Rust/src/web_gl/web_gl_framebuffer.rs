@@ -6,9 +6,7 @@
 
 //! https://registry.khronos.org/webgl/specs/latest/1.0/#5.5
 
-use core::cell::RefCell;
-
-use libjs_rust::api::{Gc, Realm, Trace, Vm};
+use libjs_rust::api::{Gc, GcRefCell, Realm, Trace, Vm};
 
 use super::state::ContextState;
 use super::web_gl_object::WebGLObject;
@@ -33,7 +31,7 @@ pub(crate) struct Attachment {
 #[gc(crate = libjs_rust)]
 pub(crate) struct WebGLFramebuffer {
     object: WebGLObject,
-    attachments: RefCell<Vec<Attachment>>,
+    attachments: GcRefCell<Vec<Attachment>>,
 }
 
 impl Wrappable for WebGLFramebuffer {
@@ -54,7 +52,7 @@ impl WebGLFramebuffer {
             vm,
             Self {
                 object: WebGLObject::new(context, handle),
-                attachments: RefCell::new(Vec::new()),
+                attachments: GcRefCell::new(Vec::new()),
             },
         )
     }
