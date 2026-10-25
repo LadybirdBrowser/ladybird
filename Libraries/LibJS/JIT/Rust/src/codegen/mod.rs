@@ -1755,6 +1755,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::LoadElementsCapacity => self.emit_load_elements_capacity(node_id),
             Op::AppendElement => self.emit_append_element_node(node_id),
             Op::CallArrayPush => self.emit_call_array_push(node_id),
+            Op::CallArraySplice => self.emit_call_array_splice(node_id),
             Op::CallStoreHoleyElement => self.emit_call_store_holey_element(node_id),
             Op::OpenArrayIteration => self.emit_open_array_iteration(node_id),
             Op::LoadArrayIteratorArray => self.emit_load_array_iterator_array(node_id),

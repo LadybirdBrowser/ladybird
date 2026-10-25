@@ -41,10 +41,72 @@ pub enum StringCharacter {
 /// How many values `try_build_array_push()` appends inline at most.
 const MAX_INLINE_PUSHED_VALUES: usize = 8;
 
+/// Keep the receiver, start, delete count and inserted values within the
+/// input limit of direct calls on every target.
+const MAX_INLINE_SPLICED_VALUES: usize = crate::codegen::DIRECT_CALL_MAX_INPUTS - 3;
+
 /// How many arguments `try_build_math_min_max()` compares inline at most.
 const MAX_MIN_MAX_ARGUMENTS: usize = 8;
 
 impl GraphBuilder<'_> {
+    /// Calls the packed-array splice helper without a native frame. It
+    /// declines before doing anything observable for receivers or species
+    /// constructors that require the ordinary call.
+    pub(super) fn try_build_array_splice(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
+        let Instruction::Call {
+            call_feedback,
+            dst,
+            callee,
+            this_value,
+            arguments,
+            ..
+        } = instruction
+        else {
+            return Ok(None);
+        };
+        if arguments.len() < 2
+            || arguments.len() > 2 + MAX_INLINE_SPLICED_VALUES
+            || self.runtime.array_splice == 0
+            || self.peek_intrinsic_callee(*call_feedback) != Some(Intrinsic::ArrayPrototypeSplice)
+            || self.holds_virtual_arguments(*this_value)
+            || arguments.iter().any(|argument| self.holds_virtual_arguments(*argument))
+        {
+            return Ok(None);
+        }
+        let realm = self
+            .function
+            .executable
+            .function
+            .map_or(self.runtime.realm, |function| function.realm);
+        if self
+            .call_feedback(*call_feedback)
+            .and_then(|feedback| feedback.native_call)
+            .map(|native| native.realm)
+            != Some(realm)
+            || self.checked_intrinsic_callee(*call_feedback, *callee)?.is_none()
+        {
+            return Ok(None);
+        }
+        let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
+        let receiver = self.read(*this_value)?;
+        let mut inputs = vec![receiver];
+        for (index, argument) in arguments.iter().enumerate() {
+            let value = self.read(*argument)?;
+            inputs.push(if index < 2 {
+                self.int32_or_slow_path(&mut slow_paths, value)
+            } else {
+                value
+            });
+        }
+        let result = self.emit(Op::CallArraySplice, inputs, Some(Repr::Tagged));
+        let result = self.branch_if_empty(&mut slow_paths, result);
+        let result = self
+            .join_slow_paths(slow_paths, Some(result))
+            .expect("calls have a value");
+        self.write(*dst, result)?;
+        Ok(Some(Flow::Continue))
+    }
+
     /// Builds a `Call` whose feedback saw a builtin that compiled code runs
     /// inline: a function of `Math` that computes with numbers,
     /// `String.prototype.charAt` and `charCodeAt`, or `String.fromCharCode`.

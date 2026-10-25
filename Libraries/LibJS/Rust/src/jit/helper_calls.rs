@@ -42,6 +42,7 @@ pub fn address(intrinsic: Intrinsic) -> u64 {
         | Intrinsic::FunctionPrototypeCall
         | Intrinsic::ArrayPrototypePush
         | Intrinsic::ArrayPrototypeSlice
+        | Intrinsic::ArrayPrototypeSplice
         | Intrinsic::ObjectPrototypeHasOwnProperty
         | Intrinsic::StringFromCharCode
         | Intrinsic::StringConstructor

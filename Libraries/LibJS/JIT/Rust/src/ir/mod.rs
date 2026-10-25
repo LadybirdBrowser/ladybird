@@ -515,6 +515,10 @@ pub enum Op {
     CallIntrinsic {
         intrinsic: Intrinsic,
     },
+    /// Splices a plain packed array through the runtime, or returns the
+    /// empty value without observable effects. Inputs: the tagged receiver,
+    /// int32 start and delete count, and the tagged values to insert.
+    CallArraySplice,
     /// ToObject of input 0, a primitive other than undefined and null, as
     /// the builtin function input 1 makes it (in its realm), through the
     /// runtime, or the empty value where that is not the running realm.
@@ -1389,6 +1393,13 @@ impl Op {
                 allocates: true,
                 ..P::PURE
             },
+            Op::CallArraySplice => P {
+                is_call: true,
+                allocates: true,
+                reads: Locations::NAMED.union(Locations::ELEMENTS_AND_COUNTS),
+                writes: Locations::ELEMENTS_AND_COUNTS,
+                ..P::PURE
+            },
             Op::CheckInt32
             | Op::CheckFloat64Int32
             | Op::CheckNumber
@@ -1680,6 +1691,7 @@ impl Op {
             Op::ToBoolean => "ToBoolean",
             Op::PrimitiveToString => "PrimitiveToString",
             Op::CallIntrinsic { .. } => "CallIntrinsic",
+            Op::CallArraySplice => "CallArraySplice",
             Op::ToObject => "ToObject",
             Op::ArrayCreate => "ArrayCreate",
             Op::Generic { .. } => "Generic",

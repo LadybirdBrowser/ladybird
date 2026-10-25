@@ -7,8 +7,8 @@
 //! Lowering of the array ops that `Array.prototype.push` of one value is
 //! built from, the way its own fast path for packed arrays appends.
 
-use super::Codegen;
 use super::slow_path_calls::slow_path_saved_registers;
+use super::{Codegen, InputValue};
 use crate::asm::Address;
 use crate::asm::Condition;
 use crate::asm::Gpr;
@@ -18,6 +18,31 @@ use crate::asm::Scale;
 use crate::ir::NodeId;
 
 impl<M: PortableMacroAssembler> Codegen<'_, M> {
+    /// Calls the splice helper with the inserted values on the native
+    /// stack. The receiver, start and delete count are in argument registers;
+    /// store the other inputs before setting up the remaining arguments.
+    pub(in crate::codegen) fn emit_call_array_splice(&mut self, node: NodeId) {
+        let count = self.graph.node(node).inputs.len() - 3;
+        let bytes = ((count * 8 + 15) & !15) as i64;
+        if bytes != 0 {
+            self.masm.sub64_imm(M::STACK_POINTER, M::STACK_POINTER, bytes);
+        }
+        for index in 0..count {
+            let address = Address::new(M::STACK_POINTER, (index * 8) as i32);
+            match self.input_value(node, index + 3) {
+                InputValue::Register(value) => self.masm.store64(&address, value),
+                InputValue::Constant(value) => self.masm.store_imm64(&address, value),
+            }
+        }
+        self.masm.move64(M::ARGUMENT_GPRS[0], self.pinned.vm);
+        self.masm.move64(M::ARGUMENT_GPRS[4], M::STACK_POINTER);
+        self.masm.move_imm32(M::ARGUMENT_GPRS[5], count as u32);
+        self.masm.call_absolute(self.runtime.array_splice);
+        if bytes != 0 {
+            self.masm.add64_imm(M::STACK_POINTER, M::STACK_POINTER, bytes);
+        }
+    }
+
     /// `CheckAppendableArray`: exits unless the input is an array that
     /// `Array.prototype.push` appends to without any observable step.
     pub(in crate::codegen) fn emit_check_appendable_array(&mut self, node: NodeId) {
