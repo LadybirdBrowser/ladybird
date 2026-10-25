@@ -119,6 +119,12 @@ impl<'vm, T: Trace + Clone + 'static> MarkedVec<'vm, T> {
         self.rooted_values().borrow_mut().insert(index, value);
     }
 
+    pub fn clear(&self) {
+        if let Some(values) = self.values.get() {
+            values.get().borrow_mut().clear();
+        }
+    }
+
     pub fn pop(&self) -> Option<T> {
         self.values.get()?.get().borrow_mut().pop()
     }

@@ -1757,7 +1757,7 @@ impl RegExpPrototype {
             native_matches.slots.len() / native_matches.slots_per_match
         });
         let captures: MarkedVec<'_, Value> = MarkedVec::new(vm);
-        let mut replacer_args = Vec::new();
+        let replacer_args = MarkedVec::new(vm);
         for result_index in 0..result_count {
             // OPTIMIZATION: A replacement string reads the match and its captures where they are in the string, so the
             //               results of matches that ran natively need no strings of their own, and GetSubstitution
@@ -1882,7 +1882,6 @@ impl RegExpPrototype {
             // k. If functionalReplace is true, then
             let replacement = if replace_value.is_function() {
                 // i. Let replacerArgs be the list-concatenation of « matched », captures, and « 𝔽(position), S ».
-                // NB: Everything in the list is kept alive by the captures, the variables above, and the caller.
                 replacer_args.clear();
                 replacer_args.push(Value::from_string(matched));
                 replacer_args.extend_from_slice(&captures.values());
@@ -1896,8 +1895,12 @@ impl RegExpPrototype {
                 }
 
                 // iii. Let replValue be ? Call(replaceValue, undefined, replacerArgs).
-                let replace_result =
-                    call_function_object(vm, replace_value.as_function(), Value::UNDEFINED, &replacer_args)?;
+                let replace_result = call_function_object(
+                    vm,
+                    replace_value.as_function(),
+                    Value::UNDEFINED,
+                    &replacer_args.values(),
+                )?;
 
                 // iv. Let replacement be ? ToString(replValue).
                 replace_result.to_utf16_string(vm)?
