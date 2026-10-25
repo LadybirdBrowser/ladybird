@@ -22,9 +22,9 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Date.h>
+#include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/Object.h>
-#include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibMediaClient/Client.h>
 #include <LibURL/Parser.h>
@@ -419,14 +419,16 @@ WebIDL::ExceptionOr<void> Internals::mark_as_garbage(Utf16String const& variable
     if (!outer_environment.has_value())
         return vm.throw_completion<JS::ReferenceError>(JS::ErrorType::UnknownIdentifier, variable_name_fly);
 
-    auto reference = TRY(vm.resolve_binding(variable_name_fly, JS::Strict::No, outer_environment.value()->lexical_environment));
-    auto value = TRY(reference.get_value(vm));
+    auto environment = TRY(vm.resolve_binding(variable_name_fly, JS::Strict::No, outer_environment.value()->lexical_environment));
+    if (!environment)
+        return vm.throw_completion<JS::ReferenceError>(JS::ErrorType::UnknownIdentifier, variable_name_fly);
+    auto value = TRY(environment->get_binding_value(vm, variable_name_fly, false));
 
     if (!JS::can_be_held_weakly(value))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::CannotBeHeldWeakly, value);
 
-    TRY(reference.put_value(vm, JS::js_undefined()));
-    (void)TRY(reference.delete_(vm));
+    TRY(environment->set_mutable_binding(vm, variable_name_fly, JS::js_undefined(), false));
+    (void)TRY(environment->delete_binding(vm, variable_name_fly));
     vm.heap().uproot_cell(&value.as_cell());
     return {};
 }

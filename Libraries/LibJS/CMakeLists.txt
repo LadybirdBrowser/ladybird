@@ -76,7 +76,6 @@ set(SOURCES
     Runtime/PromiseJob.cpp
     Runtime/PropertyDescriptor.cpp
     Runtime/Realm.cpp
-    Runtime/Reference.cpp
     Runtime/RegExpObject.cpp
     Runtime/Set.cpp
     Runtime/SetIterator.cpp

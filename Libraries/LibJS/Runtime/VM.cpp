@@ -15,7 +15,6 @@
 #include <LibJS/Runtime/JobCallback.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/PromiseCapability.h>
-#include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Script.h>
 #include <LibJS/ScriptAndModuleABIConversions.h>
@@ -508,7 +507,7 @@ Vector<StackTraceElement> VM::stack_trace() const
     return stack_trace;
 }
 
-ThrowCompletionOr<Reference> VM::resolve_binding(Utf16FlyString const& name, Strict strict, GC::Ptr<Environment> environment)
+ThrowCompletionOr<GC::Ptr<Environment>> VM::resolve_binding(Utf16FlyString const& name, Strict strict, GC::Ptr<Environment> environment)
 {
     // 1. If env is not present or if env is undefined, then
     //    a. Set env to the running execution context's LexicalEnvironment.
@@ -519,10 +518,7 @@ ThrowCompletionOr<Reference> VM::resolve_binding(Utf16FlyString const& name, Str
     VERIFY(environment);
 
     // 4. Return ? GetIdentifierReference(env, name, strict).
-    auto base_environment = TRY(completion_from_abi<GC::Ptr<Environment>>(js_environment_resolve_binding(vm_abi(*this), utf16_view_to_abi(name.view()), strict == Strict::Yes, cell_to_abi<JSEnvironment>(*environment))));
-    if (!base_environment)
-        return Reference { Reference::BaseType::Unresolvable, name, strict };
-    return Reference { *base_environment, name, strict };
+    return completion_from_abi<GC::Ptr<Environment>>(js_environment_resolve_binding(vm_abi(*this), utf16_view_to_abi(name.view()), strict == Strict::Yes, cell_to_abi<JSEnvironment>(*environment)));
 }
 
 Completion VM::throw_engine_error(EngineErrorKind kind, Utf16View message)
