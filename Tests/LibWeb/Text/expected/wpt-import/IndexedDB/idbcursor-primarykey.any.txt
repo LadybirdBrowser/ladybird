@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Pass	IDBCursor.primaryKey
+Pass	IDBCursor.primaryKey 1
+Fail	IDBCursor.primaryKey 2
