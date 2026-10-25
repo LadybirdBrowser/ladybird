@@ -29,11 +29,6 @@ public:
     static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_attr_tainted_with_parsed_value(Utf16String token_source, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text, SourceTextMode, NonnullRefPtr<StyleValue const> parsed_value);
     virtual ~UnresolvedStyleValue() override = default;
 
-    bool contains_arbitrary_substitution_function() const
-    {
-        auto const& data = m_value->unresolved;
-        return data.presence_attr || data.presence_dashed_function || data.presence_env || data.presence_if || data.presence_inherit || data.presence_var;
-    }
     bool contains_attr_tainted_values() const { return m_value->unresolved.contains_attr_tainted_values; }
     RefPtr<StyleValue const> parsed_value() const { return wrap_rust_child_or_null(m_value->unresolved.parsed_value); }
 
