@@ -23,7 +23,6 @@ public:
     RustDeclarationBlockSnapshot(RustDeclarationBlockSnapshot&&);
     RustDeclarationBlockSnapshot& operator=(RustDeclarationBlockSnapshot&&);
 
-    Parser::ValueParserFFI::FfiDeclarationBlockDependencies dependencies() const;
     Parser::ValueParserFFI::DeclarationBlockData const* data() const { return m_data; }
 
 private:
@@ -55,7 +54,6 @@ public:
     Vector<StyleProperty> const& properties() const;
     OrderedHashMap<Utf16FlyString, StyleProperty> const& custom_properties() const;
     size_t external_memory_size() const;
-    Parser::ValueParserFFI::FfiDeclarationBlockDependencies dependencies() const;
 
     bool set(PropertyID, StyleValue const&, Important);
     void append(PropertyID, StyleValue const&, Important);

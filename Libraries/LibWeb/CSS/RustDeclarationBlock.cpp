@@ -54,11 +54,6 @@ RustDeclarationBlockSnapshot& RustDeclarationBlockSnapshot::operator=(RustDeclar
     return *this;
 }
 
-FfiDeclarationBlockDependencies RustDeclarationBlockSnapshot::dependencies() const
-{
-    return rust_declaration_data_dependencies(m_data);
-}
-
 RustDeclarationBlock::RustDeclarationBlock(Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties)
     : m_properties(move(properties))
     , m_custom_properties(move(custom_properties))
@@ -179,11 +174,6 @@ OrderedHashMap<Utf16FlyString, StyleProperty> const& RustDeclarationBlock::custo
 {
     update_views();
     return m_custom_properties;
-}
-
-FfiDeclarationBlockDependencies RustDeclarationBlock::dependencies() const
-{
-    return rust_declaration_block_dependencies(m_block);
 }
 
 size_t RustDeclarationBlock::external_memory_size() const
