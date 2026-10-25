@@ -3,7 +3,7 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip_path=[bounds: 0,0 200x200, path: M50 50L150 50L150 150L50 150L50 50Z] (BlockContainer<DIV>.clip-path-ancestor)
+    [c0 in s1] clip_path=[bounds: 50,50 100x100, path: M50 50L150 50L150 150L50 150L50 50Z] (BlockContainer<DIV>.clip-path-ancestor)
     [c3 in s0] clip=[220,0 100x100] (BlockContainer<DIV>.clip-ancestor)
   effects:
     [e0 in s0] effects=[]

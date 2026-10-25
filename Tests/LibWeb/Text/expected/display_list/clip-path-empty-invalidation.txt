@@ -17,7 +17,7 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip_path=[bounds: 8,8 100x100, path: M58 58L58 58L58 58L58 58Z] (BlockContainer<DIV>#box)
+    [c0 in s1] clip_path=[bounds: 58,58 0x0, path: M58 58L58 58L58 58L58 58Z] (BlockContainer<DIV>#box)
   effects:
     [e0 in s0] effects=[]
 

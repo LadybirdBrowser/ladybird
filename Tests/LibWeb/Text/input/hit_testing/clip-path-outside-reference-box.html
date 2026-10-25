@@ -1,0 +1,52 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #out {
+        position: absolute;
+        top: 400px;
+    }
+    #clipped {
+        position: absolute;
+        left: 100px;
+        top: 100px;
+        width: 100px;
+        height: 100px;
+    }
+    #target {
+        position: absolute;
+        inset: -40px;
+        background: green;
+    }
+</style>
+<div id="clipped"><div id="target"></div></div>
+<script>
+    test(() => {
+        const clipped = document.getElementById("clipped");
+        for (const shape of [
+            "inset(-20px)",
+            "rect(-20px 120px 120px -20px)",
+            "xywh(-20px -20px 140px 140px)",
+            "circle(70px)",
+            "ellipse(70px 70px)",
+            "polygon(-20px -20px, 120px -20px, 120px 120px, -20px 120px)",
+            'path("M -20 -20 H 120 V 120 H -20 Z")',
+            "shape(from -20px -20px, hline to 120px, vline to 120px, hline to -20px, close)",
+        ]) {
+            clipped.style.clipPath = shape;
+            println(shape);
+            for (const [x, y] of [
+                [90, 150],
+                [210, 150],
+                [150, 90],
+                [150, 210],
+            ])
+                println(`Outside reference box, inside clip: ${document.elementFromPoint(x, y).id}`);
+            println(`Outside clip: ${document.elementFromPoint(70, 150).tagName}`);
+        }
+        clipped.style.clipPath = "circle(70px)";
+        println(`Inside path bounds, outside circle: ${document.elementFromPoint(85, 85).tagName}`);
+    });
+</script>

@@ -1,0 +1,49 @@
+inset(-20px)
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside clip: HTML
+rect(-20px 120px 120px -20px)
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside clip: HTML
+xywh(-20px -20px 140px 140px)
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside clip: HTML
+circle(70px)
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside clip: HTML
+ellipse(70px 70px)
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside clip: HTML
+polygon(-20px -20px, 120px -20px, 120px 120px, -20px 120px)
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside clip: HTML
+path("M -20 -20 H 120 V 120 H -20 Z")
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside clip: HTML
+shape(from -20px -20px, hline to 120px, vline to 120px, hline to -20px, close)
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside reference box, inside clip: target
+Outside clip: HTML
+Inside path bounds, outside circle: HTML
