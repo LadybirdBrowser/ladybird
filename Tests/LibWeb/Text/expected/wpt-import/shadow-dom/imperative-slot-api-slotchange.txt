@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 13 tests
+
+12 Pass
+1 Fail
+Pass	slotchange event must not fire synchronously.
+Pass	slotchange event should not fire when assignments do not change assignedNodes.
+Fail	slotchange event should not fire when same node is assigned.
+Pass	Fire slotchange event when slot's assigned nodes changes.
+Pass	Fire slotchange event on previous slot and new slot when node is reassigned.
+Pass	Fire slotchange event on node assignment and when assigned node is removed.
+Pass	Fire slotchange event when order of assigned nodes changes.
+Pass	Fire slotchange event when assigned node is removed.
+Pass	Fire slotchange event when removing a slot from Shadows Root that changes its assigned nodes.
+Pass	No slotchange event when adding or removing an empty slot.
+Pass	No slotchange event when adding another slotable.
+Pass	Fire slotchange event when assign node to nested slot, ensure event bubbles ups.
+Pass	Signal a slot change should be done in tree order.
