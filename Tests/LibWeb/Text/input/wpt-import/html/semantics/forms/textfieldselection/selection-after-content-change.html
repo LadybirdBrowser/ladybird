@@ -1,0 +1,144 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Selection indices after content change</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<input id="i1" type="text" value="hello">
+<textarea id="t1">hello</textarea>
+
+<script>
+"use strict";
+
+// This helper ensures that when the selection direction is reset, it always is reset to the same value consistently
+// (which must be one of either "none" or "forward"). This helps catch bugs like one observed in Chrome, where textareas
+// reset to "none" but inputs reset to "forward".
+let observedResetSelectionDirection;
+function assertSelectionDirectionIsReset(element) {
+  if (!observedResetSelectionDirection) {
+    assert_in_array(element.selectionDirection, ["none", "forward"],
+      "selectionDirection must be set to either none or forward");
+    observedResetSelectionDirection = element.selectionDirection;
+  } else {
+    assert_equals(element.selectionDirection, observedResetSelectionDirection,
+      `selectionDirection must be reset to ${observedResetSelectionDirection} (which was previously observed to be ` +
+      `the value after resetting the selection direction)`);
+  }
+}
+
+runInputTest("input out of document", () => {
+  const input = document.createElement("input");
+  input.value = "hello";
+  return input;
+});
+
+runInputTest("input in document", () => {
+  const input = document.querySelector("#i1");
+  input.value = "hello";
+  return input;
+});
+
+runInputTest("input in document, with focus", () => {
+  const input = document.querySelector("#i1");
+  input.value = "hello";
+  input.focus();
+  return input;
+});
+
+runTextareaTest("textarea out of document", () => {
+  const textarea = document.createElement("textarea");
+  textarea.value = "hello";
+  return textarea;
+});
+
+runTextareaTest("textarea in document", () => {
+  const textarea = document.querySelector("#t1");
+  textarea.value = "hello";
+  return textarea;
+});
+
+runTextareaTest("textarea in document, with focus", () => {
+  const textarea = document.querySelector("#t1");
+  textarea.value = "hello";
+  textarea.focus();
+  return textarea;
+});
+
+function runTest(descriptor, elementFactory) {
+  test(() => {
+    const element = elementFactory();
+    element.setSelectionRange(1, 3, "backward");
+
+    assert_equals(element.selectionStart, 1, "Sanity check: selectionStart was set correctly");
+    assert_equals(element.selectionEnd, 3, "Sanity check: selectionEnd was set correctly");
+    assert_equals(element.selectionDirection, "backward", "Sanity check: selectionDirection was set correctly");
+
+    element.value = "hello";
+
+    assert_equals(element.selectionStart, 1, "selectionStart must not change");
+    assert_equals(element.selectionEnd, 3, "selectionEnd must not change");
+    assert_equals(element.selectionDirection, "backward", "selectionDirection must not change");
+  }, `${descriptor}: selection must not change when setting the same value`);
+
+  test(() => {
+    const element = elementFactory();
+    element.setSelectionRange(1, 3, "backward");
+
+    assert_equals(element.selectionStart, 1, "Sanity check: selectionStart was set correctly");
+    assert_equals(element.selectionEnd, 3, "Sanity check: selectionEnd was set correctly");
+    assert_equals(element.selectionDirection, "backward", "Sanity check: selectionDirection was set correctly");
+
+    element.value = "hello2";
+
+    assert_equals(element.selectionStart, element.value.length, "selectionStart must be reset to the end");
+    assert_equals(element.selectionEnd, element.value.length, "selectionEnd must be reset to the end");
+    assertSelectionDirectionIsReset(element);
+  }, `${descriptor}: selection must change when setting a different value`);
+}
+
+function runInputTest(descriptor, elementFactory) {
+  runTest(descriptor, elementFactory);
+
+  test(() => {
+    const input = elementFactory();
+    input.setSelectionRange(1, 3, "backward");
+
+    assert_equals(input.selectionStart, 1, "Sanity check: selectionStart was set correctly");
+    assert_equals(input.selectionEnd, 3, "Sanity check: selectionEnd was set correctly");
+    assert_equals(input.selectionDirection, "backward", "Sanity check: selectionDirection was set correctly");
+
+    input.value = "he\nllo";
+
+    assert_equals(input.selectionStart, 1, "selectionStart must not change");
+    assert_equals(input.selectionEnd, 3, "selectionEnd must not change");
+    assert_equals(input.selectionDirection, "backward", "selectionDirection must not change");
+  }, `${descriptor}: selection must not change when setting a value that becomes the same after the value ` +
+     `sanitization algorithm`);
+}
+
+function runTextareaTest(descriptor, elementFactory) {
+  runTest(descriptor, elementFactory);
+
+  test(() => {
+    const textarea = elementFactory();
+    textarea.value = "hell\no";
+    textarea.setSelectionRange(1, 3, "backward");
+
+    assert_equals(textarea.selectionStart, 1, "Sanity check: selectionStart was set correctly");
+    assert_equals(textarea.selectionEnd, 3, "Sanity check: selectionEnd was set correctly");
+    assert_equals(textarea.selectionDirection, "backward", "Sanity check: selectionDirection was set correctly");
+
+    textarea.value = "hell\r\no";
+
+    assert_equals(textarea.selectionStart, 1, "selectionStart must not change when setting to CRLF");
+    assert_equals(textarea.selectionEnd, 3, "selectionEnd must not change when setting to CRLF");
+    assert_equals(textarea.selectionDirection, "backward", "selectionDirection must not change when setting to CRLF");
+
+    textarea.value = "hell\ro";
+
+    assert_equals(textarea.selectionStart, 1, "selectionStart must not change when setting to CR");
+    assert_equals(textarea.selectionEnd, 3, "selectionEnd must not change when setting to CR");
+    assert_equals(textarea.selectionDirection, "backward", "selectionDirection must not change when setting to CR");
+  }, `${descriptor}: selection must not change when setting the same normalized value`);
+}
+</script>
