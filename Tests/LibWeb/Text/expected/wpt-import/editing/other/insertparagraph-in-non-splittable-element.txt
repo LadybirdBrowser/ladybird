@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 14 tests
 
-2 Pass
-12 Fail
+4 Pass
+10 Fail
 Fail	insertParagraph in button of <div><button>abc</button></div>
 Fail	insertParagraph in caption of <div><table><caption>abc</caption><tbody><tr><td>abc</td></tr></tbody></table></div>
-Fail	insertParagraph in col of <div><table><colgroup><col></colgroup><tbody><tr><td>abc</td></tr></tbody></table></div>
-Fail	insertParagraph in colgroup of <div><table><colgroup><col></colgroup><tbody><tr><td>abc</td></tr></tbody></table></div>
+Pass	insertParagraph in col of <div><table><colgroup><col></colgroup><tbody><tr><td>abc</td></tr></tbody></table></div>
+Pass	insertParagraph in colgroup of <div><table><colgroup><col></colgroup><tbody><tr><td>abc</td></tr></tbody></table></div>
 Fail	insertParagraph in iframe of <div><iframe srcdoc="abc"></iframe></div>
 Fail	insertParagraph in legend of <div><fieldset><legend>abc</legend></fieldset></div>
 Pass	insertParagraph in meter of <div><meter max="100" value="50">abc</meter></div>
