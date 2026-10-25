@@ -73,7 +73,6 @@ public:
     Node const* parent_ptr() const { return linked_node(RustFFI::FfiNodeLink::Parent); }
     Node* first_child_ptr() { return linked_node(RustFFI::FfiNodeLink::FirstChild); }
     Node const* first_child_ptr() const { return linked_node(RustFFI::FfiNodeLink::FirstChild); }
-    Node* last_child_ptr() { return linked_node(RustFFI::FfiNodeLink::LastChild); }
     Node* next_sibling_ptr() { return linked_node(RustFFI::FfiNodeLink::NextSibling); }
     Node const* next_sibling_ptr() const { return linked_node(RustFFI::FfiNodeLink::NextSibling); }
     Node* previous_sibling_ptr() { return linked_node(RustFFI::FfiNodeLink::PreviousSibling); }
@@ -149,48 +148,6 @@ public:
     void for_each_child_of_type(Callback callback) const
     {
         return const_cast<Node&>(*this).template for_each_child_of_type<U>(move(callback));
-    }
-
-    Node* next_in_pre_order()
-    {
-        if (auto* child = first_child_ptr())
-            return child;
-        for (auto* node = this; node; node = node->parent_ptr()) {
-            if (auto* next = node->next_sibling_ptr())
-                return next;
-        }
-        return nullptr;
-    }
-
-    Node const* next_in_pre_order() const
-    {
-        return const_cast<Node*>(this)->next_in_pre_order();
-    }
-
-    Node* previous_in_pre_order()
-    {
-        if (auto* node = previous_sibling_ptr()) {
-            while (auto* last_child = node->last_child_ptr())
-                node = last_child;
-            return node;
-        }
-        return parent_ptr();
-    }
-
-    Node const* previous_in_pre_order() const
-    {
-        return const_cast<Node*>(this)->previous_in_pre_order();
-    }
-
-    bool is_before(Node const& other) const
-    {
-        if (this == &other)
-            return false;
-        for (auto const* node = this; node; node = node->next_in_pre_order()) {
-            if (node == &other)
-                return true;
-        }
-        return false;
     }
 
     bool is_anonymous() const { return has_identity_flag<RustFFI::NodeFlag::Anonymous>(); }
