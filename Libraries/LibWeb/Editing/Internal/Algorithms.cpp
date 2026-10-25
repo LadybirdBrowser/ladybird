@@ -2614,6 +2614,14 @@ Optional<Utf16FlyString const&> formattable_block_name_from_utf16(Utf16View loca
         return HTML::TagNames::p;
     if (local_name == "pre"sv)
         return HTML::TagNames::pre;
+
+    // NB: See the INTEROP note at is_formattable_block_name().
+    for (auto const* name : { &HTML::TagNames::article, &HTML::TagNames::aside, &HTML::TagNames::blockquote,
+             &HTML::TagNames::footer, &HTML::TagNames::header, &HTML::TagNames::hgroup, &HTML::TagNames::main,
+             &HTML::TagNames::nav, &HTML::TagNames::section }) {
+        if (local_name == name->view())
+            return *name;
+    }
     return {};
 }
 
@@ -2621,9 +2629,20 @@ Optional<Utf16FlyString const&> formattable_block_name_from_utf16(Utf16View loca
 bool is_formattable_block_name(Utf16FlyString const& local_name)
 {
     // A formattable block name is "address", "dd", "div", "dt", "h1", "h2", "h3", "h4", "h5", "h6", "p", or "pre".
-    return local_name.is_one_of(HTML::TagNames::address, HTML::TagNames::dd, HTML::TagNames::div, HTML::TagNames::dt,
-        HTML::TagNames::h1, HTML::TagNames::h2, HTML::TagNames::h3, HTML::TagNames::h4, HTML::TagNames::h5,
-        HTML::TagNames::h6, HTML::TagNames::p, HTML::TagNames::pre);
+    if (local_name.is_one_of(HTML::TagNames::address, HTML::TagNames::dd, HTML::TagNames::div, HTML::TagNames::dt,
+            HTML::TagNames::h1, HTML::TagNames::h2, HTML::TagNames::h3, HTML::TagNames::h4, HTML::TagNames::h5,
+            HTML::TagNames::h6, HTML::TagNames::p, HTML::TagNames::pre))
+        return true;
+
+    // INTEROP: Browsers also support the formatBlock command with these sectioning and grouping elements.
+    return is_additional_formattable_block_name(local_name);
+}
+
+bool is_additional_formattable_block_name(Utf16FlyString const& local_name)
+{
+    return local_name.is_one_of(HTML::TagNames::article, HTML::TagNames::aside, HTML::TagNames::blockquote,
+        HTML::TagNames::footer, HTML::TagNames::header, HTML::TagNames::hgroup, HTML::TagNames::main,
+        HTML::TagNames::nav, HTML::TagNames::section);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#formattable-node

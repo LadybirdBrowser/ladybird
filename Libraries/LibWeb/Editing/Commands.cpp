@@ -808,7 +808,9 @@ bool command_format_block_action(DOM::Document& document, Utf16View value)
         auto result = wrap(
             sublist,
             [&](GC::Ref<DOM::Node> sibling) {
-                if (resulting_value.is_one_of("div"sv, "p"sv))
+                // INTEROP: Browsers do not merge the sectioning and grouping elements that they also support with
+                //          their siblings.
+                if (resulting_value.is_one_of("div"sv, "p"sv) || is_additional_formattable_block_name(*local_name))
                     return false;
                 auto const* html_element = as_if<HTML::HTMLElement>(*sibling);
                 return html_element && html_element->local_name() == resulting_value && !html_element->has_attributes();
