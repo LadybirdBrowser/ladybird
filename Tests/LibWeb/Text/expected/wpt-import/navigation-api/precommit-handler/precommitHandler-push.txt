@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-2 Pass
-1 Fail
-Fail	precommitHandler for a push navigation, reject before commit
+3 Pass
+Pass	precommitHandler for a push navigation, reject before commit
 Pass	precommitHandler for a push navigation, reject after commit
 Pass	precommitHandler for a push navigation, success

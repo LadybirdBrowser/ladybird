@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	precommitHandler for a traverse navigation, reject before commit
-Fail	precommitHandler for a traverse navigation, reject after commit
-Fail	precommitHandler for a traverse navigation, success
+3 Pass
+Pass	precommitHandler for a traverse navigation, reject before commit
+Pass	precommitHandler for a traverse navigation, reject after commit
+Pass	precommitHandler for a traverse navigation, success

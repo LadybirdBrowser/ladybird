@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Cancel a navigation with a precommitHandler before commit by starting a new navigation
+1 Pass
+Pass	Cancel a navigation with a precommitHandler before commit by starting a new navigation

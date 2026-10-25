@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/NavigationCurrentEntryChangeEvent.h>
 #include <LibWeb/HTML/NavigationDestination.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
+#include <LibWeb/HTML/NavigationPrecommitController.h>
 #include <LibWeb/HTML/NavigationTransition.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -1265,8 +1266,41 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     }
 
     // 30. If event's navigation precommit handler list is empty then commit event given apiMethodTracker.
-    // FIXME: 31. Otherwise, invoke the precommit handlers and commit event once they have all fulfilled.
-    commit_a_navigate_event(event, api_method_tracker);
+    if (event->navigation_precommit_handler_list().is_empty()) {
+        commit_a_navigate_event(event, api_method_tracker);
+    }
+    // 31. Otherwise:
+    else {
+        // NB: Like for the transition above, the precommit handlers can be invoked from a session history traversal
+        //     task with no JavaScript on the stack.
+        TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+        // 1. Let precommitController be a new NavigationPrecommitController created in navigation's relevant realm,
+        //    whose event is event.
+        auto precommit_controller = NavigationPrecommitController::create(event);
+        JS::Value precommit_controller_value = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, precommit_controller);
+
+        // 2. Let precommitPromisesList be an empty list.
+        GC::RootVector<GC::Ref<WebIDL::Promise>> precommit_promises_list;
+
+        // 3. For each handler of event's navigation precommit handler list:
+        for (auto const& handler : event->navigation_precommit_handler_list()) {
+            // 1. Append the result of invoking handler with « precommitController » to precommitPromisesList.
+            precommit_promises_list.append(WebIDL::invoke_promise_callback(handler, {}, ReadonlySpan<JS::Value> { &precommit_controller_value, 1 }));
+        }
+
+        // 4. Wait for all precommitPromisesList with the following success steps: commit event given apiMethodTracker,
+        //    and the following failure step given reason: process navigate event handler failure given event and
+        //    reason.
+        WebIDL::wait_for_all(
+            realm, precommit_promises_list,
+            [this, event, api_method_tracker](auto const&) {
+                commit_a_navigate_event(event, api_method_tracker);
+            },
+            [this, event](JS::Value reason) {
+                process_navigate_event_handler_failure(event, reason);
+            });
+    }
 
     // 32. If event's interception state is "none", then return true.
     // 33. Return false.

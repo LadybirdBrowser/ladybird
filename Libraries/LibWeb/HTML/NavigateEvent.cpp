@@ -126,6 +126,7 @@ NavigateEvent::~NavigateEvent() = default;
 void NavigateEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_navigation_precommit_handler_list);
     visitor.visit(m_navigation_handler_list);
     visitor.visit(m_abort_controller);
     visitor.visit(m_destination);
@@ -153,17 +154,27 @@ WebIDL::ExceptionOr<void> NavigateEvent::intercept(JS::Realm& realm, NavigationI
     if (!this->dispatched())
         return WebIDL::InvalidStateError::create("NavigationEvent is not dispatched yet"_utf16);
 
-    // 4. Assert: this's interception state is either "none" or "intercepted".
+    // 4. If options["precommitHandler"] exists:
+    if (options.precommit_handler) {
+        // 1. If this's cancelable attribute is initialized to false, then throw an "InvalidStateError" DOMException.
+        if (!cancelable())
+            return WebIDL::InvalidStateError::create("Cannot use a precommit handler with a NavigateEvent that is not cancelable"_utf16);
+
+        // 2. Append options["precommitHandler"] to this's navigation precommit handler list.
+        TRY_OR_THROW_OOM(vm, m_navigation_precommit_handler_list.try_append(*options.precommit_handler));
+    }
+
+    // 5. Assert: this's interception state is either "none" or "intercepted".
     VERIFY(m_interception_state == InterceptionState::None || m_interception_state == InterceptionState::Intercepted);
 
-    // 5. Set this's interception state to "intercepted".
+    // 6. Set this's interception state to "intercepted".
     m_interception_state = InterceptionState::Intercepted;
 
-    // 6. If options["handler"] exists, then append it to this's navigation handler list.
+    // 7. If options["handler"] exists, then append it to this's navigation handler list.
     if (options.handler)
         TRY_OR_THROW_OOM(vm, m_navigation_handler_list.try_append(*options.handler));
 
-    // 7. If options["focusReset"] exists, then:
+    // 8. If options["focusReset"] exists, then:
     if (options.focus_reset.has_value()) {
         auto focus_reset = *options.focus_reset;
 
@@ -181,7 +192,7 @@ WebIDL::ExceptionOr<void> NavigateEvent::intercept(JS::Realm& realm, NavigationI
         m_focus_reset_behavior = focus_reset;
     }
 
-    // 8. If options["scroll"] exists, then:
+    // 9. If options["scroll"] exists, then:
     if (options.scroll.has_value()) {
         auto scroll = *options.scroll;
 
