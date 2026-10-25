@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 27 tests
 
-25 Pass
-2 Fail
+27 Pass
 Pass	aria-activedescendant element reflection
 Pass	If the content attribute is set directly, the IDL attribute getter always returns the first element whose ID matches the content attribute.
 Pass	Setting the IDL attribute to an element which is not the first element in DOM order with its ID causes the content attribute to be an empty string
@@ -21,8 +20,8 @@ Pass	aria-controls.
 Pass	aria-describedby.
 Pass	aria-flowto.
 Pass	aria-owns.
-Fail	shadow DOM behaviour for FrozenArray element reflection.
-Fail	Moving explicitly set elements across shadow DOM boundaries.
+Pass	shadow DOM behaviour for FrozenArray element reflection.
+Pass	Moving explicitly set elements across shadow DOM boundaries.
 Pass	Moving explicitly set elements around within the same scope, and removing from the DOM.
 Pass	Reparenting.
 Pass	Attaching element reference before it's inserted into the DOM.

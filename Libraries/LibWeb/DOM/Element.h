@@ -160,6 +160,13 @@ enum class ProximityToTheViewport : u8 {
     NotDetermined,
 };
 
+// NB: The steps of these algorithms that follow running the reflected target's get the element, shared by the
+//     element and ElementInternals reflected targets.
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-element
+WEB_API GC::Ptr<Element> get_the_attribute_associated_element(Element const& element, Optional<Utf16String> const& content_attribute_value, GC::Ptr<Element> explicitly_set_attribute_element);
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-elements
+WEB_API Optional<GC::RootVector<GC::Ref<Element>>> get_the_attribute_associated_elements(Element const& element, Function<Optional<Utf16String>()> const& get_the_content_attribute, Optional<Vector<GC::Weak<Element>> const&> explicitly_set_attribute_elements);
+
 class WEB_API Element
     : public ParentNode
     , public ChildNode<Element>
