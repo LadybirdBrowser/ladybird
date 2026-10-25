@@ -3139,18 +3139,18 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             root.block_size_constraint.set(size_constraint);
             root.has_definite_block_size.set(false);
             root.set_content_inline_size(inline_size);
-            measurement.run(
-                node,
-                &root,
-                LayoutInput::new(
-                    AvailableSpace {
-                        inline_size: AvailableSize::definite(inline_size),
-                        block_size: available_block_size,
-                    },
-                    constraints,
-                    ParticipationInParentFormattingContext::Root,
-                ),
-            )
+            let mut input = LayoutInput::new(
+                AvailableSpace {
+                    inline_size: AvailableSize::definite(inline_size),
+                    block_size: available_block_size,
+                },
+                constraints,
+                ParticipationInParentFormattingContext::Root,
+            );
+            input.sizing.root_is_measured_for_its_content_block_size =
+                formatting_context::independent_formatting_context_type(node, &self.callbacks)
+                    == formatting_context::FormattingContextType::Grid;
+            measurement.run(node, &root, input)
         };
         let value = clamp_to_max_dimension_value(result.automatic_content_block_size);
         self.charge_measurement_dependency_to_measured_box_and_containing_block(
@@ -3174,8 +3174,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let facts = self.facts(node);
         !facts.document_in_quirks_mode()
             && !facts.is_table_wrapper()
-            && formatting_context::independent_formatting_context_type(node, &self.callbacks)
-                == formatting_context::FormattingContextType::Block
+            && matches!(
+                formatting_context::independent_formatting_context_type(node, &self.callbacks),
+                formatting_context::FormattingContextType::Block
+                    | formatting_context::FormattingContextType::Flex
+                    | formatting_context::FormattingContextType::Grid
+            )
     }
 
     fn measure_block_size_with_normal_layout(
@@ -3187,18 +3191,23 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let root = used_values::create_used_values(&self.callbacks, node, constraints);
         root.has_definite_block_size.set(false);
         root.set_content_inline_size(inline_size);
+        let mut input = LayoutInput::new(
+            AvailableSpace {
+                inline_size: AvailableSize::definite(inline_size),
+                block_size: AvailableSize::Indefinite,
+            },
+            constraints,
+            ParticipationInParentFormattingContext::Root,
+        );
+        input.sizing.root_is_measured_for_its_content_block_size = matches!(
+            formatting_context::independent_formatting_context_type(node, &self.callbacks),
+            formatting_context::FormattingContextType::Flex | formatting_context::FormattingContextType::Grid
+        );
         formatting_context::lay_out_measurement_root_for_its_result(
             self.callbacks,
             node,
             used_values::RootInputCells::capture(&root),
-            LayoutInput::new(
-                AvailableSpace {
-                    inline_size: AvailableSize::definite(inline_size),
-                    block_size: AvailableSize::Indefinite,
-                },
-                constraints,
-                ParticipationInParentFormattingContext::Root,
-            ),
+            input,
         )
     }
 
@@ -3248,23 +3257,14 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 IntrinsicSizeCacheKind::MinContentBlock,
             );
         }
+        if facts.is_replaced_box() {
+            let auto_size = self.auto_content_size(node);
+            if let Some(height) = auto_size.height {
+                return auto_size.aspect_ratio.map_or(height, |ratio| ratio.divide(inline_size));
+            }
+        }
         // For block containers, tables, and inline boxes, this is equivalent to the max-content block size.
-        // NB: So it is for a non-replaced box with a preferred aspect ratio, whose block size follows from its inline size.
-        if facts.is_block_container()
-            || facts.is_table_box()
-            || (!facts.is_replaced_box() && facts.has_preferred_aspect_ratio())
-        {
-            return self.calculate_max_content_block_size(node, inline_size, constraints);
-        }
-        let auto_size = self.auto_content_size(node);
-        if let Some(height) = auto_size.height {
-            return auto_size.aspect_ratio.map_or(height, |ratio| ratio.divide(inline_size));
-        }
-        // Boxes with no children have zero intrinsic height.
-        if !self.has_children(node) && !self.has_size_without_children(node) {
-            return CssPixels::default();
-        }
-        self.measure_intrinsic_block_size(node, inline_size, constraints, IntrinsicSizeCacheKind::MinContentBlock)
+        self.calculate_max_content_block_size(node, inline_size, constraints)
     }
 
     pub(crate) fn calculate_max_content_block_size(

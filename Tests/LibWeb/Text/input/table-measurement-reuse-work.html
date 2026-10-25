@@ -33,7 +33,7 @@
                               TableWrapper(anonymous) MEASURE max-content inline (cache=hit)
                             Box<DIV>#item MEASURE min-content inline (cache=hit)
                             Box<DIV>#item MEASURE max-content block (cache=miss)
-                              Box<DIV>#item/flex (intrinsic) RUN (cache=bypass)
+                              Box<DIV>#item/flex RUN (cache=miss)
                                 TableWrapper(anonymous) MEASURE max-content block (cache=miss)
                                   TableWrapper(anonymous)/block (intrinsic) RUN (cache=bypass)
                                     Box<TABLE>#table/table (intrinsic) RUN (cache=miss)
@@ -41,18 +41,21 @@
                                       BlockContainer<TD>/block (intrinsic) READ RESULT
                                 TableWrapper(anonymous) MEASURE max-content block (cache=hit)
                                 TableWrapper(anonymous) MEASURE max-content block (cache=hit)
+                                TableWrapper(anonymous) MEASURE max-content block (cache=hit)
+                                TableWrapper(anonymous)/block RUN (cache=miss)
+                                  Box<TABLE>#table/table RUN (cache=miss)
+                                    BlockContainer<TD>#cell/block RUN AHEAD OF INTRINSIC BLOCK PADDING
+                                      BlockContainer<DIV> REUSE IN-FLOW SUBTREE
+                                    BlockContainer<TD>/block READ RESULT AHEAD OF INTRINSIC BLOCK PADDING
+                                    BlockContainer<TD>#cell/block RUN (cache=miss)
+                                      BlockContainer<DIV> REUSE IN-FLOW SUBTREE
+                                    BlockContainer<TD>/block REUSE SUBTREE
+                                    BlockContainer<SPAN>.control/block RUN (cache=miss)
                             Box<DIV>#item/flex RUN (cache=miss)
                               TableWrapper(anonymous) MEASURE max-content block (cache=hit)
                               TableWrapper(anonymous) MEASURE max-content block (cache=hit)
                               TableWrapper(anonymous)/block RUN (cache=miss)
-                                Box<TABLE>#table/table RUN (cache=miss)
-                                  BlockContainer<TD>#cell/block RUN AHEAD OF INTRINSIC BLOCK PADDING
-                                    BlockContainer<DIV> REUSE IN-FLOW SUBTREE
-                                  BlockContainer<TD>/block READ RESULT AHEAD OF INTRINSIC BLOCK PADDING
-                                  BlockContainer<TD>#cell/block RUN (cache=miss)
-                                    BlockContainer<DIV> REUSE IN-FLOW SUBTREE
-                                  BlockContainer<TD>/block REUSE SUBTREE
-                                  BlockContainer<SPAN>.control/block RUN (cache=miss)
+                                Box<TABLE>#table/table REPLAY FRAGMENTS
                 `,
                 check: equal => {
                     equal(table.getBoundingClientRect().width, 100, "table width");

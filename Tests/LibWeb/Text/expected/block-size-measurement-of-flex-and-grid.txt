@@ -1,0 +1,7 @@
+flex row with height: min-content and a max-height: 50% item: 30
+flex row item of a short column with a max-height: 50% item: 30
+grid item with a limited row in a grid with height: min-content: 100
+grid with min-height: min-content in a short column: 30
+grid with max-height: fit-content in a short column: 100
+grid with a calc-size() max-content max-height in a short column: 100
+flex row with min-height: min-content in a short column: 30

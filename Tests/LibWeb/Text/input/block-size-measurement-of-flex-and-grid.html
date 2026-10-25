@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px SerenitySans; }
+    .row { display: flex; }
+    .column { display: flex; flex-direction: column; }
+    .grid { display: grid; }
+    .short { height: 10px; }
+    .content { width: 20px; height: 30px; }
+    .halfMaxHeight { max-height: 50%; }
+    .limitedRow { grid-template-rows: minmax(0, 100px); }
+</style>
+<div class="row" id="rowMinContent" style="height: min-content"><div class="halfMaxHeight"><div class="content"></div></div></div>
+<div class="column short"><div class="row" id="rowItemOfShortColumn"><div class="halfMaxHeight"><div class="content"></div></div></div></div>
+<div class="grid" style="height: min-content"><div class="grid limitedRow" id="limitedRowGridItem"><div class="content"></div></div></div>
+<div class="column short"><div class="grid" id="gridMinHeightMinContent" style="min-height: min-content"><div class="content"></div></div></div>
+<div class="column short"><div class="grid limitedRow" id="gridMaxHeightFitContent" style="max-height: fit-content"><div class="content"></div></div></div>
+<div class="column short"><div class="grid limitedRow" id="gridMaxHeightCalcSize" style="max-height: calc-size(max-content, size)"><div class="content"></div></div></div>
+<div class="column short"><div class="row" id="flexMinHeightMinContent" style="min-height: min-content"><div class="content"></div></div></div>
+<script>
+    test(() => {
+        const height = id => document.getElementById(id).getBoundingClientRect().height;
+        println(`flex row with height: min-content and a max-height: 50% item: ${height("rowMinContent")}`);
+        println(`flex row item of a short column with a max-height: 50% item: ${height("rowItemOfShortColumn")}`);
+        println(`grid item with a limited row in a grid with height: min-content: ${height("limitedRowGridItem")}`);
+        println(`grid with min-height: min-content in a short column: ${height("gridMinHeightMinContent")}`);
+        println(`grid with max-height: fit-content in a short column: ${height("gridMaxHeightFitContent")}`);
+        println(`grid with a calc-size() max-content max-height in a short column: ${height("gridMaxHeightCalcSize")}`);
+        println(`flex row with min-height: min-content in a short column: ${height("flexMinHeightMinContent")}`);
+    });
+</script>
