@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>Test showPicker() being rendered requirement</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+<select id="select" style="display: none;">
+    <option>Item 1</option>
+</select>
+<script>
+promise_test(async t => {
+    await test_driver.bless('show picker');
+    assert_throws_dom('NotSupportedError', () => { select.showPicker(); });
+
+    // Test that dynamically changing to actually being rendered works.
+    await test_driver.bless('show picker');
+    select.style.display = 'inline-block';
+    select.showPicker();
+    select.blur();
+}, 'select showPicker() throws when not being rendered');
+</script>
