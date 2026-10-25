@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8>
+<title>Event Timing: make sure 'event' entries are not retrievable by performance.getEntries* APIs.</title>
+<meta name="timeout" content="long">
+<button id='button'>Generate a 'click' event</button>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+
+<script src=resources/event-timing-test-utils.js></script>
+
+<script>
+  function validateEntries() {
+    const entriesByName = performance.getEntriesByName('pointerdown', 'event');
+    const entriesByType = performance.getEntriesByType('event');
+    const allEntries = performance.getEntries();
+    assert_equals(entriesByName.length, 0, 'Event Timing entry should not be retrievable by getEntriesByName');
+    assert_equals(entriesByType.length, 0, 'Event Timing entry should not be retrievable by getEntriesByType');
+    assert_equals(allEntries.filter(e => e.entryType === 'event').length, 0, 'Event Timing entry should not be retrievable by getEntries');
+  }
+
+  /* Timeline:
+     Begin Busy Loop
+     Click 1 arrives
+     End Busy Loop
+     (Dispatch and Process Click 1 - buffered)
+     Onload Event Fires
+     Validate entries
+  */
+  async_test(function(t) {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+    new PerformanceObserver(t.step_func(entryList => {
+      if (entryList.getEntriesByName('pointerdown').length > 0) {
+        validateEntries();
+        t.done();
+      }
+    })).observe({entryTypes: ['event']});
+    clickAndBlockMain('button');
+  }, "Event Timing: make sure event-timing entries are not retrievable by performance.getEntries*.");
+
+</script>
+</html>

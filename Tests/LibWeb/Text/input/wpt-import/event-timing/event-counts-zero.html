@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: eventCounts.</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script>
+  test(() => {
+    assert_implements(window.EventCounts, "Event Counts isn't supported");
+    const eventTypes = [
+        'auxclick',
+        'click',
+        'contextmenu',
+        'dblclick',
+        'mousedown',
+        'mouseenter',
+        'mouseleave',
+        'mouseout',
+        'mouseover',
+        'mouseup',
+        'pointerover',
+        'pointerenter',
+        'pointerdown',
+        'pointerup',
+        'pointercancel',
+        'pointerout',
+        'pointerleave',
+        'gotpointercapture',
+        'lostpointercapture',
+        'touchstart',
+        'touchend',
+        'touchcancel',
+        'keydown',
+        'keypress',
+        'keyup',
+        'beforeinput',
+        'input',
+        'compositionstart',
+        'compositionupdate',
+        'compositionend',
+        'dragstart',
+        'dragend',
+        'dragenter',
+        'dragleave',
+        'dragover',
+        'drop'
+    ];
+    eventTypes.forEach(type => {
+      assert_equals(performance.eventCounts.get(type), 0, 'There is a nonzero value for ' + type);
+    })
+    assert_equals(performance.eventCounts.size, eventTypes.length,
+        'The size of performance.eventCounts is incorrect.');
+  })
+</script>
+</html>

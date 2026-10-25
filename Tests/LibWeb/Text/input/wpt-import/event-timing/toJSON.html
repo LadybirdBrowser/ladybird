@@ -1,0 +1,42 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>Event Timing: toJSON</title>
+<body>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<button id='button'>Generate a 'click' event</button>
+<script>
+  async_test(function (t) {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+    const observer = new PerformanceObserver(
+      t.step_func_done(function(entryList) {
+        const entry = entryList.getEntries()[0];
+        assert_equals(typeof(entry.toJSON), 'function');
+        const json = entry.toJSON();
+        assert_equals(typeof(json), 'object');
+        const keys = [
+          // PerformanceEntry
+          'name',
+          'entryType',
+          'startTime',
+          'duration',
+          // PerformanceEventTiming
+          'processingStart',
+          'processingEnd',
+          'cancelable',
+        ];
+        for (const key of keys) {
+          assert_equals(json[key], entry[key],
+            'PerformanceEventTiming ${key} entry does not match its toJSON value');
+        }
+        assert_equals(json['target'], undefined, 'toJSON should not include target');
+      })
+    );
+    observer.observe({type: 'event'});
+    clickAndBlockMain('button');
+  }, 'Test toJSON() in PerformanceEventTiming.');
+</script>
+</body>

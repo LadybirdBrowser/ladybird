@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: eventCounts.</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<div id='div'>Click me</div>
+<button id='button'>Click me</button>
+<script>
+  promise_test( t => {
+    assert_implements(window.EventCounts, "Event Counts isn't supported");
+    function testClicks(expectedCount, resolve) {
+      const clickCount = performance.eventCounts.get('click');
+      if (clickCount < expectedCount) {
+        t.step_timeout(function() {
+          testClicks(expectedCount, resolve);
+        }, 5);
+        return;
+      }
+      assert_equals(clickCount, expectedCount,'Incorrect click count.');
+      assert_equals(performance.eventCounts.get('mousedown'), expectedCount, 'Incorrect mousedown count');
+      assert_equals(performance.eventCounts.get('mouseup'), expectedCount, 'Incorrect mouseup count.');
+      resolve();
+    }
+    function promiseClicks(expectedCount) {
+      return new Promise(resolve => {
+        testClicks(expectedCount, resolve)
+      });
+    }
+
+    return test_driver.click(document.getElementById('div')).then(() => {
+      return promiseClicks(1);
+    }).then(() => {
+      return test_driver.click(document.getElementById('button'));
+    }).then(() => {
+      return promiseClicks(2);
+    }).then(() => {
+      return test_driver.click(document.getElementById('div'));
+    }).then(() => {
+      return promiseClicks(3);
+    });
+  })
+</script>
+</html>

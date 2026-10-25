@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: PerformanceObserver with a durationThreshold of 50</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<div id='myDiv'>Click me</div>
+<script>
+promise_test(async t => {
+  return testDuration(t, 'myDiv', numEntries=3, dur=50, slowDur=70);
+}, "PerformanceObserver observes events according to its durationThreshold");
+</script>
+</html>

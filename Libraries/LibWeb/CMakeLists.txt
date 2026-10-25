@@ -358,6 +358,8 @@ set(SOURCES
     EncryptedMediaExtensions/Algorithms.cpp
     EncryptedMediaExtensions/MediaKeySystemAccess.cpp
     EntriesAPI/FileSystemEntry.cpp
+    EventTiming/EventCounts.cpp
+    EventTiming/EventTiming.cpp
     EventTiming/PerformanceEventTiming.cpp
     Fetch/Body.cpp
     Fetch/BodyInit.cpp

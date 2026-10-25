@@ -21,6 +21,7 @@
 #include <LibWeb/Bindings/Forward.h>
 #include <LibWeb/Bindings/IdleRequest.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/EventTiming/EventTiming.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/BarProp.h>
@@ -315,6 +316,8 @@ public:
 
     static void for_each_active(Function<IterationDecision(Window&)> callback);
 
+    EventTiming::WindowEventTimingState& event_timing_state() { return m_event_timing_state; }
+
 private:
     Window();
 
@@ -401,6 +404,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/obsolete.html#dom-external
     GC::Ptr<External> m_external;
+
+    EventTiming::WindowEventTimingState m_event_timing_state;
 };
 
 void run_animation_frame_callbacks(DOM::Document&, double now);

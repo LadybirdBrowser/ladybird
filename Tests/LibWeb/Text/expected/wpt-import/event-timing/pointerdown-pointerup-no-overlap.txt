@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	pointerdown and pointerup should not overlap when there is no pointerdown handler

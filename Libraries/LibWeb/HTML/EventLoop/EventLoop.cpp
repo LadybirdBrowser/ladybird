@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/EventTiming/EventTiming.h>
 #include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/ClockPlan.h>
@@ -1243,6 +1244,14 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         if (!document->navigable() || document->navigable()->active_document().ptr() != document.ptr())
             continue;
         PaintTiming::mark_paint_timing(*document);
+    }
+
+    // https://w3c.github.io/event-timing/#sec-modifications-HTML
+    // For each fully active Document in docs, invoke the algorithm to dispatch pending Event Timing entries for that
+    // Document.
+    for (auto& document : docs) {
+        if (document->is_fully_active())
+            EventTiming::dispatch_pending_event_timing_entries(*document);
     }
 
     // AD-HOC: Flush dirty canvas contexts in documents' pages after callbacks

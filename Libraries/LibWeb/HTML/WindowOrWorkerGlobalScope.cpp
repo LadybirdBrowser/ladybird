@@ -32,6 +32,7 @@
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/EventTiming/PerformanceEventTiming.h>
 #include <LibWeb/Fetch/BindingsGlue.h>
 #include <LibWeb/Fetch/FetchMethod.h>
 #include <LibWeb/HTML/BroadcastChannel.h>

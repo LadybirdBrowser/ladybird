@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing Keydown.</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-actions.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<input type='text' id='target'>
+<script>
+  promise_test(async t => {
+    return testEventType(t, 'keydown');
+  })
+</script>
+</html>

@@ -1,0 +1,39 @@
+<!DOCType html>
+<html>
+<body>
+<script src=event-timing-test-utils.js></script>
+<div style="width: 300px; height: 300px" id='iframe_div' onmousedown="mainThreadBusy(120)">
+<script>
+(async () => {
+  const observerPromise = new Promise(resolve => {
+    new PerformanceObserver(entryList => {
+      const mouseDowns = entryList.getEntriesByName('mousedown');
+      if (mouseDowns.length === 0)
+        return;
+      resolve(mouseDowns);
+    }).observe({ type:'event' });
+  });
+  const entries = await observerPromise;
+  const clickDone = performance.now();
+  if (entries.length !== 1) {
+    top.postMessage("failed", "*");
+    return;
+  }
+  const entry = entries[0];
+  top.postMessage({
+    // Entry values (|entry| itself is not clonable)
+    "name": entry.name,
+    "cancelable": entry.cancelable,
+    "entryType": entry.entryType,
+    "startTime": entry.startTime,
+    "processingStart": entry.processingStart,
+    "processingEnd": entry.processingEnd,
+    "duration": entry.duration,
+    // Other values
+    "clickDone" : clickDone,
+    "target": entry.target.id,
+  }, '*');
+}) ();
+</script>
+</body>
+</html>

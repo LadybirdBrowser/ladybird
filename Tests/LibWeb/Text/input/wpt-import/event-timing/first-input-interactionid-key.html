@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>First Input: interactionId-key.</title>
+<input id='input'>
+<textarea id='textarea'></textarea>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=../resources/testdriver-actions.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+
+<script>
+  const key = 'a'; // Arbitrary key picked for testing.
+  let firstInputInteractionId = 0;
+  let eventTimingKeyDownInteractionId = 0;
+  let hasFirstInputEntry = false;
+  let hasEventTimingKeyDownEntry = false;
+
+  promise_test(async t => {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+
+    const callback = (entryList) => {
+      entryList.getEntries().forEach(entry => {
+        switch (entry.entryType) {
+          case 'first-input': {
+            firstInputInteractionId = entry.interactionId;
+            hasFirstInputEntry = true;
+            break;
+          }
+          case 'event': {
+            if ('keydown' == entry.name) {
+              eventTimingKeyDownInteractionId = entry.interactionId;
+              hasEventTimingKeyDownEntry = true;
+            }
+            break;
+          }
+        }
+      });
+    };
+    const readyToResolve = () => {
+      return hasFirstInputEntry && hasEventTimingKeyDownEntry;
+    }
+    const observerPromise = createPerformanceObserverPromise(['event', 'first-input'], callback, readyToResolve);
+    await interactAndObserve('key', document.getElementById('input'), observerPromise, key);
+
+    assert_greater_than(firstInputInteractionId, 0, 'The first input entry should have a non-trivial interactionId');
+    assert_equals(firstInputInteractionId, eventTimingKeyDownInteractionId, 'The first input entry should have the same interactionId as the event timing keydown entry');
+    assert_equals(firstInputInteractionId.target, eventTimingKeyDownInteractionId.target, 'The first input entry should have the same target as the event timing keydown entry');
+    assert_not_equals(firstInputInteractionId.target, null, 'The first input entry should have a non-null target');
+
+  }, "The interactionId of the first input entry should match the same keydown entry of event timing when press a key.");
+</script>
+
+</html>

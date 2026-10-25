@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<meta charset=utf-8 />
+<title>Event Timing: Test interactionId for clicks forwarded to form controls</title>
+
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+
+<label id="label" for="control">Click me</label>
+<select id="control"></select>
+
+<script>
+  promise_test(async t => {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+
+    const entriesPromise = new Promise(resolve => {
+      let clickEntries = [];
+      let observer = new PerformanceObserver(entryList => {
+        clickEntries = clickEntries.concat(
+            entryList.getEntries().filter(entry => entry.name == 'click'));
+        if (clickEntries.length == 2) {
+          observer.disconnect();
+          resolve(clickEntries);
+        }
+      });
+      observer.observe({type: 'event', buffered: true});
+    });
+
+    addListeners(label, ['click']);
+    addListeners(control, ['click']);
+
+    await click(label);
+    let entries = await entriesPromise;
+
+    controlEntry = entries[0].target.id === 'control' ? entries[0] : entries[1];
+    labelEntry = entries[0].target.id === 'label' ? entries[0] : entries[1];
+
+    assert_equals(
+        labelEntry.target.id, 'label', 'Expected an entry for the label');
+    assert_greater_than(
+        labelEntry.interactionId, 0,
+        'Expected interactionId for "label" to be non-zero');
+    assert_equals(
+        controlEntry.target.id, 'control', 'Expected an entry for the control');
+    assert_equals(
+        controlEntry.interactionId, 0,
+        'Expected interactionId for "control" to be zero');
+  }, 'Event Timing: interactionId for clicks forwarded form controls is zero.');
+</script>

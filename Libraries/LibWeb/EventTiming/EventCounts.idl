@@ -1,0 +1,5 @@
+// https://w3c.github.io/event-timing/#sec-event-counts
+[Exposed=Window]
+interface EventCounts {
+    readonly maplike<DOMString, unsigned long long>;
+};

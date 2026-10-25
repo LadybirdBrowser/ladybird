@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset=utf-8 />
+  <title>Event Timing: entries should be observable by its own frame.</title>
+  <meta name="timeout" content="long">
+</head>
+
+<body>
+<button id='button'>Generate a 'click' event</button>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-actions.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+
+<script src=resources/event-timing-test-utils.js></script>
+<iframe id='iframe' src=resources/crossiframe-childframe.html></iframe>
+<script>
+  let clickTimeMin;
+  let clickDone;
+
+  function validateEntries(entries) {
+    assert_equals(entries.length, 1, "Only 1 entry should be received");
+    const entry = entries[0];
+    verifyClickEvent(entry, 'button', true);
+
+    assert_less_than(entry.processingStart, clickDone,
+        "The entry's processing start should be before clickDone.");
+    assert_greater_than(entry.startTime, clickTimeMin,
+        "The entry's start time should be later than clickTimeMin.");
+  }
+
+  function validateChildFrameEntries(childFrameData) {
+    if (childFrameData === "failed") {
+      assert_unreached("Did not receive exactly one entry from child as expected");
+    }
+    // |childFrameData| has properties with the same names as its
+    // PerformanceEventTiming counterpart.
+    assert_equals(childFrameData.target, 'iframe_div');
+    verifyClickEvent(childFrameData, null, false, 104, 'mousedown');
+    assert_less_than(childFrameData.processingStart, childFrameData.clickDone,
+        "The entry's processing start should be before than the child frame's clickDone.");
+  }
+
+  promise_test(async t => {
+    assert_implements(window.PerformanceEventTiming, "Event Timing is not supported");
+
+    // Wait for load event so we can interact with the iframe.
+    await new Promise(resolve => {
+      window.addEventListener('load', resolve);
+    });
+
+    clickTimeMin = performance.now();
+    mainThreadBusy(2);
+
+    let observedPointerDown = false;
+    const observerPromise = new Promise(resolve => {
+      new PerformanceObserver(t.step_func(entries => {
+        const pointerDowns = entries.getEntriesByName('pointerdown');
+        // Ignore the callback if there were no pointerdown entries.
+        if (pointerDowns.length === 0)
+          return;
+
+        assert_false(observedPointerDown,
+            "Observer of main frames should only capture main-frame event-timing entries");
+        observedPointerDown = true;
+        resolve(pointerDowns);
+      })).observe({type: 'event'});
+    });
+
+    await clickAndBlockMain('button');
+    clickDone = performance.now();
+    const pointerDowns = await observerPromise;
+    validateEntries(pointerDowns);
+
+    const childFrameEntriesPromise = new Promise(resolve => {
+      window.addEventListener("message", (event) => {
+        t.step(() => {
+          validateChildFrameEntries(event.data);
+        });
+        resolve();
+      }, false);
+    });
+
+    // Tap on the iframe, with an offset of 10 to target the div inside it.
+    const actions = new test_driver.Actions()
+        .pointerMove(10, 10, { origin: document.getElementById("iframe") })
+        .pointerDown()
+        .pointerUp();
+    actions.send();
+
+    await childFrameEntriesPromise;
+  }, "Event Timing: entries should only be observable by its own frame.");
+
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing only times certain types of trusted event.
+</title>
+<meta name="timeout" content="long">
+<button id='button' tabindex="0">Generate a 'click' event</button>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+
+<script src=resources/event-timing-test-utils.js></script>
+<script>
+  let trustedClickStart;
+  function trustedClickAndBlockMain(id) {
+    trustedClickStart = performance.now();
+    mainThreadBusy(2);
+    return clickAndBlockMain(id);
+  }
+
+  function untrustedClickAndBlockMain(id) {
+    const target = document.getElementById(id);
+    // Block mainthread in the callback, as dispatchEvent() is a sync call.
+    target.addEventListener('pointerdown', () => mainThreadBusy(120), true);
+    const eventDispatchStart = performance.now();
+    target.dispatchEvent(new PointerEvent('pointerdown'));
+    assert_greater_than(performance.now() - eventDispatchStart, 119, "dispatchEvent() should run the event handler synchronously.");
+  }
+
+  function trustedFocusAndBlockMain(id) {
+    const target = document.getElementById(id);
+    // Guarantees target isn't focused to ensure the focus event is fired:
+    target.blur()
+    trustedFocusStart = performance.now();
+    // Block mainthread in the callback,  as focus() is a sync call.
+    target.addEventListener('focus', () => mainThreadBusy(120), true);
+    target.focus();
+    assert_greater_than(performance.now() - trustedFocusStart, 119, "focus() should run the event handler synchronously.");
+  }
+
+  promise_test(function(t) {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+    let observedPointerDown = false;
+    const observerPromise = new Promise(resolve => {
+      new PerformanceObserver(t.step_func(entryList => {
+        const observerCallbackTime = performance.now();
+        const pointerDowns = entryList.getEntriesByName('pointerdown');
+        assert_equals(entryList.getEntriesByName('focus').length, 0);
+        // Ignore cases in which there is no pointerdown.
+        if (pointerDowns.length === 0)
+          return;
+
+        assert_false(observedPointerDown, 'Got more than one callback with pointerdown.');
+        assert_equals(pointerDowns.length, 1,
+            "Should only observe one pointerdown entry. Instead, got these: " +
+            JSON.stringify(pointerDowns) + ".");
+        assert_equals(pointerDowns[0].name, 'pointerdown',
+            "The observed entry should be a pointerdown");
+        assert_less_than(pointerDowns[0].startTime, observerCallbackTime,
+            "The startTime should be before observerCallbackTime");
+        assert_greater_than(pointerDowns[0].startTime, trustedClickStart,
+            "The startTime should be after trustedClickStart");
+        observedPointerDown = true;
+        resolve();
+      })).observe({ entryTypes: ['event'] });
+    });
+    // Untrusted event of a type event timing cares about.
+    untrustedClickAndBlockMain('button');
+    // Trusted event of a type event timing doesn't cares about.
+    trustedFocusAndBlockMain('button');
+    // Trusted event of a type event timing cares about.
+    const clickPromise = trustedClickAndBlockMain('button').then(wait);
+    return Promise.all([observerPromise, clickPromise]);
+  }, "Event Timing only times certain types of trusted event.");
+</script>
+</html>

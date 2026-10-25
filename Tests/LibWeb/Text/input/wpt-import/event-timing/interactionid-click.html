@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: interactionId-click.</title>
+<button id='button'>Click me.</button>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<script>
+  let observedEntries = [];
+  let map = new Map();
+
+  function eventsForCheck(entry) {
+      if (entry.name === 'pointerdown' || entry.name === 'pointerup' || entry.name === 'click'
+      || entry.name === 'mousedown' || entry.name === 'mouseup') {
+        map.set(entry.name, entry.interactionId);
+        return true;
+      }
+      return false;
+  }
+  async_test(function(t) {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+
+    addListenersAndClick(document.getElementById('button')).then(() => {
+      new PerformanceObserver(t.step_func(entryList => {
+        observedEntries = observedEntries.concat(entryList.getEntries().filter(eventsForCheck));
+        if (observedEntries.length < 5)
+          return;
+        assert_equals(map.get('mousedown'), 0, 'Should not have a interactionId');
+        assert_equals(map.get('mouseup'), 0, 'Should not have a interactionId');
+        assert_greater_than(map.get('pointerdown'), 0, 'Should have a non-trivial interactionId');
+        assert_equals(map.get('pointerdown'), map.get('pointerup'), 'Pointerdown and pointerup should have the same interactionId');
+        assert_equals(map.get('pointerdown'), map.get('click'), 'Pointerdown and click should have the same interactionId');
+        t.done();
+      })).observe({ type: 'event', buffered: true });
+    });
+
+  }, "Event Timing: compare event timing interactionId.");
+</script>
+</html>

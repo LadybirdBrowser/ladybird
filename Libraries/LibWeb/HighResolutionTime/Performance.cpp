@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
+#include <LibWeb/EventTiming/EventCounts.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
@@ -60,6 +61,29 @@ GC::Ptr<NavigationTiming::PerformanceNavigation> Performance::navigation()
         m_navigation = NavigationTiming::PerformanceNavigation::create(*window);
     }
     return m_navigation;
+}
+
+// https://w3c.github.io/event-timing/#dom-performance-eventcounts
+GC::Ref<EventTiming::EventCounts> Performance::event_counts()
+{
+    // The eventCounts attribute's getter returns this's relevant global object's eventCounts.
+    auto* window = HTML::window_from_global_object(relevant_global_object());
+    VERIFY(window);
+    auto& event_counts = window->event_timing_state().event_counts;
+    // NB: The eventCounts of a Window are created along with its Performance object, which is when they are first
+    //     asked for.
+    if (!event_counts)
+        event_counts = EventTiming::EventCounts::create();
+    return *event_counts;
+}
+
+// https://w3c.github.io/event-timing/#dom-performance-interactioncount
+WebIDL::UnsignedLongLong Performance::interaction_count()
+{
+    // The interactionCount attribute's getter returns this's relevant global object's interactionCount.
+    auto* window = HTML::window_from_global_object(relevant_global_object());
+    VERIFY(window);
+    return window->event_timing_state().interaction_count;
 }
 
 // https://w3c.github.io/hr-time/#timeorigin-attribute

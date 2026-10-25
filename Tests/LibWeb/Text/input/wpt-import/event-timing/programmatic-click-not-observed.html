@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<div id='div' onclick='delay()'>Click me</div>
+<div id='div2'>No, click me!</div>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+
+<script src=resources/event-timing-test-utils.js></script>
+<script>
+  let delayCalled = false;
+  let beforeClick;
+  function delay() {
+    const end = performance.now() + 150;
+    while(performance.now() < end) {}
+    delayCalled = true;
+  }
+  promise_test(function(t) {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+    let observedPointerDown = false;
+    const observerPromise = new Promise(resolve => {
+      const observer = new PerformanceObserver(t.step_func(entryList => {
+        const pointerDowns = entryList.getEntriesByName('pointerdown');
+        // Ignore cases in which there is no pointerdown.
+        if (pointerDowns.length === 0)
+          return;
+
+        assert_false(observedPointerDown, 'There must only be one pointerdown entry.');
+        assert_equals(pointerDowns.length, 1);
+        const entry = pointerDowns[0];
+        // This ensures that the entry is exposing timing from the second click, i.e.
+        // the one from the clickAndBlockMain() call.
+        assert_greater_than_equal(entry.processingStart, beforeClick);
+        verifyClickEvent(entry, 'div2', true);
+        observedPointerDown = true;
+        resolve();
+      }));
+      observer.observe({entryTypes: ['event']});
+    });
+    document.getElementById('div').click();
+    // Take the timestamp after the programmatic click but before the next click.
+    beforeClick = performance.now();
+    // After the programmatic click, use another input to know when entries have been
+    // dispatched to the PerformanceObserver callback.
+    const clickPromise = clickAndBlockMain('div2');
+    return Promise.all([observerPromise, clickPromise]);
+  }, "Event Timing: events from programmatic click are not observed");
+</script>
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: PerformanceObserver with buffered flag and durationThreshold</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<div id='myDiv'>Click me</div>
+<script>
+promise_test(async t => {
+  assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+  // Add a PerformanceObserver and observe with a durationThreshold of 30 and buffered flag.
+  return new Promise(async resolve1 => {
+    // Add a slow click event and make sure it's dispatched to observers.
+    await new Promise(async resolve2 => {
+      // Observer to await until event entry is dispatched.
+      new PerformanceObserver(() => {
+        resolve2();
+      }).observe({type: "event", durationThreshold: 16});
+      await clickAndBlockMain('myDiv', { duration: 30 });
+    });
+    const afterFirstClick = performance.now();
+    new PerformanceObserver(t.step_func(list => {
+      const pointerDowns = list.getEntriesByName('pointerdown');
+      pointerDowns.forEach(entry => {
+        if (entry.processingStart < afterFirstClick) {
+          // It is possible that the first event gets a slow duration and hence gets buffered.
+          // In this case the minDuration must be at least 104, otherwise it shouldn't have been
+          // buffered.
+          verifyClickEvent(entry, 'myDiv', true /* isFirst */);
+        } else {
+          verifyClickEvent(pointerDowns[0], 'myDiv', false /* isFirst */, 16 /* minDuration*/);
+          resolve1();
+        }
+      });
+    })).observe({type: 'event', durationThreshold: 16, buffered: true});
+    // This should be the only click observed since the other one would not be buffered.
+    await clickAndBlockMain('myDiv', { duration: 30 } );
+  });
+}, "PerformanceObserver buffering independent of durationThreshold");
+</script>
+</html>

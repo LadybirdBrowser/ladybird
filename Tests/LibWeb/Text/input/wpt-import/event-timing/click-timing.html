@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: compare timing of two long clicks
+</title>
+<button id='button'>Generate a 'click' event</button>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<script>
+  /* Timeline:
+     Observer starts
+     Long click 1
+     Long click 2
+     Once two clicks have been received by observer, compare the timestamps.
+  */
+  let timeBeforeFirstClick;
+  let timeAfterFirstClick;
+  let timeAfterSecondClick;
+
+  function testExpectations(observedEntries) {
+    assert_not_equals(timeBeforeFirstClick, undefined);
+    assert_not_equals(timeAfterFirstClick, undefined);
+    assert_not_equals(timeAfterSecondClick, undefined);
+
+    // First click.
+    verifyClickEvent(observedEntries[0], 'button');
+    assert_between_exclusive(observedEntries[0].processingStart,
+        timeBeforeFirstClick,
+        timeAfterFirstClick,
+        "First click's processingStart");
+    assert_greater_than(timeAfterFirstClick, observedEntries[0].startTime,
+        "timeAfterFirstClick should be later than first click's start time.");
+
+    // Second click.
+    verifyClickEvent(observedEntries[1], 'button');
+    assert_between_exclusive(observedEntries[1].processingStart,
+        timeAfterFirstClick,
+        timeAfterSecondClick,
+        "Second click's processingStart");
+    assert_greater_than(timeAfterSecondClick, observedEntries[1].startTime,
+          "timeAfterSecondClick should be later than second click's start time.");
+  }
+
+  promise_test(async function(t) {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+
+    const observerPromise = new Promise(resolve => {
+      const observedEntries = [];
+      new PerformanceObserver(entryList => {
+        observedEntries.push(...entryList.getEntriesByName("pointerdown"));
+        if (observedEntries.length < 2)
+          return;
+        resolve(observedEntries);
+      }).observe({type: 'event'});
+    })
+
+    timeBeforeFirstClick = performance.now();
+    mainThreadBusy(2);
+    await clickAndBlockMain('button');
+    timeAfterFirstClick = performance.now();
+    mainThreadBusy(2);
+    await clickAndBlockMain('button');
+    timeAfterSecondClick = performance.now();
+
+    const observedEntries = await observerPromise;
+    testExpectations(observedEntries);
+
+  }, "Event Timing: compare click timings.");
+</script>
+</html>

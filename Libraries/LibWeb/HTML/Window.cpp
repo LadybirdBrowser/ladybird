@@ -393,6 +393,7 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_statusbar);
     visitor.visit(m_toolbar);
     visitor.visit(m_external);
+    m_event_timing_state.visit_edges(visitor);
 }
 
 void Window::finalize()

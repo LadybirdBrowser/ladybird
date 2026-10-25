@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+
+<script src=resources/event-timing-test-utils.js></script>
+
+<button id='the_button'>ClickMe</button>
+
+<script>
+async_test(function(t) {
+  assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+  const observer = new PerformanceObserver(t.step_func_done((entryList) => {
+    const entries = entryList.getEntries().filter(e => e.name === 'pointerdown');
+    if (entries.length === 0)
+      return;
+    // There must only be one click entry.
+    assert_equals(entries.length, 1);
+    const entry = entries[0];
+    // This checks that entry.target returns the correct button Node.
+    verifyClickEvent(entry, 'the_button', true);
+    const button = document.getElementById('the_button');
+    button.parentNode.removeChild(button);
+    // After removing the button, entry.target should now return null.
+    assert_equals(entry.target, null);
+  }));
+  observer.observe({entryTypes: ['event']});
+  clickAndBlockMain('the_button');
+}, "Event Timing: when target is disconnected, entry.target returns null.");
+</script>
+</html>

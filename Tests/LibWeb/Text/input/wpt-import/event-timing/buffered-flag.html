@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: PerformanceObserver sees entries with buffered flag</title>
+<button id='button'>Generate a 'click' event</button>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=../resources/testdriver.js></script>
+<script src=../resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<script>
+  let firstInputSeen = false;
+  let eventSeen = false;
+  async_test(t => {
+    assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+    const validateEntry = t.step_func(entry => {
+      if (entry.entryType === 'first-input')
+        firstInputSeen = true;
+      else if (entry.entryType === 'event')
+        eventSeen = true;
+      else
+        assert_unreached('Should only observe Event Timing entries!');
+    });
+    // First observer creates second in callback to ensure the entry has been dispatched by the time
+    // the second observer begins observing.
+    new PerformanceObserver((list, obs) => {
+      list.getEntries().forEach(validateEntry);
+      if (!firstInputSeen || !eventSeen)
+        return;
+
+      obs.disconnect();
+      firstInputSeen = false;
+      eventSeen = false;
+      // Second observer requires 'buffered: true' to see entries.
+      const bufferedObserver = new PerformanceObserver(entryList => {
+          entryList.getEntries().forEach(validateEntry);
+          if (firstInputSeen && eventSeen)
+            t.done();
+      });
+      bufferedObserver.observe({type: "event", buffered: true});
+      bufferedObserver.observe({type: 'first-input', buffered: true});
+    }).observe({entryTypes: ['event', 'first-input']});
+    clickAndBlockMain('button');
+  }, "PerformanceObserver with buffered flag sees previous Event Timing entries");
+</script>
+</html>
