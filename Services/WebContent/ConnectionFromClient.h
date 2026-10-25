@@ -329,6 +329,7 @@ private:
     virtual void broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) override;
     virtual void did_worker_agent_fail_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token) override;
     virtual void did_worker_agent_report_exception(Web::HTML::WorkerAgentOwnerToken owner_token, Utf16String message, Utf16String filename, u32 lineno, u32 colno) override;
+    virtual void did_worker_agent_report_content_security_policy_violation(Web::HTML::WorkerAgentOwnerToken owner_token, u64 policy_index, String effective_directive, URL::URL resource) override;
     virtual void did_worker_agent_close(Web::HTML::WorkerAgentOwnerToken owner_token) override;
     virtual void did_worker_agent_die(Web::HTML::WorkerAgentOwnerToken owner_token) override;
 

@@ -9,6 +9,9 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
+#include <LibWeb/ContentSecurityPolicy/Violation.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -16,6 +19,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Window.h>
@@ -136,6 +140,14 @@ void WorkerAgentParent::did_report_worker_exception(WorkerAgentOwnerToken owner_
     parent->value->dispatch_worker_exception(move(message), move(filename), lineno, colno);
 }
 
+void WorkerAgentParent::did_report_content_security_policy_violation(WorkerAgentOwnerToken owner_token, u64 policy_index, String effective_directive, URL::URL resource)
+{
+    auto parent = worker_agent_parents().find(owner_token);
+    if (parent == worker_agent_parents().end())
+        return;
+    parent->value->report_content_security_policy_violation(policy_index, move(effective_directive), move(resource));
+}
+
 void WorkerAgentParent::did_close_worker(WorkerAgentOwnerToken owner_token)
 {
     auto parent = worker_agent_parents().find(owner_token);
@@ -211,6 +223,23 @@ void WorkerAgentParent::dispatch_worker_exception(Utf16String message, Utf16Stri
             report_worker_exception(*window_or_worker, error);
         }
     }));
+}
+
+// NB: The worker fetches its script with outside settings as the request's client, from a snapshot of it in the
+//     worker's process. The violations of its policies are reported here, where outside settings' global object is.
+void WorkerAgentParent::report_content_security_policy_violation(u64 policy_index, String effective_directive, URL::URL resource)
+{
+    // NB: The worker's snapshot of outside settings' CSP list lists its policies in the same order, and a CSP list
+    //     only grows, so policy_index names the policy that was violated. The worker's process is less trusted than
+    //     this one, so we only report violations of policies in outside settings' CSP list, and of worker-src, which
+    //     is the effective directive of every worker script request.
+    auto const& policies = m_outside_settings->policy_container()->csp_list->policies();
+    if (policy_index >= policies.size() || ContentSecurityPolicy::Directives::Names::WorkerSrc != effective_directive.bytes_as_string_view())
+        return;
+
+    auto violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(&m_outside_settings->global_object(), policies[policy_index], move(effective_directive));
+    violation->set_resource(move(resource));
+    violation->report_a_violation(m_outside_settings->realm());
 }
 
 WorkerAgentOwnerToken WorkerAgentParent::next_owner_token()

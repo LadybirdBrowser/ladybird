@@ -17,6 +17,7 @@ endpoint WebWorkerClient {
     did_finish_loading_worker_script(bool worker_is_secure_context) =|
     did_fail_loading_worker_script() =|
     did_report_worker_exception(Utf16String message, Utf16String filename, u32 lineno, u32 colno) =|
+    did_report_outside_settings_content_security_policy_violation(u64 policy_index, String effective_directive, URL::URL resource) =|
     did_request_cookie(URL::URL url, HTTP::Cookie::Source source) => (HTTP::Cookie::VersionedCookie cookie)
     did_request_file(ByteString path, i32 request_id) =|
     did_is_known_hsts_host(String domain) => (bool result)

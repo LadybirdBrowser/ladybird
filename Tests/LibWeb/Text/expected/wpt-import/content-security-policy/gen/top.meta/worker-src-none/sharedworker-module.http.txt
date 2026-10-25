@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-2 Pass
-2 Fail
+4 Pass
 Pass	Content Security Policy: Expects blocked for sharedworker-module to same-http origin and keep-origin redirection from http context.
-Fail	Content Security Policy: Expects blocked for sharedworker-module to same-http origin and keep-origin redirection from http context.: securitypolicyviolation
+Pass	Content Security Policy: Expects blocked for sharedworker-module to same-http origin and keep-origin redirection from http context.: securitypolicyviolation
 Pass	Content Security Policy: Expects blocked for sharedworker-module to same-http origin and no-redirect redirection from http context.
-Fail	Content Security Policy: Expects blocked for sharedworker-module to same-http origin and no-redirect redirection from http context.: securitypolicyviolation
+Pass	Content Security Policy: Expects blocked for sharedworker-module to same-http origin and no-redirect redirection from http context.: securitypolicyviolation

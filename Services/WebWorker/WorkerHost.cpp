@@ -131,6 +131,12 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     if (auto const* window = outside_settings_snapshot.global.get_pointer<Web::HTML::SerializedWindow>())
         outside_settings->creation_url = window->associated_document.url;
 
+    // AD-HOC: Outside settings' global object is in the owner's process, so the violations of its policies, such as by
+    //         the worker script fetch, are reported to the owner.
+    outside_settings->set_report_violation(GC::create_function(GC::Heap::the(), [page](u64 policy_index, String effective_directive, URL::URL resource) {
+        as<WebWorker::PageHost>(page->client()).did_report_outside_settings_content_security_policy_violation(policy_index, move(effective_directive), move(resource));
+    }));
+
     // 10. If is shared is true, then:
     if (is_shared) {
         auto& shared_global_scope = static_cast<Web::HTML::SharedWorkerGlobalScope&>(*worker_global_scope);

@@ -106,12 +106,14 @@ private:
 
     void notify_worker_script_load_failure(Owner const&);
     void notify_worker_exception(Owner const&, Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno);
+    void notify_worker_content_security_policy_violation(Owner const&, u64 policy_index, String const& effective_directive, URL::URL const& resource);
     void notify_worker_close(Owner const&);
     void notify_worker_death(Owner const&);
 
     void worker_did_finish_loading_script(Web::HTML::WorkerAgentId, bool worker_is_secure_context);
     void worker_did_fail_loading_script(Web::HTML::WorkerAgentId);
     void worker_did_report_exception(Web::HTML::WorkerAgentId, Utf16String message, Utf16String filename, u32 lineno, u32 colno);
+    void worker_did_report_outside_settings_content_security_policy_violation(Web::HTML::WorkerAgentId, u64 policy_index, String effective_directive, URL::URL resource);
     void worker_did_close(Web::HTML::WorkerAgentId);
     void worker_did_die(Web::HTML::WorkerAgentId);
     void worker_process_did_exit(WebWorkerClient&);
@@ -137,12 +139,18 @@ private:
         Optional<URL::Origin> top_level_origin;
         Optional<SharedWorkerKey> shared_worker_key;
         Vector<Owner> owners;
+        // The owner that started the worker, whose outside settings are the client of the worker's script fetch, until
+        // that fetch completes or the owner goes away.
+        Optional<Owner> outside_settings_owner;
         NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject> inside_settings;
         bool may_read_local_files { false };
         // Keeps the blob URL entry of the worker's script alive until the script is loaded, so that the owner can
         // revoke the URL right after constructing the worker.
         BlobURLHandle script_blob_url;
     };
+
+    static bool is_same_owner(Owner const&, Owner const& identity);
+    static void forget_removed_outside_settings_owner(WorkerAgent&);
 
     // A worker whose agent is gone counts toward the workers of its top-level site until its process exits, or until its
     // connection closes, which ends its process.

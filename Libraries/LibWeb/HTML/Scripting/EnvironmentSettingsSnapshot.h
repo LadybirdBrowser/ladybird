@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGC/Function.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -37,6 +38,13 @@ public:
     // a realm of the process it's used in.
     SerializedGlobal const& serialized_global() const { return m_serialized_global; }
 
+    // The violations of this environment's policies need to be reported to its global object, in the process it's
+    // from. If this is set, it does that, given the index of the violated policy in this environment's CSP list, the
+    // violation's effective directive, and its resource.
+    using ReportViolation = GC::Function<void(u64 policy_index, String effective_directive, URL::URL resource)>;
+    GC::Ptr<ReportViolation> report_violation() const { return m_report_violation; }
+    void set_report_violation(GC::Ref<ReportViolation> report_violation) { m_report_violation = report_violation; }
+
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -50,6 +58,7 @@ private:
     CrossOriginIsolationMode m_agent_cluster_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
     double m_time_origin { 0 };
     SerializedGlobal m_serialized_global;
+    GC::Ptr<ReportViolation> m_report_violation;
 };
 
 }

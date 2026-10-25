@@ -77,6 +77,11 @@ void WebWorkerClient::did_report_worker_exception(Utf16String message, Utf16Stri
     WorkerProcessManager::the().worker_did_report_exception(m_agent_id, move(message), move(filename), lineno, colno);
 }
 
+void WebWorkerClient::did_report_outside_settings_content_security_policy_violation(u64 policy_index, String effective_directive, URL::URL resource)
+{
+    WorkerProcessManager::the().worker_did_report_outside_settings_content_security_policy_violation(m_agent_id, policy_index, move(effective_directive), move(resource));
+}
+
 void WebWorkerClient::remove_blob_url_entries()
 {
     if (auto session = m_session.strong_ref())
