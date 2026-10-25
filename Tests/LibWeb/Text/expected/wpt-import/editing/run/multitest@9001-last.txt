@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1092 tests
 
-1014 Pass
-78 Fail
+1016 Pass
+76 Fail
 Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar</font>baz]" queryCommandIndeterm("inserttext") before
 Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar</font>baz]" queryCommandState("inserttext") before
 Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar</font>baz]" queryCommandValue("inserttext") before
@@ -1062,7 +1062,7 @@ Pass	[["forwarddelete",""],["inserttext","Y"]] "<b><span contenteditable=false>a
 Pass	[["delete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>": execCommand("delete", false, "") return value
 Pass	[["delete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>": execCommand("inserttext", false, "B") return value
 Pass	[["delete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" checks for modifications to non-editable content
-Fail	[["delete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" compare innerHTML
+Pass	[["delete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" compare innerHTML
 Pass	[["delete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>": execCommand("delete", false, "") return value
 Pass	[["delete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>": execCommand("inserttext", false, "B") return value
 Pass	[["delete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" checks for modifications to non-editable content
@@ -1070,7 +1070,7 @@ Fail	[["delete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</
 Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>": execCommand("inserttext", false, "B") return value
 Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" compare innerHTML
 Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>": execCommand("inserttext", false, "B") return value
 Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" checks for modifications to non-editable content

@@ -1368,22 +1368,37 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         // 2. Remove node from parent.
         remove_node(*node);
 
+        // INTEROP: Browsers remove the inline elements that the deletion leaves empty before they add a line break to
+        //          an empty block, so that the line break is not inside them. The overrides keep their formatting for
+        //          the text that is inserted next. So if the block node of parent has no visible children, do step 4
+        //          before step 3 as well.
+        auto strip_empty_wrappers = [&] {
+            // 4. If strip wrappers is true or parent is not an inclusive ancestor of start node, while parent is an
+            //    editable inline node with length 0, let grandparent be the parent of parent, then remove parent from
+            //    grandparent, then set parent to grandparent.
+            if (strip_wrappers || !parent->is_inclusive_ancestor_of(start.node)) {
+                while (parent->parent() && parent->is_editable() && is_inline_node(*parent) && parent->length() == 0) {
+                    auto grandparent = parent->parent();
+                    remove_node(*parent);
+                    parent = grandparent;
+                }
+            }
+        };
+        // NB: Keep a font element, and put the line break in it as the spec does. The overrides would create a new
+        //     font element for the text that is inserted next, but with the resolved values instead of the attributes
+        //     of the old one, such as color="#0000ff" instead of color="blue". The editing tests expect the old font
+        //     element to be kept, for example when typing after deleting all of <font color=blue>[foo]</font>.
+        auto block_node_of_parent = block_node_of_node(*parent);
+        if (block_node_of_parent && !has_visible_children(*block_node_of_parent) && !is<HTML::HTMLFontElement>(*parent))
+            strip_empty_wrappers();
+
         // 3. If the block node of parent has no visible children, and parent is editable or an editing host, call
         //    createElement("br") on the context object and append the result as the last child of parent.
-        auto block_node_of_parent = block_node_of_node(*parent);
+        block_node_of_parent = block_node_of_node(*parent);
         if (block_node_of_parent && !has_visible_children(*block_node_of_parent) && parent->is_editable_or_editing_host())
             MUST(append_node(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML)), *parent));
 
-        // 4. If strip wrappers is true or parent is not an inclusive ancestor of start node, while parent is an
-        //    editable inline node with length 0, let grandparent be the parent of parent, then remove parent from
-        //    grandparent, then set parent to grandparent.
-        if (strip_wrappers || !parent->is_inclusive_ancestor_of(start.node)) {
-            while (parent->parent() && parent->is_editable() && is_inline_node(*parent) && parent->length() == 0) {
-                auto grandparent = parent->parent();
-                remove_node(*parent);
-                parent = grandparent;
-            }
-        }
+        strip_empty_wrappers();
     }
 
     // 26. If end node is an editable Text node, call deleteData(0, end offset) on it.

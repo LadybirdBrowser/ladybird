@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 491 tests
 
-471 Pass
-20 Fail
+475 Pass
+16 Fail
 Pass	[["styleWithCSS","false"],["defaultparagraphseparator","p"],["forwarddelete",""]] "<p><font size=3>foo[]</font><p><font size=5>bar</font>": execCommand("styleWithCSS", false, "false") return value
 Pass	[["styleWithCSS","false"],["defaultparagraphseparator","p"],["forwarddelete",""]] "<p><font size=3>foo[]</font><p><font size=5>bar</font>": execCommand("defaultparagraphseparator", false, "p") return value
 Pass	[["styleWithCSS","false"],["defaultparagraphseparator","p"],["forwarddelete",""]] "<p><font size=3>foo[]</font><p><font size=5>bar</font>": execCommand("forwarddelete", false, "") return value
@@ -230,10 +230,10 @@ Pass	[["forwarddelete",""]] "<ul><li><span>[abc</span></li><li>def]</li></ul>" c
 Pass	[["forwarddelete",""]] "<ul><li><span>[abc</span></li><li>def]</li></ul>" compare innerHTML
 Pass	[["forwarddelete",""]] "<ul><li>[abc</li><li><span>def]</span></li></ul>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<ul><li>[abc</li><li><span>def]</span></li></ul>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<ul><li>[abc</li><li><span>def]</span></li></ul>" compare innerHTML
+Pass	[["forwarddelete",""]] "<ul><li>[abc</li><li><span>def]</span></li></ul>" compare innerHTML
 Pass	[["forwarddelete",""]] "<ul><li><span>[abc</span></li><li><span>def]</span></li></ul>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<ul><li><span>[abc</span></li><li><span>def]</span></li></ul>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<ul><li><span>[abc</span></li><li><span>def]</span></li></ul>" compare innerHTML
+Pass	[["forwarddelete",""]] "<ul><li><span>[abc</span></li><li><span>def]</span></li></ul>" compare innerHTML
 Pass	[["forwarddelete",""]] "<ul><li> [abc</li><li>def]</li></ul>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<ul><li> [abc</li><li>def]</li></ul>" checks for modifications to non-editable content
 Pass	[["forwarddelete",""]] "<ul><li> [abc</li><li>def]</li></ul>" compare innerHTML
@@ -317,10 +317,10 @@ Pass	[["forwarddelete",""]] "<div><font><table><td>a</table>{}<br><br><table><td
 Fail	[["forwarddelete",""]] "<div><font><table><td>a</table>{}<br><br><table><td>b</table></font></div>" compare innerHTML
 Pass	[["forwarddelete",""]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" compare innerHTML
+Pass	[["forwarddelete",""]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" compare innerHTML
 Pass	[["forwarddelete",""]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" compare innerHTML
+Pass	[["forwarddelete",""]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" compare innerHTML
 Pass	[["forwarddelete",""]] "<div style=display:flex><span>abc[]</span><span>def</span></div>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<div style=display:flex><span>abc[]</span><span>def</span></div>" checks for modifications to non-editable content
 Pass	[["forwarddelete",""]] "<div style=display:flex><span>abc[]</span><span>def</span></div>" compare innerHTML
