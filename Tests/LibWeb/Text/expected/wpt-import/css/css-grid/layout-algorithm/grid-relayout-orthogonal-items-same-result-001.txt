@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	.grid 1
+Pass	.grid 2
+Pass	.grid 3

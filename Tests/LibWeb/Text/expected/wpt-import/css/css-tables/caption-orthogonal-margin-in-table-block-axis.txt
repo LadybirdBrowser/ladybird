@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	A caption in the table's writing mode adds its horizontal margins to the table's block size
+Pass	A caption in an orthogonal writing mode adds its horizontal margins to the table's block size

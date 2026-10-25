@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Content Distribution and the track sizing algorithm</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#grid-align">
+<link rel="help" href="https://drafts.csswg.org/css-align/#content-distribution">
+<link rel="help" href="https://drafts.csswg.org/css-align/#valdef-align-content-space-between">
+<link rel="stylesheet" href="../../support/alignment.css">
+<meta name="flags" content="ahem">
+<meta name="assert" content="Content Distribution on the block-axis may affect to the column track's size.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.grid {
+  display: inline-grid;
+  background: grey;
+  grid-template-rows: 50px 50px;
+  font: 20px/1 Ahem;
+  height: 200px;
+}
+
+.item {
+  grid-row: span 2;
+  background: green;
+  writing-mode: vertical-lr;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+
+<!-- Heuristic for estimating row-size for orthogonal items should
+also consider Content Alignment, so that grid container width is 40px.
+https://github.com/w3c/csswg-drafts/issues/2697 -->
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+    <div class="grid justifyContentStart alignContentSpaceBetween" data-expected-width="40" data-expected-height="200">
+        <div class="item" data-expected-width="40" data-expected-height="200">XXX XX X XX X XXX</div>
+    </div>
+</body>

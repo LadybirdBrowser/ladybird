@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	changing a resizable vertical-rl scroller from overflow:hidden to overflow:clip clamps existing offsets and makes future scroll writes no-ops

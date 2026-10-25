@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Self-Baseline alignment along row-axis on content-sized grids and synthesized baselines</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#alignment">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#row-align">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-justify-items">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#baseline-alignment">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#valdef-justify-self-baseline">
+<link rel="help" href="https://drafts.csswg.org/css-align/#synthesize-baseline">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../support/alignment.css">
+<meta name="assert" content="Grid items orthogonal to the Baseline Alignment Context should use their border-box 'under' edge as synthesized baseline.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+body { overflow: scroll; }
+.container { position: relative; }
+.grid {
+  position: relative;
+  grid-template-columns: 150px;
+  text-orientation: sideways;
+  font: 20px/1 Ahem;
+}
+.width100 { width: 100px; }
+.width200 { width: 200px; }
+.width300 { width: 300px; }
+.bigFont  { font-size: 50px; }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<pre>verticalLR grid and parallel items</pre>
+
+<div class="container width100 verticalLR">
+    <div class="grid justifyItemsBaseline">
+        <div class="firstRowFirstColumn"          data-offset-x="0"  data-offset-y="0"  data-expected-width="20" data-expected-height="120">É É ÉÉ</div>
+        <div class="secondRowFirstColumn bigFont" data-offset-x="20" data-offset-y="70" data-expected-width="50" data-expected-height="50">É</div>
+    </div>
+</div>
+
+<pre>verticalRL grid and parallel items</pre>
+
+<div class="container width100 verticalRL">
+    <div class="grid justifyItemsBaseline">
+        <div class="firstRowFirstColumn"          data-offset-x="50" data-offset-y="0"  data-expected-width="20" data-expected-height="120">É É ÉÉ</div>
+        <div class="secondRowFirstColumn bigFont" data-offset-x="0"  data-offset-y="70" data-expected-width="50" data-expected-height="50">É</div>
+    </div>
+</div>
+
+</body>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+<link rel="author" title="David Grogan" href="dgrogan@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-writing-modes-3/#orthogonal-flows">
+<meta name="assert" content="caption margins are resolved against table's height when table has vertical flow" />
+<style>
+x-table {
+  display: table;
+  width: 300px;
+  height: 200px;
+  writing-mode: vertical-lr;
+  outline: 2px dashed blue;
+}
+x-caption {
+  display: table-caption;
+  height: 50px;
+  width: 120px;
+  writing-mode: horizontal-tb;
+  outline: 1px solid black;
+}
+</style>
+
+<x-table>
+  <x-caption id=captionMarginLeft style="margin-left:20%">caption</x-caption>
+</x-table>
+<x-table>
+  <x-caption id=captionMarginTop style="margin:auto 0">caption</x-caption>
+</x-table>
+<p>This is a script test because of how ridiculously differently the current
+engines render these cases.</p>
+
+
+<script>
+let caption_margin_left = getComputedStyle(id=captionMarginLeft).marginLeft;
+test(() => assert_equals(caption_margin_left, "40px"), "Caption percent margins are resolved against table's height for vertical-lr tables");
+let caption_margin_top = getComputedStyle(captionMarginTop).marginTop;
+test(() => assert_equals(caption_margin_top, "75px"), "Caption with auto top/bottom margins is centered vertically for vertical-lr tables");
+</script>
