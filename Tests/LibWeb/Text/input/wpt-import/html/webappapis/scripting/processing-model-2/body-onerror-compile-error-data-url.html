@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+ <head>
+  <title>&lt;body onerror> - compile error in &lt;script src=data:...></title>
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+ </head>
+  <script>
+    setup({allow_uncaught_exception:true});
+    var t = async_test();
+    var t_col = async_test(document.title+' (column)');
+    var ran = false;
+  </script>
+ <body onerror="
+    t.step(function(){
+        ran = true;
+        assert_equals(typeof event, 'string', 'first arg');
+        assert_equals(source, 'data:text/javascript,for(;){}', 'second arg');
+        assert_equals(typeof lineno, 'number', 'third arg');
+    });
+    t_col.step(function() {
+        assert_equals(typeof colno, 'number', 'fourth arg');
+    });
+    ">
+  <div id=log></div>
+  <script src="data:text/javascript,for(;){}"></script>
+  <script>
+    t.step(function(){
+        assert_true(ran, 'ran');
+        t.done();
+    });
+    t_col.step(function(){
+        t_col.done();
+    });
+  </script>
+ </body>
+</html>
