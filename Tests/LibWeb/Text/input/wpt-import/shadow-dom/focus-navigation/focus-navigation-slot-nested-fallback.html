@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="resources/shadow-dom.js"></script>
+<script src="resources/focus-utils.js"></script>
+<p>Tests for moving focus by pressing tab key across shadow boundaries.<br>
+To manually test, press tab key six times then shift+tab six times.<br>
+It should traverse focusable elements in the increasing numerical order and then in the reverse order.</p>
+<div id='host'>
+  <template data-mode='open'>
+    <slot name='slot1'>Slot shouldn't be focused.
+      <slot name='slot2'>Slot shouldn't be focused.
+        <div id='non1' tabindex=0>This text shouldn't appear.</div>
+      </slot>
+      <slot name='slot3'>Slot shouldn't be focused.
+        <div id='second' tabindex=0>2. No host child is assigned to slot3.</div>
+      </slot>
+    </slot>
+
+    <div id='third' tabindex=0>3. Inner Shadow Host.
+      <template data-mode='open'>
+        <slot name='slot4'>Slot shouldn't be focused.
+          <slot name='slot5'>Slot shouldn't be focused.
+            <div id='non2' tabindex=0>This text shouldn't appear.</div>
+          </slot>
+        </slot>
+      </template>
+      <div id='fourth' slot='slot4' tabindex=0>4. Assigned to slot4.</div>
+      <div id='non3' slot='slot5' tabindex=0>
+        This text shouldn't appear. slot5 is in the fallback content of slot4 which has assigned nodes.</div>
+    </div>
+
+    <div id='fifth' tabindex=0>5. Inner Shadow Host.
+      <template data-mode='open'>
+        <slot name='slot6'>Slot shouldn't be focused.
+          <div id='non4' tabindex=0>This text shouldn't appear.</div>
+        </slot>
+      </template>
+      <slot name='slot7' slot='slot6'>Slot shouldn't be focused. Assigned to slot6.
+        <div id='non5' tabindex=0>This text shouldn't appear.</div>
+      </slot>
+    </div>
+  </template>
+  <div id='first' slot='slot2' tabindex=0>1. Assigned to slot2.</div>
+  <div id='sixth' slot='slot7' tabindex=0>6. Assigned to slot7 which is assigned to slot6.</div>
+</div>
+<script>
+'use strict';
+
+promise_test(async () => {
+  let host = document.getElementById('host');
+  convertTemplatesToShadowRootsWithin(host);
+
+  let elements = [
+       'first',
+       'host/second',
+       'host/third',
+       'host/fourth',
+       'host/fifth',
+       'sixth'
+  ];
+
+  await assert_focus_navigation_bidirectional(elements);
+}, 'Focus should cover assigned elements of an assigned slot espacially there are fallback contents.');
+
+</script>

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Focus should cover assigned elements of an assigned slot espacially there are fallback contents.

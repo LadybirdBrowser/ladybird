@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="resources/shadow-dom.js"></script>
+<script src="resources/focus-utils.js"></script>
+<div id='log'></div>
+<p>
+  document tree: [i0 -> [x-foo]]<br>
+  x-foo's shadow tree: [j1 -> j2 -> [s1]]<br>
+  <b>slot #s1: [k1 -> [x-bar] -> k0 -> [s2] -> [s3]]</b><br>
+  x-bar's shadow tree: [m1 -> m2]<br>
+  slot #s2: [i1 -> i2]<br>
+  <b>slot #s3: [l1]<b><br><br>
+  <b>v1 ideal nav forward:  [i0 -> j1 -> j2 -> k1 -> x-bar -> m1 -> m2 -> k0 -> i1 -> i2 -> l1]</b><br>
+</p>
+
+<input id='i0' tabindex=0 value='i0'>
+<div id='x-foo'>
+  <input id='i2' slot='s2' tabindex=2 value='i2'>
+  <input id='i1' slot='s2' tabindex=1 value='i1'>
+  <template data-mode='open'>
+    <input id='j1' tabindex=1 value='j1'>
+    <slot id='s1' name='s1'> <!-- This slot does not have any assigned elements -->
+      <input id='k0' tabindex=0 value='k0'>
+      <input id='k1' tabindex=1 value='k1'>
+      <slot id='s2' name='s2'>
+        <input id='should-be-ignored'>
+      </slot>
+      <slot id='s3' name='s3'> <!-- This slot does not have any assigned elements -->
+        <input id='l1' value='l1'>
+      </slot>
+      <div id='x-bar' tabindex=2>
+        <template data-mode='open'>
+          <input id='m2' value='m2' tabindex=2>
+          <input id='m1' value='m1' tabindex=1>
+        </template>
+      </div>
+    </slot>
+    <input id='j2' tabindex=2 value='j2'>
+  </template>
+</div>
+
+<script>
+'use strict';
+
+promise_test(async () => {
+  let xfoo = document.getElementById('x-foo');
+  convertTemplatesToShadowRootsWithin(xfoo);
+
+  let elements = [
+      'i0',
+      'x-foo/j1',
+      'x-foo/j2',
+      'x-foo/k1',
+      'x-foo/x-bar',
+      'x-foo/x-bar/m1',
+      'x-foo/x-bar/m2',
+      'x-foo/k0',
+      'i1',
+      'i2',
+      'x-foo/l1'
+    ];
+
+    await assert_focus_navigation_bidirectional(elements);
+}, 'Focus should jump to fallback elements when a slot does not have any assigned nodes.');
+</script>

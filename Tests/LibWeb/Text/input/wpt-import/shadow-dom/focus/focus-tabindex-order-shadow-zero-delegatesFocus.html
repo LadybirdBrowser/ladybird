@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>HTML Test: focus - the sequential focus navigation order with shadow dom that delegates focus and all tabindex=0</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="resources/shadow-utils.js"></script>
+<body>
+<script>
+// Structure:
+// <div #aboveHost tabindex=0>
+// <div #host tabindex=0>
+//    #shadowRoot (delegatesFocus)
+//      <div #aboveSlot tabindex=0>
+//      <slot #slotAbove tabindex=0>
+//        (slotted) <div #slottedAbove tabindex=0>
+//      <slot #slotBelow tabindex=0>
+//        (slotted) <div #slottedBelow tabindex=0>
+//      <div #belowSlot tabindex=0>
+// <div #belowHost tabindex=0>
+
+promise_test(() => {
+  let elementsInFlatTreeOrder;
+  let [aboveHost, host, aboveSlot, slotAbove, slottedAbove, slotBelow, slottedBelow, belowSlot, belowHost] = elementsInFlatTreeOrder = prepareDOM(document.body, true);
+  setTabIndex(elementsInFlatTreeOrder, 0);
+  resetFocus();
+  // Focus should move in flat tree order since every one of them has tabindex ==0,
+  // but doesn't include slots and #host.
+  return assertFocusOrder([aboveHost, aboveSlot, slottedAbove, slottedBelow, belowSlot, belowHost]);
+}, "Order when all tabindex=0 is and delegatesFocus = true");
+</script>
+</body>

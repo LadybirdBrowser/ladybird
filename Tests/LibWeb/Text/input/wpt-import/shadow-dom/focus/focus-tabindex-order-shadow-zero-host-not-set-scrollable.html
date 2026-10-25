@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>HTML Test: focus - the sequential focus navigation order with shadow dom and scrollable/non-focusable host</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="resources/shadow-utils.js"></script>
+<body>
+<script>
+// Structure:
+// <div #aboveHost tabindex=0>
+// <div #host style="overflow: scroll">
+//    #shadowRoot
+//      <div #aboveSlot tabindex=0>
+//      <slot #slotAbove tabindex=0>
+//        (slotted) <div #slottedAbove tabindex=0>
+//      <slot #slotBelow tabindex=0>
+//        (slotted) <div #slottedBelow tabindex=0>
+//      <div #belowSlot tabindex=0>
+// <div #belowHost tabindex=0>
+
+promise_test(() => {
+  let elementsInFlatTreeOrder;
+  let [aboveHost, host, aboveSlot, slotAbove, slottedAbove, slotBelow, slottedBelow, belowSlot, belowHost] =
+    elementsInFlatTreeOrder = prepareDOM(document.body, false);
+  setTabIndex(elementsInFlatTreeOrder, 0);
+  removeTabIndex([host]);
+  host.style = "overflow: scroll";
+  resetFocus();
+  // Focus should move in flat tree order since every one of them has tabindex ==0,
+  // but doesn't include #slot since it's not rendered and #host since its tabindex is not set
+  // (but #host is considered as 0 in focus scope navigation, keeping the flat tree order for the shadow root's descendants).
+  return assertFocusOrder(elementsInFlatTreeOrder.filter(el => (el !== slotAbove && el !== slotBelow && el !== host)));
+}, "Order when all tabindex=0 except scrollable host (tabindex not set)");
+</script>
+</body>

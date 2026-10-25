@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>HTML Test: focus - the sequential focus navigation order with shadow dom that delegates focus and tabindex in shadow tree varies</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="resources/shadow-utils.js"></script>
+<body>
+<script>
+// Structure:
+// <div #aboveHost tabindex=0>
+// <div #host tabindex=0>
+//    #shadowRoot (delegatesFocus)
+//      <div #aboveSlot tabindex=0>
+//      <slot #slotAbove tabindex=1>
+//        (slotted) <div #slottedAbove tabindex=3>
+//      <slot #slotBelow tabindex=2>
+//        (slotted) <div #slottedBelow tabindex=1>
+//      <div #belowSlot tabindex=-1>
+// <div #belowHost tabindex=0>
+
+promise_test(() => {
+  let elementsInFlatTreeOrder;
+  let [aboveHost, host, aboveSlot, slotAbove, slottedAbove, slotBelow, slottedBelow, belowSlot, belowHost] = elementsInFlatTreeOrder = prepareDOM(document.body, true);
+  setTabIndex(elementsInFlatTreeOrder, -1);
+  setTabIndex([aboveHost, host, aboveSlot, belowHost], 0);
+  setTabIndex([slotAbove, slottedBelow], 1);
+  setTabIndex([slotBelow], 2);
+  setTabIndex([slottedAbove], 3);
+  resetFocus();
+  return assertFocusOrder([aboveHost, slottedAbove, slottedBelow, aboveSlot, belowHost]);
+}, "Order when tabindex varies and delegatesFocus = true");
+</script>
+</body>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<meta name="timeout" content="long">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="resources/shadow-dom.js"></script>
+<script src="resources/focus-utils.js"></script>
+<div id="log"></div>
+<p>
+  document tree: [i0 -> [x-foo]]<br>
+  x-foo's shadow tree: [j5 -> [x-bar] -> j6]<br>
+  x-bar's shadow tree: [k1 -> k0 -> [s2]]<br>
+  slot #s2: [j1 -> j2 -> j3 -> j4 -> [s1] -> j0]<br><br>
+  slot #s1: [i1 -> i2]<br>
+  <b>v1 ideal nav forward:  [i0 -> j5 -> xbar -> k1 -> k0 -> j1 -> j2 -> j3 -> j4 -> i1 -> i2 -> j0 -> j6]</b><br>
+</p>
+
+<input id="i0" tabindex=0 value="i0">
+<div id="x-foo">
+  <input id="i2" slot="s1" tabindex=2 value="i2">
+  <input id="i1" slot="s1" tabindex=1 value="i1">
+  <template data-mode="open">
+    <div id="x-bar" tabindex=4>
+      <input id="j1" slot="s2" tabindex=1 value="j1">
+      <slot id="s1" name="s1" slot="s2"></slot>
+      <input id="j0" slot="s2" tabindex=0 value="j0">
+      <input id="j3" slot="s2" tabindex=2 value="j3">
+      <div id="j4" slot="s2" tabindex=3>
+        <input id="j2" tabindex=1 value="j2">
+      </div>
+      <template data-mode="open">
+        <input id="k0" tabindex=0 value="k0">
+        <slot id="s2" name="s2"></slot>
+        <input id="k1" tabindex=1 value="k1">
+      </template>
+    </div>
+    <input id="j6" tabindex=4 value="j6">
+    <input id="j5" tabindex=3 value="j5">
+  </template>
+</div>
+
+<script>
+'use strict';
+
+promise_test(async () => {
+    let xfoo = document.getElementById('x-foo');
+    convertTemplatesToShadowRootsWithin(xfoo);
+    let sr = xfoo.shadowRoot;
+    let xbar = sr.querySelector('div');
+    convertTemplatesToShadowRootsWithin(xbar);
+
+    let elements = [
+        'i0',
+        'x-foo/j5',
+        'x-foo/x-bar',
+        'x-foo/x-bar/k1',
+        'x-foo/x-bar/k0',
+        'x-foo/j1',
+        'x-foo/j2',
+        'x-foo/j3',
+        'x-foo/j4',
+        'i1',
+        'i2',
+        'x-foo/j0',
+        'x-foo/j6'
+    ];
+
+    await assert_focus_navigation_bidirectional(elements);
+}, 'Focus controller should treat slots as a focus scope.');
+</script>

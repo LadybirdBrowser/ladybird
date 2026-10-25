@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="resources/shadow-dom.js"></script>
+<script src="resources/focus-utils.js"></script>
+<div id='log'></div>
+<p>
+  document tree: [i0 -> [x-foo]]<br>
+  x-foo's shadow tree: [j1 -> [s1] -> [s2] -> j2 ->[x-bar]]<br>
+  x-bar's shadow tree: [[s3] -> k1]<br>
+  slot #s1: [i1 -> i2]<br>
+  slot #s2: [i3]<br>
+  slot #s3: [l1 -> l2]<br><br>
+  <b>v1 ideal nav forward:  [i0 -> j1 -> i1 -> i2 -> i3 -> j2 -> x-bar -> l1 -> l2 -> k1]</b><br>
+</p>
+
+<input id='i0' tabindex=0 value='i0'>
+<div id='x-foo'>
+  <input id='i2' slot='s1' tabindex=2 value='i2'>
+  <input id='i1' slot='s1' tabindex=1 value='i1'>
+  <input id='i3' slot='s2' tabindex=3 value='i3'>
+  <template data-mode='open'>
+    <div id='x-bar' tabindex=5>
+      <input id='l2' slot='s3' tabindex=2 value='l2'>
+      <input id='l1' slot='s3' tabindex=1 value='l1'>
+      <template data-mode='open'>
+        <slot id='s3' name='s3' tabindex=1></slot>
+        <input id='k1' tabindex=2 value='k1'>
+      </template>
+    </div>
+    <input id='j1' tabindex=1 value='j1'>
+    <slot id='s2' name='s2' tabindex=3></slot>
+    <slot id='s1' name='s1' tabindex=2></slot>
+    <input id='j2' tabindex=4 value='j2'>
+  </template>
+</div>
+
+<script>
+'use strict';
+
+promise_test(async () => {
+    let xfoo = document.getElementById('x-foo');
+    convertTemplatesToShadowRootsWithin(xfoo);
+
+    let elements = [
+        'i0',
+        'x-foo/j1',
+        'i1',
+        'i2',
+        'i3',
+        'x-foo/j2',
+        'x-foo/x-bar',
+        'x-foo/l1',
+        'x-foo/l2',
+        'x-foo/x-bar/k1',
+    ];
+
+    await assert_focus_navigation_bidirectional(elements);
+}, 'Slots tabindex should be considred in focus navigation.');
+</script>

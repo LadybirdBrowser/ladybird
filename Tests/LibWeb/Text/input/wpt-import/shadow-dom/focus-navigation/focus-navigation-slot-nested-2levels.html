@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<meta name="timeout" content="long">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="resources/shadow-dom.js"></script>
+<script src="resources/focus-utils.js"></script>
+<div id="log"></div>
+
+<input id='i0'>
+<div id='outer'>
+  <template data-mode='open'>
+    <input id='outer-before'>
+    <slot></slot>
+    <input id='outer-after'>
+  </template>
+  <div id='dummy1'></div>
+  <div id='nested1'>
+    <template data-mode='open'>
+      <input id='inner-before'>
+      <div id='inner-div' tabindex='0'><slot></slot></div>
+      <input id='inner-after'>
+    </template>
+    <div id='dummy2'></div>
+    <div id='nested2'>
+      <template data-mode='open'>
+        <input id='innermost-before'>
+        <slot></slot>
+        <input id='innermost-after'>
+      </template>
+      <input id='innermost1'>
+      <input id='innermost2'>
+    </div>
+    <span>button</span>
+  </div>
+</div>
+<input id='i1'>
+
+<script>
+promise_test(async () => {
+  var outer = document.querySelector('#outer');
+  convertTemplatesToShadowRootsWithin(outer);
+
+  var elements = [
+    'i0',
+    'outer/outer-before',
+    'nested1/inner-before',
+    'nested1/inner-div',
+    'nested2/innermost-before',
+    'innermost1',
+    'innermost2',
+    'nested2/innermost-after',
+    'nested1/inner-after',
+    'outer/outer-after',
+    'i1'
+  ];
+
+  await assert_focus_navigation_bidirectional(elements);
+}, 'Focus controller should treat each slot as a focus scope.');
+</script>

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Verifies that focusing backwards from a button inside a slot which has no assigned nodes goes to the previous focusable element.

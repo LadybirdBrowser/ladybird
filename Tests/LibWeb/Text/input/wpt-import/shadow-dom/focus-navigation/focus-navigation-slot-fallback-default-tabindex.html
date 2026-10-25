@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="resources/shadow-dom.js"></script>
+<script src="resources/focus-utils.js"></script>
+<p>Tests for moving focus by pressing tab key across shadow boundaries.<br>
+To manually test, press tab key six times then shift+tab seven times.<br>
+It should traverse focusable elements in the increasing numerical order and then in the reverse order.</p>
+
+<div id='host'>
+  <div slot='slot5' id='i2' tabindex=4>2. Assigned to slot5 whose tabindex is 2.</div>
+  <template data-mode='open'>
+    <slot name='slot1'>
+      x. The default tabindex for a slot node is set to 0.
+      <div id='i5' tabindex=0>5. The parent slot node's tabindex is 0. Second.</div>
+      <div id='i4' tabindex=2>4. The parent slot node's tabindex is 0. First.</div>
+    </slot>
+
+    <slot name='slot2' id='x1' tabindex=3>
+      x. The tabindex is 3. The slot node should be ignored.
+      <div id='i3' tabindex=10>3. The parent slot node's tabindex is 3. The slot node's tabindex matters. This element's tabindex comes after.</div>
+    </slot>
+
+    <slot name='slot3' id='x2' tabindex=0>
+      x. The tabindex is 0. The slot node should be ignored. If there is another slot node in same tabindex, the younger child comes first.
+      <div id='i6' tabindex=1>6. The parent slot node's tabindex is 0. First.</div>
+      <div id='i7' tabindex=1>7. The parent slot node's tabindex is 0. Second.</div>
+    </slot>
+
+    <slot name='slot4' id='x3' tabindex=1>
+      x. The tabindex is 1. The slot node should be ignored.
+      <div id='i1' tabindex=5>1. The slot node tabindex is 1.</div>
+    </slot>
+
+    <slot name='slot5' id='x5' tabindex=2>
+      x. The tabindex is 2. The slot node should be ignored. The host child is assigned to this slot node.
+      <div id='-' tabindex=1>-. The host child is assigned to the parent slot node. This text shouldn't appear.</div>
+    </slot>
+
+    <slot name='slot6' id='x6' tabindex=5>
+      x. The tabindex is 5. The slot node should be ignored.
+      <div id='x6' tabindex=-1>x. tabindex is -1. Should be skipped.</div>
+    </slot>
+
+    <slot name='slot7' id='x7' tabindex=-1>
+      x. tabindex is -1. Should be skipped.
+      <div id='x8' tabindex=1>x. The parent slot node is skipped.</div>
+    </slot>
+  </template>
+</div>
+<script>
+
+promise_test(async () => {
+  convertTemplatesToShadowRootsWithin(host);
+
+  let elements = [
+    'host/i1',
+    'i2',
+    'host/i3',
+    'host/i4',
+    'host/i5',
+    'host/i6',
+    'host/i7'
+  ];
+
+  await assert_focus_navigation_bidirectional(elements);
+}, 'Default tabindex for a slot node should be 0.');
+
+</script>
