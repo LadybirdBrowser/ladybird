@@ -446,7 +446,12 @@ const _: () = assert!(size_of::<core::cell::Cell<Option<Gc<PrimitiveString>>>>()
 
 /// The runtime info of a compile job for code of `realm`, with what JIT code needs to allocate cells itself (which
 /// refers to the cells in `allocation.cells`).
-pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos, _defer_gc: &DeferGc<'_>) -> RuntimeInfo {
+pub fn runtime_info(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    allocation: AllocationInfos<'_>,
+    _defer_gc: &DeferGc<'_>,
+) -> RuntimeInfo {
     let addresses = vm.jit.runtime_function_addresses();
     let mut layout = runtime_layout();
     layout.try_get_by_id_cache = addresses.try_get_by_id_cache;

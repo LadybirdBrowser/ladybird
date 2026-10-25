@@ -96,6 +96,7 @@ struct Entry {
 
 struct SnapshotBuilder<'vm> {
     vm: &'vm Vm,
+    _defer_gc: &'vm DeferGc<'vm>,
     cells: Vec<Gc<CellHeader>>,
     entries: Vec<Entry>,
     indices: HashMap<InlinedFunction, u32>,
@@ -1282,7 +1283,8 @@ pub fn capture_snapshot<'d>(
         .collect::<Vec<_>>();
     let mut builder = SnapshotBuilder {
         vm,
-        cells: allocation.cells.clone(),
+        _defer_gc: defer_gc,
+        cells: (*allocation.cells).clone(),
         entries: vec![Entry {
             executable,
             function: None,
@@ -1328,7 +1330,7 @@ pub fn capture_snapshot<'d>(
         executables.push(builder.executable_snapshot(&entry));
         index += 1;
     }
-    let mut runtime = super::runtime_info::runtime_info(vm, realm, allocation.into_inner(), defer_gc);
+    let mut runtime = super::runtime_info::runtime_info(vm, realm, allocation, defer_gc);
     // NB: Code that embeds the prototypes of the runtime info lists them as embedded cells.
     builder.cell(realm.array_prototype());
     builder.cell(realm.object_prototype());
