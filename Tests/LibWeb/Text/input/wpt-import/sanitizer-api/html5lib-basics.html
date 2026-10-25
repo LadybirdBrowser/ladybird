@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<head>
+<title>Basic setHTMLUnsafe test cases</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/html5lib-testcase-support.js"></script
+</head>
+<body>
+<script type="html5lib-tests">
+#data
+Hello!
+#document
+| "Hello!"
+
+#data
+<p>bla
+#document
+| <p>
+|   "bla"
+
+#data
+<p id=abc def='123'>texty<!-- xxx -->textz
+#document
+| <p>
+|   def="123"
+|   id="abc"
+|   "texty"
+|   <!-- xxx -->
+|   "textz"
+
+#data
+<p>Hello <b>World</b><span>!
+#document
+| <p>
+|   "Hello "
+|   <b>
+|     "World"
+|   <span>
+|     "!"
+
+#data
+<p>A template example.<template>Hello <b>World</b></template>!
+#document
+| <p>
+|   "A template example."
+|   <template>
+|     content
+|       "Hello "
+|       <b>
+|         "World"
+|   "!"
+
+#data
+<td>Interesting parse context.</td>
+#document-fragment
+table
+#document
+| <tbody>
+|   <tr>
+|     <td>
+|       "Interesting parse context."
+
+#data
+<p>A rather boring parse context.
+#document-fragment
+p
+#document
+| <p>
+|   "A rather boring parse context."
+
+#data
+<table><b>a</b>bb<tr><td>y
+#document
+| <b>
+|   "a"
+| "bb"
+| <table>
+|   <tbody>
+|     <tr>
+|       <td>
+|         "y"
+
+#data
+<table><div>d</div><td>
+#document
+| <div>
+|   "d"
+| <table>
+|   <tbody>
+|     <tr>
+|       <td>
+
+</script>
+<script>
+// This runs a number of simple test cases that test setHTMLUnsafe, and
+// setHTMLUnsafe vs innerHTML. This purposely doesn't include "advanced" test
+// cases where the behaviours of those two methodsis supposed to differ.
+//
+// This sort of also doubles as unit tests for html5lib-testcase-support.js
+html5lib_testcases_from_script().forEach((testcase, index) => {
+  test(_ => {
+    const context = document.createElement(testcase["document-fragment"] ?? "div");
+    context.setHTMLUnsafe(testcase.data);
+    assert_testcase(context, testcase);
+  }, `Testcase #${index} with .setHTMLUnsafe("${testcase.data}")`);
+
+  test(_ => {
+    const context_element = testcase["document-fragment"] ?? "div";
+    const context = document.createElement(context_element);
+    const context2 = document.createElement(context_element);
+
+    context.setHTMLUnsafe(testcase.data);
+    context2.innerHTML = testcase.data;
+    assert_subtree_equals(context, context2);
+  }, `Testcase #${index}, .innerHTML matches .setHTMLUnsafe`);
+});
+</script>

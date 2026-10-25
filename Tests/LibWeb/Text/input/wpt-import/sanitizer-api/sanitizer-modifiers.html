@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="./support/util.js"></script>
+</head>
+<body>
+<script>
+const NS = "http://example.org/";
+
+test(() => {
+  let s = new Sanitizer({ attributes: [] });
+
+  assert_true(s.allowAttribute("id"));
+  assert_config(s.get(), { attributes: ["id"] });
+
+  assert_false(s.allowAttribute({ name: "id", namespace: null }));
+  assert_config(s.get(), { attributes: ["id"] });
+
+  assert_true(s.allowAttribute({ name: "id", namespace: NS }));
+  assert_config(s.get(), {
+    attributes: ["id", { name: "id", namespace: NS }],
+    removeElements: [],
+  });
+}, "sanitizer.allowAttribute() with global attributes");
+
+test(() => {
+  let s = new Sanitizer({ removeAttributes: ["title"] });
+
+  assert_false(s.allowAttribute("id"));
+  assert_config(s.get(), { removeAttributes: ["title"] });
+
+  assert_false(s.allowAttribute({ name: "title", namespace: NS }));
+  assert_config(s.get(), { removeAttributes: ["title"] });
+
+  assert_true(s.allowAttribute("title"));
+  assert_config(s.get(), { removeAttributes: [] });
+}, "sanitizer.allowAttribute() with global removeAttributes");
+
+test(() => {
+  let s = new Sanitizer({
+    attributes: [],
+    elements: [{ name: "id", attributes: ["href", { name: "title", namespace: NS }] }],
+  });
+
+  assert_true(s.allowAttribute("class"));
+  assert_config(s.get(), { attributes: ["class"] });
+
+  assert_false(s.allowAttribute("class"));
+  assert_config(s.get(), { attributes: ["class"] });
+
+  assert_true(s.allowAttribute("title"));
+  assert_config(s.get(), {
+    attributes: ["class", "title"],
+    elements: [{ name: "id", attributes: ["href", { name: "title", namespace: NS }] }],
+  });
+
+  assert_true(s.allowAttribute({ name: "title", namespace: NS }));
+  assert_config(s.get(), {
+    attributes: ["class", "title", { name: "title", namespace: NS }],
+    elements: [{ name: "id", attributes: ["href"] }],
+  });
+
+  assert_false(s.allowAttribute({ name: "title", namespace: NS }));
+  assert_config(s.get(), {
+    attributes: ["class", "title", { name: "title", namespace: NS }],
+    elements: [{ name: "id", attributes: ["href"] }],
+  });
+}, "sanitizer.allowAttribute() with global attributes and elements");
+
+test(() => {
+  const ELEMENTS = [{ name: "div", attributes: ["href"] }];
+
+  let s = new Sanitizer({
+    removeAttributes: ["id"],
+    elements: ELEMENTS,
+  });
+
+  assert_false(s.allowAttribute("class"));
+  assert_config(s.get(), {
+    removeAttributes: ["id"],
+    elements: ELEMENTS,
+  });
+
+  assert_true(s.allowAttribute("id"));
+  assert_config(s.get(), {
+    removeAttributes: [],
+    elements: ELEMENTS,
+  });
+
+  assert_false(s.allowAttribute("href"));
+  assert_config(s.get(), {
+    removeAttributes: [],
+    elements: ELEMENTS,
+  });
+
+  assert_false(s.allowAttribute("title"));
+  assert_config(s.get(), {
+    removeAttributes: [],
+    elements: ELEMENTS,
+  });
+}, "sanitizer.allowAttribute() with global removeAttributes and element's attributes");
+
+test(() => {
+  const ELEMENTS = [{ name: "div", removeAttributes: ["href"] }];
+
+  let s = new Sanitizer({
+    removeAttributes: ["id"],
+    elements: ELEMENTS,
+  });
+
+  assert_false(s.allowAttribute("class"));
+  assert_config(s.get(), {
+    removeAttributes: ["id"],
+    elements: ELEMENTS,
+  });
+
+  assert_true(s.allowAttribute("id"));
+  assert_config(s.get(), {
+    removeAttributes: [],
+    elements: ELEMENTS,
+  });
+
+  assert_false(s.allowAttribute("href"));
+  assert_config(s.get(), {
+    removeAttributes: [],
+    elements: ELEMENTS,
+  });
+
+  assert_false(s.allowAttribute("title"));
+  assert_config(s.get(), {
+    removeAttributes: [],
+    elements: ELEMENTS,
+  });
+}, "sanitizer.allowAttribute() with global removeAttributes and element's removeAttributes");
+
+
+test(() => {
+  let s = new Sanitizer({
+    attributes: ["id"],
+  });
+
+  assert_false(s.removeAttribute("title"));
+  assert_config(s.get(), { attributes: ["id"] });
+
+  assert_false(s.removeAttribute({ name: "id", namespace: NS }));
+  assert_config(s.get(), { attributes: ["id"] });
+
+  assert_true(s.removeAttribute("id"));
+  assert_config(s.get(), { attributes: [] });
+}, "sanitizer.removeAttribute() with global attributes");
+
+test(() => {
+  let s = new Sanitizer({
+    removeAttributes: ["id"],
+  });
+
+  assert_true(s.removeAttribute("title"));
+  assert_config(s.get(), { removeAttributes: ["id", "title"] });
+
+  assert_true(s.removeAttribute({ name: "id", namespace: NS }));
+  assert_config(s.get(), { removeAttributes: ["id", "title", { name: "id", namespace: NS }] });
+
+  assert_false(s.removeAttribute("id"));
+  assert_config(s.get(), { removeAttributes: ["id", "title", { name: "id", namespace: NS }] });
+}, "sanitizer.removeAttribute() with global removeAttributes");
+
+test(() => {
+  let s = new Sanitizer({
+    attributes: ["id", "title"],
+    elements: [{ name: "div", attributes: ["class", "dir"], removeAttributes: ["title"] }],
+  });
+
+  assert_true(s.removeAttribute("dir"));
+  assert_config(s.get(), {
+    attributes: ["id", "title"],
+    elements: [{ name: "div", attributes: ["class"], removeAttributes: ["title"] }],
+  });
+
+  assert_true(s.removeAttribute("id"));
+  assert_config(s.get(), {
+    attributes: ["title"],
+    elements: [{ name: "div", attributes: ["class"], removeAttributes: ["title"] }],
+  });
+
+  assert_false(s.removeAttribute("id"));
+  assert_config(s.get(), {
+    attributes: ["title"],
+    elements: [{ name: "div", attributes: ["class"], removeAttributes: ["title"] }],
+  });
+
+  assert_true(s.removeAttribute("title"));
+  assert_config(s.get(), {
+    attributes: [],
+    elements: [{ name: "div", attributes: ["class"], removeAttributes: [] }],
+  });
+
+  assert_true(s.removeAttribute("class"));
+  assert_config(s.get(), {
+    attributes: [],
+    elements: [{ name: "div", attributes: [], removeAttributes: [] }],
+  });
+}, "sanitizer.removeAttribute() with global attributes and elements");
+
+test(() => {
+  let s = new Sanitizer({
+    removeAttributes: ["title"],
+    elements: [{ name: "div", attributes: ["class"] }],
+  });
+
+  assert_false(s.removeAttribute({ name: "title", namespace: null }));
+  assert_config(s.get(), {
+    removeAttributes: ["title"],
+    elements: [{ name: "div", attributes: ["class"] }],
+  });
+
+  assert_true(s.removeAttribute("dir"));
+  assert_config(s.get(), {
+    removeAttributes: ["dir", "title"],
+    elements: [{ name: "div", attributes: ["class"] }],
+  });
+
+  assert_true(s.removeAttribute("class"));
+  assert_config(s.get(), {
+    removeAttributes: ["class", "dir", "title"],
+    elements: [{ name: "div", attributes: [] }],
+  });
+}, "sanitizer.removeAttribute() with global removeAttributes and element's attributes");
+
+test(() => {
+  let s = new Sanitizer({
+    removeAttributes: ["title"],
+    elements: [{ name: "div", removeAttributes: ["id"] }],
+  });
+
+  assert_false(s.removeAttribute({ name: "title", namespace: null }));
+  assert_config(s.get(), {
+    removeAttributes: ["title"],
+    elements: [{ name: "div", removeAttributes: ["id"] }],
+  });
+
+  assert_true(s.removeAttribute("dir"));
+  assert_config(s.get(), {
+    removeAttributes: ["dir", "title"],
+    elements: [{ name: "div", removeAttributes: ["id"] }],
+  });
+
+  assert_true(s.removeAttribute("id"));
+  assert_config(s.get(), {
+    removeAttributes: ["dir", "id", "title"],
+    elements: [{ name: "div", removeAttributes: [] }],
+  });
+}, "sanitizer.removeAttribute() with global removeAttributes and element's removeAttributes");
+
+test(() => {
+  let s = new Sanitizer({
+    elements: ["p", { name: "p", namespace: NS }],
+    replaceWithChildrenElements: ["b"],
+  });
+
+  assert_false(s.removeElement("span"));
+  assert_config(s.get(), {
+    elements: [{ name: "p", namespace: NS }, "p"],
+    replaceWithChildrenElements: ["b"],
+  });
+
+  assert_true(s.removeElement("b"));
+  assert_config(s.get(), {
+    elements: [{ name: "p", namespace: NS }, "p"],
+    replaceWithChildrenElements: [],
+  });
+
+  assert_true(s.removeElement("p"));
+  assert_config(s.get(), {
+    elements: [{ name: "p", namespace: NS }],
+    replaceWithChildrenElements: [],
+  });
+
+  assert_true(s.removeElement({ name: "p", namespace: NS }));
+  assert_config(s.get(), {
+    elements: [],
+    replaceWithChildrenElements: [],
+  });
+}, "sanitizer.removeElement() with global elements");
+
+test(() => {
+  let s = new Sanitizer({
+    removeElements: ["p", { name: "p", namespace: NS }],
+    replaceWithChildrenElements: ["b"],
+  });
+
+  assert_false(s.removeElement("p"));
+  assert_config(s.get(), {
+    removeElements: [{ name: "p", namespace: NS }, "p"],
+    replaceWithChildrenElements: ["b"],
+  });
+
+  assert_false(s.removeElement({ name: "p", namespace: NS }));
+  assert_config(s.get(), {
+    removeElements: [{ name: "p", namespace: NS }, "p"],
+    replaceWithChildrenElements: ["b"],
+  });
+
+  assert_true(s.removeElement("span"));
+  assert_config(s.get(), {
+    removeElements: [{ name: "p", namespace: NS }, "p", "span"],
+    replaceWithChildrenElements: ["b"],
+  });
+
+  assert_true(s.removeElement("b"));
+  assert_config(s.get(), {
+    removeElements: [{ name: "p", namespace: NS },  "b",  "p", "span"],
+    replaceWithChildrenElements: [],
+  });
+}, "sanitizer.removeElement() with global removeElements");
+
+test(() => {
+  let s = new Sanitizer({
+    replaceWithChildrenElements: ["a"],
+    elements: ["b"],
+  });
+
+  assert_false(s.replaceElementWithChildren("a"));
+  assert_config(s.get(), {
+    replaceWithChildrenElements: ["a"],
+    elements: ["b"],
+  });
+
+  assert_true(s.replaceElementWithChildren("span"));
+  assert_config(s.get(), {
+    replaceWithChildrenElements: ["a", "span"],
+    elements: ["b"],
+  });
+
+  assert_true(s.replaceElementWithChildren("b"));
+  assert_config(s.get(), {
+    replaceWithChildrenElements: ["a", "b", "span"],
+    elements: [],
+  });
+}, "sanitizer.replaceElementWithChildren() with global elements");
+
+test(() => {
+  let s = new Sanitizer({
+    replaceWithChildrenElements: ["a"],
+    removeElements: ["b"],
+  });
+
+  assert_false(s.replaceElementWithChildren("a"));
+  assert_config(s.get(), {
+    replaceWithChildrenElements: ["a"],
+    removeElements: ["b"],
+  });
+
+  assert_true(s.replaceElementWithChildren("span"));
+  assert_config(s.get(), {
+    replaceWithChildrenElements: ["a", "span"],
+    removeElements: ["b"],
+  });
+
+  assert_true(s.replaceElementWithChildren("b"));
+  assert_config(s.get(), {
+    replaceWithChildrenElements: ["a", "b", "span"],
+    removeElements: [],
+  });
+}, "sanitizer.replaceElementWithChildren() with global removeElements");
+
+test(() => {
+  let s = new Sanitizer({
+    elements: ["a"],
+    replaceWithChildrenElements: ["b"]
+  });
+
+  assert_false(s.allowElement("a"));
+  assert_config(s.get(), {
+    elements: ["a"],
+    replaceWithChildrenElements: ["b"]
+  });
+
+  assert_true(s.allowElement({name: "a", namespace: NS}));
+  assert_config(s.get(), {
+    elements: [{name: "a", namespace: NS}, "a"],
+    replaceWithChildrenElements: ["b"]
+  });
+
+  assert_true(s.allowElement("b"));
+  assert_config(s.get(), {
+    elements: [{name: "a", namespace: NS}, "a", "b"],
+    replaceWithChildrenElements: []
+  });
+}, "sanitizer.allowElement() with global elements");
+
+test(() => {
+  let s = new Sanitizer({
+    removeElements: ["a"],
+    replaceWithChildrenElements: ["b"]
+  });
+
+  assert_false(s.allowElement("span"));
+  assert_config(s.get(), {
+    removeElements: ["a"],
+    replaceWithChildrenElements: ["b"]
+  });
+
+  assert_false(s.allowElement({name: "a", namespace: NS}));
+  assert_config(s.get(), {
+    removeElements: ["a"],
+    replaceWithChildrenElements: ["b"]
+  });
+
+  assert_true(s.allowElement("b"));
+  assert_config(s.get(), {
+    removeElements: ["a"],
+    replaceWithChildrenElements: []
+  });
+
+  // If element["attributes"] exists or element["removeAttributes"] with default « » is not empty:
+  //  The user agent may report a warning to the console that this operation is not supported.
+  //  Return false.
+  assert_false(s.allowElement({name: "a", attributes: ["dir"]}));
+  assert_config(s.get(), {
+    removeElements: ["a"],
+    replaceWithChildrenElements: []
+  });
+  assert_false(s.allowElement({name: "a", removeAttributes: ["dir"]}));
+  assert_config(s.get(), {
+    removeElements: ["a"],
+    replaceWithChildrenElements: []
+  });
+  assert_false(s.allowElement({name: "a", attributes: ["title"], removeAttributes: ["dir"]}));
+  assert_config(s.get(), {
+    removeElements: ["a"],
+    replaceWithChildrenElements: []
+  });
+  assert_true(s.allowElement({name: "a", removeAttributes: [] }));
+  assert_config(s.get(), {
+    removeElements: [],
+    replaceWithChildrenElements: []
+  });
+}, "sanitizer.allowElement() with global removeElements");
+
+test(() => {
+  let s = new Sanitizer({
+    elements: [],
+    attributes: ["id"]
+  });
+
+  assert_true(s.allowElement({name: "p", attributes: ["id", "title"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: ["title"], removeAttributes: undefined}]
+  });
+  // Duplicate
+  assert_false(s.allowElement({name: "p", attributes: ["id", "title"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: ["title"], removeAttributes: undefined}]
+  });
+
+
+  assert_true(s.allowElement({name: "p", removeAttributes: ["id", "class"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: undefined, removeAttributes: ["id"]}]
+  })
+  // Duplicate
+  assert_false(s.allowElement({name: "p", removeAttributes: ["id", "class"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: undefined, removeAttributes: ["id"]}]
+  })
+
+
+  assert_true(s.allowElement({name: "p", attributes: ["id", "dir"], removeAttributes: ["id", "lang"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: ["dir"], removeAttributes: ["id"]}]
+  });
+  // Duplicate
+  assert_false(s.allowElement({name: "p", attributes: ["id", "dir"], removeAttributes: ["id", "lang"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: ["dir"], removeAttributes: ["id"]}]
+  });
+
+
+  assert_true(s.allowElement({name: "p"}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: undefined, removeAttributes: []}]
+  });
+
+  assert_false(s.allowElement("p"));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: undefined, removeAttributes: []}]
+  });
+
+  // Set element["attributes"] to remove duplicates from element["attributes"].
+  assert_true(s.allowElement({name: "p", attributes: ["dir", "dir"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: ["dir"], removeAttributes: undefined}]
+  });
+
+  // Set element["removeAttributes"] to remove duplicates from element["removeAttributes"].
+  assert_true(s.allowElement({name: "p", removeAttributes: ["id", "id"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: undefined, removeAttributes: ["id"]}]
+  });
+
+  assert_true(s.allowElement({name: "p", attributes: ["dir", "dir"], removeAttributes: ["id", "id"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: ["dir"], removeAttributes: ["id"]}]
+  });
+}, "sanitizer.allowElement() with global elements and attributes");
+
+test(() => {
+  let s = new Sanitizer({
+    elements: [],
+    removeAttributes: ["id"]
+  });
+
+  assert_true(s.allowElement({name: "p", attributes: ["id", "title"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: ["title"], removeAttributes: undefined}]
+  });
+  // Duplicate
+  assert_false(s.allowElement({name: "p", attributes: ["id", "title"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: ["title"], removeAttributes: undefined}]
+  });
+
+  assert_true(s.allowElement({name: "p", removeAttributes: ["id", "class"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: undefined, removeAttributes: ["class"]}]
+  });
+  // Duplicate
+  assert_false(s.allowElement({name: "p", removeAttributes: ["id", "class"]}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: undefined, removeAttributes: ["class"]}]
+  });
+
+  assert_true(s.allowElement({ name: "p", attributes: ["id", "dir", "lang"], removeAttributes: ["id", "lang"] }))
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: ["dir"], removeAttributes: undefined}]
+  });
+  // Duplicate
+  assert_false(s.allowElement({ name: "p", attributes: ["id", "dir", "lang"], removeAttributes: ["id", "lang"] }))
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: ["dir"], removeAttributes: undefined}]
+  });
+
+  assert_true(s.allowElement({name: "p"}));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: undefined, removeAttributes: []}]
+  });
+
+  assert_false(s.allowElement("p"));
+  assert_config(s.get(), {
+    elements: [{name: "p", attributes: undefined, removeAttributes: []}]
+  });
+}, "sanitizer.allowElement() with global elements and removeAttributes");
+
+test(() => {
+  for (let element of NON_REPLACEABLE_ELEMENTS) {
+    let s = new Sanitizer();
+    assert_false(s.replaceElementWithChildren(element));
+    assert_config(s.get(), { replaceWithChildrenElements: undefined });
+  }
+}, "sanitizer.replaceElementWithChildren() does not allow non-replaceable elements.");
+
+test(() => {
+  let s = new Sanitizer();
+  assert_false(s.setJavascriptURLs(false));
+  assert_config(s.get(), { javascriptURLs: false });
+
+  assert_true(s.setJavascriptURLs(true));
+  assert_config(s.get(), { javascriptURLs: true });
+
+  assert_false(s.setJavascriptURLs(true));
+  assert_config(s.get(), { javascriptURLs: true });
+
+  assert_true(s.setJavascriptURLs(false));
+  assert_config(s.get(), { javascriptURLs: false });
+}, "sanitizer.setJavascriptURLs()");
+
+test(() => {
+  let s = new Sanitizer();
+  assert_false(s.setComments(false));
+  assert_config(s.get(), { comments: false });
+
+  assert_true(s.setComments(true));
+  assert_config(s.get(), { comments: true });
+
+  assert_false(s.setComments(true));
+  assert_config(s.get(), { comments: true });
+
+  assert_true(s.setComments(false));
+  assert_config(s.get(), { comments: false });
+}, "sanitizer.setComments()");
+
+test(() => {
+  let s = new Sanitizer({ attributes: [] });
+  assert_false(s.setDataAttributes(true));
+  assert_config(s.get(), { dataAttributes: true, attributes: [] });
+
+  assert_true(s.setDataAttributes(false));
+  assert_config(s.get(), { dataAttributes: false, attributes: [] });
+
+  assert_false(s.setDataAttributes(false));
+  assert_config(s.get(), { dataAttributes: false, attributes: [] });
+
+  assert_true(s.setDataAttributes(true));
+  assert_config(s.get(), { dataAttributes: true, attributes: [] });
+}, "sanitizer.setDataAttributes()");
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Test that setHTML parses as HTML even in an XML document</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/html5lib-testcase-support.js"></script>
+</head>
+<body>
+<script type="html5lib-tests">
+#data
+Hello!
+#document
+| "Hello!"
+
+#data
+<br>
+#document
+| <br>
+
+#data
+<p>Hi</p>
+#document
+| <p>
+|   "Hi"
+
+#data
+<iframe></iframe><p>text</p>
+#document
+| <p>
+|   "text"
+
+</script>
+<script>
+html5lib_testcases_from_script().forEach((testcase, index) => {
+  test(_ => {
+    const doc = document.implementation.createDocument("application/xml", "xml");
+    const context = doc.documentElement;
+    context.setHTML(testcase.data);
+    assert_testcase(context, testcase);
+  }, `Testcase #${index} with xmlDoc.setHTML("${testcase.data}")`);
+
+  test(_ => {
+    const doc = document.implementation.createDocument("application/xml", "xml");
+    doc.documentElement.appendChild(doc.createElement("div"));
+    context = doc.documentElement.firstElementChild.attachShadow({mode: "open"});
+    context.setHTML(testcase.data);
+    assert_testcase(context, testcase);
+  }, `Testcase #${index}, shadow inside xmlDoc, shadowroot.setHTML("${testcase.data}")`);
+});
+</script>
+</body>
+</html>

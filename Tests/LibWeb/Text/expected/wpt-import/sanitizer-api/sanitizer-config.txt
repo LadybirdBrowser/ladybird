@@ -1,0 +1,77 @@
+Harness status: OK
+
+Found 72 tests
+
+72 Fail
+Fail	Sanitizer constructor without config.
+Fail	Sanitizer constructor with empty config.
+Fail	Sanitizer constructor with null as config.
+Fail	Sanitizer constructor with undefined as config.
+Fail	Sanitizer constructor with config ignore unknown values.
+Fail	SanitizerConfig comments field.
+Fail	SanitizerConfig dataAttributes field.
+Fail	SanitizerConfig javascriptURLs field.
+Fail	SanitizerConfig, normalization: elements: ["div"]
+Fail	SanitizerConfig, normalization: elements: [{"name":"b"}]
+Fail	SanitizerConfig, normalization: elements: [{"name":"b","namespace":null}]
+Fail	SanitizerConfig, normalization: elements: [{"name":"b","namespace":""}]
+Fail	SanitizerConfig, normalization: elements: [{"name":"p","namespace":"http://www.w3.org/1999/xhtml"}]
+Fail	SanitizerConfig, normalization: elements: [{"name":"bla","namespace":"http://fantasy.org/namespace"}]
+Fail	SanitizerConfig, normalization: removeElements: ["div"]
+Fail	SanitizerConfig, normalization: removeElements: [{"name":"b"}]
+Fail	SanitizerConfig, normalization: removeElements: [{"name":"b","namespace":null}]
+Fail	SanitizerConfig, normalization: removeElements: [{"name":"b","namespace":""}]
+Fail	SanitizerConfig, normalization: removeElements: [{"name":"p","namespace":"http://www.w3.org/1999/xhtml"}]
+Fail	SanitizerConfig, normalization: removeElements: [{"name":"bla","namespace":"http://fantasy.org/namespace"}]
+Fail	SanitizerConfig, normalization: replaceWithChildrenElements: ["div"]
+Fail	SanitizerConfig, normalization: replaceWithChildrenElements: [{"name":"b"}]
+Fail	SanitizerConfig, normalization: replaceWithChildrenElements: [{"name":"b","namespace":null}]
+Fail	SanitizerConfig, normalization: replaceWithChildrenElements: [{"name":"b","namespace":""}]
+Fail	SanitizerConfig, normalization: replaceWithChildrenElements: [{"name":"p","namespace":"http://www.w3.org/1999/xhtml"}]
+Fail	SanitizerConfig, normalization: replaceWithChildrenElements: [{"name":"bla","namespace":"http://fantasy.org/namespace"}]
+Fail	SanitizerConfig, normalization: processingInstructions: ["target-1"]
+Fail	SanitizerConfig, normalization: processingInstructions: [{"target":"target-1"}]
+Fail	SanitizerConfig, normalization: removeProcessingInstructions: ["target-1"]
+Fail	SanitizerConfig, normalization: removeProcessingInstructions: [{"target":"target-1"}]
+Fail	SanitizerConfig, normalization: attributes: ["href"]
+Fail	SanitizerConfig, normalization: attributes: [{"name":"href","namespace":null}]
+Fail	SanitizerConfig, normalization: attributes: [{"name":"href","namespace":""}]
+Fail	SanitizerConfig, normalization: attributes: [{"name":"href","namespace":"https://www.w3.org/1999/xlink"}]
+Fail	SanitizerConfig, normalization: removeAttributes: ["href"]
+Fail	SanitizerConfig, normalization: removeAttributes: [{"name":"href","namespace":null}]
+Fail	SanitizerConfig, normalization: removeAttributes: [{"name":"href","namespace":""}]
+Fail	SanitizerConfig, normalization: removeAttributes: [{"name":"href","namespace":"https://www.w3.org/1999/xlink"}]
+Fail	Test elements addition.
+Fail	Test elements removal.
+Fail	Test elements replacewithchildren.
+Fail	Test processingInstructions addition.
+Fail	Test processingInstructions removal.
+Fail	Test attribute addition.
+Fail	Test attribute removal.
+Fail	Test attribute-per-element sets (i.e. overwrites).
+Fail	Test removeAttribute-per-element sets (i.e. overwrites).
+Fail	Both elements and removeElements should not be allowed.
+Fail	Both attributes and removeAttributes should not be allowed.
+Fail	Both processingInstructions and removeProcessingInstructions should not be allowed.
+Fail	config[elements] should not allow duplicates
+Fail	config[removeElements] should not allow duplicates
+Fail	config[replaceWithChildrenElements] should not allow duplicates
+Fail	config[attributes] should not allow duplicates
+Fail	config[removeAttributes] should not allow duplicates
+Fail	config[processingInstructions] should not allow duplicate targets
+Fail	config[removeProcessingInstructions] should not allow duplicate targets
+Fail	config[replaceWithChildrenElements] should not allow non-replaceable elements
+Fail	config[elements] and config[replaceWithChildrenElements] should not intersect
+Fail	config[removeElements] and config[replaceWithChildrenElements] should not intersect
+Fail	Duplicates in element[attributes] with config[attributes] should not be allowed.
+Fail	Duplicates in element[removeAttributes] with config[attributes] should not be allowed.
+Fail	config[attributes] and element[attributes] should not intersect.
+Fail	element[removeAttributes] should be a subset of config[attributes]
+Fail	element[attributes] with a data attribute must not co-exist with config[dataAttributes] set to true.
+Fail	config[attributes] with a data attribute must not co-exist with config[dataAttributes] set to true.
+Fail	element[attributes] and element[removeAttributes] should not both exist with config[removeAttributes].
+Fail	Duplicates in element[attributes] with config[removeAttributes] should not be allowed.
+Fail	Duplicates in element[removeAttributes] with config[removeAttributes] should not be allowed.
+Fail	config[removeAttributes] and element[attributes] should not intersect.
+Fail	config[removeAttributes] and element[removeAttributes] should not intersect.
+Fail	Can not use config[dataAttributes] and config[removeAttributes] together.

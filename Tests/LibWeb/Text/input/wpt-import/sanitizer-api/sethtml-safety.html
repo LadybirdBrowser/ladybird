@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<head>
+<title>Testcases from the previous Sanitizer API</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/html5lib-testcase-support.js"></script>
+<script>
+promise_test(async _ => {
+  const safety = await fetch("sethtml-safety.sub.dat").
+          then(response => response.text()).
+          then(parse_html5lib_testcases);
+  const unsafety = await fetch("sethtml-unsafety.sub.dat").
+          then(response => response.text()).
+          then(parse_html5lib_testcases);
+
+  // Ensure that the "safe" and "unsafe" testcase inputs are the same and that
+  // they only differ only in the expected outcome.
+  assert_equals(safety.length, unsafety.length);
+  for (let i = 0; i < safety.length; i++) {
+    assert_equals(safety[i].data, unsafety[i].data);
+    assert_equals(safety[i].config, unsafety[i].config);
+    assert_equals(safety[i]["document-fragment"], unsafety[i]["document-fragment"]);
+  }
+
+  // The main tests here are non-async. Let's run them here, to make sure the
+  // two fetches have completed.
+  test_each("setHTML", safety);
+  test_each("setHTMLUnsafe", unsafety);
+}, "wrapper");
+
+function test_each(method, testcases) {
+  testcases.forEach((testcase, index) => {
+    test(_ => {
+      const context = document.createElement(testcase["document-fragment"] ?? "div");
+      let config = undefined;
+      try {
+        config = JSON.parse(testcase.config);
+      } catch { }
+
+      context[method].call(context, testcase.data, { sanitizer: config });
+      assert_testcase(context, testcase);
+    }, `Testcase #${index}, ${method}("${testcase.data}").`);
+  });
+}
+</script>
+</head>
+<body>
+</body>

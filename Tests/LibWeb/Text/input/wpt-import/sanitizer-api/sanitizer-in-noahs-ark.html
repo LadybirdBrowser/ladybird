@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Sanitizer and the Noah's Ark clause of the list of active formatting elements</title>
+<link rel="help" href="https://html.spec.whatwg.org/#push-onto-the-list-of-active-formatting-elements">
+<link rel="help" href="https://html.spec.whatwg.org/#html-sanitization">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/html5lib-testcase-support.js"></script>
+</head>
+<body>
+<!--
+  The Noah's Ark clause compares formatting elements by their tag name,
+  namespace and attributes as parsed. Attributes that the sanitizer removes
+  still count: four <b> elements whose (removed) attributes differ are all
+  kept in the list of active formatting elements, so all four are
+  reconstructed, even though the resulting elements look identical. When the
+  removed attributes are identical, the earliest entry is evicted and only
+  three are reconstructed.
+-->
+<script type="html5lib-tests">
+#data
+<p><b title=1>1<b title=2>2<b title=3>3<b title=4>4</p>x
+#config
+{ "removeAttributes": ["title"] }
+#document
+| <p>
+|   <b>
+|     "1"
+|     <b>
+|       "2"
+|       <b>
+|         "3"
+|         <b>
+|           "4"
+| <b>
+|   <b>
+|     <b>
+|       <b>
+|         "x"
+
+#data
+<p><b title=1>1<b title=1>2<b title=1>3<b title=1>4</p>x
+#config
+{ "removeAttributes": ["title"] }
+#document
+| <p>
+|   <b>
+|     "1"
+|     <b>
+|       "2"
+|       <b>
+|         "3"
+|         <b>
+|           "4"
+| <b>
+|   <b>
+|     <b>
+|       "x"
+
+#data
+<p><b>1<b>2<b>3<b title=1>4</p>x
+#config
+{ "removeAttributes": ["title"] }
+#document
+| <p>
+|   <b>
+|     "1"
+|     <b>
+|       "2"
+|       <b>
+|         "3"
+|         <b>
+|           "4"
+| <b>
+|   <b>
+|     <b>
+|       <b>
+|         "x"
+
+#data
+<p><b title=1>1<b>2<b>3<b>4</p>x
+#config
+{ "removeAttributes": ["title"] }
+#document
+| <p>
+|   <b>
+|     "1"
+|     <b>
+|       "2"
+|       <b>
+|         "3"
+|         <b>
+|           "4"
+| <b>
+|   <b>
+|     <b>
+|       <b>
+|         "x"
+
+#data
+<p><b class=c title=1>1<b class=c title=2>2<b class=c title=3>3<b class=c title=4>4</p>x
+#config
+{ "removeAttributes": ["title"] }
+#document
+| <p>
+|   <b>
+|     class="c"
+|     "1"
+|     <b>
+|       class="c"
+|       "2"
+|       <b>
+|         class="c"
+|         "3"
+|         <b>
+|           class="c"
+|           "4"
+| <b>
+|   class="c"
+|   <b>
+|     class="c"
+|     <b>
+|       class="c"
+|       <b>
+|         class="c"
+|         "x"
+
+#data
+<p><b class=c title=1>1<b class=c title=2>2<b class=c title=3>3<b class=c title=4>4</p>x
+#config
+{ "attributes": ["class"] }
+#document
+| <p>
+|   <b>
+|     class="c"
+|     "1"
+|     <b>
+|       class="c"
+|       "2"
+|       <b>
+|         class="c"
+|         "3"
+|         <b>
+|           class="c"
+|           "4"
+| <b>
+|   class="c"
+|   <b>
+|     class="c"
+|     <b>
+|       class="c"
+|       <b>
+|         class="c"
+|         "x"
+
+#data
+<p><b onclick=1>1<b onclick=2>2<b onclick=3>3<b onclick=4>4</p>x
+#document
+| <p>
+|   <b>
+|     "1"
+|     <b>
+|       "2"
+|       <b>
+|         "3"
+|         <b>
+|           "4"
+| <b>
+|   <b>
+|     <b>
+|       <b>
+|         "x"
+
+#data
+<p><b onclick=1>1<b onclick=1>2<b onclick=1>3<b onclick=1>4</p>x
+#document
+| <p>
+|   <b>
+|     "1"
+|     <b>
+|       "2"
+|       <b>
+|         "3"
+|         <b>
+|           "4"
+| <b>
+|   <b>
+|     <b>
+|       "x"
+
+</script>
+<script>
+function parse_config(testcase) {
+  return testcase.config ? JSON.parse(testcase.config) : undefined;
+}
+
+html5lib_testcases_from_script().forEach((testcase, index) => {
+  const label = `Testcase #${index}, "${testcase.data}", config: "${testcase.config}"`;
+
+  test(_ => {
+    const context = document.createElement("div");
+    context.setHTML(testcase.data, { sanitizer: parse_config(testcase) });
+    assert_testcase(context, testcase);
+  }, `${label}, with setHTML()`);
+
+  // setHTMLUnsafe() only sanitizes when given a sanitizer, and does not
+  // remove unsafe content, so only run the test cases with an explicit
+  // configuration.
+  if (testcase.config) {
+    test(_ => {
+      const context = document.createElement("div");
+      context.setHTMLUnsafe(testcase.data, { sanitizer: parse_config(testcase) });
+      assert_testcase(context, testcase);
+    }, `${label}, with setHTMLUnsafe()`);
+  }
+
+  test(_ => {
+    const doc = Document.parseHTML(testcase.data, { sanitizer: parse_config(testcase) });
+    const expected = build_node_tree(document.createElement("body"), testcase.document);
+    assert_subtree_equals(doc.body, expected);
+  }, `${label}, with Document.parseHTML()`);
+});
+</script>
+</body>
+</html>

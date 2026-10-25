@@ -1,0 +1,22 @@
+Harness status: Error
+
+Found 16 tests
+
+6 Pass
+10 Fail
+Fail	setHTML testcase text/0, "text"
+Pass	setHTMLUnsafe testcase text/0, "text"
+Fail	ShadowRoot.setHTML testcase text/0, "text"
+Pass	ShadowRoot.setHTMLUnsafe testcase text/0, "text"
+Fail	parseHTML testcase text/0, "text"
+Pass	parseHTMLUnsafe testcase text/0, "text"
+Fail	setHTML testcase elements/0, "<div><p>Hello <b>World!</b>"
+Pass	setHTMLUnsafe testcase elements/0, "<div><p>Hello <b>World!</b>"
+Fail	ShadowRoot.setHTML testcase elements/0, "<div><p>Hello <b>World!</b>"
+Pass	ShadowRoot.setHTMLUnsafe testcase elements/0, "<div><p>Hello <b>World!</b>"
+Fail	parseHTML testcase elements/0, "<div><p>Hello <b>World!</b>"
+Pass	parseHTMLUnsafe testcase elements/0, "<div><p>Hello <b>World!</b>"
+Fail	setHTML testcase elements/1, "<div><p>Hello <b>World!</b>"
+Fail	setHTMLUnsafe testcase elements/1, "<div><p>Hello <b>World!</b>"
+Fail	ShadowRoot.setHTML testcase elements/1, "<div><p>Hello <b>World!</b>"
+Fail	ShadowRoot.setHTMLUnsafe testcase elements/1, "<div><p>Hello <b>World!</b>"

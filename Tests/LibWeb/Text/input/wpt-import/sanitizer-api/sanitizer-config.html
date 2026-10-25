@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./support/util.js"></script>
+</head>
+<body>
+<script>
+test(t => {
+  let s = new Sanitizer();
+  assert_true(s instanceof Sanitizer);
+}, "Sanitizer constructor without config.");
+
+test(t => {
+  let s = new Sanitizer({});
+  assert_true(s instanceof Sanitizer);
+}, "Sanitizer constructor with empty config.");
+
+test(t => {
+  let s = new Sanitizer(null);
+  assert_true(s instanceof Sanitizer);
+}, "Sanitizer constructor with null as config.");
+
+test(t => {
+  let s = new Sanitizer(undefined);
+  assert_true(s instanceof Sanitizer);
+}, "Sanitizer constructor with undefined as config.");
+
+test(t => {
+  let s = new Sanitizer({testConfig: [1,2,3], attr: ["test", "i", "am"]});
+  assert_true(s instanceof Sanitizer);
+}, "Sanitizer constructor with config ignore unknown values.");
+
+test(t => {
+  assert_false(new Sanitizer().get().comments);
+  assert_true(new Sanitizer({}).get().comments);
+  assert_true(new Sanitizer({comments: true}).get().comments);
+  assert_false(new Sanitizer({comments: false}).get().comments);
+
+  let s = new Sanitizer();
+  s.setComments(true);
+  assert_true(s.get().comments);
+  s.setComments(false);
+  assert_false(s.get().comments);
+  s.setComments("abc");
+  assert_true(s.get().comments);
+}, "SanitizerConfig comments field.");
+
+test(t => {
+  assert_false(new Sanitizer().get().dataAttributes);
+  assert_true(new Sanitizer({ attributes: [] }).get().dataAttributes);
+  assert_false('dataAttributes' in new Sanitizer({}).get());
+  assert_false('dataAttributes' in new Sanitizer({ removeAttributes: [] }).get());
+  assert_true(new Sanitizer({ attributes: [], dataAttributes: true}).get().dataAttributes);
+  assert_false(new Sanitizer({ attributes: [], dataAttributes: false}).get().dataAttributes);
+
+  let s = new Sanitizer();
+  s.setDataAttributes(true);
+  assert_true(s.get().dataAttributes);
+  s.setDataAttributes(false);
+  assert_false(s.get().dataAttributes);
+  s.setDataAttributes("abc");
+  assert_true(s.get().dataAttributes);
+}, "SanitizerConfig dataAttributes field.");
+
+test(t => {
+  assert_false(new Sanitizer().get().javascriptURLs);
+  assert_true(new Sanitizer({}).get().javascriptURLs);
+  assert_true(new Sanitizer({javascriptURLs: true}).get().javascriptURLs);
+  assert_false(new Sanitizer({javascriptURLs: false}).get().javascriptURLs);
+  assert_true(new Sanitizer({javascriptURLs: undefined}).get().javascriptURLs);
+  assert_false(new Sanitizer({javascriptURLs: null}).get().javascriptURLs);
+
+  let s = new Sanitizer();
+  assert_false(s.setJavascriptURLs(false));
+  assert_true(s.setJavascriptURLs(true));
+  assert_true(s.get().javascriptURLs);
+  assert_false(s.setJavascriptURLs(true));
+  assert_true(s.setJavascriptURLs(false));
+  assert_false(s.get().javascriptURLs);
+  assert_true(s.setJavascriptURLs("abc"));
+  assert_true(s.get().javascriptURLs);
+  assert_false(s.setJavascriptURLs(1));
+  assert_true(s.setJavascriptURLs(0));
+  assert_false(s.get().javascriptURLs);
+}, "SanitizerConfig javascriptURLs field.");
+
+function assert_object_equals(a, b, description) {
+  assert_equals(JSON.stringify(a), JSON.stringify(b), description);
+}
+
+function test_normalization(key, value, expected) {
+  test(t => {
+    let config = Object.fromEntries([[key, [value]]]);
+    let s = new Sanitizer(config);
+    assert_equals(s.get()[key].length, 1);
+    assert_object_equals(s.get()[key][0], expected);
+  }, `SanitizerConfig, normalization: ${key}: [${JSON.stringify(value)}]`);
+}
+
+for (key of ["elements", "removeElements", "replaceWithChildrenElements"]) {
+  // The canonical form of elements always includes an empty removeAttributes list.
+  let extra = key == "elements" ? {removeAttributes: []} : {};
+
+  test_normalization(key,
+    "div",
+    {name: "div", namespace: "http://www.w3.org/1999/xhtml", ...extra});
+  test_normalization(key,
+    {name: "b"},
+    {name: "b", namespace: "http://www.w3.org/1999/xhtml", ...extra});
+  test_normalization(key,
+    {name: "b", namespace: null},
+    {name: "b", namespace: null, ...extra});
+  test_normalization(key,
+    {name: "b", namespace: ""},
+    {name: "b", namespace: null, ...extra});
+  test_normalization(key,
+    {name: "p", namespace: "http://www.w3.org/1999/xhtml"},
+    {name: "p", namespace: "http://www.w3.org/1999/xhtml", ...extra});
+  test_normalization(key,
+    {name: "bla", namespace: "http://fantasy.org/namespace"},
+    {name: "bla", namespace: "http://fantasy.org/namespace", ...extra});
+}
+for (key of ["processingInstructions", "removeProcessingInstructions"]) {
+  test_normalization(key,
+    "target-1",
+    {target: "target-1"});
+  test_normalization(key,
+    {target: "target-1"},
+    {target: "target-1"});
+}
+for (key of ["attributes", "removeAttributes"]) {
+  test_normalization(key,
+    "href",
+    {name: "href", namespace: null});
+  test_normalization(key,
+    {name: "href", namespace: null},
+    {name: "href", namespace: null});
+  // https://wicg.github.io/sanitizer-api/#canonicalize-a-sanitizer-name, step 5
+  test_normalization(key,
+    {name: "href", namespace: ""},
+    {name: "href", namespace: null});
+  test_normalization(key,
+    {name: "href", namespace: "https://www.w3.org/1999/xlink"},
+    {name: "href", namespace: "https://www.w3.org/1999/xlink"});
+}
+
+test(t => {
+  let s = new Sanitizer({elements: ["div", "p"]});
+  assert_equals(s.get().elements.length, 2);
+  s.allowElement("bla");
+  assert_equals(s.get().elements.length, 3);
+  s.removeElement({name: "div"});
+  assert_equals(s.get().elements.length, 2);
+  s.replaceElementWithChildren({name: "p", namespace: "http://www.w3.org/1999/xhtml"});
+  assert_equals(s.get().elements.length, 1);
+  assert_object_equals(s.get().elements[0],
+                       {name: "bla", namespace: "http://www.w3.org/1999/xhtml", removeAttributes: []});
+}, "Test elements addition.");
+
+test(t => {
+  let s = new Sanitizer({removeElements: ["div", "p"]});
+  assert_equals(s.get().removeElements.length, 2);
+  s.removeElement("bla");
+  assert_equals(s.get().removeElements.length, 3);
+  s.replaceElementWithChildren({name: "div"});
+  assert_equals(s.get().removeElements.length, 2);
+  s.allowElement({name: "p", namespace: "http://www.w3.org/1999/xhtml"});
+  assert_equals(s.get().removeElements.length, 1);
+  assert_object_equals(s.get().removeElements[0],
+                       {name: "bla", namespace: "http://www.w3.org/1999/xhtml"});
+}, "Test elements removal.");
+
+test(t => {
+  let s = new Sanitizer({replaceWithChildrenElements: ["div", "p"]});
+  assert_equals(s.get().replaceWithChildrenElements.length, 2);
+  s.replaceElementWithChildren("bla");
+  assert_equals(s.get().replaceWithChildrenElements.length, 3);
+  s.allowElement({name: "div"});
+  assert_equals(s.get().replaceWithChildrenElements.length, 2);
+  s.removeElement({name: "p", namespace: "http://www.w3.org/1999/xhtml"});
+  assert_equals(s.get().replaceWithChildrenElements.length, 1);
+  assert_object_equals(s.get().replaceWithChildrenElements[0],
+                       {name: "bla", namespace: "http://www.w3.org/1999/xhtml"});
+}, "Test elements replacewithchildren.");
+
+test(t => {
+  let s = new Sanitizer({processingInstructions: ["target-1", "target-2"]});
+  assert_equals(s.get().processingInstructions.length, 2);
+  s.allowProcessingInstruction("target-3");
+  assert_equals(s.get().processingInstructions.length, 3);
+  s.removeProcessingInstruction({target: "target-4"});
+  assert_equals(s.get().processingInstructions.length, 3);
+  s.removeProcessingInstruction({target: "target-1"});
+  assert_equals(s.get().processingInstructions.length, 2);
+  s.removeProcessingInstruction({target: "target-2"});
+  assert_equals(s.get().processingInstructions.length, 1);
+  assert_object_equals(s.get().processingInstructions[0],
+                       {target: "target-3"});
+}, "Test processingInstructions addition.");
+
+test(t => {
+  let s = new Sanitizer({removeProcessingInstructions: ["target-1", "target-2"]});
+  assert_equals(s.get().removeProcessingInstructions.length, 2);
+  s.removeProcessingInstruction("target-3");
+  assert_equals(s.get().removeProcessingInstructions.length, 3);
+  s.allowProcessingInstruction({target: "target-1"});
+  assert_equals(s.get().removeProcessingInstructions.length, 2);
+  s.allowProcessingInstruction({target: "target-2"});
+  assert_equals(s.get().removeProcessingInstructions.length, 1);
+  assert_object_equals(s.get().removeProcessingInstructions[0],
+                       {target: "target-3"});
+}, "Test processingInstructions removal.");
+
+test(t => {
+  let s = new Sanitizer({attributes: ["href", "src"]});
+  assert_equals(s.get().attributes.length, 2);
+  s.allowAttribute("id");
+  assert_equals(s.get().attributes.length, 3);
+  s.removeAttribute({name: "href", namespace: "https://www.w3.org/1999/xlink" });
+  assert_equals(s.get().attributes.length, 3);
+  s.removeAttribute({name: "href"});
+  assert_equals(s.get().attributes.length, 2);
+  s.removeAttribute({name: "src", namespace: null});
+  assert_equals(s.get().attributes.length, 1);
+  assert_object_equals(s.get().attributes[0],
+                       {name: "id", namespace: null});
+}, "Test attribute addition.");
+
+test(t => {
+  let s = new Sanitizer({removeAttributes: ["href", "src"]});
+  assert_equals(s.get().removeAttributes.length, 2);
+  s.removeAttribute("id");
+  assert_equals(s.get().removeAttributes.length, 3);
+  s.allowAttribute({name: "href", namespace: "https://www.w3.org/1999/xlink" });
+  assert_equals(s.get().removeAttributes.length, 3);
+  s.allowAttribute({name: "href"});
+  assert_equals(s.get().removeAttributes.length, 2);
+  s.allowAttribute({name: "src", namespace: null});
+  assert_equals(s.get().removeAttributes.length, 1);
+  assert_object_equals(s.get().removeAttributes[0],
+                       {name: "id", namespace: null});
+}, "Test attribute removal.");
+
+test(t => {
+  let s = new Sanitizer({elements: [{name: "div", attributes: ["href", "src"]}]});
+  assert_equals(s.get().elements.length, 1);
+  assert_true("attributes" in s.get().elements[0]);
+  assert_false("removeAttributes" in s.get().elements[0]);
+  assert_equals(s.get().elements[0].attributes.length, 2);
+
+  s.allowElement({name: "div", namespace: "http://www.w3.org/1999/xhtml",
+                  attributes: ["class"]});
+  assert_equals(s.get().elements[0].attributes.length, 1);
+  assert_object_equals(s.get().elements[0].attributes[0],
+                       { name: "class", namespace: null });
+}, "Test attribute-per-element sets (i.e. overwrites).");
+
+test(t => {
+  let s = new Sanitizer({elements: [{name: "div", removeAttributes: ["href", "src"]}]});
+  assert_equals(s.get().elements.length, 1);
+  assert_false("attributes" in s.get().elements[0]);
+  assert_true("removeAttributes" in s.get().elements[0]);
+  assert_equals(s.get().elements[0].removeAttributes.length, 2);
+
+  s.allowElement({name: "div", namespace: "http://www.w3.org/1999/xhtml",
+                  removeAttributes: ["class"]});
+  assert_equals(s.get().elements[0].removeAttributes.length, 1);
+  assert_object_equals(s.get().elements[0].removeAttributes[0],
+                       { name: "class", namespace: null });
+}, "Test removeAttribute-per-element sets (i.e. overwrites).");
+
+// Tests for valid/invalid config parameter combinations.
+// 1. The config has either an elements or a removeElements key, but not both.
+test(() => {
+  assert_throws_js(TypeError, () => {
+    new Sanitizer({ elements: [], removeElements: [] });
+  });
+}, "Both elements and removeElements should not be allowed.");
+
+// 2. The config has either an attributes or a removeAttributes key, but not both.
+test(() => {
+  assert_throws_js(TypeError, () => {
+    new Sanitizer({ attributes: [], removeAttributes: [] });
+  });
+}, "Both attributes and removeAttributes should not be allowed.");
+
+// The config has either a processingInstructions or a removeProcessingInstructions key, but not both.
+test(() => {
+  assert_throws_js(TypeError, () => {
+    new Sanitizer({ processingInstructions: [], removeProcessingInstructions: [] });
+  });
+}, "Both processingInstructions and removeProcessingInstructions should not be allowed.");
+
+// 3. Assert: All SanitizerElementNamespaceWithAttributes, SanitizerElementNamespace, and SanitizerAttributeNamespace items in config are canonical, meaning they have been run through canonicalize a sanitizer element or canonicalize a sanitizer attribute, as appropriate.
+// This is tested in the sanitizer-config test file.
+
+// 4. None of config[elements], config[removeElements], config[replaceWithChildrenElements], config[attributes], or config[removeAttributes], if they exist, has duplicates.
+const DUPLICATE_NAMES = [
+  ["", ""],
+  ["abc", "abc"],
+  ["data-xyz", "data-xyz"],
+  ["abc", {name: "abc"}],
+  [{name: "abc", namespace: "xyz"}, {name: "abc", namespace: "xyz"}],
+  [{name: "abc", namespace: ""}, {name: "abc", namespace: null}]
+];
+
+// NOTE: Elements and attributes have different default namespaces.
+const DUPLICATE_ELEMENT_NAMES = DUPLICATE_NAMES.concat([
+  ["abc", {name: "abc", namespace: "http://www.w3.org/1999/xhtml"}],
+  [{name: "abc"}, {name: "abc", namespace: "http://www.w3.org/1999/xhtml"}]
+]);
+
+const DUPLICATE_ATTRIBUTE_NAMES = DUPLICATE_NAMES.concat([
+  ["abc", {name: "abc", namespace: null}],
+  [{name: "abc"}, {name: "abc", namespace: null}]
+]);
+
+test(() => {
+  for (let names of DUPLICATE_ELEMENT_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({ elements: names });
+    });
+  }
+}, "config[elements] should not allow duplicates");
+
+test(() => {
+  for (let names of DUPLICATE_ELEMENT_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({ removeElements: names });
+    });
+  }
+}, "config[removeElements] should not allow duplicates");
+
+test(() => {
+  for (let names of DUPLICATE_ELEMENT_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({ replaceWithChildrenElements: names });
+    });
+  }
+}, "config[replaceWithChildrenElements] should not allow duplicates");
+
+test(() => {
+  for (let names of DUPLICATE_ATTRIBUTE_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({ attributes: names });
+    });
+  }
+}, "config[attributes] should not allow duplicates");
+
+test(() => {
+  for (let names of DUPLICATE_ATTRIBUTE_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({ removeAttributes: names });
+    });
+  }
+}, "config[removeAttributes] should not allow duplicates");
+
+// None of config[processingInstructions] or config[removeProcessingInstructions], if they exist, has duplicate targets.
+const DUPLICATE_TARGETS = [
+  ["", ""],
+  ["abc", "abc"],
+  ["data-xyz", "data-xyz"],
+  ["abc", {target: "abc"}],
+  [{target: "abc"}, {target: "abc"}]
+];
+
+test(() => {
+  for (let targets of DUPLICATE_TARGETS) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({ processingInstructions: targets });
+    });
+  }
+}, "config[processingInstructions] should not allow duplicate targets");
+
+test(() => {
+  for (let targets of DUPLICATE_TARGETS) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({ removeProcessingInstructions: targets });
+    });
+  }
+}, "config[removeProcessingInstructions] should not allow duplicate targets");
+
+// 11.1. For each element of config["replaceWithChildrenElements"]:
+// 11.1.1. If the built-in non-replaceable elements list contains element, then return false.
+test(() => {
+  for (let element of NON_REPLACEABLE_ELEMENTS) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({
+        replaceWithChildrenElements: [element],
+      });
+    });
+  }
+}, "config[replaceWithChildrenElements] should not allow non-replaceable elements");
+
+// 5. If both config[elements] and config[replaceWithChildrenElements] exist, then the intersection of config[elements] and config[replaceWithChildrenElements] is empty.
+test(() => {
+  for (let [a, b] of DUPLICATE_ELEMENT_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({
+        elements: [a],
+        replaceWithChildrenElements: [b],
+      });
+    });
+  }
+}, "config[elements] and config[replaceWithChildrenElements] should not intersect");
+
+// 6. If both config[removeElements] and config[replaceWithChildrenElements] exist, then the intersection of config[removeElements] and config[replaceWithChildrenElements] is empty.
+test(() => {
+  for (let [a, b] of DUPLICATE_ELEMENT_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({
+        removeElements: [a],
+        replaceWithChildrenElements: [b],
+      });
+    });
+  }
+}, "config[removeElements] and config[replaceWithChildrenElements] should not intersect");
+
+// 7. If config[attributes] exists:
+// 7.1. If config[elements] exists:
+// 7.1.1. For each element of config[elements]:
+// 7.1.1.1. Neither element[attributes] nor element[removeAttributes], if they exist, has duplicates.
+test(() => {
+  for (let names of DUPLICATE_ATTRIBUTE_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({
+        attributes: [],
+        elements: [{ name: "div", attributes: names }],
+      });
+    });
+  }
+}, "Duplicates in element[attributes] with config[attributes] should not be allowed.");
+
+test(() => {
+  for (let names of DUPLICATE_ATTRIBUTE_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({
+        attributes: [],
+        elements: [{ name: "div", removeAttributes: names }],
+      });
+    });
+  }
+}, "Duplicates in element[removeAttributes] with config[attributes] should not be allowed.");
+
+// 7.1.1.2. The intersection of config[attributes] and element[attributes] with default « » is empty.
+test(() => {
+  for (let [a, b] of DUPLICATE_ATTRIBUTE_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({
+        attributes: [a],
+        elements: [{ name: "div", attributes: [b] }],
+      });
+    });
+  }
+}, "config[attributes] and element[attributes] should not intersect.");
+
+// 7.1.1.3. element[removeAttributes] with default « » is a subset of config[attributes].
+test(() => {
+  assert_throws_js(TypeError, () => {
+    new Sanitizer({
+      attributes: ["class"],
+      elements: [{ name: "div", removeAttributes: ["title"] }],
+    });
+  });
+}, "element[removeAttributes] should be a subset of config[attributes]");
+
+// 7.1.1.4. If dataAttributes exists and dataAttributes is true:
+// 7.1.1.4.1. element[attributes] does not contain a custom data attribute.
+test(() => {
+  assert_throws_js(TypeError, () => {
+    new Sanitizer({
+      attributes: [],
+      dataAttributes: true,
+      elements: [{ name: "div", attributes: ["data-foo"] }],
+    });
+  });
+
+  assert_throws_js(TypeError, () => {
+    new Sanitizer({
+      attributes: [],
+      dataAttributes: true,
+      elements: [{ name: "div", attributes: [{ name: "data-bar", namespace: null }] }],
+    });
+  });
+}, "element[attributes] with a data attribute must not co-exist with config[dataAttributes] set to true.");
+
+// 7.2. If dataAttributes is true:
+// 7.2.1. config[attributes] does not contain a custom data attribute.
+test(() => {
+  assert_throws_js(TypeError, () => {
+    new Sanitizer({
+      attributes: ["data-bar"],
+      dataAttributes: true,
+    });
+  });
+
+  assert_throws_js(TypeError, () => {
+    new Sanitizer({
+      attributes: [{ name: "data-foo", namespace: null }],
+      dataAttributes: true,
+    });
+  });
+}, "config[attributes] with a data attribute must not co-exist with config[dataAttributes] set to true.");
+
+// 8. If config[removeAttributes] exists:
+// 8.1. If config[elements] exists, then for each element of config[elements]:
+// 8.1.1. Not both element[attributes] and element[removeAttributes] exist.
+test(() => {
+  assert_throws_js(TypeError, () => {
+    new Sanitizer({
+      removeAttributes: [],
+      elements: [{ name: "div", attributes: [], removeAttributes: [] }],
+    });
+  });
+}, "element[attributes] and element[removeAttributes] should not both exist with config[removeAttributes].");
+
+// 8.1.2. Neither element[attributes] nor element[removeAttributes], if they exist, has duplicates.
+test(() => {
+  for (let names of DUPLICATE_ATTRIBUTE_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({
+        removeAttributes: [],
+        elements: [{ name: "div", attributes: names }],
+      });
+    });
+  }
+}, "Duplicates in element[attributes] with config[removeAttributes] should not be allowed.");
+
+test(() => {
+  for (let names of DUPLICATE_ATTRIBUTE_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({
+        removeAttributes: [],
+        elements: [{ name: "div", removeAttributes: names }],
+      });
+    });
+  }
+}, "Duplicates in element[removeAttributes] with config[removeAttributes] should not be allowed.");
+
+// 8.1.3. The intersection of config[removeAttributes] and element[attributes] with default « » is empty.
+test(() => {
+  for (let [a, b] of DUPLICATE_ATTRIBUTE_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({
+        removeAttributes: [a],
+        elements: [{ name: "div", attributes: [b] }],
+      });
+    });
+  }
+}, "config[removeAttributes] and element[attributes] should not intersect.");
+
+// 8.1.4. The intersection of config[removeAttributes] and element[removeAttributes] with default « » is empty.
+test(() => {
+  for (let [a, b] of DUPLICATE_ATTRIBUTE_NAMES) {
+    assert_throws_js(TypeError, () => {
+      new Sanitizer({
+        removeAttributes: [a],
+        elements: [{ name: "div", removeAttributes: [b] }],
+      });
+    });
+  }
+}, "config[removeAttributes] and element[removeAttributes] should not intersect.");
+
+// 8.2. config[dataAttributes] does not exist.
+test(() => {
+  assert_throws_js(TypeError, () => {
+    new Sanitizer({ removeAttributes: [], dataAttributes: true });
+  });
+
+  assert_throws_js(TypeError, () => {
+    new Sanitizer({ removeAttributes: [], dataAttributes: false });
+  });
+}, "Can not use config[dataAttributes] and config[removeAttributes] together.");
+</script>
+</body>
+</html>

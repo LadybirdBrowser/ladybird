@@ -1,0 +1,110 @@
+#data
+test
+#document-fragment
+script
+#document
+
+#data
+<p>Hello</p>
+#document-fragment
+script
+#document
+
+#data
+<div>Hello<script>World</script>xxx
+#document
+| <div>
+|   "Helloxxx"
+
+#data
+<div>Hello<script>World</script>xxx
+#config
+{ "elements": ["div", "script"] }
+#document
+| <div>
+|   "Helloxxx"
+
+#data
+<svg>Hello<script>World</script>xxx
+#document
+| <svg svg>
+|   "Helloxxx"
+
+#data
+<a href="https://wpt.live/" onclick="2+2" one="two">
+#document
+| <a>
+|   href="https://wpt.live/"
+
+#data
+<a href="https://wpt.live/" onclick="2+2" one="two">
+#config
+{ "elements": ["a"], "attributes": ["href", "onclick", "one"]}
+#document
+| <a>
+|   href="https://wpt.live/"
+|   one="two"
+
+#data
+<img src="https://wpt.live/test-image" onclick="2+2" one="two">
+#config
+{ "elements": ["img"], "attributes": ["src", "onclick", "one"]}
+#document
+| <img>
+|   one="two"
+|   src="https://wpt.live/test-image"
+
+#data
+<p data-x="1" data-y="2" data-z="3">
+#document
+| <p>
+
+#data
+<div><base href="https://example.org/"></base></div>
+#config
+{ }
+#document
+| <div>
+
+#data
+<div><embed src="https://example.org/"></embed></div>
+#config
+{ }
+#document
+| <div>
+
+#data
+<div><iframe src="https://example.org/"></iframe></div>
+#config
+{ }
+#document
+| <div>
+
+#data
+<div><object data="https://example.org/"></object></div>
+#config
+{ }
+#document
+| <div>
+
+#data
+<div><script src="https://example.org/"></script></div>
+#config
+{ }
+#document
+| <div>
+
+#data
+<svg><script src="https://example.org/"></script></svg>
+#config
+{ }
+#document
+| <svg svg>
+
+#data
+<svg><use href="https://example.org/"></use></svg>
+#config
+{ }
+#document
+| <svg svg>
+

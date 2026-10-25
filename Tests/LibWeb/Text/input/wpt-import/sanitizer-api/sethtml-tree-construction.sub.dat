@@ -1,0 +1,1049 @@
+#data
+test
+#document
+| "test"
+
+#data
+<b>bla</b>
+#document
+| <b>
+|   "bla"
+
+#data
+<a<embla
+#errors
+Parse error
+#document
+
+#data
+<html><head></head><body>test</body></html>
+#document
+| "test"
+
+#data
+<div>test
+#document
+| <div>
+|   "test"
+
+#data
+<script>alert('i am a test')</script>
+#document
+
+#data
+hello<script>alert('i am a test')</script>
+#document
+| "hello"
+
+#data
+<div><b>hello<script>alert('i am a test')</script>
+#document
+| <div>
+|   <b>
+|     "hello"
+
+#data
+<p onclick='a= 123'>Click.</p>
+#document
+| <p>
+|   "Click."
+
+#data
+<plaintext><p>text</p>
+#config
+{}
+#document
+| <plaintext>
+|   "<p>text</p>"
+
+#data
+<xmp>TEXT</xmp>
+#config
+{}
+#document
+| <xmp>
+|   "TEXT"
+
+#data
+test
+#config
+{ "test": 123 }
+#document
+| "test"
+
+#data
+test
+#config
+{ "removeElements": [] }
+#document
+| "test"
+
+#data
+<div>test</div><p>bla
+#config
+{ "removeElements": ["div"] }
+#document
+| <p>
+|   "bla"
+
+#data
+<custom-element>test1</custom-element>bla
+#document
+| "bla"
+
+#data
+<custom-element>test3</custom-element>bla
+#config
+{ "elements": ["custom-element"] }
+#document
+| <custom-element>
+|   "test3"
+| "bla"
+
+#data
+<custom-element>test5</custom-element>bla
+#config
+{ "removeElements": ["custom-element"] }
+#document
+| "bla"
+
+#data
+<script>alert('i am a test')</script>
+#config
+{ "removeElements": ["script"] }
+#document
+
+#data
+<div>balabala<i>test</i></div><test-element>t</test-element>
+#config
+{ "removeElements": ["test-element", "i"] }
+#document
+| <div>
+|   "balabala"
+
+#data
+<div>balabala<i>i</i><p>t</p></div>
+#config
+{ "removeElements": ["dl", "p"] }
+#document
+| <div>
+|   "balabala"
+|   <i>
+|     "i"
+
+#data
+<div>test<div>p</div>tt<p>div</p></div>
+#config
+{ "elements": ["p"], "replaceWithChildrenElements": ["div"] }
+#document
+| "testptt"
+| <p>
+|   "div"
+
+#data
+<div>test</div><p>bla
+#config
+{ "removeElements": ["div"], "elements": ["div"] }
+#error
+TypeError
+
+#data
+<p id='test'>Click.</p>
+#config
+{ "removeAttributes": [] }
+#document
+| <p>
+|   id="test"
+|   "Click."
+
+#data
+<p id='test'>Click.</p>
+#config
+{ "removeAttributes": ["id"] }
+#document
+| <p>
+|   "Click."
+
+#data
+<p id='test'>Click.</p>
+#config
+{ "elements": ["p"], "removeAttributes": ["id"] }
+#document
+| <p>
+|   "Click."
+
+#data
+<p id='p' data-attribute-with-dashes='123'>Click.</p><script>document.getElementById('p').dataset.attributeWithDashes=123;</script>
+#config
+{ "elements": ["p"], "removeAttributes": ["data-attribute-with-dashes"] }
+#document
+| <p>
+|   id="p"
+|   "Click."
+
+#data
+<p id='p' title='p'>P</p><div id='div' title='div'>DIV</div>
+#config
+{ "elements": [
+  { "name": "p", "attributes": ["title"] },
+  { "name": "div", "attributes": ["id"] }
+]}
+#document
+| <p>
+|   title="p"
+|   "P"
+| <div>
+|   id="div"
+|   "DIV"
+
+#data
+<p id='p' title='p'>P</p><div id='div' title='div'>DIV</div>
+#config
+{ "elements":
+  [
+    { "name": "p", "removeAttributes": ["title"] },
+    { "name": "div", "removeAttributes": ["id"] }
+  ]
+}
+#document
+| <p>
+|   id="p"
+|   "P"
+| <div>
+|   title="div"
+|   "DIV"
+
+#data
+<div id='div' title='div'>DIV</div>
+#config
+{ "elements": [{ "name": "div", "attributes": ["id"], "removeAttributes": ["id"] }]}
+#error
+TypeError
+
+#data
+<div id='div' title='div'>DIV</div>
+#config
+{ "elements": [{ "name": "div", "attributes": ["id", "title"] }],
+  "attributes": []}
+#document
+| <div>
+|   id="div"
+|   title="div"
+|   "DIV"
+
+#data
+<div id='div' title='div'>DIV</div>
+#config
+{
+  "elements": [{ "name": "div", "attributes": [] }],
+  "removeAttributes": ["id", "title"]
+}
+#document
+| <div>
+|   "DIV"
+
+#data
+<div id='div' title='div'>DIV</div>
+#config
+{
+  "elements": [{ "name": "div", "removeAttributes": ["id", "title"] }],
+  "attributes": ["id", "title"]
+}
+#document
+| <div>
+|   "DIV"
+
+#data
+<p id='test' onclick='a= 123'>Click.</p>
+#config
+{ "attributes": ["id"] }
+#document
+| <p>
+|   id="test"
+|   "Click."
+
+#data
+<p style='color: black'>Click.</p>
+#config
+{ "removeAttributes": ["style"], "attributes": ["style"] }
+#error
+TypeError
+
+#data
+<template><script>test</script><div>hello</div></template>
+#config
+{ "elements": ["template", "div"] }
+#document
+| <template>
+|   content
+|     <div>
+|       "hello"
+
+#data
+<a href='javascript:evil.com'>Click.</a>
+#document
+| <a>
+|   "Click."
+
+#data
+<a href='  javascript:evil.com'>Click.</a>
+#document
+| <a>
+|   "Click."
+
+#data
+<a href='http:evil.com'>Click.</a>
+#document
+| <a>
+|   href="http:evil.com"
+|   "Click."
+
+#data
+<area href='javascript:evil.com'>
+#config
+{}
+#document
+| <area>
+
+#data
+<area href=' javascript:evil.com'>
+#config
+{}
+#document
+| <area>
+
+#data
+<area href='http:evil.com'>
+#config
+{}
+#document
+| <area>
+|   href="http:evil.com"
+
+#data
+<form action='javascript:evil.com'>Click.</form>
+#config
+{}
+#document
+| <form>
+|   "Click."
+
+#data
+<form action=' javascript:evil.com'>Click.</form>
+#config
+{}
+#document
+| <form>
+|   "Click."
+
+#data
+<form action='http:evil.com'>Click.</form>
+#config
+{}
+#document
+| <form>
+|   action="http:evil.com"
+|   "Click."
+
+#data
+<input formaction='javascript:evil.com'>
+#config
+{}
+#document
+| <input>
+
+#data
+<input formaction=' javascript:evil.com'>
+#config
+{}
+#document
+| <input>
+
+#data
+<input formaction='http:evil.com'>
+#config
+{}
+#document
+| <input>
+|   formaction="http:evil.com"
+
+#data
+<button formaction='javascript:evil.com'>Click.</button>
+#config
+{}
+#document
+| <button>
+|   "Click."
+
+#data
+<button formaction=' javascript:evil.com'>Click.</button>
+#config
+{}
+#document
+| <button>
+|   "Click."
+
+#data
+<button formaction='http:evil.com'>Click.</button>
+#config
+{}
+#document
+| <button>
+|   formaction="http:evil.com"
+|   "Click."
+
+#data
+<p>Some text</p></body><!-- 1 --></html><!-- 2 --><p>Some more text</p>
+#document
+| <p>
+|   "Some text"
+| <p>
+|   "Some more text"
+
+#data
+<p>Some text</p><!-- 1 --><!-- 2 --><p>Some more text</p>
+#document
+| <p>
+|   "Some text"
+| <p>
+|   "Some more text"
+
+#data
+<p>Some text</p><!-- 1 --><!-- 2 --><p>Some more text</p>
+#config
+{ "comments": true }
+#document
+| <p>
+|   "Some text"
+| <!-- 1 -->
+| <!-- 2 -->
+| <p>
+|   "Some more text"
+
+#data
+<p>Some text</p><!-- 1 --><!-- 2 --><p>Some more text</p>
+#config
+{ "comments": false }
+#document
+| <p>
+|   "Some text"
+| <p>
+|   "Some more text"
+
+#data
+<p>comment<!-- hello -->in<!-- </p> -->text</p>
+#document
+| <p>
+|   "commentintext"
+
+#data
+<p>comment<!-- hello -->in<!-- </p> -->text</p>
+#config
+{ "comments": true }
+#document
+| <p>
+|   "comment"
+|   <!-- hello -->
+|   "in"
+|   <!-- </p> -->
+|   "text"
+
+#data
+<p>comment<!-- hello -->in<!-- </p> -->text</p>
+#config
+{ "comments": false }
+#document
+| <p>
+|   "commentintext"
+
+#data
+<svg></svg>
+#config
+{ "elements": ["svg"] }
+#document
+
+#data
+<div><svg></svg></div>
+#config
+{ "elements": ["div", "svg"] }
+#document
+| <div>
+
+#data
+<div>balabala<dl>test</dl></div>
+#config
+{ "removeElements": ["I", "DL"] }
+#document
+| <div>
+|   "balabala"
+|   <dl>
+|     "test"
+
+#data
+<div>balabala<dl>test</dl></div>
+#config
+{ "removeElements": ["i", "dl"] }
+#document
+| <div>
+|   "balabala"
+
+#data
+<DIV>balabala<DL>test</DL></DIV>
+#config
+{ "removeElements": ["i", "dl"] }
+#document
+| <div>
+|   "balabala"
+
+#data
+<p id="test">Click.</p>
+#config
+{ "removeAttributes": ["ID"] }
+#document
+| <p>
+|   id="test"
+|   "Click."
+
+#data
+<p ID="test">Click.</p>
+#config
+{ "removeAttributes": ["ID"] }
+#document
+| <p>
+|   id="test"
+|   "Click."
+
+#data
+<p ID="test">Click.</p>
+#config
+{ "removeAttributes": ["id"] }
+#document
+| <p>
+|   "Click."
+
+#data
+<div>balabala<i>test</i></div><test>t</test><custom-element>custom-element</custom-element>
+#config
+{ "removeElements": [123, "test", "i", "custom-element"] }
+#document
+| <div>
+|   "balabala"
+
+#data
+<div>balabala<i>test</i></div><test>t</test><custom-element>custom-element</custom-element>
+#config
+{ "replaceWithChildrenElements": [123, "test", "i", "custom-element"],
+  "elements": ["div"]}
+#document
+| <div>
+|   "balabalatest"
+| "tcustom-element"
+
+#data
+<div>test<div>p</div>tt<p>div</p></div><test>test</test>
+#config
+{ "elements": ["p", "test"], "replaceWithChildrenElements": ["div"] }
+#document
+| "testptt"
+| <p>
+|   "div"
+| <test>
+|   "test"
+
+#data
+test<div>p</div>tt<p>div</p><test>test</test>
+#config
+{ "elements": ["p", "test"], "replaceWithChildrenElements": ["div"] }
+#document
+| "testptt"
+| <p>
+|   "div"
+| <test>
+|   "test"
+
+#data
+<div hello='1' world='2'><b hello='3' world='4'>
+#config
+{ "elements": ["div", "b"], "attributes": ["hello", "world"] }
+#document
+| <div>
+|   hello="1"
+|   world="2"
+|   <b>
+|     hello="3"
+|     world="4"
+
+#data
+<div hello='1' world='2'><b hello='3' world='4'>
+#config
+{ "elements": ["div", "b"], "removeAttributes": ["hello", "world"] }
+#document
+| <div>
+|   <b>
+
+#data
+<table><div><td>
+#config
+{ "replaceWithChildrenElements": ["table"] }
+#document
+| <div>
+| <tbody>
+|   <tr>
+|     <td>
+
+#data
+<template><div>Hello</div></template>
+#config
+{}
+#document
+| <template>
+|   content
+|     <div>
+|       "Hello"
+
+#data
+<template><div>Hello</div></template>
+#config
+{ "elements": ["div"]}
+#document
+
+#data
+<template><div>Hello</div></template>
+#config
+{ "elements": ["template"]}
+#document
+| <template>
+|   content
+
+#data
+<template><div>Hello</div></template>
+#config
+{ "elements": ["div", "template"]}
+#document
+| <template>
+|   content
+|     <div>
+|       "Hello"
+
+#data
+<template><div>Hello</div></template>
+#config
+{ "elements": ["template"], "replaceWithChildrenElements": ["div"]}
+#document
+| <template>
+|   content
+|     "Hello"
+
+#data
+<a href="about:blank" rel="opener">Click.</a>
+#document
+| <a>
+|   href="about:blank"
+|   "Click."
+
+#data
+<div><b><em><foo><foob><fooc><aside></b></em></div>
+#config
+{ "removeElements": ["em"] }
+#document
+| <div>
+|   <b>
+|   <aside>
+|     <b>
+
+#data
+<template><b>Hello</b></template>
+#config
+{ "replaceWithChildrenElements": ["template"] }
+#document
+
+#data
+<div><template><b>Hello</b></template>after</div>
+#config
+{ "replaceWithChildrenElements": ["template"] }
+#document
+| <div>
+|   "after"
+
+#data
+<b>before</b><template><span>A</span><template><i>nested</i></template></template><b>after</b>
+#config
+{ "replaceWithChildrenElements": ["template"] }
+#document
+| <b>
+|   "before"
+| <b>
+|   "after"
+
+#data
+<table><template><span>A</span></template><td>cell</td></table>
+#config
+{ "replaceWithChildrenElements": ["template"] }
+#document
+| <table>
+|   <tbody>
+|     <tr>
+|       <td>
+|         "cell"
+
+#data
+<div><div><b>Hello</b></div>after</div>
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <b>
+|   "Hello"
+| "after"
+
+#data
+<div><table><tr>foster<td>cell</td></tr></table></div>
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| "foster"
+| <table>
+|   <tbody>
+|     <tr>
+|       <td>
+|         "cell"
+
+#data
+<table><div><span>Content</span></div><td>cell</td></table>
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <span>
+|   "Content"
+| <table>
+|   <tbody>
+|     <tr>
+|       <td>
+|         "cell"
+
+#data
+<table><tr><div><span>Content</span></div><td>cell</td></tr></table>
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <span>
+|   "Content"
+| <table>
+|   <tbody>
+|     <tr>
+|       <td>
+|         "cell"
+
+#data
+<table>x<tr><td>y
+#config
+{ "replaceWithChildrenElements": ["table"] }
+#document
+| "x"
+| <tbody>
+|   <tr>
+|     <td>
+|       "y"
+
+#data
+<table><tr><td>y</td></tr>x</table>
+#config
+{ "replaceWithChildrenElements": ["table"] }
+#document
+| <tbody>
+|   <tr>
+|     <td>
+|       "y"
+| "x"
+
+#data
+<table><tr><td>y</td></tr><div>x</div></table>
+#config
+{ "replaceWithChildrenElements": ["table"] }
+#document
+| <tbody>
+|   <tr>
+|     <td>
+|       "y"
+| <div>
+|   "x"
+
+#data
+a<table><tr><td>y</td></tr>b</table>c
+#config
+{ "replaceWithChildrenElements": ["table"] }
+#document
+| "a"
+| <tbody>
+|   <tr>
+|     <td>
+|       "y"
+| "bc"
+
+#data
+<table><tbody><tr><td>y</td></tr>x</table>
+#config
+{ "replaceWithChildrenElements": ["table", "tbody"] }
+#document
+| <tr>
+|   <td>
+|     "y"
+| "x"
+
+#data
+<table><tr><div>x</div><td>y
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| "x"
+| <table>
+|   <tbody>
+|     <tr>
+|       <td>
+|         "y"
+
+#data
+<table>a<b>y</b>c<tr><td>z
+#config
+{ "replaceWithChildrenElements": ["b"] }
+#document
+| "ayc"
+| <table>
+|   <tbody>
+|     <tr>
+|       <td>
+|         "z"
+
+#data
+<table><template>x</template><tr><td>y
+#config
+{ "replaceWithChildrenElements": ["template"] }
+#document
+| <table>
+|   <tbody>
+|     <tr>
+|       <td>
+|         "y"
+
+#data
+<template><table>x</table></template>
+#config
+{ "replaceWithChildrenElements": ["table"] }
+#document
+| <template>
+|   content
+|     "x"
+
+#data
+a<table>b<tr><td>c</table>d
+#config
+{ "removeElements": ["table"] }
+#document
+| "abd"
+
+#data
+<table><tr>x<td>y
+#config
+{ "removeElements": ["tr"] }
+#document
+| "x"
+| <table>
+|   <tbody>
+
+#data
+<div><table>x
+#config
+{ "removeElements": ["div"] }
+#document
+
+#data
+<b><table>x
+#config
+{ "replaceWithChildrenElements": ["b"] }
+#document
+| "x"
+| <table>
+
+#data
+<b><table><div>x
+#config
+{ "replaceWithChildrenElements": ["b"], "removeElements": ["table"] }
+#document
+| <div>
+|   "x"
+
+#data
+<table><div><input type="hidden"><td>x
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <input>
+|   type="hidden"
+| <table>
+|   <tbody>
+|     <tr>
+|       <td>
+|         "x"
+
+#data
+<table><div><template>t</template><td>x
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <template>
+|   content
+|     "t"
+| <table>
+|   <tbody>
+|     <tr>
+|       <td>
+|         "x"
+
+#data
+<table><div><!-- c --><td>x
+#config
+{ "replaceWithChildrenElements": ["div"], "comments": true }
+#document
+| <!-- c -->
+| <table>
+|   <tbody>
+|     <tr>
+|       <td>
+|         "x"
+
+#data
+<table><tr><td>y
+#config
+{ "replaceWithChildrenElements": ["tr"] }
+#document
+| <table>
+|   <tbody>
+|     <td>
+|       "y"
+
+#data
+<table><!-- x --><tr><td>y
+#config
+{ "replaceWithChildrenElements": ["table"], "comments": true }
+#document
+| <!-- x -->
+| <tbody>
+|   <tr>
+|     <td>
+|       "y"
+
+#data
+<template><!-- x --></template>
+#config
+{ "comments": true }
+#document
+| <template>
+|   content
+|     <!-- x -->
+
+#data
+<td>a</td><div>b</div>
+#config
+{ "replaceWithChildrenElements": ["td"] }
+#document-fragment
+tr
+#document
+| "a"
+| <div>
+|   "b"
+
+#data
+<select><option>a<option>b</select>
+#config
+{ "replaceWithChildrenElements": ["option"] }
+#document
+| <select>
+|   "ab"
+
+#data
+<select><option>a</option></select>
+#config
+{ "replaceWithChildrenElements": ["select"] }
+#document
+| <option>
+|   "a"
+
+#data
+<title>a&amp;b<b></title>c
+#config
+{ "replaceWithChildrenElements": ["title"] }
+#document
+| "a&b<b>c"
+
+#data
+<plaintext>x</plaintext>y
+#config
+{ "replaceWithChildrenElements": ["plaintext"] }
+#document
+| "x</plaintext>y"
+
+#data
+<xmp><b>x</xmp>y
+#config
+{ "removeElements": ["xmp"] }
+#document
+| "y"
+
+#data
+<image src="x">
+#config
+{ "removeElements": ["image"] }
+#document
+| <img>
+|   src="x"
+
+#data
+<image src="x">
+#config
+{ "elements": ["img"] }
+#document
+| <img>
+|   src="x"
+
+#data
+<table><tr><td>x
+#config
+{ "replaceWithChildrenElements": ["tbody"] }
+#document
+| <table>
+|   <tr>
+|     <td>
+|       "x"
+
+#data
+<table><col></table>
+#config
+{ "replaceWithChildrenElements": ["colgroup"] }
+#document
+| <table>
+|   <col>
+
+#data
+<p>a<div>b</div>c
+#config
+{ "removeElements": ["p"] }
+#document
+| <div>
+|   "b"
+| "c"
+
+#data
+<svg><g><rect></g></svg>
+#config
+{ "replaceWithChildrenElements": [{ "name": "g", "namespace": "http://www.w3.org/2000/svg" }] }
+#document
+| <svg svg>
+|   <svg rect>
+
+#data
+<svg><foreignObject><div>x</div></foreignObject></svg>
+#config
+{ "replaceWithChildrenElements": [{ "name": "foreignObject", "namespace": "http://www.w3.org/2000/svg" }] }
+#document
+| <svg svg>
+|   <div>
+|     "x"

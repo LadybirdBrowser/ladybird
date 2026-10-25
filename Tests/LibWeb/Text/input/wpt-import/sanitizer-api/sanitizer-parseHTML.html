@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<head>
+<title>Testcases for parseHTML and parseHTMLUnsafe</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/html5lib-testcase-support.js"></script>
+<!--
+  This is a set of basic Sanitizer test cases using the parseHTML and
+  parseHTMLUnsafe methods.
+-->
+<script id="all" type="html5lib-testcases">
+#data
+text
+#document
+| <html>
+|   <head>
+|   <body>
+|     "text"
+
+#data
+<div>text
+#config
+{ "elements": ["html", "body", "div"] }
+#document
+| <html>
+|   <body>
+|     <div>
+|       "text"
+
+#data
+<div>text
+#config
+{ "elements": ["body", "div"] }
+#document
+
+#data
+<div>text
+#config
+{ "elements": ["html", "div"] }
+#document
+| <html>
+
+#data
+<html onload="3 + 3"><div>a
+#config
+{ "replaceWithChildrenElements": ["html"], "elements": ["head", "body", "div"] }
+#error
+TypeError
+
+#data
+<body><body onload="alert(1)">Hello
+#config
+{ "attributes": [] }
+#document
+| <html>
+|   <head>
+|   <body>
+|     "Hello"
+
+#data
+<!-- a --><html><body>x<!-- b --></body></html><!-- c -->
+#config
+{ "comments": false }
+#document
+| <html>
+|   <head>
+|   <body>
+|     "x"
+
+#data
+<?a b?><html><body>x<?c d?></body></html><?e f?>
+#config
+{ "processingInstructions": [] }
+#document
+| <html>
+|   <head>
+|   <body>
+|     "x"
+
+#data
+x<p>y
+#config
+{ "replaceWithChildrenElements": ["head", "body"] }
+#document
+| <html>
+|   "x"
+|   <p>
+|     "y"
+
+#data
+<noscript><p>x</noscript>y
+#config
+{}
+#document
+| <html>
+|   <head>
+|     <noscript>
+|   <body>
+|     <p>
+|       "xy"
+
+#data
+<noscript><p>x</noscript>y
+#config
+{ "elements": ["html", "head", "body", "noscript", "p"] }
+#document
+| <html>
+|   <head>
+|     <noscript>
+|   <body>
+|     <p>
+|       "xy"
+
+</script>
+<script id="safe" type="html5lib-testcases">
+#data
+<script>hello
+#document
+| <html>
+|   <head>
+|   <body>
+
+#data
+<html onload="2+2"><body onload="3+3"><div>hello
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       "hello"
+
+#data
+<div data-xyz="1" id="2" title="3">
+#config
+{ "attributes": ["id"] }
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       id="2"
+
+#data
+<div>a<!-- xx -->b
+#config
+{ }
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       "ab"
+
+#data
+<html onload="2 + 2"><div>a
+#config
+{ "replaceWithChildrenElements": ["html"], "removeElements": [] }
+#error
+TypeError
+
+#data
+<br id="document">
+#config
+{"elements": [{ "name":"br", "attributes":[] }, "html", "body"]}
+#document
+| <html>
+|   <body>
+|     <br>
+
+#data
+<br id="document">
+#config
+{"elements": [{ "name":"br", "attributes":[] }, "html", "body"], "attributes":[]}
+#document
+| <html>
+|   <body>
+|     <br>
+
+#data
+<p onclick="alert(document.cookie)">Click handler!</p>
+#config
+{"elements": [{ "name":"p", "attributes":["onclick"] }, "html", "body"], "attributes":[]}
+#document
+#document
+| <html>
+|   <body>
+|     <p>
+|      "Click handler!"
+
+#data
+<p onclick="alert(document.cookie)">Click handler!</p>
+#config
+{"elements": [{ "name":"p", "attributes":["onclick"] }, "html", "body"]}
+#document
+#document
+| <html>
+|   <body>
+|     <p>
+|      "Click handler!"
+
+#data
+<noscript><p>x</noscript>y
+#document
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       "xy"
+
+</script>
+<script id="unsafe" type="html5lib-testcases">
+#data
+<script>hello
+#document
+| <html>
+|   <head>
+|     <script>
+|       "hello"
+|   <body>
+
+#data
+<html onload="2+2"><body onload="3+3"><div>hello
+#document
+| <html>
+|   onload="2+2"
+|   <head>
+|   <body>
+|     onload="3+3"
+|     <div>
+|       "hello"
+
+#data
+<div data-xyz="1" id="2" title="3">
+#config
+{ "attributes": ["id"] }
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       data-xyz="1"
+|       id="2"
+
+#data
+<div>a<!-- xx -->b
+#config
+{ }
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       "a"
+|       <!-- xx -->
+|       "b"
+
+#data
+<html onload="2 + 2"><div>a
+#config
+{ "replaceWithChildrenElements": ["html"], "removeElements": [] }
+#error
+TypeError
+
+#data
+<div>a<!-- xx -->b
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       "a"
+|       <!-- xx -->
+|       "b"
+
+#data
+<!-- 1 --><html><body>x<!-- 2 --></body></html><!-- 3 -->
+#document
+| <!-- 1 -->
+| <html>
+|   <head>
+|   <body>
+|     "x"
+|     <!-- 2 -->
+| <!-- 3 -->
+
+#data
+a<template>x</template>b
+#config
+{ "replaceWithChildrenElements": ["template"] }
+#document
+| <html>
+|   <head>
+|   <body>
+|     "ab"
+
+#data
+<noscript><p>x</noscript>y
+#document
+| <html>
+|   <head>
+|     <noscript>
+|   <body>
+|     <p>
+|       "xy"
+
+#data
+<head><meta></head><body>x
+#config
+{ "replaceWithChildrenElements": ["head"] }
+#document
+| <html>
+|   <meta>
+|   <body>
+|     "x"
+
+#data
+<head></head><body>x<p>y
+#config
+{ "replaceWithChildrenElements": ["body"] }
+#document
+| <html>
+|   <head>
+|   "x"
+|   <p>
+|     "y"
+
+#data
+<head></head><meta><body>x
+#config
+{ "replaceWithChildrenElements": ["head"] }
+#document
+| <html>
+|   <meta>
+|   <body>
+|     "x"
+
+#data
+<div></div><frameset>
+#config
+{ "replaceWithChildrenElements": ["body"] }
+#document
+| <html>
+|   <head>
+|   <div>
+|   <frameset>
+
+#data
+<div></div><frameset>
+#config
+{ "removeElements": ["body"] }
+#document
+| <html>
+|   <head>
+|   <frameset>
+
+</script>
+<script id="document" type="html5lib-testcases">
+#data
+<!DOCTYPE html>
+text
+#document
+| <!DOCTYPE html "" "">
+| <html>
+|   <head>
+|   <body>
+|     "text"
+
+</script>
+<script>
+function test_safe(testcase, index) {
+  let config = undefined;
+  if (testcase.config) {
+    config = { sanitizer: JSON.parse(testcase.config) };
+  }
+  test(_ => {
+    if (testcase.error) {
+      assert_throws_js(globalThis[testcase.error],
+                       () => Document.parseHTML(testcase.data, config));
+    } else {
+      assert_testcase(Document.parseHTML(testcase.data, config), testcase);
+    }
+  }, `parseHTML testcase ${index}, "${testcase.data}"`);
+}
+function test_unsafe(testcase, index) {
+  let config = undefined;
+  if (testcase.config) {
+    config = { sanitizer: JSON.parse(testcase.config) };
+  }
+  test(_ => {
+    if (testcase.error) {
+      assert_throws_js(globalThis[testcase.error],
+                       () => Document.parseHTMLUnsafe(testcase.data, config));
+    } else {
+      assert_testcase(Document.parseHTMLUnsafe(testcase.data, config), testcase);
+    }
+  }, `parseHTMLUnsafe testcase ${index}, "${testcase.data}"`);
+}
+
+const all = parse_html5lib_testcases(
+    document.getElementById("all").textContent);
+const safe = parse_html5lib_testcases(
+    document.getElementById("safe").textContent);
+const unsafe = parse_html5lib_testcases(
+    document.getElementById("unsafe").textContent);
+all.concat(safe).forEach(test_safe);
+all.concat(unsafe).forEach(test_unsafe);
+
+// Without an options argument there is no sanitizer, so nothing is removed.
+test(_ => {
+  const doc = Document.parseHTMLUnsafe("<div>a<!-- xx -->b");
+  const div = doc.body.firstChild;
+  assert_equals(div.childNodes.length, 3);
+  assert_equals(div.childNodes[1].nodeType, Node.COMMENT_NODE);
+  assert_equals(div.childNodes[1].data, " xx ");
+}, "parseHTMLUnsafe() without options keeps comments");
+
+
+// DOM only supports Document Type Declarations as children of documents. This
+// trips up the assert_testcase implementation, so we'll handle that seperately.
+parse_html5lib_testcases(
+    document.getElementById("document").textContent).
+    forEach((testcase, index) => {
+  test(_ => {
+    const tree = build_node_tree(new Document(), testcase.document);
+    assert_subtree_equals(Document.parseHTMLUnsafe(testcase.data, {}), tree);
+  }, `parseHTMLUnsafe full document testcase ${index}, "${testcase.data}"`);
+  test(_ => {
+    const tree = build_node_tree(new Document(), testcase.document);
+    assert_subtree_equals(Document.parseHTML(testcase.data, {}), tree);
+  }, `parseHTML full document testcase ${index}, "${testcase.data}"`);
+});
+</script>
+</head>
+<body>
+</body>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Test boolean defaults in config per PR #254</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+// Test cases extracted from : https://github.com/WICG/sanitizer-api/pull/254
+//
+// These are somewhat redundant with tests in sanitizer-config.tentative.html,
+// so maybe we can long-term merge them together.
+
+// Comments.
+test(t => {
+  function try_unsafe(config) {
+    const div = document.createElement("div");
+    div.setHTMLUnsafe("<!--bla-->", config)
+    return div.innerHTML.includes("<!--");
+  }
+  function try_safe(config) {
+    const div = document.createElement("div");
+    div.setHTML("<!--bla-->", config)
+    return div.innerHTML.includes("<!--");
+  }
+
+  // Parameter-less constructor.
+  assert_false(new Sanitizer().get().comments);
+  assert_true(try_unsafe());
+  assert_false(try_safe());
+
+  // Constructed from empty dictionary.
+  assert_true(new Sanitizer({}).get().comments);
+  assert_true(try_unsafe({sanitizer:{}}));
+  assert_false(try_safe({sanitizer:{}}));
+
+  // Explicitly set to true.
+  assert_true(new Sanitizer({comments: true}).get().comments);
+  assert_true(try_unsafe({sanitizer:{comments:true}}));
+  assert_true(try_safe({sanitizer:{comments:true}}));
+
+  // Explicitly set to false.
+  assert_false(new Sanitizer({comments: false}).get().comments);
+  assert_false(try_unsafe({sanitizer:{comments:false}}));
+  assert_false(try_safe({sanitizer:{comments:false}}));
+}, "comments");
+
+// Data Attributes:
+test(t => {
+  function try_unsafe(config) {
+    const div = document.createElement("div");
+    div.setHTMLUnsafe("<div data-foo='bar'>", config)
+    return div.innerHTML.includes("data-foo");
+  }
+  function try_safe(config) {
+    const div = document.createElement("div");
+    div.setHTML("<div data-foo='bar'>", config)
+    return div.innerHTML.includes("data-foo");
+  }
+
+  // Parameter-less constructor.
+  assert_false(new Sanitizer().get().dataAttributes);
+  assert_true(try_unsafe());
+  assert_false(try_safe());
+
+  // Constructed from empty dictionary: Canonicalization removes dataAttributes.
+  assert_equals(undefined, new Sanitizer({}).get().dataAttributes);
+  assert_true(try_unsafe({sanitizer:{}}));
+  assert_true(try_safe({sanitizer:{}}));
+
+  // Explicitly set to true.
+  const dataAttributes_is_true = {attributes:[], dataAttributes: true};
+  assert_true(new Sanitizer(dataAttributes_is_true).get().dataAttributes);
+  assert_true(try_unsafe({sanitizer:dataAttributes_is_true}));
+  assert_true(try_safe({sanitizer:dataAttributes_is_true}));
+
+  // Explicitly set to false.
+  const dataAttributes_is_false = {attributes:[], dataAttributes: false};
+  assert_false(new Sanitizer(dataAttributes_is_false).get().dataAttributes);
+  assert_false(try_unsafe({sanitizer:dataAttributes_is_false}));
+  assert_false(try_safe({sanitizer:dataAttributes_is_false}));
+
+  // dataAttributes not set.
+  // (This case is different from the "empty dictionary" case above, because
+  // constructing from an empty dictionary adds a removeAttributes key and thus
+  // dataAttributes is removed, too. But this case has an explicit attributes
+  // key and thus dataAttributes should be added by the canonicalization.)
+  const dataAttributes_is_not_set = {attributes:[]};
+  assert_true(new Sanitizer(dataAttributes_is_not_set).get().dataAttributes);
+  assert_true(try_unsafe({sanitizer:dataAttributes_is_not_set}));
+  assert_false(try_safe({sanitizer:dataAttributes_is_not_set}));
+}, "data attributes");
+
+// Javascript URLs:
+test(t => {
+  function try_unsafe(config) {
+    const div = document.createElement("div");
+    div.setHTMLUnsafe("<a href='javascript:alert(1)'>", config);
+    return div.innerHTML.includes("javascript:");
+  }
+  function try_safe(config) {
+    const div = document.createElement("div");
+    div.setHTML("<a href='javascript:alert(1)'>", config);
+    return div.innerHTML.includes("javascript:");
+  }
+
+  // Parameter-less constructor.
+  assert_false(new Sanitizer().get().javascriptURLs);
+  assert_true(try_unsafe());
+  assert_false(try_safe());
+  assert_false(try_unsafe({sanitizer: new Sanitizer()}));
+  assert_false(try_safe({sanitizer: new Sanitizer()}));
+
+  // Constructed from empty dictionary.
+  assert_true(new Sanitizer({}).get().javascriptURLs);
+  assert_true(try_unsafe({sanitizer:{}}));
+  assert_false(try_safe({sanitizer:{}}));
+  assert_true(try_unsafe({sanitizer: new Sanitizer({})}));
+  assert_false(try_safe({sanitizer: new Sanitizer({})}));
+
+  // Explicitly set to true.
+  assert_true(new Sanitizer({javascriptURLs: true}).get().javascriptURLs);
+  assert_true(try_unsafe({sanitizer:{javascriptURLs:true}}));
+  assert_false(try_safe({sanitizer:{javascriptURLs:true}}));
+  assert_true(try_unsafe({sanitizer: new Sanitizer({javascriptURLs: true})}));
+  assert_false(try_safe({sanitizer: new Sanitizer({javascriptURLs: true})}));
+
+  // Explicitly set to false.
+  assert_false(new Sanitizer({javascriptURLs: false}).get().javascriptURLs);
+  assert_false(try_unsafe({sanitizer:{javascriptURLs:false}}));
+  assert_false(try_safe({sanitizer:{javascriptURLs:false}}));
+  assert_false(try_unsafe({sanitizer: new Sanitizer({javascriptURLs: false})}));
+  assert_false(try_safe({sanitizer: new Sanitizer({javascriptURLs: false})}));
+}, "javascript URLs");
+
+</script>
+</body>
+</html>

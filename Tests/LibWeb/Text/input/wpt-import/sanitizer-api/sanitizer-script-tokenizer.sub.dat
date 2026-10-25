@@ -1,0 +1,80 @@
+#data
+<script><img src=x onerror='window.scriptRan=true;'><div>content</div></script>
+#method
+setHTML
+#document
+
+#data
+<script><img src=x onerror='window.scriptRan=true;'><div>content</div></script>
+#method
+setHTML
+#config
+{ "removeElements": ["script"] }
+#document
+
+#data
+<script><b>bold text</b><img src=x></script>
+#method
+setHTMLUnsafe
+#config
+{ "replaceWithChildrenElements": ["script"] }
+#document
+| "<b>bold text</b><img src=x>"
+
+#data
+<style><img src=x><div>test</div></style>
+#method
+setHTMLUnsafe
+#config
+{ "replaceWithChildrenElements": ["style"] }
+#document
+| "<img src=x><div>test</div>"
+
+#data
+<textarea><img src=x><div>test</div></textarea>
+#method
+setHTMLUnsafe
+#config
+{ "replaceWithChildrenElements": ["textarea"] }
+#document
+| "<img src=x><div>test</div>"
+
+#data
+<script><b>Hello</b></script>
+#method
+setHTML
+#config
+{ "replaceWithChildrenElements": ["script"] }
+#document
+
+#data
+<script><b>Hello</b></script>
+#method
+setHTMLUnsafe
+#config
+{ "removeElements": ["script"] }
+#document
+
+#data
+<p>before</p><script><b>bold text</b><img src=x></script><p>after</p>
+#method
+setHTMLUnsafe
+#config
+{ "replaceWithChildrenElements": ["script"] }
+#document
+| <p>
+|   "before"
+| "<b>bold text</b><img src=x>"
+| <p>
+|   "after"
+
+#data
+<p>before</p><script><b>bold text</b><img src=x></script><p>after</p>
+#method
+setHTML
+#document
+| <p>
+|   "before"
+| <p>
+|   "after"
+

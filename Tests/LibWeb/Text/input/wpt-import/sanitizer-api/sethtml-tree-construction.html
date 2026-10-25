@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<head>
+<title>Testcases from the previous Sanitizer API</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/html5lib-testcase-support.js"></script>
+<script>
+
+// Testcases from the old(er) support/testcases.sub.js file, ported over to
+// the HTML5Lib testcase format.
+promise_test(_ => {
+  return html5lib_testcases_from_response(fetch("sethtml-tree-construction.sub.dat")).
+      then(testcases => {
+        testcases.forEach((testcase, index) => {
+          test(_ => {
+            const div = document.createElement(testcase["document-fragment"] ?? "div");
+            let config = undefined;
+            try {
+              config = JSON.parse(testcase.config);
+            } catch { }
+            try {
+              div.setHTML(testcase.data, { sanitizer: config });
+            } catch (error) {
+              assert_equals(
+                error.name, testcase.error,
+                `Expect exception ${testcase.error}, but got ${error}.`);
+              assert_equals(div.firstChild, null);
+              return;  // Early return in order to not trigger the subsequent
+                       // assertions.
+            }
+            assert_false(
+              !!testcase.error,
+              `Expect exception ${testcase.error}, but nothing was thrown.`);
+            assert_testcase(div, testcase);
+          }, `Testcase #${index}, "${testcase.data}", config: "${testcase.config}".`);
+        });
+      });
+}, "wrapper");
+
+// support/testcases.sub.js contained a few testcases with non-strings as
+// input. The html5lib format doesn't support that, so we'll just add them here:
+test(_ => {
+  const div = document.createElement("div");
+  div.setHTML({});
+  assert_equals(div.outerHTML, "<div>[object Object]</div>");
+}, "Non-string input: empty object.");
+test(_ => {
+  const div = document.createElement("div");
+  div.setHTML(1);
+  assert_equals(div.outerHTML, "<div>1</div>");
+}, "Non-string input: number.");
+test(_ => {
+  const div = document.createElement("div");
+  div.setHTML(000);
+  assert_equals(div.outerHTML, "<div>0</div>");
+}, "Non-string input: octal number.");
+test(_ => {
+  const div = document.createElement("div");
+  div.setHTML(1 + 2);
+  assert_equals(div.outerHTML, "<div>3</div>");
+}, "Non-string input: expression.");
+test(_ => {
+  const div = document.createElement("div");
+  div.setHTML(undefined);
+  assert_equals(div.outerHTML, "<div>undefined</div>");
+}, "Non-string input: undefined.");
+
+</script>
+</head>
+<body>
+</body>

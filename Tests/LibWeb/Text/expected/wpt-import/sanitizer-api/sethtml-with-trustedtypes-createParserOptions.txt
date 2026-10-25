@@ -1,0 +1,103 @@
+Harness status: OK
+
+Found 97 tests
+
+8 Pass
+89 Fail
+Fail	ShadowRoot.setHTMLUnsafe: passing a TrustedHTMLParserOptions overrides default policy
+Fail	ShadowRoot.setHTMLUnsafe: policy with only createParserOptions allows raw strings when sanitizer is present
+Fail	ShadowRoot.setHTMLUnsafe: policy with only createParserOptions allows raw strings without sanitizer
+Fail	ShadowRoot.setHTMLUnsafe: TrustedHTMLParserOptions without sanitizer satisfies Trusted Types and does not require createHTML
+Fail	ShadowRoot.setHTMLUnsafe: exception in default createParserOptions prevents createHTML from running
+Fail	ShadowRoot.setHTMLUnsafe: default policy createParserOptions with sanitizer prevents createHTML from running
+Fail	ShadowRoot.setHTMLUnsafe: default policy createParserOptions without sanitizer prevents createHTML from running
+Fail	ShadowRoot.setHTMLUnsafe: default policy createParserOptions can override runScripts from false to true
+Pass	ShadowRoot.setHTMLUnsafe: default policy createParserOptions can override runScripts from true to false
+Fail	ShadowRoot.appendHTMLUnsafe: passing a TrustedHTMLParserOptions overrides default policy
+Fail	ShadowRoot.appendHTMLUnsafe: policy with only createParserOptions allows raw strings when sanitizer is present
+Fail	ShadowRoot.appendHTMLUnsafe: policy with only createParserOptions allows raw strings without sanitizer
+Fail	ShadowRoot.appendHTMLUnsafe: TrustedHTMLParserOptions without sanitizer satisfies Trusted Types and does not require createHTML
+Fail	ShadowRoot.appendHTMLUnsafe: exception in default createParserOptions prevents createHTML from running
+Fail	ShadowRoot.appendHTMLUnsafe: default policy createParserOptions with sanitizer prevents createHTML from running
+Fail	ShadowRoot.appendHTMLUnsafe: default policy createParserOptions without sanitizer prevents createHTML from running
+Fail	ShadowRoot.appendHTMLUnsafe: default policy createParserOptions can override runScripts from false to true
+Fail	ShadowRoot.appendHTMLUnsafe: default policy createParserOptions can override runScripts from true to false
+Fail	ShadowRoot.prependHTMLUnsafe: passing a TrustedHTMLParserOptions overrides default policy
+Fail	ShadowRoot.prependHTMLUnsafe: policy with only createParserOptions allows raw strings when sanitizer is present
+Fail	ShadowRoot.prependHTMLUnsafe: policy with only createParserOptions allows raw strings without sanitizer
+Fail	ShadowRoot.prependHTMLUnsafe: TrustedHTMLParserOptions without sanitizer satisfies Trusted Types and does not require createHTML
+Fail	ShadowRoot.prependHTMLUnsafe: exception in default createParserOptions prevents createHTML from running
+Fail	ShadowRoot.prependHTMLUnsafe: default policy createParserOptions with sanitizer prevents createHTML from running
+Fail	ShadowRoot.prependHTMLUnsafe: default policy createParserOptions without sanitizer prevents createHTML from running
+Fail	ShadowRoot.prependHTMLUnsafe: default policy createParserOptions can override runScripts from false to true
+Fail	ShadowRoot.prependHTMLUnsafe: default policy createParserOptions can override runScripts from true to false
+Fail	Element.setHTMLUnsafe: passing a TrustedHTMLParserOptions overrides default policy
+Fail	Element.setHTMLUnsafe: policy with only createParserOptions allows raw strings when sanitizer is present
+Fail	Element.setHTMLUnsafe: policy with only createParserOptions allows raw strings without sanitizer
+Fail	Element.setHTMLUnsafe: TrustedHTMLParserOptions without sanitizer satisfies Trusted Types and does not require createHTML
+Fail	Element.setHTMLUnsafe: exception in default createParserOptions prevents createHTML from running
+Fail	Element.setHTMLUnsafe: default policy createParserOptions with sanitizer prevents createHTML from running
+Fail	Element.setHTMLUnsafe: default policy createParserOptions without sanitizer prevents createHTML from running
+Fail	Element.setHTMLUnsafe: default policy createParserOptions can override runScripts from false to true
+Pass	Element.setHTMLUnsafe: default policy createParserOptions can override runScripts from true to false
+Fail	Element.appendHTMLUnsafe: passing a TrustedHTMLParserOptions overrides default policy
+Fail	Element.appendHTMLUnsafe: policy with only createParserOptions allows raw strings when sanitizer is present
+Fail	Element.appendHTMLUnsafe: policy with only createParserOptions allows raw strings without sanitizer
+Fail	Element.appendHTMLUnsafe: TrustedHTMLParserOptions without sanitizer satisfies Trusted Types and does not require createHTML
+Fail	Element.appendHTMLUnsafe: exception in default createParserOptions prevents createHTML from running
+Fail	Element.appendHTMLUnsafe: default policy createParserOptions with sanitizer prevents createHTML from running
+Fail	Element.appendHTMLUnsafe: default policy createParserOptions without sanitizer prevents createHTML from running
+Fail	Element.appendHTMLUnsafe: default policy createParserOptions can override runScripts from false to true
+Fail	Element.appendHTMLUnsafe: default policy createParserOptions can override runScripts from true to false
+Fail	Element.prependHTMLUnsafe: passing a TrustedHTMLParserOptions overrides default policy
+Fail	Element.prependHTMLUnsafe: policy with only createParserOptions allows raw strings when sanitizer is present
+Fail	Element.prependHTMLUnsafe: policy with only createParserOptions allows raw strings without sanitizer
+Fail	Element.prependHTMLUnsafe: TrustedHTMLParserOptions without sanitizer satisfies Trusted Types and does not require createHTML
+Fail	Element.prependHTMLUnsafe: exception in default createParserOptions prevents createHTML from running
+Fail	Element.prependHTMLUnsafe: default policy createParserOptions with sanitizer prevents createHTML from running
+Fail	Element.prependHTMLUnsafe: default policy createParserOptions without sanitizer prevents createHTML from running
+Fail	Element.prependHTMLUnsafe: default policy createParserOptions can override runScripts from false to true
+Fail	Element.prependHTMLUnsafe: default policy createParserOptions can override runScripts from true to false
+Fail	Element.beforeHTMLUnsafe: passing a TrustedHTMLParserOptions overrides default policy
+Fail	Element.beforeHTMLUnsafe: policy with only createParserOptions allows raw strings when sanitizer is present
+Fail	Element.beforeHTMLUnsafe: policy with only createParserOptions allows raw strings without sanitizer
+Fail	Element.beforeHTMLUnsafe: TrustedHTMLParserOptions without sanitizer satisfies Trusted Types and does not require createHTML
+Fail	Element.beforeHTMLUnsafe: exception in default createParserOptions prevents createHTML from running
+Fail	Element.beforeHTMLUnsafe: default policy createParserOptions with sanitizer prevents createHTML from running
+Fail	Element.beforeHTMLUnsafe: default policy createParserOptions without sanitizer prevents createHTML from running
+Fail	Element.beforeHTMLUnsafe: default policy createParserOptions can override runScripts from false to true
+Fail	Element.beforeHTMLUnsafe: default policy createParserOptions can override runScripts from true to false
+Fail	Element.afterHTMLUnsafe: passing a TrustedHTMLParserOptions overrides default policy
+Fail	Element.afterHTMLUnsafe: policy with only createParserOptions allows raw strings when sanitizer is present
+Fail	Element.afterHTMLUnsafe: policy with only createParserOptions allows raw strings without sanitizer
+Fail	Element.afterHTMLUnsafe: TrustedHTMLParserOptions without sanitizer satisfies Trusted Types and does not require createHTML
+Fail	Element.afterHTMLUnsafe: exception in default createParserOptions prevents createHTML from running
+Fail	Element.afterHTMLUnsafe: default policy createParserOptions with sanitizer prevents createHTML from running
+Fail	Element.afterHTMLUnsafe: default policy createParserOptions without sanitizer prevents createHTML from running
+Fail	Element.afterHTMLUnsafe: default policy createParserOptions can override runScripts from false to true
+Fail	Element.afterHTMLUnsafe: default policy createParserOptions can override runScripts from true to false
+Fail	Element.replaceWithHTMLUnsafe: passing a TrustedHTMLParserOptions overrides default policy
+Fail	Element.replaceWithHTMLUnsafe: policy with only createParserOptions allows raw strings when sanitizer is present
+Fail	Element.replaceWithHTMLUnsafe: policy with only createParserOptions allows raw strings without sanitizer
+Fail	Element.replaceWithHTMLUnsafe: TrustedHTMLParserOptions without sanitizer satisfies Trusted Types and does not require createHTML
+Fail	Element.replaceWithHTMLUnsafe: exception in default createParserOptions prevents createHTML from running
+Fail	Element.replaceWithHTMLUnsafe: default policy createParserOptions with sanitizer prevents createHTML from running
+Fail	Element.replaceWithHTMLUnsafe: default policy createParserOptions without sanitizer prevents createHTML from running
+Fail	Element.replaceWithHTMLUnsafe: default policy createParserOptions can override runScripts from false to true
+Fail	Element.replaceWithHTMLUnsafe: default policy createParserOptions can override runScripts from true to false
+Fail	TrustedTypePolicy.createParserOptions forwards extra arguments to callback
+Fail	TrustedTypePolicy.createParserOptions callback receives converted options dictionary
+Fail	TrustedHTMLParserOptions applies runScripts option without exposing public members
+Pass	TrustedTypePolicy.createParserOptions returning something other than an object (number: 0) throws a TypeError
+Fail	Element.setHTMLUnsafe: default policy createParserOptions returning something other than an object (number: 0) throws a TypeError
+Pass	TrustedTypePolicy.createParserOptions returning something other than an object (number: 123) throws a TypeError
+Fail	Element.setHTMLUnsafe: default policy createParserOptions returning something other than an object (number: 123) throws a TypeError
+Pass	TrustedTypePolicy.createParserOptions returning something other than an object (boolean: true) throws a TypeError
+Fail	Element.setHTMLUnsafe: default policy createParserOptions returning something other than an object (boolean: true) throws a TypeError
+Pass	TrustedTypePolicy.createParserOptions returning something other than an object (boolean: false) throws a TypeError
+Fail	Element.setHTMLUnsafe: default policy createParserOptions returning something other than an object (boolean: false) throws a TypeError
+Pass	TrustedTypePolicy.createParserOptions returning something other than an object (string: "string") throws a TypeError
+Fail	Element.setHTMLUnsafe: default policy createParserOptions returning something other than an object (string: "string") throws a TypeError
+Fail	Document.parseHTMLUnsafe: TrustedHTMLParserOptions without sanitizer satisfies Trusted Types and does not require createHTML
+Fail	Document.parseHTMLUnsafe: default policy createParserOptions without sanitizer prevents createHTML from running
+Pass	Element.setHTMLUnsafe: default policy without createParserOptions falls back to createHTML

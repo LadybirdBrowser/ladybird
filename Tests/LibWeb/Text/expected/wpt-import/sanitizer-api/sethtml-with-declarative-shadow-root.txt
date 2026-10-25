@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 14 tests
+
+1 Pass
+13 Fail
+Fail	template with shadowrootmode should be removed by safe default
+Pass	template with shadowrootmode should not be removed in unsafe mode
+Fail	template with shadowrootmode should not be processed when <template> is forbidden
+Fail	template with shadowrootmode should be processed as a normal template when the shadowRootMode attribute is forbidden
+Fail	template with shadowrootmode replaced with its children has no children in the tree
+Fail	declarative shadow root on a host replaced with its children is not attached to the parent; the template is kept as a regular template
+Fail	declarative shadow root on a removed host is dropped with it
+Fail	template with shadowrootmode in removeElements does not attach a shadow root (setHTMLUnsafe)
+Fail	shadowRoot.delegatesFocus does not propagate to the shadow root when shadowrootdelegatesfocus is removed by sanitizer
+Fail	shadowRoot.serializable does not propagate to the shadow root when shadowrootserializable is removed by sanitizer
+Fail	shadowRoot.clonable does not propagate to the shadow root when shadowrootclonable is removed by sanitizer
+Fail	shadowRoot.referenceTarget does not propagate to the shadow root when shadowrootreferencetarget is removed by sanitizer
+Fail	shadowRoot.customElementRegistry does not propagate to the shadow root when shadowrootcustomelementregistry is removed by sanitizer
+Fail	shadowRoot.adoptedStyleSheets does not propagate to the shadow root when shadowrootadoptedstylesheets is removed by sanitizer

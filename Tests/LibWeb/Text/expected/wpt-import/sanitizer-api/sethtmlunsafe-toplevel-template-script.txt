@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Fail	Top-level template and script testcases from sub.dat
+Pass	Top-level <script> parsed through setHTMLUnsafe() without runScripts does not execute
+Fail	Top-level <script> parsed through setHTMLUnsafe() with runScripts: true executes

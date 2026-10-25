@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Sanitizer script and raw text tokenizer testcases from sub.dat

@@ -1,0 +1,454 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="require-trusted-types-for 'script';"
+    />
+  </head>
+  <body>
+    <script>
+      let createHTML = null;
+      let createParserOptions = null;
+
+      trustedTypes.createPolicy("default", {
+        createHTML: (html, ...args) => (createHTML ? createHTML(html, ...args) : null),
+        createParserOptions: (options, ...args) => (createParserOptions ? createParserOptions(options, ...args) : null),
+      });
+
+      const testPolicy = trustedTypes.createPolicy("test-policy", {
+        createHTML: (html) => html,
+        createParserOptions: (options) => options,
+      });
+
+      function createXmlDoc() {
+        return document.implementation.createDocument("application/xml", "xml");
+      }
+
+      function createXmlElem(doc) {
+        const elem = doc.createElement("div");
+        doc.documentElement.appendChild(elem);
+        return elem;
+      }
+
+      /* -------------------------------------------------------------
+       * Scenario 1: Default policy supplies ONLY createParserOptions
+       * (with a sanitizer), but NO createHTML (createHTML returns null).
+       * In XML documents, get trusted type compliant input falls through
+       * to get trusted type compliant string. Because createHTML is not
+       * defined (or returns null), it triggers the CSP violation check,
+       * throwing TypeError in enforcement mode.
+       * ----------------------------------------------------------- */
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+        let createParserOptionsCalled = false;
+        createParserOptions = (options) => {
+          createParserOptionsCalled = true;
+          return { sanitizer: { removeElements: ["span"] } };
+        };
+        createHTML = null;
+
+        const doc = createXmlDoc();
+        const elem = createXmlElem(doc);
+
+        assert_throws_js(TypeError, () => {
+          elem.innerHTML = "<span></span>";
+        });
+        assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink");
+      }, "innerHTML on XML document throws TypeError without calling createParserOptions if default policy provides only a sanitizer without createHTML");
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+        let createParserOptionsCalled = false;
+        createParserOptions = (options) => {
+          createParserOptionsCalled = true;
+          return { sanitizer: { removeElements: ["span"] } };
+        };
+        createHTML = null;
+
+        const doc = createXmlDoc();
+        const elem = createXmlElem(doc);
+
+        assert_throws_js(TypeError, () => {
+          elem.outerHTML = "<span></span>";
+        });
+        assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink");
+      }, "outerHTML on XML document throws TypeError without calling createParserOptions if default policy provides only a sanitizer without createHTML");
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+        let createParserOptionsCalled = false;
+        createParserOptions = (options) => {
+          createParserOptionsCalled = true;
+          return { sanitizer: { removeElements: ["span"] } };
+        };
+        createHTML = null;
+
+        const doc = createXmlDoc();
+        const elem = createXmlElem(doc);
+
+        assert_throws_js(TypeError, () => {
+          elem.insertAdjacentHTML("beforeend", "<span></span>");
+        });
+        assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink");
+      }, "insertAdjacentHTML on XML document throws TypeError without calling createParserOptions if default policy provides only a sanitizer without createHTML");
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+        let createParserOptionsCalled = false;
+        createParserOptions = (options) => {
+          createParserOptionsCalled = true;
+          return { sanitizer: { removeElements: ["span"] } };
+        };
+        createHTML = null;
+
+        const doc = createXmlDoc();
+        const range = doc.createRange();
+        range.selectNode(doc.documentElement);
+
+        assert_throws_js(TypeError, () => {
+          range.createContextualFragment("<span></span>");
+        });
+        assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink");
+      }, "createContextualFragment on XML document throws TypeError without calling createParserOptions if default policy provides only a sanitizer without createHTML");
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+        let createParserOptionsCalled = false;
+        createParserOptions = (options) => {
+          createParserOptionsCalled = true;
+          return { sanitizer: { removeElements: ["span"] } };
+        };
+        createHTML = null;
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(testPolicy.createHTML("<xml></xml>"), "application/xml");
+        const elem = createXmlElem(doc);
+
+        assert_throws_js(TypeError, () => {
+          elem.innerHTML = "<span></span>";
+        });
+        assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink");
+      }, "innerHTML on XML document created by DOMParser throws TypeError without calling createParserOptions if default policy provides only a sanitizer without createHTML");
+
+      async_test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", "data:application/xml,<xml></xml>");
+        xhr.onload = t.step_func_done(() => {
+          let createParserOptionsCalled = false;
+          createParserOptions = (options) => {
+            createParserOptionsCalled = true;
+            return { sanitizer: { removeElements: ["span"] } };
+          };
+          createHTML = null;
+
+          const doc = xhr.responseXML;
+          const elem = createXmlElem(doc);
+
+          assert_throws_js(TypeError, () => {
+            elem.innerHTML = "<span></span>";
+          });
+          assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink");
+        });
+        xhr.send();
+      }, "innerHTML on XML document from XHR response throws TypeError without calling createParserOptions if default policy provides only a sanitizer without createHTML");
+
+      for (const method of [
+        "setHTMLUnsafe",
+        "appendHTMLUnsafe",
+        "prependHTMLUnsafe",
+        "beforeHTMLUnsafe",
+        "afterHTMLUnsafe",
+        "replaceWithHTMLUnsafe",
+      ]) {
+        test((t) => {
+          t.add_cleanup(() => {
+            createParserOptions = null;
+            createHTML = null;
+          });
+          let createParserOptionsCalled = false;
+          createParserOptions = (options) => {
+            createParserOptionsCalled = true;
+            return { sanitizer: { removeElements: ["span"] } };
+          };
+          createHTML = null;
+
+          const doc = createXmlDoc();
+          const elem = createXmlElem(doc);
+          let receiver = elem;
+          if (["beforeHTMLUnsafe", "afterHTMLUnsafe", "replaceWithHTMLUnsafe"].includes(method)) {
+            const ref = doc.createElement("div");
+            elem.appendChild(ref);
+            receiver = ref;
+          }
+
+          // Unsafe HTML methods parse as HTML, so they use createParserOptions and do NOT throw TypeError
+          receiver[method]("<div id='allowed'><span id='forbidden'></span></div>");
+          assert_true(createParserOptionsCalled, `createParserOptions must be called for ${method} on XML document`);
+          assert_not_equals(elem.querySelector("#allowed"), null);
+          assert_equals(elem.querySelector("#forbidden"), null);
+        }, `${method} on XML document does not throw TypeError and applies createParserOptions sanitizer`);
+
+        test((t) => {
+          t.add_cleanup(() => {
+            createParserOptions = null;
+            createHTML = null;
+          });
+          let createParserOptionsCalled = false;
+          createParserOptions = (options) => {
+            createParserOptionsCalled = true;
+            return {};
+          };
+          createHTML = null;
+
+          const doc = createXmlDoc();
+          const elem = createXmlElem(doc);
+          let receiver = elem;
+          if (["beforeHTMLUnsafe", "afterHTMLUnsafe", "replaceWithHTMLUnsafe"].includes(method)) {
+            const ref = doc.createElement("div");
+            elem.appendChild(ref);
+            receiver = ref;
+          }
+
+          // Unsafe HTML methods parse as HTML, so they use createParserOptions and do NOT throw TypeError even without a sanitizer
+          receiver[method]("<div id='allowed'><span id='allowed-child'></span></div>");
+          assert_true(createParserOptionsCalled, `createParserOptions must be called for ${method} on XML document`);
+          assert_not_equals(elem.querySelector("#allowed"), null);
+          assert_not_equals(elem.querySelector("#allowed-child"), null);
+        }, `${method} on XML document does not throw TypeError when createParserOptions has no sanitizer`);
+      }
+
+      /* -------------------------------------------------------------
+       * Scenario 2: Default policy supplies BOTH createParserOptions
+       * (with a sanitizer) AND createHTML.
+       * In XML documents, the sanitizer cannot be used, but createHTML
+       * executes and transforms the input string without throwing.
+       * ----------------------------------------------------------- */
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+        let createHTMLCalled = false;
+        let createParserOptionsCalled = false;
+        createParserOptions = (options) => {
+          createParserOptionsCalled = true;
+          return { sanitizer: { removeElements: ["span"] } };
+        };
+        createHTML = (html) => {
+          createHTMLCalled = true;
+          return html.replace("cat", "<span id='preserved'>dog</span>");
+        };
+
+        const doc = createXmlDoc();
+        const elem = createXmlElem(doc);
+
+        elem.innerHTML = "<div id='target'>cat</div>";
+        assert_true(createHTMLCalled, "createHTML should have been called for XML sink");
+        assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink");
+        assert_not_equals(elem.querySelector("#preserved"), null, "span should not be removed by sanitizer in XML doc");
+        assert_equals(elem.querySelector("#preserved").textContent, "dog");
+      }, "innerHTML on XML document executes createHTML and does not call createParserOptions when default policy provides both");
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+        let createHTMLCalled = false;
+        let createParserOptionsCalled = false;
+        createParserOptions = (options) => {
+          createParserOptionsCalled = true;
+          return { sanitizer: { removeElements: ["span"] } };
+        };
+        createHTML = (html) => {
+          createHTMLCalled = true;
+          return html;
+        };
+
+        const doc = createXmlDoc();
+        const elem = createXmlElem(doc);
+
+        elem.outerHTML = "<span id='xml-span'></span>";
+        assert_true(createHTMLCalled, "createHTML should have been called for XML sink");
+        assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink");
+        assert_not_equals(doc.querySelector("#xml-span"), null);
+      }, "outerHTML on XML document executes createHTML and does not call createParserOptions when default policy provides both");
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+        let createHTMLCalled = false;
+        let createParserOptionsCalled = false;
+        createParserOptions = (options) => {
+          createParserOptionsCalled = true;
+          return { sanitizer: { removeElements: ["span"] } };
+        };
+        createHTML = (html) => {
+          createHTMLCalled = true;
+          return html;
+        };
+
+        const doc = createXmlDoc();
+        const elem = createXmlElem(doc);
+
+        elem.insertAdjacentHTML("beforeend", "<span id='xml-span'></span>");
+        assert_true(createHTMLCalled, "createHTML should have been called for XML sink");
+        assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink");
+        assert_not_equals(elem.querySelector("#xml-span"), null);
+      }, "insertAdjacentHTML on XML document executes createHTML and does not call createParserOptions when default policy provides both");
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+        let createHTMLCalled = false;
+        let createParserOptionsCalled = false;
+        createParserOptions = (options) => {
+          createParserOptionsCalled = true;
+          return { sanitizer: { removeElements: ["span"] } };
+        };
+        createHTML = (html) => {
+          createHTMLCalled = true;
+          return html;
+        };
+
+        const doc = createXmlDoc();
+        const range = doc.createRange();
+        range.selectNode(doc.documentElement);
+
+        const fragment = range.createContextualFragment("<span id='xml-span'></span>");
+        assert_true(createHTMLCalled, "createHTML should have been called for XML sink");
+        assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink");
+        assert_not_equals(fragment.querySelector("#xml-span"), null);
+      }, "createContextualFragment on XML document executes createHTML and does not call createParserOptions when default policy provides both");
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+        let createHTMLCalled = false;
+        let createParserOptionsCalled = false;
+        createParserOptions = (options) => {
+          createParserOptionsCalled = true;
+          return { sanitizer: { removeElements: ["span"] } };
+        };
+        createHTML = (html) => {
+          createHTMLCalled = true;
+          return html;
+        };
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(testPolicy.createHTML("<xml></xml>"), "application/xml");
+        const elem = createXmlElem(doc);
+
+        elem.innerHTML = "<span id='xml-span'></span>";
+        assert_true(createHTMLCalled, "createHTML should have been called for XML sink");
+        assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink");
+        assert_not_equals(elem.querySelector("#xml-span"), null);
+      }, "innerHTML on XML document created by DOMParser executes createHTML and does not call createParserOptions when default policy provides both");
+
+      async_test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", "data:application/xml,<xml></xml>");
+        xhr.onload = t.step_func_done(() => {
+          let createHTMLCalled = false;
+          let createParserOptionsCalled = false;
+          createParserOptions = (options) => {
+            createParserOptionsCalled = true;
+            return { sanitizer: { removeElements: ["span"] } };
+          };
+          createHTML = (html) => {
+            createHTMLCalled = true;
+            return html;
+          };
+
+          const doc = xhr.responseXML;
+          const elem = createXmlElem(doc);
+
+          elem.innerHTML = "<span id='xml-span'></span>";
+          assert_true(createHTMLCalled, "createHTML should have been called for XML sink");
+          assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink");
+          assert_not_equals(elem.querySelector("#xml-span"), null);
+        });
+        xhr.send();
+      }, "innerHTML on XML document from XHR response executes createHTML and does not call createParserOptions when default policy provides both");
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+        createParserOptions = () => {
+          throw new Error("createParserOptions should not be called on XML document");
+        };
+        createHTML = (html) => html;
+
+        const doc = createXmlDoc();
+        const elem = createXmlElem(doc);
+
+        elem.innerHTML = "<span id='xml-span'></span>";
+        assert_not_equals(elem.querySelector("#xml-span"), null);
+      }, "innerHTML on XML document does not invoke throwing createParserOptions");
+
+      /* -------------------------------------------------------------
+       * Scenario 3: Passing TrustedHTML directly to XML sinks
+       * bypasses default policy and never calls createParserOptions or throws TypeError.
+       * ----------------------------------------------------------- */
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = null;
+          createHTML = null;
+        });
+        let createParserOptionsCalled = false;
+        createParserOptions = (options) => {
+          createParserOptionsCalled = true;
+          return { sanitizer: { removeElements: ["span"] } };
+        };
+        createHTML = null;
+
+        const doc = createXmlDoc();
+        const elem = createXmlElem(doc);
+
+        const trustedHTML = testPolicy.createHTML("<span id='xml-span'></span>");
+        elem.innerHTML = trustedHTML;
+        assert_false(createParserOptionsCalled, "createParserOptions should not be called for XML sink with TrustedHTML");
+        assert_not_equals(elem.querySelector("#xml-span"), null);
+      }, "innerHTML on XML document accepts TrustedHTML without calling createParserOptions or throwing even if createHTML is missing");
+    </script>
+  </body>
+</html>

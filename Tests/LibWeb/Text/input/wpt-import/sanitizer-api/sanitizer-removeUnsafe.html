@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+test(t => {
+  // Create an empty config.
+  let s = new Sanitizer({});
+  // Remove everything unsafe.
+  s.removeUnsafe();
+
+  let config = s.get();
+  assert_false('elements' in config, "no elements");
+  assert_false('replaceWithChildrenElements' in config, "no replaceWithChildrenElements");
+  assert_false('attributes' in config, "no attributes");
+  assert_false(config.javascriptURLs, "javascriptURLs is false");
+
+  // https://wicg.github.io/sanitizer-api/#built-in-safe-baseline-configuration
+  const SAFE_BASELINE = {
+    "removeElements": [
+      {
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "name": "base"
+      },
+      {
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "name": "embed"
+      },
+      {
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "name": "frame"
+      },
+      {
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "name": "iframe"
+      },
+      {
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "name": "object"
+      },
+      {
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "name": "script"
+      },
+      {
+        "namespace": "http://www.w3.org/2000/svg",
+        "name": "script"
+      },
+      {
+        "namespace": "http://www.w3.org/2000/svg",
+        "name": "use"
+      }
+    ],
+    "removeAttributes": []
+  };
+
+  assert_equals(config.removeElements.length, SAFE_BASELINE.removeElements.length);
+  for (let i = 0; i < SAFE_BASELINE.removeElements.length; i++) {
+    let element = config.removeElements[i];
+    assert_own_property(element, "name");
+    assert_equals(element.name, SAFE_BASELINE.removeElements[i].name);
+    assert_own_property(element, "namespace");
+    assert_equals(element.namespace, SAFE_BASELINE.removeElements[i].namespace);
+  }
+
+  // This list depends on the implementation defined "event handler content attributes"
+  assert_true(config.removeAttributes.length > 0, "Has removeAttributes");
+  for (let attribute of config.removeAttributes) {
+    assert_own_property(attribute, "name");
+    assert_true(attribute.name.startsWith("on"), `attribute '${attribute.name}' starts with "on"`);
+    assert_own_property(attribute, "namespace"); // XXX Maybe optional?
+    assert_equals(attribute.namespace, null, "attribute is in null namespace");
+  }
+}, "removeUnsafe removes the right elements and attributes");
+
+test(t => {
+  let s = new Sanitizer("default");
+  let before = s.get();
+
+  let s2 = new Sanitizer("default");
+  s2.removeUnsafe();
+  let after = s2.get();
+
+  // None of the default config elements are unsafe.
+  assert_true(before.elements.length > 0);
+  assert_equals(before.elements.length, after.elements.length, "elements don't change");
+
+  // None of the default config attributes are unsafe.
+  assert_true(before.attributes.length > 0);
+  assert_equals(before.attributes.length, after.attributes.length, "attributes don't change");
+
+  assert_false(before.javascriptURLs);
+  assert_false(after.javascriptURLs);
+
+  // Not in default config.
+  assert_false('replaceWithChildrenElements' in before);
+  assert_false('replaceWithChildrenElements' in after);
+  assert_false('removeElements' in before);
+  assert_false('removeElements' in after);
+  assert_false('removeAttributes' in before);
+  assert_false('removeAttributes' in after);
+}, "removeUnsafe with default config");
+
+test(t => {
+  let s = new Sanitizer({ javascriptURLs: true });
+  assert_true(s.get().javascriptURLs);
+  let changed = s.removeUnsafe();
+  assert_true(changed);
+  assert_false(s.get().javascriptURLs);
+
+  let s2 = new Sanitizer({ javascriptURLs: false });
+  assert_false(s2.get().javascriptURLs);
+  s2.removeUnsafe();
+  assert_false(s2.get().javascriptURLs);
+}, "removeUnsafe sets javascriptURLs to false");
+
+// https://wicg.github.io/sanitizer-api/#built-in-safe-baseline-configuration
+// The baseline remove list is namespace specific: only script in the HTML and
+// SVG namespaces and use in the SVG namespace are unsafe.
+const HTML_NS = "http://www.w3.org/1999/xhtml";
+const SVG_NS = "http://www.w3.org/2000/svg";
+const MATHML_NS = "http://www.w3.org/1998/Math/MathML";
+[
+  [ { name: "script", namespace: HTML_NS }, "<script><\/script>", "" ],
+  [ { name: "script", namespace: SVG_NS }, "<svg><script><\/script></svg>",
+    "<svg></svg>" ],
+  [ { name: "use", namespace: SVG_NS }, "<svg><use></use></svg>",
+    "<svg></svg>" ],
+  // An element named "use" in the HTML namespace is not in the baseline list.
+  [ { name: "use", namespace: HTML_NS }, "<use>text</use>" ],
+  // Neither is a MathML element named "script".
+  [ { name: "script", namespace: MATHML_NS },
+    "<math><script><\/script></math>" ],
+].forEach(([element, probe, expected], index) => {
+  test(t => {
+    const elements = [element, { name: "svg", namespace: SVG_NS },
+                      { name: "math", namespace: MATHML_NS }];
+    const div = document.createElement("div");
+    div.setHTML(probe, { sanitizer: { elements } });
+    assert_equals(div.innerHTML, expected ?? probe);
+  }, `Baseline remove list is namespace specific #${index}: ${JSON.stringify(element)}`);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>setHTML()/setHTMLUnsafe() with replaceWithChildrenElements: insertion location of hoisted children</title>
+<link rel="help" href="https://wicg.github.io/sanitizer-api/#sanitize">
+<link rel="help" href="https://html.spec.whatwg.org/#dom-element-sethtmlunsafe">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="container"></div>
+<script>
+// When an element is replaced with its children while parsing, the nodes
+// parsed under it must behave as if they were parsed directly into the
+// element's parent: same node document, same custom element registry, and
+// no declarative shadow root is attached on behalf of the removed element.
+
+for (const method of ["setHTML", "setHTMLUnsafe"]) {
+  test(t => {
+    const container = document.getElementById("container");
+    t.add_cleanup(() => container.replaceChildren());
+    const target = document.createElement("div");
+    container.append(target);
+
+    target[method]('<div><span id="child">text</span></div>',
+                   { sanitizer: { replaceWithChildrenElements: ["div"] } });
+
+    const span = target.querySelector("#child");
+    assert_not_equals(span, null);
+    assert_equals(span.ownerDocument, document);
+    assert_equals(target.innerHTML, '<span id="child">text</span>');
+  }, `${method}: children of a replaced element get the target's node document`);
+
+  test(t => {
+    const container = document.getElementById("container");
+    t.add_cleanup(() => container.replaceChildren());
+    const target = document.createElement("div");
+    container.append(target);
+
+    target[method](
+      '<div><span id="child">text</span><template shadowrootmode="open"><p>dsd</p></template></div>',
+      { sanitizer: { replaceWithChildrenElements: ["div"] } });
+
+    assert_not_equals(target.querySelector("#child"), null);
+    assert_equals(target.shadowRoot, null,
+      "a declarative shadow root inside a replaced element must not attach to the target");
+    assert_equals(container.shadowRoot, null);
+    if (method === "setHTMLUnsafe") {
+      const tpl = target.querySelector("template");
+      assert_not_equals(tpl, null,
+        "the template inside a replaced element stays a plain <template>");
+      assert_equals(tpl.content.querySelector("p").textContent, "dsd");
+    }
+  }, `${method}: a declarative shadow root inside a replaced element is not attached`);
+}
+
+const ceLog = [];
+customElements.define("replaced-child-ce", class extends HTMLElement {
+  constructor() { super(); ceLog.push("constructed"); }
+  connectedCallback() { ceLog.push(`connected:${this.parentNode.localName}`); }
+});
+
+test(t => {
+  const container = document.getElementById("container");
+  t.add_cleanup(() => container.replaceChildren());
+  const target = document.createElement("div");
+  container.append(target);
+  ceLog.length = 0;
+
+  target.setHTMLUnsafe("<div><replaced-child-ce></replaced-child-ce></div>", {
+    sanitizer: {
+      elements: ["replaced-child-ce"],
+      replaceWithChildrenElements: ["div"],
+    },
+  });
+
+  assert_array_equals(ceLog, ["constructed", "connected:div"]);
+  assert_equals(target.firstChild.localName, "replaced-child-ce");
+  assert_equals(target.firstChild.parentNode, target);
+}, "setHTMLUnsafe: a custom element inside a replaced element is constructed and connected to the target");
+
+test(t => {
+  const container = document.getElementById("container");
+  t.add_cleanup(() => container.replaceChildren());
+  const target = document.createElement("div");
+  container.append(target);
+  ceLog.length = 0;
+
+  target.setHTMLUnsafe(
+    "<table><div><replaced-child-ce></replaced-child-ce></div><td>cell</td></table>", {
+    sanitizer: {
+      elements: ["replaced-child-ce", "table", "tbody", "tr", "td"],
+      replaceWithChildrenElements: ["div"],
+    },
+  });
+
+  assert_array_equals(ceLog, ["constructed", "connected:div"]);
+  assert_equals(target.innerHTML,
+    "<replaced-child-ce></replaced-child-ce><table><tbody><tr><td>cell</td></tr></tbody></table>");
+}, "setHTMLUnsafe: a custom element inside a foster-parented replaced element is connected before the table");
+</script>
+</body>
+</html>

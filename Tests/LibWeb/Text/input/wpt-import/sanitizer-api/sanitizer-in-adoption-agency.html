@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Sanitizer Adoption Agency Algorithm tests</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/html5lib-testcase-support.js"></script>
+</head>
+<body>
+<script>
+promise_test(_ => {
+  return html5lib_testcases_from_response(fetch("sanitizer-in-adoption-agency.sub.dat")).
+      then(testcases => {
+        testcases.forEach((testcase, index) => {
+          test(_ => {
+            const context = document.createElement(testcase["document-fragment"] ?? "div");
+            let config = undefined;
+            try {
+              config = JSON.parse(testcase.config);
+            } catch { }
+            try {
+              context.setHTML(testcase.data, { sanitizer: config });
+            } catch (error) {
+              assert_equals(
+                error.name, testcase.error,
+                `Expect exception ${testcase.error}, but got ${error}.`);
+              assert_equals(context.firstChild, null);
+              return;
+            }
+            assert_false(
+              !!testcase.error,
+              `Expect exception ${testcase.error}, but nothing was thrown.`);
+            assert_testcase(context, testcase);
+          }, `Testcase #${index}, "${testcase.data}", config: "${testcase.config}".`);
+        });
+      });
+}, "Sanitizer Adoption Agency Algorithm testcases");
+</script>
+</body>
+</html>

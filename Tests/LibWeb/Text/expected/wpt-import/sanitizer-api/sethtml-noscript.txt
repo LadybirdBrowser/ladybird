@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Pass	setHTMLUnsafe() parses noscript as raw text (no options)
+Pass	setHTMLUnsafe() parses noscript as raw text (empty options)
+Pass	setHTMLUnsafe() parses noscript as raw text (sanitizer: undefined)
+Pass	setHTMLUnsafe() parses noscript as raw text (empty sanitizer config)
+Fail	setHTML() parses noscript as raw text when noscript is allowed
+Fail	setHTML() removes noscript with its raw text content by default

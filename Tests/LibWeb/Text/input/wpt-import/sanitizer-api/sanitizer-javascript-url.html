@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<head>
+<title>Testcases for handling javascript: URL attributes</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/html5lib-testcase-support.js"></script>
+<script src="../mathml/support/mathml-fragments.js"></script>
+
+<script id="built-in-navigating-url-attributes-list" type="html5lib-testcases">
+#data
+<a href="javascript:alert(1)"></a>
+#document
+| <a>
+
+#data
+<area href="javascript:alert(1)"></area>
+#document
+| <area>
+
+#data
+<button formaction="javascript:alert(1)"></button>
+#document
+| <button>
+
+#data
+<form action="javascript:alert(1)"></form>
+#document
+| <form>
+
+#data
+<input formaction="javascript:alert(1)"></input>
+#document
+| <input>
+
+#data
+<svg><a href="javascript:alert(1)"></a></svg>
+#document
+| <svg svg>
+|   <svg a>
+
+#data
+<svg><a xlink:href="javascript:alert(1)"></a></svg>
+#document
+| <svg svg>
+|   <svg a>
+
+</script>
+
+<script id="mathml" type="html5lib-testcases">
+#data
+<math><mrow href="javascript:alert(1)"></mrow></math>
+#document
+| <math math>
+|   <math mrow>
+
+#data
+<math><msqrt href="javascript:alert(1)"></msqrt></math>
+#document
+| <math math>
+|   <math msqrt>
+
+#data
+<math><mtext href="javascript:alert(1)">Test</mtext></math>
+#document
+| <math math>
+|   <math mtext>
+|     "Test"
+
+#data
+<math><mrow xlink:href="javascript:alert(1)"></mrow></math>
+#document
+| <math math>
+|   <math mrow>
+
+</script>
+
+<script id="built-in-animating-url-attributes-list" type="html5lib-testcases">
+#data
+<svg><animate attributeName="href"></svg>
+#document
+| <svg svg>
+|   <svg animate>
+
+#data
+<svg><animate attributeName="xlink:href"></svg>
+#document
+| <svg svg>
+|   <svg animate>
+
+#data
+<svg><animateMotion attributeName="href"></svg>
+#document
+| <svg svg>
+|   <svg animateMotion>
+|     attributeName="href"
+
+#data
+<svg><animateMotion attributeName="xlink:href"></svg>
+#document
+| <svg svg>
+|   <svg animateMotion>
+|     attributeName="xlink:href"
+
+#data
+<svg><animateTransform attributeName="href"></svg>
+#document
+| <svg svg>
+|   <svg animateTransform>
+
+#data
+<svg><animateTransform attributeName="xlink:href"></svg>
+#document
+| <svg svg>
+|   <svg animateTransform>
+
+
+#data
+<svg><set attributeName="href"></svg>
+#document
+| <svg svg>
+|   <svg set>
+
+#data
+<svg><set attributeName="xlink:href"></svg>
+#document
+| <svg svg>
+|   <svg set>
+
+</script>
+
+<script id="allowed" type="html5lib-testcases">
+#data
+<a nothref="javascript:alert(1)"></a>
+#document
+| <a>
+|  nothref="javascript:alert(1)"
+
+#data
+<svg><a xlink:href="data:text/html,foobar"></a></svg>
+#document
+| <svg svg>
+|  <svg a>
+|    xlink href="data:text/html,foobar"
+
+#data
+<svg><set attributeName=" href "></svg>
+#document
+| <svg svg>
+|   <svg set>
+|     attributeName=" href "
+
+</script>
+
+<script id="url-normalization" type="html5lib-testcases">
+#data
+<a href="JaVaScRiPt:alert(1)"></a>
+#document
+| <a>
+
+#data
+<a href=" javascript:alert(1)"></a>
+#document
+| <a>
+
+#data
+<a href="&#10;javascript:alert(1)"></a>
+#document
+| <a>
+
+#data
+<a href="java&#9;script:alert(1)"></a>
+#document
+| <a>
+
+#data
+<a href="java&#10;script:alert(1)"></a>
+#document
+| <a>
+
+#data
+<a href="java&#13;script:alert(1)"></a>
+#document
+| <a>
+
+#data
+<a href="javascript&#58;alert(1)"></a>
+#document
+| <a>
+
+#data
+<svg><a xlink:href="java&#9;script:alert(1)"></a></svg>
+#document
+| <svg svg>
+|   <svg a>
+
+</script>
+
+<script>
+const mathmlDynamicCasesText = Object.keys(MathMLFragments).map(tag => `
+#data
+<math><${tag} href="javascript:alert(1)"></${tag}></math>
+#document
+| <math math>
+|   <math ${tag}>
+
+#data
+<math><${tag} xlink:href="javascript:alert(1)"></${tag}></math>
+#document
+| <math math>
+|   <math ${tag}>
+`).join("");
+
+const testcaseGroups = [
+  ...Array.from(document.querySelectorAll("script[type='html5lib-testcases']")).map(el => ({ id: el.id, text: el.textContent })),
+  { id: "mathml-all-elements", text: mathmlDynamicCasesText }
+];
+
+for (const group of testcaseGroups) {
+  parse_html5lib_testcases(group.text).forEach((testcase, index) => {
+    // 1. Safe methods: javascript URLs must always be removed regardless of config.
+    const safeConfigs = [
+      ["{ sanitizer: {} }", { sanitizer: {} }],
+      ["{ sanitizer: { javascriptURLs: false } }", { sanitizer: { javascriptURLs: false } }],
+      ["{ sanitizer: { javascriptURLs: true } }", { sanitizer: { javascriptURLs: true } }],
+      ["{ sanitizer: new Sanitizer({ javascriptURLs: true }) }", { sanitizer: new Sanitizer({ javascriptURLs: true }) }],
+    ];
+
+    for (const [name, config] of safeConfigs) {
+      test((_) => {
+        const div = document.createElement("div");
+        div.setHTML(testcase.data, config);
+        assert_testcase(div, testcase);
+      }, `setHTML ${name} testcase ${group.id}/${index}, "${testcase.data}"`);
+
+      test((_) => {
+        assert_testcase(Document.parseHTML("<body>" + testcase.data, config).body, testcase);
+      }, `parseHTML ${name} testcase ${group.id}/${index}, "${testcase.data}"`);
+    }
+
+    // 2. Unsafe methods with javascriptURLs: false -> URLs must be removed (same as safe result).
+    // The default configuration has javascriptURLs: false as well, but its element and attribute
+    // allow lists remove nearly all the markup above, so it cannot be compared against these
+    // expectations. It is covered separately below.
+    const afterRemoveUnsafe = new Sanitizer({});
+    afterRemoveUnsafe.removeUnsafe();
+    const unsafeDisallowedConfigs = [
+      ["{ sanitizer: { javascriptURLs: false } }", { sanitizer: { javascriptURLs: false } }],
+      ["{ sanitizer: new Sanitizer({ javascriptURLs: false }) }", { sanitizer: new Sanitizer({ javascriptURLs: false }) }],
+      ["{ sanitizer: new Sanitizer({}) } after removeUnsafe()", { sanitizer: afterRemoveUnsafe }],
+    ];
+
+    for (const [name, config] of unsafeDisallowedConfigs) {
+      test((_) => {
+        const div = document.createElement("div");
+        div.setHTMLUnsafe(testcase.data, config);
+        assert_testcase(div, testcase);
+      }, `setHTMLUnsafe ${name} testcase ${group.id}/${index}, "${testcase.data}"`);
+
+      test((_) => {
+        assert_testcase(Document.parseHTMLUnsafe("<body>" + testcase.data, config).body, testcase);
+      }, `parseHTMLUnsafe ${name} testcase ${group.id}/${index}, "${testcase.data}"`);
+    }
+  });
+}
+
+// 3. Unsafe methods with the default configuration -> URLs must be removed.
+//
+// The default configuration has javascriptURLs: false, so the unsafe methods remove javascript:
+// URLs as well. Its element and attribute allow lists remove nearly all the markup in the
+// testcases above though, so it cannot be run against those expectations. HTML a/href and SVG
+// a/href are the only pairs from the built-in navigating URL attributes list that the default
+// configuration keeps at all; for every other pair the attribute is gone either way and
+// javascriptURLs makes no observable difference.
+const defaultConfigTestcases = [
+  { selector: "a", markup: (url) => `<a href="${url}"></a>` },
+  { selector: "svg a", markup: (url) => `<svg><a href="${url}"></a></svg>` },
+  { selector: "math a", markup: (url) => `<math><a href="${url}"></a></math>` },
+];
+
+const javascriptURL = "javascript:alert(1)";
+const otherURL = "https://example.com/";
+
+function assert_href(root, selector, expected, description) {
+  const element = root.querySelector(selector);
+  assert_not_equals(element, null, `${description} (${selector} is kept)`);
+  assert_equals(element.getAttribute("href"), expected, description);
+}
+
+for (const { selector, markup } of defaultConfigTestcases) {
+  for (const [name, config] of [
+    [`{ sanitizer: "default" }`, { sanitizer: "default" }],
+    ["{ sanitizer: new Sanitizer() }", { sanitizer: new Sanitizer() }],
+  ]) {
+    test((_) => {
+      const div = document.createElement("div");
+      div.setHTMLUnsafe(markup(javascriptURL), config);
+      assert_href(div, selector, null, "javascript: URL is removed");
+
+      // href is allowed by the default configuration, so what removed it above is javascriptURLs
+      // and not the attribute allow list.
+      div.setHTMLUnsafe(markup(otherURL), config);
+      assert_href(div, selector, otherURL, "other URL is kept");
+    }, `setHTMLUnsafe ${name} default configuration, "${markup(javascriptURL)}"`);
+
+    test((_) => {
+      assert_href(Document.parseHTMLUnsafe("<body>" + markup(javascriptURL), config).body,
+                  selector, null, "javascript: URL is removed");
+      assert_href(Document.parseHTMLUnsafe("<body>" + markup(otherURL), config).body,
+                  selector, otherURL, "other URL is kept");
+    }, `parseHTMLUnsafe ${name} default configuration, "${markup(javascriptURL)}"`);
+  }
+
+  test((_) => {
+    const sanitizer = new Sanitizer();
+    assert_true(sanitizer.setJavascriptURLs(true), "javascriptURLs defaults to false");
+
+    const div = document.createElement("div");
+    div.setHTMLUnsafe(markup(javascriptURL), { sanitizer });
+    assert_href(div, selector, javascriptURL, "unsafe method keeps the javascript: URL");
+
+    div.setHTML(markup(javascriptURL), { sanitizer });
+    assert_href(div, selector, null, "safe method removes the javascript: URL anyway");
+  }, `setJavascriptURLs(true) on the default configuration, "${markup(javascriptURL)}"`);
+}
+
+// 4. Unsafe methods with javascriptURLs: true -> URLs must be preserved.
+test(() => {
+  const unsafeAllowedConfigs = [
+    ["{ sanitizer: {} }", { sanitizer: {} }],
+    ["{ sanitizer: { javascriptURLs: true } }", { sanitizer: { javascriptURLs: true } }],
+    ["{ sanitizer: new Sanitizer({ javascriptURLs: true }) }", { sanitizer: new Sanitizer({ javascriptURLs: true }) }],
+    ["{ sanitizer: new Sanitizer({}) }", { sanitizer: new Sanitizer({}) }],
+  ];
+
+  const baseProbes = [
+    '<a href="javascript:alert(1)"></a>',
+    '<area href="javascript:alert(1)"></area>',
+    '<button formaction="javascript:alert(1)"></button>',
+    '<form action="javascript:alert(1)"></form>',
+    '<input formaction="javascript:alert(1)"></input>',
+    '<svg><a href="javascript:alert(1)"></a></svg>',
+    '<svg><a xlink:href="javascript:alert(1)"></a></svg>',
+    '<svg><animate attributeName="href"></svg>',
+    '<svg><animate attributeName="xlink:href"></svg>',
+    '<svg><animateMotion attributeName="href"></svg>',
+    '<svg><animateMotion attributeName="xlink:href"></svg>',
+    '<svg><animateTransform attributeName="href"></svg>',
+    '<svg><animateTransform attributeName="xlink:href"></svg>',
+    '<svg><set attributeName="href"></svg>',
+    '<svg><set attributeName="xlink:href"></svg>',
+    '<a href="JaVaScRiPt:alert(1)"></a>',
+    '<a href=" javascript:alert(1)"></a>',
+    '<a href="&#10;javascript:alert(1)"></a>',
+    '<a href="java&#9;script:alert(1)"></a>',
+    '<svg><a xlink:href="java&#9;script:alert(1)"></a></svg>',
+  ];
+
+  const mathmlProbes = Object.keys(MathMLFragments).flatMap(tag => [
+    `<math><${tag} href="javascript:alert(1)"></${tag}></math>`,
+    `<math><${tag} xlink:href="javascript:alert(1)"></${tag}></math>`
+  ]);
+
+  const probes = [...baseProbes, ...mathmlProbes];
+
+  for (const [configName, config] of unsafeAllowedConfigs) {
+    for (const probe of probes) {
+      const div = document.createElement("div");
+      div.setHTMLUnsafe(probe, config);
+      const parsed = Document.parseHTMLUnsafe("<body>" + probe, config);
+
+      if (probe.includes("attributeName")) {
+        assert_true(div.querySelector("[attributeName]") !== null, `setHTMLUnsafe ${configName}: retains attributeName in ${probe}`);
+        assert_true(parsed.body.querySelector("[attributeName]") !== null, `parseHTMLUnsafe ${configName}: retains attributeName in ${probe}`);
+      } else if (probe.includes("formaction")) {
+        assert_true(div.querySelector("[formaction]") !== null, `setHTMLUnsafe ${configName}: retains formaction in ${probe}`);
+        assert_true(parsed.body.querySelector("[formaction]") !== null, `parseHTMLUnsafe ${configName}: retains formaction in ${probe}`);
+      } else if (probe.includes("action=")) {
+        assert_true(div.querySelector("[action]") !== null, `setHTMLUnsafe ${configName}: retains action in ${probe}`);
+        assert_true(parsed.body.querySelector("[action]") !== null, `parseHTMLUnsafe ${configName}: retains action in ${probe}`);
+      } else if (probe.includes("xlink:href")) {
+        assert_true(div.querySelector("a, mrow")?.hasAttributeNS("http://www.w3.org/1999/xlink", "href") || div.querySelector("[*|href]") !== null, `setHTMLUnsafe ${configName}: retains xlink:href in ${probe}`);
+        assert_true(parsed.body.querySelector("a, mrow")?.hasAttributeNS("http://www.w3.org/1999/xlink", "href") || parsed.body.querySelector("[*|href]") !== null, `parseHTMLUnsafe ${configName}: retains xlink:href in ${probe}`);
+      } else {
+        assert_true(div.querySelector("[href]") !== null, `setHTMLUnsafe ${configName}: retains href in ${probe}`);
+        assert_true(parsed.body.querySelector("[href]") !== null, `parseHTMLUnsafe ${configName}: retains href in ${probe}`);
+      }
+    }
+  }
+}, "javascript: URLs preserved in unsafe methods when javascriptURLs is true");
+
+// 5. Modifier method setJavascriptURLs() effects on sanitization
+test(() => {
+  let s = new Sanitizer();
+  s.setJavascriptURLs(true);
+  const div1 = document.createElement("div");
+  div1.setHTMLUnsafe('<a href="javascript:alert(1)"></a>', { sanitizer: s });
+  assert_true(div1.querySelector("a").hasAttribute("href"));
+
+  s.setJavascriptURLs(false);
+  const div2 = document.createElement("div");
+  div2.setHTMLUnsafe('<a href="javascript:alert(1)"></a>', { sanitizer: s });
+  assert_false(div2.querySelector("a").hasAttribute("href"));
+}, "sanitizer.setJavascriptURLs() controls URL preservation in setHTMLUnsafe");
+
+// 6. Template and ShadowRoot handling with javascriptURLs
+test(() => {
+  const tplHTML = '<template><a href="javascript:alert(1)"></a></template>';
+
+  const divSafe = document.createElement("div");
+  divSafe.setHTML(tplHTML, { sanitizer: { javascriptURLs: true } });
+  assert_false(divSafe.querySelector("template").content.querySelector("a").hasAttribute("href"));
+
+  const divUnsafeFalse = document.createElement("div");
+  divUnsafeFalse.setHTMLUnsafe(tplHTML, { sanitizer: { javascriptURLs: false } });
+  assert_false(divUnsafeFalse.querySelector("template").content.querySelector("a").hasAttribute("href"));
+
+  const divUnsafeTrue = document.createElement("div");
+  divUnsafeTrue.setHTMLUnsafe(tplHTML, { sanitizer: { javascriptURLs: true } });
+  assert_true(divUnsafeTrue.querySelector("template").content.querySelector("a").hasAttribute("href"));
+
+  const host = document.createElement("div");
+  const shadow = host.attachShadow({ mode: "open" });
+  shadow.setHTMLUnsafe('<a href="javascript:alert(1)"></a>', { sanitizer: { javascriptURLs: false } });
+  assert_false(shadow.querySelector("a").hasAttribute("href"));
+
+  shadow.setHTMLUnsafe('<a href="javascript:alert(1)"></a>', { sanitizer: { javascriptURLs: true } });
+  assert_true(shadow.querySelector("a").hasAttribute("href"));
+
+  shadow.setHTML('<a href="javascript:alert(1)"></a>', { sanitizer: { javascriptURLs: true } });
+  assert_false(shadow.querySelector("a").hasAttribute("href"));
+}, "Template and ShadowRoot handling with javascriptURLs");
+</script>
+</head>
+<body>
+</body>

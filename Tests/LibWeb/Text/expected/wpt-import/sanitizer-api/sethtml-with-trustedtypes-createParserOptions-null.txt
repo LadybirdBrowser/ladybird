@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Named policy createParserOptions returning null throws TypeError
+Pass	Named policy createParserOptions returning undefined throws TypeError
