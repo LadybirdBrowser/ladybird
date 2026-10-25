@@ -1094,6 +1094,8 @@ pub struct RuntimeInfo {
     /// `CompiledCode::embedded_cells`.
     pub array_prototype: CellId,
     pub object_prototype: CellId,
+    /// `%Array%` of the realm of the compiled code.
+    pub array_constructor: CellId,
     /// `ExecutionContext::no_yield_continuation`.
     pub no_yield_continuation: u32,
     /// `js_heap_region_base`: cell pointers are this plus the offset bits of a cell value.

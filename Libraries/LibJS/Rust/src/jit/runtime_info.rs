@@ -521,6 +521,7 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> R
         realm: CellId(realm.as_ptr() as u64),
         array_prototype: CellId(realm.array_prototype().as_ptr() as u64),
         object_prototype: CellId(realm.object_prototype().as_ptr() as u64),
+        array_constructor: CellId(realm.intrinsics().array_constructor(vm).as_ptr() as u64),
         no_yield_continuation: ExecutionContext::NO_YIELD_CONTINUATION,
         heap_region_base: vm.head.heap_region_base.get() as u64,
         heap_region_offset_mask: HEAP_REGION_OFFSET_MASK,
