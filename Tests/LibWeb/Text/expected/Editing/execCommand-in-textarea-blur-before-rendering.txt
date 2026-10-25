@@ -1,0 +1,2 @@
+scrolled to the caret after blur: true
+scrollTop after refocus: 0

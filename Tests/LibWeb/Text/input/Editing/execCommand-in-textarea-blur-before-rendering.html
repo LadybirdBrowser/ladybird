@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="textarea" style="height: 40px"></textarea>
+<script>
+    promiseTest(async () => {
+        textarea.focus();
+        for (let i = 0; i < 20; ++i)
+            document.execCommand("insertText", false, `\nline ${i}`);
+        textarea.blur();
+        println(`scrolled to the caret after blur: ${textarea.scrollTop > 0}`);
+
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        textarea.scrollTop = 0;
+        textarea.focus({ preventScroll: true });
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        println(`scrollTop after refocus: ${textarea.scrollTop}`);
+    });
+</script>

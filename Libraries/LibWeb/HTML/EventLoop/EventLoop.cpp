@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/EventLoop/ClockPlan.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/FrameCompletion.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/ListOfAvailableImages.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
@@ -906,6 +907,10 @@ void EventLoop::update_the_rendering()
             navigable->process_main_thread_smooth_scrolls();
             navigable->adopt_pending_async_scroll_offsets();
         }
+        // AD-HOC: A text control that script edited reveals its cursor now, once for all of the edits. See the note
+        //         at FormAssociatedTextControlElement::CursorRevealAfterEdit.
+        if (auto* text_control = as_if<FormAssociatedTextControlElement>(document->focused_area().ptr()))
+            text_control->reveal_cursor_if_pending();
         document->run_the_scroll_steps();
     }
 
