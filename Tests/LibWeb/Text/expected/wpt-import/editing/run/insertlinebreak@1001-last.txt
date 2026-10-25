@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 691 tests
 
-683 Pass
-8 Fail
+685 Pass
+6 Fail
 Pass	[["insertlinebreak",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandValue("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandIndeterm("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandState("insertlinebreak") after
@@ -93,7 +93,7 @@ Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>{bar</span>baz}" 
 Pass	[["stylewithcss","true"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz": execCommand("insertlinebreak", false, "") return value
 Pass	[["stylewithcss","true"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" compare innerHTML
+Pass	[["stylewithcss","true"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" compare innerHTML
 Pass	[["stylewithcss","true"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("stylewithcss") before
@@ -109,7 +109,7 @@ Pass	[["stylewithcss","true"],["insertlinebreak",""]] "<p>foo<span style=color:#
 Pass	[["stylewithcss","false"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz": execCommand("insertlinebreak", false, "") return value
 Pass	[["stylewithcss","false"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" compare innerHTML
+Pass	[["stylewithcss","false"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" compare innerHTML
 Pass	[["stylewithcss","false"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar</span><span style=color:#fEdCbA>baz]</span>quz" queryCommandValue("stylewithcss") before

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-970 Pass
-30 Fail
+989 Pass
+11 Fail
 Pass	[["insertlinebreak",""]] "foo[bar]baz": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "foo[bar]baz" checks for modifications to non-editable content
 Pass	[["insertlinebreak",""]] "foo[bar]baz" compare innerHTML
@@ -123,7 +123,7 @@ Pass	[["insertlinebreak",""]] "<span>foo[]</span>" queryCommandState("insertline
 Pass	[["insertlinebreak",""]] "<span>foo[]</span>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "foo[]<br>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "foo[]<br>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "foo[]<br>" compare innerHTML
+Pass	[["insertlinebreak",""]] "foo[]<br>" compare innerHTML
 Pass	[["insertlinebreak",""]] "foo[]<br>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "foo[]<br>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "foo[]<br>" queryCommandValue("insertlinebreak") before
@@ -159,7 +159,7 @@ Pass	[["insertlinebreak",""]] "<address>foo[]</address>" queryCommandState("inse
 Pass	[["insertlinebreak",""]] "<address>foo[]</address>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<address>foo[]<br></address>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<address>foo[]<br></address>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<address>foo[]<br></address>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<address>foo[]<br></address>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<address>foo[]<br></address>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<address>foo[]<br></address>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<address>foo[]<br></address>" queryCommandValue("insertlinebreak") before
@@ -195,7 +195,7 @@ Pass	[["insertlinebreak",""]] "<div>foo[]</div>" queryCommandState("insertlinebr
 Pass	[["insertlinebreak",""]] "<div>foo[]</div>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<div>foo[]<br></div>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<div>foo[]<br></div>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<div>foo[]<br></div>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<div>foo[]<br></div>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<div>foo[]<br></div>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<div>foo[]<br></div>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<div>foo[]<br></div>" queryCommandValue("insertlinebreak") before
@@ -231,7 +231,7 @@ Pass	[["insertlinebreak",""]] "<dl><dt>foo[]<dd>bar</dl>" queryCommandState("ins
 Pass	[["insertlinebreak",""]] "<dl><dt>foo[]<dd>bar</dl>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<dl><dt>foo[]<br><dd>bar</dl>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<dl><dt>foo[]<br><dd>bar</dl>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<dl><dt>foo[]<br><dd>bar</dl>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<dl><dt>foo[]<br><dd>bar</dl>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<dl><dt>foo[]<br><dd>bar</dl>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<dl><dt>foo[]<br><dd>bar</dl>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<dl><dt>foo[]<br><dd>bar</dl>" queryCommandValue("insertlinebreak") before
@@ -267,7 +267,7 @@ Pass	[["insertlinebreak",""]] "<dl><dt>foo<dd>bar[]</dl>" queryCommandState("ins
 Pass	[["insertlinebreak",""]] "<dl><dt>foo<dd>bar[]</dl>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<dl><dt>foo<dd>bar[]<br></dl>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<dl><dt>foo<dd>bar[]<br></dl>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<dl><dt>foo<dd>bar[]<br></dl>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<dl><dt>foo<dd>bar[]<br></dl>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<dl><dt>foo<dd>bar[]<br></dl>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<dl><dt>foo<dd>bar[]<br></dl>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<dl><dt>foo<dd>bar[]<br></dl>" queryCommandValue("insertlinebreak") before
@@ -303,7 +303,7 @@ Pass	[["insertlinebreak",""]] "<h1>foo[]</h1>" queryCommandState("insertlinebrea
 Pass	[["insertlinebreak",""]] "<h1>foo[]</h1>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<h1>foo[]<br></h1>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<h1>foo[]<br></h1>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<h1>foo[]<br></h1>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<h1>foo[]<br></h1>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<h1>foo[]<br></h1>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<h1>foo[]<br></h1>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<h1>foo[]<br></h1>" queryCommandValue("insertlinebreak") before
@@ -339,7 +339,7 @@ Pass	[["insertlinebreak",""]] "<ol><li>foo[]</ol>" queryCommandState("insertline
 Pass	[["insertlinebreak",""]] "<ol><li>foo[]</ol>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<ol><li>foo[]<br></ol>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<ol><li>foo[]<br></ol>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<ol><li>foo[]<br></ol>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<ol><li>foo[]<br></ol>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<ol><li>foo[]<br></ol>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<ol><li>foo[]<br></ol>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<ol><li>foo[]<br></ol>" queryCommandValue("insertlinebreak") before
@@ -375,7 +375,7 @@ Pass	[["insertlinebreak",""]] "<p>foo[]</p>" queryCommandState("insertlinebreak"
 Pass	[["insertlinebreak",""]] "<p>foo[]</p>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<p>foo[]<br></p>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<p>foo[]<br></p>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<p>foo[]<br></p>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<p>foo[]<br></p>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<p>foo[]<br></p>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<p>foo[]<br></p>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<p>foo[]<br></p>" queryCommandValue("insertlinebreak") before
@@ -641,7 +641,7 @@ Pass	[["insertlinebreak",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandState
 Pass	[["insertlinebreak",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<p>foo</p>{}<br>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br>" queryCommandValue("insertlinebreak") before
@@ -659,7 +659,7 @@ Pass	[["insertlinebreak",""]] "{}<br><p>foo</p>" queryCommandState("insertlinebr
 Pass	[["insertlinebreak",""]] "{}<br><p>foo</p>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br><h1>bar</h1>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br><h1>bar</h1>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<p>foo</p>{}<br><h1>bar</h1>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br><h1>bar</h1>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandValue("insertlinebreak") before
@@ -668,7 +668,7 @@ Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandState("
 Pass	[["insertlinebreak",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><p>bar</p>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><p>bar</p>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><p>bar</p>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><p>bar</p>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandValue("insertlinebreak") before
@@ -677,7 +677,7 @@ Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandState("
 Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><h2>bar</h2>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandValue("insertlinebreak") before
@@ -740,7 +740,7 @@ Pass	[["insertlinebreak",""]] "<blockquote>foo[]</blockquote>" queryCommandState
 Pass	[["insertlinebreak",""]] "<blockquote>foo[]</blockquote>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<blockquote>foo[]<br></blockquote>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<blockquote>foo[]<br></blockquote>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<blockquote>foo[]<br></blockquote>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<blockquote>foo[]<br></blockquote>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<blockquote>foo[]<br></blockquote>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<blockquote>foo[]<br></blockquote>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<blockquote>foo[]<br></blockquote>" queryCommandValue("insertlinebreak") before
@@ -839,7 +839,7 @@ Pass	[["insertlinebreak",""]] "<b>foo[]bar</b>baz" queryCommandState("insertline
 Pass	[["insertlinebreak",""]] "<b>foo[]bar</b>baz" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<b>foo[]</b>bar": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<b>foo[]</b>bar" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<b>foo[]</b>bar" compare innerHTML
+Pass	[["insertlinebreak",""]] "<b>foo[]</b>bar" compare innerHTML
 Pass	[["insertlinebreak",""]] "<b>foo[]</b>bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<b>foo[]</b>bar" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<b>foo[]</b>bar" queryCommandValue("insertlinebreak") before
@@ -857,7 +857,7 @@ Pass	[["insertlinebreak",""]] "foo<b>[]bar</b>" queryCommandState("insertlinebre
 Pass	[["insertlinebreak",""]] "foo<b>[]bar</b>" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<b>foo[]</b><i>bar</i>": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<b>foo[]</b><i>bar</i>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<b>foo[]</b><i>bar</i>" compare innerHTML
+Pass	[["insertlinebreak",""]] "<b>foo[]</b><i>bar</i>" compare innerHTML
 Pass	[["insertlinebreak",""]] "<b>foo[]</b><i>bar</i>" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<b>foo[]</b><i>bar</i>" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<b>foo[]</b><i>bar</i>" queryCommandValue("insertlinebreak") before
@@ -947,7 +947,7 @@ Pass	[["insertlinebreak",""]] "<a href=foo>foo[]bar</a>baz" queryCommandState("i
 Pass	[["insertlinebreak",""]] "<a href=foo>foo[]bar</a>baz" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<a href=foo>foo[]</a>bar": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<a href=foo>foo[]</a>bar" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<a href=foo>foo[]</a>bar" compare innerHTML
+Pass	[["insertlinebreak",""]] "<a href=foo>foo[]</a>bar" compare innerHTML
 Pass	[["insertlinebreak",""]] "<a href=foo>foo[]</a>bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<a href=foo>foo[]</a>bar" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<a href=foo>foo[]</a>bar" queryCommandValue("insertlinebreak") before
@@ -983,7 +983,7 @@ Pass	[["insertlinebreak",""]] "<p><!--foo-->[]bar" queryCommandState("insertline
 Pass	[["insertlinebreak",""]] "<p><!--foo-->[]bar" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" compare innerHTML
+Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" compare innerHTML
 Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandValue("insertlinebreak") before
@@ -992,7 +992,7 @@ Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" 
 Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>[bar]</span>baz" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" compare innerHTML
+Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" compare innerHTML
 Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandState("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandValue("insertlinebreak") before
@@ -1001,6 +1001,6 @@ Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" 
 Pass	[["insertlinebreak",""]] "<p>foo<span style=color:#aBcDeF>{bar}</span>baz" queryCommandValue("insertlinebreak") after
 Pass	[["insertlinebreak",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz": execCommand("insertlinebreak", false, "") return value
 Pass	[["insertlinebreak",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" compare innerHTML
+Pass	[["insertlinebreak",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" compare innerHTML
 Pass	[["insertlinebreak",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandIndeterm("insertlinebreak") before
 Pass	[["insertlinebreak",""]] "<p>foo{<span style=color:#aBcDeF>bar</span>}baz" queryCommandState("insertlinebreak") before

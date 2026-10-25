@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 491 tests
 
-469 Pass
-22 Fail
+471 Pass
+20 Fail
 Pass	[["styleWithCSS","false"],["defaultparagraphseparator","p"],["forwarddelete",""]] "<p><font size=3>foo[]</font><p><font size=5>bar</font>": execCommand("styleWithCSS", false, "false") return value
 Pass	[["styleWithCSS","false"],["defaultparagraphseparator","p"],["forwarddelete",""]] "<p><font size=3>foo[]</font><p><font size=5>bar</font>": execCommand("defaultparagraphseparator", false, "p") return value
 Pass	[["styleWithCSS","false"],["defaultparagraphseparator","p"],["forwarddelete",""]] "<p><font size=3>foo[]</font><p><font size=5>bar</font>": execCommand("forwarddelete", false, "") return value
@@ -488,10 +488,10 @@ Pass	[["forwarddelete",""]] "abc[]<input type=hidden>def" checks for modificatio
 Pass	[["forwarddelete",""]] "abc[]<input type=hidden>def" compare innerHTML
 Pass	[["forwarddelete",""]] "<p>abc{}<br> </p><p><br></p>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<p>abc{}<br> </p><p><br></p>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<p>abc{}<br> </p><p><br></p>" compare innerHTML
+Pass	[["forwarddelete",""]] "<p>abc{}<br> </p><p><br></p>" compare innerHTML
 Pass	[["forwarddelete",""]] "<p>abc{}<br> </p> <p><br></p>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<p>abc{}<br> </p> <p><br></p>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""]] "<p>abc{}<br> </p> <p><br></p>" compare innerHTML
+Pass	[["forwarddelete",""]] "<p>abc{}<br> </p> <p><br></p>" compare innerHTML
 Pass	[["forwarddelete",""]] "<div style=white-space:pre><p>abc{}</p> <p><br></p></div>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""]] "<div style=white-space:pre><p>abc{}</p> <p><br></p></div>" checks for modifications to non-editable content
 Pass	[["forwarddelete",""]] "<div style=white-space:pre><p>abc{}</p> <p><br></p></div>" compare innerHTML

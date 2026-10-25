@@ -342,7 +342,11 @@ CaretLocation CaretNavigator::canonical_location_for_editing(CaretLocation const
         if (after && Editing::is_prohibited_paragraph_child(*after) && can_descend_into(*after)) {
             node = *after;
             offset = 0;
-        } else if (before && can_descend_into(*before)) {
+        }
+        // INTEROP: A br that follows a block starts a line of its own. A boundary before it is on that line, and not at
+        //          the end of the preceding block.
+        else if (before && can_descend_into(*before)
+            && !(Editing::is_prohibited_paragraph_child(*before) && is<HTML::HTMLBRElement>(after.ptr()))) {
             node = *before;
             offset = before->length();
         } else if ((!before || is_formatting_whitespace(*before) || is<HTML::HTMLBRElement>(*before))

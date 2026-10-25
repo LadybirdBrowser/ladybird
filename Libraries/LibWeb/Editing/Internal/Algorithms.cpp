@@ -2427,9 +2427,26 @@ bool is_collapsed_line_break(GC::Ref<DOM::Node> node)
 
     // that begins a line box which has nothing else in it, and therefore has zero height.
     // AD-HOC: We check this on the DOM level by seeing if the next node is neither a non-empty text node nor a <br>.
-    if (auto text_node = as_if<DOM::Text>(node->next_sibling()))
-        return text_node->text_content().value_or({}).is_empty();
-    return !is<HTML::HTMLBRElement>(node->next_sibling());
+    //         The line box can continue after the end of the inline ancestors of the br, so look at the nodes that
+    //         follow it in tree order within its block.
+    //         The line box ends at the end of an inline editing host.
+    auto block = block_node_of_node(node);
+    if (auto editing_host = node->editing_host(); editing_host && (!block || block->is_inclusive_ancestor_of(*editing_host)))
+        block = editing_host;
+    for (auto* following = node->next_in_pre_order(block.ptr()); following; following = following->next_in_pre_order(block.ptr())) {
+        if (auto text_node = as_if<DOM::Text>(*following)) {
+            if (is_whitespace_node(*text_node))
+                continue;
+            return false;
+        }
+        if (!is<DOM::Element>(*following))
+            continue;
+        if (!is_inline_node(*following))
+            return true;
+        if (editing_ignores_content(*following))
+            return false;
+    }
+    return true;
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#collapsed-whitespace-node

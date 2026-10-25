@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1092 tests
 
-987 Pass
-105 Fail
+990 Pass
+102 Fail
 Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar</font>baz]" queryCommandIndeterm("inserttext") before
 Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar</font>baz]" queryCommandState("inserttext") before
 Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar</font>baz]" queryCommandValue("inserttext") before
@@ -702,7 +702,7 @@ Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s
 Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
 Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
 Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>" compare innerHTML
 Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("insertparagraph", false, "") return value
 Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
 Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
@@ -712,7 +712,7 @@ Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s
 Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
 Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
 Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
-Fail	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>" compare innerHTML
 Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>": execCommand("fontsize", false, "4") return value
 Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>": execCommand("insertText", false, "a") return value
@@ -1091,7 +1091,7 @@ Fail	[["delete",""],["inserttext","d"]] "<div style=white-space:pre><p>abc</p> <
 Pass	[["forwarddelete",""],["inserttext","d"]] "<p>abc[]<br> </p> <p><br></p>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""],["inserttext","d"]] "<p>abc[]<br> </p> <p><br></p>": execCommand("inserttext", false, "d") return value
 Pass	[["forwarddelete",""],["inserttext","d"]] "<p>abc[]<br> </p> <p><br></p>" checks for modifications to non-editable content
-Fail	[["forwarddelete",""],["inserttext","d"]] "<p>abc[]<br> </p> <p><br></p>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"]] "<p>abc[]<br> </p> <p><br></p>" compare innerHTML
 Pass	[["forwarddelete",""],["inserttext","d"]] "<div style=white-space:pre><p>abc[]</p> <p><br></p></div>": execCommand("forwarddelete", false, "") return value
 Pass	[["forwarddelete",""],["inserttext","d"]] "<div style=white-space:pre><p>abc[]</p> <p><br></p></div>": execCommand("inserttext", false, "d") return value
 Pass	[["forwarddelete",""],["inserttext","d"]] "<div style=white-space:pre><p>abc[]</p> <p><br></p></div>" checks for modifications to non-editable content
