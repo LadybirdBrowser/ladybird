@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<meta charset="windows-1252">
+<title>Location uses encoding-parse a URL</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+// Test for location.replace()
+async_test(t => {
+  const iframe = document.createElement('iframe');
+  iframe.src = 'resources/blank.html';
+
+  iframe.onload = t.step_func(() => {
+    if (!iframe.contentWindow.location.href.includes('test=')) {
+      iframe.contentWindow.location.replace(
+        iframe.contentWindow.location.href + '?test=\u00DF'
+      );
+    } else {
+      assert_equals(
+        iframe.contentWindow.location.search,
+        '?test=%DF',
+        'URL should use windows-1252 encoding'
+      );
+      t.done();
+    }
+  });
+
+  document.body.appendChild(iframe);
+}, 'location.replace() should use document encoding (windows-1252)');
+
+// Test for location.assign()
+async_test(t => {
+  const iframe = document.createElement('iframe');
+  iframe.src = 'resources/blank.html';
+
+  iframe.onload = t.step_func(() => {
+    if (!iframe.contentWindow.location.href.includes('assign=')) {
+      iframe.contentWindow.location.assign(
+        iframe.contentWindow.location.href + '?assign=\u00DF'
+      );
+    } else {
+      assert_equals(
+        iframe.contentWindow.location.search,
+        '?assign=%DF',
+        'URL should use windows-1252 encoding'
+      );
+      t.done();
+    }
+  });
+
+  document.body.appendChild(iframe);
+}, 'location.assign() should use document encoding (windows-1252)');
+
+// Test for location.href setter
+async_test(t => {
+  const iframe = document.createElement('iframe');
+  iframe.src = 'resources/blank.html';
+
+  iframe.onload = t.step_func(() => {
+    if (!iframe.contentWindow.location.href.includes('href=')) {
+      iframe.contentWindow.location.href =
+        iframe.contentWindow.location.href + '?href=\u00DF';
+    } else {
+      assert_equals(
+        iframe.contentWindow.location.search,
+        '?href=%DF',
+        'URL should use windows-1252 encoding'
+      );
+      t.done();
+    }
+  });
+
+  document.body.appendChild(iframe);
+}, 'location.href setter should use document encoding (windows-1252)');
+</script>
+</body>
