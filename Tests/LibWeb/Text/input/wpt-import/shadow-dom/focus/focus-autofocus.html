@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Sean Feng" href="mailto:sefeng@mozilla.com">
+<meta name="assert" content="Elements with autofocus should have high precedence over other elements for delegates focus">
+<link rel="help" href="https://github.com/whatwg/html/pull/6990">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="resources/shadow-utils.js"></script>
+</head>
+
+<body>
+  <script>
+  function createShadowDOMTree() {
+    // <div #host> (delegatesFocus = true)
+    //   #shadowRoot
+    //     <div #firstOuterDiv>
+    //     <div #innertHost>
+    //       #shadowRoot
+    //         <div #firstInnerDiv>
+    //         <div #secondInnerDiv>
+    //     <div #secondOuterDiv>
+    const host = document.createElement("div");
+    host.setAttribute("id", "host");
+    const outerRoot = host.attachShadow({mode: "open", delegatesFocus: true});
+
+    const firstOuterDiv = document.createElement("div");
+
+    const innerHost = document.createElement("div");
+    const innerRoot = innerHost.attachShadow({mode: "open"});
+    const firstInnerDiv = document.createElement("div");
+    const secondInnerDiv = document.createElement("div");
+    innerRoot.appendChild(firstInnerDiv);
+    innerRoot.appendChild(secondInnerDiv);
+
+    const secondOuterDiv = document.createElement("div");
+
+    outerRoot.appendChild(firstOuterDiv);
+    outerRoot.appendChild(innerHost);
+    outerRoot.appendChild(secondOuterDiv);
+    document.body.appendChild(host);
+    return [
+      host,
+      outerRoot,
+      firstOuterDiv,
+      secondOuterDiv,
+      innerHost,
+      innerRoot,
+      firstInnerDiv,
+      secondInnerDiv
+    ]
+  }
+
+  function resetShadowDOMTree() {
+    const host = document.getElementById("host");
+    if (host) {
+      host.remove();
+    }
+    return createShadowDOMTree();
+  }
+
+  function resetTabIndexAndFocus(
+    firstOuterDiv,
+    secondOuterDiv,
+    firstInnerDiv,
+    secondInnerDiv,
+    outerRoot,
+    innerRoot
+  ) {
+    firstOuterDiv.removeAttribute("tabindex");
+    firstOuterDiv.removeAttribute("autofocus");
+
+    secondOuterDiv.removeAttribute("tabindex");
+    secondOuterDiv.removeAttribute("autofocus");
+
+    firstInnerDiv.removeAttribute("tabindex");
+    firstInnerDiv.removeAttribute("autofocus");
+
+    secondInnerDiv.removeAttribute("tabindex");
+    secondInnerDiv.removeAttribute("autofocus");
+
+    resetFocus(document);
+    resetFocus(outerRoot);
+    resetFocus(innerRoot);
+  }
+
+  function setAllTabIndexTo(
+    firstOuterDiv,
+    secondOuterDiv,
+    firstInnerDiv,
+    secondInnerDiv,
+    tabIndex
+  ) {
+    firstOuterDiv.tabIndex = tabIndex;
+    secondOuterDiv.tabIndex = tabIndex;
+    firstInnerDiv.tabIndex = tabIndex;
+    secondInnerDiv.tabIndex = tabIndex;
+  }
+
+  test(function() {
+    const [
+      host,
+      outerRoot,
+      firstOuterDiv,
+      secondOuterDiv,
+      innerHost,
+      innerRoot,
+      firstInnerDiv,
+      secondInnerDiv
+    ] = resetShadowDOMTree();
+
+    resetTabIndexAndFocus(
+      firstOuterDiv,
+      secondOuterDiv,
+      firstInnerDiv,
+      secondInnerDiv,
+      outerRoot,
+      innerRoot
+    );
+
+    setAllTabIndexTo(
+      firstOuterDiv,
+      secondOuterDiv,
+      firstInnerDiv,
+      secondInnerDiv,
+      0
+    );
+
+    // <div #host> (delegatesFocus = true)
+    //   #shadowRoot
+    //     <div tabIndex=0 #firstOuterDiv>
+    //     <div #innertHost>
+    //       #shadowRoot
+    //         <div tabIndex=0 #firstInnerDiv>
+    //         <div tabIndex=0 #secondInnerDiv>
+    //     <div tabIndex=0 autofocus #secondOuterDiv>
+    secondOuterDiv.autofocus = true;
+    secondOuterDiv.setAttribute("autofocus", true);
+
+    host.focus();
+
+    assert_equals(document.activeElement, host);
+    assert_equals(outerRoot.activeElement, secondOuterDiv);
+  }, "The second input should be focused since it has autofocus");
+
+  test(function() {
+    const [
+      host,
+      outerRoot,
+      firstOuterDiv,
+      secondOuterDiv,
+      innerHost,
+      innerRoot,
+      firstInnerDiv,
+      secondInnerDiv
+    ] = resetShadowDOMTree();
+
+    resetTabIndexAndFocus(
+      firstOuterDiv,
+      secondOuterDiv,
+      firstInnerDiv,
+      secondInnerDiv,
+      outerRoot,
+      innerRoot
+    );
+
+    // <div #host> (delegatesFocus = true)
+    //   #shadowRoot
+    //     <div #firstOuterDiv>
+    //     <div #innertHost>
+    //       #shadowRoot
+    //         <div tabIndex=0 #firstInnerDiv>
+    //         <div tabIndex=0 autofocus #secondInnerDiv>
+    //     <div #secondOuterDiv>
+    firstInnerDiv.tabIndex = 0;
+    secondInnerDiv.tabIndex = 0;
+    secondInnerDiv.setAttribute("autofocus", true);
+
+    host.focus();
+    assert_equals(document.activeElement, document.body);
+    assert_equals(outerRoot.activeElement, null);
+  }, "Focus should not be delegated to the autofocus element because the inner host doesn't have delegates focus");
+
+  test(function() {
+    const [
+      host,
+      outerRoot,
+      firstOuterDiv,
+      secondOuterDiv,
+      innerHost,
+      innerRoot,
+      firstInnerDiv,
+      secondInnerDiv
+    ] = resetShadowDOMTree();
+
+    resetTabIndexAndFocus(
+      firstOuterDiv,
+      secondOuterDiv,
+      firstInnerDiv,
+      secondInnerDiv,
+      outerRoot,
+      innerRoot
+    );
+
+    const newInnerHost = document.createElement("div");
+    const newInnerRoot = newInnerHost.attachShadow({mode: "open", delegatesFocus: true});
+    const newFirstInnerDiv = document.createElement("div");
+    const newSecondInnerDiv = document.createElement("div");
+    newFirstInnerDiv.setAttribute("tabIndex", 0);
+    newSecondInnerDiv.setAttribute("tabIndex", 0);
+
+    newSecondInnerDiv.setAttribute("autofocus", true);
+    newInnerRoot.appendChild(newFirstInnerDiv);
+    newInnerRoot.appendChild(newSecondInnerDiv);
+
+    // <div #host> (delegatesFocus = true)
+    //   #shadowRoot
+    //     <div #firstOuterDiv>
+    //     <div #innertHost> (delegatesFocus = true)
+    //       #shadowRoot
+    //         <div tabIndex=0 #newFirstInnerDiv>
+    //         <div tabIndex=0 autofocus #newSecondInnerDiv>
+    //     <div #secondOuterDiv>
+    outerRoot.replaceChild(newInnerHost, innerHost);
+
+    host.focus();
+
+    assert_equals(document.activeElement, host);
+    assert_equals(outerRoot.activeElement, newInnerHost);
+    assert_equals(newInnerRoot.activeElement, newSecondInnerDiv);
+  }, "Focus should be delegated to the autofocus element when the inner host has delegates focus");
+
+  test(function() {
+    const [
+      host,
+      outerRoot,
+      firstOuterDiv,
+      secondOuterDiv,
+      innerHost,
+      innerRoot,
+      firstInnerDiv,
+      secondInnerDiv
+    ] = resetShadowDOMTree();
+
+    resetTabIndexAndFocus(
+      firstOuterDiv,
+      secondOuterDiv,
+      firstInnerDiv,
+      secondInnerDiv,
+      outerRoot,
+      innerRoot
+    );
+
+    // <div #host> (delegatesFocus = true)
+    //   #shadowRoot
+    //     <slot>
+    //       (slotted) <div autofocus tabIndex=0 #slottedAutofocus></div>
+    //     <div tabIndex=0 #firstOuterDiv>
+    //     <div #innertHost>
+    //       #shadowRoot
+    //         <div tabIndex=0 #firstInnerDiv>
+    //         <div tabIndex=0 autofocus #secondInnerDiv>
+    //     <div #secondOuterDiv>
+
+    const slottedAutofocus = document.createElement("div");
+    slottedAutofocus.tabIndex = 0;
+    slottedAutofocus.setAttribute("autofocus", true);
+    host.appendChild(slottedAutofocus);
+
+    const slot = document.createElement("slot");
+    outerRoot.insertBefore(slot, firstOuterDiv);
+
+    firstOuterDiv.tabIndex = 0;
+
+    host.focus();
+    assert_equals(document.activeElement, host);
+    assert_equals(outerRoot.activeElement, firstOuterDiv);
+  }, "Focus should not be delegated to the slotted elements");
+
+  test(function() {
+    const [
+      host,
+      outerRoot,
+      firstOuterDiv,
+      secondOuterDiv,
+      innerHost,
+      innerRoot,
+      firstInnerDiv,
+      secondInnerDiv
+    ] = resetShadowDOMTree();
+
+    resetTabIndexAndFocus(
+      firstOuterDiv,
+      secondOuterDiv,
+      firstInnerDiv,
+      secondInnerDiv,
+      outerRoot,
+      innerRoot
+    );
+
+    // <div #host> (delegatesFocus = true)
+    //   #shadowRoot
+    //     <div #firstOuterDiv>
+    //       <div tabIndex=0 #firstNestedDiv>
+    //         <div tabIndex=0 #secondNestedDiv>
+    //           <div tabIndex=0 autofocus #thirdNestedDiv>
+    //     <div #innertHost>
+    //       #shadowRoot
+    //         <div #firstInnerDiv>
+    //         <div #secondInnerDiv>
+    //     <div autofocus tabIndex=0 #secondOuterDiv>
+
+    secondInnerDiv.tabIndex = 0;
+    secondInnerDiv.setAttribute("autofocus", true);
+
+    const firstNestedDiv = document.createElement("div");
+    const secondNestedDiv = document.createElement("div");
+    const thirdNestedDiv = document.createElement("div");
+
+    firstNestedDiv.tabIndex = 0;
+    secondNestedDiv.tabIndex = 0;
+    thirdNestedDiv.tabIndex = 0;
+    thirdNestedDiv.setAttribute("autofocus", true);
+
+    firstOuterDiv.appendChild(firstNestedDiv);
+    firstNestedDiv.appendChild(secondNestedDiv);
+    secondNestedDiv.appendChild(thirdNestedDiv);
+
+    host.focus();
+
+    assert_equals(document.activeElement, host);
+    assert_equals(outerRoot.activeElement, thirdNestedDiv);
+  }, "Focus should be delegated to the nested div which has autofocus based on the tree order");
+  </script>
+</body>
+</html>
