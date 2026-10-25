@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<input type="number" id="input" value="1">
+<script>
+    input.addEventListener("beforeinput", () => {
+        input.type = "file";
+    });
+    input.focus();
+    internals.sendKey(input, "Up");
+</script>

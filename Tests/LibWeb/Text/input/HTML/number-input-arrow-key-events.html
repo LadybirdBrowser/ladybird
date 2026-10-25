@@ -1,0 +1,67 @@
+<!doctype html>
+<script src="../include.js"></script>
+<input type="number" id="input" value="5" />
+<script>
+    test(() => {
+        const log = event => {
+            const inputType = event.inputType === undefined ? "undefined" : `"${event.inputType}"`;
+            const data = event.data === undefined || event.data === null ? String(event.data) : `"${event.data}"`;
+            println(
+                `${event.type}: inputType=${inputType} data=${data} cancelable=${event.cancelable} value="${input.value}"`
+            );
+        };
+        input.addEventListener("beforeinput", log);
+        input.addEventListener("input", log);
+        input.addEventListener("change", log);
+        input.focus();
+
+        println("ArrowUp:");
+        internals.sendKey(input, "Up");
+        println("ArrowDown:");
+        internals.sendKey(input, "Down");
+
+        println("ArrowUp with a canceled beforeinput that sets the value:");
+        const setValueAndCancel = event => {
+            input.value = "100";
+            event.preventDefault();
+        };
+        input.addEventListener("beforeinput", setValueAndCancel);
+        internals.sendKey(input, "Up");
+        input.removeEventListener("beforeinput", setValueAndCancel);
+        println(`value="${input.value}"`);
+
+        println("ArrowUp with a beforeinput that makes the input read-only:");
+        const makeReadOnly = () => {
+            input.readOnly = true;
+        };
+        input.addEventListener("beforeinput", makeReadOnly);
+        internals.sendKey(input, "Up");
+        input.removeEventListener("beforeinput", makeReadOnly);
+        input.readOnly = false;
+        println(`value="${input.value}"`);
+
+        println("ArrowUp with a beforeinput that changes the type to text:");
+        const changeType = () => {
+            input.type = "text";
+        };
+        input.addEventListener("beforeinput", changeType);
+        internals.sendKey(input, "Up");
+        input.removeEventListener("beforeinput", changeType);
+        println(`type="${input.type}" value="${input.value}"`);
+
+        println("ArrowUp with an input listener that blurs the input:");
+        input.type = "number";
+        input.focus();
+        const blurInput = () => {
+            input.blur();
+        };
+        input.addEventListener("input", blurInput);
+        internals.sendKey(input, "Up");
+        input.removeEventListener("input", blurInput);
+        println(`value="${input.value}"`);
+
+        println("Blur without a change:");
+        input.focus();
+        input.blur();
+    });
+</script>

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Number input should fire beforeinput event before the input and change event
+1 Pass
+Pass	Number input should fire beforeinput event before the input and change event

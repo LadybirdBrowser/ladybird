@@ -1,0 +1,23 @@
+ArrowUp:
+beforeinput: inputType="insertText" data="6" cancelable=true value="5"
+input: inputType="insertText" data="6" cancelable=false value="6"
+change: inputType=undefined data=undefined cancelable=false value="6"
+ArrowDown:
+beforeinput: inputType="insertText" data="5" cancelable=true value="6"
+input: inputType="insertText" data="5" cancelable=false value="5"
+change: inputType=undefined data=undefined cancelable=false value="5"
+ArrowUp with a canceled beforeinput that sets the value:
+beforeinput: inputType="insertText" data="6" cancelable=true value="5"
+value="100"
+ArrowUp with a beforeinput that makes the input read-only:
+beforeinput: inputType="insertText" data="101" cancelable=true value="100"
+value="100"
+ArrowUp with a beforeinput that changes the type to text:
+beforeinput: inputType="insertText" data="101" cancelable=true value="100"
+type="text" value="100"
+ArrowUp with an input listener that blurs the input:
+beforeinput: inputType="insertText" data="101" cancelable=true value="100"
+input: inputType="insertText" data="101" cancelable=false value="101"
+change: inputType=undefined data=undefined cancelable=false value="101"
+value="101"
+Blur without a change:
