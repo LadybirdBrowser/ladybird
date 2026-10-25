@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-6 Pass
-2 Fail
+8 Pass
 Pass	Tokenization of "noreferrer" should skip window features separators before feature
 Pass	Feature "noreferrer" should be converted to ASCII lowercase
-Fail	After "noreferrer", tokenization should skip window features separators that are not "=" or ","
+Pass	After "noreferrer", tokenization should skip window features separators that are not "=" or ","
 Pass	Tokenizing "noreferrer" should ignore window feature separators except "," after initial "=" and before value
 Pass	Tokenizing "noreferrer" should read characters until first window feature separator as `value`
-Fail	Integer values other than 0 should activate the feature
+Pass	Integer values other than 0 should activate the feature
 Pass	Integer value of 0 should not activate "noreferrer"
 Pass	Invalid feature names should not tokenize as "noreferrer"
