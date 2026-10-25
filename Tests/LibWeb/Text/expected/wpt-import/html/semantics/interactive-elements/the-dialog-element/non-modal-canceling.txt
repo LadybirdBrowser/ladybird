@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Non-modal dialogs should not be cancelable via ESC
+1 Pass
+Pass	Non-modal dialogs should not be cancelable via ESC
