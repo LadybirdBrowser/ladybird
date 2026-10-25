@@ -9,19 +9,20 @@
 use core::cell::{Cell, OnceCell, RefCell};
 use core::ffi::c_void;
 
-use libjs_jit::bytecode::EnvironmentCoordinate;
+use libjs_jit::bytecode::{EnvironmentCoordinate, decode_instruction};
 pub use libjs_jit::code::INLINED_CALL_SITE_BIT;
 use libjs_jit::code::{ExitKind, Site};
 
 use super::entry_table::{JIT_ENTRY_SLOT_MASK, JitEntryTable, NO_JIT_ENTRY_SLOT};
 use super::executable_memory::ExecutableMemory;
-use crate::bytecode::executable::Executable;
+use crate::bytecode::executable::{Executable, PropertyLookupCache, PropertyLookupCacheTier};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::EcmascriptFunctionObject;
 use crate::layout::object::Object;
+use crate::layout::property_lookup_cache::PropertyLookupCacheEntryType;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 
 /// The status word of what JIT code returns, `libjs_jit::code::JitStatus`.
@@ -84,7 +85,7 @@ impl CompileState {
 
 /// An executable of a compile job's snapshot, by index. Index 0 is the compiled executable (without a function); the
 /// others are inlining candidates, whose frames exits materialize.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct SnapshotExecutable {
     pub executable: Gc<Executable>,
     pub function: Option<InlinedFunction>,
@@ -93,6 +94,23 @@ pub struct SnapshotExecutable {
     pub known_exit_sites: usize,
     /// For the compiled executable, how many sites in inlined builtins it had recorded then.
     pub known_builtin_exit_sites: usize,
+    /// The size of each property lookup cache of the executable when the code was compiled (see
+    /// `speculated_cache_size()`): how many shapes the code speculated on there.
+    pub property_cache_sizes: Box<[u8]>,
+}
+
+/// How many entries of a property lookup cache compiled code speculates on, or `u8::MAX` once the cache is megamorphic,
+/// so that it no longer grows.
+pub fn speculated_cache_size(cache: &PropertyLookupCache) -> u8 {
+    if cache.tier() == PropertyLookupCacheTier::Megamorphic {
+        return u8::MAX;
+    }
+    let entries = cache
+        .entries()
+        .iter()
+        .filter(|entry| entry.get().entry_type != PropertyLookupCacheEntryType::Empty)
+        .count();
+    u8::try_from(entries).expect("caches that are not megamorphic have few entries")
 }
 
 /// The function object of an inlined executable, which its materialized frames run.
@@ -331,8 +349,8 @@ impl JitCode {
         core::mem::take(&mut self.sites)
     }
 
-    pub fn snapshot_executable(&self, index: u32) -> SnapshotExecutable {
-        self.snapshot_executables[index as usize]
+    pub fn snapshot_executable(&self, index: u32) -> &SnapshotExecutable {
+        &self.snapshot_executables[index as usize]
     }
 
     /// How often the code exited.
@@ -368,8 +386,12 @@ unsafe impl Trace for JitCode {
 /// The JIT state of an executable that the interpreter and JIT code do not read: they read the fields of its head.
 #[derive(Default)]
 pub struct ExecutableJitState {
-    /// Places where JIT code exited. Recompiles never repeat a speculation of the same kind at the same pc.
+    /// Places where JIT code exited. Recompiles never repeat a speculation of the same kind at the same pc, but for
+    /// shapes of a property lookup cache that learned more of them since (see `jit_exit_sites_for_recompile()`).
     exit_sites: RefCell<Vec<(u32, ExitKind)>>,
+    /// For the pcs of `exit_sites` where JIT code exited with `ExitKind::BadShape` at an instruction whose property
+    /// lookup cache it speculated on: the size the cache had when the last code that exited there was compiled.
+    shape_exit_cache_sizes: RefCell<Vec<(u32, u8)>>,
     /// Places in builtins written in JavaScript where the executable's JIT code exited while running them inlined,
     /// by the address of the builtin's executable. Builtins are inlined into all their callers, so these are kept per
     /// caller: what failed in one caller says nothing about the others.
@@ -510,6 +532,60 @@ impl Executable {
 
     pub fn jit_exit_sites(&self) -> Vec<(u32, ExitKind)> {
         self.jit_state().exit_sites.borrow().clone()
+    }
+
+    /// The sites where JIT code exited that recompiles do not speculate at again (see `jit_exit_sites()`). A bad shape
+    /// at an instruction whose property lookup cache grew since the code that exited there was compiled is left out:
+    /// the interpreter added the shapes the code did not know to the cache, so recompiles speculate on them all. Each
+    /// such exit needs a larger cache, so this ends once the cache is megamorphic.
+    pub fn jit_exit_sites_for_recompile(&self) -> Vec<(u32, ExitKind)> {
+        let sizes = self.jit_state().shape_exit_cache_sizes.borrow();
+        self.jit_exit_sites()
+            .into_iter()
+            .filter(|&(pc, kind)| {
+                if kind != ExitKind::BadShape {
+                    return true;
+                }
+                let Some(&(_, size)) = sizes.iter().find(|(site, _)| *site == pc) else {
+                    return true;
+                };
+                self.speculated_property_lookup_cache(pc)
+                    .is_none_or(|cache| speculated_cache_size(cache) <= size)
+            })
+            .collect()
+    }
+
+    /// The property lookup cache that the instruction at `pc` speculates on (see
+    /// `Instruction::speculated_property_lookup_cache()`), if it has one.
+    fn speculated_property_lookup_cache(&self, pc: u32) -> Option<&PropertyLookupCache> {
+        let decoded = decode_instruction(self.bytecode(), pc).ok()?;
+        let index = decoded.instruction.speculated_property_lookup_cache()?;
+        self.property_lookup_caches().get(index as usize)
+    }
+
+    /// Notes that JIT code compiled when the property lookup caches of the executable had `cache_sizes` exited with
+    /// `ExitKind::BadShape` at `pc`. Returns whether that code speculated on more shapes there than the code that
+    /// exited there before, so that a recompile learns from the exit.
+    pub fn note_jit_shape_exit(&self, pc: u32, cache_sizes: &[u8]) -> bool {
+        let Some(size) = decode_instruction(self.bytecode(), pc)
+            .ok()
+            .and_then(|decoded| decoded.instruction.speculated_property_lookup_cache())
+            .and_then(|index| cache_sizes.get(index as usize).copied())
+        else {
+            return false;
+        };
+        let mut sizes = self.jit_state().shape_exit_cache_sizes.borrow_mut();
+        match sizes.iter_mut().find(|(site, _)| *site == pc) {
+            Some((_, recorded)) if *recorded >= size => false,
+            Some((_, recorded)) => {
+                *recorded = size;
+                true
+            }
+            None => {
+                sizes.push((pc, size));
+                true
+            }
+        }
     }
 
     pub fn jit_exit_site_count(&self) -> usize {

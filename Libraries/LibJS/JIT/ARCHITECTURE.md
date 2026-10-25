@@ -441,7 +441,14 @@ before, loads of the binding stay plain loads; for a captured binding, that hold
 loads. Closures are counted where they are created (`SharedFunctionInstanceData::closure_count()`),
 so compiled code only copies closure templates of functions that have several closures already.
 
-To be written: exit reasons, recompiles, the rule that a failed speculation is never repeated.
+**Shapes the caches learned.** A speculation that failed is never made again at the same place,
+with one exception: a `BadShape` exit at an instruction whose property lookup cache the code
+speculated on records how many entries the cache had when the code was compiled. Recompiles leave
+the exit out of the sites they avoid once the cache has more (`Executable::jit_exit_sites_for_recompile()`),
+since the interpreter added the shapes the code did not know. Each such exit needs a larger cache,
+and caches stop growing once megamorphic, so this ends.
+
+To be written: exit reasons, recompiles.
 
 ## 10. The snapshot and the caches
 
