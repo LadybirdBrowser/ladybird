@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+6 Pass
+2 Fail
+Pass	Tokenization of "noopener" should skip window features separators before feature
+Pass	Feature "noopener" should be converted to ASCII lowercase
+Fail	After "noopener", tokenization should skip window features separators that are not "=" or ","
+Pass	Tokenizing "noopener" should ignore window feature separators except "," after initial "=" and before value
+Pass	Tokenizing "noopener" should read characters until first window feature separator as `value`
+Fail	Integer values other than 0 should activate the feature
+Pass	Integer value of 0 should not activate "noopener"
+Pass	Invalid feature names should not tokenize as "noopener"
