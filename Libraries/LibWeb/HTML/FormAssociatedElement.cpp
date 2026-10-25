@@ -1045,12 +1045,15 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direct
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
 WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(Utf16View replacement)
 {
-    return set_range_text(replacement, m_selection_start, m_selection_end);
+    return set_range_text(replacement, selection_start(), selection_end());
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
 WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16String const& replacement)
 {
-    return set_range_text(replacement.utf16_view(), 0, replacement.length_in_code_units());
+    // 3. If the method has only one argument, then let start and end have the values of the selectionStart attribute
+    //    and the selectionEnd attribute respectively.
+    return set_range_text(replacement.utf16_view(), selection_start(), selection_end());
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
@@ -1091,10 +1094,10 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16
         end = relevant_value_length;
 
     // 7. Let selection start be the current value of the selectionStart attribute.
-    auto selection_start = m_selection_start;
+    auto selection_start = this->selection_start();
 
     // 8. Let selection end be the current value of the selectionEnd attribute.
-    auto selection_end = m_selection_end;
+    auto selection_end = this->selection_end();
 
     // 9. If start is less than end, delete the sequence of code units within the element's relevant value starting with
     //    the code unit at the startth position and ending with the code unit at the (end-1)th position.

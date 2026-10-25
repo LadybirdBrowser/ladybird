@@ -1,0 +1,4 @@
+input before: 2-4 backward
+input after: value=abXef 2-3
+textarea before: 2-4 backward
+textarea after: value=abXef 2-3
