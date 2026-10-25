@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 22 tests
+
+15 Pass
+7 Fail
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "initialize"
+Pass	Executing "incorrect construction"
+Fail	Executing "valid default construction"
+Fail	Executing "test AudioNodeOptions"
+Fail	Executing "valid non-default"
+Pass	Audit report
+Pass	> [initialize] 
+Pass	  context = new OfflineAudioContext(...) did not throw an exception.
+Pass	< [initialize] All assertions passed. (total 1 assertions)
+Pass	> [incorrect construction] 
+Pass	  new WaveShaperNode() threw TypeError: "undefined is not a constructor (evaluated from 'window[name]')".
+Pass	  new WaveShaperNode(1) threw TypeError: "undefined is not a constructor (evaluated from 'window[name]')".
+Pass	  new WaveShaperNode(context, 42) threw TypeError: "undefined is not a constructor (evaluated from 'window[name]')".
+Pass	< [incorrect construction] All assertions passed. (total 3 assertions)
+Pass	> [valid default construction] 
+Fail	X node0 = new WaveShaperNode(context) incorrectly threw TypeError: "undefined is not a constructor (evaluated from 'window[name]')".
+Pass	> [test AudioNodeOptions] 
+Fail	X new WaveShaperNode(c, {channelCount: 17}) incorrectly threw TypeError: "undefined is not a constructor (evaluated from 'window[nodeName]')".
+Pass	> [valid non-default] 
+Fail	X node1 = new WaveShaperNode(, {"curve":{"0":1,"1":2,"2":3},"oversample":"4x"}) incorrectly threw ReferenceError: "'WaveShaperNode' is not defined".
+Fail	# AUDIT TASK RUNNER FINISHED: 3 out of 5 tasks were failed.

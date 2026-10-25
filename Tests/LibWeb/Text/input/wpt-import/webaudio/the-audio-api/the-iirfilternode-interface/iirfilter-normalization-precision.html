@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test IIRFilter coefficient normalization precision
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      test(t => {
+        const context = new OfflineAudioContext(1, 1, 48000);
+
+        const feedforward = [1, 0, -1];
+        const feedback = [1, -2 * 0.9995 * Math.cos(Math.PI / 4), 0.9995 ** 2];
+        const reference = context.createIIRFilter(feedforward, feedback);
+
+        const scaled = context.createIIRFilter(
+            feedforward.map(v => v / 10), feedback.map(v => v / 10));
+
+        const frequencies = new Float32Array(21);
+        for (let k = 0; k < frequencies.length; ++k)
+          frequencies[k] = 5980 + 2 * k;
+        const referenceMag = new Float32Array(frequencies.length);
+        const scaledMag = new Float32Array(frequencies.length);
+        const phase = new Float32Array(frequencies.length);
+
+        reference.getFrequencyResponse(frequencies, referenceMag, phase);
+        scaled.getFrequencyResponse(frequencies, scaledMag, phase);
+
+        assert_array_equal_within_eps(
+            scaledMag, referenceMag, {absoluteThreshold: 1e-3},
+            'Magnitude response normalized by feedback[0]=0.1 should match the ' +
+                'response of the equivalent feedback[0]=1 filter');
+      }, 'IIR coefficient normalization stays precise when feedback[0] is not ' +
+          'exactly representable as a float');
+    </script>
+  </body>
+</html>

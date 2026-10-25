@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Basic IIRFilterNode Properties
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+    <script src="../../resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let sampleRate = 48000;
+      let testFrames = 100;
+
+      // Global context that can be used by the individual tasks. It must be
+      // defined by the initialize task.
+      let context;
+
+      let audit = Audit.createTaskRunner();
+
+      audit.define('initialize', (task, should) => {
+        should(() => {
+          context = new OfflineAudioContext(1, testFrames, sampleRate);
+        }, 'Initialize context for testing').notThrow();
+        task.done();
+      });
+
+      audit.define('existence', (task, should) => {
+        should(context.createIIRFilter, 'context.createIIRFilter').exist();
+        task.done();
+      });
+
+      audit.define('parameters', (task, should) => {
+        // Create a really simple IIR filter. Doesn't much matter what.
+        let coef = Float32Array.from([1]);
+
+        let f = context.createIIRFilter(coef, coef);
+
+        should(f.numberOfInputs, 'numberOfInputs').beEqualTo(1);
+        should(f.numberOfOutputs, 'numberOfOutputs').beEqualTo(1);
+        should(f.channelCountMode, 'channelCountMode').beEqualTo('max');
+        should(f.channelInterpretation, 'channelInterpretation')
+            .beEqualTo('speakers');
+
+        task.done();
+      });
+
+      audit.define('exceptions-createIIRFilter', (task, should) => {
+        should(function() {
+          // Two args are required.
+          context.createIIRFilter();
+        }, 'createIIRFilter()').throw(TypeError);
+
+        should(function() {
+          // Two args are required.
+          context.createIIRFilter(new Float32Array(1));
+        }, 'createIIRFilter(new Float32Array(1))').throw(TypeError);
+
+        should(function() {
+          // null is not valid
+          context.createIIRFilter(null, null);
+        }, 'createIIRFilter(null, null)').throw(TypeError);
+
+        should(function() {
+          // There has to be at least one coefficient.
+          context.createIIRFilter([], []);
+        }, 'createIIRFilter([], [])').throw(DOMException, 'NotSupportedError');
+
+        should(function() {
+          // There has to be at least one coefficient.
+          context.createIIRFilter([1], []);
+        }, 'createIIRFilter([1], [])').throw(DOMException, 'NotSupportedError');
+
+        should(function() {
+          // There has to be at least one coefficient.
+          context.createIIRFilter([], [1]);
+        }, 'createIIRFilter([], [1])').throw(DOMException, 'NotSupportedError');
+
+        should(
+            function() {
+              // Max allowed size for the coefficient arrays.
+              let fb = new Float32Array(20);
+              fb[0] = 1;
+              context.createIIRFilter(fb, fb);
+            },
+            'createIIRFilter(new Float32Array(20), new Float32Array(20))')
+            .notThrow();
+
+        should(
+            function() {
+              // Max allowed size for the feedforward coefficient array.
+              let coef = new Float32Array(21);
+              coef[0] = 1;
+              context.createIIRFilter(coef, [1]);
+            },
+            'createIIRFilter(new Float32Array(21), [1])')
+            .throw(DOMException, 'NotSupportedError');
+
+        should(
+            function() {
+              // Max allowed size for the feedback coefficient array.
+              let coef = new Float32Array(21);
+              coef[0] = 1;
+              context.createIIRFilter([1], coef);
+            },
+            'createIIRFilter([1], new Float32Array(21))')
+            .throw(DOMException, 'NotSupportedError');
+
+        should(
+            function() {
+              // First feedback coefficient can't be 0.
+              context.createIIRFilter([1], new Float32Array(2));
+            },
+            'createIIRFilter([1], new Float32Array(2))')
+            .throw(DOMException, 'InvalidStateError');
+
+        should(
+            function() {
+              // feedforward coefficients can't all be zero.
+              context.createIIRFilter(new Float32Array(10), [1]);
+            },
+            'createIIRFilter(new Float32Array(10), [1])')
+            .throw(DOMException, 'InvalidStateError');
+
+        should(function() {
+          // Feedback coefficients must be finite.
+          context.createIIRFilter([1], [1, Infinity, NaN]);
+        }, 'createIIRFilter([1], [1, NaN, Infinity])').throw(TypeError);
+
+        should(function() {
+          // Feedforward coefficients must be finite.
+          context.createIIRFilter([1, Infinity, NaN], [1]);
+        }, 'createIIRFilter([1, NaN, Infinity], [1])').throw(TypeError);
+
+        should(function() {
+          // Test that random junk in the array is converted to NaN.
+          context.createIIRFilter([1, 'abc', []], [1]);
+        }, 'createIIRFilter([1, \'abc\', []], [1])').throw(TypeError);
+
+        task.done();
+      });
+
+      audit.define('exceptions-getFrequencyData', (task, should) => {
+        // Create a really simple IIR filter. Doesn't much matter what.
+        let coef = Float32Array.from([1]);
+
+        let f = context.createIIRFilter(coef, coef);
+
+        should(
+            function() {
+              // frequencyHz can't be null.
+              f.getFrequencyResponse(
+                  null, new Float32Array(1), new Float32Array(1));
+            },
+            'getFrequencyResponse(null, new Float32Array(1), new Float32Array(1))')
+            .throw(TypeError);
+
+        should(
+            function() {
+              // magResponse can't be null.
+              f.getFrequencyResponse(
+                  new Float32Array(1), null, new Float32Array(1));
+            },
+            'getFrequencyResponse(new Float32Array(1), null, new Float32Array(1))')
+            .throw(TypeError);
+
+        should(
+            function() {
+              // phaseResponse can't be null.
+              f.getFrequencyResponse(
+                  new Float32Array(1), new Float32Array(1), null);
+            },
+            'getFrequencyResponse(new Float32Array(1), new Float32Array(1), null)')
+            .throw(TypeError);
+
+        should(
+            function() {
+              // magResponse array must the same length as frequencyHz
+              f.getFrequencyResponse(
+                  new Float32Array(10), new Float32Array(1),
+                  new Float32Array(20));
+            },
+            'getFrequencyResponse(new Float32Array(10), new Float32Array(1), new Float32Array(20))')
+            .throw(DOMException, 'InvalidAccessError');
+
+        should(
+            function() {
+              // phaseResponse array must be the same length as frequencyHz
+              f.getFrequencyResponse(
+                  new Float32Array(10), new Float32Array(20),
+                  new Float32Array(1));
+            },
+            'getFrequencyResponse(new Float32Array(10), new Float32Array(20), new Float32Array(1))')
+            .throw(DOMException, 'InvalidAccessError');
+
+        task.done();
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

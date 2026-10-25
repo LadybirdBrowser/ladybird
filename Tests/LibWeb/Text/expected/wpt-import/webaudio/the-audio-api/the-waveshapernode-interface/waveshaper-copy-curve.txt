@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	test copying: Modifying curve should not modify WaveShaper

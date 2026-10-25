@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+1 Pass
+7 Fail
+Pass	IIRFilterNode coefficients are checked properly
+Fail	feedforward coefficients can not be empty
+Fail	feedback coefficients can not be empty
+Fail	more than 20 feedforward coefficients can not be used
+Fail	more than 20 feedback coefficients can not be used
+Fail	at least one feedforward coefficient must be non-zero
+Fail	the first feedback coefficient must be non-zero
+Fail	IIRFilterNode getFrequencyResponse handles invalid frequencies properly

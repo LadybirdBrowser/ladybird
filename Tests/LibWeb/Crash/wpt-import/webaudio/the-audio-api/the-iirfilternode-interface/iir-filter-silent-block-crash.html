@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Regression test for IIRFilter destination crash</title>
+<script>
+  var audioContext = new AudioContext();
+  var destination = audioContext.destination;
+  var filter = destination.context.createIIRFilter([1],[1]);
+  filter.connect(destination);
+</script>

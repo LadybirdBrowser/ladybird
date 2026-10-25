@@ -1,0 +1,37 @@
+Harness status: OK
+
+Found 31 tests
+
+15 Pass
+16 Fail
+Pass	# AUDIT TASK RUNNER STARTED.
+Fail	Executing "coefficient-normalization"
+Fail	Executing "one-zero"
+Fail	Executing "one-pole"
+Fail	Executing "0: lowpass"
+Fail	Executing "1: highpass"
+Fail	Executing "2: bandpass"
+Fail	Executing "3: notch"
+Fail	Executing "4: allpass"
+Fail	Executing "5: lowshelf"
+Fail	Executing "6: highshelf"
+Fail	Executing "7: peaking"
+Fail	Executing "multi-channel"
+Fail	Executing "4th-order-iir"
+Pass	Audit report
+Pass	> [coefficient-normalization] 
+Fail	X createIIRFilter with normalized coefficients incorrectly threw TypeError: "undefined is not a function (evaluated from 'context.createIIRFilter')".
+Fail	X createIIRFilter with unnormalized coefficients incorrectly threw TypeError: "undefined is not a function (evaluated from 'context.createIIRFilter')".
+Pass	> [one-zero] 
+Pass	> [one-pole] 
+Pass	> [0: lowpass] 
+Pass	> [1: highpass] 
+Pass	> [2: bandpass] 
+Pass	> [3: notch] 
+Pass	> [4: allpass] 
+Pass	> [5: lowshelf] 
+Pass	> [6: highshelf] 
+Pass	> [7: peaking] 
+Pass	> [multi-channel] 
+Pass	> [4th-order-iir] 
+Fail	# AUDIT TASK RUNNER FINISHED: 1 out of 13 tasks were failed.

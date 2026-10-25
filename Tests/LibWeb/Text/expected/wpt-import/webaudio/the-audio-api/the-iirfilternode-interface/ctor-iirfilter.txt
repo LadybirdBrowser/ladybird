@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+2 Pass
+4 Fail
+Pass	Initialize OfflineAudioContext
+Pass	Invalid IIRFilterNode constructor should throw
+Fail	Default IIRFilterNode constructor with feedforward/feedback
+Fail	Test AudioNodeOptions on IIRFilterNode
+Fail	IIRFilterNode constructor should throw with missing required options
+Fail	Functional test of IIRFilterNode constructor vs. legacy method

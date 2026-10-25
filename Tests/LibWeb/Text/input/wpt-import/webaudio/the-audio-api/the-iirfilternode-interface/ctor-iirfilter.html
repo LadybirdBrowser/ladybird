@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test Constructor: IIRFilter</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audionodeoptions.js"></script>
+  </head>
+  <body>
+    <script>
+      let context;
+
+      promise_test(async () => {
+        context = new OfflineAudioContext(1, 1, 48000);
+      }, 'Initialize OfflineAudioContext');
+
+      promise_test(async () => {
+        testInvalidConstructor_W3CTH('IIRFilterNode', context);
+      }, 'Invalid IIRFilterNode constructor should throw');
+
+      promise_test(async () => {
+        const node =
+            testDefaultConstructor_W3CTH('IIRFilterNode', context, {
+              numberOfInputs: 1,
+              numberOfOutputs: 1,
+              channelCount: 2,
+              channelCountMode: 'max',
+              channelInterpretation: 'speakers',
+              constructorOptions: {feedforward: [1], feedback: [1, -.9]}
+            });
+      }, 'Default IIRFilterNode constructor with feedforward/feedback');
+
+      promise_test(async () => {
+        testAudioNodeOptions_W3CTH(
+            context,
+            'IIRFilterNode',
+            {additionalOptions: {feedforward: [1, 1], feedback: [1, .5]}});
+      }, 'Test AudioNodeOptions on IIRFilterNode');
+
+      promise_test(async () => {
+        let node;
+
+        let options = {feedback: [1, .5]};
+        assert_throws_js(TypeError, () => {
+          node = new IIRFilterNode(context, options);
+        }, 'node = new IIRFilterNode(, {"feedback":[1,0.5]})');
+
+        options = {feedforward: [1, 0.5]};
+        assert_throws_js(TypeError, () => {
+          node = new IIRFilterNode(context, options);
+        }, 'node = new IIRFilterNode(c, {"feedforward":[1,0.5]})');
+      }, 'IIRFilterNode constructor should throw with missing required ' +
+          'options');
+
+      // Test functionality of constructor.  This is needed because we have no
+      // way of determining if the filter coefficients were were actually set
+      // appropriately.
+
+      // TODO(rtoy): This functionality test should be moved out to a separate
+      // file.
+      promise_test(async () => {
+        const options = {feedback: [1, .5], feedforward: [1, 1]};
+
+        // Create two-channel offline context; sample rate and length are fairly
+        // arbitrary.  Channel 0 contains the test output and channel 1 contains
+        // the expected output.
+        const sampleRate = 48000;
+        const renderLength = 0.125;
+        const testContext =
+            new OfflineAudioContext(2, renderLength * sampleRate, sampleRate);
+
+        // The test node uses the constructor.  The reference node creates the
+        // same filter but uses the old factory method.
+        const testNode = new IIRFilterNode(testContext, options);
+        const refNode = testContext.createIIRFilter(
+            Float32Array.from(options.feedforward),
+            Float32Array.from(options.feedback));
+
+        const source = testContext.createOscillator();
+        source.connect(testNode);
+        source.connect(refNode);
+
+        const merger = testContext.createChannelMerger(
+            testContext.destination.channelCount);
+
+        testNode.connect(merger, 0, 0);
+        refNode.connect(merger, 0, 1);
+
+        merger.connect(testContext.destination);
+
+        source.start();
+
+        const resultBuffer = await testContext.startRendering();
+        const actual = resultBuffer.getChannelData(0);
+        const expected = resultBuffer.getChannelData(1);
+
+        // The output from the two channels should be exactly equal
+        // because exactly the same IIR filter should have been created.
+        assert_array_approx_equals(
+            actual, expected, 0,
+            'Output of filter using new IIRFilter(...) should ' +
+                'match legacy method output');
+      }, 'Functional test of IIRFilterNode constructor vs. legacy method');
+    </script>
+  </body>
+</html>
