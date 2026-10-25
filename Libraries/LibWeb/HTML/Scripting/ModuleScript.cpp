@@ -63,7 +63,8 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_mod
     // 4. Set script's base URL to baseURL.
     auto script = create_internal(move(base_url), filename, settings);
 
-    // FIXME: 5. Set script's fetch options to options.
+    // 5. Set script's fetch options to options.
+    // NB: Callers set the script's fetch options once it has been created.
 
     // 6. Set script's parse error and error to rethrow to null.
     script->set_parse_error(JS::js_null());
@@ -262,7 +263,8 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_webassembly_mo
     // 2. Let script be a new module script that this algorithm will subsequently initialize.
     // 3. Set script's settings object to settings.
     // 4. Set script's base URL to baseURL.
-    // FIXME: 5. Set script's fetch options to options.
+    // 5. Set script's fetch options to options.
+    // NB: Callers set the script's fetch options once it has been created.
     auto script = create_internal(move(base_url), filename, settings);
 
     // 6. Set script's parse error and error to rethrow to null.

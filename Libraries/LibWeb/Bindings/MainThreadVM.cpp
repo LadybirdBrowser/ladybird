@@ -515,7 +515,8 @@ void initialize_main_thread_vm(HTML::AgentType type)
             // 3. Set fetchReferrer to referencingScript's base URL.
             fetch_referrer = referencing_script->base_url().value();
 
-            // FIXME: 4. Set originalFetchOptions to referencingScript's fetch options.
+            // 4. Set originalFetchOptions to referencingScript's fetch options.
+            original_fetch_options = referencing_script->fetch_options();
         }
 
         // 7. If referrer is a Cyclic Module Record and moduleRequest is equal to the first element of referrer.[[RequestedModules]], then:

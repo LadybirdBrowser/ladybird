@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Script.h>
+#include <LibWeb/HTML/Scripting/ScriptFetchOptions.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web::HTML {
@@ -56,6 +58,19 @@ Script::Script(Optional<URL::URL> base_url, ByteString filename, Utf16String dis
 }
 
 Script::~Script() = default;
+
+ScriptFetchOptions const& Script::fetch_options() const
+{
+    static NeverDestroyed<ScriptFetchOptions> default_fetch_options { default_script_fetch_options() };
+    if (!m_fetch_options)
+        return *default_fetch_options;
+    return *m_fetch_options;
+}
+
+void Script::set_fetch_options(ScriptFetchOptions fetch_options)
+{
+    m_fetch_options = make<ScriptFetchOptions>(move(fetch_options));
+}
 
 EnvironmentSettingsObject& Script::settings_object()
 {

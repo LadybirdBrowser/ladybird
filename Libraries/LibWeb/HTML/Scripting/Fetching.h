@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/Scripting/ImportMap.h>
 #include <LibWeb/HTML/Scripting/ModuleMap.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
+#include <LibWeb/HTML/Scripting/ScriptFetchOptions.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
@@ -28,33 +29,6 @@ using PerformTheFetchHook = GC::Ptr<GC::Function<WebIDL::ExceptionOr<void>(GC::R
 
 WEB_API OnFetchScriptComplete create_on_fetch_script_complete(GC::Heap& heap, Function<void(GC::Ptr<Script>)> function);
 WEB_API PerformTheFetchHook create_perform_the_fetch_hook(GC::Heap& heap, Function<WebIDL::ExceptionOr<void>(GC::Ref<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)> function);
-
-// https://html.spec.whatwg.org/multipage/webappapis.html#script-fetch-options
-struct ScriptFetchOptions {
-    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-fetch-options-nonce
-    Utf16String cryptographic_nonce {};
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-fetch-options-integrity
-    Utf16String integrity_metadata {};
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-fetch-options-parser
-    Fetch::Infrastructure::Request::ParserMetadata parser_metadata { Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted };
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-fetch-options-credentials
-    Fetch::Infrastructure::Request::CredentialsMode credentials_mode { Fetch::Infrastructure::Request::CredentialsMode::SameOrigin };
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-fetch-options-referrer-policy
-    ReferrerPolicy::ReferrerPolicy referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-fetch-options-render-blocking
-    bool render_blocking { false };
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-fetch-options-fetch-priority
-    Fetch::Infrastructure::Request::Priority fetch_priority {};
-};
-
-// https://html.spec.whatwg.org/multipage/webappapis.html#default-script-fetch-options
-ScriptFetchOptions default_script_fetch_options();
 
 class FetchContext : public JS::Cell {
     GC_CELL(FetchContext, JS::Cell);
@@ -98,7 +72,7 @@ WEB_API WebIDL::ExceptionOr<void> fetch_module_worker_script_graph(URL::URL cons
 WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL const&, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook, OnFetchScriptComplete, Fetch::Infrastructure::Request::CredentialsMode = Fetch::Infrastructure::Request::CredentialsMode::SameOrigin);
 void fetch_external_module_script_graph(JS::Realm&, URL::URL const&, EnvironmentSettingsObject& settings_object, ScriptFetchOptions const&, OnFetchScriptComplete on_complete);
 void fetch_modulepreload_module_script_graph(JS::Realm&, URL::URL const&, Fetch::Infrastructure::Request::Destination, EnvironmentSettingsObject& settings_object, ScriptFetchOptions const&, OnFetchScriptComplete on_complete);
-void fetch_inline_module_script_graph(JS::Realm&, ByteString const& filename, Utf16View source_text, URL::URL const& base_url, EnvironmentSettingsObject& settings_object, size_t source_line_number, OnFetchScriptComplete on_complete);
+void fetch_inline_module_script_graph(JS::Realm&, ByteString const& filename, Utf16View source_text, URL::URL const& base_url, EnvironmentSettingsObject& settings_object, ScriptFetchOptions const& options, size_t source_line_number, OnFetchScriptComplete on_complete);
 void fetch_single_imported_module_script(JS::Realm&, URL::URL const&, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination, ScriptFetchOptions const&, EnvironmentSettingsObject&, Fetch::Infrastructure::Request::ReferrerType, JS::ModuleRequest const&, PerformTheFetchHook, OnFetchScriptComplete on_complete);
 
 void fetch_descendants_of_and_link_a_module_script(JS::Realm&, ModuleScript&, EnvironmentSettingsObject&, Fetch::Infrastructure::Request::Destination, PerformTheFetchHook, OnFetchScriptComplete on_complete);

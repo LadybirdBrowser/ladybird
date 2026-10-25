@@ -650,6 +650,14 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
     // 4. Set up the classic script request given request and options.
     set_up_classic_script_request(*request, options);
 
+    // NB: The script is created in several places below. They all hand it to onComplete, which is where we set its
+    //     fetch options to options.
+    on_complete = create_on_fetch_script_complete(GC::Heap::the(), [options, on_complete](GC::Ptr<Script> script) {
+        if (script)
+            script->set_fetch_options(options);
+        on_complete->function()(script);
+    });
+
     // 5. Fetch request with the following processResponseConsumeBody steps given response response and null, failure,
     //    or a byte sequence bodyBytes:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
@@ -685,7 +693,6 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
 
         // 7. Let script be the result of creating a classic script given source text, settings object's realm, response's URL,
         //    options, and muted errors.
-        // FIXME: Pass options.
         auto response_url = response->url().value_or({});
 
         auto on_complete_root = GC::make_root(on_complete);
@@ -1085,7 +1092,7 @@ void fetch_single_module_script(JS::Realm& realm,
     // 13. If performFetch was given, run performFetch with request, isTopLevel, and with processResponseConsumeBody as defined below.
     //     Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
     //     In both cases, let processResponseConsumeBody given response response and null, failure, or a byte sequence bodyBytes be the following algorithm:
-    auto process_response_consume_body = [request, &module_map, url, module_type, &settings_object](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+    auto process_response_consume_body = [request, &module_map, url, module_type, &settings_object, options](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         auto internal_response = response->unsafe_response();
 
         // 1. If any of the following are true:
@@ -1113,9 +1120,10 @@ void fetch_single_module_script(JS::Realm& realm,
         //  6. If mimeType's essence is "application/wasm" and moduleType is "javascript-or-wasm", then set moduleScript
         //     to the result of creating a WebAssembly module script given bodyBytes, settingsObject, response's URL, and
         //     options.
-        // FIXME: Pass options.
         if (mime_type.has_value() && mime_type->essence() == "application/wasm"sv && module_type == "javascript-or-wasm"sv) {
             module_script = ModuleScript::create_a_webassembly_module_script(url.to_byte_string(), take_body_bytes_as_byte_buffer(body_bytes), settings_object, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
+            if (module_script)
+                module_script->set_fetch_options(options);
         }
 
         // 7. Otherwise
@@ -1133,7 +1141,6 @@ void fetch_single_module_script(JS::Realm& realm,
             // 3. If mimeType is a JavaScript MIME type and moduleType is "javascript-or-wasm", then set moduleScript to
             //    the result of creating a JavaScript module script given sourceText, settingsObject, response's URL,
             //    and options.
-            // FIXME: Pass options.
             if (mime_type.has_value() && mime_type->is_javascript() && module_type == "javascript-or-wasm"sv) {
                 auto settings_root = GC::make_root(settings_object);
                 auto url_string = url.to_byte_string();
@@ -1158,7 +1165,7 @@ void fetch_single_module_script(JS::Realm& realm,
                             bytecode_cache_context = move(bytecode_cache_context),
                             source_hash = move(source_hash),
                             source_length,
-                            settings_root = move(settings_root)](auto bytecode_cache) mutable {
+                            options, settings_root = move(settings_root)](auto bytecode_cache) mutable {
                             Optional<NonnullRefPtr<JS::SourceCode const>> source_code;
                             if (bytecode_cache) {
                                 source_code = JS::SourceCode::create(
@@ -1168,6 +1175,7 @@ void fetch_single_module_script(JS::Realm& realm,
                                     source_byte_storage);
                                 auto module_script = ModuleScript::create_from_bytecode_cache(url_string, *source_code, *settings_root, response_url, bytecode_cache.release_nonnull()).release_value_but_fixme_should_propagate_errors();
                                 if (module_script && module_script->parse_error().is_null()) {
+                                    module_script->set_fetch_options(options);
                                     settings_root->module_map().complete_fetch(url, module_type_string, module_script);
                                     return;
                                 }
@@ -1187,7 +1195,7 @@ void fetch_single_module_script(JS::Realm& realm,
                                     module_type_string = move(module_type_string),
                                     bytecode_cache_context = move(bytecode_cache_context),
                                     source_hash = move(source_hash),
-                                    settings_root = move(settings_root)](auto result, auto source_code) mutable {
+                                    options, settings_root = move(settings_root)](auto result, auto source_code) mutable {
                                     auto source_code_for_cache = source_code;
                                     auto should_generate_bytecode_cache = result.compiled && bytecode_cache_context.has_value();
                                     auto module_script = result.compiled
@@ -1195,6 +1203,7 @@ void fetch_single_module_script(JS::Realm& realm,
                                         : ModuleScript::create_from_pre_parsed(url_string, move(source_code), *settings_root, move(response_url), move(result.parsed)).release_value_but_fixme_should_propagate_errors();
                                     BytecodeCacheInstallTarget install_target;
                                     if (module_script) {
+                                        module_script->set_fetch_options(options);
                                         module_script->record().visit(
                                             [](Empty) { },
                                             [&](GC::Ref<JS::SourceTextModule> module) { install_target.module = module; },
@@ -1226,7 +1235,7 @@ void fetch_single_module_script(JS::Realm& realm,
                         module_type_string = move(module_type_string),
                         bytecode_cache_context = move(bytecode_cache_context),
                         source_hash = move(source_hash),
-                        settings_root = move(settings_root)](auto result, auto source_code) mutable {
+                        options, settings_root = move(settings_root)](auto result, auto source_code) mutable {
                         auto source_code_for_cache = source_code;
                         auto should_generate_bytecode_cache = result.compiled && bytecode_cache_context.has_value();
                         auto module_script = result.compiled
@@ -1234,6 +1243,7 @@ void fetch_single_module_script(JS::Realm& realm,
                             : ModuleScript::create_from_pre_parsed(url_string, move(source_code), *settings_root, move(response_url), move(result.parsed)).release_value_but_fixme_should_propagate_errors();
                         BytecodeCacheInstallTarget install_target;
                         if (module_script) {
+                            module_script->set_fetch_options(options);
                             module_script->record().visit(
                                 [](Empty) { },
                                 [&](GC::Ref<JS::SourceTextModule> module) { install_target.module = module; },
@@ -1343,10 +1353,11 @@ void fetch_modulepreload_module_script_graph(JS::Realm& realm, URL::URL const& u
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-an-inline-module-script-graph
-void fetch_inline_module_script_graph(JS::Realm& realm, ByteString const& filename, Utf16View source_text, URL::URL const& base_url, EnvironmentSettingsObject& settings_object, size_t source_line_number, OnFetchScriptComplete on_complete)
+void fetch_inline_module_script_graph(JS::Realm& realm, ByteString const& filename, Utf16View source_text, URL::URL const& base_url, EnvironmentSettingsObject& settings_object, ScriptFetchOptions const& options, size_t source_line_number, OnFetchScriptComplete on_complete)
 {
     // 1. Let script be the result of creating a JavaScript module script using sourceText, settingsObject, baseURL, and options.
     auto script = ModuleScript::create_a_javascript_module_script(filename, source_text, settings_object, base_url, source_line_number, ScriptRegistry::IsInlineSource::Yes).release_value_but_fixme_should_propagate_errors();
+    script->set_fetch_options(options);
 
     // 2. Fetch the descendants of and link script, given settingsObject, "script", and onComplete.
     fetch_descendants_of_and_link_a_module_script(realm, *script, settings_object, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);
