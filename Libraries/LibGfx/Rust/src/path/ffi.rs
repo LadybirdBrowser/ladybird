@@ -13,11 +13,8 @@ use super::encoding;
 use super::geometry::{PathGeometry, PathVerb};
 use super::hit_test;
 use super::measure::{self, PathVertex};
-use super::stroke::{self, StrokeStyle};
-use super::svg_text;
 use crate::geometry::FloatPoint;
-use crate::matrix::AffineTransform;
-use crate::paint_enums::{CapStyle, JoinStyle, WindingRule};
+use crate::paint_enums::WindingRule;
 use std::ffi::c_void;
 
 /// The contours of a path, valid until the path changes or is destroyed. A path without geometry has
@@ -38,15 +35,6 @@ fn point(x: f32, y: f32) -> FloatPoint {
 }
 
 /// # Safety
-/// `transform` must point to the six values a, b, c, d, e and f of an affine transform.
-unsafe fn read_transform(transform: *const f32) -> AffineTransform {
-    AffineTransform {
-        // SAFETY: The caller passes six floats.
-        values: unsafe { std::ptr::read(transform.cast::<[f32; 6]>()) },
-    }
-}
-
-/// # Safety
 /// `out_point_and_tangent` must point to four floats.
 unsafe fn write_point_and_tangent(out_point_and_tangent: *mut f32, (position, tangent): (FloatPoint, FloatPoint)) {
     // SAFETY: The caller passes room for four floats.
@@ -55,26 +43,6 @@ unsafe fn write_point_and_tangent(out_point_and_tangent: *mut f32, (position, ta
             out_point_and_tangent.cast::<[f32; 4]>(),
             [position.x, position.y, tangent.x, tangent.y],
         );
-    }
-}
-
-/// Calls the function with the path and the other path. A path appended to itself is copied first.
-///
-/// # Safety
-/// `path` and `other` must be live paths from this module; nothing else may use `path` for the call.
-unsafe fn with_other_path(
-    path: *mut PathGeometry,
-    other: *const PathGeometry,
-    function: impl FnOnce(&mut PathGeometry, &PathGeometry),
-) {
-    if std::ptr::eq(path, other) {
-        // SAFETY: Forwarded from the caller.
-        let copy = unsafe { &*other }.clone();
-        // SAFETY: Forwarded from the caller.
-        function(unsafe { &mut *path }, &copy);
-    } else {
-        // SAFETY: Forwarded from the caller; the paths are distinct.
-        function(unsafe { &mut *path }, unsafe { &*other });
     }
 }
 
@@ -141,43 +109,6 @@ pub unsafe extern "C" fn path_geometry_quadratic_bezier_curve_to(
 ) {
     // SAFETY: Forwarded from the caller.
     unsafe { &mut *path }.quadratic_bezier_curve_to(point(control_x, control_y), point(x, y));
-}
-
-/// # Safety
-/// `path` must be a live path from this module, which nothing else uses for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_cubic_bezier_curve_to(
-    path: *mut PathGeometry,
-    control1_x: f32,
-    control1_y: f32,
-    control2_x: f32,
-    control2_y: f32,
-    x: f32,
-    y: f32,
-) {
-    // SAFETY: Forwarded from the caller.
-    unsafe { &mut *path }.cubic_bezier_curve_to(
-        point(control1_x, control1_y),
-        point(control2_x, control2_y),
-        point(x, y),
-    );
-}
-
-/// # Safety
-/// `path` must be a live path from this module, which nothing else uses for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_elliptical_arc_to(
-    path: *mut PathGeometry,
-    x: f32,
-    y: f32,
-    radius_x: f32,
-    radius_y: f32,
-    x_axis_rotation: f32,
-    large_arc: bool,
-    sweep: bool,
-) {
-    // SAFETY: Forwarded from the caller.
-    unsafe { &mut *path }.elliptical_arc_to(point(x, y), (radius_x, radius_y), x_axis_rotation, large_arc, sweep);
 }
 
 /// # Safety
@@ -264,50 +195,6 @@ pub unsafe extern "C" fn path_geometry_contour_close(path: *mut PathGeometry) {
 }
 
 /// # Safety
-/// `path` and `other` must be live paths from this module; nothing else may use `path` for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_append_path(path: *mut PathGeometry, other: *const PathGeometry) {
-    // SAFETY: Forwarded from the caller.
-    unsafe { with_other_path(path, other, |path, other| path.append_path(other)) };
-}
-
-/// # Safety
-/// `path` must be a live path from this module, which nothing else uses for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_set_fill_rule(path: *mut PathGeometry, winding_rule: i32) {
-    // SAFETY: Forwarded from the caller.
-    unsafe { &mut *path }.set_fill_rule(WindingRule::from_raw(winding_rule));
-}
-
-/// # Safety
-/// `path` must be a live path from this module.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_is_empty(path: *const PathGeometry) -> bool {
-    // SAFETY: Forwarded from the caller.
-    unsafe { &*path }.is_empty()
-}
-
-/// # Safety
-/// `path` must be a live path from this module, and `out_x_y` must point to two floats.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_last_point(path: *const PathGeometry, out_x_y: *mut f32) {
-    // SAFETY: Forwarded from the caller.
-    let last = unsafe { &*path }.last_point();
-    // SAFETY: The caller passes room for two floats.
-    unsafe { std::ptr::write(out_x_y.cast::<[f32; 2]>(), [last.x, last.y]) };
-}
-
-/// # Safety
-/// `path` must be a live path from this module, and `out_x_y_width_height` must point to four floats.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_bounding_box(path: *const PathGeometry, out_x_y_width_height: *mut f32) {
-    // SAFETY: Forwarded from the caller.
-    let bounds = unsafe { &*path }.bounding_box();
-    // SAFETY: The caller passes room for four floats.
-    unsafe { std::ptr::write(out_x_y_width_height.cast::<[f32; 4]>(), bounds) };
-}
-
-/// # Safety
 /// `path` must be a live path from this module.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn path_geometry_length(path: *const PathGeometry) -> f32 {
@@ -359,70 +246,6 @@ pub unsafe extern "C" fn path_geometry_contains(path: *const PathGeometry, x: f3
     hit_test::contains(unsafe { &*path }, x, y, WindingRule::from_raw(winding_rule))
 }
 
-/// The outline of the area that stroking the path covers, as a path to fill with the nonzero winding rule.
-/// The cap and join styles have the values of `Gfx::Path::CapStyle` and `Gfx::Path::JoinStyle`.
-///
-/// # Safety
-/// `path` must be a live path from this module, and `dash_array` must point to `dash_count` floats, or be
-/// null with a count of zero.
-#[allow(clippy::too_many_arguments)]
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_stroke_to_fill(
-    path: *const PathGeometry,
-    thickness: f32,
-    cap_style: i32,
-    join_style: i32,
-    miter_limit: f32,
-    dash_array: *const f32,
-    dash_count: usize,
-    dash_offset: f32,
-) -> *mut PathGeometry {
-    let style = StrokeStyle {
-        thickness,
-        cap_style: match cap_style {
-            1 => CapStyle::Round,
-            2 => CapStyle::Square,
-            _ => CapStyle::Butt,
-        },
-        join_style: match join_style {
-            1 => JoinStyle::Round,
-            2 => JoinStyle::Bevel,
-            _ => JoinStyle::Miter,
-        },
-        miter_limit,
-        // SAFETY: Forwarded from the caller.
-        dash_array: unsafe { ak::slice_from_raw_parts(dash_array, dash_count) },
-        dash_offset,
-    };
-    // SAFETY: Forwarded from the caller.
-    into_raw(stroke::stroke_to_fill(unsafe { &*path }, &style))
-}
-
-/// # Safety
-/// `path` must be a live path from this module, and `transform` must point to the six values a, b, c, d,
-/// e and f of an affine transform.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_copy_transformed(
-    path: *const PathGeometry,
-    transform: *const f32,
-) -> *mut PathGeometry {
-    // SAFETY: Forwarded from the caller.
-    let transform = unsafe { read_transform(transform) };
-    // SAFETY: Forwarded from the caller.
-    into_raw(unsafe { &*path }.copy_transformed(transform))
-}
-
-/// # Safety
-/// `path` must be a live path from this module, which nothing else uses for the call, and `transform`
-/// must point to the six values a, b, c, d, e and f of an affine transform.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_transform(path: *mut PathGeometry, transform: *const f32) {
-    // SAFETY: Forwarded from the caller.
-    let transform = unsafe { read_transform(transform) };
-    // SAFETY: Forwarded from the caller.
-    unsafe { &mut *path }.transform(transform);
-}
-
 /// Calls the callback once with the byte form of the path.
 ///
 /// # Safety
@@ -448,30 +271,6 @@ pub unsafe extern "C" fn path_geometry_decode(bytes: *const u8, count: usize) ->
     // SAFETY: Forwarded from the caller.
     let bytes = unsafe { ak::slice_from_raw_parts(bytes, count) };
     into_raw(encoding::decode(bytes).unwrap_or_default())
-}
-
-/// Calls the callback once with the SVG path data of the path, as UTF-8.
-///
-/// # Safety
-/// `path` must be a live path from this module, and the callback must accept `context`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_svg_string(
-    path: *const PathGeometry,
-    callback: unsafe extern "C" fn(*mut c_void, *const u8, usize),
-    context: *mut c_void,
-) {
-    // SAFETY: Forwarded from the caller.
-    let string = svg_text::to_svg_string(unsafe { &*path });
-    // SAFETY: The string lives for the synchronous call.
-    unsafe { callback(context, string.as_ptr(), string.len()) };
-}
-
-/// # Safety
-/// `a` and `b` must be live paths from this module.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_equals(a: *const PathGeometry, b: *const PathGeometry) -> bool {
-    // SAFETY: Forwarded from the caller.
-    unsafe { &*a }.has_same_contours(unsafe { &*b })
 }
 
 impl PathGeometryData {
