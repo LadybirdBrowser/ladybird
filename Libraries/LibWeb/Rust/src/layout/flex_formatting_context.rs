@@ -3141,39 +3141,6 @@ impl<'pass> FlexFormattingContext<'pass> {
             let size = self.calculate_intrinsic_cross_size_of_flex_container();
             self.set_container_cross_size(size);
         }
-
-        self.resolve_own_auto_block_size_for_intrinsic_inline_measurement();
-    }
-
-    fn resolve_own_auto_block_size_for_intrinsic_inline_measurement(&mut self) {
-        // Intrinsic inline measurement also caches an inline-level root's block size and baseline. Resolve its
-        // indefinite block axis before alignment so those cached values are derived from the box's actual used size.
-        let available_space = self.available_space_for_items.unwrap().space;
-        if !available_space.inline_size.is_intrinsic_sizing_constraint()
-            || available_space.block_size != AvailableSize::Indefinite
-            || !self.facts(self.run.box_).display().is_inline_outside()
-        {
-            return;
-        }
-
-        let resolution_space = AvailableSpace {
-            inline_size: AvailableSize::definite(self.container_used().content_inline_size.get()),
-            block_size: AvailableSize::Indefinite,
-        };
-        let constraints = self.layout_input.unwrap().containing_block_constraints;
-        if !self
-            .sizing()
-            .should_treat_block_size_as_auto(self.run.box_, resolution_space, constraints)
-        {
-            return;
-        }
-
-        let automatic_block_size = if self.main_axis_is_horizontal() {
-            self.automatic_block_size_from_line_cross_sizes()
-        } else {
-            self.calculate_intrinsic_main_size_of_flex_container()
-        };
-        self.resolve_own_auto_block_size(automatic_block_size, resolution_space);
     }
 
     fn resolve_own_auto_block_size_from_max_content_main_size(&mut self) {

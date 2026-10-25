@@ -267,6 +267,13 @@
         println(`inline table in an inline-block: width ${tableHost.offsetWidth}, runs under inline size measurements ${runsUnderInlineSizeMeasurements(tableWork.events)}`);
         tableHost.remove();
 
+        const verticalHost = document.createElement("div");
+        verticalHost.style.cssText = "float:left;writing-mode:vertical-rl;height:100px;font:20px/30px Ahem";
+        verticalHost.innerHTML = "<div style='padding-left:1px'>".repeat(20) + "AB CD" + "</div>".repeat(20);
+        const verticalWork = layoutWork(() => document.body.append(verticalHost));
+        println(`nested vertical blocks in a float: width ${verticalHost.offsetWidth}, runs under inline size measurements ${runsUnderInlineSizeMeasurements(verticalWork.events)}`);
+        verticalHost.remove();
+
         for (const [name, hostStyle, tableStyle] of [
             ["percentage max-width table in a flex container", "display:flex;width:400px", "max-width:50%"],
             ["min-content max-width table in a flex container", "display:flex;width:400px", "width:300px;max-width:min-content"],

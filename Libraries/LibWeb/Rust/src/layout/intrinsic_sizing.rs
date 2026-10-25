@@ -341,7 +341,8 @@ pub(super) fn content_sizes_of_block_container(
         || formatting_context::independent_formatting_context_type(node, &callbacks)
             != formatting_context::FormattingContextType::Block
         || facts.is_table_wrapper()
-        || style.writing_mode() != writing_mode::HORIZONTAL_TB
+        || (style.writing_mode() != writing_mode::HORIZONTAL_TB
+            && block_formatting_context::is_line_clamp_container(&callbacks, node))
         || establishes_orthogonal_flow(&callbacks, node)
         || callbacks
             .children(node)
