@@ -1112,6 +1112,9 @@ private:
     bool m_has_name : 1 { false };
     mutable bool m_style_attribute_is_dirty : 1 { false };
     bool m_is_in_set_of_elements_with_rendered_text : 1 { false };
+    // Whether the style attribute was set while the element was not connected, so that whether Content Security
+    // Policy blocks it is decided when the element is inserted.
+    bool m_style_attribute_awaits_content_security_policy_check : 1 { false };
 
     // The child indices the element remembers, or zero for those not counted yet, and the generation of its parent's
     // child list they were counted in; zero for none.

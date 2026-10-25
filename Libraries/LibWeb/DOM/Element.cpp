@@ -3232,20 +3232,18 @@ static void prefetch_inline_style_image_resources(CSS::CSSStyleProperties const&
 void Element::clone_inline_style_from(Element const& source)
 {
     // NB: A source whose style attribute still awaits its check leaves the copy to make that check once connected.
-    auto const* source_rare_data = source.element_rare_data();
-    if (!m_inline_style || !source.m_inline_style || (source_rare_data && source_rare_data->style_attribute_awaits_content_security_policy_check))
+    if (!m_inline_style || !source.m_inline_style || source.m_style_attribute_awaits_content_security_policy_check)
         return;
     m_inline_style->set_declarations_from(*source.m_inline_style);
-    if (auto* rare_data = element_rare_data())
-        rare_data->style_attribute_awaits_content_security_policy_check = false;
+    m_style_attribute_awaits_content_security_policy_check = false;
 }
 
 void Element::inserted()
 {
     Base::inserted();
 
-    if (auto* rare_data = element_rare_data(); rare_data && rare_data->style_attribute_awaits_content_security_policy_check && is_connected()) {
-        rare_data->style_attribute_awaits_content_security_policy_check = false;
+    if (m_style_attribute_awaits_content_security_policy_check && is_connected()) {
+        m_style_attribute_awaits_content_security_policy_check = false;
         if (auto value = attribute(HTML::AttributeNames::style); value.has_value() && m_inline_style) {
             if (style_attribute_is_blocked_by_content_security_policy(*this, value->utf16_view()))
                 m_inline_style->set_declarations_from_text({});
@@ -6568,12 +6566,11 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         //     into it, and are styled by the user agent rather than the document. So the check is made when an
         //     element that is not connected becomes connected, and the resources its declarations use are fetched then.
         if (value.has_value() && !is_connected()) {
-            ensure_element_rare_data().style_attribute_awaits_content_security_policy_check = true;
+            m_style_attribute_awaits_content_security_policy_check = true;
             m_inline_style->set_declarations_from_text(*value);
             return;
         }
-        if (auto* rare_data = element_rare_data())
-            rare_data->style_attribute_awaits_content_security_policy_check = false;
+        m_style_attribute_awaits_content_security_policy_check = false;
         if (!value.has_value()) {
             m_inline_style->set_declarations_from_text({});
             return;
