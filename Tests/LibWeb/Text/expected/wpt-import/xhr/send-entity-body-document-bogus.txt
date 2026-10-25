@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Serializing documents through XMLHttpRequest: ''
+Pass	Serializing documents through XMLHttpRequest: '<test:test/>'
+Pass	Serializing documents through XMLHttpRequest: '<test:test test:test="gee"/>'
+Pass	Serializing documents through XMLHttpRequest: '<test:test test:test="gee" x="�"/>'

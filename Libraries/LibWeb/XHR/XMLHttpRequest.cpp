@@ -706,7 +706,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         // 2. If body is a Document, then set this’s request body to body, serialized, converted, and UTF-8 encoded.
         if (body.has<GC::Ref<DOM::Document>>()) {
             auto string_serialized_document = TRY(body.get<GC::Ref<DOM::Document>>()->serialize_fragment(HTML::RequireWellFormed::No));
-            auto string_serialized_document_utf8 = string_serialized_document.to_utf8();
+            auto string_serialized_document_utf8 = string_serialized_document.to_well_formed_utf8();
             m_request_body = Fetch::Infrastructure::byte_sequence_as_body(associated_realm, string_serialized_document_utf8.bytes());
         }
         // 3. Otherwise:
