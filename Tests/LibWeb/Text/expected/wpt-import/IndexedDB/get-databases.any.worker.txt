@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+4 Pass
+1 Fail
+Pass	Ensure that databases() returns a promise.
+Pass	Enumerate one database.
+Pass	Enumerate multiple databases.
+Pass	Make sure an empty list is returned for the case of no databases.
+Fail	Ensure that databases() doesn't pick up changes that haven't commited.

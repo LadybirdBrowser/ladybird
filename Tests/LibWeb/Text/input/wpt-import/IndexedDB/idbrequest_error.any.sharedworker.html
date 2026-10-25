@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>IDBRequest.error</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+fetch_tests_from_worker(new SharedWorker("../IndexedDB/idbrequest_error.any.worker.js"));
+</script>
