@@ -45,6 +45,7 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
+#include <LibWeb/PaintTiming/PaintTiming.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -1235,7 +1236,14 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
 
     // FIXME: 20. For each doc of docs, record rendering time for doc given unsafeStyleAndLayoutStartTime.
 
-    // FIXME: 21. For each doc of docs, mark paint timing for doc.
+    // 21. For each doc of docs, mark paint timing for doc.
+    for (auto& document : docs) {
+        // AD-HOC: Script that ran earlier in this rendering update may have detached document from its navigable, as
+        //         in step 16. Nothing is rendered for it anymore.
+        if (!document->navigable() || document->navigable()->active_document().ptr() != document.ptr())
+            continue;
+        PaintTiming::mark_paint_timing(*document);
+    }
 
     // AD-HOC: Flush dirty canvas contexts in documents' pages after callbacks
     // have had a chance to update them, and before painting snapshots the frame.

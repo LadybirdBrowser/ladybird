@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<style>
+  img {
+    content: url(../resources/circle.svg);
+  }
+</style>
+<img>
+<script>
+setup({"hide_test_state": true});
+promise_test(async t => {
+  const onload = new Promise(r => window.addEventListener('load', r));
+  await onload;
+  return assertFirstContentfulPaint(t);
+}, 'Replaced content image triggers First Contentful Paint.');
+</script>
+</body>

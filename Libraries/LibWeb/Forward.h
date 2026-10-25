@@ -977,6 +977,12 @@ class Notification;
 
 }
 
+namespace Web::PaintTiming {
+
+class PerformancePaintTiming;
+
+}
+
 namespace Web::Painting {
 
 class BoxViewRepaintAccess;

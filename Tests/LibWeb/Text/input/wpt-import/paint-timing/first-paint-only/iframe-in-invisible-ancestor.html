@@ -1,0 +1,32 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>Paint Timing: First paint is not reported for an iframe inside an invisible ancestor</title>
+<link rel="author" title="Shubham Gupta" href="mailto:shubhamg13.work@gmail.com">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<style>
+  #invisible {
+    opacity: 0;
+  }
+
+  iframe {
+    border: 0;
+    height: 100px;
+    width: 100px;
+  }
+</style>
+<div id="invisible"><iframe src="../resources/subframe-painting.html"></iframe></div>
+
+<script>
+  setup({"hide_test_state": true});
+
+  promise_test(async t => {
+    assert_implements(window.PerformancePaintTiming, "Paint Timing isn't supported.");
+
+    await waitForAnimationFrames(10);
+    assert_equals(performance.getEntriesByName('first-paint').length, 0,
+      'First paint should not be reported for an iframe in an invisible ancestor.');
+    await assertNoFirstContentfulPaint(t);
+  }, 'First paint is not reported for an iframe inside an invisible ancestor.');
+</script>

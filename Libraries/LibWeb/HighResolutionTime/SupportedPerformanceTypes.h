@@ -8,19 +8,23 @@
 
 namespace Web::HighResolutionTime {
 
+// The global objects an entry type is supported for.
+enum class SupportedPerformanceEntryTypeGlobals {
+    WindowAndWorker,
+    WindowOnly,
+};
+
+inline bool is_supported_for_global(SupportedPerformanceEntryTypeGlobals globals, bool global_is_window)
+{
+    return globals == SupportedPerformanceEntryTypeGlobals::WindowAndWorker || global_is_window;
+}
+
 // Please keep these in alphabetical order based on the entry type :^)
-#define ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES_BEFORE_NAVIGATION                                                 \
-    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::mark, UserTiming::PerformanceMark) \
-    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::measure, UserTiming::PerformanceMeasure)
-
-#define ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES_AFTER_NAVIGATION \
-    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::resource, ResourceTiming::PerformanceResourceTiming)
-
-#define ENUMERATE_WINDOW_SUPPORTED_PERFORMANCE_ENTRY_TYPES \
-    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::navigation, NavigationTiming::PerformanceNavigationTiming)
-
-#define ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES               \
-    ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES_BEFORE_NAVIGATION \
-    ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES_AFTER_NAVIGATION
+#define ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES                                                                                                       \
+    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::mark, UserTiming::PerformanceMark, WindowAndWorker)                    \
+    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::measure, UserTiming::PerformanceMeasure, WindowAndWorker)              \
+    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::navigation, NavigationTiming::PerformanceNavigationTiming, WindowOnly) \
+    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::paint, PaintTiming::PerformancePaintTiming, WindowOnly)                \
+    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::resource, ResourceTiming::PerformanceResourceTiming, WindowAndWorker)
 
 }

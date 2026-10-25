@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<head>
+<title>Performance Paint Timing Test: FCP should not fire when all text is hidden due to typographic pseudo-elements</title>
+<style>
+    #main {
+        position: relative;
+        width: 100px;
+        height: 100px;
+    }
+
+    #main *::first-letter {
+        opacity: 0;
+    }
+
+    /* contentful class is defined in test_fcp script. */
+    #main.contentful *::first-letter {
+        opacity: 1;
+    }
+</style>
+</head>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="main">
+    <div>A</div>
+</div>
+<script>
+    test_fcp("First contentful paint fires only when some of the text is visible, considering ::first-letter.")
+</script>
+</body>
+</html>

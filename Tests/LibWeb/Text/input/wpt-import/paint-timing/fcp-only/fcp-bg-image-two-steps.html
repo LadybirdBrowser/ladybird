@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<head>
+<title>Performance Paint Timing Test: FCP should fire for background image only when visible</title>
+<style>
+    #main {
+        width: 100px;
+        height: 100px;
+    }
+
+    /* contentful and preFCP classes are defined in test_fcp script. */
+    #main.preFCP {
+        visibility: hidden;
+    }
+
+    #main.contentful,  #main.preFCP {
+        background-image: url(../resources/circles.png);
+    }
+
+    #main.contentful {
+        visibility: visible;
+    }
+</style>
+</head>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="main"></div>
+<script>
+    // Load the image into memory first to make sure it's decoded.
+    function load_image() {
+      const img = document.createElement("img");
+      img.src = "../resources/circles.png";
+
+      return new Promise(resolve => {
+        img.onload = async () => resolve();
+      });
+    }
+
+    test_fcp("First contentful paint fires for background image only when visible.", load_image);
+</script>
+</body>
+
+</html>

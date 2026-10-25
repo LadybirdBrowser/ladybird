@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<form>
+  <input type="text" id='myInput'>
+</form>
+<script>
+setup({"hide_test_state": true});
+promise_test(async t => {
+  const onload = new Promise(r => window.addEventListener('load', r));
+  await onload;
+  return assertNoFirstContentfulPaint(t).then(() => {
+    document.getElementById('myInput').value = 'default text';
+    return assertFirstContentfulPaint(t);
+  });
+}, 'Text from a form control triggers First Contentful Paint.');
+</script>
+</body>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<head>
+<title>Performance Paint Timing: Check that paintTime/presentationTime are serialized properly with toJSON</title>
+</head>
+<body>
+<script src="../resources/utils.js"></script>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  setup({"hide_test_state": true});
+  promise_test(async t => {
+    assert_implements(window.PerformancePaintTiming, "Paint Timing isn't supported.");
+    assert_implements("paintTime" in window.PerformancePaintTiming.prototype, "Paint Timing doesn't expose `paintTime`");
+    await new Promise(r => window.addEventListener('load', r));
+    await assertNoFirstContentfulPaint(t);
+    const img = document.createElement('img');
+    img.src = '../resources/circles.png';
+    document.body.append(img);
+    const reference_time = performance.now();
+    const performance_entry_promise = new Promise(resolve => {
+        new PerformanceObserver(entries => {
+            const [entry] = entries.getEntriesByName("first-contentful-paint");
+            if (entry)
+                resolve(entry);
+        }).observe({type: "paint"});
+    });
+    const entry = await performance_entry_promise;
+    assert_greater_than(entry.paintTime, reference_time);
+    if ("presentationTime" in entry && entry.presentationTime !== null) {
+      assert_greater_than(entry.presentationTime, entry.paintTime);
+      assert_equals(entry.presentationTime, entry.startTime);
+    } else {
+      assert_equals(entry.paintTime, entry.startTime);
+    }
+
+    const json = entry.toJSON();
+    assert_equals(typeof json, 'object');
+    // Check that basic PerformanceEntry attributes are serialized.
+    assert_equals(json.name, entry.name,
+            'PerformanceEventTiming "name" attribute does not match its toJSON value');
+    // Check that the PaintTimingMixin attributes are serialized.
+    assert_equals(json.paintTime, entry.paintTime,
+      'PerformanceEventTiming "paintTime" attribute does not match its toJSON value');
+    assert_equals(json.presentationTime, entry.presentationTime,
+      'PerformanceEventTiming "presentationTime" attribute does not match its toJSON value');
+    if ("presentationTime" in entry && entry.presentationTime !== null) {
+      assert_greater_than(json.presentationTime, json.paintTime);
+      assert_equals(json.presentationTime, json.startTime);
+    } else {
+      assert_equals(json.paintTime, json.startTime);
+    }
+
+}, "Paint timing entries should serialize paintTime and presentationTime with toJSON");
+</script>
+</body>
+</html>

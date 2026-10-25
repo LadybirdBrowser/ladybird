@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<head>
+<title>Performance Paint Timing Test: Whitespace should not count as contentful</title>
+<style>
+    #text {
+        display: none;
+    }
+
+    /* contentful class is defined in test_fcp script. */
+    #main.contentful #text{
+        display: block;
+    }
+</style>
+</head>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="main">
+    <div id="whitespace">   </div>
+    <div id="text">TEXT</div>
+</div>
+<script>
+    test_fcp("Whitespace should not count as contentful.")
+</script>
+</body>
+</html>
