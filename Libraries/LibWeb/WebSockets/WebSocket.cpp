@@ -37,6 +37,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MixedContent/AbstractOperations.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -197,6 +198,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     request->set_policy_container(client.policy_container()->clone(client.heap()));
     auto& realm = client.realm();
     ContentSecurityPolicy::report_content_security_policy_violations_for_request(realm, request);
+    UpgradeInsecureRequests::upgrade_request_to_a_potentially_trustworthy_url_if_appropriate(request);
     if (Fetch::Infrastructure::block_bad_port(request) == Fetch::Infrastructure::RequestOrResponseBlocking::Blocked
         || MixedContent::should_fetching_request_be_blocked_as_mixed_content(request) == Fetch::Infrastructure::RequestOrResponseBlocking::Blocked
         || ContentSecurityPolicy::should_request_be_blocked_by_content_security_policy(realm, request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
@@ -205,6 +207,11 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
 
     if (m_ready_state != Requests::WebSocket::ReadyState::Connecting)
         return Error::from_string_literal("The WebSocket was closed before it connected");
+
+    // AD-HOC: Connect to the URL that the request was upgraded to, if any, with its scheme mapped back to "ws" or
+    //         "wss".
+    auto connection_url = request->current_url();
+    connection_url.set_scheme(connection_url.scheme() == "http"sv ? "ws"sv : "wss"sv);
 
     if (m_has_disappeared)
         return Error::from_string_literal("The document of the WebSocket was unloaded before it connected");
@@ -219,7 +226,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
 
     auto additional_headers = HTTP::HeaderList::create();
 
-    additional_headers->append({ "User-Agent"sv, ResourceLoader::the().user_agent_for_websocket_url(url_record).to_byte_string() });
+    additional_headers->append({ "User-Agent"sv, ResourceLoader::the().user_agent_for_websocket_url(connection_url).to_byte_string() });
 
     if (ResourceLoader::proxy_autoconfig_url().has_value()) {
         dbgln("FIXME: Evaluate the PAC file to find the proxy for {}; failing the WebSocket connection", url_record);
@@ -232,7 +239,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     if (!request_client)
         return Error::from_string_literal("RequestServer is currently unavailable");
 
-    m_websocket = request_client->websocket_connect(url_record, Fetch::Infrastructure::determine_the_network_partition_key(client), origin_string, protocol_byte_strings, {}, additional_headers);
+    m_websocket = request_client->websocket_connect(connection_url, Fetch::Infrastructure::determine_the_network_partition_key(client), origin_string, protocol_byte_strings, {}, additional_headers);
 
     m_websocket->on_open = GC::weak_callback(*this, [](auto& self) {
         self.on_open();

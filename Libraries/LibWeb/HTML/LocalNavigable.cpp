@@ -2307,6 +2307,14 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             return;
         }
 
+        // AD-HOC: Main fetch can upgrade request's current URL to a potentially trustworthy URL without a redirect.
+        //         Treat that like a redirect, so currentURL and entry's URL name the URL that was actually fetched,
+        //         which is also response's URL and the document's URL.
+        if (state_holder->request->current_url() != state_holder->current_url) {
+            state_holder->current_url = state_holder->request->current_url();
+            state_holder->redirected_url = state_holder->current_url;
+        }
+
         // 8. If request's body is null, then set entry's document state's resource to null.
         if (state_holder->request->body().has<Empty>()) {
             state_holder->resource_cleared = true;
@@ -2598,6 +2606,12 @@ static void create_navigation_params_by_fetching(
     //         IsUserTriggeredForSecFetchSite() that its triggering principal is the system's.
     if (document_state.user_agent_initiated == UserAgentInitiated::Yes && navigable && navigable->is_top_level_traversable())
         request->set_user_agent_initiated(true);
+
+    // NB: What step 2.1 of Upgrade Insecure Requests' "upgrade request to a potentially trustworthy URL, if
+    //     appropriate" asks about.
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-request
+    if (csp_navigation_type == ContentSecurityPolicy::Directives::Directive::NavigationType::FormSubmission)
+        request->set_form_submission(true);
 
     // 10. If navigable's container is non-null:
     // NB: The container's local name is read through the navigable, which replicates it for a container in another

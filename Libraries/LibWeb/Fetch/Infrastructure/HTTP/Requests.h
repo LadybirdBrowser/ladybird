@@ -269,6 +269,9 @@ public:
     [[nodiscard]] bool user_agent_initiated() const { return m_user_agent_initiated; }
     void set_user_agent_initiated(bool user_agent_initiated) { m_user_agent_initiated = user_agent_initiated; }
 
+    [[nodiscard]] bool is_form_submission() const { return m_form_submission; }
+    void set_form_submission(bool form_submission) { m_form_submission = form_submission; }
+
     [[nodiscard]] bool render_blocking() const { return m_render_blocking; }
     void set_render_blocking(bool render_blocking) { m_render_blocking = render_blocking; }
 
@@ -506,6 +509,10 @@ private:
     // NB: Not a Fetch concept. Fetch Metadata's "set site" sends Sec-Fetch-Site:none for a navigation whose URL
     //     the user agent itself supplied, and populating a history entry sets this from the entry's document state.
     bool m_user_agent_initiated { false };
+
+    // NB: Not a Fetch concept. Upgrade Insecure Requests asks whether a navigation request is a form submission, and
+    //     creating navigation params by fetching sets this from the navigation's CSP navigation type.
+    bool m_form_submission { false };
 
     // https://fetch.spec.whatwg.org/#request-render-blocking
     // A request has an associated boolean render-blocking. Unless stated otherwise, it is false.

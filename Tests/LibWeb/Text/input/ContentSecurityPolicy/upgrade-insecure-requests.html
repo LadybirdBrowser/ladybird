@@ -59,11 +59,7 @@
         form.target = "form-target";
         document.body.appendChild(form);
         form.submit();
-        // NB: A navigation that is not upgraded fails without telling this document, so give up after a while.
-        println(`Cross-host top-level form submission: ${await Promise.race([
-            nextMessage(),
-            new Promise(resolve => setTimeout(() => resolve("failed"), 2000)),
-        ])}`);
+        println(`Cross-host top-level form submission: ${await nextMessage()}`);
         popup.close();
 
         // A nested navigation is upgraded without a redirect, and the upgraded URL becomes its session history entry's.
@@ -75,10 +71,7 @@
         const navigatedFrame = document.createElement("iframe");
         navigatedFrame.src = `${insecureOrigin}${new URL(frameTargetURL).pathname}`;
         document.body.appendChild(navigatedFrame);
-        println(`iframe navigation location, document and history entry URL schemes: ${await Promise.race([
-            nextMessage(),
-            new Promise(resolve => setTimeout(() => resolve("failed"), 2000)),
-        ])}`);
+        println(`iframe navigation location, document and history entry URL schemes: ${await nextMessage()}`);
 
         done();
     });
