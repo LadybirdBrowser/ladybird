@@ -32,7 +32,7 @@ use crate::runtime::object::{
     PropertyLookupPhase, StackFrameInfo,
 };
 use crate::runtime::property_descriptor::{PropertyDescriptor, from_property_descriptor, to_property_descriptor};
-use crate::runtime::property_key::PropertyKey;
+use crate::runtime::property_key::{NonSymbolPropertyKey, PropertyKey};
 use crate::runtime::realm::Realm;
 use crate::runtime::value::same_value;
 
@@ -134,7 +134,7 @@ impl Object {
 /// the list the trap result is collected into keeps them alive.
 #[derive(Default)]
 struct UniquePropertyKeys {
-    string_and_number_keys: HashSet<PropertyKey>,
+    string_and_number_keys: HashSet<NonSymbolPropertyKey>,
     symbol_addresses: HashSet<usize>,
 }
 
@@ -143,7 +143,8 @@ impl UniquePropertyKeys {
         if property_key.is_symbol() {
             self.symbol_addresses.insert(property_key.as_symbol().as_ptr().addr());
         } else {
-            self.string_and_number_keys.insert(property_key);
+            self.string_and_number_keys
+                .insert(NonSymbolPropertyKey::new(property_key).expect("the key is not a symbol"));
         }
     }
 

@@ -27,7 +27,7 @@ use crate::layout::value::Value;
 use crate::runtime::descriptor_array::{DescriptorArray, MAX_DESCRIPTOR_COUNT, PropertyMetadata};
 use crate::runtime::object::IntegrityLevel;
 use crate::runtime::property_attributes::PropertyAttributes;
-use crate::runtime::property_key::PropertyKey;
+use crate::runtime::property_key::{NonSymbolPropertyKey, PropertyKey};
 use crate::runtime::realm::Realm;
 use crate::runtime::special_property_cache::SpecialPropertyCache;
 use crate::runtime::watchpoint_set::WatchpointSet;
@@ -848,7 +848,10 @@ impl Shape {
             let mut property_keys = Vec::with_capacity(self.property_count() as usize);
             self.for_each_property_in_insertion_order(|property_key, metadata| {
                 if property_key.is_string() {
-                    property_keys.push((property_key.clone(), metadata.attributes.is_enumerable()));
+                    property_keys.push((
+                        NonSymbolPropertyKey::from(property_key.as_string().clone()),
+                        metadata.attributes.is_enumerable(),
+                    ));
                 }
                 ControlFlow::Continue(())
             });

@@ -58,7 +58,7 @@ use crate::runtime::private_environment::PrivateEnvironment;
 use crate::runtime::promise_capability::{new_promise_capability, try_or_reject};
 use crate::runtime::property_attributes::PropertyAttributes;
 use crate::runtime::property_descriptor::PropertyDescriptor;
-use crate::runtime::property_key::PropertyKey;
+use crate::runtime::property_key::{NonSymbolPropertyKey, PropertyKey};
 use crate::runtime::proxy_object::ProxyObject;
 use crate::runtime::realm::Realm;
 use crate::runtime::shared_function_instance_data::{
@@ -378,7 +378,7 @@ pub struct PropertyKeyGroups<'vm> {
     keys: MarkedVec<'vm, PropertyKey>,
     elements: Vec<MarkedVec<'vm, Value>>,
     /// Symbol keys are only kept in the marked list of keys and looked up one by one.
-    index_of_string_or_number_key: HashMap<PropertyKey, usize>,
+    index_of_string_or_number_key: HashMap<NonSymbolPropertyKey, usize>,
 }
 
 impl<'vm> PropertyKeyGroups<'vm> {
@@ -444,8 +444,8 @@ impl<'vm> KeyedGroups<'vm> for PropertyKeyGroups<'vm> {
         new_elements.push(value);
 
         // 3. Append group as the last element of groups.
-        if !key.is_symbol() {
-            self.index_of_string_or_number_key.insert(key.clone(), self.keys.len());
+        if let Some(key) = NonSymbolPropertyKey::new(key.clone()) {
+            self.index_of_string_or_number_key.insert(key, self.keys.len());
         }
         self.keys.push(key);
         self.elements.push(new_elements);

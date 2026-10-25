@@ -26,7 +26,7 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::object::MAX_TRANSITIONS_BEFORE_CONVERTING_TO_DICTIONARY;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::DEFAULT_ATTRIBUTES;
-use crate::runtime::property_key::PropertyKey;
+use crate::runtime::property_key::{NonSymbolPropertyKey, PropertyKey};
 use crate::runtime::realm::Realm;
 use crate::runtime::shape::Shape;
 use crate::utf16::{Utf16View, is_json_special_code_unit, json_special_code_unit_lanes};
@@ -123,7 +123,7 @@ struct JsonParseTables {
     keys: KeyCache,
     shapes: ShapeCache,
     /// The keys of the properties of the objects that are being parsed.
-    property_keys: Vec<PropertyKey>,
+    property_keys: Vec<NonSymbolPropertyKey>,
 }
 
 /// Parses `text` as a JSON text, and returns the value of its parse node as ParseJSON does, or throws a SyntaxError
@@ -170,7 +170,7 @@ fn are_code_units_of<C: CodeUnit>(units: &[C], key: &PropertyKey) -> bool {
 
 /// Property keys by their code units, in a small table indexed by a hash of them.
 struct KeyCache {
-    entries: Box<[Option<PropertyKey>; KeyCache::ENTRY_COUNT]>,
+    entries: Box<[Option<NonSymbolPropertyKey>; KeyCache::ENTRY_COUNT]>,
 }
 
 impl Default for KeyCache {
@@ -199,14 +199,14 @@ impl KeyCache {
         (hash ^ (hash >> 15)) as usize % Self::ENTRY_COUNT
     }
 
-    fn key<C: CodeUnit>(&mut self, units: &[C]) -> PropertyKey {
+    fn key<C: CodeUnit>(&mut self, units: &[C]) -> NonSymbolPropertyKey {
         let entry = &mut self.entries[Self::slot(units)];
         if let Some(key) = entry
             && are_code_units_of(units, key)
         {
             return key.clone();
         }
-        let key = PropertyKey::from(C::make_fly_string(units));
+        let key = NonSymbolPropertyKey::from(C::make_fly_string(units));
         // NB: Array indices are not kept, since they are numbers rather than strings.
         if key.is_string() {
             *entry = Some(key.clone());
@@ -222,7 +222,7 @@ struct ShapeCache {
 }
 
 struct ShapeCacheEntry {
-    keys: Box<[PropertyKey]>,
+    keys: Box<[NonSymbolPropertyKey]>,
     shape: GcWeak<Shape>,
 }
 
@@ -237,7 +237,7 @@ impl Default for ShapeCache {
 impl ShapeCache {
     const ENTRY_COUNT: usize = 16;
 
-    fn slot(keys: &[PropertyKey]) -> usize {
+    fn slot(keys: &[NonSymbolPropertyKey]) -> usize {
         let mut hasher = KeysHasher(keys.len() as u64);
         keys.hash(&mut hasher);
         hasher.finish() as usize % Self::ENTRY_COUNT
@@ -246,7 +246,7 @@ impl ShapeCache {
     /// The shape of an object of `realm` with the properties `keys` in that order, as data properties with the default
     /// attributes, made by put transitions from the shape of new objects. Returns None for keys that an object
     /// cannot have in that shape: a key that repeats, an array index, or more keys than a shape takes.
-    fn shape_for_keys(&mut self, vm: &Vm, realm: Gc<Realm>, keys: &[PropertyKey]) -> Option<Gc<Shape>> {
+    fn shape_for_keys(&mut self, vm: &Vm, realm: Gc<Realm>, keys: &[NonSymbolPropertyKey]) -> Option<Gc<Shape>> {
         if keys.len() > MAX_TRANSITIONS_BEFORE_CONVERTING_TO_DICTIONARY as usize {
             return None;
         }
@@ -423,7 +423,7 @@ impl<'a, 'vm, C: CodeUnit> Parser<'a, 'vm, C> {
             }
             let token = self.scan_string()?;
             let key = if token.has_escapes {
-                PropertyKey::from(&self.make_string(&token)?)
+                NonSymbolPropertyKey::from(&self.make_string(&token)?)
             } else {
                 self.tables.keys.key(&self.units[token.start..token.end])
             };

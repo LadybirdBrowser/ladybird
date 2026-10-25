@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use core::borrow::Borrow;
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::num::NonZeroUsize;
+use core::ops::Deref;
 use core::ptr::NonNull;
 
 use ak::{Utf16FlyString, Utf16String};
@@ -258,6 +260,60 @@ unsafe impl Trace for PropertyKey {
         if self.is_symbol() {
             visitor.visit(self.as_symbol());
         }
+    }
+}
+
+/// A key that is a string or a number, never a symbol, so that it holds no cell and needs no rooting.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct NonSymbolPropertyKey(PropertyKey);
+
+impl NonSymbolPropertyKey {
+    pub fn new(key: PropertyKey) -> Option<Self> {
+        (!key.is_symbol()).then_some(Self(key))
+    }
+}
+
+impl Deref for NonSymbolPropertyKey {
+    type Target = PropertyKey;
+
+    fn deref(&self) -> &PropertyKey {
+        &self.0
+    }
+}
+
+impl Borrow<PropertyKey> for NonSymbolPropertyKey {
+    fn borrow(&self) -> &PropertyKey {
+        &self.0
+    }
+}
+
+impl From<NonSymbolPropertyKey> for PropertyKey {
+    fn from(key: NonSymbolPropertyKey) -> Self {
+        key.0
+    }
+}
+
+impl Utf16Display for NonSymbolPropertyKey {
+    fn fmt_utf16(&self, builder: &mut Utf16StringBuilder) {
+        self.0.fmt_utf16(builder);
+    }
+}
+
+impl From<u32> for NonSymbolPropertyKey {
+    fn from(index: u32) -> Self {
+        Self(PropertyKey::from(index))
+    }
+}
+
+impl From<Utf16FlyString> for NonSymbolPropertyKey {
+    fn from(string: Utf16FlyString) -> Self {
+        Self(PropertyKey::from(string))
+    }
+}
+
+impl From<&Utf16String> for NonSymbolPropertyKey {
+    fn from(string: &Utf16String) -> Self {
+        Self(PropertyKey::from(string))
     }
 }
 

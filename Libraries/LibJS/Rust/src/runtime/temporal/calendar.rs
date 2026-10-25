@@ -17,7 +17,7 @@ use crate::layout::value::Value;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
-use crate::runtime::property_key::PropertyKey;
+use crate::runtime::property_key::NonSymbolPropertyKey;
 use crate::runtime::temporal::abstract_operations::{
     DateType, Overflow, ShowCalendar, Unit, ascii_view, epoch_days_to_epoch_ms, iso_date_to_epoch_days,
     parse_temporal_calendar_string, to_integer_with_truncation, to_offset_string, to_positive_integer_with_truncation,
@@ -236,7 +236,7 @@ pub struct BalancedDate {
 
 struct CalendarFieldData {
     key: CalendarField,
-    property: PropertyKey,
+    property: NonSymbolPropertyKey,
     conversion: CalendarFieldConversion,
 }
 
@@ -261,7 +261,7 @@ fn calendar_field_data(vm: &Vm, field: CalendarField) -> CalendarFieldData {
     };
     CalendarFieldData {
         key: field,
-        property: property.clone(),
+        property: NonSymbolPropertyKey::from(property.as_string().clone()),
         conversion,
     }
 }
