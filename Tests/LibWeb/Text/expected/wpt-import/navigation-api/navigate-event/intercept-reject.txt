@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	event.intercept() should abort if the given promise rejects
+1 Pass
+Pass	event.intercept() should abort if the given promise rejects

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	event.intercept() is called multiple times and one of the promises rejects
+1 Pass
+Pass	event.intercept() is called multiple times and one of the promises rejects

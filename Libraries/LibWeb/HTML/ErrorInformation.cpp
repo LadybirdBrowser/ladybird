@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/HTML/ErrorInformation.h>
 
@@ -24,8 +25,20 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
     attributes.message = [&] {
         if (auto object = exception.as_if<JS::Object>()) {
             if (MUST(object->has_own_property(vm.names.message))) {
-                auto message = object->get_without_side_effects(vm.names.message);
-                return message.to_utf16_string_without_side_effects();
+                auto message = object->get_without_side_effects(vm.names.message).to_utf16_string_without_side_effects();
+
+                // NB: The message of an Error object is prefixed with its name, as Error.prototype.toString() does.
+                if (is<JS::Error>(*object)) {
+                    auto name = object->get_without_side_effects(vm.names.name);
+                    if (name.is_string()) {
+                        auto name_string = name.to_utf16_string_without_side_effects();
+                        if (message.is_empty())
+                            return name_string;
+                        if (!name_string.is_empty())
+                            return Utf16String::formatted("{}: {}", name_string, message);
+                    }
+                }
+                return message;
             }
         }
 
