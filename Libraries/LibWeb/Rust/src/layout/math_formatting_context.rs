@@ -7,8 +7,10 @@
 // https://w3c.github.io/mathml-core/#layout-algorithms
 
 use super::*;
+use crate::layout::formatting_context::ChildLayoutResult;
+use crate::layout::geometry::MathStretchSizeConstraint;
 use libgfx_rust::font::FontHandle;
-use libgfx_rust::math_table::{FfiMathData, MathConstant, StretchAxis};
+use libgfx_rust::math_table::{FfiGlyphMetrics, FfiMathData, FfiMathGlyphPart, MathConstant, StretchAxis};
 
 /// The layout algorithm a MathML element's tag name selects when its computed display is block math or inline math.
 /// Mirrors the C++ `MathMLLayoutKind`, which the element's construction facts carry.
@@ -696,7 +698,11 @@ impl MathContent {
                 }
             })
             .collect();
-        MathPaintData { rules, glyph_runs }
+        MathPaintData {
+            rules,
+            glyph_runs,
+            replaces_text: false,
+        }
     }
 
     /// The content with its children, rules and glyphs moved by the given line-left offset and baseline shift.
@@ -782,12 +788,255 @@ impl GlyphRun {
     }
 }
 
+/// The size of a glyph along a stretch axis: its advance width along the inline axis, and its height along the block
+/// axis.
+fn glyph_size_along(metrics: &FfiGlyphMetrics, axis: StretchAxis) -> f32 {
+    match axis {
+        StretchAxis::Inline => metrics.advance,
+        StretchAxis::Block => metrics.ascent + metrics.descent,
+    }
+}
+
+/// The maximum number of glyphs in a shaped glyph assembly.
+const MAXIMUM_ASSEMBLY_GLYPH_COUNT: usize = u16::MAX as usize;
+
+/// A GlyphAssembly table, with the quantities that building an assembly from it relies on.
+// https://w3c.github.io/mathml-core/#the-glyphassembly-table
+struct GlyphAssembly {
+    assembly: libgfx_rust::math_table::MathGlyphAssembly,
+    axis: StretchAxis,
+    /// omin, MATH.MathVariant.minConnectorOverlap.
+    minimum_overlap: f32,
+    extender_count: usize,
+    non_extender_count: usize,
+    extender_advance_sum: f32,
+    non_extender_advance_sum: f32,
+}
+
+impl GlyphAssembly {
+    /// The GlyphAssembly table of a glyph along an axis, if it is valid.
+    fn new(font: &FontHandle, assembly: libgfx_rust::math_table::MathGlyphAssembly, axis: StretchAxis) -> Option<Self> {
+        let minimum_overlap = font.math_data().min_connector_overlap(axis);
+        let (extenders, non_extenders): (Vec<&FfiMathGlyphPart>, Vec<&FfiMathGlyphPart>) =
+            assembly.parts.iter().partition(|part| part.is_extender);
+        let glyph_assembly = Self {
+            minimum_overlap,
+            extender_count: extenders.len(),
+            non_extender_count: non_extenders.len(),
+            extender_advance_sum: extenders.iter().map(|part| part.full_advance).sum(),
+            non_extender_advance_sum: non_extenders.iter().map(|part| part.full_advance).sum(),
+            assembly,
+            axis,
+        };
+        // User agents must treat the GlyphAssembly as invalid if the following conditions are not satisfied:
+        // - NExt > 0. Otherwise, the assembly cannot be grown by repeating extenders.
+        // - SExt,NonOverlapping > 0. Otherwise, the assembly does not grow when joining extenders.
+        // - For each GlyphPartRecord in GlyphAssembly.partRecords, the values of GlyphPartRecord.startConnectorLength
+        //   and GlyphPartRecord.endConnectorLength must be at least omin. Otherwise, it is not possible to satisfy
+        //   the condition of MathVariant.minConnectorOverlap.
+        // INTEROP: The start connector of the first part and the end connector of the last part are not checked
+        //         unless the part is an extender, as they connect to no other part. Other browsers accept such
+        //         assemblies, which fonts commonly have.
+        let parts = &glyph_assembly.assembly.parts;
+        let is_valid = glyph_assembly.extender_count > 0
+            && glyph_assembly.non_overlapping_extender_advance_sum() > 0.0
+            && parts.iter().enumerate().all(|(index, part)| {
+                let start_connects = index > 0 || part.is_extender;
+                let end_connects = index + 1 < parts.len() || part.is_extender;
+                (!start_connects || part.start_connector_length >= minimum_overlap)
+                    && (!end_connects || part.end_connector_length >= minimum_overlap)
+            });
+        is_valid.then_some(glyph_assembly)
+    }
+
+    /// SExt,NonOverlapping = SExt − omin NExt is the sum of maximum non overlapping parts of extenders.
+    fn non_overlapping_extender_advance_sum(&self) -> f32 {
+        self.extender_advance_sum - self.minimum_overlap * self.extender_count as f32
+    }
+
+    /// AssemblyGlyphCount(r) = NNonExt + r NExt
+    fn glyph_count(&self, repetitions: usize) -> usize {
+        self.non_extender_count + repetitions * self.extender_count
+    }
+
+    /// AssembySize(o, r) = SNonExt + r SExt − o (AssemblyGlyphCount(r) − 1)
+    fn size(&self, overlap: f32, repetitions: usize) -> f32 {
+        self.non_extender_advance_sum + repetitions as f32 * self.extender_advance_sum
+            - overlap * (self.glyph_count(repetitions) as f32 - 1.0)
+    }
+
+    /// rmin and omax for a target size, or `None` if the assembly would have more than
+    /// `MAXIMUM_ASSEMBLY_GLYPH_COUNT` glyphs.
+    fn repetitions_and_overlap(&self, target: f32) -> Option<(usize, f32)> {
+        // rmin is the minimal number of repetitions needed to obtain an assembly of size at least T, i.e. the minimal
+        // r such that AssembySize(omin, r) ≥ T. It is defined as the maximum between 0 and the ceiling of
+        // ((T − SNonExt + omin (NNonExt − 1)) / SExt,NonOverlapping).
+        let repetitions = ((target - self.non_extender_advance_sum
+            + self.minimum_overlap * (self.non_extender_count as f32 - 1.0))
+            / self.non_overlapping_extender_advance_sum())
+        .ceil()
+        .max(0.0);
+        // AD-HOC: The target size and the font data are untrusted, so an assembly that would need too many glyphs is
+        //         not built.
+        let maximum_repetitions =
+            (MAXIMUM_ASSEMBLY_GLYPH_COUNT.checked_sub(self.non_extender_count)? / self.extender_count) as f32;
+        if repetitions > maximum_repetitions {
+            return Option::None;
+        }
+        let repetitions = repetitions as usize;
+        // omax is the maximum overlap possible to build an assembly of size at least T by repeating each extender
+        // rmin times. If AssemblyGlyphCount(rmin) ≤ 1, then the actual overlap value is irrelevant. Otherwise, omax is
+        // defined to be the minimum of:
+        let glyph_count = self.glyph_count(repetitions);
+        if glyph_count <= 1 {
+            return Some((repetitions, 0.0));
+        }
+        // - omax,theorical = (AssembySize(0, rmin) − T) / (AssemblyGlyphCount(rmin) − 1)
+        let mut overlap = (self.size(0.0, repetitions) - target) / (glyph_count as f32 - 1.0);
+        let parts = &self.assembly.parts;
+        for (index, part) in parts.iter().enumerate() {
+            // - GlyphPartRecord.startConnectorLength for all the entries in GlyphAssembly.partRecords, excluding the
+            //   last one if it is not an extender.
+            if index > 0 || part.is_extender {
+                overlap = overlap.min(part.start_connector_length);
+            }
+            // - GlyphPartRecord.endConnectorLength for all the entries in GlyphAssembly.partRecords, excluding the
+            //   first one if it is not an extender.
+            if index + 1 < parts.len() || part.is_extender {
+                overlap = overlap.min(part.end_connector_length);
+            }
+        }
+        // INTEROP: A part connects to the next part with its end connector and to the previous part with its start
+        //          connector, so the connectors that are left out above are swapped: the first part's start connector
+        //          and the last part's end connector connect to no part. Other browsers leave out those two connectors
+        //          too.
+        Some((repetitions, overlap))
+    }
+
+    /// The glyph assembly shaped for a target size, or `None` if it would have too many glyphs.
+    // https://w3c.github.io/mathml-core/#dfn-shaping-of-the-glyph-assembly
+    fn shape(&self, font: &FontHandle, target: f32) -> Option<GlyphRun> {
+        // 1. Calculate rmin and omax.
+        let (repetitions, overlap) = self.repetitions_and_overlap(target)?;
+        // The glyph assembly stretch size for a target size T is AssembySize(omax, rmin).
+        let stretch_size = self.size(overlap, repetitions);
+        // 2. Set (x, y) to (0, 0), RepetitionCounter to 0 and PartIndex to -1.
+        // 3. Repeat the following steps:
+        // NB: The y coordinate grows towards the line-under here, so the assembly grows upwards by decreasing it.
+        let mut x = 0.0;
+        let mut y = 0.0;
+        let mut glyphs = Vec::with_capacity(self.glyph_count(repetitions));
+        let mut max_advance: f32 = 0.0;
+        let mut max_ascent: f32 = 0.0;
+        let mut max_descent: f32 = 0.0;
+        for part in &self.assembly.parts {
+            // 1. If RepetitionCounter is 0: Increment PartIndex. If PartIndex is GlyphAssembly.partCount then stop.
+            //    Otherwise, set Part to GlyphAssembly.partRecords[PartIndex]. Set RepetitionCounter to rmin if Part is
+            //    an extender and to 1 otherwise.
+            let repetition_count = if part.is_extender { repetitions } else { 1 };
+            let metrics = font.glyph_metrics(part.glyph_id);
+            max_advance = max_advance.max(metrics.advance);
+            max_ascent = max_ascent.max(metrics.ascent);
+            max_descent = max_descent.max(metrics.descent);
+            for _ in 0..repetition_count {
+                match self.axis {
+                    // 2. If the glyph assembly is horizontal then draw the glyph of ID Part.glyphID so that its
+                    //    (left, baseline) coordinates are at position (x, y). Set x to x + Part.fullAdvance − omax.
+                    StretchAxis::Inline => {
+                        glyphs.push(MathGlyph {
+                            x,
+                            y,
+                            glyph_id: part.glyph_id,
+                        });
+                        x += part.full_advance - overlap;
+                    }
+                    // 3. Otherwise (if the glyph assembly is vertical), then draw the glyph of id Part.glyphID so that
+                    //    its (left, bottom) coordinates are at position (x, y). Set y to y − Part.fullAdvance + omax.
+                    StretchAxis::Block => {
+                        glyphs.push(MathGlyph {
+                            x,
+                            y: y - metrics.descent,
+                            glyph_id: part.glyph_id,
+                        });
+                        y -= part.full_advance - overlap;
+                    }
+                }
+                // 4. Decrement RepetitionCounter.
+            }
+        }
+        // If GlyphAssembly is vertical, the width is the maximum advance width of the glyphs of ID
+        // GlyphPartRecord.glyphID for all the GlyphPartRecord in GlyphAssembly.partRecords, the ascent is the glyph
+        // assembly stretch size for a given target size T and the descent is 0. Otherwise, the GlyphAssembly is
+        // horizontal, the width is glyph assembly stretch size for a given target size T while the ascent
+        // (respectively descent) is the maximum ascent (respectively descent) of the glyphs of ID
+        // GlyphPartRecord.glyphID for all the GlyphPartRecord in GlyphAssembly.partRecords.
+        let (advance, ascent, descent) = match self.axis {
+            StretchAxis::Block => (max_advance, stretch_size, 0.0),
+            StretchAxis::Inline => (stretch_size, max_ascent, max_descent),
+        };
+        Some(GlyphRun {
+            font: font.clone(),
+            glyphs,
+            advance: CssPixels::nearest_value_for_f32(advance),
+            ascent: CssPixels::nearest_value_for_f32(ascent),
+            descent: CssPixels::nearest_value_for_f32(descent),
+        })
+    }
+}
+
+// https://w3c.github.io/mathml-core/#dfn-shape-a-stretchy-glyph
+fn shape_stretchy_glyph(font: &FontHandle, glyph_id: u32, axis: StretchAxis, target: CssPixels) -> Option<GlyphRun> {
+    let target = target.to_float();
+    // FIXME: Keep the italic correction that comes with the glyph, for the scripts attached to the operator.
+    let normal_shaping = |glyph_id: u32| GlyphRun::for_glyph(font.clone(), glyph_id);
+    // 1. If there is not any MathGlyphConstruction table in the MathVariants.horizGlyphConstructionOffsets table
+    //    (respectively MathVariants.vertGlyphConstructionOffsets table) for the given glyph then exit with failure.
+    // NB: HarfBuzz reads an absent MathGlyphConstruction table like one without variants or assembly.
+    if !font.math_data().has_math_table {
+        return None;
+    }
+    let variants = font.math_glyph_variants(glyph_id, axis);
+    let assembly = font.math_glyph_assembly(glyph_id, axis);
+    if variants.is_empty() && assembly.is_none() {
+        return None;
+    }
+    // 2. If the glyph's advance width (respectively height) is at least T then use normal shaping and bounding box
+    //    for that glyph, the MathItalicsCorrectionInfo for that glyph as italic correction and exit with success.
+    if glyph_size_along(&font.glyph_metrics(glyph_id), axis) >= target {
+        return Some(normal_shaping(glyph_id));
+    }
+    // 3. Browse the list of MathGlyphVariantRecord in MathGlyphConstruction.mathGlyphVariantRecord. If one
+    //    MathGlyphVariantRecord.advanceMeasurement is at least T then use normal shaping and bounding box for
+    //    MathGlyphVariantRecord.variantGlyph, the MathItalicsCorrectionInfo for that glyph as italic correction and
+    //    exit with success.
+    if let Some(variant) = variants.iter().find(|variant| variant.advance_measurement >= target) {
+        return Some(normal_shaping(variant.glyph_id));
+    }
+    // 4. If there is valid GlyphAssembly subtable then use the bounding box given by glyph assembly width, glyph
+    //    assembly height, glyph assembly ascent, glyph assembly descent, the value GlyphAssembly.italicsCorrection as
+    //    italic correction, perform shaping of the glyph assembly and exit with success.
+    // NB: An assembly that would have too many glyphs is not used.
+    if let Some(glyph_run) = assembly
+        .and_then(|assembly| GlyphAssembly::new(font, assembly, axis))
+        .and_then(|assembly| assembly.shape(font, target))
+    {
+        return Some(glyph_run);
+    }
+    // 5. If none of the stretch options above allowed to cover the target size T, then choose last one that was tried
+    //    and exit with success.
+    Some(normal_shaping(
+        variants.last().map_or(glyph_id, |variant| variant.glyph_id),
+    ))
+}
+
 /// What MathML layout produced for a box that painting draws: fraction bars, radical symbols and the glyphs of
 /// stretched operators. Positions are relative to the top-left corner of the content box.
 #[derive(Debug, PartialEq)]
 pub(crate) struct MathPaintData {
     pub(crate) rules: Vec<CssPixelRect>,
     pub(crate) glyph_runs: Vec<MathGlyphRun>,
+    /// Whether the glyphs are those of a stretched or large operator, which are painted instead of its text.
+    pub(crate) replaces_text: bool,
 }
 
 #[derive(Debug, PartialEq)]
@@ -843,6 +1092,12 @@ impl MathConstants {
     /// MATH.MathConstants.`constant`, or the Default fallback constant of 0 if the constant is not available.
     fn constant_or_zero(&self, constant: MathConstant) -> CssPixels {
         self.constant_or(constant, CssPixels::default())
+    }
+
+    // displayOperatorMinHeight: MATH.MathConstants.displayOperatorMinHeight or Default fallback constant if the
+    // constant is not available.
+    fn display_operator_min_height(&self) -> CssPixels {
+        self.constant_or_zero(MathConstant::DisplayOperatorMinHeight)
     }
 
     // axisHeight: MATH.MathConstants.axisHeight or half OS/2.sxHeight if the constant is not available.
@@ -1137,6 +1392,64 @@ impl MathConstants {
     }
 }
 
+/// The glyph that an <mo> is drawn with when it is stretched or a large operator.
+struct OperatorGlyph {
+    glyph: GlyphRun,
+    /// Δ, how far the glyph is shifted away from the alphabetic baseline towards the line-under.
+    baseline_shift: CssPixels,
+}
+
+/// Lays out an <mo> whose text was laid out in a block formatting context with the glyph it is drawn with instead,
+/// if it is stretched or a large operator.
+// https://w3c.github.io/mathml-core/#layout-of-operators
+pub(super) fn layout_operator(run: &FormattingContextRun<'_>, input: &LayoutInput, result: &mut ChildLayoutResult) {
+    let context = MathFormattingContext::new(run);
+    let operator = run.box_;
+    if context.kind(operator) != MathLayoutKind::Mo {
+        return;
+    }
+    let Some(OperatorGlyph { glyph, baseline_shift }) =
+        context.operator_glyph(operator, input.sizing.math_stretch_size_constraint)
+    else {
+        return;
+    };
+    let glyphs = glyph;
+    let ascent = glyphs.ascent - baseline_shift;
+    let descent = glyphs.descent + baseline_shift;
+    let inline_size = glyphs.advance;
+    let used = run.records.used_values(operator);
+    // NB: The math content box sizes the content box, unless the width property gives it a size.
+    if sizing_context::is_plain_auto(context.style(operator).width()) {
+        used.content_inline_size.set(inline_size);
+    }
+    result.automatic_content_inline_size = inline_size;
+    result.automatic_content_block_size = ascent + descent;
+    result.baselines = DerivedBaselines {
+        first: Some(ascent),
+        last: Some(ascent),
+    };
+    if run.layout_mode != LayoutMode::Normal {
+        return;
+    }
+    let content = MathContent {
+        inline_size,
+        ascent,
+        descent,
+        glyph_runs: vec![PlacedGlyphRun {
+            line_left_offset: CssPixels::default(),
+            baseline_shift,
+            glyphs,
+        }],
+        ..MathContent::default()
+    };
+    let is_rtl = context.style(operator).direction() == direction::RTL;
+    let paint_data = MathPaintData {
+        replaces_text: true,
+        ..content.paint_data(CssPixels::default(), inline_size, is_rtl)
+    };
+    used.rare_data_mut().math_paint_data = Some(std::sync::Arc::new(paint_data));
+}
+
 pub(super) struct MathFormattingContext<'pass> {
     run: FormattingContextRun<'pass>,
     content: MathContent,
@@ -1398,12 +1711,422 @@ impl<'pass> MathFormattingContext<'pass> {
         })
     }
 
-    fn layout_child(&self, child: Node, constraints: ContainingBlockConstraints) -> Child {
+    /// The properties of an operator, as the core operator of the outermost embellished operator it is the core
+    /// operator of.
+    fn core_operator_properties(&self, operator: Node) -> Option<OperatorProperties> {
+        let callbacks = &self.run.callbacks;
+        let lays_out_math = |node: Node| !node.is_invalid() && self.kind(node).uses_math_layout();
+        let mut embellished_operator = operator;
+        loop {
+            let parent = callbacks.parent(embellished_operator);
+            if !lays_out_math(parent) || self.core_operator(parent) != Some(operator) {
+                break;
+            }
+            embellished_operator = parent;
+        }
+        let parent = callbacks.parent(embellished_operator);
+        if lays_out_math(parent) {
+            let siblings = self.in_flow_children_of(parent);
+            if let Some(index) = siblings.iter().position(|&sibling| sibling == embellished_operator) {
+                let parent_kind = self.kind(parent);
+                let first_and_last_non_space_like = self.first_and_last_non_space_like(&siblings, parent_kind);
+                return self.embellished_operator_properties(
+                    &siblings,
+                    index,
+                    parent_kind,
+                    first_and_last_non_space_like,
+                );
+            }
+        }
+        self.embellished_operator_properties(&[embellished_operator], 0, MathLayoutKind::NotMathML, Option::None)
+    }
+
+    /// The glyph an <mo> is drawn with, if it is stretched or a large operator.
+    // https://w3c.github.io/mathml-core/#layout-of-operators
+    fn operator_glyph(
+        &self,
+        operator: Node,
+        stretch_size_constraint: Option<MathStretchSizeConstraint>,
+    ) -> Option<OperatorGlyph> {
+        // 1. If the content of the <mo> element is not made of a single character c then fall back to the layout
+        //    algorithm of 3.2.1.1 Layout of <mtext>. If it is not possible to get a glyph corresponding to c given
+        //    directionality dir, then fall back to the layout algorithm of 3.2.1.1 Layout of <mtext>. Otherwise, let g
+        //    be the result of running get a glyph corresponding to c given directionality dir.
+        let character = self.operator_character(operator)?;
+        // FIXME: Mirror the glyph for dir rtl.
+        let style = self.style(operator);
+        let font = style.first_available_font();
+        let glyph_id = font.glyph_id_for_code_point(character);
+        if glyph_id == 0 {
+            return Option::None;
+        }
+        // OPTIMIZATION: A stretchy glyph can only be shaped with a font that has a MATH table, so the properties of
+        //               the operator are not looked up without one.
+        if !font.math_data().has_math_table {
+            return Option::None;
+        }
+        let properties = self.core_operator_properties(operator)?;
+        let constants = MathConstants::for_style(&style);
+        let axis_height = constants.axis_height();
+        // 2. If the operator has the stretchy property:
+        if properties.flags.stretchy {
+            // - If the stretch axis of the operator is inline:
+            if self.stretch_axis(operator) == StretchAxis::Inline {
+                // 1. If it is not possible to shape a stretchy glyph g in the inline direction with the first available
+                //    font then fall back to the layout algorithm of 3.2.1.1 Layout of <mtext>.
+                // 2. The min-content inline size and max-content inline size of the math content are set to the one
+                //    obtained by the layout algorithm of 3.2.1.1 Layout of <mtext>.
+                // 3. If there is not any inline stretch size constraint Tinline then fall back to the layout algorithm
+                //    of 3.2.1.1 Layout of <mtext>.
+                let Some(MathStretchSizeConstraint::Inline(target)) = stretch_size_constraint else {
+                    return Option::None;
+                };
+                // 4. The inline size and (ink) block metrics of the math content are given by algorithm to shape a
+                //    stretchy glyph g to inline dimension Tinline.
+                // 5. The painting of the operator is performed by the algorithm to shape a stretchy glyph g stretched
+                //    to inline dimension Tinline and at position determined by the previous box metrics.
+                let glyph = shape_stretchy_glyph(&font, glyph_id, StretchAxis::Inline, target)?;
+                return Some(OperatorGlyph {
+                    glyph,
+                    baseline_shift: CssPixels::default(),
+                });
+            }
+            // - Otherwise, the stretch axis of the operator is block. The following steps are performed:
+            //    1. If it is not possible to shape a stretchy glyph g in the block direction with the first available
+            //       font then fall back to the layout algorithm of 3.2.1.1 Layout of <mtext>.
+            //    2. The min-content inline size and max-content inline size of the math content are set to the
+            //       preferred inline size of a glyph stretched along the block axis.
+            //    3. If there is not any block stretch size constraint (Uascent, Udescent) then fall back to the layout
+            //       algorithm of 3.2.1.1 Layout of <mtext>.
+            // FIXME: Use the preferred inline size of a glyph stretched along the block axis for the min-content and
+            //        max-content inline sizes, rather than the inline size of the stretched glyph.
+            let Some(
+                MathStretchSizeConstraint::Block {
+                    ascent: unconstrained_ascent,
+                    descent: unconstrained_descent,
+                }
+                | MathStretchSizeConstraint::BlockCoveringContent {
+                    ascent: unconstrained_ascent,
+                    descent: unconstrained_descent,
+                },
+            ) = stretch_size_constraint
+            else {
+                return Option::None;
+            };
+            // 4. If the operator has the symmetric property then set the target sizes Tascent and Tdescent to Sascent
+            //    and Sdescent respectively:
+            //    Sascent = max(Uascent − AxisHeight, Udescent + AxisHeight) + AxisHeight
+            //    Sdescent = max(Uascent − AxisHeight, Udescent + AxisHeight) − AxisHeight
+            //    Otherwise set them to Uascent and Udescent respectively.
+            let (mut target_ascent, mut target_descent) = if properties.flags.symmetric {
+                let half_size = (unconstrained_ascent - axis_height).max(unconstrained_descent + axis_height);
+                (half_size + axis_height, half_size - axis_height)
+            } else {
+                (unconstrained_ascent, unconstrained_descent)
+            };
+            // 5. Let minsize and maxsize be the minsize and maxsize properties on the operator. Percentage values are
+            //    interpreted relative to the height of g. Let T = Tascent + Tdescent be the target size. If minsize < 0
+            //    then set minsize to 0. If maxsize < minsize then set maxsize to minsize. With 0 ≤ minsize ≤
+            //    maxsize:
+            // NB: Font-relative lengths for minsize and maxsize rely on the font style of the core operator. The
+            //     dictionary sets minsize to 100% and maxsize to ∞, which is represented by `None`.
+            let attributes = self.run.callbacks.arena().math_attribute_facts(operator);
+            let glyph_metrics = font.glyph_metrics(glyph_id);
+            let glyph_height = CssPixels::nearest_value_for_f32(glyph_metrics.ascent + glyph_metrics.descent);
+            let mut minsize = attributes.minsize.resolve(&style, glyph_height).unwrap_or(glyph_height);
+            let mut maxsize = attributes.maxsize.resolve(&style, glyph_height);
+            let target = target_ascent + target_descent;
+            minsize = minsize.max(CssPixels::default());
+            if let Some(size) = maxsize
+                && size < minsize
+            {
+                maxsize = Some(minsize);
+            }
+            let scaled_target_ascent = |size: CssPixels| {
+                CssPixels::nearest_value_for(
+                    (f64::from((target_ascent - axis_height).to_float()) * f64::from(size.to_float())
+                        / f64::from(target.to_float()))
+                        + f64::from(axis_height.to_float()),
+                )
+                .max(CssPixels::default())
+            };
+            //    - If T ≤ 0 then set Tascent to minsize / 2 + AxisHeight and then set Tdescent to minsize − Tascent.
+            if target <= CssPixels::default() {
+                target_ascent = minsize / 2 + axis_height;
+                target_descent = minsize - target_ascent;
+            }
+            //    - Otherwise, if 0 < T < minsize then set Tascent to max(0, (Tascent − AxisHeight) × minsize / T +
+            //      AxisHeight) and Tdescent to minsize − Tascent.
+            else if target < minsize {
+                target_ascent = scaled_target_ascent(minsize);
+                target_descent = minsize - target_ascent;
+            }
+            //    - Otherwise, if maxsize < T then set Tascent to max(0, (Tascent − AxisHeight) × maxsize / T +
+            //      AxisHeight) and Tdescent to maxsize − Tascent.
+            else if let Some(maxsize) = maxsize
+                && maxsize < target
+            {
+                target_ascent = scaled_target_ascent(maxsize);
+                target_descent = maxsize - target_ascent;
+            }
+            // 6. The inline size, ink line-ascent, ink line-descent, line-ascent and line-descent of the math content
+            //    are obtained by the algorithm to shape a stretchy glyph g to block dimension Tascent + Tdescent.
+            let glyph = shape_stretchy_glyph(&font, glyph_id, StretchAxis::Block, target_ascent + target_descent)?;
+            //    The inline size of the math content is the width of the stretchy glyph. The stretchy glyph is shifted
+            //    towards the line-under by a value Δ so that its center aligns with the center of the target: the ink
+            //    ascent of the math content is the ascent of the stretchy glyph − Δ and the ink descent of the math
+            //    content is the descent of the stretchy glyph + Δ. These centers have coordinates "½(ascent − descent)"
+            //    so Δ = [(ascent of stretchy glyph − descent of stretchy glyph) − (Tascent − Tdescent)] / 2.
+            let delta = ((glyph.ascent - glyph.descent) - (target_ascent - target_descent)) / 2;
+            // 7. The painting of the operator is performed by the algorithm to shape a stretchy glyph g stretched to
+            //    block dimension Tascent + Tdescent and at position determined by the previous box metrics shifted by Δ
+            //    towards the line-over.
+            return Some(OperatorGlyph {
+                glyph,
+                baseline_shift: delta,
+            });
+        }
+        // 3. If the operator has the largeop property and if math-style on the <mo> element is normal, then:
+        if properties.flags.largeop && style.math_style() == math_style::NORMAL {
+            // 1. If it is not possible to shape a stretchy glyph g in the block direction with the first available
+            //    font then fall back to the layout algorithm of 3.2.1.1 Layout of <mtext>.
+            // 2. The min-content inline size and max-content inline size of the math content are set to the preferred
+            //    inline size of a glyph stretched along the block axis.
+            // 3. The inline size, ink line-ascent, ink line-descent, line-ascent and line-descent of the math content
+            //    are obtained by the algorithm to shape a stretchy glyph g to block dimension DisplayOperatorMinHeight.
+            //    The inline size of the math content is the width of the stretchy glyph. The stretchy glyph is shifted
+            //    towards the line-under by a value Δ so that its center aligns with the center of the target when
+            //    symmetric: the ink ascent of the math content is the ascent of the stretchy glyph − Δ and the ink
+            //    descent of the math content is the descent of the stretchy glyph + Δ.
+            //    - If the operator has the symmetric property, then Δ = [(ascent of stretchy glyph − descent of
+            //      stretchy glyph) − 2 * AxisHeight] / 2.
+            //    - Otherwise, Δ = 0.
+            // NB: The min-content and max-content inline sizes are the inline size of the glyph, as it is shaped the
+            //     same whatever the stretch size constraint.
+            let glyph = shape_stretchy_glyph(
+                &font,
+                glyph_id,
+                StretchAxis::Block,
+                constants.display_operator_min_height(),
+            )?;
+            let delta = if properties.flags.symmetric {
+                ((glyph.ascent - glyph.descent) - axis_height * 2usize) / 2
+            } else {
+                CssPixels::default()
+            };
+            // 4. The painting of the operator is performed by the algorithm to shape a stretchy glyph g stretched to
+            //    block dimension DisplayOperatorMinHeight and at position determined by the previous box metrics
+            //    shifted by Δ towards the line-over.
+            return Some(OperatorGlyph {
+                glyph,
+                baseline_shift: delta,
+            });
+        }
+        // 4. Otherwise fall back to the layout algorithm of 3.2.1.1 Layout of <mtext>.
+        Option::None
+    }
+
+    /// Whether the box lays out its in-flow children like an <mrow>, as the layout algorithm its tag name selects
+    /// falls back to that of <mrow> or generates an anonymous <mrow> box.
+    fn lays_out_children_like_mrow(&self, kind: MathLayoutKind, children: &[Node]) -> bool {
+        match (kind, children.len()) {
+            (
+                MathLayoutKind::Mfrac
+                | MathLayoutKind::Msub
+                | MathLayoutKind::Msup
+                | MathLayoutKind::Munder
+                | MathLayoutKind::Mover
+                | MathLayoutKind::Mroot,
+                2,
+            )
+            | (MathLayoutKind::Msubsup | MathLayoutKind::Munderover, 3)
+            | (MathLayoutKind::Mspace, _) => false,
+            (MathLayoutKind::Mmultiscripts, _) => !self.is_valid_multiscripts(children),
+            _ => true,
+        }
+    }
+
+    /// The index of the in-flow child that the core operator of the box belongs to, if the box is an embellished
+    /// operator.
+    fn embellished_operator_child(&self, children: &[Node]) -> Option<usize> {
+        self.core_operator(self.run.box_)?;
+        let kind = self.kind(self.run.box_);
+        if kind.is_grouping_element() || kind == MathLayoutKind::Mpadded {
+            return children.iter().position(|&child| self.core_operator(child).is_some());
+        }
+        Some(0)
+    }
+
+    /// Whether the in-flow child at `index` is an embellished operator with the stretchy property and the given
+    /// stretch axis.
+    fn is_stretchy_operator_along(
+        &self,
+        children: &[Node],
+        index: usize,
+        first_and_last_non_space_like: Option<(usize, usize)>,
+        axis: StretchAxis,
+    ) -> bool {
+        self.embellished_operator_properties(children, index, self.kind(self.run.box_), first_and_last_non_space_like)
+            .is_some_and(|properties| properties.flags.stretchy && self.stretch_axis(properties.core_operator) == axis)
+    }
+
+    /// Lays out the in-flow children, stretching the operators among them as the layout algorithm of the box asks.
+    fn layout_children(
+        &self,
+        children: &[Node],
+        kind: MathLayoutKind,
+        constraints: ContainingBlockConstraints,
+        stretch_size_constraint: Option<MathStretchSizeConstraint>,
+    ) -> Vec<Child> {
+        // https://w3c.github.io/mathml-core/#algorithm-for-stretching-operators-along-the-block-axis
+        // 1. If there is a block stretch size constraint or an inline stretch size constraint then the element being
+        //    laid out is an embellished operator. Lay out the one in-flow child that is an embellished operator with
+        //    the same stretch size constraint and all the other in-flow children without any stretch size constraint
+        //    and stop.
+        // NB: The same goes for the other layout algorithms, which lay out their first in-flow child with the same
+        //     stretch size constraint.
+        if let Some(stretch_size_constraint) = stretch_size_constraint {
+            let embellished_operator_child = self.embellished_operator_child(children);
+            let mut laid_out: Vec<Option<Child>> = children
+                .iter()
+                .enumerate()
+                .map(|(index, &child)| {
+                    (Some(index) != embellished_operator_child)
+                        .then(|| self.layout_child(child, constraints, Option::None))
+                })
+                .collect();
+            if let Some(index) = embellished_operator_child {
+                let constraint = match stretch_size_constraint {
+                    MathStretchSizeConstraint::BlockCoveringContent { ascent, descent } => {
+                        MathStretchSizeConstraint::BlockCoveringContent {
+                            ascent: laid_out
+                                .iter()
+                                .flatten()
+                                .map(|child| child.ascent)
+                                .fold(ascent, CssPixels::max),
+                            descent: laid_out
+                                .iter()
+                                .flatten()
+                                .map(|child| child.descent)
+                                .fold(descent, CssPixels::max),
+                        }
+                    }
+                    constraint => constraint,
+                };
+                laid_out[index] = Some(self.layout_child(children[index], constraints, Some(constraint)));
+            }
+            return laid_out.into_iter().flatten().collect();
+        }
+        let is_underover = matches!(
+            (kind, children.len()),
+            (MathLayoutKind::Munder | MathLayoutKind::Mover, 2) | (MathLayoutKind::Munderover, 3)
+        );
+        let (axis, first_and_last_non_space_like) = if is_underover {
+            (StretchAxis::Inline, Option::None)
+        } else if self.lays_out_children_like_mrow(kind, children) {
+            (StretchAxis::Block, self.first_and_last_non_space_like(children, kind))
+        } else {
+            return children
+                .iter()
+                .map(|&child| self.layout_child(child, constraints, Option::None))
+                .collect();
+        };
+        // 2. Otherwise, split the list of in-flow children into a first list LToStretch containing embellished
+        //    operators with a stretchy property and block stretch axis; and a second list LNotToStretch.
+        // NB: The algorithm for stretching operators along the inline axis, which <munder>, <mover> and <munderover>
+        //     use, has the same steps for operators with inline stretch axis, an inline stretch size constraint 0, and
+        //     a target size T that is the maximum inline size of the margin boxes of the child boxes laid out.
+        // https://w3c.github.io/mathml-core/#algorithm-for-stretching-operators-along-the-inline-axis
+        let mut to_stretch: Vec<bool> = (0..children.len())
+            .map(|index| self.is_stretchy_operator_along(children, index, first_and_last_non_space_like, axis))
+            .collect();
+        // 3. Perform layout without any stretch size constraint on all the items of LNotToStretch.
+        let mut laid_out: Vec<Option<Child>> = children
+            .iter()
+            .zip(&to_stretch)
+            .map(|(&child, &to_stretch)| (!to_stretch).then(|| self.layout_child(child, constraints, Option::None)))
+            .collect();
+        // 4. If LToStretch is empty then stop.
+        if !to_stretch.contains(&true) {
+            return laid_out.into_iter().flatten().collect();
+        }
+        // 5. If LNotToStretch is empty, perform layout with block stretch size constraint (0, 0) for all the items of
+        //    LToStretch.
+        // AD-HOC: A box is laid out once in a run, so the metrics the core operators of the items of LToStretch have
+        //         with that stretch size constraint stand in for those of the items, which are then laid out with a
+        //         stretch size constraint that also covers their other in-flow children. An operator without a
+        //         stretched glyph keeps its unstretched layout.
+        let mut metrics: Vec<(CssPixels, CssPixels, CssPixels)> = laid_out
+            .iter()
+            .flatten()
+            .map(|child| (child.inline_size, child.ascent, child.descent))
+            .collect();
+        let not_to_stretch_is_empty = metrics.is_empty();
+        if not_to_stretch_is_empty {
+            let constraint = match axis {
+                StretchAxis::Block => MathStretchSizeConstraint::Block {
+                    ascent: CssPixels::default(),
+                    descent: CssPixels::default(),
+                },
+                StretchAxis::Inline => MathStretchSizeConstraint::Inline(CssPixels::default()),
+            };
+            for (index, &child) in children.iter().enumerate() {
+                let operator_glyph = self
+                    .core_operator(child)
+                    .and_then(|core_operator| self.operator_glyph(core_operator, Some(constraint)));
+                match operator_glyph {
+                    Some(OperatorGlyph { glyph, baseline_shift }) => metrics.push((
+                        glyph.advance,
+                        glyph.ascent - baseline_shift,
+                        glyph.descent + baseline_shift,
+                    )),
+                    Option::None => {
+                        let child = self.layout_child(child, constraints, Option::None);
+                        metrics.push((child.inline_size, child.ascent, child.descent));
+                        laid_out[index] = Some(child);
+                        to_stretch[index] = false;
+                    }
+                }
+            }
+        }
+        // 6. Calculate the unconstrained target sizes Uascent and Udescent as respectively the maximum ink ascent and
+        //    maximum ink descent of the margin boxes of in-flow children that have been laid out in the previous step.
+        let unconstrained_ascent = metrics.iter().map(|metrics| metrics.1).max().unwrap_or_default();
+        let unconstrained_descent = metrics.iter().map(|metrics| metrics.2).max().unwrap_or_default();
+        let constraint = match axis {
+            StretchAxis::Block if not_to_stretch_is_empty => MathStretchSizeConstraint::BlockCoveringContent {
+                ascent: unconstrained_ascent,
+                descent: unconstrained_descent,
+            },
+            StretchAxis::Block => MathStretchSizeConstraint::Block {
+                ascent: unconstrained_ascent,
+                descent: unconstrained_descent,
+            },
+            StretchAxis::Inline => {
+                MathStretchSizeConstraint::Inline(metrics.iter().map(|metrics| metrics.0).max().unwrap_or_default())
+            }
+        };
+        // 7. Lay out or relayout all the elements of LToStretch with block stretch size constraint (Uascent,
+        //    Udescent).
+        for (index, &child) in children.iter().enumerate() {
+            if to_stretch[index] {
+                laid_out[index] = Some(self.layout_child(child, constraints, Some(constraint)));
+            }
+        }
+        laid_out.into_iter().flatten().collect()
+    }
+
+    fn layout_child(
+        &self,
+        child: Node,
+        constraints: ContainingBlockConstraints,
+        stretch_size_constraint: Option<MathStretchSizeConstraint>,
+    ) -> Child {
         let run = &self.run;
         run.records.create_used_values(&run.callbacks, child, constraints);
         // NB: MathML layout does not break lines, so each child is laid out at its max-content inline size, as an
         //     atomic box whose block size follows from its content.
-        let input = LayoutInput::new(
+        let mut input = LayoutInput::new(
             AvailableSpace {
                 inline_size: AvailableSize::MaxContent,
                 block_size: AvailableSize::Indefinite,
@@ -1411,6 +2134,7 @@ impl<'pass> MathFormattingContext<'pass> {
             constraints,
             ParticipationInParentFormattingContext::AtomicInline,
         );
+        input.sizing.math_stretch_size_constraint = stretch_size_constraint;
         let used = run.records.used_values(child);
         let baselines =
             match formatting_context::layout_inside_child(run, None, None, child, run.layout_mode, input, true) {
@@ -1437,11 +2161,13 @@ impl<'pass> MathFormattingContext<'pass> {
         let constraints = run
             .sizing()
             .constraints_for_child_context(root, layout_input.containing_block_constraints);
-        let children: Vec<Child> = self
-            .in_flow_children()
-            .into_iter()
-            .map(|child| self.layout_child(child, constraints))
-            .collect();
+        let nodes = self.in_flow_children();
+        let children = self.layout_children(
+            &nodes,
+            kind,
+            constraints,
+            layout_input.sizing.math_stretch_size_constraint,
+        );
 
         let root_style = self.style(root);
         let constants = MathConstants::for_style(&root_style);
@@ -1477,20 +2203,21 @@ impl<'pass> MathFormattingContext<'pass> {
                 let inner = self.layout_row_with_operator_spacing(&children, kind, add_space);
                 self.layout_padded(inner, &root_style)
             }
-            (MathLayoutKind::Mmultiscripts, _) if self.is_valid_multiscripts(&children) => layout_multiscripts(
+            (MathLayoutKind::Mmultiscripts, _) if self.is_valid_multiscripts(&nodes) => layout_multiscripts(
                 &children,
-                self.prescripts_separator_index(&children),
+                self.prescripts_separator_index(&nodes),
                 &constants,
                 is_cramped,
             ),
             (MathLayoutKind::Mroot, 2) => {
-                let radical = RadicalMetrics::new(&root_style, &constants);
-                layout_root(&children[0], &children[1], &radical, &constants)
+                let base = &children[0];
+                let radical = RadicalMetrics::new(&root_style, &constants, base.ascent + base.descent);
+                layout_root(base, &children[1], &radical, &constants)
             }
             (MathLayoutKind::Msqrt, _) => {
-                let radical = RadicalMetrics::new(&root_style, &constants);
                 // NB: The children of <msqrt> are laid out in an anonymous <mrow> box.
                 let base = self.layout_row_with_operator_spacing(&children, kind, true);
+                let radical = RadicalMetrics::new(&root_style, &constants, base.ascent + base.descent);
                 layout_square_root(base, &radical)
             }
             _ => {
@@ -1561,14 +2288,14 @@ impl<'pass> MathFormattingContext<'pass> {
         self.content = content;
     }
 
-    fn prescripts_separator_index(&self, children: &[Child]) -> Option<usize> {
+    fn prescripts_separator_index(&self, children: &[Node]) -> Option<usize> {
         children
             .iter()
-            .position(|child| self.kind(child.node) == MathLayoutKind::Mprescripts)
+            .position(|&child| self.kind(child) == MathLayoutKind::Mprescripts)
     }
 
     // https://w3c.github.io/mathml-core/#prescripts-and-tensor-indices-mmultiscripts
-    fn is_valid_multiscripts(&self, children: &[Child]) -> bool {
+    fn is_valid_multiscripts(&self, children: &[Node]) -> bool {
         // A valid <mmultiscripts> element contains the following in-flow children:
         // - A first in-flow child, called the mmultiscripts base, that is not an <mprescripts> element.
         // - Followed by an even number of in-flow children called mmultiscripts postscripts, none of them being a
@@ -1577,7 +2304,7 @@ impl<'pass> MathFormattingContext<'pass> {
         //   mmultiscripts prescripts, none of them being a <mprescripts> element.
         let separator_count = children
             .iter()
-            .filter(|child| self.kind(child.node) == MathLayoutKind::Mprescripts)
+            .filter(|&&child| self.kind(child) == MathLayoutKind::Mprescripts)
             .count();
         match self.prescripts_separator_index(children) {
             Option::None => !children.is_empty() && children.len() % 2 == 1,
@@ -2368,10 +3095,10 @@ struct RadicalMetrics {
 }
 
 impl RadicalMetrics {
-    fn new(style: &StyleValues<'_>, constants: &MathConstants) -> Self {
+    fn new(style: &StyleValues<'_>, constants: &MathConstants, base_ink_height: CssPixels) -> Self {
         // The radical glyph is the glyph obtained as a result of running get a glyph corresponding to the U+221A
         // SQUARE ROOT character given dir.
-        // FIXME: Stretch the radical glyph to the radical target size, and mirror it for dir rtl.
+        // FIXME: Mirror the radical glyph for dir rtl.
         const SQUARE_ROOT: u32 = 0x221A;
         let font = style.frozen_font_list().font_for_code_point(
             SQUARE_ROOT,
@@ -2385,10 +3112,19 @@ impl RadicalMetrics {
         } else {
             constants.radical_vertical_gap()
         };
+        let rule_thickness = constants.radical_rule_thickness();
+        // The radical target size for the stretchy radical glyph is the sum of RadicalRuleThickness, radical gap and
+        // the ink height of the base.
+        let target_size = rule_thickness + gap + base_ink_height;
+        // The box metrics of the radical glyph and painting of the surd are given by the algorithm to shape a stretchy
+        // glyph to the target size for the radical glyph in the block dimension.
+        // NB: A glyph that cannot be stretched is used as it is.
+        let glyph = shape_stretchy_glyph(&font, glyph_id, StretchAxis::Block, target_size)
+            .unwrap_or_else(|| GlyphRun::for_glyph(font, glyph_id));
         Self {
-            glyph: GlyphRun::for_glyph(font, glyph_id),
+            glyph,
             gap,
-            rule_thickness: constants.radical_rule_thickness(),
+            rule_thickness,
             extra_ascender: constants.radical_extra_ascender(),
         }
     }

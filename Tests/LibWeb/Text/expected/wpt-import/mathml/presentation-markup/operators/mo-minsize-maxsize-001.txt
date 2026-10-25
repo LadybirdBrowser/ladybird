@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-1 Pass
-5 Fail
-Fail	minsize < 0 is treated as 0
-Fail	maxsize < minsize is treated as maxsize = minsize
+6 Pass
+Pass	minsize < 0 is treated as 0
+Pass	maxsize < minsize is treated as maxsize = minsize
 Pass	minsize < maxsize < 0 is treated as maxsize = minsize = 0
-Fail	target size = 0 is treated as Tascent = Tdescent = minsize/2
-Fail	minsize/maxsize percentages are relative to the unstretched size
-Fail	default minsize/maxsize values
+Pass	target size = 0 is treated as Tascent = Tdescent = minsize/2
+Pass	minsize/maxsize percentages are relative to the unstretched size
+Pass	default minsize/maxsize values

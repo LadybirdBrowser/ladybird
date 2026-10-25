@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<title>Test case insensitivity of mo boolean attributes (reference)</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+  math {
+      font: 25px/1 Ahem;
+  }
+  @font-face {
+      font-family: operators;
+      src: url("../../../fonts/math/operators.woff");
+  }
+  mo {
+      font-family: operators;
+  }
+</style>
+<p>
+  <math>
+    <mrow>
+      <mo symmetric="false" stretchy="false">⥯</mo>
+      <mspace height="2em"></mspace>
+    </mrow>
+  </math>
+</p>
+<p>
+  <math>
+    <mrow>
+      <mo symmetric="true" stretchy="true">⥯</mo>
+      <mspace height="1.5em"></mspace>
+    </mrow>
+  </math>
+</p>
+<p>
+  <math displaystyle="true">
+    <mo largeop="false">∑</mo>
+  </math>
+</p>
+<p>
+  <math>
+    <munder>
+      <mo movablelimits="false">∑</mo>
+      <mtext>X</mtext>
+    </munder>
+  </math>
+</p>

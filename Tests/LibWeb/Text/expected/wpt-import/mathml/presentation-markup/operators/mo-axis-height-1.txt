@@ -2,13 +2,14 @@ Harness status: OK
 
 Found 9 tests
 
-9 Fail
-Fail	symmetric stretching with respect to the math axis (size variant)
-Fail	symmetric stretching with respect to the math axis (glyph assembly)
-Fail	Tascent = Tdescent = 0, minsize = 14em
-Fail	Tascent = 6em > AxisHeight, Tdescent = 1em, symmetric = false, minsize = 14em
+8 Pass
+1 Fail
+Pass	symmetric stretching with respect to the math axis (size variant)
+Pass	symmetric stretching with respect to the math axis (glyph assembly)
+Pass	Tascent = Tdescent = 0, minsize = 14em
+Pass	Tascent = 6em > AxisHeight, Tdescent = 1em, symmetric = false, minsize = 14em
 Fail	Tascent = 4em < AxisHeight, Tdescent = 3em, symmetric = false, minsize = 14em
-Fail	Tascent = 6em > AxisHeight, Tdescent = 22em, symmetric = false, maxsize = 14em
-Fail	Tascent = 4em < AxisHeight, Tdescent = 24em, symmetric = false, maxsize = 14em
-Fail	symmetric stretching with respect to the math axis (minsize = 14em)
-Fail	symmetric stretching with respect to the math axis (maxsize = 14em)
+Pass	Tascent = 6em > AxisHeight, Tdescent = 22em, symmetric = false, maxsize = 14em
+Pass	Tascent = 4em < AxisHeight, Tdescent = 24em, symmetric = false, maxsize = 14em
+Pass	symmetric stretching with respect to the math axis (minsize = 14em)
+Pass	symmetric stretching with respect to the math axis (maxsize = 14em)

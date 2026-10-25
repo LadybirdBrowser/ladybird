@@ -1993,7 +1993,10 @@ fn execute_formatting_context_run(
                 body_input
             };
 
+            // NB: A measurement of the box without a stretch size constraint does not tell the size of a stretched
+            //     operator.
             let cached_atomic_block_size = if !changes_frame
+                && input.sizing.math_stretch_size_constraint.is_none()
                 && matches!(
                     input.participation,
                     ParticipationInParentFormattingContext::AtomicInline
@@ -2033,19 +2036,25 @@ fn execute_formatting_context_run(
                 let result = match &mut context_implementation {
                     FormattingContextImplementation::Block(context) => {
                         context.run(body_run, body_input);
-                        let baselines = context.derived_baselines_of_root_box();
-                        store_derived_baselines(run.records.used_values(run.box_), baselines);
-                        ChildLayoutResult {
+                        let mut result = ChildLayoutResult {
                             automatic_content_inline_size: context.automatic_content_inline_size(),
                             min_content_inline_size_from_max_content_layout: context
                                 .min_content_inline_size_from_max_content_layout(),
                             automatic_content_block_size: context.automatic_content_block_size(),
                             automatic_line_clamp_max_lines: context.automatic_line_clamp_max_lines(),
-                            baselines,
+                            baselines: context.derived_baselines_of_root_box(),
                             table_box_in_wrapper_border_box_block_size: context
                                 .table_box_in_wrapper_border_box_block_size(),
                             ..ChildLayoutResult::default()
+                        };
+                        // https://w3c.github.io/mathml-core/#layout-of-operators
+                        // NB: An operator lays out its text in a block formatting context, unless it is drawn with a
+                        //     stretched or large glyph.
+                        if NodeFacts::new(&body_run.callbacks, box_).display().is_math_inside() {
+                            math_formatting_context::layout_operator(body_run, &input, &mut result);
                         }
+                        store_derived_baselines(run.records.used_values(run.box_), result.baselines);
+                        result
                     }
                     FormattingContextImplementation::Flex(context) => {
                         context.run(body_run, body_input);

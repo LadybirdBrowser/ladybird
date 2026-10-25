@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>embellished operators 5: vertical stretchy operator</title>
+    <link rel="match" href="../../../../../expected/wpt-import/mathml/presentation-markup/operators/embellished-op-5-ref.html"/>
+    <link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=21479"/>
+    <link rel="stylesheet" href="../../../fonts/ahem.css" />
+    <style>
+      @font-face {
+        font-family: operators;
+        src: url("../../../fonts/math/operators.woff");
+      }
+      math {
+        font: 25px/1 Ahem;
+      }
+      mo {
+        font-family: operators;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div>
+      <math xmlns="http://www.w3.org/1998/Math/MathML">
+        <mrow>
+          <msub>
+            <mo>|</mo>
+            <mspace/>
+          </msub>
+          <mspace height="30px" depth="30px"/>
+        </mrow>
+      </math>
+    </div>
+  </body>
+</html>

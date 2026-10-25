@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Stretchy mover</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <link rel="match" href="../../../../../expected/wpt-import/mathml/presentation-markup/scripts/stretchy-mover-1-ref.html"/>
+    <link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=687807"/>
+    <link rel="stylesheet" href="../../../fonts/ahem.css" />
+    <style>
+      @font-face {
+        font-family: operators;
+        src: url("../../../fonts/math/operators.woff");
+      }
+      math {
+        font: 25px/1 Ahem;
+      }
+      mo {
+        font-family: operators;
+      }
+      #container {
+        width: 800px;
+        height: 600px;
+        overflow: hidden;
+        background: lightblue;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <math display=block>
+        <mrow>
+          <mspace width="10em"/>
+          <mrow>
+            <mover>
+              <mo stretchy="true">&#x2192;</mo>
+              <mn>BBBBBBBBB</mn>
+            </mover>
+          </mrow>
+          <mspace width="10em"/>
+        </mrow>
+      </math>
+    </div>
+  </body>
+</html>

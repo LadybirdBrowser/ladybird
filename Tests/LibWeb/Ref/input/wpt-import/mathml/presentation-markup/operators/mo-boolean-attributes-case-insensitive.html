@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<title>Test case insensitivity of mo boolean attributes</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<link rel="help" href="https://w3c.github.io/mathml-core/#dom-and-javascript">
+<meta name="assert" content="Verifies case insensitivity of mo boolean attributes.">
+<link rel="match" href="../../../../../expected/wpt-import/mathml/presentation-markup/operators/mo-boolean-attributes-case-insensitive-ref.html">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+  math {
+      font: 25px/1 Ahem;
+  }
+  @font-face {
+      font-family: operators;
+      src: url("../../../fonts/math/operators.woff");
+  }
+  mo {
+      font-family: operators;
+  }
+</style>
+<p>
+  <math>
+    <mrow>
+      <mo symmetric="false" stretchy="FaLsE">⥯</mo>
+      <mspace height="2em"></mspace>
+    </mrow>
+  </math>
+</p>
+<p>
+  <math>
+    <mrow>
+      <mo symmetric="TrUe" stretchy="true">⥯</mo>
+      <mspace height="1.5em"></mspace>
+    </mrow>
+  </math>
+</p>
+<p>
+  <math displaystyle="true">
+    <mo largeop="FALSe">∑</mo>
+  </math>
+</p>
+<p>
+  <math>
+    <munder>
+      <mo movablelimits="fALse">∑</mo>
+      <mtext>X</mtext>
+    </munder>
+  </math>
+</p>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script>MathMLFeatureDetection.ensure_for_match_reftest("has_munderover");</script>

@@ -34,6 +34,13 @@ pub(crate) fn paint_foreground<O: Observer>(
         return;
     };
     let color = Color(style.inherited_text().color);
+    // NB: The glyphs of a stretched or large operator are painted instead of its text, so they use the text fill
+    //     color like the text would.
+    let glyph_color = if data.replaces_text {
+        Color(style.inherited_text().webkit_text_fill_color)
+    } else {
+        color
+    };
     let font_smoothing = style.inherited_text().font_smoothing;
     let content_box = paintable_geometry::absolute_rect(recorder.source, paintable);
     let converter = recorder.converter;
@@ -71,7 +78,7 @@ pub(crate) fn paint_foreground<O: Observer>(
                 font_id: FontResourceId(font_id),
                 glyphs: &glyphs,
             },
-            color,
+            glyph_color,
             ink_rect,
             scale,
             Orientation::Horizontal,
