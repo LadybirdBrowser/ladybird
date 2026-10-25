@@ -1,0 +1,7 @@
+auto, width: 100%: 7
+auto, width: calc(10px + 100%): 10
+auto, max-content preserves natural width: true
+none, width: 100%: 7
+none, width: calc(10px + 100%): 10
+none, max-content preserves natural width: true
+Nested grid width: 62
