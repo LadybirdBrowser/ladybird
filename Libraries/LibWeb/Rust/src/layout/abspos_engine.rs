@@ -3451,8 +3451,7 @@ impl<'pass> AbsposEngine<'pass> {
         //    abspos's inset-modified containing block, when laid out with adjusted styles.
         let used = used_values::create_used_values(&self.callbacks, node, ContainingBlockConstraints::default());
         let (available_space, constraints) = out_of_flow_root_space(inputs);
-        formatting_context::MeasurementState::create(self.callbacks).run_with_purpose(
-            formatting_context::LayoutPurpose::Measurement,
+        formatting_context::MeasurementState::create(self.callbacks).run_with_layout_mode(
             node,
             &used,
             LayoutMode::Normal,
