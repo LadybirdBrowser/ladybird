@@ -145,7 +145,7 @@ impl Map {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Map> {
-        realm.create_object(vm, Map::new(vm, realm.intrinsics().map_prototype(vm)))
+        realm.create_object(vm, |_| Map::new(vm, realm.intrinsics().map_prototype(vm)))
     }
 
     // 24.1.3.1 Map.prototype.clear ( ), https://tc39.es/ecma262/#sec-map.prototype.clear

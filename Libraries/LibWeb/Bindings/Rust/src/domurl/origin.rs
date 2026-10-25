@@ -44,7 +44,7 @@ impl Origin {
         //     1. Let origin be the result of executing value's extract an origin operation.
         //     2. If origin is not null, then return a new Origin object whose origin is origin.
         if let Some(origin) = extract_an_origin(value) {
-            return Ok(allocate(cx.vm(), Self { origin }));
+            return Ok(allocate(cx.vm(), |_| Self { origin }));
         }
 
         // 2. If value is a string:
@@ -57,7 +57,7 @@ impl Origin {
             //    origin.
             if let Some(parsed_url) = parsed_url {
                 let origin = parsed_url.origin();
-                return Ok(allocate(cx.vm(), Self { origin }));
+                return Ok(allocate(cx.vm(), |_| Self { origin }));
             }
         }
 

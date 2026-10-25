@@ -124,10 +124,9 @@ impl Deref for Promise {
 
 impl Promise {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Promise> {
-        realm.create_object(
-            vm,
-            Promise::new(vm, Self::CLASS, realm.intrinsics().promise_prototype(vm)),
-        )
+        realm.create_object(vm, |_| {
+            Promise::new(vm, Self::CLASS, realm.intrinsics().promise_prototype(vm))
+        })
     }
 
     /// A promise with `prototype`, for `class`, which is Promise or a class that extends it.

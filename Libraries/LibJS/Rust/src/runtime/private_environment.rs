@@ -74,7 +74,7 @@ impl PrivateEnvironment {
         let unique_id = vm.next_private_environment_id().get();
         assert!(unique_id != u64::MAX);
         vm.next_private_environment_id().set(unique_id + 1);
-        vm.heap().allocate(PrivateEnvironment {
+        vm.heap().allocate(|_| PrivateEnvironment {
             header: CellHeader::for_class(Self::CLASS),
             outer: Cell::new(parent),
             storage: PrivateEnvironmentStorage {

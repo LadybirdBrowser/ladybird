@@ -152,7 +152,7 @@ impl ImageData {
         default_color_space: Option<PredefinedColorSpace>,
     ) -> WebIdlResult<Ref<Self>> {
         let image_data = Self::initialize(cx, height, width, settings, None, default_color_space)?;
-        Ok(allocate(cx.vm(), image_data))
+        Ok(allocate(cx.vm(), |_| image_data))
     }
 
     /// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#initialize-an-imagedata-object

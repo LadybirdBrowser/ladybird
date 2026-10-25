@@ -82,7 +82,7 @@ impl WeakSet {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WeakSet> {
-        realm.create_object(vm, WeakSet::new(vm, realm.intrinsics().weak_set_prototype(vm)))
+        realm.create_object(vm, |_| WeakSet::new(vm, realm.intrinsics().weak_set_prototype(vm)))
     }
 
     /// Registers the new WeakSet as a weak container.

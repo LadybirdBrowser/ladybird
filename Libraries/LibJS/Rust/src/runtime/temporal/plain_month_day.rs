@@ -220,7 +220,7 @@ pub fn create_temporal_month_day(
         realm,
         new_target,
         Intrinsics::temporal_plain_month_day_prototype,
-        |prototype| PlainMonthDay::new(vm, iso_date, calendar, prototype),
+        |_, prototype| PlainMonthDay::new(vm, iso_date, calendar, prototype),
     )?;
 
     // 6. Return object.

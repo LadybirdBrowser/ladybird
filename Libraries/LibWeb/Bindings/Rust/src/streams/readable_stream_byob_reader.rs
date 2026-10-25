@@ -87,7 +87,7 @@ impl ReadableStreamBYOBReader {
 
     // https://streams.spec.whatwg.org/#byob-reader-constructor
     pub(crate) fn construct(cx: &mut CallContext, stream: Ref<ReadableStream>) -> WebIdlResult<Ref<Self>> {
-        let reader = allocate(cx.vm(), Self::new());
+        let reader = allocate(cx.vm(), |_| Self::new());
 
         // 1. Perform ? SetUpReadableStreamBYOBReader(this, stream).
         set_up_readable_stream_byob_reader(cx, reader, stream)?;

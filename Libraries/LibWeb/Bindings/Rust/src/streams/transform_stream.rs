@@ -149,7 +149,7 @@ impl TransformStream {
         writable_strategy: QueuingStrategy,
         readable_strategy: QueuingStrategy,
     ) -> WebIdlResult<Ref<Self>> {
-        let this = allocate(cx.vm(), Self::new(cx.realm()));
+        let this = allocate(cx.vm(), |_| Self::new(cx.realm()));
 
         // 1. If transformer is missing, set it to null.
         let transformer = transformer.map_or(Value::NULL, Value::from_object);
@@ -272,7 +272,7 @@ impl TransformStream {
         );
 
         // 10. Let controller be a new TransformStreamDefaultController.
-        let controller = allocate(cx.vm(), TransformStreamDefaultController::new());
+        let controller = allocate(cx.vm(), |_| TransformStreamDefaultController::new());
 
         // 11. Perform ! SetUpTransformStreamDefaultController(stream, controller, transformAlgorithmWrapper,
         //     flushAlgorithmWrapper, cancelAlgorithmWrapper).
@@ -345,7 +345,7 @@ impl Transferable for TransformStream {
 
     // https://streams.spec.whatwg.org/#ref-for-transfer-receiving-steps②
     fn transfer_receiving_steps(cx: &mut CallContext, data_holder: &mut TransferDataReader) -> WebIdlResult<Ref<Self>> {
-        let value = allocate(cx.vm(), Self::new(cx.realm()));
+        let value = allocate(cx.vm(), |_| Self::new(cx.realm()));
 
         // 1. Let readableRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[readable]], the current Realm).
         let readable_record = deserialize_with_transfer(data_holder);

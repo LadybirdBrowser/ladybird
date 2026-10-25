@@ -64,17 +64,14 @@ fn get_value_from_constructor_argument(vm: &Vm) -> ThrowCompletionOr<Value> {
 
 impl NumberConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<NumberConstructor> {
-        realm.create_object(
-            vm,
-            NumberConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.Number.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| NumberConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.Number.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -177,10 +174,9 @@ impl NumberConstructor {
         // 6. Return O.
         let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::number_prototype)?;
         Ok(realm
-            .create_object(
-                vm,
-                NumberObject::new(vm, NumberObject::CLASS, number.as_f64(), prototype),
-            )
+            .create_object(vm, |_| {
+                NumberObject::new(vm, NumberObject::CLASS, number.as_f64(), prototype)
+            })
             .upcast())
     }
 

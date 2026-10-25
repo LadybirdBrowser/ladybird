@@ -105,17 +105,14 @@ fn argument_or_empty(vm: &Vm, index: usize) -> ThrowCompletionOr<Option<f64>> {
 
 impl DatePrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DatePrototype> {
-        realm.create_object(
-            vm,
-            DatePrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| DatePrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

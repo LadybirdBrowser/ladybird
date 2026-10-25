@@ -37,18 +37,15 @@ impl Deref for AsyncFromSyncIterator {
 
 impl AsyncFromSyncIterator {
     pub fn create(vm: &Vm, realm: Gc<Realm>, sync_iterator_record: Gc<IteratorRecord>) -> Gc<AsyncFromSyncIterator> {
-        realm.create_object(
-            vm,
-            AsyncFromSyncIterator {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().async_from_sync_iterator_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                sync_iterator_record: Cell::new(sync_iterator_record),
-            },
-        )
+        realm.create_object(vm, |_| AsyncFromSyncIterator {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().async_from_sync_iterator_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            sync_iterator_record: Cell::new(sync_iterator_record),
+        })
     }
 
     pub fn sync_iterator_record(&self) -> Gc<IteratorRecord> {

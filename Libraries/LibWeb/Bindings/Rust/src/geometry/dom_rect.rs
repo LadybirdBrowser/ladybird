@@ -44,12 +44,9 @@ impl DOMRect {
     /// https://drafts.fxtf.org/geometry/#dom-domrect-fromrect
     pub(crate) fn from_rect(cx: &mut CallContext, other: DOMRectInit) -> WebIdlResult<Ref<Self>> {
         // The fromRect(other) static method on DOMRect must create a DOMRect from the dictionary other.
-        Ok(allocate(
-            cx.vm(),
-            Self {
-                rect: DOMRectReadOnly::from_dictionary(&other),
-            },
-        ))
+        Ok(allocate(cx.vm(), |_| Self {
+            rect: DOMRectReadOnly::from_dictionary(&other),
+        }))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-domrect-x

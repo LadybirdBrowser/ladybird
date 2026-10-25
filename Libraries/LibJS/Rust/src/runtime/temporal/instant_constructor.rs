@@ -42,17 +42,14 @@ define_native_function_class!(
 
 impl InstantConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<InstantConstructor> {
-        realm.create_object(
-            vm,
-            InstantConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.Instant.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| InstantConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.Instant.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

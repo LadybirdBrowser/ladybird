@@ -35,17 +35,14 @@ define_object_class!(WeakRefPrototype, extends: [Object], methods: {
 
 impl WeakRefPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WeakRefPrototype> {
-        realm.create_object(
-            vm,
-            WeakRefPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| WeakRefPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

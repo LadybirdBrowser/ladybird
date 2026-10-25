@@ -550,17 +550,14 @@ pub(crate) static LENGTH_GETTER: RawNativeFunctionPointer = raw_native!(TypedArr
 
 impl TypedArrayPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<TypedArrayPrototype> {
-        realm.create_object(
-            vm,
-            TypedArrayPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| TypedArrayPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

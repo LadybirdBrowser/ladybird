@@ -29,12 +29,9 @@ impl Wrappable for OESVertexArrayObject {
 
 impl OESVertexArrayObject {
     pub(crate) fn create(vm: &Vm, context: &ContextState) -> Ref<Self> {
-        allocate(
-            vm,
-            Self {
-                context: context.context_ref(),
-            },
-        )
+        allocate(vm, |_| Self {
+            context: context.context_ref(),
+        })
     }
 
     fn is_bound(&self, array_object: Ref<WebGLVertexArrayObjectOES>) -> bool {

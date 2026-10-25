@@ -48,19 +48,20 @@ impl DOMMatrix {
     /// https://drafts.fxtf.org/geometry/#dom-dommatrix-frommatrix
     pub(crate) fn from_matrix(cx: &mut CallContext, other: DOMMatrixInit) -> WebIdlResult<Ref<Self>> {
         // The fromMatrix(other) static method on DOMMatrix must create a DOMMatrix from the dictionary other.
-        Ok(allocate(cx.vm(), Self::from_dictionary(&other)?))
+        let matrix = Self::from_dictionary(&other)?;
+        Ok(allocate(cx.vm(), |_| matrix))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrix-fromfloat32array
     pub(crate) fn from_float32_array(cx: &mut CallContext, array32: Gc<TypedArrayBase>) -> WebIdlResult<Ref<Self>> {
         let matrix = DOMMatrixReadOnly::from_typed_array(array32)?;
-        Ok(allocate(cx.vm(), Self::from_read_only(matrix)))
+        Ok(allocate(cx.vm(), |_| Self::from_read_only(matrix)))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-dommatrix-fromfloat64array
     pub(crate) fn from_float64_array(cx: &mut CallContext, array64: Gc<TypedArrayBase>) -> WebIdlResult<Ref<Self>> {
         let matrix = DOMMatrixReadOnly::from_typed_array(array64)?;
-        Ok(allocate(cx.vm(), Self::from_read_only(matrix)))
+        Ok(allocate(cx.vm(), |_| Self::from_read_only(matrix)))
     }
 
     /// https://drafts.fxtf.org/geometry/#create-a-dommatrix-from-the-dictionary

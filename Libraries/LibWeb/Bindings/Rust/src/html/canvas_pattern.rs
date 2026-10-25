@@ -104,15 +104,12 @@ impl CanvasPattern {
     /// The pattern of createPattern(), whose image and repetition the context has checked,
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createpattern
     pub(crate) fn create(vm: &Vm, image: Option<ImageFrameHandle>, repetition: Canvas2DPatternRepetition) -> Ref<Self> {
-        allocate(
-            vm,
-            Self {
-                image,
-                repetition,
-                transform: Cell::new(None),
-                not_origin_clean: Cell::new(false),
-            },
-        )
+        allocate(vm, |_| Self {
+            image,
+            repetition,
+            transform: Cell::new(None),
+            not_origin_clean: Cell::new(false),
+        })
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createpattern

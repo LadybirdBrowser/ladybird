@@ -43,17 +43,14 @@ fn typed_this_finalization_registry(vm: &Vm) -> ThrowCompletionOr<Gc<Finalizatio
 
 impl FinalizationRegistryPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<FinalizationRegistryPrototype> {
-        realm.create_object(
-            vm,
-            FinalizationRegistryPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| FinalizationRegistryPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

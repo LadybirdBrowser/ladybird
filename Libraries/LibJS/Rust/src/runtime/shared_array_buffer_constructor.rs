@@ -36,17 +36,14 @@ define_native_function_class!(
 
 impl SharedArrayBufferConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SharedArrayBufferConstructor> {
-        realm.create_object(
-            vm,
-            SharedArrayBufferConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.SharedArrayBuffer.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| SharedArrayBufferConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.SharedArrayBuffer.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

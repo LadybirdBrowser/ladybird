@@ -284,7 +284,7 @@ pub unsafe extern "C" fn js_console_client_create(
     let console = unsafe { Gc::from_non_null(console) };
     // SAFETY: The caller guarantees that the table outlives every client created with it.
     let host_methods = unsafe { methods.as_ref() }.expect("a console client has methods");
-    let client = vm.heap().allocate(HostConsoleClient {
+    let client = vm.heap().allocate(|_| HostConsoleClient {
         base: ConsoleClient::new(HostConsoleClient::CLASS, &HOST_CONSOLE_CLIENT_METHODS, console),
         host_methods,
         context: ForeignCellSlot::empty(),

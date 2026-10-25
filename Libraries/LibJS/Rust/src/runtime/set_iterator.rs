@@ -70,21 +70,18 @@ define_object_class!(SetIterator, extends: [Object], methods: {
 
 impl SetIterator {
     pub fn create(vm: &Vm, realm: Gc<Realm>, set: Gc<Set>, iteration_kind: PropertyKind) -> Gc<SetIterator> {
-        realm.create_object(
-            vm,
-            SetIterator {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().set_iterator_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                set,
-                done: Cell::new(false),
-                iteration_kind,
-                iterator: set.begin(),
-            },
-        )
+        realm.create_object(vm, |_| SetIterator {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().set_iterator_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            set,
+            done: Cell::new(false),
+            iteration_kind,
+            iterator: set.begin(),
+        })
     }
 
     fn as_builtin_iterator_if_next_is_not_redefined(_: &Object, next_method: Value) -> Option<BuiltinIteratorNext> {

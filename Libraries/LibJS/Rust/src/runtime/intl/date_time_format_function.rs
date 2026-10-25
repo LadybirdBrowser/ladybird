@@ -65,13 +65,10 @@ impl DateTimeFormatFunction {
     // 11.5.4 DateTime Format Functions, https://tc39.es/ecma402/#sec-datetime-format-functions
     // 15.6.3 DateTime Format Functions, https://tc39.es/proposal-temporal/#sec-datetime-format-functions
     pub fn create(vm: &Vm, realm: Gc<Realm>, date_time_format: Gc<DateTimeFormat>) -> Gc<DateTimeFormatFunction> {
-        realm.create_object(
-            vm,
-            DateTimeFormatFunction {
-                base: NativeFunction::new_with_prototype(vm, Self::CLASS, realm.function_prototype()),
-                date_time_format: Cell::new(date_time_format),
-            },
-        )
+        realm.create_object(vm, |_| DateTimeFormatFunction {
+            base: NativeFunction::new_with_prototype(vm, Self::CLASS, realm.function_prototype()),
+            date_time_format: Cell::new(date_time_format),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

@@ -224,50 +224,48 @@ impl Heap {
         }
     }
 
-    /// Moves `cell` into the heap. Nothing can collect garbage between taking the storage and writing the cell, so
-    /// the collector never sees a partially written cell.
-    pub fn allocate<T: GcCell>(&self, cell: T) -> Gc<T> {
-        let allocator = self.allocator_for(T::CLASS);
-        // SAFETY: The allocator is the one of the cell's static class, whose cells have the size and alignment of a T.
-        unsafe { self.allocate_with(allocator, size_of::<T>(), AllocationKind::Cell, cell, |_| {}) }
-    }
-
     /// Moves the cell that `build` returns into the heap, with collections deferred from before `build` runs until
     /// the cell is in the heap.
-    pub fn allocate_deferring_gc<T: GcCell>(&self, build: impl FnOnce(&DeferGc<'_>) -> T) -> Gc<T> {
-        let defer_gc = DeferGc::of_heap(self);
-        let cell = self.allocate(build(&defer_gc));
-        drop(defer_gc);
-        cell
+    pub fn allocate<T: GcCell>(&self, build: impl FnOnce(&DeferGc<'_>) -> T) -> Gc<T> {
+        let allocator = self.allocator_for(T::CLASS);
+        // SAFETY: The allocator is the one of the cell's static class, whose cells have the size and alignment of a T.
+        unsafe { self.allocate_with(allocator, size_of::<T>(), AllocationKind::Cell, build, |_| {}) }
     }
 
-    /// Moves `cell`, whose class is the one `allocator` was created for or a class derived from it, into the storage
-    /// of that allocator. A derived class shares its ancestor's allocator when its cells may share heap blocks with the
-    /// ancestor's, as a host class that shares its parent's allocator does.
-    pub fn allocate_in<T: GcCell>(&self, allocator: RuntimeClassAllocator, cell: T) -> Gc<T> {
+    /// allocate() into the storage of `allocator`, which was created for the class of the cell or a class it derives
+    /// from.
+    pub fn allocate_in<T: GcCell>(
+        &self,
+        allocator: RuntimeClassAllocator,
+        build: impl FnOnce(&DeferGc<'_>) -> T,
+    ) -> Gc<T> {
         assert!(
             allocator.class.type_info.cell_size as usize == size_of::<T>() && allocator.class.is_subclass_of(T::CLASS),
             "{} cells are not {}s",
             allocator.class.name,
             T::CLASS.name
         );
-        // SAFETY: Every cell starts with its header.
-        debug_assert!(
-            unsafe { (*core::ptr::from_ref(&cell).cast::<CellHeader>()).class }.is_subclass_of(allocator.class)
-        );
+        let build = |defer_gc: &DeferGc<'_>| {
+            let cell = build(defer_gc);
+            // SAFETY: Every cell starts with its header.
+            debug_assert!(
+                unsafe { (*core::ptr::from_ref(&cell).cast::<CellHeader>()).class }.is_subclass_of(allocator.class)
+            );
+            cell
+        };
         // SAFETY: The allocator's cells have the size of a T, checked above, and T's alignment, as its class extends T's.
-        unsafe { self.allocate_with(allocator.allocator, size_of::<T>(), AllocationKind::Cell, cell, |_| {}) }
+        unsafe { self.allocate_with(allocator.allocator, size_of::<T>(), AllocationKind::Cell, build, |_| {}) }
     }
 
-    /// Moves `cell` into a cell of `size_class`, whose class is the class of the cell or one that it extends, and fills
-    /// the rest of the larger cell with copies of `tail`. Finding and tracing the part beyond the T is up to the T.
+    /// allocate() into a cell of `size_class`, whose class is the class of the cell or one that it extends, filling the
+    /// rest of the larger cell with copies of `tail`. Finding and tracing the part beyond the T is up to the T.
     pub fn allocate_with_size_class<T: GcCell, E: Copy>(
         &self,
         size_class: SizeClassAllocator,
-        cell: T,
+        build: impl FnOnce(&DeferGc<'_>) -> T,
         tail: E,
     ) -> Gc<T> {
-        self.allocate_in_size_class(size_class, AllocationKind::Cell, cell, tail)
+        self.allocate_in_size_class(size_class, AllocationKind::Cell, build, tail)
     }
 
     /// allocate_with_size_class() for a cell that another cell keeps its storage in, instead of malloc memory: it never
@@ -277,10 +275,10 @@ impl Heap {
     pub fn allocate_storage_with_size_class<T: GcCell, E: Copy>(
         &self,
         size_class: SizeClassAllocator,
-        cell: T,
+        build: impl FnOnce(&DeferGc<'_>) -> T,
         tail: E,
     ) -> Gc<T> {
-        self.allocate_in_size_class(size_class, AllocationKind::Storage, cell, tail)
+        self.allocate_in_size_class(size_class, AllocationKind::Storage, build, tail)
     }
 
     #[inline(always)]
@@ -288,7 +286,7 @@ impl Heap {
         &self,
         size_class: SizeClassAllocator,
         kind: AllocationKind,
-        cell: T,
+        build: impl FnOnce(&DeferGc<'_>) -> T,
         tail: E,
     ) -> Gc<T> {
         const {
@@ -304,10 +302,14 @@ impl Heap {
             size_class.class.name,
             T::CLASS.name
         );
-        // SAFETY: Every cell starts with its header.
-        debug_assert!(
-            unsafe { (*core::ptr::from_ref(&cell).cast::<CellHeader>()).class }.is_subclass_of(size_class.class)
-        );
+        let build = |defer_gc: &DeferGc<'_>| {
+            let cell = build(defer_gc);
+            // SAFETY: Every cell starts with its header.
+            debug_assert!(
+                unsafe { (*core::ptr::from_ref(&cell).cast::<CellHeader>()).class }.is_subclass_of(size_class.class)
+            );
+            cell
+        };
         let tail_size = size_class.cell_size as usize - size_of::<T>();
         assert!(
             tail_size.is_multiple_of(size_of::<E>()),
@@ -328,7 +330,7 @@ impl Heap {
                 size_class.allocator,
                 size_class.cell_size as usize,
                 kind,
-                cell,
+                build,
                 initialize_tail,
             )
         }
@@ -344,28 +346,66 @@ impl Heap {
         allocator: HeapAllocator,
         cell_size: usize,
         kind: AllocationKind,
+        build: impl FnOnce(&DeferGc<'_>) -> T,
+        initialize_tail: impl FnOnce(*mut u8),
+    ) -> Gc<T> {
+        let defer_gc = DeferGc::of_heap(self);
+        let cell = build(&defer_gc);
+        // SAFETY: The allocator belongs to this heap and hands out cells of cell_size bytes.
+        let cell = match unsafe { self.take_from_local_free_list(allocator, cell_size, kind) } {
+            // SAFETY: The storage is a cell of the allocator, so it has the size and the alignment the caller guarantees.
+            Some(storage) => unsafe { Self::write_cell(storage.cast(), cell, initialize_tail, false) },
+            // SAFETY: The caller's guarantees about the allocator and the tail pass on.
+            None => unsafe { self.allocate_from_heap(&defer_gc, allocator, kind, cell, initialize_tail) },
+        };
+        // NB: A collection that became due runs now, with the cell in the heap and its Gc on the stack.
+        drop(defer_gc);
+        cell
+    }
+
+    /// Takes the storage from LibGC, which defers the collection that is due until the deferral ends.
+    ///
+    /// # Safety
+    ///
+    /// As for allocate_with().
+    unsafe fn allocate_from_heap<T: GcCell>(
+        &self,
+        _: &DeferGc<'_>,
+        allocator: HeapAllocator,
+        kind: AllocationKind,
         cell: T,
         initialize_tail: impl FnOnce(*mut u8),
     ) -> Gc<T> {
         let mut must_mark = false;
-        // SAFETY: The allocator belongs to this heap and hands out cells of cell_size bytes.
-        let storage = match unsafe { self.take_from_local_free_list(allocator, cell_size, kind) } {
-            Some(storage) => storage,
-            // SAFETY: The heap and the allocator are live.
-            None => unsafe {
-                let raw = allocator.raw.as_ptr();
-                let storage = match kind {
-                    AllocationKind::Cell => capi::gc_heap_allocate_cell(self.raw.as_ptr(), raw, &raw mut must_mark),
-                    AllocationKind::Storage => {
-                        capi::gc_heap_allocate_storage_cell(self.raw.as_ptr(), raw, &raw mut must_mark)
-                    }
-                };
-                NonNull::new(storage).expect("LibGC allocates the cell")
-            },
-        }
-        .cast::<T>();
+        let raw = allocator.raw.as_ptr();
+        // SAFETY: The heap and the allocator are live.
+        let storage = unsafe {
+            match kind {
+                AllocationKind::Cell => capi::gc_heap_allocate_cell(self.raw.as_ptr(), raw, &raw mut must_mark),
+                AllocationKind::Storage => {
+                    capi::gc_heap_allocate_storage_cell(self.raw.as_ptr(), raw, &raw mut must_mark)
+                }
+            }
+        };
+        let storage = NonNull::new(storage).expect("LibGC allocates the cell").cast::<T>();
         // SAFETY: LibGC returned uninitialized storage of at least the size and the alignment of a T, as the caller
-        // guarantees, which nothing can collect garbage before it is written.
+        // guarantees.
+        unsafe { Self::write_cell(storage, cell, initialize_tail, must_mark) }
+    }
+
+    /// Writes `cell` to `storage` and has `initialize_tail` write the rest of the cell, with `must_mark` as its mark.
+    ///
+    /// # Safety
+    ///
+    /// `storage` must be uninitialized storage of at least the size and the alignment of a T, which nothing can collect
+    /// garbage before it is written, and `initialize_tail` must write every byte beyond the T.
+    unsafe fn write_cell<T: GcCell>(
+        storage: NonNull<T>,
+        cell: T,
+        initialize_tail: impl FnOnce(*mut u8),
+        must_mark: bool,
+    ) -> Gc<T> {
+        // SAFETY: The caller passes storage for a T with room for the tail.
         unsafe {
             storage.write(cell);
             initialize_tail(storage.as_ptr().cast::<u8>().add(size_of::<T>()));

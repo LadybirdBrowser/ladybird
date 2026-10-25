@@ -37,17 +37,14 @@ define_native_function_class!(
 
 impl DisposableStackConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DisposableStackConstructor> {
-        realm.create_object(
-            vm,
-            DisposableStackConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.DisposableStack.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| DisposableStackConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.DisposableStack.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -90,7 +87,7 @@ impl DisposableStackConstructor {
             realm,
             new_target,
             Intrinsics::disposable_stack_prototype,
-            |prototype| DisposableStack::new(vm, prototype),
+            |_, prototype| DisposableStack::new(vm, prototype),
         )?;
         Ok(disposable_stack.upcast())
     }

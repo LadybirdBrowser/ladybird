@@ -387,7 +387,7 @@ pub fn create_temporal_date_time(
         realm,
         new_target,
         Intrinsics::temporal_plain_date_time_prototype,
-        |prototype| PlainDateTime::new(vm, iso_date_time, calendar, prototype),
+        |_, prototype| PlainDateTime::new(vm, iso_date_time, calendar, prototype),
     )?;
 
     // 6. Return object.

@@ -185,7 +185,7 @@ impl<'list, 'vm> UncheckedResultKeys<'list, 'vm> {
 
 impl ProxyObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>, target: Gc<Object>, handler: Gc<Object>) -> Gc<ProxyObject> {
-        realm.create_object(vm, Self::new(vm, target, handler, realm.object_prototype()))
+        realm.create_object(vm, |_| Self::new(vm, target, handler, realm.object_prototype()))
     }
 
     fn new(vm: &Vm, target: Gc<Object>, handler: Gc<Object>, prototype: Gc<Object>) -> ProxyObject {

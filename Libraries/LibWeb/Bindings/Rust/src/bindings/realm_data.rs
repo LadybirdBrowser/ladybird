@@ -51,7 +51,7 @@ pub(crate) fn realm_data(vm: &Vm, realm: Gc<Realm>) -> Gc<EmbedderCell<RealmData
     if let Some(data) = realm.embedder_data::<RealmData>() {
         return data;
     }
-    let data = REALM_DATA_CLASS.allocate(vm, RealmData::default());
+    let data = REALM_DATA_CLASS.allocate(vm, |_| RealmData::default());
     realm.set_embedder_data(data);
     data
 }

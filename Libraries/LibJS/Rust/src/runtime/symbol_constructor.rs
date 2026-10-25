@@ -36,17 +36,14 @@ define_native_function_class!(
 
 impl SymbolConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SymbolConstructor> {
-        realm.create_object(
-            vm,
-            SymbolConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.Symbol.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| SymbolConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.Symbol.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

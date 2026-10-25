@@ -162,7 +162,7 @@ impl PrimitiveString {
             return Self::create_from_fly_string(vm, &to_utf16_fly_string(&string));
         }
 
-        vm.heap().allocate(Self::new(string))
+        vm.heap().allocate(|_| Self::new(string))
     }
 
     /// Creates a string of ASCII characters.
@@ -185,7 +185,7 @@ impl PrimitiveString {
         if length < size_of::<usize>() {
             return Self::create(vm, Utf16String::from_ascii(&characters[..length]));
         }
-        vm.heap().allocate(InlineString::new(characters, length)).upcast()
+        vm.heap().allocate(|_| InlineString::new(characters, length)).upcast()
     }
 
     pub fn create_from_utf16_view(vm: &Vm, string: Utf16View<'_>) -> Gc<PrimitiveString> {
@@ -226,7 +226,7 @@ impl PrimitiveString {
             return interned_string;
         }
 
-        let new_string = vm.heap().allocate(Self::new(Utf16String::from(string)));
+        let new_string = vm.heap().allocate(|_| Self::new(Utf16String::from(string)));
         cache_slot.set(Some(new_string));
         new_string
     }
@@ -263,7 +263,7 @@ impl PrimitiveString {
             {
                 cached_string
             }
-            _ => vm.heap().allocate(Self::new(Utf16String::from(string))),
+            _ => vm.heap().allocate(|_| Self::new(Utf16String::from(string))),
         };
         interned_string.set_interned();
         vm.interned_strings()
@@ -352,7 +352,7 @@ impl PrimitiveString {
 
     /// The rope string of the non-empty strings `lhs` and `rhs`, whose lengths add up to less than `u32::MAX`.
     pub(crate) fn create_rope(vm: &Vm, lhs: Gc<PrimitiveString>, rhs: Gc<PrimitiveString>) -> Gc<PrimitiveString> {
-        vm.heap().allocate(RopeString::new(lhs, rhs)).upcast()
+        vm.heap().allocate(|_| RopeString::new(lhs, rhs)).upcast()
     }
 
     pub fn create_from_substring(
@@ -405,7 +405,7 @@ impl PrimitiveString {
         }
 
         vm.heap()
-            .allocate(Substring::new(string, code_unit_offset, code_unit_length))
+            .allocate(|_| Substring::new(string, code_unit_offset, code_unit_length))
             .upcast()
     }
 

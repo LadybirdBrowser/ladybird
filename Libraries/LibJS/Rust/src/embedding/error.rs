@@ -122,7 +122,7 @@ pub unsafe extern "C" fn js_error_create_with_prototype(
     let vm = unsafe { vm_from_abi(vm) };
     // SAFETY: The caller passes a realm and an object of the VM.
     let (realm, prototype) = unsafe { (cell_from_abi(realm), cell_from_abi(prototype)) };
-    let error = realm.create_object(vm, Error::new(vm, Error::CLASS, prototype));
+    let error = realm.create_object(vm, |_| Error::new(vm, Error::CLASS, prototype));
     cell_into_abi(error.upcast())
 }
 

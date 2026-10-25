@@ -45,17 +45,14 @@ define_native_function_class!(
 
 impl PlainDateTimeConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<PlainDateTimeConstructor> {
-        realm.create_object(
-            vm,
-            PlainDateTimeConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.PlainDateTime.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| PlainDateTimeConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.PlainDateTime.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

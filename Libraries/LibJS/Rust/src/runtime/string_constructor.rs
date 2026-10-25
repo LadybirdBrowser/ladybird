@@ -42,17 +42,14 @@ define_native_function_class!(
 
 impl StringConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<StringConstructor> {
-        realm.create_object(
-            vm,
-            StringConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.String.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| StringConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.String.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

@@ -38,17 +38,14 @@ define_object_class!(SymbolPrototype, extends: [Object], methods: {
 
 impl SymbolPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SymbolPrototype> {
-        realm.create_object(
-            vm,
-            SymbolPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| SymbolPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

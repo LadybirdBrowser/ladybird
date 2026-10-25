@@ -85,17 +85,14 @@ fn unwrapped_this_date_time_format(vm: &Vm) -> ThrowCompletionOr<Gc<DateTimeForm
 
 impl DateTimeFormatPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DateTimeFormatPrototype> {
-        realm.create_object(
-            vm,
-            DateTimeFormatPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| DateTimeFormatPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

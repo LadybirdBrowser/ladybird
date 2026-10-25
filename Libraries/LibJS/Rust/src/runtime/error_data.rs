@@ -237,7 +237,7 @@ impl ExternalMemorySize for ErrorDataCell {
 impl ErrorDataCell {
     /// ErrorDataCell::capture(vm): error data with the call stack of the running execution context.
     pub fn capture(vm: &Vm) -> Gc<ErrorDataCell> {
-        let cell = vm.heap().allocate(Self {
+        let cell = vm.heap().allocate(|_| Self {
             header: CellHeader::for_class(Self::CLASS),
             error_data: ErrorData::new(vm),
         });

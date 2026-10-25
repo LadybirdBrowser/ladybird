@@ -55,7 +55,7 @@ impl DOMPointReadOnly {
     pub(crate) fn from_point(cx: &mut CallContext, other: DOMPointInit) -> WebIdlResult<Ref<Self>> {
         // The fromPoint(other) static method on DOMPointReadOnly must create a DOMPointReadOnly from the dictionary
         // other.
-        Ok(allocate(cx.vm(), Self::from_dictionary(&other)))
+        Ok(allocate(cx.vm(), |_| Self::from_dictionary(&other)))
     }
 
     /// https://drafts.fxtf.org/geometry/#create-a-dompointreadonly-from-the-dictionary
@@ -115,7 +115,9 @@ impl DOMPointReadOnly {
 
         // 2. Return the result of invoking transform a point with a matrix, given the current point and matrixObject.
         //    The current point does not get modified.
-        Ok(allocate(cx.vm(), matrix_object.parent().transform_point_steps(self)))
+        Ok(allocate(cx.vm(), |_| {
+            matrix_object.parent().transform_point_steps(self)
+        }))
     }
 }
 

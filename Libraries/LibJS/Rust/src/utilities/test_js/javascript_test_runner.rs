@@ -70,13 +70,10 @@ impl TestRunnerGlobalObject {
     /// realm->create<TestRunnerGlobalObject>(), which already runs initialize() once before InitializeHostDefinedRealm
     /// runs it again after SetDefaultGlobalBindings, so the properties it defines come before the default bindings.
     pub fn create(vm: &Vm, realm: Gc<Realm>, prints_test_timings: bool) -> Gc<TestRunnerGlobalObject> {
-        realm.create_object(
-            vm,
-            TestRunnerGlobalObject {
-                base: GlobalObject::new(vm, Self::CLASS, realm),
-                prints_test_timings: Cell::new(prints_test_timings),
-            },
-        )
+        realm.create_object(vm, |_| TestRunnerGlobalObject {
+            base: GlobalObject::new(vm, Self::CLASS, realm),
+            prints_test_timings: Cell::new(prints_test_timings),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

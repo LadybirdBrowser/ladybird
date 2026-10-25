@@ -168,7 +168,7 @@ pub(crate) fn set_up_transform_stream_default_controller_from_transformer(
     transformer_dict: Transformer,
 ) {
     // 1. Let controller be a new TransformStreamDefaultController.
-    let controller = allocate(cx.vm(), TransformStreamDefaultController::new());
+    let controller = allocate(cx.vm(), |_| TransformStreamDefaultController::new());
 
     // 2. Let transformAlgorithm be the following steps, taking a chunk argument:
     let mut transform_algorithm = TransformAlgorithm::Enqueue(controller);

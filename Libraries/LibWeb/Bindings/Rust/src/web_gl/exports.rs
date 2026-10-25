@@ -160,12 +160,12 @@ pub unsafe extern "C" fn web_webgl_context_create(
     });
     match version {
         WebGLVersion::WebGL1 => {
-            let context = allocate(vm, RenderingContext::<WebGL1>::new(state));
+            let context = allocate(vm, |_| RenderingContext::<WebGL1>::new(state));
             context.set_context_ref(ContextRef::WebGL1(context));
             cell_into_abi(context)
         }
         WebGLVersion::WebGL2 => {
-            let context = allocate(vm, RenderingContext::<WebGL2>::new(state));
+            let context = allocate(vm, |_| RenderingContext::<WebGL2>::new(state));
             context.set_context_ref(ContextRef::WebGL2(context));
             cell_into_abi(context)
         }

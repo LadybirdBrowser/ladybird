@@ -30,17 +30,14 @@ define_object_class!(SuppressedErrorPrototype, extends: [Object], methods: {
 
 impl SuppressedErrorPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SuppressedErrorPrototype> {
-        realm.create_object(
-            vm,
-            SuppressedErrorPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().error_prototype(vm),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| SuppressedErrorPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().error_prototype(vm),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, _realm: Gc<Realm>) {

@@ -311,7 +311,7 @@ macro_rules! modules_of_extension_interfaces_without_operations {
                     $($(context.enable_compressed_texture_format($crate::web_gl::constants::$format);)+)?
                     allocate(
                         vm,
-                        Self {
+                        |_| Self {
                             context: context.context_ref(),
                         },
                     )

@@ -42,7 +42,7 @@ define_cell!(RemainingElements, Other);
 
 impl RemainingElements {
     pub fn create(vm: &Vm, initial_value: u64) -> Gc<RemainingElements> {
-        vm.heap().allocate(RemainingElements {
+        vm.heap().allocate(|_| RemainingElements {
             header: CellHeader::for_class(Self::CLASS),
             value: Cell::new(initial_value),
         })
@@ -81,7 +81,7 @@ impl Finalize for PromiseValueList {
 
 impl PromiseValueList {
     pub fn create(vm: &Vm) -> Gc<PromiseValueList> {
-        vm.heap().allocate(PromiseValueList {
+        vm.heap().allocate(|_| PromiseValueList {
             header: CellHeader::for_class(Self::CLASS),
             values: GcRefCell::new(Vec::new()),
         })
@@ -249,7 +249,7 @@ macro_rules! define_promise_resolving_element_function {
             ) -> Gc<$type> {
                 realm.create_object(
                     vm,
-                    $type {
+                    |_| $type {
                         base: PromiseResolvingElementFunction::new(
                             vm,
                             Self::CLASS,

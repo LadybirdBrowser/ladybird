@@ -335,9 +335,9 @@ pub(crate) fn set_up_cross_realm_transform_readable(
     initialize_readable_stream(stream);
 
     // 2. Let controller be a new ReadableStreamDefaultController.
-    let controller = allocate(cx.vm(), ReadableStreamDefaultController::new());
+    let controller = allocate(cx.vm(), |_| ReadableStreamDefaultController::new());
     let state = ReadableHandlerState {
-        port: PORT_CELL_CLASS.allocate(cx.vm(), PortCell(port.clone())),
+        port: PORT_CELL_CLASS.allocate(cx.vm(), |_| PortCell(port.clone())),
         controller,
     };
 
@@ -511,17 +511,14 @@ pub(crate) fn set_up_cross_realm_transform_writable(
     initialize_writable_stream(cx.vm(), stream);
 
     // 2. Let controller be a new WritableStreamDefaultController.
-    let controller = allocate(cx.vm(), WritableStreamDefaultController::new());
+    let controller = allocate(cx.vm(), |_| WritableStreamDefaultController::new());
 
     // 3. Let backpressurePromise be a new promise.
-    let state = CROSS_REALM_WRITABLE_STATE_CLASS.allocate(
-        cx.vm(),
-        CrossRealmWritableState {
-            port: port.clone(),
-            controller,
-            backpressure_promise: Cell::new(Some(create_promise(cx.vm(), cx.realm()))),
-        },
-    );
+    let state = CROSS_REALM_WRITABLE_STATE_CLASS.allocate(cx.vm(), |_| CrossRealmWritableState {
+        port: port.clone(),
+        controller,
+        backpressure_promise: Cell::new(Some(create_promise(cx.vm(), cx.realm()))),
+    });
 
     // 4. Add a handler for port’s message event with the following steps:
     fn on_message(cx: &CallContext, state: Gc<EmbedderCell<CrossRealmWritableState>>, data: Value) {

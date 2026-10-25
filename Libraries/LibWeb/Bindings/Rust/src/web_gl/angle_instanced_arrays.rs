@@ -26,12 +26,9 @@ impl Wrappable for ANGLEInstancedArrays {
 
 impl ANGLEInstancedArrays {
     pub(crate) fn create(vm: &Vm, context: &ContextState) -> Ref<Self> {
-        allocate(
-            vm,
-            Self {
-                context: context.context_ref(),
-            },
-        )
+        allocate(vm, |_| Self {
+            context: context.context_ref(),
+        })
     }
 
     pub(crate) fn draw_arrays_instanced_angle(

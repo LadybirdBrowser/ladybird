@@ -193,7 +193,7 @@ impl HostFunction {
         };
         // SAFETY: The caller passes an absent or live cell, which the slot then keeps alive.
         unsafe { function.host_data.set(host_data) };
-        let function = allocate_object_in(vm, allocator, function);
+        let function = allocate_object_in(vm, allocator, |_| function);
         function.initialize(vm, realm);
         function
     }

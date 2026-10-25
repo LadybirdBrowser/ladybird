@@ -40,17 +40,14 @@ define_native_function_class!(
 
 impl WeakMapConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WeakMapConstructor> {
-        realm.create_object(
-            vm,
-            WeakMapConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.WeakMap.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| WeakMapConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.WeakMap.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -83,10 +80,13 @@ impl WeakMapConstructor {
 
         // 2. Let map be ? OrdinaryCreateFromConstructor(NewTarget, "%WeakMap.prototype%", « [[WeakMapData]] »).
         // 3. Set map.[[WeakMapData]] to a new empty List.
-        let map =
-            ordinary_create_from_constructor_of(vm, realm, new_target, Intrinsics::weak_map_prototype, |prototype| {
-                WeakMap::new(vm, prototype)
-            })?;
+        let map = ordinary_create_from_constructor_of(
+            vm,
+            realm,
+            new_target,
+            Intrinsics::weak_map_prototype,
+            |_, prototype| WeakMap::new(vm, prototype),
+        )?;
 
         // 4. If iterable is either undefined or null, return map.
         if iterable.is_nullish() {

@@ -62,10 +62,9 @@ impl DataView {
         byte_offset: usize,
     ) -> Gc<DataView> {
         let prototype = realm.intrinsics().data_view_prototype(vm);
-        realm.create_object(
-            vm,
-            DataView::new(vm, viewed_buffer, byte_length, byte_offset, prototype),
-        )
+        realm.create_object(vm, |_| {
+            DataView::new(vm, viewed_buffer, byte_length, byte_offset, prototype)
+        })
     }
 
     pub fn viewed_array_buffer(&self) -> Gc<ArrayBuffer> {

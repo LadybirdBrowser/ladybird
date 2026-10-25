@@ -97,7 +97,7 @@ impl URL {
         // 3. Set url's query object to a new URLSearchParams object.
         // 4. Initialize url's query object with query.
         // 5. Set url's query object's URL object to url.
-        let query_object = allocate(vm, URLSearchParams::new(parse_query(query), Some(*this)));
+        let query_object = allocate(vm, |_| URLSearchParams::new(parse_query(query), Some(*this)));
         this.query.set(Some(query_object));
         query_object
     }
@@ -128,7 +128,7 @@ impl URL {
         // 3. Let url be a new URL object.
         // 4. Initialize url with parsedURL.
         // 5. Return url.
-        Ok(Some(allocate(cx.vm(), Self::initialize(parsed_url))))
+        Ok(Some(allocate(cx.vm(), |_| Self::initialize(parsed_url))))
     }
 
     // https://url.spec.whatwg.org/#dom-url-canparse

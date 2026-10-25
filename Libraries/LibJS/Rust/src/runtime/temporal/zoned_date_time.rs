@@ -514,7 +514,7 @@ pub fn create_temporal_zoned_date_time(
         realm,
         new_target,
         Intrinsics::temporal_zoned_date_time_prototype,
-        |prototype| ZonedDateTime::new(vm, epoch_nanoseconds, time_zone, calendar, prototype),
+        |_, prototype| ZonedDateTime::new(vm, epoch_nanoseconds, time_zone, calendar, prototype),
     )?;
 
     // 7. Return object.

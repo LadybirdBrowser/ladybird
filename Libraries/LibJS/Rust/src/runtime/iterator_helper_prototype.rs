@@ -41,17 +41,14 @@ const DISPLAY_NAME: &str = "IteratorHelper";
 impl IteratorHelperPrototype {
     // 27.1.2.1 The %IteratorHelperPrototype% Object, https://tc39.es/ecma262/#sec-%iteratorhelperprototype%-object
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<IteratorHelperPrototype> {
-        realm.create_object(
-            vm,
-            IteratorHelperPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().iterator_prototype(vm),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| IteratorHelperPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().iterator_prototype(vm),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

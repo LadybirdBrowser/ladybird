@@ -326,20 +326,17 @@ impl ReadableByteStreamController {
             //    element size             1
             //    view constructor         %Uint8Array%
             //    reader type              "default"
-            let pull_into_descriptor = PULL_INTO_DESCRIPTOR_CLASS.allocate(
-                vm,
-                PullIntoDescriptor {
-                    buffer: Cell::new(buffer),
-                    buffer_byte_length: Cell::new(auto_allocate_chunk_size),
-                    byte_offset: Cell::new(0),
-                    byte_length: Cell::new(auto_allocate_chunk_size),
-                    bytes_filled: Cell::new(0),
-                    minimum_fill: Cell::new(1),
-                    element_size: Cell::new(1),
-                    view_constructor: cx.realm().intrinsics().uint8_array_constructor(vm),
-                    reader_type: Cell::new(ReaderType::Default),
-                },
-            );
+            let pull_into_descriptor = PULL_INTO_DESCRIPTOR_CLASS.allocate(vm, |_| PullIntoDescriptor {
+                buffer: Cell::new(buffer),
+                buffer_byte_length: Cell::new(auto_allocate_chunk_size),
+                byte_offset: Cell::new(0),
+                byte_length: Cell::new(auto_allocate_chunk_size),
+                bytes_filled: Cell::new(0),
+                minimum_fill: Cell::new(1),
+                element_size: Cell::new(1),
+                view_constructor: cx.realm().intrinsics().uint8_array_constructor(vm),
+                reader_type: Cell::new(ReaderType::Default),
+            });
 
             // 4. Append pullIntoDescriptor to this.[[pendingPullIntos]].
             this.pending_pull_intos.borrow_mut(vm).push_back(pull_into_descriptor);
@@ -1140,7 +1137,7 @@ pub(crate) fn readable_byte_stream_controller_get_byob_request(
             .expect("a Uint8Array is a typed array");
 
         // 3. Let byobRequest be a new ReadableStreamBYOBRequest.
-        let byob_request = allocate(vm, ReadableStreamBYOBRequest::new());
+        let byob_request = allocate(vm, |_| ReadableStreamBYOBRequest::new());
 
         // 4. Set byobRequest.[[controller]] to controller.
         byob_request.set_controller(Some(controller));
@@ -1353,20 +1350,17 @@ pub(crate) fn readable_byte_stream_controller_pull_into(
     //     element size             elementSize
     //     view constructor         ctor
     //     reader type              "byob"
-    let pull_into_descriptor = PULL_INTO_DESCRIPTOR_CLASS.allocate(
-        vm,
-        PullIntoDescriptor {
-            buffer: Cell::new(buffer),
-            buffer_byte_length: Cell::new(buffer.byte_length() as u64),
-            byte_offset: Cell::new(byte_offset),
-            byte_length: Cell::new(byte_length),
-            bytes_filled: Cell::new(0),
-            minimum_fill: Cell::new(minimum_fill),
-            element_size: Cell::new(element_size),
-            view_constructor: ctor,
-            reader_type: Cell::new(ReaderType::Byob),
-        },
-    );
+    let pull_into_descriptor = PULL_INTO_DESCRIPTOR_CLASS.allocate(vm, |_| PullIntoDescriptor {
+        buffer: Cell::new(buffer),
+        buffer_byte_length: Cell::new(buffer.byte_length() as u64),
+        byte_offset: Cell::new(byte_offset),
+        byte_length: Cell::new(byte_length),
+        bytes_filled: Cell::new(0),
+        minimum_fill: Cell::new(minimum_fill),
+        element_size: Cell::new(element_size),
+        view_constructor: ctor,
+        reader_type: Cell::new(ReaderType::Byob),
+    });
 
     // 14. If controller.[[pendingPullIntos]] is not empty,
     if !controller.pending_pull_intos_is_empty() {
@@ -1927,7 +1921,7 @@ pub(crate) fn set_up_readable_byte_stream_controller_from_underlying_source(
     high_water_mark: f64,
 ) -> WebIdlResult<()> {
     // 1. Let controller be a new ReadableByteStreamController.
-    let controller = allocate(cx.vm(), ReadableByteStreamController::new());
+    let controller = allocate(cx.vm(), |_| ReadableByteStreamController::new());
 
     // 2. Let startAlgorithm be an algorithm that returns undefined.
     let mut start_algorithm = StartAlgorithm::ReturnsUndefined;

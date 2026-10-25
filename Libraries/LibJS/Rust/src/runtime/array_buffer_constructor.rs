@@ -37,17 +37,14 @@ define_native_function_class!(
 
 impl ArrayBufferConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ArrayBufferConstructor> {
-        realm.create_object(
-            vm,
-            ArrayBufferConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.ArrayBuffer.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| ArrayBufferConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.ArrayBuffer.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

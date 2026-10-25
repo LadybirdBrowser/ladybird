@@ -37,17 +37,14 @@ define_object_class!(ErrorPrototype, extends: [Object], methods: {
 
 impl ErrorPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ErrorPrototype> {
-        realm.create_object(
-            vm,
-            ErrorPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| ErrorPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -246,7 +243,7 @@ macro_rules! define_native_error_prototypes {
                 pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<$prototype> {
                     realm.create_object(
                         vm,
-                        $prototype {
+                        |_| $prototype {
                             base: Object::new_with_prototype(
                                 vm,
                                 Self::CLASS,

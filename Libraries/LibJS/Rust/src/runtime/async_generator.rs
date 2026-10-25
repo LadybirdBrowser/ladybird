@@ -93,27 +93,24 @@ impl AsyncGenerator {
         let generating_executable = generating_function.bytecode_executable(vm);
 
         let yield_continuation = execution_context.yield_continuation.get();
-        realm.create_object(
-            vm,
-            AsyncGenerator {
-                base: Object::new_with_realm_and_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm,
-                    Some(generating_function_prototype_object),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                async_generator_state: Cell::new(AsyncGeneratorState::SuspendedStart),
-                async_generator_context: GcRefCell::new(Some(execution_context)),
-                async_generator_queue: GcRefCell::new(VecDeque::new()),
-                generator_brand: None,
-                generating_executable: Cell::new(generating_executable),
-                yield_continuation: Cell::new(yield_continuation),
-                current_promise: Cell::new(None),
-                pending_completion_value: Cell::new(Value::UNDEFINED),
-                pending_completion_type: Cell::new(CompletionType::Normal),
-            },
-        )
+        realm.create_object(vm, |_| AsyncGenerator {
+            base: Object::new_with_realm_and_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(generating_function_prototype_object),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            async_generator_state: Cell::new(AsyncGeneratorState::SuspendedStart),
+            async_generator_context: GcRefCell::new(Some(execution_context)),
+            async_generator_queue: GcRefCell::new(VecDeque::new()),
+            generator_brand: None,
+            generating_executable: Cell::new(generating_executable),
+            yield_continuation: Cell::new(yield_continuation),
+            current_promise: Cell::new(None),
+            pending_completion_value: Cell::new(Value::UNDEFINED),
+            pending_completion_type: Cell::new(CompletionType::Normal),
+        })
     }
 
     fn as_gc(&self) -> Gc<AsyncGenerator> {

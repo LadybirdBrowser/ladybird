@@ -25,16 +25,13 @@ define_object_class!(ConsoleObjectPrototype, extends: [Object], methods: {
 
 impl ConsoleObjectPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ConsoleObjectPrototype> {
-        realm.create_object(
-            vm,
-            ConsoleObjectPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| ConsoleObjectPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 }

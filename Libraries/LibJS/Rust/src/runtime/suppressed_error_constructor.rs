@@ -37,16 +37,13 @@ define_native_function_class!(
 
 impl SuppressedErrorConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SuppressedErrorConstructor> {
-        realm.create_object(
-            vm,
-            SuppressedErrorConstructor {
-                base: NativeFunction::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().error_constructor(vm).upcast(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| SuppressedErrorConstructor {
+            base: NativeFunction::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().error_constructor(vm).upcast(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -91,7 +88,7 @@ impl SuppressedErrorConstructor {
             realm,
             new_target,
             Intrinsics::suppressed_error_prototype,
-            |prototype| SuppressedError::new_in_constructor(vm, prototype),
+            |_, prototype| SuppressedError::new_in_constructor(vm, prototype),
         )?;
 
         // 3. If message is not undefined, then

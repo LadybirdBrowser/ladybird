@@ -43,17 +43,14 @@ define_native_function_class!(
 
 impl PlainYearMonthConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<PlainYearMonthConstructor> {
-        realm.create_object(
-            vm,
-            PlainYearMonthConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.PlainYearMonth.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| PlainYearMonthConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.PlainYearMonth.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

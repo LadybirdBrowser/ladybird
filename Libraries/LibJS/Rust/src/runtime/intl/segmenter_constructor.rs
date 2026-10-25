@@ -43,17 +43,14 @@ define_native_function_class!(
 impl SegmenterConstructor {
     // 19.1 The Intl.Segmenter Constructor, https://tc39.es/ecma402/#sec-intl-segmenter-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SegmenterConstructor> {
-        realm.create_object(
-            vm,
-            SegmenterConstructor {
-                base: NativeFunction::new_with_name(
-                    vm,
-                    Self::CLASS,
-                    vm.names.Segmenter.as_string().clone(),
-                    realm.function_prototype(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| SegmenterConstructor {
+            base: NativeFunction::new_with_name(
+                vm,
+                Self::CLASS,
+                vm.names.Segmenter.as_string().clone(),
+                realm.function_prototype(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -106,7 +103,7 @@ impl SegmenterConstructor {
             realm,
             new_target,
             Intrinsics::intl_segmenter_prototype,
-            |prototype| Segmenter::new(vm, prototype),
+            |_, prototype| Segmenter::new(vm, prototype),
         )?;
 
         // 4. Let optionsResolution be ? ResolveOptions(%Intl.Segmenter%, %Intl.Segmenter%.[[LocaleData]], locales, options).

@@ -120,15 +120,12 @@ impl BoundFunction {
         // 7. Set obj.[[BoundTargetFunction]] to targetFunction.
         // 8. Set obj.[[BoundThis]] to boundThis.
         // 9. Set obj.[[BoundArguments]] to boundArgs.
-        let object = allocate_object(
-            vm,
-            BoundFunction {
-                base,
-                bound_target_function: Cell::new(target_function),
-                bound_this: Cell::new(bound_this),
-                bound_arguments: OnceCell::new(),
-            },
-        );
+        let object = allocate_object(vm, |_| BoundFunction {
+            base,
+            bound_target_function: Cell::new(target_function),
+            bound_this: Cell::new(bound_this),
+            bound_arguments: OnceCell::new(),
+        });
         // The caller keeps the bound arguments alive until the function that does holds them, and nothing allocates
         // from the heap in between.
         if object

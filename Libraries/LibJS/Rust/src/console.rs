@@ -94,7 +94,7 @@ fn message_with_label(vm: &Vm, before: &str, label: &Utf16String, after: &str) -
 
 impl Console {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Console> {
-        vm.heap().allocate(Console {
+        vm.heap().allocate(|_| Console {
             header: CellHeader::for_class(Self::CLASS),
             realm,
             client: Cell::new(None),

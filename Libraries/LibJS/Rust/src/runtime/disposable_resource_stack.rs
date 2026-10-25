@@ -58,7 +58,7 @@ pub enum AsyncDisposeResourcesStep {
 
 impl DisposableResourceStack {
     pub fn create(vm: &Vm) -> Gc<DisposableResourceStack> {
-        vm.heap().allocate(DisposableResourceStack {
+        vm.heap().allocate(|_| DisposableResourceStack {
             header: CellHeader::for_class(Self::CLASS),
             dispose_capability: GcRefCell::new(new_dispose_capability()),
             async_disposal_started: Cell::new(false),

@@ -32,7 +32,7 @@ define_cell!(JobCallback, Other);
 
 impl JobCallback {
     pub fn create(vm: &Vm, callback: Gc<FunctionObject>, custom_data: ForeignCellSlot) -> Gc<JobCallback> {
-        vm.heap().allocate(JobCallback {
+        vm.heap().allocate(|_| JobCallback {
             header: CellHeader::for_class(Self::CLASS),
             callback: Cell::new(callback),
             custom_data,

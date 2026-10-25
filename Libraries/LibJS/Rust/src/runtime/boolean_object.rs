@@ -44,10 +44,9 @@ impl BooleanObject {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>, value: bool) -> Gc<BooleanObject> {
-        realm.create_object(
-            vm,
-            BooleanObject::new(vm, Self::CLASS, value, realm.intrinsics().boolean_prototype(vm)),
-        )
+        realm.create_object(vm, |_| {
+            BooleanObject::new(vm, Self::CLASS, value, realm.intrinsics().boolean_prototype(vm))
+        })
     }
 
     pub fn boolean(&self) -> bool {

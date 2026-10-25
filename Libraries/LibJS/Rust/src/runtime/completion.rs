@@ -137,7 +137,7 @@ pub fn r#await(vm: &Vm, value: Value) -> ThrowCompletionOr<Value> {
     // 2. Let promise be ? PromiseResolve(%Promise%, value).
     let promise_object = promise_resolve(vm, realm.intrinsics().promise_constructor(vm).upcast(), value)?;
 
-    let awaited_completion = vm.heap().allocate(AwaitedCompletion {
+    let awaited_completion = vm.heap().allocate(|_| AwaitedCompletion {
         header: CellHeader::for_class(AwaitedCompletion::CLASS),
         success: Cell::new(None),
         result: Cell::new(Value::UNDEFINED),

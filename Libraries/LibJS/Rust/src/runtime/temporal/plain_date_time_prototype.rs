@@ -84,17 +84,14 @@ fn calendar_date_of(plain_date_time: &PlainDateTime) -> CalendarDate {
 
 impl PlainDateTimePrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<PlainDateTimePrototype> {
-        realm.create_object(
-            vm,
-            PlainDateTimePrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| PlainDateTimePrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

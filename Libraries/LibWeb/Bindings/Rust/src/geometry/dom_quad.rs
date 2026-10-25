@@ -31,7 +31,7 @@ impl Wrappable for DOMQuad {}
 
 /// A new DOMPoint object with its attributes set to the values of the namesake dictionary members in the dictionary.
 fn new_point(vm: &Vm, init: &DOMPointInit) -> Ref<DOMPoint> {
-    allocate(vm, DOMPoint::from_dictionary(init))
+    allocate(vm, |_| DOMPoint::from_dictionary(init))
 }
 
 impl DOMQuad {
@@ -75,7 +75,7 @@ impl DOMQuad {
     pub(crate) fn from_rect(cx: &mut CallContext, other: DOMRectInit) -> WebIdlResult<Ref<Self>> {
         // The fromRect(other) static method on DOMQuad must create a DOMQuad from the DOMRectInit dictionary other.
         let quad = Self::from_rect_dictionary(cx.vm(), &other);
-        Ok(allocate(cx.vm(), quad))
+        Ok(allocate(cx.vm(), |_| quad))
     }
 
     /// https://drafts.fxtf.org/geometry/#create-a-domquad-from-the-domrectinit-dictionary
@@ -86,19 +86,19 @@ impl DOMQuad {
 
         // 2. Let point1 be a new DOMPoint object with x coordinate set to x, y coordinate set to y, z coordinate set
         //    to 0 and w perspective set to 1.
-        let point1 = allocate(vm, DOMPoint::new(x, y, 0.0, 1.0));
+        let point1 = allocate(vm, |_| DOMPoint::new(x, y, 0.0, 1.0));
 
         // 3. Let point2 be a new DOMPoint object with x coordinate set to x + width, y coordinate set to y, z
         //    coordinate set to 0 and w perspective set to 1.
-        let point2 = allocate(vm, DOMPoint::new(x + width, y, 0.0, 1.0));
+        let point2 = allocate(vm, |_| DOMPoint::new(x + width, y, 0.0, 1.0));
 
         // 4. Let point3 be a new DOMPoint object with x coordinate set to x + width, y coordinate set to y + height, z
         //    coordinate set to 0 and w perspective set to 1.
-        let point3 = allocate(vm, DOMPoint::new(x + width, y + height, 0.0, 1.0));
+        let point3 = allocate(vm, |_| DOMPoint::new(x + width, y + height, 0.0, 1.0));
 
         // 5. Let point4 be a new DOMPoint object with x coordinate set to x, y coordinate set to y + height, z
         //    coordinate set to 0 and w perspective set to 1.
-        let point4 = allocate(vm, DOMPoint::new(x, y + height, 0.0, 1.0));
+        let point4 = allocate(vm, |_| DOMPoint::new(x, y + height, 0.0, 1.0));
 
         // 6. Return a new DOMQuad with point 1 set to point1, point 2 set to point2, point 3 set to point3 and point 4
         //    set to point4.
@@ -134,15 +134,12 @@ impl DOMQuad {
 
         // 5. Return a new DOMQuad with point 1 set to point1, point 2 set to point2, point 3 set to point3 and point 4
         //    set to point4.
-        Ok(allocate(
-            vm,
-            Self {
-                p1: point1,
-                p2: point2,
-                p3: point3,
-                p4: point4,
-            },
-        ))
+        Ok(allocate(vm, |_| Self {
+            p1: point1,
+            p2: point2,
+            p3: point3,
+            p4: point4,
+        }))
     }
 
     /// https://drafts.fxtf.org/geometry/#dom-domquad-p1
@@ -196,7 +193,9 @@ impl DOMQuad {
         // 6. Set x coordinate of bounds to left, y coordinate of bounds to top, width dimension of bounds to right -
         //    left and height dimension of bounds to bottom - top.
         // 7. Return bounds.
-        Ok(allocate(cx.vm(), DOMRect::new(left, top, right - left, bottom - top)))
+        Ok(allocate(cx.vm(), |_| {
+            DOMRect::new(left, top, right - left, bottom - top)
+        }))
     }
 }
 
@@ -229,16 +228,20 @@ impl Serializable for DOMQuad {
     /// https://drafts.fxtf.org/geometry/#structured-serialization
     fn deserialization_steps(cx: &mut CallContext, serialized: &mut SerializationReader) -> WebIdlResult<Self> {
         // 1. Set value’s point 1 to the sub-deserialization of serialized.[[P1]].
-        let p1 = allocate(cx.vm(), serialized.read_object_in_place::<DOMPoint>(cx)?);
+        let p1 = serialized.read_object_in_place::<DOMPoint>(cx)?;
+        let p1 = allocate(cx.vm(), |_| p1);
 
         // 2. Set value’s point 2 to the sub-deserialization of serialized.[[P2]].
-        let p2 = allocate(cx.vm(), serialized.read_object_in_place::<DOMPoint>(cx)?);
+        let p2 = serialized.read_object_in_place::<DOMPoint>(cx)?;
+        let p2 = allocate(cx.vm(), |_| p2);
 
         // 3. Set value’s point 3 to the sub-deserialization of serialized.[[P3]].
-        let p3 = allocate(cx.vm(), serialized.read_object_in_place::<DOMPoint>(cx)?);
+        let p3 = serialized.read_object_in_place::<DOMPoint>(cx)?;
+        let p3 = allocate(cx.vm(), |_| p3);
 
         // 4. Set value’s point 4 to the sub-deserialization of serialized.[[P4]].
-        let p4 = allocate(cx.vm(), serialized.read_object_in_place::<DOMPoint>(cx)?);
+        let p4 = serialized.read_object_in_place::<DOMPoint>(cx)?;
+        let p4 = allocate(cx.vm(), |_| p4);
 
         Ok(Self { p1, p2, p3, p4 })
     }

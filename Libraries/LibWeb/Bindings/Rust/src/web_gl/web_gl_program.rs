@@ -37,13 +37,10 @@ impl Inherits<WebGLObject> for WebGLProgram {
 
 impl WebGLProgram {
     pub(crate) fn create(vm: &Vm, context: &ContextState, handle: u32) -> Ref<Self> {
-        allocate(
-            vm,
-            Self {
-                object: WebGLObject::new(context, handle),
-                attached_vertex_shader: Cell::new(None),
-                attached_fragment_shader: Cell::new(None),
-            },
-        )
+        allocate(vm, |_| Self {
+            object: WebGLObject::new(context, handle),
+            attached_vertex_shader: Cell::new(None),
+            attached_fragment_shader: Cell::new(None),
+        })
     }
 }

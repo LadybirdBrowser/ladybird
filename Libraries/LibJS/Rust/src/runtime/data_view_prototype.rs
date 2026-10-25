@@ -184,17 +184,14 @@ fn set_view_value(
 
 impl DataViewPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DataViewPrototype> {
-        realm.create_object(
-            vm,
-            DataViewPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| DataViewPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

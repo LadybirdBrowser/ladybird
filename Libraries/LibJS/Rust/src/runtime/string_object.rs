@@ -84,7 +84,7 @@ impl StringObject {
         // 7. Let length be the length of value.
         // 8. Perform ! DefinePropertyOrThrow(S, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
         // 9. Return S.
-        realm.create_object(vm, StringObject::new(vm, Self::CLASS, primitive_string, prototype))
+        realm.create_object(vm, |_| StringObject::new(vm, Self::CLASS, primitive_string, prototype))
     }
 
     pub fn primitive_string(&self) -> Gc<PrimitiveString> {

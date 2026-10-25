@@ -41,17 +41,14 @@ fn typed_this_segments(vm: &Vm) -> ThrowCompletionOr<Gc<Segments>> {
 
 impl SegmentsPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SegmentsPrototype> {
-        realm.create_object(
-            vm,
-            SegmentsPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| SegmentsPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

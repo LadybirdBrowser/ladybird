@@ -65,12 +65,9 @@ fn number_to_string_value(vm: &Vm, number_value: Value) -> Value {
 
 impl NumberPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<NumberPrototype> {
-        realm.create_object(
-            vm,
-            NumberPrototype {
-                base: NumberObject::new(vm, Self::CLASS, 0.0, realm.object_prototype()),
-            },
-        )
+        realm.create_object(vm, |_| NumberPrototype {
+            base: NumberObject::new(vm, Self::CLASS, 0.0, realm.object_prototype()),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

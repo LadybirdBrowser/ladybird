@@ -26,14 +26,11 @@ impl Wrappable for WebGLShaderPrecisionFormat {}
 
 impl WebGLShaderPrecisionFormat {
     pub(crate) fn create(vm: &Vm, range_min: i32, range_max: i32, precision: i32) -> Ref<Self> {
-        allocate(
-            vm,
-            Self {
-                range_min,
-                range_max,
-                precision,
-            },
-        )
+        allocate(vm, |_| Self {
+            range_min,
+            range_max,
+            precision,
+        })
     }
 
     pub(crate) fn range_min(&self, _: &mut CallContext) -> WebIdlResult<i32> {

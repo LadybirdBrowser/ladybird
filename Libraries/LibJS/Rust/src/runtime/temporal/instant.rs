@@ -144,7 +144,7 @@ pub fn create_temporal_instant(
         realm,
         new_target,
         Intrinsics::temporal_instant_prototype,
-        |prototype| Instant::new(vm, epoch_nanoseconds, prototype),
+        |_, prototype| Instant::new(vm, epoch_nanoseconds, prototype),
     )?;
 
     // 5. Return object.

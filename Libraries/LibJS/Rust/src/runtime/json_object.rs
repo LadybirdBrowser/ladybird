@@ -999,17 +999,14 @@ fn parse_simdjson_document(
 
 impl JSONObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<JSONObject> {
-        realm.create_object(
-            vm,
-            JSONObject {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| JSONObject {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

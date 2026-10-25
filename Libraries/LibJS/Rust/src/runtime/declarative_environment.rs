@@ -233,11 +233,11 @@ pub fn allocate_environment<T: GcCell>(
 ) -> Gc<T> {
     let heap = vm.heap();
     let Some(size_class) = inline_binding_size_class(binding_capacity) else {
-        return heap.allocate(environment);
+        return heap.allocate(|_| environment);
     };
     let environment = heap.allocate_with_size_class(
         heap.size_classes(T::CLASS, cell_sizes)[size_class],
-        environment,
+        |_| environment,
         Value::EMPTY,
     );
     let declarative_environment = declarative(&environment);
@@ -308,7 +308,7 @@ impl DeclarativeEnvironment {
     }
 
     pub fn create(vm: &Vm, outer_environment: Option<Gc<Environment>>) -> Gc<DeclarativeEnvironment> {
-        vm.heap().allocate(Self::new(Self::CLASS, outer_environment))
+        vm.heap().allocate(|_| Self::new(Self::CLASS, outer_environment))
     }
 
     /// A new environment with room for `binding_capacity` bindings in its cell, if a size class has that much.

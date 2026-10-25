@@ -53,7 +53,7 @@ impl DOMRectReadOnly {
     /// https://drafts.fxtf.org/geometry/#dom-domrectreadonly-fromrect
     pub(crate) fn from_rect(cx: &mut CallContext, other: DOMRectInit) -> WebIdlResult<Ref<Self>> {
         // The fromRect(other) static method on DOMRectReadOnly must create a DOMRectReadOnly from the dictionary other.
-        Ok(allocate(cx.vm(), Self::from_dictionary(&other)))
+        Ok(allocate(cx.vm(), |_| Self::from_dictionary(&other)))
     }
 
     /// https://drafts.fxtf.org/geometry/#create-a-domrectreadonly-from-the-dictionary

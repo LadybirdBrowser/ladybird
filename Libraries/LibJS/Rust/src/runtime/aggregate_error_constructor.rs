@@ -39,16 +39,13 @@ define_native_function_class!(
 
 impl AggregateErrorConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AggregateErrorConstructor> {
-        realm.create_object(
-            vm,
-            AggregateErrorConstructor {
-                base: NativeFunction::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().error_constructor(vm).upcast(),
-                ),
-            },
-        )
+        realm.create_object(vm, |_| AggregateErrorConstructor {
+            base: NativeFunction::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().error_constructor(vm).upcast(),
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
@@ -88,7 +85,7 @@ impl AggregateErrorConstructor {
 
         // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%AggregateError.prototype%", « [[ErrorData]] »).
         let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::aggregate_error_prototype)?;
-        let aggregate_error = realm.create_object(vm, AggregateError::new_in_constructor(vm, prototype));
+        let aggregate_error = realm.create_object(vm, |_| AggregateError::new_in_constructor(vm, prototype));
 
         // 3. If message is not undefined, then
         if !message.is_undefined() {

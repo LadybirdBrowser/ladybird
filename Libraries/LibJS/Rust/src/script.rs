@@ -358,7 +358,7 @@ impl Script {
     ) -> Gc<Script> {
         let declared_function_names = parts.function_names.iter().cloned().collect();
 
-        let script = vm.heap().allocate(Script {
+        let script = vm.heap().allocate(|_| Script {
             header: CellHeader::for_class(Self::CLASS),
             realm,
             loaded_modules: GcRefCell::new(Vec::new()),

@@ -158,17 +158,14 @@ fn async_from_sync_iterator_continuation(
 
 impl AsyncFromSyncIteratorPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AsyncFromSyncIteratorPrototype> {
-        realm.create_object(
-            vm,
-            AsyncFromSyncIteratorPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().async_iterator_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| AsyncFromSyncIteratorPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().async_iterator_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

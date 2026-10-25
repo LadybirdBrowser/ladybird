@@ -133,7 +133,7 @@ impl GraphLoadingState {
         pending_module_count: usize,
         host_defined: ForeignCellSlot,
     ) -> Gc<GraphLoadingState> {
-        vm.heap().allocate(GraphLoadingState {
+        vm.heap().allocate(|_| GraphLoadingState {
             header: CellHeader::for_class(Self::CLASS),
             promise_capability,
             is_loading: Cell::new(is_loading),

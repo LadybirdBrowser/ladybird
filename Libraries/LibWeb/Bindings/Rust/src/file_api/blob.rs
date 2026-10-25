@@ -397,7 +397,9 @@ impl Blob {
         // 3. If end is given, set sliceEnd to end.
         // 3. If contentType is given, set sliceContentType to contentType.
         // 4. Return the result of slice blob given this, sliceStart, sliceEnd, and sliceContentType.
-        Ok(allocate(cx.vm(), self.slice_blob(start, end, content_type.as_ref())))
+        Ok(allocate(cx.vm(), |_| {
+            self.slice_blob(start, end, content_type.as_ref())
+        }))
     }
 
     // https://w3c.github.io/FileAPI/#slice-blob

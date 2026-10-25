@@ -93,9 +93,9 @@ pub unsafe extern "C" fn web_canvas_2d_context_create(
         },
     });
     if arguments.canvas_is_offscreen {
-        cell_into_abi(allocate(vm, RenderingContext2D::<Offscreen>::new(state)))
+        cell_into_abi(allocate(vm, |_| RenderingContext2D::<Offscreen>::new(state)))
     } else {
-        cell_into_abi(allocate(vm, RenderingContext2D::<OnScreen>::new(state)))
+        cell_into_abi(allocate(vm, |_| RenderingContext2D::<OnScreen>::new(state)))
     }
 }
 

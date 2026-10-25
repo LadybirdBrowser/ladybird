@@ -134,7 +134,7 @@ pub fn allocate(heap: &Heap, capacity: u32, fill: Value) -> *mut Value {
     };
     let storage = heap.allocate_storage_with_size_class(
         size_classes(heap)[index],
-        ValueStorage {
+        |_| ValueStorage {
             header: CellHeader::for_class(ValueStorage::CLASS),
             _padding: [0; 5],
             capacity: SIZE_CLASS_CAPACITIES[index],

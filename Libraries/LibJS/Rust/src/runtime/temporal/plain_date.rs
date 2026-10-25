@@ -128,7 +128,7 @@ pub fn create_temporal_date(
         realm,
         new_target,
         Intrinsics::temporal_plain_date_prototype,
-        |prototype| PlainDate::new(vm, iso_date, calendar, prototype),
+        |_, prototype| PlainDate::new(vm, iso_date, calendar, prototype),
     )?;
 
     // 6. Return object.

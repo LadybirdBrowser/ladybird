@@ -93,7 +93,7 @@ impl WritableStreamDefaultWriter {
 
     // https://streams.spec.whatwg.org/#default-writer-constructor
     pub(crate) fn construct(cx: &mut CallContext, stream: Ref<WritableStream>) -> WebIdlResult<Ref<Self>> {
-        let this = allocate(cx.vm(), Self::new());
+        let this = allocate(cx.vm(), |_| Self::new());
 
         // 1. Perform ? SetUpWritableStreamDefaultWriter(this, stream).
         set_up_writable_stream_default_writer(cx, this, stream)?;

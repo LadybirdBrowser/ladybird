@@ -111,7 +111,7 @@ impl FunctionPrototype {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<FunctionPrototype> {
-        realm.create_object(vm, Self::new(vm, realm))
+        realm.create_object(vm, |_| Self::new(vm, realm))
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

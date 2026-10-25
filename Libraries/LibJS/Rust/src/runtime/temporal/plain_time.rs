@@ -532,7 +532,7 @@ pub fn create_temporal_time(
         realm,
         new_target,
         Intrinsics::temporal_plain_time_prototype,
-        |prototype| PlainTime::new(vm, time, prototype),
+        |_, prototype| PlainTime::new(vm, time, prototype),
     )?;
 
     // 4. Return object.

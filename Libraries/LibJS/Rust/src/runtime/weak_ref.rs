@@ -8,8 +8,8 @@ use core::cell::Cell;
 use core::ptr::NonNull;
 
 use crate::gc::class::{GcCell, define_cell};
-use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::sweep::Sweep;
+use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak_container::WeakContainer;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -61,7 +61,9 @@ impl WeakRef {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>, value: Value) -> Gc<WeakRef> {
-        realm.create_object(vm, WeakRef::new(vm, value, realm.intrinsics().weak_ref_prototype(vm)))
+        realm.create_object(vm, |_| {
+            WeakRef::new(vm, value, realm.intrinsics().weak_ref_prototype(vm))
+        })
     }
 
     /// Registers the new WeakRef as a weak container.

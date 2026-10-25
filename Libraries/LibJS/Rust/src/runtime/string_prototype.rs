@@ -279,12 +279,9 @@ impl StringPrototype {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<StringPrototype> {
-        realm.create_object(
-            vm,
-            StringPrototype {
-                base: StringObject::new(vm, Self::CLASS, vm.empty_string(), realm.object_prototype()),
-            },
-        )
+        realm.create_object(vm, |_| StringPrototype {
+            base: StringObject::new(vm, Self::CLASS, vm.empty_string(), realm.object_prototype()),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

@@ -349,17 +349,14 @@ fn wait_for_all(vm: &Vm, realm: Gc<Realm>, promises: &[WebIdlPromise], promise: 
     // 8. Let result be a list containing total null values.
     let total = promises.len();
     let result = Array::create_from(vm, realm, &vec![Value::NULL; total]);
-    let state = WAIT_FOR_ALL_CLASS.allocate(
-        vm,
-        WaitForAll {
-            promise,
-            realm,
-            rejected: Cell::new(false),
-            result,
-            total,
-            fulfilled_count: Cell::new(0),
-        },
-    );
+    let state = WAIT_FOR_ALL_CLASS.allocate(vm, |_| WaitForAll {
+        promise,
+        realm,
+        rejected: Cell::new(false),
+        result,
+        total,
+        fulfilled_count: Cell::new(0),
+    });
 
     // 3. Let rejectionHandlerSteps be the following steps given arg:
     let rejection_handler_steps = |vm: &Vm, state: &Gc<EmbedderCell<WaitForAll>>| {

@@ -411,15 +411,15 @@ impl ByteTeeState {
         let other_branch = if !for_branch2 { this.branch2() } else { this.branch1() };
 
         // 4. Let readIntoRequest be a read-into request with the following items:
-        let read_into_request = ReadIntoRequest::ByteTee(BYTE_TEE_BYOB_READ_REQUEST_CLASS.allocate(
-            cx.vm(),
-            ByteTeeBYOBReadRequest {
-                state: this,
-                byob_branch,
-                other_branch,
-                for_branch2,
-            },
-        ));
+        let read_into_request =
+            ReadIntoRequest::ByteTee(
+                BYTE_TEE_BYOB_READ_REQUEST_CLASS.allocate(cx.vm(), |_| ByteTeeBYOBReadRequest {
+                    state: this,
+                    byob_branch,
+                    other_branch,
+                    for_branch2,
+                }),
+            );
 
         // 5. Perform ! ReadableStreamBYOBReaderRead(reader, view, 1, readIntoRequest).
         let ReadableStreamReader::ReadableStreamBYOBReader(reader) = this.reader.get() else {
@@ -933,23 +933,20 @@ pub(crate) fn readable_stream_default_tee(
     // 11. Let branch2 be undefined.
     // 12. Let cancelPromise be a new promise.
     let cancel_promise = create_promise(vm, cx.realm());
-    let state = DEFAULT_TEE_STATE_CLASS.allocate(
-        vm,
-        DefaultTeeState {
-            stream,
-            reader,
-            reading: Cell::new(false),
-            read_again: Cell::new(false),
-            canceled1: Cell::new(false),
-            canceled2: Cell::new(false),
-            reason1: Cell::new(Value::UNDEFINED),
-            reason2: Cell::new(Value::UNDEFINED),
-            branch1: Cell::new(None),
-            branch2: Cell::new(None),
-            cancel_promise,
-            clone_for_branch2,
-        },
-    );
+    let state = DEFAULT_TEE_STATE_CLASS.allocate(vm, |_| DefaultTeeState {
+        stream,
+        reader,
+        reading: Cell::new(false),
+        read_again: Cell::new(false),
+        canceled1: Cell::new(false),
+        canceled2: Cell::new(false),
+        reason1: Cell::new(Value::UNDEFINED),
+        reason2: Cell::new(Value::UNDEFINED),
+        branch1: Cell::new(None),
+        branch2: Cell::new(None),
+        cancel_promise,
+        clone_for_branch2,
+    });
 
     // 13. Let pullAlgorithm be the following steps:
     // 14. Let cancel1Algorithm be the following steps, taking a reason argument:
@@ -1040,23 +1037,20 @@ pub(crate) fn readable_byte_stream_tee(
     // 12. Let branch2 be undefined.
     // 13. Let cancelPromise be a new promise.
     let cancel_promise = create_promise(vm, cx.realm());
-    let state = BYTE_TEE_STATE_CLASS.allocate(
-        vm,
-        ByteTeeState {
-            stream,
-            reader: Cell::new(ReadableStreamReader::ReadableStreamDefaultReader(reader)),
-            reading: Cell::new(false),
-            read_again_for_branch1: Cell::new(false),
-            read_again_for_branch2: Cell::new(false),
-            canceled1: Cell::new(false),
-            canceled2: Cell::new(false),
-            reason1: Cell::new(Value::UNDEFINED),
-            reason2: Cell::new(Value::UNDEFINED),
-            branch1: Cell::new(None),
-            branch2: Cell::new(None),
-            cancel_promise,
-        },
-    );
+    let state = BYTE_TEE_STATE_CLASS.allocate(vm, |_| ByteTeeState {
+        stream,
+        reader: Cell::new(ReadableStreamReader::ReadableStreamDefaultReader(reader)),
+        reading: Cell::new(false),
+        read_again_for_branch1: Cell::new(false),
+        read_again_for_branch2: Cell::new(false),
+        canceled1: Cell::new(false),
+        canceled2: Cell::new(false),
+        reason1: Cell::new(Value::UNDEFINED),
+        reason2: Cell::new(Value::UNDEFINED),
+        branch1: Cell::new(None),
+        branch2: Cell::new(None),
+        cancel_promise,
+    });
 
     // 14. Let forwardReaderError be the following steps, taking a thisReader argument:
     // 15. Let pullWithDefaultReader be the following steps:

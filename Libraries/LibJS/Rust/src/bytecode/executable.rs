@@ -25,8 +25,8 @@ use crate::bytecode::generator::{LocalVariable, PendingClassBlueprint};
 use crate::bytecode_cache::{DecodedBytecodeBytes, DecodedExecutableRecord};
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::defer_gc::DeferGc;
-use crate::gc::sweep::Sweep;
 use crate::gc::root::MarkedVec;
+use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::jit::InterpreterTier;
@@ -134,7 +134,9 @@ impl PropertyLookupCacheEntryData {
             || self.from_shape.is_some_and(|shape| sweep.is_dead(shape))
             || self.shape.is_some_and(|shape| sweep.is_dead(shape))
             || self.prototype.is_some_and(|prototype| sweep.is_dead(prototype))
-            || self.prototype_chain_validity.is_some_and(|validity| sweep.is_dead(validity))
+            || self
+                .prototype_chain_validity
+                .is_some_and(|validity| sweep.is_dead(validity))
     }
 }
 
@@ -1004,7 +1006,9 @@ impl KeyedPropertyLookupCache {
             // NB: Entries of the keyed property store cache for puts it does not make have a shape but no type.
             if lookup.shape.is_some_and(|shape| sweep.is_dead(shape))
                 || lookup.prototype.is_some_and(|prototype| sweep.is_dead(prototype))
-                || lookup.prototype_chain_validity.is_some_and(|validity| sweep.is_dead(validity))
+                || lookup
+                    .prototype_chain_validity
+                    .is_some_and(|validity| sweep.is_dead(validity))
                 || lookup.new_shape.is_some_and(|shape| sweep.is_dead(shape))
             {
                 *entry = KeyedPropertyLookupCacheEntry::default();
@@ -1032,7 +1036,7 @@ define_cell!(TemplateObjectCache, Other);
 
 impl TemplateObjectCache {
     pub fn create(vm: &Vm) -> Gc<TemplateObjectCache> {
-        vm.heap().allocate(TemplateObjectCache {
+        vm.heap().allocate(|_| TemplateObjectCache {
             header: CellHeader::for_class(Self::CLASS),
             cached_template_object: Cell::new(None),
         })
@@ -1100,7 +1104,7 @@ impl ObjectPropertyIteratorCacheData {
         } else {
             (false, 0)
         };
-        let cache_data = vm.heap().allocate(Self {
+        let cache_data = vm.heap().allocate(|_| Self {
             header: CellHeader::for_class(Self::CLASS),
             shape_is_dictionary: Cell::new(shape_is_dictionary),
             fast_path: Cell::new(fast_path),
@@ -1137,7 +1141,7 @@ impl ObjectPropertyIteratorCacheData {
     pub fn create(vm: &Vm, properties: &MarkedVec<'_, PropertyKey>) -> Gc<ObjectPropertyIteratorCacheData> {
         // The slow path keeps only the key list. Values are converted lazily during enumeration,
         // because deleted keys have to be filtered with has_property() at each step anyway.
-        vm.heap().allocate(Self {
+        vm.heap().allocate(|_| Self {
             header: CellHeader::for_class(Self::CLASS),
             shape_is_dictionary: Cell::new(false),
             fast_path: Cell::new(ObjectPropertyIteratorFastPath::None),
@@ -1582,7 +1586,7 @@ impl Executable {
         source_code: Option<&Rc<SourceCode>>,
         replaced_executable: Option<Gc<Executable>>,
     ) -> Gc<Executable> {
-        let executable = vm.heap().allocate_deferring_gc(|defer_gc| {
+        let executable = vm.heap().allocate(|defer_gc| {
             Self::build(
                 vm,
                 parts,

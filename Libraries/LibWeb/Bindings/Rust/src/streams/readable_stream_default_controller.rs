@@ -557,7 +557,7 @@ pub(crate) fn set_up_readable_stream_default_controller_from_underlying_source(
     size_algorithm: SizeAlgorithm,
 ) -> WebIdlResult<()> {
     // 1. Let controller be a new ReadableStreamDefaultController.
-    let controller = allocate(cx.vm(), ReadableStreamDefaultController::new());
+    let controller = allocate(cx.vm(), |_| ReadableStreamDefaultController::new());
 
     // 2. Let startAlgorithm be an algorithm that returns undefined.
     let mut start_algorithm = StartAlgorithm::ReturnsUndefined;

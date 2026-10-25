@@ -17,6 +17,7 @@ use crate::bytecode::executable::PropertyLookupCache;
 use crate::bytecode::property_access::{Strict, put_by_property_key};
 use crate::embedding::abi_types::JSRealm;
 use crate::gc::class::{Class, Extends, ExternalMemorySize, GcCell, define_cell};
+use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::{Heap, RuntimeClassAllocator, SizeClassAllocator};
 use crate::gc::root::MarkedVec;
@@ -552,15 +553,19 @@ fn are_dense_enough(filled: usize, length: usize) -> bool {
 }
 pub(crate) const MAX_TRANSITIONS_BEFORE_CONVERTING_TO_DICTIONARY: u32 = 64;
 
-/// Moves an object into the heap and finishes what its constructor could not do before it had an address: its named
-/// properties start out in its inline storage. Every object, of any class, is allocated through this.
-pub fn allocate_object<T: GcCell + Extends<Object>>(vm: &Vm, object: T) -> Gc<T> {
-    set_up_named_storage(vm.heap().allocate(object))
+/// Moves the object that `build` returns into the heap, as Heap::allocate() does, and finishes what its constructor
+/// could not do before it had an address: its named properties start out in its inline storage.
+pub fn allocate_object<T: GcCell + Extends<Object>>(vm: &Vm, build: impl FnOnce(&DeferGc<'_>) -> T) -> Gc<T> {
+    set_up_named_storage(vm.heap().allocate(build))
 }
 
 /// allocate_object() for an object whose class was derived at run time, from that class's allocator.
-pub fn allocate_object_in<T: GcCell + Extends<Object>>(vm: &Vm, allocator: RuntimeClassAllocator, object: T) -> Gc<T> {
-    set_up_named_storage(vm.heap().allocate_in(allocator, object))
+pub fn allocate_object_in<T: GcCell + Extends<Object>>(
+    vm: &Vm,
+    allocator: RuntimeClassAllocator,
+    build: impl FnOnce(&DeferGc<'_>) -> T,
+) -> Gc<T> {
+    set_up_named_storage(vm.heap().allocate_in(allocator, build))
 }
 
 #[inline(always)]
@@ -673,29 +678,26 @@ impl Object {
     // 10.1.12 OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinaryobjectcreate
     pub fn create(vm: &Vm, realm: Gc<Realm>, prototype: Option<Gc<Object>>) -> Gc<Object> {
         let Some(prototype) = prototype else {
-            return allocate_object(
-                vm,
+            return allocate_object(vm, |_| {
                 Self::new_with_shape(
                     Self::CLASS,
                     realm.empty_object_shape(),
                     MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            );
+                )
+            });
         };
         if prototype == realm.object_prototype() {
-            return allocate_object(
-                vm,
+            return allocate_object(vm, |_| {
                 Self::new_with_shape(
                     Self::CLASS,
                     realm.new_object_shape(),
                     MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            );
+                )
+            });
         }
-        allocate_object(
-            vm,
-            Self::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
-        )
+        allocate_object(vm, |_| {
+            Self::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No)
+        })
     }
 
     pub fn create_prototype(vm: &Vm, realm: Gc<Realm>, prototype: Option<Gc<Object>>) -> Gc<Object> {
@@ -703,20 +705,18 @@ impl Object {
         if let Some(prototype) = prototype {
             shape.set_prototype_without_transition(vm, prototype);
         }
-        allocate_object(
-            vm,
-            Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No),
-        )
+        allocate_object(vm, |_| {
+            Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No)
+        })
     }
 
     pub fn create_with_premade_shape(vm: &Vm, shape: Gc<Shape>) -> Gc<Object> {
         let property_count = shape.property_count();
         // OPTIMIZATION: Objects with up to two properties, the most common ones, are in the first size class.
         if property_count <= INLINE_NAMED_STORAGE_CAPACITY as u32 {
-            return allocate_object(
-                vm,
-                Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No),
-            );
+            return allocate_object(vm, |_| {
+                Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No)
+            });
         }
         Self::create_in_size_class(vm, shape, property_count)
     }
@@ -749,7 +749,7 @@ impl Object {
         let object = Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No);
         let size_class = plain_object_size_class(property_count);
         if size_class == 0 {
-            return allocate_object(vm, object);
+            return allocate_object(vm, |_| object);
         }
         object
             .inline_named_capacity
@@ -757,7 +757,7 @@ impl Object {
         let size_class_allocator = plain_object_size_classes(vm.heap())[size_class - 1];
         set_up_named_storage(
             vm.heap()
-                .allocate_with_size_class(size_class_allocator, object, Value::UNDEFINED),
+                .allocate_with_size_class(size_class_allocator, |_| object, Value::UNDEFINED),
         )
     }
 

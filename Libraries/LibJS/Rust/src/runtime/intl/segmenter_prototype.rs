@@ -40,17 +40,14 @@ fn typed_this_segmenter(vm: &Vm) -> ThrowCompletionOr<Gc<Segmenter>> {
 
 impl SegmenterPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SegmenterPrototype> {
-        realm.create_object(
-            vm,
-            SegmenterPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| SegmenterPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

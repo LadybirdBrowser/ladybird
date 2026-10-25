@@ -85,7 +85,7 @@ impl ObjectEnvironment {
         is_with_environment: IsWithEnvironment,
         outer_environment: Option<Gc<Environment>>,
     ) -> Gc<ObjectEnvironment> {
-        vm.heap().allocate(ObjectEnvironment {
+        vm.heap().allocate(|_| ObjectEnvironment {
             base: Environment::new(Self::CLASS, outer_environment, false),
             binding_object,
             with_environment: is_with_environment == IsWithEnvironment::Yes,

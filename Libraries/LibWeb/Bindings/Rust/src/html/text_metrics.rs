@@ -42,7 +42,7 @@ impl Wrappable for TextMetrics {}
 
 impl TextMetrics {
     pub(crate) fn create(vm: &Vm, measurements: TextMeasurements) -> Ref<Self> {
-        allocate(vm, Self { measurements })
+        allocate(vm, |_| Self { measurements })
     }
 
     pub(crate) fn width(&self, _: &mut CallContext) -> WebIdlResult<f64> {

@@ -161,7 +161,7 @@ impl HostArray {
         };
         // SAFETY: The caller passes an absent or live cell, which the slot then keeps alive.
         unsafe { array.host_data.set(host_data) };
-        let array = allocate_object_in(vm, allocator, array);
+        let array = allocate_object_in(vm, allocator, |_| array);
         array.initialize(vm, realm);
         array
     }

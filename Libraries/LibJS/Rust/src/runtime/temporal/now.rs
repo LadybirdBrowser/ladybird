@@ -47,17 +47,14 @@ define_object_class!(Now, extends: [Object], methods: {
 
 impl Now {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Now> {
-        realm.create_object(
-            vm,
-            Now {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.object_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| Now {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.object_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

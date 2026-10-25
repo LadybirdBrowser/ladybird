@@ -119,7 +119,7 @@ unsafe impl Trace for SpecialPropertyCache {
 
 impl SpecialPropertyCache {
     fn create(vm: &Vm) -> Gc<SpecialPropertyCache> {
-        vm.heap().allocate(SpecialPropertyCache {
+        vm.heap().allocate(|_| SpecialPropertyCache {
             header: CellHeader::for_class(Self::CLASS),
             class: Cell::new(None),
             gave_up: Cell::new(false),

@@ -99,14 +99,11 @@ pub(crate) fn create_default_iterator<T: DefaultIteratorClasses>(
 ) -> Value {
     let vm = cx.vm();
     let realm = cx.realm();
-    let iterator = T::ITERATOR_CELL_CLASS.allocate(
-        vm,
-        DefaultIterator {
-            target,
-            kind,
-            index: Cell::new(0),
-        },
-    );
+    let iterator = T::ITERATOR_CELL_CLASS.allocate(vm, |_| DefaultIterator {
+        target,
+        kind,
+        index: Cell::new(0),
+    });
     // SAFETY: The realm is live, and the interface has a pair iterator.
     let prototype = unsafe { web_bindings_ensure_web_iterator_prototype(realm.as_ptr().cast(), T::INTERFACE_NAME) };
     let prototype = NonNull::new(prototype.cast::<Object>()).expect("LibWeb returns the iterator prototype object");

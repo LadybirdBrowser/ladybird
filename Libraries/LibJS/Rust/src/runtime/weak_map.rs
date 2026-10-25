@@ -87,7 +87,7 @@ impl WeakMap {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WeakMap> {
-        realm.create_object(vm, WeakMap::new(vm, realm.intrinsics().weak_map_prototype(vm)))
+        realm.create_object(vm, |_| WeakMap::new(vm, realm.intrinsics().weak_map_prototype(vm)))
     }
 
     /// Registers the new WeakMap as a weak container.

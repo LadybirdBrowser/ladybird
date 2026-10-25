@@ -48,13 +48,10 @@ impl Inherits<WebGLObject> for WebGLFramebuffer {
 
 impl WebGLFramebuffer {
     pub(crate) fn create(vm: &Vm, context: &ContextState, handle: u32) -> Ref<Self> {
-        allocate(
-            vm,
-            Self {
-                object: WebGLObject::new(context, handle),
-                attachments: GcRefCell::new(Vec::new()),
-            },
-        )
+        allocate(vm, |_| Self {
+            object: WebGLObject::new(context, handle),
+            attachments: GcRefCell::new(Vec::new()),
+        })
     }
 
     pub(crate) fn attachment(&self, attachment: u32) -> Option<Attachment> {

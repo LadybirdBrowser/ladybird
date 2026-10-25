@@ -19,6 +19,7 @@ use core::ptr::NonNull;
 
 use super::class::{Class, ExternalMemorySize, GcCell, MIN_CELL_SIZE, class_of};
 use super::class_id::ClassId;
+use super::defer_gc::DeferGc;
 use super::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, CellKind, Gc};
@@ -141,19 +142,15 @@ unsafe impl<T: EmbedderValue> GcCell for EmbedderCell<T> {
 }
 
 impl<T: EmbedderValue> EmbedderClass<T> {
-    /// Moves `value` into a new cell of the class, from the allocator of the class, which the first allocation for
-    /// the class creates.
-    pub fn allocate(&'static self, vm: &Vm, value: T) -> Gc<EmbedderCell<T>> {
+    /// Moves the value that `build` returns into a new cell of the class, as Heap::allocate() does.
+    pub fn allocate(&'static self, vm: &Vm, build: impl FnOnce(&DeferGc<'_>) -> T) -> Gc<EmbedderCell<T>> {
         let allocator = vm.heap().embedder_class_allocator(&self.class);
-        vm.heap().allocate_in(
-            allocator,
-            EmbedderCell {
-                header: CellHeader::for_class(&self.class),
-                value: ValueWithRoomForFreeListLink {
-                    value: ManuallyDrop::new(value),
-                },
+        vm.heap().allocate_in(allocator, |defer_gc| EmbedderCell {
+            header: CellHeader::for_class(&self.class),
+            value: ValueWithRoomForFreeListLink {
+                value: ManuallyDrop::new(build(defer_gc)),
             },
-        )
+        })
     }
 
     /// The cell behind the pointer, if it is a cell of this class.

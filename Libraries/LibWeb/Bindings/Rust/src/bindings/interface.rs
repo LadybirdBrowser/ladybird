@@ -22,10 +22,10 @@ use core::ptr::NonNull;
 
 use ak::Utf16FlyString;
 use libjs_rust::api::{
-    Attribute, EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, ExternalMemorySize, FunctionObject,
-    Gc, HostObject, JSHostClass, Object, PrimitiveString, PropertyAttributes, PropertyKey, RawNativeFunction,
-    RawNativeFunctionPointer, Realm, Throw, ThrowCompletionOr, Trace, Value, Vm, get_function_realm, host_data_of,
-    is_host_instance_of,
+    Attribute, DeferGc, EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, ExternalMemorySize,
+    FunctionObject, Gc, HostObject, JSHostClass, Object, PrimitiveString, PropertyAttributes, PropertyKey,
+    RawNativeFunction, RawNativeFunctionPointer, Realm, Throw, ThrowCompletionOr, Trace, Value, Vm, get_function_realm,
+    host_data_of, is_host_instance_of,
 };
 
 use crate::bindings::CallContext;
@@ -162,15 +162,12 @@ impl<T: Wrappable + Trace + Sized + 'static> Interface for T {
     }
 }
 
-/// A new object of the interface, which has no wrapper until something asks for one.
-pub(crate) fn allocate<T: Interface>(vm: &Vm, implementation: T) -> Ref<T> {
-    T::CELL_CLASS.allocate(
-        vm,
-        Wrapped {
-            main_world_wrapper: Cell::new(None),
-            implementation,
-        },
-    )
+/// A new object of the interface, built as Heap::allocate() builds a cell.
+pub(crate) fn allocate<T: Interface>(vm: &Vm, build: impl FnOnce(&DeferGc<'_>) -> T) -> Ref<T> {
+    T::CELL_CLASS.allocate(vm, |defer_gc| Wrapped {
+        main_world_wrapper: Cell::new(None),
+        implementation: build(defer_gc),
+    })
 }
 
 /// What the constructor steps or the transfer-receiving steps of an interface create: the implementation of the new
@@ -182,7 +179,7 @@ pub(crate) trait ConstructedObject<T: Interface> {
 
 impl<T: Interface> ConstructedObject<T> for T {
     fn into_object(self, vm: &Vm) -> Ref<T> {
-        allocate(vm, self)
+        allocate(vm, |_| self)
     }
 }
 

@@ -38,17 +38,14 @@ define_object_class!(ArrayIteratorPrototype, extends: [Object], methods: {
 
 impl ArrayIteratorPrototype {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ArrayIteratorPrototype> {
-        realm.create_object(
-            vm,
-            ArrayIteratorPrototype {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().iterator_prototype(vm),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-            },
-        )
+        realm.create_object(vm, |_| ArrayIteratorPrototype {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().iterator_prototype(vm),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

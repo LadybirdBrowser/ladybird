@@ -922,7 +922,7 @@ impl ArrayBuffer {
         };
 
         let prototype = prototype_for_shared_state(vm, realm, is_shared);
-        Ok(realm.create_object(vm, ArrayBuffer::new_with_buffer(vm, buffer, is_shared, prototype)))
+        Ok(realm.create_object(vm, |_| ArrayBuffer::new_with_buffer(vm, buffer, is_shared, prototype)))
     }
 
     /// ArrayBuffer::create(Realm&, ByteBuffer, DataBlock::Shared)
@@ -930,8 +930,9 @@ impl ArrayBuffer {
         let owned_buffer =
             OwnedBackingStore::create_uninitialized(bytes.len()).expect("allocating the data block succeeds");
         let prototype = prototype_for_shared_state(vm, realm, is_shared);
-        let array_buffer =
-            realm.create_object(vm, ArrayBuffer::new_with_buffer(vm, owned_buffer, is_shared, prototype));
+        let array_buffer = realm.create_object(vm, |_| {
+            ArrayBuffer::new_with_buffer(vm, owned_buffer, is_shared, prototype)
+        });
         array_buffer.overwrite(0, bytes);
         vm.heap()
             .did_allocate_external_memory(array_buffer.external_memory_size());
@@ -958,7 +959,7 @@ impl ArrayBuffer {
             );
         };
         let prototype = prototype_for_shared_state(vm, realm, is_shared);
-        let array_buffer = realm.create_object(vm, ArrayBuffer::new_with_buffer(vm, buffer, is_shared, prototype));
+        let array_buffer = realm.create_object(vm, |_| ArrayBuffer::new_with_buffer(vm, buffer, is_shared, prototype));
         array_buffer.with_data_block(|data_block| {
             let written = if byte_length == 0 {
                 write(&mut [])
@@ -982,7 +983,7 @@ impl ArrayBuffer {
     pub fn create_from_data_block(vm: &Vm, realm: Gc<Realm>, block: DataBlock) -> Gc<ArrayBuffer> {
         let is_shared = block.is_shared;
         let prototype = prototype_for_shared_state(vm, realm, is_shared);
-        let array_buffer = realm.create_object(vm, ArrayBuffer::new(vm, is_shared, prototype));
+        let array_buffer = realm.create_object(vm, |_| ArrayBuffer::new(vm, is_shared, prototype));
         array_buffer.set_data_block(vm, block);
         array_buffer
     }
@@ -1653,7 +1654,7 @@ pub fn allocate_array_buffer(
         realm,
         constructor,
         Intrinsics::array_buffer_prototype,
-        |prototype| ArrayBuffer::new(vm, Shared::No, prototype),
+        |_, prototype| ArrayBuffer::new(vm, Shared::No, prototype),
     )?;
 
     // 5. Let block be ? CreateByteDataBlock(byteLength).
@@ -1858,7 +1859,7 @@ pub fn allocate_shared_array_buffer(
         realm,
         constructor,
         Intrinsics::shared_array_buffer_prototype,
-        |prototype| ArrayBuffer::new(vm, Shared::Yes, prototype),
+        |_, prototype| ArrayBuffer::new(vm, Shared::Yes, prototype),
     )?;
 
     // 6. If allocatingGrowableBuffer is true, let allocLength be maxByteLength; otherwise let allocLength be byteLength.

@@ -452,7 +452,7 @@ impl HostObject {
             host_object.wrappable.set(wrappable);
             host_object.host_data.set(host_data);
         }
-        let host_object = allocate_object_in(vm, allocator, host_object);
+        let host_object = allocate_object_in(vm, allocator, |_| host_object);
         host_object.initialize(vm, realm);
         host_object
     }

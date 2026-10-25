@@ -133,7 +133,7 @@ impl ObjectPrototype {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ObjectPrototype> {
-        realm.create_object(vm, Self::new(vm, realm))
+        realm.create_object(vm, |_| Self::new(vm, realm))
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

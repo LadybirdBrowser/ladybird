@@ -42,13 +42,10 @@ impl Test262GlobalObject {
     /// Allocates the global object of `realm`, whose initialize() InitializeHostDefinedRealm runs once the realm has
     /// its global environment.
     pub fn allocate(vm: &Vm, realm: Gc<Realm>) -> Gc<Test262GlobalObject> {
-        allocate_object(
-            vm,
-            Test262GlobalObject {
-                base: GlobalObject::new(vm, Self::CLASS, realm),
-                dollar_262: Cell::new(None),
-            },
-        )
+        allocate_object(vm, |_| Test262GlobalObject {
+            base: GlobalObject::new(vm, Self::CLASS, realm),
+            dollar_262: Cell::new(None),
+        })
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

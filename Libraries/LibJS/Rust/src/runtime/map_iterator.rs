@@ -72,21 +72,18 @@ define_object_class!(MapIterator, extends: [Object], methods: {
 
 impl MapIterator {
     pub fn create(vm: &Vm, realm: Gc<Realm>, map: Gc<Map>, iteration_kind: PropertyKind) -> Gc<MapIterator> {
-        realm.create_object(
-            vm,
-            MapIterator {
-                base: Object::new_with_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm.intrinsics().map_iterator_prototype(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
-                map,
-                done: Cell::new(false),
-                iteration_kind,
-                iterator: map.begin(),
-            },
-        )
+        realm.create_object(vm, |_| MapIterator {
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm.intrinsics().map_iterator_prototype(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            map,
+            done: Cell::new(false),
+            iteration_kind,
+            iterator: map.begin(),
+        })
     }
 
     fn as_builtin_iterator_if_next_is_not_redefined(_: &Object, next_method: Value) -> Option<BuiltinIteratorNext> {

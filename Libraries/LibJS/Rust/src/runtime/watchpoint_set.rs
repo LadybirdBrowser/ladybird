@@ -67,7 +67,7 @@ unsafe impl Trace for WatchpointSet {
 
 impl WatchpointSet {
     pub fn create(vm: &Vm) -> Gc<WatchpointSet> {
-        vm.heap().allocate(WatchpointSet {
+        vm.heap().allocate(|_| WatchpointSet {
             header: CellHeader::for_class(Self::CLASS),
             valid: Cell::new(true),
             storage: WatchpointSetStorage::default(),

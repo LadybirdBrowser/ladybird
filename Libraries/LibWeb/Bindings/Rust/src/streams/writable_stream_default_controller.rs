@@ -280,7 +280,7 @@ pub(crate) fn set_up_writable_stream_default_controller_from_underlying_sink(
     size_algorithm: SizeAlgorithm,
 ) -> WebIdlResult<()> {
     // 1. Let controller be a new WritableStreamDefaultController.
-    let controller = allocate(cx.vm(), WritableStreamDefaultController::new());
+    let controller = allocate(cx.vm(), |_| WritableStreamDefaultController::new());
 
     // 2. Let startAlgorithm be an algorithm that returns undefined.
     let mut start_algorithm = StartAlgorithm::ReturnsUndefined;
