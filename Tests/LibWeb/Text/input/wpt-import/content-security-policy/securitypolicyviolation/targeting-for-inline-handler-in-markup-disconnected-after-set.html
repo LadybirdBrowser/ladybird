@@ -1,0 +1,25 @@
+<!doctype html>
+<meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc'; style-src 'self'">
+<script nonce="abc" src="../../resources/testharness.js"></script>
+<script nonce="abc" src="../../resources/testharnessreport.js"></script>
+
+<a id="target">Click me</a>
+<script nonce="abc">
+  promise_test(async t => {
+    var a = document.getElementById("target");
+    a.onsecuritypolicyviolation =
+        t.unreached_func("Should not be dispatched on the disconnected target");
+    a.setAttribute("onclick", "void(0);");
+    a.parentNode.removeChild(a);
+
+    const timeout_promise = () => new Promise(resolve => t.step_timeout(resolve, 1000));
+
+    return new EventWatcher(t, document, ["securitypolicyviolation"], timeout_promise)
+               .wait_for("securitypolicyviolation").then(t.step_func(e => {
+                 assert_equals(e.blockedURI, "inline");
+                 assert_equals(e.lineNumber, 12);
+                 assert_in_array(e.columnNumber, [7, 19]);
+                 assert_equals(e.target, document);
+               }));
+  });
+</script>

@@ -1,0 +1,20 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Window.open should not open javascript url if not allowed.</title>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc';">
+    <script nonce='abc' src='../../resources/testharness.js'></script>
+    <script nonce='abc' src='../../resources/testharnessreport.js'></script>
+</head>
+<body>
+  <script nonce='abc'>
+    var t = async_test("Check that a securitypolicyviolation event is fired");
+    window.addEventListener('securitypolicyviolation', t.step_func_done(function(e) {
+      assert_equals(e.blockedURI, "inline");
+      assert_equals(e.violatedDirective, "script-src-elem");
+    }));
+
+    window.open('javascript:test(function() { assert_unreached("FAIL")});', 'new');
+  </script>
+</body>
+</html>

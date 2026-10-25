@@ -1,0 +1,28 @@
+<!doctype html>
+<meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc'; style-src 'self'">
+<script nonce="abc" src="../../resources/testharness.js"></script>
+<script nonce="abc" src="../../resources/testharnessreport.js"></script>
+
+<iframe id="subframe"></iframe>
+<script nonce="abc">
+  promise_test(async t => {
+    var d = document.createElement("div");
+    d.setAttribute("onclick", "void(0);");
+    d.onsecuritypolicyviolation =
+        t.unreached_func("Should not be dispatched on the target in the subframe");
+    var subframe = document.getElementById('subframe');
+    subframe.contentDocument.onsecuritypolicyviolation =
+        t.unreached_func("Should not be dispatched on the subframe document");
+    subframe.contentDocument.body.appendChild(d);
+
+    const timeout_promise = () => new Promise(resolve => t.step_timeout(resolve, 1000));
+
+    return new EventWatcher(t, document, ["securitypolicyviolation"], timeout_promise)
+               .wait_for("securitypolicyviolation").then(t.step_func(e => {
+                 assert_equals(e.blockedURI, "inline");
+                 assert_equals(e.lineNumber, 10);
+                 assert_in_array(e.columnNumber, [7, 19]);
+                 assert_equals(e.target, document);
+               }));
+  });
+</script>

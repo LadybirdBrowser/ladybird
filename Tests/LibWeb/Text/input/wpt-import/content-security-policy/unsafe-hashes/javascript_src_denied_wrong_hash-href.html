@@ -1,0 +1,15 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-hashes' 'nonce-abc'
+    'sha256-wrongwrongwrongwrongwrongwrongwrongwrongwro=';">
+    <script src="../../resources/testharness.js" nonce="abc"></script>
+    <script src="../../resources/testharnessreport.js" nonce="abc"></script>
+    <script src="support/helper.js" nonce="abc"></script>
+</head>
+<body>
+    <script nonce="abc">
+    runTest(false, '<a href>', ' due to wrong hash');
+    </script>
+</body>
+</html>

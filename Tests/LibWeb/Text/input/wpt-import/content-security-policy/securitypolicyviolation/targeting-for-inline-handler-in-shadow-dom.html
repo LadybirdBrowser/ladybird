@@ -1,0 +1,40 @@
+<!doctype html>
+<meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc'; style-src 'self'">
+<script nonce="abc" src="../../resources/testharness.js"></script>
+<script nonce="abc" src="../../resources/testharnessreport.js"></script>
+
+<div id="target"></div>
+<script nonce="abc">
+  promise_test(async t => {
+    var shadow = document.getElementById('target').attachShadow({"mode":"closed"});
+    shadow.innerHTML = "<a id='shadow_target' onclick='void(0)'>Click!</a>";
+    var a = shadow.getElementById('shadow_target');
+    a.click();
+
+    const timeout_promise = () => new Promise((_, reject) => t.step_timeout(
+        () => reject(new Error('Timed out waiting for securitypolicyviolation')), 1000));
+    const get_failed_watchers = (results) => results.flatMap(
+        (r, i) => r.status !== "fulfilled" ? [ `#${i}: ${r.reason}` ] : []);
+
+    await Promise.allSettled([
+      Promise.race([new EventWatcher(t, document, ["securitypolicyviolation"])
+                        .wait_for("securitypolicyviolation").then(t.step_func(e => {
+                          assert_equals(e.blockedURI, "inline");
+                          assert_equals(e.lineNumber, 10);
+                          assert_in_array(e.columnNumber, [5, 22]);
+                          assert_equals(e.target, document.getElementById('target'));
+                        })),
+                    timeout_promise()]),
+      Promise.race([new EventWatcher(t, a, ["securitypolicyviolation"])
+                        .wait_for("securitypolicyviolation").then(t.step_func(e => {
+                          assert_equals(e.blockedURI, "inline");
+                          assert_equals(e.lineNumber, 10);
+                          assert_in_array(e.columnNumber, [5, 22]);
+                          assert_equals(e.target, a);
+                        })),
+                    timeout_promise()]),
+    ]).then(results => {
+      assert_array_equals(get_failed_watchers(results), []);
+    });
+  });
+</script>
