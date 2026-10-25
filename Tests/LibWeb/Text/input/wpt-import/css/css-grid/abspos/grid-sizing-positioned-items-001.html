@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Grid sizing positioned items</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#abspos" title="9. Absolute Positioning">
+<meta name="assert" content="This test checks the different size options for absolutely positioned grid items.">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<link href="../../../css/support/grid.css" rel="stylesheet">
+<style>
+
+.grid {
+  grid-template-columns: 100px 200px;
+  grid-template-rows: 50px 150px;
+  width: 100%;
+  height: 100%;
+  border: 5px solid black;
+  margin: 30px;
+  padding: 15px;
+  /* Ensures that the grid container is the containing block of the absolutely positioned grid children. */
+  position: relative;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.lengthSize {
+  width: 50px;
+  height: 20px;
+}
+
+.percentageSize {
+  width: 50%;
+  height: 20%;
+}
+
+.offsets {
+  left: 5px;
+  right: 10px;
+  top: 15px;
+  bottom: 20px;
+}
+
+.onlyFirstRowOnlyFirstColumn {
+  background-color: blue;
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
+}
+
+.endSecondRowEndSecondColumn {
+  background-color: orange;
+  grid-column-end: 3;
+  grid-row-end: 3;
+}
+
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<div id="log"></div>
+
+<div class="unconstrainedContainer">
+  <div class="grid">
+    <div class="absolute autoRowAutoColumn sizedToGridArea"
+      data-offset-x="0" data-offset-y="0" data-expected-width="1030" data-expected-height="1030">
+    </div>
+    <div class="absolute secondRowSecondColumn sizedToGridArea"
+      data-offset-x="115" data-offset-y="65" data-expected-width="915" data-expected-height="965">
+    </div>
+    <div class="absolute onlyFirstRowOnlyFirstColumn sizedToGridArea"
+      data-offset-x="15" data-offset-y="15" data-expected-width="100" data-expected-height="50">
+    </div>
+    <div class="absolute endSecondRowEndSecondColumn sizedToGridArea"
+      data-offset-x="0" data-offset-y="0" data-expected-width="315" data-expected-height="215">
+    </div>
+  </div>
+</div>
+
+<div class="unconstrainedContainer">
+  <div class="grid">
+    <div class="absolute autoRowAutoColumn lengthSize"
+      data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="20">
+    </div>
+    <div class="absolute secondRowSecondColumn lengthSize"
+      data-offset-x="115" data-offset-y="65" data-expected-width="50" data-expected-height="20">
+    </div>
+    <div class="absolute onlyFirstRowOnlyFirstColumn lengthSize"
+      data-offset-x="15" data-offset-y="15" data-expected-width="50" data-expected-height="20">
+    </div>
+    <div class="absolute endSecondRowEndSecondColumn lengthSize"
+      data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="20">
+    </div>
+  </div>
+</div>
+
+<div class="unconstrainedContainer">
+  <div class="grid">
+    <div class="absolute autoRowAutoColumn percentageSize"
+      data-offset-x="0" data-offset-y="0" data-expected-width="515" data-expected-height="206">
+    </div>
+    <div class="absolute secondRowSecondColumn percentageSize"
+      data-offset-x="115" data-offset-y="65" data-expected-width="457.5" data-expected-height="193">
+    </div>
+    <div class="absolute onlyFirstRowOnlyFirstColumn percentageSize"
+      data-offset-x="15" data-offset-y="15" data-expected-width="50" data-expected-height="10">
+    </div>
+    <div class="absolute endSecondRowEndSecondColumn percentageSize"
+      data-offset-x="0" data-offset-y="0" data-expected-width="157.5" data-expected-height="43">
+    </div>
+  </div>
+</div>
+
+<div class="unconstrainedContainer">
+  <div class="grid">
+    <div class="absolute autoRowAutoColumn offsets"
+      data-offset-x="5" data-offset-y="15" data-expected-width="1015" data-expected-height="995">
+    </div>
+    <div class="absolute secondRowSecondColumn offsets"
+      data-offset-x="120" data-offset-y="80" data-expected-width="900" data-expected-height="930">
+    </div>
+    <div class="absolute onlyFirstRowOnlyFirstColumn offsets"
+      data-offset-x="20" data-offset-y="30" data-expected-width="85" data-expected-height="15">
+    </div>
+    <div class="absolute endSecondRowEndSecondColumn offsets"
+      data-offset-x="5" data-offset-y="15" data-expected-width="300" data-expected-height="180">
+    </div>
+  </div>
+</div>
+
+<div class="unconstrainedContainer">
+  <div class="grid directionRTL">
+    <div class="absolute autoRowAutoColumn sizedToGridArea"
+      data-offset-x="0" data-offset-y="0" data-expected-width="1030" data-expected-height="1030">
+    </div>
+    <div class="absolute secondRowSecondColumn sizedToGridArea"
+      data-offset-x="0" data-offset-y="65" data-expected-width="915" data-expected-height="965">
+    </div>
+    <div class="absolute onlyFirstRowOnlyFirstColumn sizedToGridArea"
+      data-offset-x="915" data-offset-y="15" data-expected-width="100" data-expected-height="50">
+    </div>
+    <div class="absolute endSecondRowEndSecondColumn sizedToGridArea"
+      data-offset-x="715" data-offset-y="0" data-expected-width="315" data-expected-height="215">
+    </div>
+  </div>
+</div>
+
+<div class="unconstrainedContainer">
+  <div class="grid directionRTL">
+    <div class="absolute autoRowAutoColumn lengthSize"
+      data-offset-x="980" data-offset-y="0" data-expected-width="50" data-expected-height="20">
+    </div>
+    <div class="absolute secondRowSecondColumn lengthSize"
+      data-offset-x="865" data-offset-y="65" data-expected-width="50" data-expected-height="20">
+    </div>
+    <div class="absolute onlyFirstRowOnlyFirstColumn lengthSize"
+      data-offset-x="965" data-offset-y="15" data-expected-width="50" data-expected-height="20">
+    </div>
+    <div class="absolute endSecondRowEndSecondColumn lengthSize"
+      data-offset-x="980" data-offset-y="0" data-expected-width="50" data-expected-height="20">
+    </div>
+  </div>
+</div>
+
+<div class="unconstrainedContainer">
+  <div class="grid directionRTL">
+    <div class="absolute autoRowAutoColumn percentageSize"
+      data-offset-x="515" data-offset-y="0" data-expected-width="515" data-expected-height="206">
+    </div>
+    <div class="absolute secondRowSecondColumn percentageSize"
+      data-offset-x="457.5" data-offset-y="65" data-expected-width="457.5" data-expected-height="193">
+    </div>
+    <div class="absolute onlyFirstRowOnlyFirstColumn percentageSize"
+      data-offset-x="965" data-offset-y="15" data-expected-width="50" data-expected-height="10">
+    </div>
+    <div class="absolute endSecondRowEndSecondColumn percentageSize"
+      data-offset-x="873" data-offset-y="0" data-expected-width="157.5" data-expected-height="43">
+    </div>
+  </div>
+</div>
+
+<div class="unconstrainedContainer">
+  <div class="grid directionRTL">
+    <div class="absolute autoRowAutoColumn offsets"
+      data-offset-x="5" data-offset-y="15" data-expected-width="1015" data-expected-height="995">
+    </div>
+    <div class="absolute secondRowSecondColumn offsets"
+      data-offset-x="5" data-offset-y="80" data-expected-width="900" data-expected-height="930">
+    </div>
+    <div class="absolute onlyFirstRowOnlyFirstColumn offsets"
+      data-offset-x="920" data-offset-y="30" data-expected-width="85" data-expected-height="15">
+    </div>
+    <div class="absolute endSecondRowEndSecondColumn offsets"
+      data-offset-x="720" data-offset-y="15" data-expected-width="300" data-expected-height="180">
+    </div>
+  </div>
+</div>
+
+</body>
