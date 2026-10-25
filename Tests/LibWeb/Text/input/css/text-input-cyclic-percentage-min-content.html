@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #out { position: absolute; top: 400px; }
+    .grid { display: inline-grid; grid-template-columns: 0px min-content; }
+    input { grid-column: 2; min-width: 7px; padding: 0; border: 0; font: 20px/1 monospace; }
+    #outer { display: inline-grid; grid-auto-flow: column; }
+    #chip { width: 60px; }
+    #inner { grid-area: 1 / 1 / 2 / 3; }
+    #inner input { width: 100%; min-width: 2px; }
+</style>
+<div id="outer"><div id="chip"></div><div id="inner" class="grid"><input></div></div>
+<script>
+    test(() => {
+        for (const appearance of ["auto", "none"]) {
+            for (const sizing of ["width: 100%", "width: calc(10px + 100%)"]) {
+                const grid = document.createElement("div");
+                grid.className = "grid";
+                const input = grid.appendChild(document.createElement("input"));
+                input.style.cssText = `appearance: ${appearance}; ${sizing}`;
+                document.body.appendChild(grid);
+                println(`${appearance}, ${sizing}: ${grid.getBoundingClientRect().width}`);
+            }
+            const reference = document.body.appendChild(document.createElement("input"));
+            reference.style.appearance = appearance;
+            const naturalWidth = reference.getBoundingClientRect().width;
+            const maxContent = document.createElement("div");
+            maxContent.className = "grid";
+            maxContent.style.gridTemplateColumns = "0px max-content";
+            const input = maxContent.appendChild(document.createElement("input"));
+            input.style.cssText = `appearance: ${appearance}; width: 100%`;
+            document.body.appendChild(maxContent);
+            println(`${appearance}, max-content preserves natural width: ${maxContent.getBoundingClientRect().width === naturalWidth}`);
+        }
+        println(`Nested grid width: ${document.getElementById("outer").getBoundingClientRect().width}`);
+    });
+</script>
