@@ -25,6 +25,7 @@ WEB_API Vector<GC::Root<DOM::Node>> focus_chain(GC::Ptr<DOM::Node> subject);
 WEB_API void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Root<DOM::Node>> new_chain, GC::Ptr<DOM::Node> new_focus_target);
 WEB_API void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM::Node> fallback_target = nullptr, FocusTrigger focus_trigger = FocusTrigger::Other, ScrollIntoView = ScrollIntoView::Yes);
 WEB_API void run_unfocusing_steps(GC::Ptr<DOM::Node> old_focus_target);
+GC::Ptr<DOM::Node> focus_delegate(DOM::Node& focus_target, FocusTrigger = FocusTrigger::Other);
 
 // https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-direction
 enum class SequentialFocusDirection : u8 {

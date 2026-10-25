@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
+#include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -400,8 +401,38 @@ static bool is_focusable_area(DOM::Node& node)
 // https://html.spec.whatwg.org/multipage/interaction.html#get-the-focusable-area
 static GC::Ptr<DOM::Node> get_focusable_area(DOM::Node& focus_target, FocusTrigger focus_trigger);
 
+static bool is_sequentially_focusable(DOM::Node const&);
+
+// https://html.spec.whatwg.org/multipage/interaction.html#autofocus-delegate
+static GC::Ptr<DOM::Node> autofocus_delegate(DOM::Node& focus_target, FocusTrigger focus_trigger)
+{
+    // 1. For each descendant descendant of focus target, in tree order:
+    for (auto* descendant = focus_target.first_child(); descendant; descendant = descendant->next_in_pre_order(&focus_target)) {
+        // 1. If descendant does not have an autofocus content attribute, then continue.
+        auto* element = as_if<DOM::Element>(*descendant);
+        if (!element || !element->has_attribute(AttributeNames::autofocus))
+            continue;
+
+        // 2. Let focusable area be descendant, if descendant is a focusable area; otherwise let focusable area be the
+        //    result of getting the focusable area for descendant given focus trigger.
+        GC::Ptr<DOM::Node> focusable_area = is_focusable_area(*descendant) ? descendant : get_focusable_area(*descendant, focus_trigger);
+
+        // 3. If focusable area is null, then continue.
+        if (!focusable_area)
+            continue;
+
+        // FIXME: 4. If focusable area is not click focusable and focus trigger is "click", then continue.
+
+        // 5. Return focusable area.
+        return focusable_area;
+    }
+
+    // 2. Return null.
+    return nullptr;
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#focus-delegate
-static GC::Ptr<DOM::Node> focus_delegate(DOM::Node& focus_target, FocusTrigger focus_trigger)
+GC::Ptr<DOM::Node> focus_delegate(DOM::Node& focus_target, FocusTrigger focus_trigger)
 {
     GC::Ptr<DOM::Node> where_to_look = focus_target;
 
@@ -415,23 +446,37 @@ static GC::Ptr<DOM::Node> focus_delegate(DOM::Node& focus_target, FocusTrigger f
         where_to_look = shadow_root;
     }
 
-    // FIXME: 4. Let autofocusDelegate be the autofocus delegate for whereToLook given focusTrigger.
-    // FIXME: 5. If autofocusDelegate is not null, then return autofocusDelegate.
+    // 4. Let autofocusDelegate be the autofocus delegate for whereToLook given focusTrigger.
+    auto autofocus_delegate = HTML::autofocus_delegate(*where_to_look, focus_trigger);
+
+    // 5. If autofocusDelegate is not null, then return autofocusDelegate.
+    if (autofocus_delegate)
+        return autofocus_delegate;
 
     // 6. For each descendant of whereToLook's descendants, in tree order:
     for (auto* descendant = where_to_look->first_child(); descendant; descendant = descendant->next_in_pre_order(where_to_look.ptr())) {
-        // FIXME: 1. Let focusableArea be null.
-        // FIXME: 2. If focusTarget is a dialog element and descendant is sequentially focusable, then
-        //           set focusableArea to descendant.
+        // 1. Let focusableArea be null.
+        GC::Ptr<DOM::Node> focusable_area;
 
-        // 3. Otherwise, if focusTarget is not a dialog and descendant is a focusable area, set
-        //    focusableArea to descendant.
-        if (is_focusable_area(*descendant))
-            return descendant;
+        // 2. If focusTarget is a dialog element and descendant is sequentially focusable, then set focusableArea to
+        //    descendant.
+        if (is<HTMLDialogElement>(focus_target)) {
+            if (is_sequentially_focusable(*descendant))
+                focusable_area = descendant;
+        }
+        // 3. Otherwise, if focusTarget is not a dialog and descendant is a focusable area, set focusableArea to
+        //    descendant.
+        else if (is_focusable_area(*descendant)) {
+            focusable_area = descendant;
+        }
 
-        // 4. Otherwise, set focusableArea to the result of getting the focusable area for descendant
-        //    given focusTrigger.
-        if (auto focusable_area = get_focusable_area(*descendant, focus_trigger))
+        // 4. Otherwise, set focusableArea to the result of getting the focusable area for descendant given
+        //    focusTrigger.
+        if (!focusable_area)
+            focusable_area = get_focusable_area(*descendant, focus_trigger);
+
+        // 5. If focusableArea is not null, then return focusableArea.
+        if (focusable_area)
             return focusable_area;
     }
 
@@ -794,6 +839,16 @@ static Optional<i32> tabindex_value(DOM::Element const& element)
     if (!attribute.has_value())
         return {};
     return parse_integer(*attribute);
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#sequentially-focusable
+static bool is_sequentially_focusable(DOM::Node const& node)
+{
+    // NB: A focusable area is sequentially focusable unless its tabindex value is a negative integer.
+    auto const* element = as_if<DOM::Element>(node);
+    if (!element || !is_focusable_area(const_cast<DOM::Element&>(*element)))
+        return false;
+    return tabindex_value(*element).value_or(0) >= 0;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#tabindex-ordered-focus-navigation-scope
