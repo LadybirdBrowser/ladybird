@@ -17,8 +17,23 @@ describe("normal behavior", () => {
     };
 
     test("basic functionality", () => {
-        testCollations(new Intl.Locale("en"), ["default"]);
-        testCollations(new Intl.Locale("ar"), ["default"]);
+        testCollations(new Intl.Locale("en"), ["emoji", "eor"]);
+        testCollations(new Intl.Locale("ar"), ["compat", "emoji", "eor"]);
+    });
+
+    test("default collation is not included", () => {
+        expect(new Intl.Locale("en").getCollations()).not.toContain("default");
+        expect(new Intl.Locale("ar").getCollations()).not.toContain("default");
+    });
+
+    test("collations are sorted", () => {
+        const collations = new Intl.Locale("de").getCollations();
+        expect(collations).toEqual([...collations].sort());
+    });
+
+    test("unavailable locales use the root collations", () => {
+        expect(new Intl.Locale("und").getCollations()).toEqual(["emoji", "eor"]);
+        expect(new Intl.Locale("qfz").getCollations()).toEqual(["emoji", "eor"]);
     });
 
     test("extension keyword overrides default data", () => {

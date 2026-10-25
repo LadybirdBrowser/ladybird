@@ -17,11 +17,11 @@ use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::array::Array;
-use crate::runtime::intl::abstract_operations::create_array_from_string_list;
+use crate::runtime::intl::abstract_operations::{create_array_from_string_list, lookup_matching_locale_by_prefix};
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::realm::Realm;
-use crate::unicode::intl::{self as unicode, LocaleID, Weekday};
+use crate::unicode::intl::{self as unicode, Extension, LocaleID, Weekday};
 use crate::utf16::Utf16View;
 
 /// 15 Locale Objects, https://tc39.es/ecma402/#locale-objects
@@ -251,6 +251,69 @@ pub fn calendars_of_locale(vm: &Vm, locale_object: &Locale) -> Gc<Array> {
     create_array_from_string_list(vm, realm, &list)
 }
 
+/// Sorts a list of strings according to lexicographic code unit order.
+fn sort_in_code_unit_order(list: &mut [Utf16String]) {
+    list.sort_by_cached_key(|string| {
+        let view = Utf16View::of_string(string);
+        (0..view.length_in_code_units())
+            .map(|index| view.code_unit_at(index))
+            .collect::<Vec<u16>>()
+    });
+}
+
+// 15.5.7 CanonicalUnicodeSubdivision ( locale, key ), https://tc39.es/ecma402/#sec-canonicalunicodesubdivision
+fn canonical_unicode_subdivision(locale_id: &LocaleID, key: &str) -> Option<Utf16String> {
+    // 1. Let subdivision be UnicodeExtensionValue(locale, key).
+    let key = Utf16String::from_utf8(key);
+    let subdivision = locale_id.extensions.iter().find_map(|extension| match extension {
+        Extension::Locale(extension) => extension
+            .keywords
+            .iter()
+            .find(|keyword| keyword.key == key)
+            .map(|keyword| keyword.value.clone()),
+        _ => None,
+    });
+
+    // 2. If subdivision is EMPTY, return undefined.
+    let subdivision = subdivision?;
+    let subdivision = Utf16View::of_string(&subdivision);
+
+    // 3. If subdivision cannot be matched by the unicode_subdivision_id Unicode locale nonterminal, return undefined.
+    // 4. Let region be the longest prefix of subdivision matched by the unicode_region_subtag Unicode locale nonterminal.
+    // NB: unicode_subdivision_id is a unicode_region_subtag followed by 1 to 4 alphanumeric characters, and a
+    //     unicode_region_subtag is either 2 letters or 3 digits.
+    let length = subdivision.length_in_code_units();
+    let ascii_code_unit_at = |index: usize| u8::try_from(subdivision.code_unit_at(index)).unwrap_or(0);
+    let is_alphanumeric = |index: usize| ascii_code_unit_at(index).is_ascii_alphanumeric();
+    let region_length = if length >= 3 && (0..3).all(|index| ascii_code_unit_at(index).is_ascii_digit()) {
+        3
+    } else {
+        2
+    };
+    let region = subdivision.substring_view(0, region_length.min(length));
+    if !unicode::is_unicode_region_subtag(region)
+        || length <= region_length
+        || length > region_length + 4
+        || !(region_length..length).all(is_alphanumeric)
+    {
+        return None;
+    }
+
+    // 5. Let regionLocale be the string-concatenation of "und-" and region.
+    let mut builder = crate::utf16::Utf16StringBuilder::new();
+    builder.append_ascii("und-");
+    builder.append(region);
+    let region_locale = builder.to_utf16_string();
+
+    // 6. Set regionLocale to CanonicalizeUnicodeLocaleId(regionLocale).
+    let region_locale = unicode::canonicalize_unicode_locale_id(Utf16View::of_string(&region_locale))?;
+
+    // 7. Return GetLocaleRegion(regionLocale).
+    unicode::parse_unicode_locale_id(Utf16View::of_string(&region_locale))?
+        .language_id
+        .region
+}
+
 // 15.5.10 CollationsOfLocale ( loc ), https://tc39.es/ecma402/#sec-collationsoflocale
 pub fn collations_of_locale(vm: &Vm, locale_object: &Locale) -> Gc<Array> {
     let realm = vm.current_realm().expect("CollationsOfLocale runs in a realm");
@@ -261,21 +324,31 @@ pub fn collations_of_locale(vm: &Vm, locale_object: &Locale) -> Gc<Array> {
         return create_array_from_single_string(vm, realm, collation);
     }
 
-    // 2. Let language be GetLocaleLanguage(loc.[[Locale]]).
-    // 3. If language is not "und", then
-    //     a. Let r be LookupMatchingLocaleByPrefix(%Intl.Collator%.[[AvailableLocales]], « loc.[[Locale]] »).
-    //     b. If r is not undefined, then
-    //         i. Let foundLocale be r.[[locale]].
-    //     c. Else,
-    //         i. Let foundLocale be DefaultLocale().
-    //     d. Let foundLocaleData be %Intl.Collator%.[[SortLocaleData]].[[<foundLocale>]].
-    //     e. Let list be a copy of foundLocaleData.[[co]].
-    //     f. Assert: list[0] is null.
-    //     g. Remove the first element from list.
+    // 2. Let match be LookupMatchingLocaleByPrefix(%Intl.Collator%.[[AvailableLocales]], « loc.[[Locale]] »).
+    let matched = lookup_matching_locale_by_prefix(&[locale_object.locale()]);
+
+    // 3. If match is not undefined, then
+    let mut list = if let Some(matched) = matched {
+        // a. Let foundLocale be match.[[locale]].
+        // b. Let foundLocaleData be %Intl.Collator%.[[SortLocaleData]].[[<foundLocale>]].
+        // c. Let list be a copy of foundLocaleData.[[co]].
+        let mut list = unicode::available_collations_of_locale(Utf16View::of_string(&matched.locale));
+
+        // d. Assert: list[0] is null.
+        // e. Remove the first element from list.
+        // NB: Our [[co]] lists contain "default" in place of null.
+        let default_collation = Utf16String::from_utf8("default");
+        list.retain(|collation| *collation != default_collation);
+        list
+    }
     // 4. Else,
-    //     a. Let list be « "emoji", "eor" ».
+    else {
+        // a. Let list be « "emoji", "eor" ».
+        vec![Utf16String::from_utf8("emoji"), Utf16String::from_utf8("eor")]
+    };
+
     // 5. Let sorted be a copy of list, sorted according to lexicographic code unit order.
-    let list = unicode::available_collations_of_locale(Utf16View::of_string(&locale_object.locale()));
+    sort_in_code_unit_order(&mut list);
 
     // 6. Return CreateArrayFromList(sorted).
     create_array_from_string_list(vm, realm, &list)
@@ -292,18 +365,35 @@ pub fn hour_cycles_of_locale(vm: &Vm, locale_object: &Locale) -> Gc<Array> {
     }
 
     // 2. Let preference be RegionPreference(loc.[[Locale]]).
-    // 3. Let region be preference.[[Region]].
-    // 4. Let regionOverride be preference.[[RegionOverride]].
-    // 5. If regionOverride is not undefined and time data for regionOverride are available, then
-    //     a. Let lookupRegion be regionOverride.
-    // 6. Else,
-    //     a. Let lookupRegion be region.
-    // 7. Let list be a List of unique hour cycle identifiers, which must be lower case String values indicating either the 12-hour format ("h11", "h12") or the 24-hour format ("h23", "h24"), sorted in descending preference of those in common use for date and time formatting in lookupRegion. The list is empty if no time data for lookupRegion is available.
-    // 8. If list is empty, set list to « "h23" ».
-    let list = unicode::available_hour_cycles_of_locale(Utf16View::of_string(&locale_object.locale()));
+    // 3. If preference.[[RegionOverride]] is not undefined, let preferredRegions be « preference.[[RegionOverride]],
+    //    preference.[[Region]] »; else let preferredRegions be « preference.[[Region]] ».
+    // 4. Let hourCycles be a new empty List.
+    // 5. Let language be GetLocaleLanguage(loc.[[Locale]]).
+    // 6. For each String region of preferredRegions, do
+    //     a. Let locale be the string-concatenation of language, "-", and region.
+    //     b. If hourCycles is empty and time data for locale locale are available, then
+    //         i. Set hourCycles to a List of unique hour cycle identifiers, which must be lower case Strings indicating
+    //            either the 12-hour format ("h11", "h12") or the 24-hour format ("h23", "h24"), sorted in descending
+    //            preference of those in common use for date and time formatting in locale locale.
+    //     c. If hourCycles is empty and time data for region region are available, then
+    //         i. Set hourCycles to a List of unique hour cycle identifiers, which must be lower case Strings indicating
+    //            either the 12-hour format ("h11", "h12") or the 24-hour format ("h23", "h24"), sorted in descending
+    //            preference of those in common use for date and time formatting in region region.
+    // 7. If hourCycles is empty, set hourCycles to « "h23" ».
+    // NB: ICU applies the "rg" region override and the likely subtags of the locale itself, but it does not look at
+    //     the "sd" subdivision. So when the locale has no region subtag, we give it the region of its subdivision.
+    let mut locale = locale_object.locale();
+    let mut locale_id = locale_object.locale_id();
+    if locale_id.language_id.region.is_none()
+        && let Some(region) = canonical_unicode_subdivision(&locale_id, "sd")
+    {
+        locale_id.language_id.region = Some(region);
+        locale = locale_id.to_utf16_string();
+    }
+    let hour_cycles = unicode::available_hour_cycles_of_locale(Utf16View::of_string(&locale));
 
-    // 9. Return CreateArrayFromList(list).
-    create_array_from_string_list(vm, realm, &list)
+    // 8. Return CreateArrayFromList(hourCycles).
+    create_array_from_string_list(vm, realm, &hour_cycles)
 }
 
 // 15.5.12 NumberingSystemsOfLocale ( loc ), https://tc39.es/ecma402/#sec-numberingsystemsoflocale
@@ -316,18 +406,26 @@ pub fn numbering_systems_of_locale(vm: &Vm, locale_object: &Locale) -> Gc<Array>
         return create_array_from_single_string(vm, realm, numbering_system);
     }
 
-    // 2. Let r be LookupMatchingLocaleByPrefix(%Intl.NumberFormat%.[[AvailableLocales]], « loc.[[Locale]] »).
-    // 3. If r is not undefined, then
-    //     a. Let foundLocale be r.[[locale]].
-    //     b. Let foundLocaleData be %Intl.NumberFormat%.[[LocaleData]].[[<foundLocale>]].
-    //     c. Let numberingSystems be foundLocaleData.[[nu]].
-    //     d. Let list be « numberingSystems[0] ».
-    // 4. Else,
-    //     a. Let list be « "latn" ».
-    let list = unicode::available_number_systems_of_locale(Utf16View::of_string(&locale_object.locale()));
+    // 2. Let match be LookupMatchingLocaleByPrefix(%Intl.NumberFormat%.[[AvailableLocales]], « loc.[[Locale]] »).
+    let matched = lookup_matching_locale_by_prefix(&[locale_object.locale()]);
+
+    // 3. If match is not undefined, then
+    let numbering_system = matched
+        .and_then(|matched| {
+            // a. Let foundLocale be match.[[locale]].
+            // b. Let foundLocaleData be %Intl.NumberFormat%.[[LocaleData]].[[<foundLocale>]].
+            // c. Let numberingSystems be foundLocaleData.[[nu]].
+            let numbering_systems = unicode::available_number_systems_of_locale(Utf16View::of_string(&matched.locale));
+
+            // d. Let list be « numberingSystems[0] ».
+            numbering_systems.into_iter().next()
+        })
+        // 4. Else,
+        //     a. Let list be « "latn" ».
+        .unwrap_or_else(|| Utf16String::from_utf8("latn"));
 
     // 5. Return CreateArrayFromList(list).
-    create_array_from_string_list(vm, realm, &list)
+    create_array_from_single_string(vm, realm, numbering_system)
 }
 
 // 15.5.13 TimeZonesOfLocale ( loc ), https://tc39.es/ecma402/#sec-timezonesoflocale
