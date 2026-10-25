@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<link rel="author" title="Jihwan Marc Kim" href="mailto:bluewhale.marc@gmail.com" />
+<link rel="help" href="https://crbug.com/1283025" />
+<meta name="flags" content="" />
+<meta name="assert" content="percent lengths of fractional td width should rendered correctly" />
+<style>
+  main div {
+    position: relative;
+    border: 1px solid black;
+    width: 400px;
+  }
+  .cell {
+    background-color: skyblue;
+    height: 20px;
+  }
+</style>
+<p>
+  Tests that percent lengths of fractional td width should rendered correctly
+  even it is smaller than 1.
+</p>
+
+<hr />
+<output id="log"></output>
+<main>
+  <div>
+    <table width="100%">
+      <tbody>
+        <tr>
+          <td class="cell" width="0.5%" data-expected-client-width="2"></td>
+          <td>0.5%</td>
+        </tr>
+      </tbody>
+    </table>
+    <table width="100%">
+      <tbody>
+        <tr>
+          <td class="cell" width="1%" data-expected-client-width="4"></td>
+          <td>1%</td>
+        </tr>
+      </tbody>
+    </table>
+    <table width="100%">
+      <tbody>
+        <tr>
+          <td class="cell" width="5%" data-expected-client-width="20"></td>
+          <td>5%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+<script>
+  checkLayout(".cell");
+</script>
+
