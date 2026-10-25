@@ -1,0 +1,20 @@
+Ladybird keeps every storage bottle's map in the browser process, in a
+StorageJar, and a StorageAreaRegistry there keys each bottle of each
+jar by a StorageAreaId and holds the set of WebContent processes
+connected to it. The jar reports every change it applies to an
+observer the registry installs, so a change made by a page, by
+DevTools or by clearing site data fans out to every connected process
+without any of those callers having to broadcast. Blink's browser-side
+StorageAreaImpl is the same object: it owns the observer set its
+renderers' CachedStorageAreas bind through AddObserver, and relays
+every mutation to them. WebKit's StorageAreaBase in the network
+process keeps the listener map its StorageAreaMaps register in, and
+its dispatchEvents and notifyListenersAboutClear reach them all. Gecko
+has no listener set of this shape: its parent-side Datastore notifies
+the other processes' Snapshots key by key, and its LSObserver actors
+carry the storage events.
+
+An area ID is a claim about the sender, checked the way a page ID is,
+and one ever issued to a connection stays valid for the connection's
+life, so a write that races a browser-side teardown is dropped rather
+than treated as misbehavior.
