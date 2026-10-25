@@ -258,10 +258,6 @@ impl Vm {
 
         // NOTE: Spec steps are rearranged in order to compute number of registers+constants+locals before construction of the execution context.
 
-        // 12. Let result be Completion(GlobalDeclarationInstantiation(script, globalEnv)).
-        let instantiation_result = script_record.global_declaration_instantiation(vm, global_environment);
-        let mut result = instantiation_result.map(|()| Value::UNDEFINED);
-
         // 11. Let script be scriptRecord.[[ECMAScriptCode]].
         let executable = script_record.cached_executable();
         if should_dump_bytecode() {
@@ -314,6 +310,11 @@ impl Vm {
         // 9. Suspend the currently running execution context.
         // 10. Push scriptContext onto the execution context stack; scriptContext is now the running execution context.
         vm.push_execution_context_checking_stack_space(script_context)?;
+
+        // 12. Let result be Completion(GlobalDeclarationInstantiation(script, globalEnv)).
+        let mut result = script_record
+            .global_declaration_instantiation(vm, global_environment)
+            .map(|()| Value::UNDEFINED);
 
         // 13. If result.[[Type]] is normal, then
         if result.is_ok() {
