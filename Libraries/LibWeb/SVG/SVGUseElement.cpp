@@ -272,7 +272,7 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element() const
 void SVGUseElement::fetch_the_document(URL::URL const& url)
 {
     m_load_event_delayer.emplace(document());
-    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), url);
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), url, HTML::CORSSettingAttribute::NoCORS);
     m_resource_request->add_callbacks(
         [this] {
             clone_element_tree_as_our_shadow_tree(referenced_element());

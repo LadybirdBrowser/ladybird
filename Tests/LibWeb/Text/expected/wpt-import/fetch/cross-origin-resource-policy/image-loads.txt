@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-4 Pass
-2 Fail
+6 Pass
 Pass	Same-origin image load with a 'Cross-Origin-Resource-Policy: same-origin' response header.
 Pass	Same-origin image load with a 'Cross-Origin-Resource-Policy: same-site' response header.
 Pass	Cross-origin cors image load with a 'Cross-Origin-Resource-Policy: same-origin' response header.
 Pass	Cross-origin cors image load with a 'Cross-Origin-Resource-Policy: same-site' response header.
-Fail	Cross-origin no-cors image load with a 'Cross-Origin-Resource-Policy: same-origin' response header.
-Fail	Cross-origin no-cors image load with a 'Cross-Origin-Resource-Policy: same-site' response header.
+Pass	Cross-origin no-cors image load with a 'Cross-Origin-Resource-Policy: same-origin' response header.
+Pass	Cross-origin no-cors image load with a 'Cross-Origin-Resource-Policy: same-site' response header.

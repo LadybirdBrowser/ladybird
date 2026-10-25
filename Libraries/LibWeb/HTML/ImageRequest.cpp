@@ -65,17 +65,17 @@ void ImageRequest::set_state(State state)
     m_state = state;
 }
 
-void ImageRequest::set_current_url(DOM::Document& document, String url)
+void ImageRequest::set_current_url(DOM::Document& document, String url, CORSSettingAttribute cors_setting)
 {
     m_current_url = Utf16String::from_utf8(url);
 
     if (auto parsed_url = DOMURL::parse(m_current_url); parsed_url.has_value())
-        m_shared_resource_request = SharedResourceRequest::get_or_create(document, parsed_url.release_value());
+        m_shared_resource_request = SharedResourceRequest::get_or_create(document, parsed_url.release_value(), cors_setting);
 }
 
-void ImageRequest::set_current_url(DOM::Document& document, Utf16String url)
+void ImageRequest::set_current_url(DOM::Document& document, Utf16String url, CORSSettingAttribute cors_setting)
 {
-    set_current_url(document, url.to_utf8());
+    set_current_url(document, url.to_utf8(), cors_setting);
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#abort-the-image-request

@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Find.h>
 #include <AK/HashTable.h>
 #include <AK/JsonObject.h>
 #include <AK/NumericLimits.h>
@@ -2701,8 +2702,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> Internals::image_animation_state_for_ur
     if (!parsed_url.has_value())
         return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = Utf16String::formatted("Invalid URL: '{}'", url_utf8) };
 
-    auto it = document.shared_resource_requests().find(*parsed_url);
-    if (it == document.shared_resource_requests().end())
+    auto& shared_resource_requests = document.shared_resource_requests();
+    auto it = find_if(shared_resource_requests.begin(), shared_resource_requests.end(), [&](auto const& entry) { return entry.key.url == *parsed_url; });
+    if (it == shared_resource_requests.end())
         return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = Utf16String::formatted("URL doesn't have any associated shared resource requests: '{}'", url_utf8) };
 
     auto image_data = it->value->image_data();

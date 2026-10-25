@@ -13,6 +13,7 @@
 #include <LibGfx/Size.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/CORSSettingAttribute.h>
 
 namespace Web::HTML {
 
@@ -41,8 +42,8 @@ public:
     void set_state(State);
 
     Utf16String const& current_url() const { return m_current_url; }
-    void set_current_url(DOM::Document&, String);
-    void set_current_url(DOM::Document&, Utf16String);
+    void set_current_url(DOM::Document&, String, CORSSettingAttribute);
+    void set_current_url(DOM::Document&, Utf16String, CORSSettingAttribute);
 
     [[nodiscard]] GC::Ptr<DecodedImageData> image_data() const;
     void set_image_data(GC::Ptr<DecodedImageData>);
