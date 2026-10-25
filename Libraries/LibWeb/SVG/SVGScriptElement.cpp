@@ -150,8 +150,12 @@ void SVGScriptElement::process_the_script_element()
     }
 
     auto script_content = child_text_content();
-    if (script_content.is_empty())
+    if (script_content.is_empty()) {
+        // AD-HOC: The parser is done with an empty script once it gets here, so a later change to the script's
+        //         children should process it like for a script that the parser did not insert.
+        m_parser_inserted = false;
         return;
+    }
 
     // 3. The 'script' element's "already processed" flag is set to true.
     m_already_processed = true;

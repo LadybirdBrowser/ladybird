@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	scheduler: SVG inline script adding text to empty script 
+1 Pass
+Pass	scheduler: SVG inline script adding text to empty script 
