@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<title>position:sticky elements can be constrained by top and bottom exceeding container size</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos" />
+<meta name="assert" content="This test checks that position:sticky elements obey both top and bottom constraints" />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+
+.scroller {
+  height: 200px;
+  overflow: auto;
+  position: relative;
+}
+.container {
+  height: 120px;
+}
+.padding, .sticky {
+  height: 50px;
+}
+.overflow-padding {
+  height: 200px;
+}
+.sticky {
+  position: sticky;
+  background: green;
+  top: -25px;
+  bottom: 150px;
+}
+</style>
+
+<body>
+  <div class="scroller">
+    <div class="container">
+      <div class="padding"></div>
+      <div class="sticky"></div>
+    </div>
+    <div class="overflow-padding"></div>
+  </div>
+</body>
+
+<script>
+test(() => {
+  const scroller = document.querySelector('.scroller');
+  const element = document.querySelector('.sticky');
+  scroller.scrollTop = 0;
+  assert_equals(element.offsetTop, 0);
+}, 'initially the sticky box should be pushed to the top of the container');
+
+test(() => {
+  const scroller = document.querySelector('.scroller');
+  const element = document.querySelector('.sticky');
+  scroller.scrollTop = 95;
+  assert_equals(element.offsetTop, 70);
+}, 'when we scroll past the flow position the top constraint pushes it down');
+</script>

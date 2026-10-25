@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<title>position:sticky elements should respect padding on their ancestor overflow element</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos" />
+<meta name="assert" content="This test checks that position:sticky elements respect padding on their ancestor overflow element" />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<script src="../resources/sticky-util.js"></script>
+
+<body></body>
+
+<script>
+test(() => {
+  const elements = setupStickyTest('top', 50);
+  elements.scroller.style.padding = '20px 0';
+
+  // Before sticking; the element isn't within the padding range.
+  elements.scroller.scrollTop = 150;
+  const nonStickyTopY = elements.container.offsetTop +
+          elements.filler.clientHeight;
+  assert_equals(elements.sticky.offsetTop, nonStickyTopY);
+}, 'A sticky element should not be affected by ancestor padding until it ' +
+    'reaches it');
+
+test(() => {
+  const elements = setupStickyTest('top', 50);
+  elements.sticky.style.top = '0';
+  elements.scroller.style.padding = '20px 0';
+
+  elements.scroller.scrollTop = 200;
+
+  // This math cancels to sticky.offsetTop == (scroller.scrollTop + 50), but
+  // for clarity the calculations are left explicit.
+  const nonStickyTopY = elements.container.offsetTop +
+    elements.filler.clientHeight;
+  const targetTopY = elements.scroller.scrollTop;
+  const stickyOffset = targetTopY - nonStickyTopY;
+
+  assert_equals(elements.sticky.offsetTop, nonStickyTopY + stickyOffset + 20);
+}, 'A sticky element should be offset by ancestor padding even when stuck');
+
+test(() => {
+  const elements = setupStickyTest('top', 50);
+  elements.sticky.style.top = '0';
+  elements.scroller.style.padding = '20px 0';
+
+  elements.scroller.scrollTop = 315;
+  const maxOffsetInContainer = elements.container.offsetTop +
+      elements.container.clientHeight - elements.sticky.clientHeight;
+  assert_equals(elements.sticky.offsetTop, maxOffsetInContainer);
+}, 'Ancestor overflow padding does not allow a sticky element to escape its ' +
+    'container');
+</script>

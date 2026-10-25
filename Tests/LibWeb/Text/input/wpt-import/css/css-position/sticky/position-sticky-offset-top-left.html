@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<title>Sticky positioned element should be observable by offsetTop and offsetLeft</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos" />
+<meta name="assert" content="This test checks that a sticky positioned element
+should be observable by offsetTop/offsetLeft." />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+body {
+  margin: 0;
+}
+
+.container {
+  position: relative; /* Required for offsetTop/offsetLeft tests. */
+  overflow: scroll;
+  width: 200px;
+  height: 200px;
+}
+
+.spacer {
+  width: 2000px;
+  height: 2000px;
+}
+
+.box {
+  width: 100px;
+  height: 100px;
+  background-color: green;
+}
+
+.sticky {
+  position: sticky;
+  top: 50px;
+  left: 20px;
+}
+</style>
+
+<div id="scroller1" class="container">
+  <div class="spacer"></div>
+</div>
+
+<script>
+test(() => {
+    var scroller = document.getElementById('scroller1');
+    scroller.scrollTop = 100;
+    scroller.scrollLeft = 75;
+
+    var sticky = document.createElement('div');
+    sticky.className = 'sticky box';
+    scroller.insertBefore(sticky, scroller.querySelector('.spacer'));
+
+    assert_equals(sticky.offsetTop, scroller.scrollTop + 50);
+    assert_equals(sticky.offsetLeft, scroller.scrollLeft + 20);
+}, 'offsetTop/offsetLeft should be correct for sticky after script insertion');
+</script>
+
+<div id="scroller2" class="container">
+  <div id="sticky2" class="sticky box"></div>
+  <div class="spacer"></div>
+</div>
+
+<script>
+test(function() {
+    var scroller = document.getElementById('scroller2');
+    var sticky = document.getElementById('sticky2');
+    scroller.scrollTop = 100;
+    scroller.scrollLeft = 75;
+
+    var div = document.createElement('div');
+    div.style.height = '65px';
+    scroller.insertBefore(div, sticky);
+
+    assert_equals(sticky.offsetTop, scroller.scrollTop + 50);
+    assert_equals(sticky.offsetLeft, scroller.scrollLeft + 20);
+}, 'offsetTop/offsetLeft should be correct for sticky after script-caused layout');
+</script>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<title>Nested bottom-constrained position:sticky elements should render correctly</title>
+
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos" />
+<meta name="assert" content="This test checks that nested position:sticky elements with a bottom constraint render correctly" />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<script src="../resources/sticky-util.js"></script>
+
+<body></body>
+
+<script>
+test(() => {
+  const elements = setupNestedStickyTest('bottom', 25, 35);
+  elements.scroller.scrollTop = 300;
+  const nonStickyTopY = elements.container.offsetTop +
+      elements.filler.clientHeight;
+  assert_equals(elements.sticky.offsetTop, nonStickyTopY);
+  // The inner sticky should not be offset from the outer.
+  const nonStickyInnerTopY = elements.sticky.clientHeight -
+      elements.innerSticky.clientHeight;
+  assert_equals(elements.innerSticky.offsetTop, nonStickyInnerTopY);
+}, 'before reaching the sticking point, neither sticky box should be offset');
+
+test(() => {
+  const elements = setupNestedStickyTest('bottom', 25, 50);
+  elements.scroller.scrollTop = 150;
+  const nonStickyTopY = elements.container.offsetTop +
+      elements.filler.clientHeight;
+  assert_equals(elements.sticky.offsetTop, nonStickyTopY);
+  assert_equals(elements.innerSticky.offsetTop, 50);
+}, 'the inner sticky can stick before the outer one if necessary');
+
+test(() => {
+  const elements = setupNestedStickyTest('bottom', 25, 35);
+  elements.scroller.scrollTop = 100;
+
+  const nonStickyTopY = elements.container.offsetTop +
+      elements.filler.clientHeight;
+  const nonStickyBottomY = nonStickyTopY + elements.sticky.clientHeight;
+  const targetBottomY = elements.scroller.clientHeight +
+      elements.scroller.scrollTop - 25;
+  const stickyOffset = nonStickyBottomY - targetBottomY;
+  assert_equals(elements.sticky.offsetTop, nonStickyTopY - stickyOffset);
+
+  // The inner sticky has similar math, but its offsetTop is relative to the
+  // sticky element and in this test is (height - the difference between the
+  // top values).
+  assert_equals(elements.innerSticky.offsetTop, 40);
+}, 'both sticky boxes can be stuck at the same time');
+
+test(() => {
+  const elements = setupNestedStickyTest('bottom', 25, 75);
+  elements.scroller.scrollTop = 0;
+  assert_equals(elements.sticky.offsetTop, elements.container.offsetTop);
+  assert_equals(elements.innerSticky.offsetTop, 0);
+}, 'neither sticky can escape their containing block');
+
+test(() => {
+  const elements = setupNestedStickyTest('bottom', 25, 300);
+  elements.scroller.scrollTop = 200;
+  // It doesn't matter how big the inner sticky offset is, it cannot escape its
+  // containing block (the outer sticky).
+  assert_equals(elements.innerSticky.offsetTop, 0);
+}, 'the inner sticky cannot be pushed outside the outer sticky');
+</script>

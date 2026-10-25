@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>position:sticky elements should properly interact with margins</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos" />
+<meta name="assert" content="position:sticky elements should ignore margins when sticking, but consider them when making sure sticky elements do not escape their containing block" />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<script src="../resources/sticky-util.js"></script>
+
+<body></body>
+
+<script>
+test(() => {
+    const elements = setupStickyTest('top', 50);
+    elements.sticky.style.margin = '15px';
+    elements.scroller.scrollTop = 100;
+    assert_equals(elements.sticky.offsetTop,
+        elements.container.offsetTop + elements.filler.clientHeight + 15);
+}, 'Before sticking, the margin should be obeyed.');
+
+test(() => {
+  const elements = setupStickyTest('top', 50);
+  elements.sticky.style.margin = '15px';
+
+  elements.scroller.scrollTop = 200;
+
+  // This math cancels to sticky.offsetTop == (scroller.scrollTop + 50), but
+  // for clarity the calculations are left explicit.
+  const nonStickyTopY = elements.container.offsetTop +
+    elements.filler.clientHeight;
+  const targetTopY = elements.scroller.scrollTop + 50;
+  const stickyOffset = targetTopY - nonStickyTopY;
+
+  assert_equals(elements.sticky.offsetTop, nonStickyTopY + stickyOffset);
+}, 'Whilst stuck, the margin is irrelevant.');
+
+test(() => {
+  const elements = setupStickyTest('top', 50);
+  elements.sticky.style.margin = '15px';
+
+  elements.scroller.scrollTop = 300;
+
+  const maxOffsetInContainer = elements.container.offsetTop +
+    elements.container.clientHeight - elements.sticky.clientHeight;
+  assert_equals(elements.sticky.offsetTop, maxOffsetInContainer - 15);
+}, 'The margin is taken into account when making sure the sticky element ' +
+    'does not escape its container');
+</script>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>position:sticky should operate correctly for the root scroller</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos" />
+<meta name="assert" content="This test checks that position:sticky elements work when using the root (document) scroller" />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+body {
+  /* Assumption: 3000px is taller than any user agents test window size. */
+  height: 3000px;
+}
+
+#sticky {
+  position: sticky;
+  top: 50px;
+  width: 200px;
+  height: 200px;
+  background-color: green;
+}
+</style>
+
+<div id="sticky"></div>
+
+<script>
+test(() => {
+  window.scrollTo(0, 700);
+  assert_equals(sticky.offsetTop, 700 + 50);
+}, 'Sticky elements work with the root (document) scroller');
+</script>

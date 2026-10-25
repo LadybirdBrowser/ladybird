@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	initially the sticky box should be pushed to the top of the container
+Fail	when we scroll past the flow position the top constraint pushes it down

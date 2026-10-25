@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<title>position:sticky elements should respect the top constraint</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos" />
+<meta name="assert" content="This test checks that position:sticky elements obey their top anchor after scrolling" />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<script src="../resources/sticky-util.js"></script>
+
+<body></body>
+
+<script>
+test(() => {
+  const elements = setupStickyTest('top', 50);
+  elements.scroller.scrollTop = 100;
+  const nonStickyTopY = elements.container.offsetTop +
+      elements.filler.clientHeight;
+  assert_equals(elements.sticky.offsetTop, nonStickyTopY);
+}, 'before reaching the sticking point the sticky box should not be offset');
+
+test(() => {
+  const elements = setupStickyTest('top', 50);
+  elements.scroller.scrollTop = 200;
+
+  // This math cancels to sticky.offsetTop == (scroller.scrollTop + 50), but
+  // for clarity the calculations are left explicit.
+  const nonStickyTopY = elements.container.offsetTop +
+      elements.filler.clientHeight;
+  const targetTopY = elements.scroller.scrollTop + 50;
+  const stickyOffset = targetTopY - nonStickyTopY;
+
+  assert_equals(elements.sticky.offsetTop, nonStickyTopY + stickyOffset);
+}, 'after reaching the sticking point the sticky box should be offset');
+
+test(() => {
+  const elements = setupStickyTest('top', 50);
+  elements.scroller.scrollTop = 300;
+  const maxOffsetInContainer = elements.container.offsetTop +
+      elements.container.clientHeight - elements.sticky.clientHeight;
+  assert_equals(elements.sticky.offsetTop, maxOffsetInContainer);
+}, 'the sticky box should not be pushed outside its containing block');
+</script>
