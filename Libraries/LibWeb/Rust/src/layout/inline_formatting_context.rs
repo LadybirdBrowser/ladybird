@@ -1622,12 +1622,13 @@ impl<'context> InlineFormattingContext<'context> {
         });
     }
 
-    fn break_overflowing_text_item(
-        &self,
-        line_builder: &mut line_builder::LineBuilder<'_, '_>,
+    fn break_overflowing_text_item<'builder>(
+        &'builder self,
+        line_builder: &mut line_builder::LineBuilder<'builder, 'context>,
         item: &mut inline_level_iterator::Item,
         item_index: usize,
         mut line_limit: Option<&mut FragmentainerLineLimit>,
+        state_at_clamp_point: &mut Option<LineBuildingState<'builder, 'context>>,
     ) -> bool {
         if line_builder
             .remaining_inline_size_for_overflow_break()
@@ -1640,6 +1641,11 @@ impl<'context> InlineFormattingContext<'context> {
         let letter_spacing = style.letter_spacing().to_double() as f32;
         let word_spacing = style.word_spacing().to_double() as f32;
         loop {
+            // NB: Splitting one text item can create several lines. Observe the clamp point before creating more,
+            //     preserving the first clamped line while laying out legacy scrollable overflow.
+            if self.stops_at_line_clamp_point(line_builder, state_at_clamp_point) {
+                return false;
+            }
             if line_limit.as_deref_mut().is_some_and(|limit| limit.is_reached(self)) {
                 return true;
             }
@@ -2001,6 +2007,7 @@ impl<'context> InlineFormattingContext<'context> {
                                 &mut item,
                                 item_index,
                                 line_limit.as_mut(),
+                                &mut state_at_clamp_point,
                             ) {
                                 stopped_at_line_limit = true;
                                 break;

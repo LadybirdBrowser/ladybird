@@ -1,0 +1,32 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { font: 20px/20px monospace; }
+    .clamp { overflow: hidden; overflow-wrap: break-word; }
+    .legacy { display: -webkit-box; -webkit-box-orient: vertical; }
+    .row { display: flex; width: 180px; align-items: center; }
+    .name { flex-shrink: 0; width: 180px; }
+    .handle { min-width: 0; }
+</style>
+<div class="row"><div class="name">Name</div><div class="handle"><a><span class="clamp legacy" style="-webkit-line-clamp: 1">@abcdefghijklmnopqrstuvwx</span></a></div></div>
+<script>
+    test(() => {
+        for (const mode of ["legacy", "standard"]) {
+            for (const lines of [1, 2]) {
+                for (const width of [0, 1, 10, 36]) {
+                    const element = document.createElement("div");
+                    element.className = `clamp ${mode}`;
+                    element.style.width = `${width}px`;
+                    element.style.setProperty(mode === "legacy" ? "-webkit-line-clamp" : "line-clamp", lines);
+                    element.textContent = "abcdefghijklmnopqrstuvwx";
+                    document.body.appendChild(element);
+                    println(`${mode}, ${lines} lines, width ${width}: height ${element.clientHeight}`);
+                    if (mode === "legacy")
+                        println(`Clamped content remains scrollable: ${element.scrollHeight > element.clientHeight}`);
+                }
+            }
+        }
+        println(`Flex row height: ${document.querySelector(".row").clientHeight}`);
+        println(`Flex handle width: ${document.querySelector(".handle").clientWidth}`);
+    });
+</script>
