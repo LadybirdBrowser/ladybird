@@ -1278,7 +1278,6 @@ pub(crate) struct LayoutNodeArena {
     text_slots: TextSlots,
     pub(super) searchable_text: Option<Vec<super::text_queries::MappedText>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
-    raw_table_column_spans: RefCell<HashMap<NodeSlotId, u32>>,
     /// The layout kind of each row built for a MathML element, from its tag name.
     math_layout_kinds: RefCell<HashMap<NodeSlotId, super::math_formatting_context::MathLayoutKind>>,
     replaced_paint_facts: RefCell<Arc<crate::painting::replaced_paint_facts::ReplacedPaintFactsTable>>,
@@ -1395,7 +1394,6 @@ impl LayoutNodeArena {
             text_slots: TextSlots::default(),
             searchable_text: None,
             replaced_content_facts: Vec::new(),
-            raw_table_column_spans: RefCell::default(),
             math_layout_kinds: RefCell::default(),
             replaced_paint_facts: RefCell::default(),
             layer_image_paint_facts: RefCell::default(),
@@ -1752,7 +1750,6 @@ impl LayoutNodeArena {
         self.fc_run_cache_store.remove_entry(index);
         self.in_flow_block_cache_store.remove_entry(index);
         self.remove_layout_update_flag_node(id);
-        self.raw_table_column_spans.get_mut().remove(&id);
         self.math_layout_kinds.get_mut().remove(&id);
         if self.replaced_paint_facts.get_mut().contains_key(&id) {
             Arc::make_mut(self.replaced_paint_facts.get_mut()).remove(&id);
@@ -5250,17 +5247,10 @@ impl LayoutNodeArena {
     /// they changed.
     pub(crate) fn set_table_spans(&self, id: NodeSlotId, spans: TableSpans) -> bool {
         let data = self.data(id);
-        let effective_spans_changed =
-            data.table_column_span.get() != spans.column_span || data.table_row_span.get() != spans.row_span;
+        let changed = data.table_column_span.get() != spans.column_span || data.table_row_span.get() != spans.row_span;
         data.table_column_span.set(spans.column_span);
         data.table_row_span.set(spans.row_span);
-        let mut raw_spans = self.raw_table_column_spans.borrow_mut();
-        let previous_raw_column_span = if spans.raw_column_span == 1 {
-            raw_spans.remove(&id)
-        } else {
-            raw_spans.insert(id, spans.raw_column_span)
-        };
-        effective_spans_changed || previous_raw_column_span.unwrap_or(1) != spans.raw_column_span
+        changed
     }
 
     /// The layout algorithm the MathML element a row is built for selects by its tag name.
@@ -5270,12 +5260,6 @@ impl LayoutNodeArena {
             .get(&id)
             .copied()
             .unwrap_or(super::math_formatting_context::MathLayoutKind::NotMathML)
-    }
-
-    pub(crate) fn raw_table_column_span(&self, id: NodeSlotId) -> u32 {
-        // data() validates that id names a live slot with a matching generation.
-        self.data(id);
-        self.raw_table_column_spans.borrow().get(&id).copied().unwrap_or(1)
     }
 
     pub(crate) fn text_content(&self, id: NodeSlotId) -> Option<&TextContent> {
@@ -6622,7 +6606,6 @@ mod tests {
         let spans = TableSpans {
             column_span: 2,
             row_span: 3,
-            raw_column_span: 1,
         };
         engine.set_element_table_spans(element, spans);
         let mut arena = LayoutNodeArena::new();
