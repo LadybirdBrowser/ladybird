@@ -1,0 +1,74 @@
+<!doctype html>
+<meta charset="utf-8" />
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const ascii = text => Array.from(text, character => character.charCodeAt(0));
+        const xml = (encoding, bytes) => [
+            ...ascii(`<?xml version="1.0"${encoding ? ` encoding="${encoding}"` : ""}?><x>`),
+            ...bytes,
+            ...ascii("</x>"),
+        ];
+        const utf16 = (text, littleEndian) =>
+            Array.from(text).flatMap(character => {
+                const code = character.charCodeAt(0);
+                return littleEndian ? [code & 255, code >> 8] : [code >> 8, code & 255];
+            });
+        const cases = [
+            ["declaration", "application/xml", xml("windows-1252", [0xe9])],
+            ["invalid MIME charset", "application/xml;charset=bogus", xml("windows-1252", [0xe9])],
+            ["UTF-8 MIME charset", "application/xml;charset=UTF-8", xml("windows-1252", [0xc3, 0xa9])],
+            ["windows-1252 MIME charset", "application/xml;charset=windows-1252", xml("UTF-8", [0xe9])],
+            [
+                "UTF-8 BOM",
+                "application/xml;charset=windows-1252",
+                [0xef, 0xbb, 0xbf, ...xml("windows-1252", [0xc3, 0xa9])],
+            ],
+            [
+                "UTF-16LE BOM",
+                "application/xml",
+                [0xff, 0xfe, ...utf16('<?xml version="1.0" encoding="UTF-16"?><x>é</x>', true)],
+            ],
+            [
+                "UTF-16BE BOM",
+                "application/xml;charset=UTF-8",
+                [0xfe, 0xff, ...utf16('<?xml version="1.0" encoding="UTF-16"?><x>é</x>', false)],
+            ],
+            ["UTF-8 default", "application/xml", xml(null, [0xc3, 0xa9])],
+        ];
+        const report = (label, document) => {
+            println(
+                `${label}: text matches: ${document?.documentElement?.localName === "x" && document.documentElement.textContent === "é"}`
+            );
+            println(`${label}: characterSet: ${document?.characterSet}`);
+        };
+        for (const [index, [label, mime, bytes]] of cases.entries()) {
+            const url = await httpTestServer().createEcho("GET", `/xml-document-encoding-${index}`, {
+                status: 200,
+                headers: { "Content-Type": mime },
+                body_encoding: "base64",
+                body: btoa(String.fromCharCode(...bytes)),
+            });
+            const frame = document.createElement("iframe");
+            const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+            frame.src = url;
+            document.body.append(frame);
+            await loaded;
+            report(`${label} navigation`, frame.contentDocument);
+            frame.remove();
+
+            for (const responseType of ["", "document"]) {
+                const xhr = new XMLHttpRequest();
+                xhr.open("GET", url);
+                xhr.responseType = responseType;
+                const loaded = new Promise((resolve, reject) => {
+                    xhr.onload = resolve;
+                    xhr.onerror = reject;
+                });
+                xhr.send();
+                await loaded;
+                report(`${label} XHR ${responseType || "default"}`, xhr.responseXML);
+            }
+        }
+    });
+</script>

@@ -1,0 +1,48 @@
+declaration navigation: text matches: true
+declaration navigation: characterSet: windows-1252
+declaration XHR default: text matches: true
+declaration XHR default: characterSet: UTF-8
+declaration XHR document: text matches: true
+declaration XHR document: characterSet: UTF-8
+invalid MIME charset navigation: text matches: true
+invalid MIME charset navigation: characterSet: windows-1252
+invalid MIME charset XHR default: text matches: true
+invalid MIME charset XHR default: characterSet: UTF-8
+invalid MIME charset XHR document: text matches: true
+invalid MIME charset XHR document: characterSet: UTF-8
+UTF-8 MIME charset navigation: text matches: true
+UTF-8 MIME charset navigation: characterSet: UTF-8
+UTF-8 MIME charset XHR default: text matches: true
+UTF-8 MIME charset XHR default: characterSet: UTF-8
+UTF-8 MIME charset XHR document: text matches: true
+UTF-8 MIME charset XHR document: characterSet: UTF-8
+windows-1252 MIME charset navigation: text matches: true
+windows-1252 MIME charset navigation: characterSet: windows-1252
+windows-1252 MIME charset XHR default: text matches: true
+windows-1252 MIME charset XHR default: characterSet: UTF-8
+windows-1252 MIME charset XHR document: text matches: true
+windows-1252 MIME charset XHR document: characterSet: UTF-8
+UTF-8 BOM navigation: text matches: true
+UTF-8 BOM navigation: characterSet: UTF-8
+UTF-8 BOM XHR default: text matches: true
+UTF-8 BOM XHR default: characterSet: UTF-8
+UTF-8 BOM XHR document: text matches: true
+UTF-8 BOM XHR document: characterSet: UTF-8
+UTF-16LE BOM navigation: text matches: true
+UTF-16LE BOM navigation: characterSet: UTF-16LE
+UTF-16LE BOM XHR default: text matches: true
+UTF-16LE BOM XHR default: characterSet: UTF-8
+UTF-16LE BOM XHR document: text matches: true
+UTF-16LE BOM XHR document: characterSet: UTF-8
+UTF-16BE BOM navigation: text matches: true
+UTF-16BE BOM navigation: characterSet: UTF-16BE
+UTF-16BE BOM XHR default: text matches: true
+UTF-16BE BOM XHR default: characterSet: UTF-8
+UTF-16BE BOM XHR document: text matches: true
+UTF-16BE BOM XHR document: characterSet: UTF-8
+UTF-8 default navigation: text matches: true
+UTF-8 default navigation: characterSet: UTF-8
+UTF-8 default XHR default: text matches: true
+UTF-8 default XHR default: characterSet: UTF-8
+UTF-8 default XHR document: text matches: true
+UTF-8 default XHR document: characterSet: UTF-8
