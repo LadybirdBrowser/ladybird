@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	synthetic click event is a PointerEvent
+1 Pass
+Pass	synthetic click event is a PointerEvent
