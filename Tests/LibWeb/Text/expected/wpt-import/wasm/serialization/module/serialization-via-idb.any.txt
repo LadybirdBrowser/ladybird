@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	WebAssembly.Module cloning via IndexedDB: basic case
+Pass	WebAssembly.Module cloning via the IndexedDB: is interleaved correctly

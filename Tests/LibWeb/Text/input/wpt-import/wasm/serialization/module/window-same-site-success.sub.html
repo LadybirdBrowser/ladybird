@@ -1,0 +1,29 @@
+<title>Postmessage of a WebAssembly.Module to a same-site cross-origin iframe succeeds without document.domain</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="./resources/test-incrementer.js"></script>
+
+<body></body>
+
+<script>
+async function testSharingWithIframe(t, origin) {
+  const iframe = document.createElement("iframe");
+  iframe.src = `${origin}/wasm/serialization/module/resources/incrementer-iframe.html`;
+
+  // Instantiate and wait for the document to be loaded.
+  const iframeLoaded = new Promise(resolve => iframe.onload = resolve);
+  document.body.appendChild(iframe);
+  t.add_cleanup(() => iframe.remove());
+  await iframeLoaded;
+
+  await testSharingViaIncrementerScript(t, window, "window", iframe.contentWindow, "iframe", "*");
+}
+
+promise_test(async t => {
+  await testSharingWithIframe(t, "//{{domains[www1]}}:{{location[port]}}");
+}, "postMessaging a wasm module to a same-site iframe on another host succeeds");
+
+promise_test(async t => {
+  await testSharingWithIframe(t, "//{{host}}:{{ports[http][1]}}");
+}, "postMessaging a wasm module to a same-site iframe on another port succeeds");
+</script>

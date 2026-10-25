@@ -1,0 +1,39 @@
+<title>Postmessage of a WebAssembly.Module cross-site fails with a messageerror</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../common/get-host-info.sub.js"></script>
+<script src="../../../service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script src="resources/test-incrementer.js"></script>
+
+<body>
+<script>
+async function testPostMessageErrorForOrigin(t, remoteOrigin, sandbox){
+  const iframe = document.createElement('iframe');
+  if (sandbox)
+    iframe.sandbox = sandbox;
+  iframe.src = `${remoteOrigin}${base_path()}resources/incrementer-iframe-failure.html`;
+  const iframeLoaded = new Promise(resolve => iframe.onload = resolve);
+  document.body.appendChild(iframe);
+  t.add_cleanup(() => {
+    iframe.remove();
+  });
+  await iframeLoaded;
+
+  const module = await createWasmModule();
+  const messageErrorReceived =
+    new Promise(resolve => window.onmessage = resolve);
+  iframe.contentWindow.postMessage({message: 'send module', module}, "*");
+  let reply = await messageErrorReceived;
+  assert_equals(reply.data, 'messageerror received');
+}
+
+promise_test(async t => {
+  const remoteOrigin = get_host_info().HTTP_NOTSAMESITE_ORIGIN;
+  await testPostMessageErrorForOrigin(t, remoteOrigin);
+}, "postMessaging a wasm module to a cross-site iframe fails");
+
+promise_test(async t => {
+  await testPostMessageErrorForOrigin(t, "", "allow-scripts");
+}, "postMessaging a wasm module to a sandboxed iframe fails");
+</script>
+</body>

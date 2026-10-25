@@ -9,9 +9,12 @@
 #include <AK/ScopeGuard.h>
 #include <LibCore/System.h>
 #include <LibIPC/Limits.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Module.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Crypto/CryptoKeySerializationTags.h>
 #include <LibWeb/FileAPI/File.h>
@@ -23,7 +26,6 @@
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/MessagePort.h>
-#include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
 
@@ -464,15 +466,28 @@ TEST_CASE(ipc_serializable_object_has_no_version_framing)
 
 TEST_CASE(webassembly_module_encodes_to_frozen_ipc_bytes)
 {
-    auto value = MUST(principal_storage_deserialize(webassembly_module_storage_record(s_minimal_webassembly_module_bytes.span())));
-    auto module = GC::Ref { unwrap_wrappable<Web::WebAssembly::Module>(value) };
+    static constexpr auto module_bytes = to_array<u8>({ 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00 });
 
-    auto record = structured_serialize(test_realm().vm(), module);
+    auto& realm = principal_test_realm();
+    auto& vm = realm.vm();
+    auto& settings = Web::Bindings::principal_host_defined_environment_settings_object(realm);
+    auto depth = vm.execution_context_stack().size();
+    vm.push_execution_context(settings.realm_execution_context());
+
+    auto bytes = JS::ArrayBuffer::create(realm, MUST(ByteBuffer::copy(module_bytes.span())));
+    auto& module_constructor = Web::Bindings::ensure_web_constructor<Web::Bindings::ModulePrototype>(realm, "WebAssembly.Module"_utf16_fly_string);
+    auto module = MUST(JS::construct(vm, module_constructor, bytes.ptr()));
+    auto record = MUST(Web::HTML::structured_serialize(vm, JS::Value(module.ptr())));
+
+    while (vm.execution_context_stack().size() > depth)
+        vm.pop_execution_context();
+
     Web::HTML::StructuredSerializeReader reader { record };
 
     EXPECT_EQ(MUST(reader.decode<u8>()), to_underlying(ValueTag::SerializableObject));
     EXPECT_EQ(MUST(reader.decode<Web::Bindings::InterfaceName>()), Web::Bindings::InterfaceName::Module);
-    EXPECT_EQ(MUST(reader.decode<ByteBuffer>()).span(), s_minimal_webassembly_module_bytes.span());
+    EXPECT_EQ(MUST(reader.decode<ByteBuffer>()).span(), module_bytes.span());
+    EXPECT_EQ(MUST(reader.decode<Optional<u64>>()), settings.agent_cluster_id());
 }
 
 TEST_CASE(realm_helpers_share_vm_initialization)
