@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	The last item shouldn't overflow the flexbox.
+1 Pass
+Pass	The last item shouldn't overflow the flexbox.

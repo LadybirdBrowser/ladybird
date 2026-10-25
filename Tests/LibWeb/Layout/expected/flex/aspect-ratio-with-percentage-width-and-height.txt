@@ -9,14 +9,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div> at [84.671875,18] flex-item [0+5+0 56.671875 0+5+0] [0+5+0 56.671875 0+5+0] [BFC] children: inline
+      BlockContainer <div> at [84.671875,18] flex-item [0+5+0 56.65625 0+5+0] [0+5+0 56.65625 0+5+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 3, rect: [84.671875,18 27.640625x16] baseline: 12.796875
             "bar"
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div> at [151.34375,18] flex-item [0+5+0 56.671875 0+5+0] [0+5+0 56.671875 0+5+0] [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 3, rect: [151.34375,18 27.203125x16] baseline: 12.796875
+      BlockContainer <div> at [151.328125,18] flex-item [0+5+0 56.671875 0+5+0] [0+5+0 56.671875 0+5+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [151.328125,18 27.203125x16] baseline: 12.796875
             "baz"
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
