@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<textarea id="measured" style="height: 40px"></textarea>
+<textarea id="measuredPreLine" style="height: 40px; white-space: pre-line"></textarea>
+<textarea id="typed" style="height: 40px"></textarea>
+<textarea id="executed" style="height: 40px"></textarea>
+<textarea id="navigated" style="height: 40px"></textarea>
+<textarea id="leading" style="height: 40px"></textarea>
+<script>
+    function caretLineIsVisible(textarea) {
+        const bottomOfLastLine = textarea.scrollHeight - parseFloat(getComputedStyle(textarea).paddingBottom);
+        return textarea.scrollTop > 0 && textarea.scrollTop + textarea.clientHeight >= bottomOfLastLine;
+    }
+
+    promiseTest(async () => {
+        measured.value = "line 1\nline 2\nline 3";
+        const heightBefore = measured.scrollHeight;
+        measured.value += "\n";
+        println(`a trailing newline adds a line: ${measured.scrollHeight > heightBefore}`);
+
+        measuredPreLine.value = "line 1\nline 2\nline 3";
+        const preLineHeightBefore = measuredPreLine.scrollHeight;
+        measuredPreLine.value += "\n";
+        println(`a trailing newline adds a line with white-space: pre-line: ${measuredPreLine.scrollHeight > preLineHeightBefore}`);
+
+        typed.focus();
+        for (let i = 0; i < 5; ++i)
+            internals.sendText(typed, `line ${i}\n`);
+        println(`typed: caret on the empty last line is visible: ${caretLineIsVisible(typed)}`);
+
+        executed.focus();
+        for (let i = 0; i < 5; ++i)
+            document.execCommand("insertText", false, `line ${i}\n`);
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        println(`execCommand: caret on the empty last line is visible: ${caretLineIsVisible(executed)}`);
+
+        navigated.value = "start" + "\n".repeat(10) + "end";
+        navigated.focus();
+        navigated.setSelectionRange(10, 10);
+        navigated.scrollTop = 0;
+        internals.sendKey(navigated, "Down");
+        println(`caret moved onto an empty middle line is visible: ${navigated.selectionStart === 11 && navigated.scrollTop > 0}`);
+
+        leading.value = "\n".repeat(10) + "end";
+        leading.focus();
+        leading.setSelectionRange(0, 0);
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const caretIsPainted = internals.dumpDisplayList().split("\n").some(line => line.includes("PaintCaret"));
+        println(`caret on an empty first line is painted: ${caretIsPainted}`);
+    });
+</script>
