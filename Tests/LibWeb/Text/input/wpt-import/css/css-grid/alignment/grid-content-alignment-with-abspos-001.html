@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Grid Layout Test: dynamic content alignment with abspos elements.</title>
+<link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#alignment">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#content-distribution">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-align-content">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-justify-content">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1248940">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<meta name="assert" content="Test that dynamically changing alignment for abspos grid items works as expected." />
+
+<style>
+body {
+  margin: 0px;
+  width: 800px;
+}
+
+.grid {
+  width: 100%;
+  height: 600px;
+}
+
+.a {
+    width: 140px;
+    height: 60px;
+    border: 1px solid purple;
+    position: absolute;
+}
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script>
+  function updateAlignmentAndCheckLayout() {
+    let item = document.getElementById("item");
+    item.style.alignSelf = "center";
+    item.style.justifySelf = "center";
+    checkLayout('.grid');
+  }
+</script>
+</head>
+
+<body onload="updateAlignmentAndCheckLayout()">
+
+  <div class="grid" data-expected-width="800" data-expected-height="600">
+    <div class="a" id="item" data-offset-x="329" data-offset-y="269" data-expected-width="142" data-expected-height="62"></div>
+  </div>
+
+</body>
+</html>
