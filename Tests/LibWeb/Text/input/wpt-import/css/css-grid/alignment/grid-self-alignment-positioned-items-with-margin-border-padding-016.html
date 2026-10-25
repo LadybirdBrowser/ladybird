@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Self-Alignment of absolute positioned items with 'auto' grid positions and margin, border and padding</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#column-align">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#abspos-items">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#augmented-grid">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-justify-self">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-align-self">
+<meta name="assert" content="Absolute positioned grid items alignment works as expected when the grid and its items have margins, borders and paddings.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.grid {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 100px 150px;
+  grid-template-rows: 150px 100px;
+  font: 10px/1 Ahem;
+  background: grey;
+  justify-content: center;
+}
+.grid.LTR, .grid.RTL { width: 450px; }
+.grid.verticalLR, .grid.verticalRL { height: 450px; }
+.grid > div { position: absolute; }
+.grid > :nth-child(1) { background: green; }
+.grid > :nth-child(2) { background: blue; }
+.grid > :nth-child(3) { background: yellow; }
+.grid > :nth-child(4) { background: red; }
+
+.grid {
+   margin: 4px 2px 8px 3px;
+   padding: 1px 4px 2px 3px;
+   border-color: silver;
+   border-style: solid;
+   border-width: 5px 6px 4px 8px;
+}
+
+.grid > div {
+   margin: 2px 4px 6px 8px;
+   padding: 3px 2px 4px 5px;
+   border-color: silver;
+   border-style: solid;
+   border-width: 1px 6px 2px 3px;
+}
+
+.LTR { direction: ltr; }
+.RTL { direction: rtl; }
+.verticalLR { writing-mode: vertical-lr; }
+.verticalRL { writing-mode: vertical-rl; }
+
+.firstRowFirstColumn {
+  grid-row: 1 / 2;
+  grid-column: auto / 1;
+  align-self: start;
+  justify-self: right;
+}
+.firstRowSecondColumn {
+  grid-row: 1 / 2;
+  grid-column: 2 / auto;
+  align-self: end;
+  justify-self: center;
+}
+.secondRowFirstColumn {
+  grid-row: 2 / 3;
+  grid-column: auto / auto;
+  align-self: center;
+  justify-self: self-start;
+}
+.secondRowSecondColumn {
+  grid-row: 2 / 3;
+  grid-column: 1 / 2;
+  align-self: self-end;
+  justify-self: left;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+<div class="grid LTR">
+  <div data-offset-x="23"  data-offset-y="3"   data-expected-width="76" data-expected-height="20" class="firstRowFirstColumn">X XX X</div>
+  <div data-offset-x="289" data-offset-y="105" data-expected-width="86" data-expected-height="40" class="firstRowSecondColumn">XX X<br>X XXX X<br>XX XXX</div>
+  <div data-offset-x="8"   data-offset-y="189" data-expected-width="76" data-expected-height="20" class="secondRowFirstColumn">X XX X</div>
+  <div data-offset-x="111" data-offset-y="195" data-expected-width="76" data-expected-height="50" class="secondRowSecondColumn">XX X<br>X XXX<br>X<br>XX XXX</div>
+</div>
+
+<div class="grid RTL">
+  <div data-offset-x="377" data-offset-y="3"   data-expected-width="76" data-expected-height="20" class="firstRowFirstColumn">X XX X</div>
+  <div data-offset-x="86"  data-offset-y="105" data-expected-width="86" data-expected-height="40" class="firstRowSecondColumn">XX X<br>X XXX X<br>XX XXX</div>
+  <div data-offset-x="377" data-offset-y="189" data-expected-width="76" data-expected-height="20" class="secondRowFirstColumn">X XX X</div>
+  <div data-offset-x="261" data-offset-y="195" data-expected-width="76" data-expected-height="50" class="secondRowSecondColumn">XX X<br>X XXX<br>X<br>XX XXX</div>
+</div>
+
+<br><br>
+
+<div class="grid verticalLR">
+  <div data-offset-x="11"  data-offset-y="25"  data-expected-width="26" data-expected-height="70" class="firstRowFirstColumn">X XX X</div>
+  <div data-offset-x="103" data-offset-y="285" data-expected-width="46" data-expected-height="80" class="firstRowSecondColumn">XX X<br>X XXX X<br>XX XXX</div>
+  <div data-offset-x="192" data-offset-y="2"   data-expected-width="26" data-expected-height="70" class="secondRowFirstColumn">X XX X</div>
+  <div data-offset-x="193" data-offset-y="103" data-expected-width="56" data-expected-height="70" class="secondRowSecondColumn">XX X<br>X XXX<br>X<br>XX XXX</div>
+</div>
+
+<div class="grid verticalRL">
+  <div data-offset-x="223" data-offset-y="25"  data-expected-width="26" data-expected-height="70" class="firstRowFirstColumn">X XX X</div>
+  <div data-offset-x="111" data-offset-y="285" data-expected-width="46" data-expected-height="80" class="firstRowSecondColumn">XX X<br>X XXX X<br>XX XXX</div>
+  <div data-offset-x="42"  data-offset-y="2"   data-expected-width="26" data-expected-height="70" class="secondRowFirstColumn">X XX X</div>
+  <div data-offset-x="11"  data-offset-y="103" data-expected-width="56" data-expected-height="70" class="secondRowSecondColumn">XX X<br>X XXX<br>X<br>XX XXX</div>
+</div>
+</body>
