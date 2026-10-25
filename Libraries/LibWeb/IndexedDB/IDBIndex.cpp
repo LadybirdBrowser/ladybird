@@ -36,6 +36,7 @@ void IDBIndex::visit_edges(GC::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_index);
     visitor.visit(m_object_store_handle);
+    visitor.visit(m_key_path_arrays);
 }
 
 JS::Object& IDBIndex::relevant_global_object() const
@@ -97,9 +98,21 @@ KeyPath const& IDBIndex::key_path() const
     return m_index->key_path();
 }
 
-JS::ThrowCompletionOr<JS::Value> IDBIndex::key_path_value(JS::Realm& realm) const
+// https://w3c.github.io/IndexedDB/#dom-idbindex-keypath
+JS::ThrowCompletionOr<JS::Value> IDBIndex::key_path_value(JS::Realm& realm)
 {
-    return convert_a_key_path_to_a_value(realm, key_path());
+    // The keyPath getter steps are to return this’s index’s key path. The key path is converted as a DOMString (if a
+    // string) or a sequence<DOMString> (if a list of strings), per [WEBIDL].
+    // NOTE: The returned value is not the same instance that was used when the index was created. However, if this
+    //       attribute returns an object (specifically an Array), it returns the same object instance every time it is
+    //       inspected. Changing the properties of the object has no effect on the index.
+    if (auto array = m_key_path_arrays.get(realm.global_object()); array.has_value())
+        return *array;
+
+    auto value = TRY(convert_a_key_path_to_a_value(realm, key_path()));
+    if (value.is_object())
+        m_key_path_arrays.set(realm.global_object(), value.as_object());
+    return value;
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbindex-opencursor

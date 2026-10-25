@@ -33,7 +33,7 @@ public:
     Utf16String name() const;
     WebIDL::ExceptionOr<void> set_name(Utf16String const& value);
     Optional<KeyPath> const& key_path() const;
-    JS::ThrowCompletionOr<JS::Value> key_path_value(JS::Realm&) const;
+    JS::ThrowCompletionOr<JS::Value> key_path_value(JS::Realm&);
     [[nodiscard]] GC::Ref<HTML::DOMStringList> index_names();
     GC::Ref<IDBTransaction> transaction() const;
     bool auto_increment() const;
@@ -78,6 +78,9 @@ private:
 
     // An object store handle has an index set
     AK::HashMap<Utf16String, GC::Ref<Index>> m_indexes;
+
+    // NB: The keyPath getter returns the same Array every time it is inspected in the same realm.
+    HashMap<GC::Ref<JS::Object>, GC::Ref<JS::Object>> m_key_path_arrays;
 };
 
 }

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IDBCursor.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -29,7 +30,7 @@ public:
     Utf16String name() const { return m_name; }
     GC::Ref<IDBObjectStore> object_store() { return m_object_store_handle; }
     KeyPath const& key_path() const;
-    JS::ThrowCompletionOr<JS::Value> key_path_value(JS::Realm&) const;
+    JS::ThrowCompletionOr<JS::Value> key_path_value(JS::Realm&);
     bool multi_entry() const { return m_index->multi_entry(); }
     bool unique() const { return m_index->unique(); }
 
@@ -60,6 +61,9 @@ private:
 
     // An index handle has a name, which is initialized to the name of the associated index when the index handle is created.
     Utf16String m_name;
+
+    // NB: The keyPath getter returns the same Array every time it is inspected in the same realm.
+    HashMap<GC::Ref<JS::Object>, GC::Ref<JS::Object>> m_key_path_arrays;
 };
 
 }
