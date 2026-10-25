@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	scroll: after-transition on a traverse to an entry without a fragment restores the scroll position
+1 Pass
+Pass	scroll: after-transition on a traverse to an entry without a fragment restores the scroll position
