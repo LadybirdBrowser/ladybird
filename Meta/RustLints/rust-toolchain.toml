@@ -2,4 +2,5 @@
 # The nightly that matches the workspace's stable toolchain (1.98) most closely. The driver links its compiler, so
 # rustc-dev must match it exactly.
 channel = "nightly-2026-06-22"
+profile = "minimal"
 components = ["rustc-dev", "llvm-tools", "rust-src"]

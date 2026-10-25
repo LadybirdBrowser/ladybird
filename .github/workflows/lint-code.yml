@@ -22,6 +22,10 @@ jobs:
           arch: 'x86_64'
           type: 'lint'
 
+      - name: Install the toolchain of the Rust GC lints
+        working-directory: Meta/RustLints
+        run: rustup toolchain install
+
       - name: Lint
         run: "${GITHUB_WORKSPACE}/Meta/lint-ci.sh"
 
