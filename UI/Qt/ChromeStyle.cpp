@@ -10,6 +10,7 @@
 #include <UI/Qt/StringUtils.h>
 
 #include <QAbstractButton>
+#include <QCursor>
 #include <QElapsedTimer>
 #include <QFont>
 #include <QGuiApplication>
@@ -1704,15 +1705,18 @@ static void paint_circular_control_frame(QPainter& painter, QRect const& rect, q
     }
 }
 
-void paint_circular_control_frame(QPainter& painter, QAbstractButton const& button, CircularControlFrameStyle frame_style)
+Optional<ControlFrameColors> circular_control_frame_colors(QAbstractButton const& button, CircularControlFrameStyle frame_style)
 {
     if (!button.isEnabled())
-        return;
+        return {};
 
     auto pressed = button.isDown() || button.isChecked();
-    auto hovered = button.underMouse();
+    // NB: Qt keeps a button hovered until the pointer moves, even after a relayout has moved the button away from the
+    //     pointer, as when a button is clicked and its toolbar or sidebar changes around it. So also check that the
+    //     pointer is actually over the button.
+    auto hovered = button.underMouse() && button.rect().contains(button.mapFromGlobal(QCursor::pos()));
     if (!hovered && !pressed && frame_style == CircularControlFrameStyle::InteractionOnly)
-        return;
+        return {};
 
     auto const& palette = button.window()->palette();
     auto background = frame_style == CircularControlFrameStyle::ActiveTabOverlay
@@ -1739,7 +1743,13 @@ void paint_circular_control_frame(QPainter& painter, QAbstractButton const& butt
         border = chrome_control_border(palette);
     }
 
-    paint_circular_control_frame(painter, button.rect(), button.devicePixelRatioF(), background, border);
+    return ControlFrameColors { background, border };
+}
+
+void paint_circular_control_frame(QPainter& painter, QAbstractButton const& button, CircularControlFrameStyle frame_style)
+{
+    if (auto colors = circular_control_frame_colors(button, frame_style); colors.has_value())
+        paint_circular_control_frame(painter, button.rect(), button.devicePixelRatioF(), colors->background, colors->border);
 }
 
 // A purple gradient with two soft bright spots that moves steadily along a border, to show that something is loading.

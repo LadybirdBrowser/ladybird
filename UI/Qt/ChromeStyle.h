@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <QColor>
 #include <QString>
 
@@ -65,6 +66,12 @@ enum class CircularControlFrameStyle {
     InteractionOnly,
     ActiveTabOverlay,
 };
+struct ControlFrameColors {
+    QColor background;
+    QColor border;
+};
+// The colors of a button's frame in the button's current state, or nothing while it shows no frame.
+Optional<ControlFrameColors> circular_control_frame_colors(QAbstractButton const&, CircularControlFrameStyle = CircularControlFrameStyle::InteractionOnly);
 void paint_circular_control_frame(QPainter&, QAbstractButton const&, CircularControlFrameStyle = CircularControlFrameStyle::InteractionOnly);
 
 void paint_loading_swirl(QPainter&, QPainterPath const& border);
