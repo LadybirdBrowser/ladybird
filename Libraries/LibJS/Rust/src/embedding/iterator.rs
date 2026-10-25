@@ -105,7 +105,7 @@ unsafe fn with_iterator_record_fields<T>(
     let fields = unsafe { fields.as_mut() }.expect("the embedder passes the fields of an iterator record");
     // SAFETY: The caller guarantees that the iterator is a live object.
     let iterator = unsafe { optional_cell_from_abi::<JSObject>(fields.iterator) };
-    let record = IteratorRecordImpl::new(iterator, Value(fields.next_method), fields.done);
+    let record = IteratorRecordImpl::new(iterator, Value::from_bits(fields.next_method), fields.done);
     let result = operation(&record);
     fields.done = record.done();
     result
@@ -123,7 +123,7 @@ pub unsafe extern "C" fn js_iterator_get_fields(
 ) -> JSCompletion {
     // SAFETY: See the module documentation.
     let vm = unsafe { vm_from_abi(vm) };
-    let record = get_iterator_impl(vm, Value(value), iterator_hint_from_abi(hint));
+    let record = get_iterator_impl(vm, Value::from_bits(value), iterator_hint_from_abi(hint));
     // SAFETY: As above, `fields` is writable.
     unsafe { completion_writing_result_to(record.map(|record| iterator_record_fields_into_abi(&record)), fields) }
 }
@@ -139,7 +139,7 @@ pub unsafe extern "C" fn js_iterator_get_fields_from_method(
 ) -> JSCompletion {
     // SAFETY: See the module documentation.
     let (vm, method) = unsafe { (vm_from_abi(vm), function_from_abi(method)) };
-    let record = get_iterator_from_method_impl(vm, Value(value), method);
+    let record = get_iterator_from_method_impl(vm, Value::from_bits(value), method);
     // SAFETY: As above, `fields` is writable.
     unsafe { completion_writing_result_to(record.map(|record| iterator_record_fields_into_abi(&record)), fields) }
 }
@@ -152,7 +152,7 @@ pub unsafe extern "C" fn js_iterator_fields_next(
     value: *const JSValue,
 ) -> JSCompletion {
     // SAFETY: See the module documentation; `value` is null or readable.
-    let (vm, value) = unsafe { (vm_from_abi(vm), value.as_ref().map(|value| Value(*value))) };
+    let (vm, value) = unsafe { (vm_from_abi(vm), value.as_ref().map(|value| Value::from_bits(*value))) };
     // SAFETY: As above, the fields are those of a record.
     completion_into_abi(unsafe { with_iterator_record_fields(fields, |record| iterator_next(vm, record, value)) })
 }
@@ -202,5 +202,5 @@ pub unsafe extern "C" fn js_iterator_create_result_object(
 ) -> *mut JSObject {
     // SAFETY: See the module documentation.
     let (vm, realm) = unsafe { (vm_from_abi(vm), cell_from_abi::<JSRealm>(realm)) };
-    object_into_abi(create_iterator_result_object(vm, realm, Value(value), done))
+    object_into_abi(create_iterator_result_object(vm, realm, Value::from_bits(value), done))
 }

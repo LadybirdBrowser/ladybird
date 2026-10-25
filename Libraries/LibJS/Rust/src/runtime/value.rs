@@ -72,7 +72,7 @@ impl Value {
     }
 
     pub const fn from_i32(value: i32) -> Self {
-        Self(nan_box::SHIFTED_INT32_TAG | value as u32 as u64)
+        Self::from_bits(nan_box::SHIFTED_INT32_TAG | value as u32 as u64)
     }
 
     /// Integral doubles that fit in an i32, other than negative zero, are stored as Int32, and every NaN becomes the
@@ -83,9 +83,9 @@ impl Value {
             return Self::from_i32(value as i32);
         }
         if value.is_nan() {
-            return Self(nan_box::CANON_NAN_BITS);
+            return Self::from_bits(nan_box::CANON_NAN_BITS);
         }
-        Self(value.to_bits())
+        Self::from_bits(value.to_bits())
     }
 
     pub const fn tag(self) -> u64 {
@@ -186,7 +186,7 @@ impl Value {
 
     pub(crate) fn with_cell_tag<T>(tag: u64, cell: Gc<T>) -> Self {
         let address = cell.as_ptr() as usize as u64;
-        Self((tag << nan_box::TAG_SHIFT) | (address & HEAP_REGION_OFFSET_MASK))
+        Self::from_bits((tag << nan_box::TAG_SHIFT) | (address & HEAP_REGION_OFFSET_MASK))
     }
 
     /// # Safety

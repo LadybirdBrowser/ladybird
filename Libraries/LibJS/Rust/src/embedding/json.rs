@@ -43,7 +43,12 @@ pub unsafe extern "C" fn js_json_stringify(
 ) -> JSCompletion {
     // SAFETY: See the module documentation.
     let vm = unsafe { vm_from_abi(vm) };
-    let serialized = JSONObject::stringify_impl(vm, Value(value), Value(replacer), Value(space));
+    let serialized = JSONObject::stringify_impl(
+        vm,
+        Value::from_bits(value),
+        Value::from_bits(replacer),
+        Value::from_bits(space),
+    );
     completion_into_abi(serialized.map(|serialized| {
         let Some(serialized) = serialized else {
             return false;

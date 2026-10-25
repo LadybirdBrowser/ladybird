@@ -109,7 +109,7 @@ impl Vm {
             context_ref.register(register::EXCEPTION).set(throw.value());
         } else if let Some(result) = self.enter_jit_code_at(context, executable_ref, entry_point) {
             match result.status {
-                EntryStatus::Returned => self.return_from_running_frame(Value(result.value)),
+                EntryStatus::Returned => self.return_from_running_frame(Value::from_bits(result.value)),
                 EntryStatus::Resume => self.run_running_frame_in_interpreter(),
                 EntryStatus::ExitInterpreter => {}
             }

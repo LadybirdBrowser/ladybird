@@ -58,7 +58,7 @@ pub fn address(intrinsic: Intrinsic) -> u64 {
 
 /// The string of a value JIT code checked to be a string.
 fn string(value: u64) -> Value {
-    let value = Value(value);
+    let value = Value::from_bits(value);
     assert!(value.is_string());
     value
 }
@@ -157,13 +157,13 @@ extern "C" fn string_trim_end(vm: &Vm, string_value: u64) -> u64 {
 /// `regexp.exec(string)`, for a RegExp object `regexp` whose exec runs no code (see
 /// `regexp_builtin_exec_running_no_code()`).
 extern "C" fn regexp_exec(vm: &Vm, regexp: u64, string_value: u64) -> u64 {
-    regexp_builtin_exec_running_no_code(vm, Value(regexp), string(string_value).as_string())
+    regexp_builtin_exec_running_no_code(vm, Value::from_bits(regexp), string(string_value).as_string())
         .map_or(Value::EMPTY.0, |result| result.0)
 }
 
 /// The Map a `this` value is, if it is one.
 fn map(value: u64) -> Option<crate::layout::cell::Gc<Map>> {
-    let value = Value(value);
+    let value = Value::from_bits(value);
     if !value.is_object() {
         return None;
     }
@@ -175,7 +175,7 @@ extern "C" fn map_get(_vm: &Vm, map_value: u64, key: u64) -> u64 {
     let Some(map) = map(map_value) else {
         return Value::EMPTY.0;
     };
-    map.map_get(canonicalize_keyed_collection_key(Value(key)))
+    map.map_get(canonicalize_keyed_collection_key(Value::from_bits(key)))
         .unwrap_or(Value::UNDEFINED)
         .0
 }
@@ -185,5 +185,5 @@ extern "C" fn map_has(_vm: &Vm, map_value: u64, key: u64) -> u64 {
     let Some(map) = map(map_value) else {
         return Value::EMPTY.0;
     };
-    Value::from_bool(map.map_has(canonicalize_keyed_collection_key(Value(key)))).0
+    Value::from_bool(map.map_has(canonicalize_keyed_collection_key(Value::from_bits(key)))).0
 }

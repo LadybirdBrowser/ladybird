@@ -260,7 +260,8 @@ pub unsafe extern "C" fn js_module_create_default_export_synthetic_module(
 ) -> *mut JSModule {
     // SAFETY: See the module documentation.
     let (vm, realm, filename) = unsafe { (vm_from_abi(vm), cell_from_abi(realm), filename.as_view().to_utf8()) };
-    let module = SyntheticModule::create_default_export_synthetic_module(vm, realm, Value(default_export), filename);
+    let module =
+        SyntheticModule::create_default_export_synthetic_module(vm, realm, Value::from_bits(default_export), filename);
     cell_into_abi(module.upcast::<Module>())
 }
 

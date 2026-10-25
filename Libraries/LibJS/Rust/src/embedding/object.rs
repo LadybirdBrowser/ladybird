@@ -134,7 +134,7 @@ pub(crate) unsafe fn property_descriptor_from_abi(abi_descriptor: &JSPropertyDes
     // SAFETY: The caller passes null or live functions as the getter and setter.
     let accessor_function = |function: *mut JSObject| unsafe { optional_function_from_abi(function) };
     Some(PropertyDescriptor {
-        value: has(JS_PD_HAS_VALUE).then_some(Value(abi_descriptor.value)),
+        value: has(JS_PD_HAS_VALUE).then_some(Value::from_bits(abi_descriptor.value)),
         get: has(JS_PD_HAS_GET).then(|| accessor_function(abi_descriptor.get)),
         set: has(JS_PD_HAS_SET).then(|| accessor_function(abi_descriptor.set)),
         writable: has(JS_PD_HAS_WRITABLE).then_some(has(JS_PD_WRITABLE)),
@@ -248,7 +248,7 @@ pub fn call_host_intrinsic_accessor(accessor: HostIntrinsicAccessor, realm: Gc<R
         unsafe { accessor(&mut value, realm) };
         value
     };
-    Value(value)
+    Value::from_bits(value)
 }
 
 // Creating objects
@@ -314,7 +314,7 @@ pub unsafe extern "C" fn js_object_set(
     } else {
         ShouldThrowExceptions::No
     };
-    completion_into_abi(object.set(vm, key, Value(value), throw_exceptions))
+    completion_into_abi(object.set(vm, key, Value::from_bits(value), throw_exceptions))
 }
 
 /// HasProperty(O, P). Borrows the key. Main thread only.
@@ -395,7 +395,7 @@ pub unsafe extern "C" fn js_object_create_data_property(
             property_key_from_abi(key),
         )
     };
-    completion_into_abi(object.create_data_property(vm, key, Value(value), None, None))
+    completion_into_abi(object.create_data_property(vm, key, Value::from_bits(value), None, None))
 }
 
 /// CreateDataPropertyOrThrow(O, P, V). Borrows the key. Main thread only.
@@ -414,7 +414,7 @@ pub unsafe extern "C" fn js_object_create_data_property_or_throw(
             property_key_from_abi(key),
         )
     };
-    completion_into_abi(object.create_data_property_or_throw(vm, key, Value(value)))
+    completion_into_abi(object.create_data_property_or_throw(vm, key, Value::from_bits(value)))
 }
 
 /// SetIntegrityLevel(O, level), where the level is JS_INTEGRITY_LEVEL_SEALED or JS_INTEGRITY_LEVEL_FROZEN. Main
@@ -536,7 +536,7 @@ pub unsafe extern "C" fn js_object_define_direct_property(
             property_key_from_abi(key),
         )
     };
-    object.define_direct_property(vm, key, Value(value), PropertyAttributes::new(attributes));
+    object.define_direct_property(vm, key, Value::from_bits(value), PropertyAttributes::new(attributes));
 }
 
 /// Stores an accessor property in the object's own storage. Either function may be null; when the key already holds an
@@ -928,7 +928,13 @@ pub unsafe extern "C" fn js_object_internal_get(
             get_cache_metadata_from_abi(cache_metadata),
         )
     };
-    completion_into_abi(object.internal_get(vm, key, Value(receiver), cache_metadata, lookup_phase_from_abi(phase)))
+    completion_into_abi(object.internal_get(
+        vm,
+        key,
+        Value::from_bits(receiver),
+        cache_metadata,
+        lookup_phase_from_abi(phase),
+    ))
 }
 
 /// [[Get]] ( P, Receiver ) of the object as one found in the prototype chain of the lookup that
@@ -952,7 +958,7 @@ pub unsafe extern "C" fn js_object_internal_get_as_prototype_of(
             get_cache_metadata_from_abi(metadata_for_caller),
         )
     };
-    completion_into_abi(object.internal_get_as_prototype_of(vm, key, Value(receiver), metadata_for_caller))
+    completion_into_abi(object.internal_get_as_prototype_of(vm, key, Value::from_bits(receiver), metadata_for_caller))
 }
 
 /// [[Set]] ( P, V, Receiver ). `cache_metadata` is null or the metadata a [[Set]] hook received, and the phase a
@@ -979,8 +985,8 @@ pub unsafe extern "C" fn js_object_internal_set(
     completion_into_abi(object.internal_set(
         vm,
         key,
-        Value(value),
-        Value(receiver),
+        Value::from_bits(value),
+        Value::from_bits(receiver),
         cache_metadata,
         lookup_phase_from_abi(phase),
     ))
@@ -1119,7 +1125,13 @@ pub unsafe extern "C" fn js_object_ordinary_get(
             get_cache_metadata_from_abi(cache_metadata),
         )
     };
-    completion_into_abi(object.ordinary_get(vm, key, Value(receiver), cache_metadata, lookup_phase_from_abi(phase)))
+    completion_into_abi(object.ordinary_get(
+        vm,
+        key,
+        Value::from_bits(receiver),
+        cache_metadata,
+        lookup_phase_from_abi(phase),
+    ))
 }
 
 /// OrdinarySet ( O, P, V, Receiver ), which takes its cache metadata and phase like js_object_internal_set(). Borrows
@@ -1146,8 +1158,8 @@ pub unsafe extern "C" fn js_object_ordinary_set(
     completion_into_abi(object.ordinary_set(
         vm,
         key,
-        Value(value),
-        Value(receiver),
+        Value::from_bits(value),
+        Value::from_bits(receiver),
         cache_metadata,
         lookup_phase_from_abi(phase),
     ))
@@ -1180,8 +1192,8 @@ pub unsafe extern "C" fn js_object_ordinary_set_with_own_descriptor(
     completion_into_abi(object.ordinary_set_with_own_descriptor(
         vm,
         key,
-        Value(value),
-        Value(receiver),
+        Value::from_bits(value),
+        Value::from_bits(receiver),
         own_descriptor,
         cache_metadata,
         lookup_phase_from_abi(phase),

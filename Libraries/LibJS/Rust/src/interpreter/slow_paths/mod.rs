@@ -715,7 +715,7 @@ impl RuntimeFunctions for Runtime {
     fn try_get_by_id_cache(encoded_base: u64, cache_address: u64) -> u64 {
         // SAFETY: The interpreter passes the address of one of the running executable's property lookup caches.
         let cache = unsafe { &*core::ptr::with_exposed_provenance::<PropertyLookupCache>(cache_address as usize) };
-        property_access::try_get_by_id_cache(Value(encoded_base), cache).0
+        property_access::try_get_by_id_cache(Value::from_bits(encoded_base), cache).0
     }
 
     fn try_get_by_value_typed_array(
@@ -1260,7 +1260,7 @@ impl RuntimeFunctions for Runtime {
 
     fn helper_handle_raw_native_exception(vm: u64, encoded_exception: u64) -> u64 {
         let vm = vm_from_helper_argument(vm);
-        calls::handle_raw_native_exception(vm, Value(encoded_exception)).0 as u64
+        calls::handle_raw_native_exception(vm, Value::from_bits(encoded_exception)).0 as u64
     }
 
     // Literals, iterators, generators and control flow: control.rs.

@@ -178,7 +178,7 @@ pub fn control_after_entry(vm: &Vm, result: JitResult) -> i64 {
             //     returns from the interpreter.
             let frame = vm.running_execution_context_ref();
             let exits_interpreter = frame.caller_frame.get().is_null() || frame.returns_to_native_caller.get();
-            vm.return_from_running_frame(Value(result.value));
+            vm.return_from_running_frame(Value::from_bits(result.value));
             if exits_interpreter { -1 } else { 1 }
         }
         EntryStatus::Resume => 1,
@@ -201,7 +201,7 @@ pub fn helper_enter_jit_code(vm: &Vm) -> i64 {
         EntryStatus::Returned => {
             frame_of(frame)
                 .register(register::RETURN_VALUE)
-                .set(Value(result.value));
+                .set(Value::from_bits(result.value));
             1
         }
         EntryStatus::Resume => 0,
@@ -317,7 +317,7 @@ pub unsafe extern "C" fn libjs_jit_inlined_raw_native_exception(
         .expect("the native function's frame runs");
     assert_eq!(frame_of(native_frame).caller_frame.get(), root.as_ptr());
     translate::materialize_call_site_frames(vm, root, site, frame_pointer, Some(native_frame));
-    crate::interpreter::slow_paths::calls::handle_raw_native_exception(vm, Value(exception)).0
+    crate::interpreter::slow_paths::calls::handle_raw_native_exception(vm, Value::from_bits(exception)).0
 }
 
 /// Called by JIT code that never created the arguments object of the frame (whose arguments are unchanged) when it

@@ -95,7 +95,7 @@ pub unsafe extern "C" fn js_array_indexed_array_like_size(object: *mut JSObject)
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_array_indexed_append(object: *mut JSObject, value: JSValue) {
     // SAFETY: See the module documentation.
-    unsafe { cell_from_abi::<JSObject>(object) }.indexed_append(Value(value), DEFAULT_ATTRIBUTES);
+    unsafe { cell_from_abi::<JSObject>(object) }.indexed_append(Value::from_bits(value), DEFAULT_ATTRIBUTES);
 }
 
 /// Removes the first element of the object's indexed storage, which must not be empty, shifting the others down, and

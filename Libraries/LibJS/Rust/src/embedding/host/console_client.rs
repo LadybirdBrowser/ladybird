@@ -318,7 +318,7 @@ pub unsafe extern "C" fn js_console_client_generically_format_values(
     if value_count > 0 {
         // SAFETY: The caller guarantees that `values` points to `value_count` values.
         for &value in unsafe { ak::slice_from_raw_parts(values, value_count) } {
-            marked_values.push(Value(value));
+            marked_values.push(Value::from_bits(value));
         }
     }
     let formatted = client

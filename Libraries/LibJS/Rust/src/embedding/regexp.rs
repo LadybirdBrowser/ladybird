@@ -38,7 +38,7 @@ unsafe fn regexp_from_abi(regexp: *mut JSObject) -> Gc<RegExpObject> {
 pub unsafe extern "C" fn js_regexp_create(vm: *mut JSVM, pattern: JSValue, flags: JSValue) -> JSCompletion {
     // SAFETY: See the module documentation.
     let vm = unsafe { vm_from_abi(vm) };
-    completion_into_abi(regexp_create(vm, Value(pattern), Value(flags)))
+    completion_into_abi(regexp_create(vm, Value::from_bits(pattern), Value::from_bits(flags)))
 }
 
 /// [[OriginalSource]], the pattern the RegExp was created with, as an owned string. Main thread only.

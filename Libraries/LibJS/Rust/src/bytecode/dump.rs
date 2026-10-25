@@ -258,15 +258,15 @@ impl BytecodeDumper<'_> {
     }
 
     fn append_bigint(&mut self, encoded: u64) {
-        Utf16View::of_string(&Value(encoded).as_bigint().to_utf16_string()).append_as_wtf8_to(self.output);
+        Utf16View::of_string(&Value::from_bits(encoded).as_bigint().to_utf16_string()).append_as_wtf8_to(self.output);
     }
 
     fn append_string_value(&mut self, encoded: u64) {
-        Utf16View::of_string(&Value(encoded).as_string().utf16_string()).append_as_wtf8_to(self.output);
+        Utf16View::of_string(&Value::from_bits(encoded).as_string().utf16_string()).append_as_wtf8_to(self.output);
     }
 
     fn append_value_fallback(&mut self, encoded: u64) {
-        append_value_formatted_like_ak(self.output, Value(encoded));
+        append_value_formatted_like_ak(self.output, Value::from_bits(encoded));
     }
 
     fn append_quoted(&mut self, text: Utf16View<'_>) {
