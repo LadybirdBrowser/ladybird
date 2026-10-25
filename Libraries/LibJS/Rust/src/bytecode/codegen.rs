@@ -9314,11 +9314,11 @@ pub fn emit_function_declaration_instantiation(
     // function, not a real arguments-object reference.
     let function_scope_data = body_scope.function_scope_data.as_ref();
     let has_function_named_arguments = function_scope_data.is_some_and(|fsd| fsd.has_function_named_arguments);
-    let arguments_name = ak::Utf16FlyString::from_utf8("arguments");
-    let has_arguments_local = generator
+    let arguments_local_index = body_scope
         .local_variables
         .iter()
-        .any(|lv| lv.name == arguments_name && !lv.is_lexically_declared);
+        .position(|lv| lv.kind == LocalVarKind::ArgumentsObject);
+    let has_arguments_local = arguments_local_index.is_some();
     let mut arguments_object_needed = if is_arrow || parameter_names.iter().any(|p| p.name == utf16!("arguments")) {
         false
     } else {
@@ -9342,12 +9342,7 @@ pub fn emit_function_declaration_instantiation(
         if non_local_parameter_count > 0 {
             // NB: The arguments binding goes here too, and so do the lexical declarations of strict code without a
             //     separate var environment for non-local vars (see Step 5 and Step 7).
-            let arguments_name = ak::Utf16FlyString::from_utf8("arguments");
-            let arguments_binding = arguments_object_needed
-                && !generator
-                    .local_variables
-                    .iter()
-                    .any(|lv| lv.name == arguments_name && !lv.is_lexically_declared);
+            let arguments_binding = arguments_object_needed && !has_arguments_local;
             let has_non_local_vars =
                 function_scope_data.is_some_and(|fsd| fsd.vars_to_initialize.iter().any(|v| v.local.is_none()));
             let lexical_bindings = if strict && !has_non_local_vars {
@@ -9400,12 +9395,6 @@ pub fn emit_function_declaration_instantiation(
     // --- Step 3: Create arguments object ---
 
     if arguments_object_needed {
-        // Find local variable index for ArgumentsObject, if any.
-        let arguments_local_index = generator
-            .local_variables
-            .iter()
-            .position(|lv| lv.name == arguments_name && !lv.is_lexically_declared);
-
         let dst = arguments_local_index.map(|index| Operand::local(u32_from_usize(index)));
 
         let kind = if arguments_object_is_mapped {
