@@ -71,16 +71,16 @@ fn cell_words<T>(cell: Gc<T>, size: usize) -> Vec<u64> {
 
 /// What JIT code needs to allocate cells itself, for code of `realm`. The templates come from cells allocated here,
 /// so this may collect garbage.
-pub struct AllocationInfos {
+pub struct AllocationInfos<'d> {
     pub object: ObjectAllocationInfo,
     pub array: ArrayAllocationInfo,
     pub rope: RopeAllocationInfo,
     pub function: FunctionAllocationInfo,
     /// The cells the templates refer to that code embeds (the shape of new arrays).
-    pub cells: Vec<Gc<CellHeader>>,
+    pub cells: Deferred<'d, Vec<Gc<CellHeader>>>,
 }
 
-pub fn allocation_infos<'d>(vm: &Vm, realm: Gc<Realm>, defer_gc: &'d DeferGc<'_>) -> Deferred<'d, AllocationInfos> {
+pub fn allocation_infos<'d>(vm: &Vm, realm: Gc<Realm>, defer_gc: &'d DeferGc<'_>) -> AllocationInfos<'d> {
     let heap = vm.heap();
     let inline = heap.inline_allocation_info();
     let heap_address = heap.raw() as u64;
@@ -173,13 +173,13 @@ pub fn allocation_infos<'d>(vm: &Vm, realm: Gc<Realm>, defer_gc: &'d DeferGc<'_>
         slow_path: libjs_jit_clone_function as *const () as u64,
     };
 
-    defer_gc.cover(AllocationInfos {
+    AllocationInfos {
         object,
         array,
         rope,
         function,
-        cells: vec![header_of(array_shape)],
-    })
+        cells: defer_gc.cover(vec![header_of(array_shape)]),
+    }
 }
 
 fn header_of<T: Extends<CellHeader>>(cell: Gc<T>) -> Gc<CellHeader> {
