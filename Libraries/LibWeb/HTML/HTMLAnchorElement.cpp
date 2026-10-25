@@ -49,6 +49,10 @@ bool HTMLAnchorElement::has_activation_behavior() const
 
 void HTMLAnchorElement::activation_behavior(Web::DOM::Event const& event)
 {
+    // INTEROP: Browsers do not follow a hyperlink that the user activates while it is being edited.
+    if (event.is_trusted() && is_editable_or_editing_host())
+        return;
+
     activate_the_hyperlink(event);
 }
 
