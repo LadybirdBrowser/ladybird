@@ -1,0 +1,7 @@
+Inside negative fractional path at (93, 93): target
+Inside negative fractional path at (95, 95): target
+Inside negative fractional path at (98, 98): target
+Outside negative fractional path at (91, 95): HTML
+Outside negative fractional path at (95, 91): HTML
+Outside negative fractional path at (99.5, 95): HTML
+Outside negative fractional path at (95, 99.5): HTML

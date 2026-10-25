@@ -11,7 +11,6 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
 use crate::css::style_value::{BasicShapeData, RetainedStyleValueData, StyleValueData};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::{BorderRadii, normalize_border_radii_data};
-use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::{paintable_geometry, style_queries};
 use libgfx_rust::path::Path;
@@ -947,7 +946,8 @@ pub(crate) fn compute_basic_shape_clip_path_data(
             WindingRule::Nonzero,
         ),
     };
-    let converter = DevicePixelConverter::new(pixel_ratio);
-    let device_bounding_rect = converter.rounded_device_rect(masking_area);
+    // NB: The shape can extend outside its reference box. Hit testing must use bounds that enclose the actual path.
+    let device_bounding_rect =
+        libgfx_rust::enclosing_int_rect(libgfx_rust::FloatRect::from_array(device_path.bounding_box()));
     Some((device_path, device_bounding_rect, resolved_fill_rule))
 }

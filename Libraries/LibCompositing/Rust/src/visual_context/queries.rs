@@ -334,8 +334,8 @@ impl VisualContextTree {
                 // NOTE: The clip path is in absolute device-pixel coordinates. After inverse-transforming, `point`
                 //       is also in device-pixel coordinates, so we compare them directly.
                 if !clip_path.bounding_rect.contains_point(IntPoint {
-                    x: point.x as i32,
-                    y: point.y as i32,
+                    x: point.x.floor() as i32,
+                    y: point.y.floor() as i32,
                 }) {
                     return false;
                 }

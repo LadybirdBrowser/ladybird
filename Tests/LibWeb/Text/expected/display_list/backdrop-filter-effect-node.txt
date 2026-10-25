@@ -5,7 +5,7 @@ AccumulatedVisualContext Tree:
         [s2] transform=[1,0,0,1,5,5] origin=(70,70) (BlockContainer<DIV>#transformed)
         [s3] transform=[1,0,0,1,5,5] origin=(250,70) (BlockContainer<DIV>#plain)
   clips:
-    [c0 in s2] clip_path=[bounds: 20,20 100x100, path: M20 20L70 20L70 120L20 120L20 20Z] (BlockContainer<DIV>#transformed)
+    [c0 in s2] clip_path=[bounds: 20,20 50x100, path: M20 20L70 20L70 120L20 120L20 20Z] (BlockContainer<DIV>#transformed)
   effects:
     [e0 in s0] effects=[]
       [e1 in s2 out=c0] effects=[opacity=0.5 backdrop-filter=[20,20 100x100]] (BlockContainer<DIV>#transformed)

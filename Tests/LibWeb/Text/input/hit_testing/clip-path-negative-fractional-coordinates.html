@@ -1,0 +1,49 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #out {
+        position: absolute;
+        top: 400px;
+    }
+    #clipped {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 10px;
+        height: 10px;
+        transform-origin: 0 0;
+        transform: translate(100px, 100px) scale(10);
+        clip-path: path("M -0.8 -0.8 H -0.1 V -0.1 H -0.8 Z");
+    }
+    #target {
+        position: absolute;
+        left: -1px;
+        top: -1px;
+        width: 1px;
+        height: 1px;
+        background: green;
+    }
+</style>
+<div id="clipped"><div id="target"></div></div>
+<script>
+    test(() => {
+        for (const [x, y] of [
+            [93, 93],
+            [95, 95],
+            [98, 98],
+        ]) {
+            println(`Inside negative fractional path at (${x}, ${y}): ${document.elementFromPoint(x, y).id}`);
+        }
+        for (const [x, y] of [
+            [91, 95],
+            [95, 91],
+            [99.5, 95],
+            [95, 99.5],
+        ]) {
+            println(`Outside negative fractional path at (${x}, ${y}): ${document.elementFromPoint(x, y).tagName}`);
+        }
+    });
+</script>
