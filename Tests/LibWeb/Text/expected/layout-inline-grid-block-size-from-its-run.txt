@@ -1,0 +1,1 @@
+PASS: the inline grid takes its automatic block size from its run instead of measuring itself again (work + checks)

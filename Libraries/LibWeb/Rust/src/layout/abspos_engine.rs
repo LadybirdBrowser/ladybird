@@ -2337,14 +2337,17 @@ impl AbsposEngine<'_> {
             };
             return Some(size);
         }
+        if let BlockSizePass::AfterInsideLayout {
+            automatic_content_block_size_of_inside_layout: Some(automatic_content_block_size_of_inside_layout),
+        } = pass
+        {
+            return Some(automatic_content_block_size_of_inside_layout);
+        }
         if self.facts(node).creates_block_formatting_context() {
-            let BlockSizePass::AfterInsideLayout {
-                automatic_content_block_size_of_inside_layout,
-            } = pass
-            else {
-                return None;
+            return match pass {
+                BlockSizePass::BeforeInsideLayout => None,
+                BlockSizePass::AfterInsideLayout { .. } => Some(CssPixels::default()),
             };
-            return Some(automatic_content_block_size_of_inside_layout.unwrap_or_default());
         }
         let inner = self
             .used(node)
@@ -2842,13 +2845,8 @@ impl<'pass> AbsposEngine<'pass> {
             }
         }
 
-        self.sizing().make_form_control_content_box_definite(
-            node,
-            LayoutMode::Normal,
-            available_space,
-            constraints,
-            None,
-        );
+        self.sizing()
+            .make_form_control_content_box_definite(node, available_space, constraints, None);
     }
 
     pub(crate) fn finalize_out_of_flow_root_after_inside_layout(
