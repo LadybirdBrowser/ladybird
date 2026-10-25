@@ -39,8 +39,8 @@ const FONT_FORMAT_SUPPORT: &[(&str, bool)] = &[
     ("woff2", true),
 ];
 
-// NB: Mirrors Libraries/LibGfx/Font/FontSupport.cpp:36. Its HB_HAS_GRAPHITE branch is false because
-//     vcpkg.json does not enable HarfBuzz's optional Graphite support on any supported platform.
+// NB: HarfBuzz reads every font technology but incremental transfer, and Graphite, which vcpkg.json
+//     does not enable on any supported platform.
 const FONT_TECH_SUPPORT: [bool; font_tech::NAMES.len()] = [
     true,  // avar2
     true,  // color-cbdt

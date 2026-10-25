@@ -20,22 +20,6 @@ enum class FontFormat : u8 {
     WOFF2,
 };
 
-enum class FontTech : u8 {
-    Avar2,
-    ColorCbdt,
-    ColorColrv0,
-    ColorColrv1,
-    ColorSbix,
-    ColorSvg,
-    FeaturesAat,
-    FeaturesGraphite,
-    FeaturesOpentype,
-    Incremental,
-    Palettes,
-    Variations,
-};
-
 bool font_format_is_supported(FontFormat);
-bool font_tech_is_supported(FontTech);
 
 }
