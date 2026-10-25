@@ -45,10 +45,25 @@ public:
     // https://www.w3.org/TR/html-aria/#docconformance
     virtual Optional<Role> default_role() const { return {}; }
 
+    // The value of the default ARIA state or property semantics for the given state or property, if the host language
+    // defines one.
+    virtual Optional<Utf16String> default_aria_state_or_property_value(Utf16FlyString const&) const { return {}; }
+
+    // The value of the given ARIA attribute, falling back to the default ARIA state and property semantics.
+#define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute) \
+    Optional<Utf16String> name##_or_default_semantics() const;
+    ENUMERATE_ARIA_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
+
     virtual DOM::Element& to_element() = 0;
     virtual DOM::Element const& to_element() const = 0;
 
     Optional<Role> role_from_role_attribute_value() const;
+    enum class RoleSource : u8 {
+        RoleAttribute,
+        DefaultSemantics,
+    };
+    Optional<Role> role_from_role_value(Optional<Utf16String> const&, RoleSource) const;
     Optional<Role> role_or_default() const;
 
     // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion

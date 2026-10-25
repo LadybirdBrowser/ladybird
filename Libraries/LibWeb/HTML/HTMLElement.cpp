@@ -76,6 +76,9 @@ struct HTMLElement::RareData final
     // https://html.spec.whatwg.org/multipage/custom-elements.html#attached-internals
     GC::Ptr<ElementInternals> attached_internals;
 
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#internal-content-attribute-map
+    OrderedHashMap<Utf16FlyString, Utf16String> internal_content_attribute_map;
+
     // https://html.spec.whatwg.org/multipage/popover.html#popover-trigger
     GC::Ptr<HTMLElement> popover_trigger;
 
@@ -1323,8 +1326,102 @@ bool HTMLElement::is_form_associated_custom_element() const
     return custom_element_definition() && custom_element_definition()->form_associated();
 }
 
+OrderedHashMap<Utf16FlyString, Utf16String>& HTMLElement::internal_content_attribute_map()
+{
+    return ensure_html_element_rare_data().internal_content_attribute_map;
+}
+
+Optional<Utf16String> HTMLElement::internal_content_attribute(Utf16FlyString const& name) const
+{
+    auto const* rare_data = html_element_rare_data();
+    if (!rare_data)
+        return {};
+    return rare_data->internal_content_attribute_map.get(name).copy();
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#wai-aria
+Optional<Utf16String> HTMLElement::default_aria_state_or_property_value(Utf16FlyString const& state_or_property) const
+{
+    // Similarly, for a custom element element, the default ARIA state and property semantics, for a state or property
+    // named stateOrProperty, are determined as follows:
+    if (!is_custom())
+        return {};
+
+    // 1. If element's attached internals is non-null:
+    //    1. If element's attached internals's get the stateOrProperty-associated element exists, then return the
+    //       result of running it.
+    //    2. If element's attached internals's get the stateOrProperty-associated elements exists, then return the
+    //       result of running it.
+    // NB: The associated elements are given by default_aria_state_or_property_elements(). They are also stored with an
+    //     empty string value in the internal content attribute map, so we return no value for them here.
+    if (auto const* rare_data = html_element_rare_data(); rare_data && rare_data->attached_internals) {
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)      \
+    if (state_or_property == ARIA::AttributeNames::referencing_attribute) \
+        return {};
+        ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
+        ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
+    }
+
+    // 2. If element's internal content attribute map[stateOrProperty] exists, then return it.
+    // 3. Return the default value for stateOrProperty.
+    // NB: The caller falls back to the default value when we return no value.
+    return internal_content_attribute(state_or_property);
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#wai-aria
+Optional<GC::RootVector<GC::Ref<DOM::Element>>> HTMLElement::default_aria_state_or_property_elements(Utf16FlyString const& state_or_property) const
+{
+    // NB: This is step 1 of the default ARIA state and property semantics of a custom element, for the states and
+    //     properties that refer to elements.
+    if (!is_custom())
+        return {};
+
+    // 1. If element's attached internals is non-null:
+    auto const* rare_data = html_element_rare_data();
+    if (!rare_data || !rare_data->attached_internals)
+        return {};
+    auto const& internals = *rare_data->attached_internals;
+
+    //    1. If element's attached internals's get the stateOrProperty-associated element exists, then return the
+    //       result of running it.
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)                                                 \
+    if (state_or_property == ARIA::AttributeNames::referencing_attribute) {                                          \
+        GC::RootVector<GC::Ref<DOM::Element>> elements;                                                              \
+        if (auto element = internals.get_the_attribute_associated_element(state_or_property, internals.attribute())) \
+            elements.append(*element);                                                                               \
+        return elements;                                                                                             \
+    }
+    ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
+
+    //    2. If element's attached internals's get the stateOrProperty-associated elements exists, then return the
+    //       result of running it.
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)      \
+    if (state_or_property == ARIA::AttributeNames::referencing_attribute) \
+        return internals.get_the_attribute_associated_elements(state_or_property, internals.attribute());
+    ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
+
+    return {};
+}
+
 Optional<ARIA::Role> HTMLElement::default_role() const
 {
+    // https://html.spec.whatwg.org/multipage/dom.html#wai-aria
+    // In addition to the rules there, for a custom element element, the default ARIA role semantics are determined as
+    // follows:
+    if (is_custom()) {
+        // 1. Let map be element's internal content attribute map.
+        // 2. If map["role"] exists, then return it.
+        if (auto role = internal_content_attribute(ARIA::AttributeNames::role); role.has_value())
+            return role_from_role_value(role, RoleSource::DefaultSemantics);
+
+        // 3. Return no role.
+        // AD-HOC: A customized built-in element keeps the default role of the element it extends, so we fall
+        //         through to the rules below, which give no role to an autonomous custom element.
+    }
+
     // https://www.w3.org/TR/html-aria/#el-address
     if (local_name() == TagNames::address)
         return ARIA::Role::group;
