@@ -1,0 +1,6 @@
+focus change: PASS
+removed control: PASS
+same control selection change: PASS
+editing host scope change: PASS
+same host selection change: PASS
+detached document: PASS

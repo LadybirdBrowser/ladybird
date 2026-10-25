@@ -112,6 +112,13 @@ public:
     [[nodiscard]] EventResult perform_paste_action();
     EventResult perform_paste_action(NonnullRefPtr<HTML::DragDataStore> const&);
 
+    enum class ClipboardActionTrigger {
+        User,
+        Script,
+    };
+    bool perform_copy_action(ClipboardActionTrigger);
+    bool perform_cut_action(ClipboardActionTrigger);
+
     void handle_gamepad_connected(Gamepad::GamepadDescription const&);
     void handle_gamepad_updated(Gamepad::GamepadState const&);
     void handle_gamepad_disconnected(Gamepad::GamepadHandle);

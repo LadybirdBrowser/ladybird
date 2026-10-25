@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 648 tests
+Found 688 tests
 
-628 Pass
-20 Fail
+677 Pass
+11 Fail
 Pass	In <input type="text">, execCommand("getHTML", false, null), a[b]c): The command should not be supported
 Pass	In <input type="text">, execCommand("getHTML", false, null), a[b]c): The command should not be enabled
 Pass	In <input type="text">, execCommand("bold", false, bold), a[b]c): The command should be supported
@@ -41,14 +41,34 @@ Pass	In <input type="text">, execCommand("superscript", false, null), a[b]c): <i
 Pass	In <input type="text">, execCommand("superscript", false, null), a[b]c): should not fire beforeinput event
 Pass	In <input type="text">, execCommand("superscript", false, null), a[b]c): input.inputType should be undefined
 Pass	In <input type="text">, execCommand("superscript", false, null), a[b]c): input.target should be undefined
-Fail	In <input type="text">, execCommand("cut", false, null), ab[]c): The command should be supported
+Pass	In <input type="text">, execCommand("cut", false, null), ab[]c): The command should be supported
 Pass	In <input type="text">, execCommand("cut", false, null), ab[]c): The command should not be enabled
-Fail	In <input type="text">, execCommand("cut", false, null), a[b]c): The command should be supported
-Fail	In <input type="text">, execCommand("cut", false, null), a[b]c): The command should be enabled
-Fail	In <input type="text">, execCommand("copy", false, null), abc[]d): The command should be supported
+Pass	In <input type="text">, execCommand("cut", false, null), ab[]c): execCommand() should return false
+Pass	In <input type="text">, execCommand("cut", false, null), ab[]c): <input>.value should be "ab[]c"
+Pass	In <input type="text">, execCommand("cut", false, null), ab[]c): should not fire beforeinput event
+Pass	In <input type="text">, execCommand("cut", false, null), ab[]c): input.inputType should be undefined
+Pass	In <input type="text">, execCommand("cut", false, null), ab[]c): input.target should be undefined
+Pass	In <input type="text">, execCommand("cut", false, null), a[b]c): The command should be supported
+Pass	In <input type="text">, execCommand("cut", false, null), a[b]c): The command should be enabled
+Pass	In <input type="text">, execCommand("cut", false, null), a[b]c): execCommand() should return true
+Pass	In <input type="text">, execCommand("cut", false, null), a[b]c): <input>.value should be "a[]c"
+Pass	In <input type="text">, execCommand("cut", false, null), a[b]c): should not fire beforeinput event
+Pass	In <input type="text">, execCommand("cut", false, null), a[b]c): input.inputType should be deleteByCut
+Pass	In <input type="text">, execCommand("cut", false, null), a[b]c): input.target should be [object HTMLInputElement]
+Pass	In <input type="text">, execCommand("copy", false, null), abc[]d): The command should be supported
 Pass	In <input type="text">, execCommand("copy", false, null), abc[]d): The command should not be enabled
-Fail	In <input type="text">, execCommand("copy", false, null), a[bc]d): The command should be supported
-Fail	In <input type="text">, execCommand("copy", false, null), a[bc]d): The command should be enabled
+Pass	In <input type="text">, execCommand("copy", false, null), abc[]d): execCommand() should return false
+Pass	In <input type="text">, execCommand("copy", false, null), abc[]d): <input>.value should be "abc[]d"
+Pass	In <input type="text">, execCommand("copy", false, null), abc[]d): should not fire beforeinput event
+Pass	In <input type="text">, execCommand("copy", false, null), abc[]d): input.inputType should be undefined
+Pass	In <input type="text">, execCommand("copy", false, null), abc[]d): input.target should be undefined
+Pass	In <input type="text">, execCommand("copy", false, null), a[bc]d): The command should be supported
+Pass	In <input type="text">, execCommand("copy", false, null), a[bc]d): The command should be enabled
+Pass	In <input type="text">, execCommand("copy", false, null), a[bc]d): execCommand() should return true
+Pass	In <input type="text">, execCommand("copy", false, null), a[bc]d): <input>.value should be "a[bc]d"
+Pass	In <input type="text">, execCommand("copy", false, null), a[bc]d): should not fire beforeinput event
+Pass	In <input type="text">, execCommand("copy", false, null), a[bc]d): input.inputType should be undefined
+Pass	In <input type="text">, execCommand("copy", false, null), a[bc]d): input.target should be undefined
 Fail	In <input type="text">, execCommand("paste", false, null), a[]c): The command should be supported
 Fail	In <input type="text">, execCommand("paste", false, null), a[]c): The command should be enabled
 Pass	In <input type="text">, execCommand("delete", false, null), ab[]c): The command should be supported
@@ -365,14 +385,34 @@ Pass	In <input type="text"> in contenteditable, execCommand("superscript", false
 Pass	In <input type="text"> in contenteditable, execCommand("superscript", false, null), a[b]c): should not fire beforeinput event
 Pass	In <input type="text"> in contenteditable, execCommand("superscript", false, null), a[b]c): input.inputType should be undefined
 Pass	In <input type="text"> in contenteditable, execCommand("superscript", false, null), a[b]c): input.target should be undefined
-Fail	In <input type="text"> in contenteditable, execCommand("cut", false, null), ab[]c): The command should be supported
+Pass	In <input type="text"> in contenteditable, execCommand("cut", false, null), ab[]c): The command should be supported
 Pass	In <input type="text"> in contenteditable, execCommand("cut", false, null), ab[]c): The command should not be enabled
-Fail	In <input type="text"> in contenteditable, execCommand("cut", false, null), a[b]c): The command should be supported
-Fail	In <input type="text"> in contenteditable, execCommand("cut", false, null), a[b]c): The command should be enabled
-Fail	In <input type="text"> in contenteditable, execCommand("copy", false, null), abc[]d): The command should be supported
+Pass	In <input type="text"> in contenteditable, execCommand("cut", false, null), ab[]c): execCommand() should return false
+Pass	In <input type="text"> in contenteditable, execCommand("cut", false, null), ab[]c): <input>.value should be "ab[]c"
+Pass	In <input type="text"> in contenteditable, execCommand("cut", false, null), ab[]c): should not fire beforeinput event
+Pass	In <input type="text"> in contenteditable, execCommand("cut", false, null), ab[]c): input.inputType should be undefined
+Pass	In <input type="text"> in contenteditable, execCommand("cut", false, null), ab[]c): input.target should be undefined
+Pass	In <input type="text"> in contenteditable, execCommand("cut", false, null), a[b]c): The command should be supported
+Pass	In <input type="text"> in contenteditable, execCommand("cut", false, null), a[b]c): The command should be enabled
+Pass	In <input type="text"> in contenteditable, execCommand("cut", false, null), a[b]c): execCommand() should return true
+Fail	In <input type="text"> in contenteditable, execCommand("cut", false, null), a[b]c): <input>.value should be "a[]c"
+Pass	In <input type="text"> in contenteditable, execCommand("cut", false, null), a[b]c): should not fire beforeinput event
+Fail	In <input type="text"> in contenteditable, execCommand("cut", false, null), a[b]c): input.inputType should be deleteByCut
+Fail	In <input type="text"> in contenteditable, execCommand("cut", false, null), a[b]c): input.target should be [object HTMLInputElement]
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), abc[]d): The command should be supported
 Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), abc[]d): The command should not be enabled
-Fail	In <input type="text"> in contenteditable, execCommand("copy", false, null), a[bc]d): The command should be supported
-Fail	In <input type="text"> in contenteditable, execCommand("copy", false, null), a[bc]d): The command should be enabled
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), abc[]d): execCommand() should return false
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), abc[]d): <input>.value should be "abc[]d"
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), abc[]d): should not fire beforeinput event
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), abc[]d): input.inputType should be undefined
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), abc[]d): input.target should be undefined
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), a[bc]d): The command should be supported
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), a[bc]d): The command should be enabled
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), a[bc]d): execCommand() should return true
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), a[bc]d): <input>.value should be "a[bc]d"
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), a[bc]d): should not fire beforeinput event
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), a[bc]d): input.inputType should be undefined
+Pass	In <input type="text"> in contenteditable, execCommand("copy", false, null), a[bc]d): input.target should be undefined
 Fail	In <input type="text"> in contenteditable, execCommand("paste", false, null), a[]c): The command should be supported
 Fail	In <input type="text"> in contenteditable, execCommand("paste", false, null), a[]c): The command should be enabled
 Pass	In <input type="text"> in contenteditable, execCommand("delete", false, null), ab[]c): The command should be supported

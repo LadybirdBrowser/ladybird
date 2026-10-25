@@ -1,0 +1,137 @@
+<!doctype html>
+<meta charset="utf-8" />
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        function check(label, actual, expected) {
+            println(
+                `${label}: ${JSON.stringify(actual) === JSON.stringify(expected) ? "PASS" : `FAIL ${JSON.stringify(actual)} expected ${JSON.stringify(expected)}`}`
+            );
+        }
+        function activate() {
+            internals.dispatchUserActivatedEvent(document.body, new Event("mousedown"));
+        }
+        async function seed() {
+            activate();
+            await navigator.clipboard.writeText("seed");
+        }
+        async function clipboard() {
+            activate();
+            return navigator.clipboard.readText();
+        }
+        function makeEditor() {
+            const editor = document.body.appendChild(document.createElement("div"));
+            editor.contentEditable = "true";
+            editor.innerHTML = "a<b>bc</b>d";
+            editor.focus();
+            const text = editor.querySelector("b").firstChild;
+            getSelection().setBaseAndExtent(text, 0, text, 2);
+            return editor;
+        }
+        function nestedCommands() {
+            return [
+                document.execCommand("copy"),
+                document.execCommand("cut"),
+                document.execCommand("insertText", false, "nested"),
+            ];
+        }
+        let editor = makeEditor();
+        let recorded = [];
+        editor.oncut = () => recorded.push("cut");
+        editor.onbeforeinput = event => recorded.push(`beforeinput:${event.inputType}`);
+        editor.oninput = event => recorded.push(`input:${event.inputType}`);
+        await seed();
+        const cut = document.execCommand("cut");
+        check(
+            "rich script cut deletes and copies",
+            [cut, editor.textContent, getSelection().isCollapsed, await clipboard()],
+            [true, "ad", true, "bc"]
+        );
+        check("rich script cut event order", recorded, ["cut", "input:deleteByCut"]);
+        editor.oncut = editor.onbeforeinput = editor.oninput = null;
+        check("rich cut undo", [document.execCommand("undo"), editor.textContent], [true, "abcd"]);
+        check("rich cut redo", [document.execCommand("redo"), editor.textContent], [true, "ad"]);
+        editor.remove();
+        editor = makeEditor();
+        let cutNested = [];
+        let inputNested = [];
+        recorded = [];
+        editor.oncut = () => {
+            recorded.push("cut");
+            cutNested = nestedCommands();
+        };
+        editor.oncopy = () => recorded.push("copy");
+        editor.oninput = () => {
+            recorded.push("input");
+            inputNested = nestedCommands();
+        };
+        await seed();
+        const guardedCut = document.execCommand("cut");
+        check("cut callback recursive commands blocked", cutNested, [false, false, false]);
+        check("rich input callback recursive commands blocked", inputNested, [false, false, false]);
+        check(
+            "guarded rich cut completes",
+            [guardedCut, editor.textContent, await clipboard(), recorded],
+            [true, "ad", "bc", ["cut", "input"]]
+        );
+        editor.remove();
+        const control = document.body.appendChild(document.createElement("textarea"));
+        control.value = "abcd";
+        control.focus();
+        control.setSelectionRange(1, 3);
+        let controlNested = [];
+        recorded = [];
+        control.oncut = () => recorded.push("cut");
+        control.oncopy = () => recorded.push("copy");
+        control.oninput = () => {
+            recorded.push("input");
+            controlNested = nestedCommands();
+        };
+        await seed();
+        const controlCut = document.execCommand("cut");
+        check("text control input recursion remains blocked", controlNested, [false, false, false]);
+        check(
+            "guarded text control cut completes",
+            [controlCut, control.value, await clipboard(), recorded],
+            [true, "ad", "bc", ["cut", "input"]]
+        );
+        control.remove();
+        editor = makeEditor();
+        let canceledNested = [];
+        recorded = [];
+        editor.oncut = event => {
+            recorded.push("cut");
+            canceledNested = nestedCommands();
+            event.clipboardData.setData("text/plain", "custom");
+            event.preventDefault();
+        };
+        editor.oninput = () => recorded.push("input");
+        await seed();
+        const canceledCut = document.execCommand("cut");
+        check("canceled cut recursion remains blocked", canceledNested, [false, false, false]);
+        check(
+            "canceled cut writes custom data only",
+            [canceledCut, editor.textContent, await clipboard(), recorded],
+            [true, "abcd", "custom", ["cut"]]
+        );
+        editor.remove();
+        editor = makeEditor();
+        let copyNested = [];
+        recorded = [];
+        editor.oncopy = () => {
+            recorded.push("copy");
+            copyNested = nestedCommands();
+        };
+        editor.oncut = () => recorded.push("cut");
+        editor.oninput = () => recorded.push("input");
+        await seed();
+        const copied = document.execCommand("copy");
+        check("copy callback recursive commands blocked", copyNested, [false, false, false]);
+        check(
+            "guarded copy leaves content intact",
+            [copied, editor.textContent, await clipboard(), recorded],
+            [true, "abcd", "bc", ["copy"]]
+        );
+        editor.remove();
+    });
+</script>
