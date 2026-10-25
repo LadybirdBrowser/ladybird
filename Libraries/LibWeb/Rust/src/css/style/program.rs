@@ -625,6 +625,7 @@ impl StyleSheetProgram {
     /// A detached sheet still contributes in the sense that its declarations are intact, which is
     /// what makes detaching it a change worth routing. It decides nothing while it is out, though,
     /// so a mutation cannot reach an element through one of its rules.
+    #[inline]
     #[must_use]
     pub fn rule_can_decide(&self, rule: RuleID) -> bool {
         if !self.rules[rule.0 as usize].live || !self.rules[rule.0 as usize].conditions_hold {
@@ -898,6 +899,7 @@ impl StyleSheetProgram {
         })
     }
 
+    #[inline]
     #[must_use]
     pub fn rule_version(&self, rule: RuleID) -> RuleVersion {
         self.rule_versions[self.rules[rule.0 as usize].version_slot as usize]
