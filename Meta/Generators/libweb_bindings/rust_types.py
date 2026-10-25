@@ -376,7 +376,12 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
     name = idl_type.name
     if isinstance(idl_type, IDLParameterizedType):
         if name == "sequence":
-            return f"Vec<{rust_type(idl_type.parameters[0], context, what, is_result)}>"
+            element_type = idl_type.parameters[0]
+            element = rust_type(element_type, context, what, is_result)
+            # NB: A Vec would hide cells that the implementation returns from the collector until they are converted.
+            if is_result and holds_cells(element_type, context):
+                return f"MarkedVec<'_, {element}>"
+            return f"Vec<{element}>"
         if name == "Promise" and is_result:
             return "WebIdlPromise"
         if name == "record":

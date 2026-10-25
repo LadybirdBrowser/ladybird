@@ -11,8 +11,8 @@ use core::cell::Cell;
 use core::ffi::c_void;
 
 use libjs_rust::api::{
-    Array, Gc, IteratorHint, IteratorRecord, Object, Realm, Trace, Value, Vm, call, get_iterator, iterator_complete,
-    iterator_next, iterator_value,
+    Array, Gc, IteratorHint, IteratorRecord, MarkedVec, Object, Realm, Trace, Value, Vm, call, get_iterator,
+    iterator_complete, iterator_next, iterator_value,
 };
 
 use crate::bindings::async_iterable::{AsyncIterable, END_OF_ITERATION};
@@ -410,12 +410,16 @@ impl ReadableStream {
     }
 
     // https://streams.spec.whatwg.org/#rs-tee
-    pub(crate) fn tee(this: &Ref<Self>, cx: &mut CallContext) -> WebIdlResult<Vec<Ref<Self>>> {
-        let cx = &this.context(cx.vm());
+    pub(crate) fn tee<'vm>(this: &Ref<Self>, cx: &mut CallContext<'vm>) -> WebIdlResult<MarkedVec<'vm, Ref<Self>>> {
+        let vm = cx.vm();
+        let cx = &this.context(vm);
 
         // 1. Return ? ReadableStreamTee(this, false).
         let (branch1, branch2) = readable_stream_tee(cx, *this, false)?;
-        Ok(vec![branch1, branch2])
+        let branches = MarkedVec::with_capacity(vm, 2);
+        branches.push(branch1);
+        branches.push(branch2);
+        Ok(branches)
     }
 
     // https://streams.spec.whatwg.org/#ref-for-asynchronous-iterator-initialization-steps

@@ -7,7 +7,7 @@
 //! https://registry.khronos.org/webgl/specs/latest/1.0/#5.14
 
 use ak::Utf16String;
-use libjs_rust::api::{Gc, Object, Trace};
+use libjs_rust::api::{Gc, MarkedVec, Object, Trace};
 
 use super::buffer_kind::BufferKind;
 use super::buffer_source::copy_of_first_numbers;
@@ -823,20 +823,26 @@ impl<V: Version> RenderingContext<V> {
         )))
     }
 
-    pub(crate) fn get_attached_shaders(
+    pub(crate) fn get_attached_shaders<'vm>(
         &self,
-        _: &mut CallContext,
+        cx: &mut CallContext<'vm>,
         program: Ref<WebGLProgram>,
-    ) -> WebIdlResult<Option<Vec<Ref<WebGLShader>>>> {
+    ) -> WebIdlResult<Option<MarkedVec<'vm, Ref<WebGLShader>>>> {
         if self.handle_of(program).is_none() {
             return Ok(None);
         }
 
-        let attached_shaders = [
+        let attached_shaders = MarkedVec::with_capacity(cx.vm(), 2);
+        for shader in [
             program.attached_vertex_shader.get(),
             program.attached_fragment_shader.get(),
-        ];
-        Ok(Some(attached_shaders.into_iter().flatten().collect()))
+        ]
+        .into_iter()
+        .flatten()
+        {
+            attached_shaders.push(shader);
+        }
+        Ok(Some(attached_shaders))
     }
 
     pub(crate) fn get_attrib_location(
