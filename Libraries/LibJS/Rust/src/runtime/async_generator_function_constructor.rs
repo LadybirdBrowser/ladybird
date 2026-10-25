@@ -83,7 +83,7 @@ impl AsyncGeneratorFunctionConstructor {
         for index in 0..vm.argument_count() {
             marked_arguments.push(vm.argument(index));
         }
-        let arguments = marked_arguments.to_vec();
+        let arguments = marked_arguments.values();
 
         let parameter_args = &arguments[..arguments.len().saturating_sub(1)];
 

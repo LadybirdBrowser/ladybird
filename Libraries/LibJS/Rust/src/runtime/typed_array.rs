@@ -1470,7 +1470,7 @@ fn initialize_typed_array_from_list(
     // 2. Perform ? AllocateTypedArrayBuffer(O, len).
     allocate_typed_array_buffer(vm, typed_array, length)?;
 
-    if list.with_values(|values| set_elements_to_numbers_if_unobservable(typed_array, values)) {
+    if set_elements_to_numbers_if_unobservable(typed_array, &list.values()) {
         return Ok(());
     }
 

@@ -636,9 +636,9 @@ unsafe extern "C" fn install_compiled_lazy_functions(compiled: *mut c_void) {
     // SAFETY: The embedder runs each task once, with the data that came with it, which is this boxed result.
     let compiled = *unsafe { Box::from_raw(compiled.cast::<CompiledLazyFunctions>()) };
     let awaiting_compilation = compiled.awaiting_compilation.0;
-    let shared_function_data = awaiting_compilation.shared_function_data.get().clone();
+    let shared_function_data = awaiting_compilation.shared_function_data.get();
     assert_eq!(shared_function_data.len(), compiled.compiled_functions.len());
-    for (shared_data, compiled_function) in shared_function_data.into_iter().zip(compiled.compiled_functions) {
+    for (&shared_data, compiled_function) in shared_function_data.iter().zip(compiled.compiled_functions) {
         // A function that started running in the meantime compiled on this thread, so the worker compiles the
         // functions it creates instead.
         if let Some(executable) = shared_data.executable() {

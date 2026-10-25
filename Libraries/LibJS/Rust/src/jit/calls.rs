@@ -418,9 +418,14 @@ fn call_other_function_from_jit(
                     Err(throw) => return Some(handle_asm_exception(vm, site.pc, throw.value())),
                 }
             }
-            return Some(argument_list.with_values(|arguments| {
-                call_from_jit_or_generic(vm, site, this_value, target_this, arguments, unwrap_depth + 1)
-            }));
+            return Some(call_from_jit_or_generic(
+                vm,
+                site,
+                this_value,
+                target_this,
+                &argument_list.values(),
+                unwrap_depth + 1,
+            ));
         }
 
         return None;
@@ -745,7 +750,7 @@ fn call_spreading_arguments_from_jit(
         return handle_asm_exception(vm, pc, throw.value());
     }
     let this_value = slots[call.this_value.0 as usize].get();
-    spread_arguments.with_values(|arguments| call_from_jit_or_generic(vm, &site, callee, this_value, arguments, 0))
+    call_from_jit_or_generic(vm, &site, callee, this_value, &spread_arguments.values(), 0)
 }
 
 /// `i64 libjs_jit_call_forwarding_arguments(VM*, ExecutionContext* frame, u32 pc)`: runs the Call instruction at `pc`

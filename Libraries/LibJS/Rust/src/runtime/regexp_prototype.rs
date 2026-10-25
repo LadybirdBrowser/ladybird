@@ -1885,7 +1885,7 @@ impl RegExpPrototype {
                 // NB: Everything in the list is kept alive by the captures, the variables above, and the caller.
                 replacer_args.clear();
                 replacer_args.push(Value::from_string(matched));
-                captures.with_values(|captures| replacer_args.extend_from_slice(captures));
+                replacer_args.extend_from_slice(&captures.values());
                 replacer_args.push(Value::from_f64(position));
                 replacer_args.push(Value::from_string(string));
 

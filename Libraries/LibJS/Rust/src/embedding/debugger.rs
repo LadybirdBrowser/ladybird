@@ -460,8 +460,7 @@ pub unsafe extern "C" fn js_debugger_bindings_for_frame(
     let sink = unsafe { sink.as_ref() }.expect("a sink is not null");
     let append = sink.append.expect("a sink has an append function");
     let bindings = debugger.bindings_for_frame(vm, execution_context);
-    // The copy leaves the marked list unborrowed while the sink runs, and the list keeps the values alive.
-    for binding in bindings.to_vec() {
+    for binding in bindings.values().iter() {
         let binding_for_c = JSDebuggerFrameBinding {
             name: JSUtf16View::of(Utf16View::of_fly_string(&binding.name)),
             value: binding.value.0,

@@ -880,7 +880,7 @@ macro_rules! native_javascript_backed_function_accessors {
         impl Intrinsics {
             fn $create(&self, vm: &Vm) {
                 let shared_data_list = parse_builtin_file(vm, $source());
-                for shared_data in shared_data_list.to_vec() {
+                for &shared_data in shared_data_list.values().iter() {
                     let function_name = shared_data.name();
                     $(
                         if function_name == Utf16FlyString::from_utf8($function_name) {

@@ -243,32 +243,30 @@ pub(crate) fn process_blob_parts(blob_parts: &MarkedVec<'_, BlobPart>, options: 
     let mut bytes = Vec::new();
 
     // 2. For each element in parts:
-    blob_parts.with_values(|blob_parts| {
-        for element in blob_parts {
-            match element {
-                // 1. If element is a USVString, run the following sub-steps:
-                BlobPart::USVString(string) => {
-                    // 1. Let s be element.
-                    // 2. If the endings member of options is "native", set s to the result of converting line endings
-                    //    to native of element.
-                    // 3. Append the result of UTF-8 encoding s to bytes.
-                    if options.endings == EndingType::Native {
-                        bytes.extend_from_slice(convert_line_endings_to_native(&string.to_utf8()).as_bytes());
-                    } else {
-                        append_utf8(&mut bytes, string);
-                    }
+    for element in blob_parts.values().iter() {
+        match element {
+            // 1. If element is a USVString, run the following sub-steps:
+            BlobPart::USVString(string) => {
+                // 1. Let s be element.
+                // 2. If the endings member of options is "native", set s to the result of converting line endings
+                //    to native of element.
+                // 3. Append the result of UTF-8 encoding s to bytes.
+                if options.endings == EndingType::Native {
+                    bytes.extend_from_slice(convert_line_endings_to_native(&string.to_utf8()).as_bytes());
+                } else {
+                    append_utf8(&mut bytes, string);
                 }
-                // 2. If element is a BufferSource, get a copy of the bytes held by the buffer source, and append those
-                //    bytes to bytes.
-                BlobPart::BufferSource(buffer_source) => {
-                    // SAFETY: Appending the bytes neither runs script nor allocates a cell.
-                    unsafe { buffer_source.with_bytes(|held_bytes| bytes.extend_from_slice(held_bytes)) };
-                }
-                // 3. If element is a Blob, append the bytes it represents to bytes.
-                BlobPart::Blob(blob) => bytes.extend_from_slice(&blob.raw_bytes()),
             }
+            // 2. If element is a BufferSource, get a copy of the bytes held by the buffer source, and append those
+            //    bytes to bytes.
+            BlobPart::BufferSource(buffer_source) => {
+                // SAFETY: Appending the bytes neither runs script nor allocates a cell.
+                unsafe { buffer_source.with_bytes(|held_bytes| bytes.extend_from_slice(held_bytes)) };
+            }
+            // 3. If element is a Blob, append the bytes it represents to bytes.
+            BlobPart::Blob(blob) => bytes.extend_from_slice(&blob.raw_bytes()),
         }
-    });
+    }
 
     // 3. Return bytes.
     bytes

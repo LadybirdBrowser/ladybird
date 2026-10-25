@@ -811,7 +811,7 @@ impl Shape {
             }
             let own_string_keys = OwnStringKeys {
                 generation,
-                keys: keys.with_values(|keys| keys.into()),
+                keys: (*keys.values()).into(),
                 enumerable: property_keys.iter().map(|(_, enumerable)| *enumerable).collect(),
             };
             self.with_rare_data(|rare_data| rare_data.own_string_keys = Some(own_string_keys));

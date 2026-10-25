@@ -160,9 +160,7 @@ impl TypedArrayConstructor {
             // c. Let targetObj be ? TypedArrayCreate(C, « 𝔽(len) »).
             let target_object = typed_array_create(vm, constructor.as_function(), &[Value::from_f64(length as f64)])?;
 
-            if map_fn.is_none()
-                && values.with_values(|values| set_elements_to_numbers_if_unobservable(&target_object, values))
-            {
+            if map_fn.is_none() && set_elements_to_numbers_if_unobservable(&target_object, &values.values()) {
                 return Ok(Value::from_object(target_object));
             }
 

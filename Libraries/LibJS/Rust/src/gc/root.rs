@@ -6,7 +6,8 @@
 
 //! Precise roots for values that live outside cells and outside the stack, where the collector would not find them.
 
-use core::cell::{OnceCell, RefCell};
+use core::cell::{OnceCell, Ref, RefCell, RefMut};
+use core::ops::{Deref, DerefMut};
 
 use super::gc_ref_cell::GcRefCell;
 use super::visitor::{Trace, Visitor};
@@ -77,8 +78,8 @@ impl<T: Trace + 'static> Drop for Root<'_, T> {
 }
 
 /// A growable list of values that are kept alive, for the temporaries a Vec would hide from the collector. Elements
-/// are copied in and out, so no reference into the list outlives a call. The list registers its root with the first
-/// element, so an empty one costs nothing.
+/// are copied in and out, or lent by values() and values_mut(), while which the list cannot change. The list registers
+/// its root with the first element, so an empty one costs nothing.
 pub struct MarkedVec<'vm, T: Trace + Clone + 'static> {
     vm: &'vm Vm,
     values: OnceCell<Root<'vm, GcRefCell<Vec<T>>>>,
@@ -138,12 +139,15 @@ impl<'vm, T: Trace + Clone + 'static> MarkedVec<'vm, T> {
         self.len() == 0
     }
 
-    /// Lends the values to `callback`, which must not change the list.
-    pub fn with_values<R>(&self, callback: impl FnOnce(&[T]) -> R) -> R {
-        match self.values.get() {
-            Some(values) => callback(&values.get().borrow()),
-            None => callback(&[]),
-        }
+    /// Lends the values until the result drops, which may outlive collections. Changing the list meanwhile panics.
+    pub fn values(&self) -> MarkedValues<'_, T> {
+        MarkedValues(self.values.get().map(|values| values.get().borrow()))
+    }
+
+    /// Lends the values to change in place until the result drops. Nothing may collect meanwhile, which stops the
+    /// process, and using the list meanwhile panics.
+    pub fn values_mut(&self) -> MarkedValuesMut<'_, T> {
+        MarkedValuesMut(self.values.get().map(|values| values.get().borrow_mut()))
     }
 
     /// Copies the values out, for handing them to code that does not collect.
@@ -151,5 +155,33 @@ impl<'vm, T: Trace + Clone + 'static> MarkedVec<'vm, T> {
         self.values
             .get()
             .map_or_else(Vec::new, |values| values.get().borrow().clone())
+    }
+}
+
+/// The values of a MarkedVec, which stay alive and unchanged while this lends them.
+pub struct MarkedValues<'a, T>(Option<Ref<'a, Vec<T>>>);
+
+impl<T> Deref for MarkedValues<'_, T> {
+    type Target = [T];
+
+    fn deref(&self) -> &[T] {
+        self.0.as_deref().map_or(&[], Vec::as_slice)
+    }
+}
+
+/// The values of a MarkedVec, which stay alive while this lends them to change in place.
+pub struct MarkedValuesMut<'a, T>(Option<RefMut<'a, Vec<T>>>);
+
+impl<T> Deref for MarkedValuesMut<'_, T> {
+    type Target = [T];
+
+    fn deref(&self) -> &[T] {
+        self.0.as_deref().map_or(&[], Vec::as_slice)
+    }
+}
+
+impl<T> DerefMut for MarkedValuesMut<'_, T> {
+    fn deref_mut(&mut self) -> &mut [T] {
+        self.0.as_deref_mut().map_or(&mut [], Vec::as_mut_slice)
     }
 }

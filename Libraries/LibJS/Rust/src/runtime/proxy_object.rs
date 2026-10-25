@@ -1148,7 +1148,7 @@ impl ProxyObject {
             }
             return callback(&arguments[..passed_argument_count]);
         }
-        Self::arguments_of(vm, callee_context).with_values(callback)
+        callback(&Self::arguments_of(vm, callee_context).values())
     }
 
     // 10.5.12 [[Call]] ( thisArgument, argumentsList ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-call-thisargument-argumentslist
