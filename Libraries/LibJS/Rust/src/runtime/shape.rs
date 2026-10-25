@@ -405,17 +405,25 @@ impl Shape {
             return 0;
         }
         *budget -= 1;
-        let targets: Vec<Gc<Shape>> = match &*self.storage.forward_transitions.borrow() {
-            ForwardTransitions::Empty => Vec::new(),
-            ForwardTransitions::Single { target, .. } => target.get().into_iter().collect(),
-            ForwardTransitions::Multiple(map) => map.values().filter_map(GcWeak::get).collect(),
-        };
         let mut longest = 0;
-        for target in targets {
+        let mut reaches_depth_limit = |target: Gc<Shape>| {
             let length = 1 + target.longest_forward_transition_chain_within(depth_limit - 1, budget);
             longest = longest.max(length);
-            if longest >= depth_limit {
-                break;
+            longest >= depth_limit
+        };
+        match &*self.storage.forward_transitions.borrow() {
+            ForwardTransitions::Empty => {}
+            ForwardTransitions::Single { target, .. } => {
+                if let Some(target) = target.get() {
+                    reaches_depth_limit(target);
+                }
+            }
+            ForwardTransitions::Multiple(map) => {
+                for target in map.values().filter_map(GcWeak::get) {
+                    if reaches_depth_limit(target) {
+                        break;
+                    }
+                }
             }
         }
         longest
@@ -809,12 +817,13 @@ impl Shape {
             for (property_key, _) in &property_keys {
                 keys.push(property_key.to_value(vm));
             }
-            let own_string_keys = OwnStringKeys {
-                generation,
-                keys: (*keys.values()).into(),
-                enumerable: property_keys.iter().map(|(_, enumerable)| *enumerable).collect(),
-            };
-            self.with_rare_data(|rare_data| rare_data.own_string_keys = Some(own_string_keys));
+            self.with_rare_data(|rare_data| {
+                rare_data.own_string_keys = Some(OwnStringKeys {
+                    generation,
+                    keys: keys.values().iter().copied().collect(),
+                    enumerable: property_keys.iter().map(|(_, enumerable)| *enumerable).collect(),
+                });
+            });
         }
         let rare_data = self.storage.rare_data.borrow();
         let own_string_keys = rare_data
@@ -1152,7 +1161,7 @@ impl Shape {
             return;
         }
         self.flags.set(self.flags.get() & !shape_flag::HAS_WATCHED_SLOTS);
-        let mut watchpoint_sets = Vec::new();
+        let watchpoint_sets = MarkedVec::new(vm);
         if let Some(rare_data) = self.storage.rare_data.borrow_mut().as_mut() {
             rare_data.watched_slots.retain(|_, watched_slot| match watched_slot {
                 WatchedSlot::Watched(watchpoint_set) => {
@@ -1162,7 +1171,7 @@ impl Shape {
                 WatchedSlot::WrittenByCaches => true,
             });
         }
-        for watchpoint_set in watchpoint_sets {
+        for watchpoint_set in watchpoint_sets.values().iter() {
             watchpoint_set.fire(vm);
         }
     }

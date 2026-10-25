@@ -811,12 +811,13 @@ pub unsafe extern "C" fn libjs_jit_call_forwarding_arguments(
             passed_argument_count,
         );
     }
-    // NB: The passed arguments stay alive in the frame while the call runs.
-    let arguments: Vec<Value> = frame_ref.arguments()[..passed_argument_count]
-        .iter()
-        .map(core::cell::Cell::get)
-        .collect();
-    call_from_jit_or_generic(vm, &site, function, this_argument, &arguments, 1).0
+    let mut arguments = ArgumentStorage::new(
+        vm,
+        frame_ref.arguments()[..passed_argument_count]
+            .iter()
+            .map(core::cell::Cell::get),
+    );
+    call_from_jit_or_generic(vm, &site, function, this_argument, arguments.values(), 1).0
 }
 
 /// `i64 libjs_jit_finish_direct_call(VM*, ExecutionContext* frame, u32 pc, u64 status)`: finishes a direct call made

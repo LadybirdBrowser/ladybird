@@ -1096,8 +1096,9 @@ impl Vm {
         self.update_dispatch_tables();
         // NB: Debuggers step through bytecode, so nothing enters JIT code while one is attached, not even JIT code
         //     that runs already, which calls other JIT code only through the entries of executables.
-        let executables = self.executables.borrow().clone();
-        for executable in executables {
+        let executables = MarkedVec::new(self);
+        executables.extend_from_slice(&self.executables.borrow());
+        for executable in executables.values().iter() {
             if executable.jit_compile_state() == crate::jit::code::CompileState::Installed {
                 executable.discard_jit_code(self);
             }

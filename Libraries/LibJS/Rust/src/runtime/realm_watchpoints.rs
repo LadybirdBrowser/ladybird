@@ -37,6 +37,7 @@
 
 use core::cell::Cell;
 
+use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -225,15 +226,13 @@ fn watch_regexp_primordial_properties(vm: &Vm, realm: Gc<Realm>) -> Option<Gc<Wa
     }
     let regexp_prototype = realm.intrinsics().regexp_prototype(vm);
     let regexp_constructor: Gc<Object> = realm.intrinsics().regexp_constructor(vm).upcast();
-    let slots: Vec<_> = RegExpPrototype::primordial_property_keys(vm)
-        .map(|key| (regexp_prototype, key.clone()))
-        .into_iter()
-        .chain([
-            (regexp_prototype, PropertyKey::from(vm.well_known_symbols().match_)),
-            (regexp_constructor, PropertyKey::from(vm.well_known_symbols().species)),
-        ])
-        .collect();
-    watch_intrinsics(vm, &[regexp_prototype, regexp_constructor], &slots)
+    let slots = MarkedVec::new(vm);
+    for key in RegExpPrototype::primordial_property_keys(vm) {
+        slots.push((regexp_prototype, key.clone()));
+    }
+    slots.push((regexp_prototype, PropertyKey::from(vm.well_known_symbols().match_)));
+    slots.push((regexp_constructor, PropertyKey::from(vm.well_known_symbols().species)));
+    watch_intrinsics(vm, &[regexp_prototype, regexp_constructor], &slots.values())
 }
 
 /// Whether ArraySpeciesCreate makes a plain array for an array of the realm that has no own constructor:
