@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Append iframe element to its own child document</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<iframe id=x></iframe>
+<script>
+test(function() {
+  var iframe = document.getElementById('x');
+  var childWindow = iframe.contentWindow;
+  assert_equals(childWindow.parent, window);
+  childWindow.document.body.appendChild(iframe);
+  assert_equals(childWindow.parent, null);
+  assert_equals(iframe.contentWindow, null);
+  assert_equals(childWindow.document.body.firstChild, iframe);
+});
+</script>

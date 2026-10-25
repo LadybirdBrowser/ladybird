@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>IFrame discards are processed synchronously</title>
+<body></body>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+  async_test(function(t) {
+    var child = document.createElement("iframe");
+    child.src = "support/blank.htm?1";
+    child.onload = t.step_func(function () {
+      var childWindow = child.contentWindow;
+      var grandchild = childWindow.document.createElement("iframe");
+      grandchild.src = "blank.htm?2";
+      grandchild.onload = t.step_func(function () {
+        var grandchildWindow = grandchild.contentWindow;
+        assert_equals(child.contentWindow, childWindow, "child window");
+        assert_equals(childWindow.parent, window, "child parentage");
+        assert_equals(grandchild.contentWindow, grandchildWindow, "grandchild window");
+        assert_equals(grandchildWindow.parent, childWindow, "grandchild parentage");
+        document.body.removeChild(child);
+        assert_equals(child.contentWindow, null, "child should be discarded");
+        assert_equals(childWindow.parent, null, "child window should be discarded");
+        assert_equals(grandchild.contentWindow, null, "grandchild should be discarded");
+        assert_equals(grandchildWindow.parent, null, "grandchild window should be discarded");
+        t.done();
+      });
+      childWindow.document.body.appendChild(grandchild);
+    });
+    document.body.appendChild(child);
+  });
+</script>
