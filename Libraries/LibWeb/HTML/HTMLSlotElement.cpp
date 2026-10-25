@@ -126,6 +126,11 @@ void HTMLSlotElement::assign(GC::ConservativeVector<SlottableHandle> nodes)
     GC::ConservativeVector<DOM::Slottable> nodes_set;
     GC::ConservativeHashTable<GC::Ref<DOM::Node const>> nodes_in_nodes_set;
 
+    // INTEROP: The spec only assigns slottables for this's root below, so a slot in another tree that loses a node
+    //          to this slot keeps it as an assigned node and fires no slotchange event. Browsers also assign
+    //          slottables for the trees of those slots, and so do we.
+    GC::ConservativeVector<GC::Ref<DOM::Node>> roots_of_previous_slots;
+
     // 3. For each node of nodes:
     for (auto& node_handle : nodes) {
         auto& node = node_handle.visit([](auto& node) -> DOM::SlottableMixin& { return *node; });
@@ -133,9 +138,14 @@ void HTMLSlotElement::assign(GC::ConservativeVector<SlottableHandle> nodes)
 
         // 1. If node's manual slot assignment refers to a slot, then remove node from that slot's manually assigned nodes.
         if (node.manual_slot_assignment() != nullptr) {
-            node.manual_slot_assignment()->m_manually_assigned_nodes.remove_all_matching([&](auto const& manually_assigned_node) {
+            auto& previous_slot = *node.manual_slot_assignment();
+            previous_slot.m_manually_assigned_nodes.remove_all_matching([&](auto const& manually_assigned_node) {
                 return slottable == manually_assigned_node;
             });
+
+            auto& previous_slot_root = previous_slot.root();
+            if (&previous_slot_root != &root() && !roots_of_previous_slots.contains_slow(GC::Ref { previous_slot_root }))
+                roots_of_previous_slots.append(previous_slot_root);
         }
 
         // 2. Set node's manual slot assignment to this.
@@ -152,6 +162,10 @@ void HTMLSlotElement::assign(GC::ConservativeVector<SlottableHandle> nodes)
 
     // 5. Run assign slottables for a tree for this's root.
     assign_slottables_for_a_tree(root());
+
+    // INTEROP: See roots_of_previous_slots above.
+    for (auto const& previous_slot_root : roots_of_previous_slots)
+        assign_slottables_for_a_tree(previous_slot_root);
 }
 
 // https://dom.spec.whatwg.org/#ref-for-concept-element-attributes-change-ext
