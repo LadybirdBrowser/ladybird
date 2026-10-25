@@ -66,21 +66,25 @@ GC::Ref<NavigateEvent> NavigateEvent::create(Window& relevant_window, Utf16FlySt
 GC::Ref<NavigateEvent> NavigateEvent::create(JS::Realm& realm, Utf16String const& event_name, Bindings::NavigateEventInit const& event_init)
 {
     auto& window = HTML::relevant_window(realm.global_object());
-    return create(window, Utf16FlyString::from_utf16(event_name.utf16_view()), {
-                                                                                   { .bubbles = event_init.bubbles, .cancelable = event_init.cancelable, .composed = event_init.composed },
-                                                                                   event_init.navigation_type,
-                                                                                   event_init.destination,
-                                                                                   event_init.can_intercept,
-                                                                                   event_init.user_initiated,
-                                                                                   event_init.hash_change,
-                                                                                   event_init.signal,
-                                                                                   event_init.form_data,
-                                                                                   event_init.download_request,
-                                                                                   event_init.info,
-                                                                                   event_init.has_ua_visual_transition,
-                                                                                   event_init.source_element,
-                                                                               },
+    auto event = create(window, Utf16FlyString::from_utf16(event_name.utf16_view()), {
+                                                                                         { .bubbles = event_init.bubbles, .cancelable = event_init.cancelable, .composed = event_init.composed },
+                                                                                         event_init.navigation_type,
+                                                                                         event_init.destination,
+                                                                                         event_init.can_intercept,
+                                                                                         event_init.user_initiated,
+                                                                                         event_init.hash_change,
+                                                                                         event_init.signal,
+                                                                                         event_init.form_data,
+                                                                                         event_init.download_request,
+                                                                                         event_init.info,
+                                                                                         event_init.has_ua_visual_transition,
+                                                                                         event_init.source_element,
+                                                                                     },
         HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window)));
+
+    // NB: An event created through the constructor is not trusted.
+    event->set_is_trusted(false);
+    return event;
 }
 
 NavigateEvent::NavigateEvent(Window& relevant_window, FlyString const& event_name, NavigateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
