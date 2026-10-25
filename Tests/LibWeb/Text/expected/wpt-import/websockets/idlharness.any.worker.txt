@@ -1,0 +1,68 @@
+Harness status: OK
+
+Found 62 tests
+
+60 Pass
+2 Fail
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	WebSocket interface: existence and properties of interface object
+Pass	WebSocket interface object length
+Pass	WebSocket interface object name
+Pass	WebSocket interface: existence and properties of interface prototype object
+Pass	WebSocket interface: existence and properties of interface prototype object's "constructor" property
+Pass	WebSocket interface: existence and properties of interface prototype object's @@unscopables property
+Pass	WebSocket interface: attribute url
+Pass	WebSocket interface: constant CONNECTING on interface object
+Pass	WebSocket interface: constant CONNECTING on interface prototype object
+Pass	WebSocket interface: constant OPEN on interface object
+Pass	WebSocket interface: constant OPEN on interface prototype object
+Pass	WebSocket interface: constant CLOSING on interface object
+Pass	WebSocket interface: constant CLOSING on interface prototype object
+Pass	WebSocket interface: constant CLOSED on interface object
+Pass	WebSocket interface: constant CLOSED on interface prototype object
+Pass	WebSocket interface: attribute readyState
+Fail	WebSocket interface: attribute bufferedAmount
+Pass	WebSocket interface: attribute onopen
+Pass	WebSocket interface: attribute onerror
+Pass	WebSocket interface: attribute onclose
+Pass	WebSocket interface: attribute extensions
+Pass	WebSocket interface: attribute protocol
+Pass	WebSocket interface: operation close(optional unsigned short, optional USVString)
+Pass	WebSocket interface: attribute onmessage
+Pass	WebSocket interface: attribute binaryType
+Pass	WebSocket interface: operation send((BufferSource or Blob or USVString))
+Pass	WebSocket must be primary interface of new WebSocket("ws://invalid")
+Pass	Stringification of new WebSocket("ws://invalid")
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "url" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "CONNECTING" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "OPEN" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "CLOSING" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "CLOSED" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "readyState" with the proper type
+Fail	WebSocket interface: new WebSocket("ws://invalid") must inherit property "bufferedAmount" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "onopen" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "onerror" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "onclose" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "extensions" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "protocol" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "close(optional unsigned short, optional USVString)" with the proper type
+Pass	WebSocket interface: calling close(optional unsigned short, optional USVString) on new WebSocket("ws://invalid") with too few arguments must throw TypeError
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "onmessage" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "binaryType" with the proper type
+Pass	WebSocket interface: new WebSocket("ws://invalid") must inherit property "send((BufferSource or Blob or USVString))" with the proper type
+Pass	WebSocket interface: calling send((BufferSource or Blob or USVString)) on new WebSocket("ws://invalid") with too few arguments must throw TypeError
+Pass	CloseEvent interface: existence and properties of interface object
+Pass	CloseEvent interface object length
+Pass	CloseEvent interface object name
+Pass	CloseEvent interface: existence and properties of interface prototype object
+Pass	CloseEvent interface: existence and properties of interface prototype object's "constructor" property
+Pass	CloseEvent interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CloseEvent interface: attribute wasClean
+Pass	CloseEvent interface: attribute code
+Pass	CloseEvent interface: attribute reason
+Pass	CloseEvent must be primary interface of new CloseEvent("close")
+Pass	Stringification of new CloseEvent("close")
+Pass	CloseEvent interface: new CloseEvent("close") must inherit property "wasClean" with the proper type
+Pass	CloseEvent interface: new CloseEvent("close") must inherit property "code" with the proper type
+Pass	CloseEvent interface: new CloseEvent("close") must inherit property "reason" with the proper type

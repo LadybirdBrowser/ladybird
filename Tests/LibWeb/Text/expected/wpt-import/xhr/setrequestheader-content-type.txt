@@ -1,0 +1,40 @@
+Harness status: OK
+
+Found 34 tests
+
+33 Pass
+1 Fail
+Pass	setRequestHeader("") sends a blank string
+Pass	setRequestHeader(" ") sends the string " "
+Pass	setRequestHeader(null) sends the string "null"
+Pass	setRequestHeader(undefined) sends the string "undefined"
+Pass	String request has correct default Content-Type of "text/plain;charset=UTF-8"
+Pass	String request keeps setRequestHeader() Content-Type, with charset adjusted to UTF-8
+Pass	String request keeps setRequestHeader() Content-Type without charset
+Pass	XML Document request respects setRequestHeader("")
+Pass	XML Document request has correct default Content-Type of "application/xml;charset=UTF-8"
+Pass	XML Document request keeps setRequestHeader() Content-Type, with charset adjusted to UTF-8
+Pass	XML Document request keeps setRequestHeader() Content-Type without charset
+Pass	HTML Document request respects setRequestHeader("")
+Pass	HTML Document request has correct default Content-Type of "text/html;charset=UTF-8"
+Pass	HTML Document request keeps setRequestHeader() Content-Type, with charset adjusted to UTF-8
+Pass	HTML Document request keeps setRequestHeader() Content-Type without charset
+Pass	Blob request respects setRequestHeader("") to be specified
+Pass	Blob request with unset type sends no Content-Type without setRequestHeader() call
+Pass	Blob request with unset type keeps setRequestHeader() Content-Type and charset
+Pass	Blob request with set type respects setRequestHeader("") to be specified
+Fail	Blob request with set type uses that it for Content-Type unless setRequestHeader()
+Pass	Blob request with set type keeps setRequestHeader() Content-Type and charset
+Pass	ArrayBuffer request respects setRequestHeader("")
+Pass	ArrayBuffer request sends no Content-Type without setRequestHeader() call
+Pass	ArrayBuffer request keeps setRequestHeader() Content-Type and charset
+Pass	ArrayBufferView request respects setRequestHeader("")
+Pass	ArrayBufferView request sends no Content-Type without setRequestHeader() call
+Pass	ArrayBufferView request keeps setRequestHeader() Content-Type and charset
+Pass	FormData request respects setRequestHeader("")
+Pass	FormData request has correct default Content-Type of "multipart/form-data; boundary=_"
+Pass	FormData request keeps setRequestHeader() Content-Type and charset
+Pass	URLSearchParams respects setRequestHeader("")
+Pass	URLSearchParams request has correct default Content-Type of "application/x-www-form-urlencoded;charset=UTF-8"
+Pass	URLSearchParams request keeps setRequestHeader() Content-Type, with charset adjusted to UTF-8
+Pass	URLSearchParams request keeps setRequestHeader() Content-Type without charset

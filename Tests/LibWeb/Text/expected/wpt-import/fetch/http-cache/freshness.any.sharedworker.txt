@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 17 tests
+
+14 Pass
+3 Fail
+Pass	HTTP cache reuses a response with a future Expires
+Pass	HTTP cache does not reuse a response with a past Expires
+Pass	HTTP cache does not reuse a response with a present Expires
+Pass	HTTP cache does not reuse a response with an invalid Expires
+Pass	HTTP cache does not reuse a response with an invalid Expires with Last-Modified now
+Fail	HTTP cache does not reuse a response with an invalid Expires with past Last-Modified
+Pass	HTTP cache reuses a response with positive Cache-Control: max-age
+Pass	HTTP cache does not reuse a response with Cache-Control: max-age=0
+Pass	HTTP cache reuses a response with positive Cache-Control: max-age and a past Expires
+Pass	HTTP cache reuses a response with positive Cache-Control: max-age and an invalid Expires
+Pass	HTTP cache does not reuse a response with Cache-Control: max-age=0 and a future Expires
+Pass	HTTP cache does not prefer Cache-Control: s-maxage over Cache-Control: max-age
+Pass	HTTP cache does not reuse a response when the Age header is greater than its freshness lifetime
+Pass	HTTP cache does not store a response with Cache-Control: no-store
+Pass	HTTP cache does not store a response with Cache-Control: no-store, even with max-age and Expires
+Fail	HTTP cache stores a response with Cache-Control: no-cache, but revalidates upon use
+Fail	HTTP cache stores a response with Cache-Control: no-cache, but revalidates upon use, even with max-age and Expires

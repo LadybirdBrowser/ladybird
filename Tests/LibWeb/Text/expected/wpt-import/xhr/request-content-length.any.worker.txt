@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Uploads need to set the Content-Length header
+Pass	Fetched blob: URLs set the Content-Length header

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	responseText strips a UTF-8 byte order mark split across chunks
+Pass	responseText uses a UTF-16LE byte order mark split across chunks
+Pass	responseText does not strip a UTF-8 byte order mark in a later chunk
+Pass	JSON response strips a UTF-8 byte order mark split across chunks

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>XMLHttpRequest: setRequestHeader() - Content-Type header</title>
+    <meta name="timeout" content="long">
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+    <link rel="help" href="https://xhr.spec.whatwg.org/#the-setrequestheader()-method">
+  </head>
+  <body>
+    <div id="log"></div>
+    <script>
+      function request(inputGenerator, headersToSend, expectedType, title) {
+        test(function() {
+          const toSend = inputGenerator(),
+                client = new XMLHttpRequest()
+          client.open("POST", "resources/inspect-headers.py?filter_name=Content-Type", false)
+          for(header in headersToSend) {
+            if (headersToSend.hasOwnProperty(header)) {
+              client.setRequestHeader(header, headersToSend[header]);
+            }
+          }
+          client.send(toSend)
+
+          const actual = client.responseText
+          if (expectedType === undefined || expectedType === null) {
+            assert_equals(actual, "");
+          } else if (expectedType instanceof RegExp) {
+            assert_regexp_match(actual, expectedType);
+          } else {
+            assert_equals(actual, "Content-Type: " + expectedType + "\n");
+          }
+        }, title)
+      }
+      request(
+        function _String() { return ""; },
+        {"Content-Type": ""},
+        "",
+        'setRequestHeader("") sends a blank string'
+      )
+      request(
+        function _String() { return ""; },
+        {"Content-Type": " "},
+        "",
+        'setRequestHeader(" ") sends the string " "'
+      )
+      request(
+        function _String() { return ""; },
+        {"Content-Type": null},
+        "null",
+        'setRequestHeader(null) sends the string "null"'
+      )
+      request(
+        function _String() { return ""; },
+        {"Content-Type": undefined},
+        "undefined",
+        'setRequestHeader(undefined) sends the string "undefined"'
+      )
+      request(
+        function _String() { return "test"; },
+        {},
+        "text/plain;charset=UTF-8",
+        'String request has correct default Content-Type of "text/plain;charset=UTF-8"'
+      )
+      request(
+        function _String() { return "test()"; },
+        {"Content-Type": "text/javascript;charset=ASCII"},
+        "text/javascript;charset=UTF-8",
+        "String request keeps setRequestHeader() Content-Type, with charset adjusted to UTF-8"
+      )
+      request(
+        function _String() { return "test"; },
+        {"Content-Type": "application/xml"},
+        "application/xml",
+        "String request keeps setRequestHeader() Content-Type without charset"
+      )
+      request(
+        function _XMLDocument() { return new DOMParser().parseFromString("<xml/>", "application/xml"); },
+        {"Content-Type": ""},
+        "",
+        'XML Document request respects setRequestHeader("")'
+      )
+      request(
+        function _XMLDocument() { return new DOMParser().parseFromString("<xml/>", "application/xml"); },
+        {},
+        "application/xml;charset=UTF-8",
+        'XML Document request has correct default Content-Type of "application/xml;charset=UTF-8"'
+      )
+      request(
+        function _XMLDocument() { return new DOMParser().parseFromString("<xml/>", "application/xml"); },
+        {"Content-Type": "application/xhtml+xml;charset=ASCII"},
+        "application/xhtml+xml;charset=UTF-8",
+        "XML Document request keeps setRequestHeader() Content-Type, with charset adjusted to UTF-8"
+      )
+      request(
+        function _XMLDocument() { return new DOMParser().parseFromString("<xml/>", "application/xml"); },
+        {"Content-Type": "application/xhtml+xml"},
+        "application/xhtml+xml",
+        "XML Document request keeps setRequestHeader() Content-Type without charset"
+      )
+      request(
+        function _HTMLDocument() { return new DOMParser().parseFromString("<html></html>", "text/html"); },
+        {"Content-Type": ""},
+        "",
+        'HTML Document request respects setRequestHeader("")'
+      )
+      request(
+        function _HTMLDocument() { return new DOMParser().parseFromString("<html></html>", "text/html"); },
+        {},
+        "text/html;charset=UTF-8",
+        'HTML Document request has correct default Content-Type of "text/html;charset=UTF-8"'
+      )
+      request(
+        function _HTMLDocument() { return new DOMParser().parseFromString("<html></html>", "text/html"); },
+        {"Content-Type": "text/html+junk;charset=ASCII"},
+        "text/html+junk;charset=UTF-8",
+        "HTML Document request keeps setRequestHeader() Content-Type, with charset adjusted to UTF-8"
+      )
+      request(
+        function _HTMLDocument() { return new DOMParser().parseFromString("<html></html>", "text/html"); },
+        {"Content-Type": "text/html+junk"},
+        "text/html+junk",
+        "HTML Document request keeps setRequestHeader() Content-Type without charset"
+      )
+      request(
+        function _Blob() { return new Blob(["test"]); },
+        {"Content-Type": ""},
+        "",
+        'Blob request respects setRequestHeader("") to be specified'
+      )
+      request(
+        function _Blob() { return new Blob(["test"]); },
+        {},
+        undefined,
+        "Blob request with unset type sends no Content-Type without setRequestHeader() call"
+      )
+      request(
+        function _Blob() { return new Blob(["test"]); },
+        {"Content-Type": "application/xml;charset=ASCII"},
+        "application/xml;charset=ASCII",
+        "Blob request with unset type keeps setRequestHeader() Content-Type and charset"
+      )
+      request(
+        function _Blob() { return new Blob(["<xml/>"], {type : "application/xml;charset=ASCII"}); },
+        {"Content-Type": ""},
+        "",
+        'Blob request with set type respects setRequestHeader("") to be specified'
+      )
+      request(
+        function _Blob() { return new Blob(["<xml/>"], {type : "application/xml;charset=ASCII"}); },
+        {},
+        "application/xml;charset=ascii", // new Blob lowercases the type argument
+        "Blob request with set type uses that it for Content-Type unless setRequestHeader()"
+      )
+      request(
+        function _Blob() { return new Blob(["<xml/>"], {type : "application/xml;charset=UTF8"}); },
+        {"Content-Type": "application/xml+junk;charset=ASCII"},
+        "application/xml+junk;charset=ASCII",
+        "Blob request with set type keeps setRequestHeader() Content-Type and charset"
+      )
+      request(
+        function _ArrayBuffer() { return new ArrayBuffer(10); },
+        {"Content-Type": ""},
+        "",
+        'ArrayBuffer request respects setRequestHeader("")'
+      )
+      request(
+        function _ArrayBuffer() { return new ArrayBuffer(10); },
+        {},
+        undefined,
+        "ArrayBuffer request sends no Content-Type without setRequestHeader() call"
+      )
+      request(
+        function _ArrayBuffer() { return new ArrayBuffer(10); },
+        {"Content-Type": "application/xml;charset=ASCII"},
+        "application/xml;charset=ASCII",
+        "ArrayBuffer request keeps setRequestHeader() Content-Type and charset"
+      )
+      request(
+        function _Uint8Array() { return new Uint8Array(new ArrayBuffer(10)); },
+        {"Content-Type": ""},
+        "",
+        'ArrayBufferView request respects setRequestHeader("")'
+      )
+      request(
+        function _Uint8Array() { return new Uint8Array(new ArrayBuffer(10)); },
+        {},
+        undefined,
+        "ArrayBufferView request sends no Content-Type without setRequestHeader() call"
+      )
+      request(
+        function _Uint8Array() { return new Uint8Array(new ArrayBuffer(10)); },
+        {"Content-Type": "application/xml;charset=ASCII"},
+        "application/xml;charset=ASCII",
+        "ArrayBufferView request keeps setRequestHeader() Content-Type and charset"
+      )
+      request(
+        function _FormData() { return new FormData(); },
+        {"Content-Type": ""},
+        "",
+        'FormData request respects setRequestHeader("")'
+      )
+      request(
+        function _FormData() { return new FormData(); },
+        {},
+        /multipart\/form-data; boundary=(.*)/,
+        'FormData request has correct default Content-Type of "multipart\/form-data; boundary=_"'
+      )
+      request(
+        function _FormData() { return new FormData(); },
+        {"Content-Type": "application/xml;charset=ASCII"},
+        "application/xml;charset=ASCII",
+        "FormData request keeps setRequestHeader() Content-Type and charset"
+      )
+      request(
+        function _URLSearchParams() { return new URLSearchParams("q=testQ&topic=testTopic") },
+        {"Content-Type": ""},
+        "",
+        'URLSearchParams respects setRequestHeader("")'
+      )
+      request(
+        function _URLSearchParams() { return new URLSearchParams("q=testQ&topic=testTopic") },
+        {},
+        "application/x-www-form-urlencoded;charset=UTF-8",
+        'URLSearchParams request has correct default Content-Type of "application/x-www-form-urlencoded;charset=UTF-8"'
+      )
+      request(
+        function _URLSearchParams() { return new URLSearchParams("q=testQ&topic=testTopic") },
+        {"Content-Type": "application/xml;charset=ASCII"},
+        "application/xml;charset=UTF-8",
+        "URLSearchParams request keeps setRequestHeader() Content-Type, with charset adjusted to UTF-8"
+      )
+      request(
+        function _URLSearchParams() { return new URLSearchParams("q=testQ&topic=testTopic") },
+        {"Content-Type": "application/xml"},
+        "application/xml",
+        "URLSearchParams request keeps setRequestHeader() Content-Type without charset"
+      )
+    </script>
+  </body>
+</html>

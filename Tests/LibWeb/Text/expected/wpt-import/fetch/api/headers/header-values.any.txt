@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+7 Pass
+1 Fail
+Pass	XMLHttpRequest with value x%00x needs to throw
+Pass	fetch() with value x%00x needs to throw
+Pass	XMLHttpRequest with value x%0Ax needs to throw
+Pass	fetch() with value x%0Ax needs to throw
+Pass	XMLHttpRequest with value x%0Dx needs to throw
+Pass	fetch() with value x%0Dx needs to throw
+Fail	XMLHttpRequest with all valid values
+Pass	fetch() with all valid values

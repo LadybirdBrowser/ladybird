@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Referrer Policy: multiple Referrer-Policy header and header values are allowed</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+
+    <script src="../../common/security-features/resources/common.sub.js"></script>
+  </head>
+  <body>
+    <h1>Referrer Policy: multiple Referrer-Policy header and header values are allowed</h1>
+    <p></p>
+
+    <pre id="received_message">Running...</pre>
+
+    <script>
+      promise_test(() => {
+        var urlPath = '/common/security-features/subresource/image.py?cache_destroyer=' + (new Date()).getTime();
+        var url = location.protocol + "//www1." + location.hostname + ":" + location.port +
+                  urlPath;
+        return requestViaImage(url, null, 'no-referrer')
+          .then(function(message) {
+              assert_equals(message.referrer, document.location.origin + "/");
+            });
+      }, "Image uses the last recognized Referrer-Policy header value");
+    </script>
+
+    <div id="log"></div>
+  </body>
+</html>

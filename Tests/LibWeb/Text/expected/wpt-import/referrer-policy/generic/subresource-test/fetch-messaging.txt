@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Pass	Fetch is supported by the browser.
+Fail	Fetch is responding with HTTP headers
