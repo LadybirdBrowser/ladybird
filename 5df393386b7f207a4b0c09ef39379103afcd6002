@@ -1,0 +1,40 @@
+Ladybird mirrors each web storage area in the process that reads it:
+one synchronous connect loads the map and registers the process for
+every later change, reads answer from the mirror, and a write is
+checked against the quota with the browser's rule, applied to the
+mirror, and sent one-way. The browser's jar relays every change as a
+key-level delta to the other connected processes, acknowledges a write
+to its writer, and answers a write the quota refused with the bottle's
+contents, which the mirror resets to before re-applying what it still
+has in flight. A delta for a key with an unacknowledged local write,
+or any delta while a local clear is unacknowledged, is not applied: the
+browser serialized it before the pending write.
+
+Blink does the same. Its CachedStorageArea holds a StorageAreaMap,
+primes it with the synchronous StorageArea::GetAll(new_observer) call,
+sends Put, Delete and DeleteAll with a StorageAreaSource, and receives
+KeyChanged, KeyDeleted, AllDeleted and KeyChangeFailed on its
+StorageAreaObserver; pending_mutations_by_key_ makes it skip non-local
+mutations for keys with unacknowledged local writes, and
+KeyChangeFailed reverts the one key. WebKit's StorageAreaMap connects
+with NetworkStorageManager::ConnectToStorageAreaSync, tracks
+m_pendingValueChanges the same way, sends SetItem with an async reply
+whose error case carries every item for syncItems(), and the network
+process's StorageAreaBase::dispatchEvents sends DispatchStorageEvent
+to every listener, naming the source StorageAreaImpl on the source
+connection's copy so that Storage object is skipped. Gecko's LSNG
+takes a per-task LSSnapshot over PBackgroundLSSnapshot instead,
+prefilled and checkpointed at a stable state and marked dirty when
+another process writes, and relays cross-process events through
+PBackgroundLSObserver::Observe; its session storage is a content-side
+SessionStorageCache checkpointed to the parent at a stable state.
+
+Ladybird fires the in-process storage events at write time, as the
+spec's broadcast and Gecko do; Blink and WebKit wait for the browser's
+echo. It drops every delta while a local clear is unacknowledged, where
+Blink and WebKit apply such deltas and can leave one key out of step
+until the next change. And on a refused write it reports the revert to
+the window that wrote as well; Blink's KeyChangeFailed skips the source
+window. A window that starts listening for storage events gets its
+storage connected, as Blink's DOMWindowStorageController does when a
+storage listener is added.
