@@ -64,13 +64,6 @@ protected:
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
-    [[nodiscard]] Utf16FlyString const& parent_layer_internal_qualified_name() const
-    {
-        return m_cached_layer_name.ensure([&] { return parent_layer_internal_qualified_name_slow_case(); });
-    }
-
-    [[nodiscard]] Utf16FlyString parent_layer_internal_qualified_name_slow_case() const;
-
     Type m_type;
     RustRule m_native_rule;
     GC::Ptr<CSSRule> m_parent_rule;
@@ -78,7 +71,6 @@ protected:
     GC::Ptr<CSSStyleSheet> m_parent_cssom_sheet;
 
     Optional<SourcePosition> m_source_position;
-    mutable Optional<Utf16FlyString> m_cached_layer_name;
 };
 
 }

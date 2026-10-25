@@ -22,7 +22,6 @@ public:
     virtual ~CSSNestedDeclarations() override = default;
 
     SelectorList const& absolutized_selectors() const;
-    [[nodiscard]] Utf16FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
     RustDeclarationBlock const& declaration() const { return m_declarations; }
 
     GC::Ref<CSSStyleProperties> style() const;

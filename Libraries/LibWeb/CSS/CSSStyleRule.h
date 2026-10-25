@@ -35,8 +35,6 @@ public:
     GC::Ref<CSSStyleProperties> style() const;
     GC::Ref<StylePropertyMap> style_map();
 
-    [[nodiscard]] Utf16FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
-
 private:
     CSSStyleRule(RustRule, CSSRuleList&);
     GC::Ref<CSSStyleProperties> ensure_style_properties() const;
