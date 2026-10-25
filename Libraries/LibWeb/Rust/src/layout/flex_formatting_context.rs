@@ -1251,7 +1251,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
         // NB: Cross axis limits transfer to an indefinite main size.
-        if facts.has_auto_content_aspect_ratio() || (facts.has_preferred_aspect_ratio() && !basis_is_definite) {
+        if facts.has_preferred_aspect_ratio() && !basis_is_definite {
             let (min_cross, _) = self.computed_cross_min_size(node);
             let (max_cross, _) = self.computed_cross_max_size(node);
             flex_base_size = self.adjust_main_size_through_aspect_ratio(node, flex_base_size, min_cross, max_cross);
