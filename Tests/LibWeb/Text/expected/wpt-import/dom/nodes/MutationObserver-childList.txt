@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 40 tests
 
-38 Pass
-2 Fail
+40 Pass
 Pass	childList Node.nodeValue: no mutation
 Pass	childList Node.textContent: replace content mutation
 Pass	childList Node.textContent: no previous content mutation
@@ -25,8 +24,8 @@ Pass	childList Node.appendChild: fragment removal mutations
 Pass	childList Node.appendChild: addition outside document tree mutation
 Pass	childList Node.replaceChild: replacement mutation
 Pass	childList Node.replaceChild: removal mutation
-Fail	childList Node.replaceChild: internal replacement mutation
-Fail	childList Node.replaceChild: self internal replacement mutation
+Pass	childList Node.replaceChild: internal replacement mutation
+Pass	childList Node.replaceChild: self internal replacement mutation
 Pass	childList ParentNode.replaceChildren: move an existing child
 Pass	childList ParentNode.replaceChildren: self replacement of only child
 Pass	childList Node.removeChild: removal mutation
