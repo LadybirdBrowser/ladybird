@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Sanitizer API: default and base configuration immutability</title>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="./support/util.js"></script>
+</head>
+<body>
+<div id="container"></div>
+<script>
+function assert_object_equals(a, b, description) {
+  assert_equals(JSON.stringify(a), JSON.stringify(b), description);
+}
+
+test(t => {
+  const initialDefault = new Sanitizer().get();
+  const s = new Sanitizer();
+
+  // Apply all modifier methods to mutate s.
+  s.allowElement("custom-elem");
+  s.removeElement("div");
+  s.replaceElementWithChildren("p");
+  s.allowAttribute("custom-attr");
+  s.removeAttribute("dir");
+  s.allowProcessingInstruction("custom-pi");
+  s.removeProcessingInstruction("target-1");
+  s.setComments(true);
+  s.setDataAttributes(true);
+  s.removeUnsafe();
+
+  assert_not_equals(
+    JSON.stringify(s.get()),
+    JSON.stringify(initialDefault),
+    "Sanitizer instance should be modified"
+  );
+
+  // Subsequent instances must have the untouched default configuration.
+  const sAfterNoArg = new Sanitizer();
+  assert_object_equals(
+    sAfterNoArg.get(),
+    initialDefault,
+    "new Sanitizer() configuration must remain unchanged"
+  );
+
+  const sAfterDefault = new Sanitizer("default");
+  assert_object_equals(
+    sAfterDefault.get(),
+    initialDefault,
+    "new Sanitizer('default') configuration must remain unchanged"
+  );
+
+  assert_true(
+    sAfterNoArg.get().elements.some(e => e.name === "div"),
+    "div must still be in default configuration"
+  );
+  assert_false(
+    sAfterNoArg.get().elements.some(e => e.name === "custom-elem"),
+    "custom-elem must not be in default configuration"
+  );
+  assert_false(
+    "replaceWithChildrenElements" in sAfterNoArg.get(),
+    "replaceWithChildrenElements must not be in default configuration"
+  );
+  assert_true(
+    sAfterNoArg.get().attributes.some(a => a.name === "dir"),
+    "dir attribute must still be in default configuration"
+  );
+  assert_false(
+    sAfterNoArg.get().attributes.some(a => a.name === "custom-attr"),
+    "custom-attr must not be in default configuration"
+  );
+  assert_false(
+    sAfterNoArg.get().comments,
+    "comments must remain false in default configuration"
+  );
+  assert_false(
+    sAfterNoArg.get().dataAttributes,
+    "dataAttributes must remain false in default configuration"
+  );
+}, "Modifying a Sanitizer instance does not change subsequent new Sanitizer() instances");
+
+const MODIFIER_TESTS = [
+  {
+    name: "allowElement",
+    modify: s => s.allowElement("my-custom-elem"),
+    verify: config => assert_false(config.elements.some(e => e.name === "my-custom-elem"))
+  },
+  {
+    name: "removeElement",
+    modify: s => s.removeElement("div"),
+    verify: config => assert_true(config.elements.some(e => e.name === "div"))
+  },
+  {
+    name: "replaceElementWithChildren",
+    modify: s => s.replaceElementWithChildren("p"),
+    verify: config => assert_false("replaceWithChildrenElements" in config)
+  },
+  {
+    name: "allowAttribute",
+    modify: s => s.allowAttribute("my-custom-attr"),
+    verify: config => assert_false(config.attributes.some(a => a.name === "my-custom-attr"))
+  },
+  {
+    name: "removeAttribute",
+    modify: s => s.removeAttribute("dir"),
+    verify: config => assert_true(config.attributes.some(a => a.name === "dir"))
+  },
+  {
+    name: "allowProcessingInstruction",
+    modify: s => s.allowProcessingInstruction("custom-target"),
+    verify: config => assert_false(config.processingInstructions.some(pi => pi.target === "custom-target"))
+  },
+  {
+    name: "removeProcessingInstruction",
+    modify: s => s.removeProcessingInstruction("custom-target"),
+    verify: config => assert_false("removeProcessingInstructions" in config)
+  },
+  {
+    name: "setComments",
+    modify: s => s.setComments(true),
+    verify: config => assert_false(config.comments)
+  },
+  {
+    name: "setDataAttributes",
+    modify: s => s.setDataAttributes(true),
+    verify: config => assert_false(config.dataAttributes)
+  },
+  {
+    name: "removeUnsafe",
+    modify: s => s.removeUnsafe(),
+    verify: config => {
+      assert_true(config.elements.length > 0);
+      assert_true(config.attributes.length > 0);
+      assert_false("removeElements" in config);
+      assert_false("removeAttributes" in config);
+    }
+  }
+];
+
+for (const { name, modify, verify } of MODIFIER_TESTS) {
+  test(() => {
+    const s = new Sanitizer();
+    modify(s);
+    const fresh = new Sanitizer();
+    verify(fresh.get());
+  }, `${name}() on new Sanitizer() does not affect subsequent instances`);
+}
+
+test(() => {
+  const s = new Sanitizer();
+  const initial = s.get();
+  const config = s.get();
+
+  // Mutate array members.
+  config.elements.push({ name: "evil-element", namespace: "http://www.w3.org/1999/xhtml" });
+  config.attributes.push({ name: "evil-attr", namespace: null });
+  config.comments = true;
+  config.dataAttributes = true;
+
+  // Mutate nested element properties.
+  if (config.elements.length > 0) {
+    config.elements[0].name = "mutated-tag";
+    if (config.elements[0].attributes) {
+      config.elements[0].attributes.push({ name: "mutated-attr", namespace: null });
+    }
+  }
+
+  // The instance itself must not be affected.
+  assert_object_equals(
+    s.get(),
+    initial,
+    "sanitizer.get() must not be affected by mutations to previously returned config"
+  );
+
+  // Future instances must not be affected.
+  const fresh = new Sanitizer();
+  assert_object_equals(
+    fresh.get(),
+    initial,
+    "new Sanitizer().get() must not be affected by mutations to previously returned config"
+  );
+}, "Mutating the object returned by sanitizer.get() does not affect the Sanitizer or default configuration");
+
+test(() => {
+  const s = new Sanitizer();
+  const c1 = s.get();
+  const c2 = s.get();
+
+  assert_not_equals(c1, c2, "get() must return distinct objects");
+  assert_not_equals(c1.elements, c2.elements, "get().elements must return distinct arrays");
+  assert_not_equals(c1.attributes, c2.attributes, "get().attributes must return distinct arrays");
+  if (c1.elements.length > 0 && c2.elements.length > 0) {
+    assert_not_equals(
+      c1.elements[0],
+      c2.elements[0],
+      "nested element configuration dictionaries must be distinct objects"
+    );
+  }
+}, "Repeated calls to sanitizer.get() return distinct object copies");
+
+test(() => {
+  const sInit = new Sanitizer({});
+  sInit.removeUnsafe();
+  const initialBaseline = sInit.get();
+
+  // Verify baseline configuration actually has removeElements and removeAttributes.
+  assert_true(initialBaseline.removeElements.length > 0, "baseline removeElements should not be empty");
+  assert_true(initialBaseline.removeAttributes.length > 0, "baseline removeAttributes should not be empty");
+
+  // Create s1, apply baseline, then mutate s1.
+  const s1 = new Sanitizer({});
+  s1.removeUnsafe();
+  s1.allowElement("script");
+  s1.allowElement("iframe");
+  s1.allowElement({ name: "script", namespace: "http://www.w3.org/2000/svg" });
+  s1.allowElement({ name: "use", namespace: "http://www.w3.org/2000/svg" });
+  s1.allowAttribute("onclick");
+  s1.allowAttribute("onload");
+
+  // A new sanitizer invoking removeUnsafe() must still receive the complete baseline configuration.
+  const s2 = new Sanitizer({});
+  s2.removeUnsafe();
+  assert_object_equals(
+    s2.get(),
+    initialBaseline,
+    "Baseline configuration must not be changed by modifying previous instances"
+  );
+  assert_true(
+    s2.get().removeElements.some(e => e.name === "script" && e.namespace === "http://www.w3.org/1999/xhtml"),
+    "script must still be in removeElements"
+  );
+  assert_true(
+    s2.get().removeElements.some(e => e.name === "iframe" && e.namespace === "http://www.w3.org/1999/xhtml"),
+    "iframe must still be in removeElements"
+  );
+  assert_true(
+    s2.get().removeAttributes.some(a => a.name === "onclick"),
+    "onclick must still be in removeAttributes"
+  );
+}, "Modifying a Sanitizer after removeUnsafe() does not change the built-in safe baseline configuration");
+
+test(() => {
+  const s1 = new Sanitizer({});
+  s1.removeUnsafe();
+  const baselineConfig = s1.get();
+
+  // Clear lists in returned baseline config.
+  baselineConfig.removeElements.length = 0;
+  baselineConfig.removeAttributes.length = 0;
+
+  const s2 = new Sanitizer({});
+  s2.removeUnsafe();
+  assert_true(s2.get().removeElements.length > 0, "removeElements must not be emptied");
+  assert_true(s2.get().removeAttributes.length > 0, "removeAttributes must not be emptied");
+}, "Mutating config returned from baseline sanitizer does not affect subsequent removeUnsafe() calls");
+
+test(() => {
+  const inputConfig = {
+    elements: ["div", "span"],
+    attributes: ["title"]
+  };
+  const s = new Sanitizer(inputConfig);
+
+  // Mutate input dictionary after construction.
+  inputConfig.elements.push("script");
+  inputConfig.attributes.push("onclick");
+  inputConfig.elements[0] = "iframe";
+
+  const current = s.get();
+  assert_equals(current.elements.length, 2);
+  assert_false(current.elements.some(e => e.name === "script" || e.name === "iframe"));
+  assert_equals(current.attributes.length, 1);
+  assert_false(current.attributes.some(a => a.name === "onclick"));
+}, "Modifying input configuration dictionary after new Sanitizer(config) does not affect the Sanitizer");
+
+test(t => {
+  const initialDefault = new Sanitizer().get();
+  const div = document.createElement("div");
+  document.querySelector("#container").appendChild(div);
+  t.add_cleanup(() => div.remove());
+
+  // Perform sanitization using default preset implicitly and explicitly.
+  div.setHTML("<div><script>alert(1)<\/script><p onclick='alert(2)'>test</p><custom-el></custom-el></div>");
+  assert_equals(div.querySelector("script"), null, "script must be stripped by setHTML()");
+
+  assert_object_equals(
+    new Sanitizer().get(),
+    initialDefault,
+    "default configuration must be unchanged after setHTML()"
+  );
+
+  div.setHTML("<div><script>alert(1)<\/script></div>", { sanitizer: "default" });
+  assert_equals(div.querySelector("script"), null, "script must be stripped by setHTML(..., { sanitizer: 'default' })");
+
+  assert_object_equals(
+    new Sanitizer().get(),
+    initialDefault,
+    "default configuration must be unchanged after setHTML(..., { sanitizer: 'default' })"
+  );
+
+  const sInst = new Sanitizer();
+  div.setHTML("<div><script>alert(1)<\/script></div>", { sanitizer: sInst });
+  assert_object_equals(
+    sInst.get(),
+    initialDefault,
+    "Sanitizer instance passed to setHTML() must not be mutated"
+  );
+}, "Sanitization with Element.prototype.setHTML() does not change default base configuration");
+
+test(t => {
+  if (!("parseHTML" in Document)) {
+    return;
+  }
+  const initialDefault = new Sanitizer().get();
+
+  const doc = Document.parseHTML("<div><script>alert(1)<\/script><span onclick='alert(2)'>text</span></div>");
+  assert_equals(doc.querySelector("script"), null, "script must be stripped by Document.parseHTML()");
+
+  assert_object_equals(
+    new Sanitizer().get(),
+    initialDefault,
+    "default configuration must be unchanged after Document.parseHTML()"
+  );
+
+  const doc2 = Document.parseHTML("<div><script>alert(1)<\/script></div>", { sanitizer: "default" });
+  assert_equals(doc2.querySelector("script"), null);
+
+  assert_object_equals(
+    new Sanitizer().get(),
+    initialDefault,
+    "default configuration must be unchanged after Document.parseHTML(..., { sanitizer: 'default' })"
+  );
+}, "Sanitization with Document.parseHTML() does not change default base configuration");
+
+test(t => {
+  const initialDefault = new Sanitizer().get();
+  const modified = new Sanitizer();
+  modified.removeElement("div");
+  modified.allowElement("custom-tag");
+
+  const div = document.createElement("div");
+  document.querySelector("#container").appendChild(div);
+  t.add_cleanup(() => div.remove());
+
+  div.setHTML("<div>hello</div><custom-tag>world</custom-tag>", { sanitizer: modified });
+  assert_equals(div.querySelector("div"), null, "div is removed by modified sanitizer");
+  assert_not_equals(div.querySelector("custom-tag"), null, "custom-tag is allowed by modified sanitizer");
+
+  // Subsequent default setHTML() operations must use the untouched default configuration.
+  const fresh = new Sanitizer();
+  assert_object_equals(fresh.get(), initialDefault, "default configuration must remain untouched");
+
+  div.setHTML("<div>hello</div><custom-tag>world</custom-tag>");
+  assert_not_equals(div.querySelector("div"), null, "div is allowed by default setHTML()");
+  assert_equals(div.querySelector("custom-tag"), null, "custom-tag is stripped by default setHTML()");
+}, "A modified Sanitizer used in setHTML() does not affect default configuration or other Sanitizers");
+
+test(t => {
+  const s = new Sanitizer({
+    elements: [
+      { name: "div", attributes: ["id", "onclick"] },
+      "script",
+      "iframe",
+      "a"
+    ],
+    attributes: ["title", "onload"],
+    javascriptURLs: true
+  });
+  const beforeConfig = s.get();
+  assert_true(beforeConfig.elements.some(e => e.name === "script"), "script is in initial config");
+  assert_true(beforeConfig.elements.some(e => e.name === "iframe"), "iframe is in initial config");
+  assert_true(beforeConfig.attributes.some(a => a.name === "onload"), "onload is in initial config");
+  assert_true(beforeConfig.javascriptURLs, "javascriptURLs is true in initial config");
+
+  const div = document.createElement("div");
+  document.querySelector("#container").appendChild(div);
+  t.add_cleanup(() => div.remove());
+
+  div.setHTML(
+    "<div id='d' onclick='alert(1)' onload='alert(2)'><script>alert(3)<\/script><iframe id='f'></iframe><a id='link' href='javascript:alert(4)'>link</a></div>",
+    { sanitizer: s }
+  );
+
+  // setHTML() must enforce safe sanitization on the output DOM:
+  assert_not_equals(div.querySelector("#d"), null, "div is allowed");
+  assert_equals(div.querySelector("#d").getAttribute("id"), "d", "id attribute is allowed");
+  assert_false(div.querySelector("#d").hasAttribute("onclick"), "onclick must be stripped by setHTML()");
+  assert_false(div.querySelector("#d").hasAttribute("onload"), "onload must be stripped by setHTML()");
+  assert_equals(div.querySelector("script"), null, "script must be stripped by setHTML()");
+  assert_equals(div.querySelector("iframe"), null, "iframe must be stripped by setHTML()");
+
+  // s.get() must remain completely unchanged after setHTML():
+  const afterConfig = s.get();
+  assert_object_equals(
+    afterConfig,
+    beforeConfig,
+    "s.get() must be unchanged after setHTML() even when s contains unsafe entries"
+  );
+  assert_true(afterConfig.elements.some(e => e.name === "script"), "script must still be in s.get()");
+  assert_true(afterConfig.elements.some(e => e.name === "iframe"), "iframe must still be in s.get()");
+  assert_true(afterConfig.attributes.some(a => a.name === "onload"), "onload must still be in s.get()");
+  const divEntry = afterConfig.elements.find(e => e.name === "div");
+  assert_true(divEntry.attributes.some(a => a.name === "onclick"), "per-element onclick must still be in s.get()");
+  assert_true(afterConfig.javascriptURLs, "javascriptURLs must still be true in s.get()");
+}, "s.get() is unchanged after Element.prototype.setHTML() when Sanitizer has unsafe allowlist entries");
+
+test(t => {
+  const s = new Sanitizer({
+    removeElements: ["span"],
+    removeAttributes: ["data-drop"],
+    javascriptURLs: true
+  });
+  const beforeConfig = s.get();
+
+  const div = document.createElement("div");
+  document.querySelector("#container").appendChild(div);
+  t.add_cleanup(() => div.remove());
+
+  div.setHTML(
+    "<div onclick='alert(1)'><span>dropped</span><script>alert(2)<\/script><p>kept</p></div>",
+    { sanitizer: s }
+  );
+
+  assert_equals(div.querySelector("span"), null, "span is removed");
+  assert_equals(div.querySelector("script"), null, "script is stripped by setHTML()");
+  assert_false(div.querySelector("div").hasAttribute("onclick"), "onclick is stripped by setHTML()");
+  assert_not_equals(div.querySelector("p"), null, "p is kept");
+
+  assert_object_equals(
+    s.get(),
+    beforeConfig,
+    "s.get() must be unchanged after setHTML() when Sanitizer uses removeElements/removeAttributes"
+  );
+}, "s.get() is unchanged after Element.prototype.setHTML() when Sanitizer has unsafe remove-list configuration");
+
+test(t => {
+  if (!("parseHTML" in Document)) {
+    return;
+  }
+  const s = new Sanitizer({
+    elements: [
+      "html",
+      "head",
+      "body",
+      { name: "div", attributes: ["id", "onclick"] },
+      "script"
+    ],
+    attributes: ["onload"],
+    javascriptURLs: true
+  });
+  const beforeConfig = s.get();
+
+  const doc = Document.parseHTML(
+    "<div id='d' onclick='alert(1)' onload='alert(2)'><script>alert(3)<\/script></div>",
+    { sanitizer: s }
+  );
+  assert_equals(doc.querySelector("script"), null, "script is stripped by Document.parseHTML()");
+  assert_false(doc.querySelector("#d").hasAttribute("onclick"), "onclick is stripped by Document.parseHTML()");
+
+  assert_object_equals(
+    s.get(),
+    beforeConfig,
+    "s.get() must be unchanged after Document.parseHTML() when s contains unsafe entries"
+  );
+}, "s.get() is unchanged after Document.parseHTML() when Sanitizer has unsafe entries");
+
+for (const method of ["appendHTML", "prependHTML", "beforeHTML", "afterHTML", "replaceWithHTML"]) {
+  test(t => {
+    const initialDefault = new Sanitizer().get();
+    const s = new Sanitizer({
+      elements: [
+        { name: "div", attributes: ["id", "onclick"] },
+        "script",
+        "p"
+      ],
+      attributes: ["onload"]
+    });
+    const beforeConfig = s.get();
+
+    const parent = document.createElement("div");
+    document.querySelector("#container").appendChild(parent);
+    t.add_cleanup(() => parent.remove());
+
+    function getReceiver() {
+      parent.replaceChildren();
+      if (["beforeHTML", "afterHTML", "replaceWithHTML"].includes(method)) {
+        const ref = document.createElement("div");
+        parent.appendChild(ref);
+        return ref;
+      }
+      return parent;
+    }
+
+    getReceiver()[method]("<div id='d'><script>alert(1)<\/script><p onclick='alert(2)'>test</p></div>");
+    assert_equals(parent.querySelector("script"), null, `script must be stripped by ${method}()`);
+    assert_object_equals(
+      new Sanitizer().get(),
+      initialDefault,
+      `default configuration must be unchanged after ${method}()`
+    );
+
+    getReceiver()[method](
+      "<div id='d' onclick='alert(1)' onload='alert(2)'><script>alert(3)<\/script><p>kept</p></div>",
+      { sanitizer: s }
+    );
+    assert_not_equals(parent.querySelector("#d"), null, "div is allowed");
+    assert_false(parent.querySelector("#d").hasAttribute("onclick"), `onclick must be stripped by ${method}()`);
+    assert_false(parent.querySelector("#d").hasAttribute("onload"), `onload must be stripped by ${method}()`);
+    assert_equals(parent.querySelector("script"), null, `script must be stripped by ${method}()`);
+
+    assert_object_equals(
+      s.get(),
+      beforeConfig,
+      `s.get() must be unchanged after ${method}() when s contains unsafe entries`
+    );
+  }, `Sanitization with ${method}() does not change default base configuration or mutate passed Sanitizer`);
+}
+</script>
+</body>
+</html>

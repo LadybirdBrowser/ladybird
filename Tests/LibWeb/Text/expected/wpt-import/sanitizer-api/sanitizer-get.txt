@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Fail
+Fail	Sorting of attributes
+Fail	Sorting of removeAttributes
+Fail	Sorting of elements
+Fail	Sorting of removeElements
+Fail	Sorting of replaceWithChildrenElements
+Fail	Sorting of element's attributes
+Fail	Sorting of element's removeAttributes
+Fail	Sorting of processingInstructions
+Fail	Sorting of removeProcessingInstructions

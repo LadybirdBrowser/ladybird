@@ -1,0 +1,166 @@
+<!doctype html>
+<head>
+<title>Sanitizer API: Processing Instructions</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/html5lib-testcase-support.js"></script>
+
+<script id="agnostic" type="html5lib-testcases">
+#data
+<?target data?>
+#config
+{ "processingInstructions": ["target"] }
+#document
+| <?target data?>
+
+#data
+<?target data?>
+#config
+{ "processingInstructions": [{ "target": "target" }] }
+#document
+| <?target data?>
+
+#data
+<?Target data?>
+#config
+{ "processingInstructions": ["target"] }
+#document
+
+#data
+<?target data?>
+#config
+{ "processingInstructions": ["Target"] }
+#document
+
+#data
+<?target-1 data?><?target-2 data?>
+#config
+{ "processingInstructions": ["target-1", "target-2"] }
+#document
+| <?target-1 data?>
+| <?target-2 data?>
+
+#data
+<?target-1 data?><?target-2 data?>
+#config
+{ "processingInstructions": ["target-1"] }
+#document
+| <?target-1 data?>
+
+#data
+<div><?target data?></div>
+#config
+{ "processingInstructions": ["target"] }
+#document
+| <div>
+|   <?target data?>
+
+#data
+<div><?unlisted-target data?></div>
+#config
+{ "processingInstructions": ["allowed-target"] }
+#document
+| <div>
+
+</script>
+
+<script id="unsafe-only" type="html5lib-testcases">
+#data
+<?target data?>
+#config
+{ "removeProcessingInstructions": ["target"] }
+#document
+
+#data
+<?target data?>
+#config
+{ "removeProcessingInstructions": [{ "target": "target" }] }
+#document
+
+#data
+<div><?target data?></div>
+#config
+{ "removeProcessingInstructions": ["target"] }
+#document
+| <div>
+
+#data
+<div><?target data?></div>
+#config
+{}
+#document
+| <div>
+|   <?target data?>
+
+</script>
+
+<script id="safe-only" type="html5lib-testcases">
+#data
+<div><?target data?></div>
+#config
+{}
+#document
+| <div>
+
+</script>
+<script>
+  for (const group of document.querySelectorAll(
+    "script[type='html5lib-testcases']",
+  )) {
+    const type = group.id;
+    parse_html5lib_testcases(group.textContent).forEach((testcase, index) => {
+      let config = undefined;
+      if (testcase.config) {
+        config = { sanitizer: JSON.parse(testcase.config) };
+      }
+
+      if (type !== "safe-only") {
+        test((_) => {
+          const div = document.createElement("div");
+          div.setHTMLUnsafe(testcase.data, config);
+          assert_testcase(div, testcase);
+        }, `setHTMLUnsafe testcase ${group.id}/${index}, "${testcase.data}"`);
+        test((_) => {
+          const div = document.createElement("div");
+          const shadowRoot = div.attachShadow({ mode: "open" });
+          shadowRoot.setHTMLUnsafe(testcase.data, config);
+          assert_testcase(shadowRoot, testcase);
+        }, `ShadowRoot.setHTMLUnsafe testcase ${group.id}/${index}, "${testcase.data}"`);
+      }
+
+      if (type !== "unsafe-only") {
+        test((_) => {
+          const div = document.createElement("div");
+          div.setHTML(testcase.data, config);
+          assert_testcase(div, testcase);
+        }, `setHTML testcase ${group.id}/${index}, "${testcase.data}"`);
+
+        test((_) => {
+          const div = document.createElement("div");
+          const shadowRoot = div.attachShadow({ mode: "open" });
+          shadowRoot.setHTML(testcase.data, config);
+          assert_testcase(shadowRoot, testcase);
+        }, `ShadowRoot.setHTML testcase ${group.id}/${index}, "${testcase.data}"`);
+      }
+
+      if (type !== "unsafe-only") {
+        test((_) => {
+          // Wrap in a div to ensure the processing instruction goes into the body.
+          const doc = Document.parseHTML(`<div>${testcase.data}</div>`, config);
+          assert_testcase(doc.body.firstChild, testcase);
+        }, `parseHTML testcase ${group.id}/${index}, "${testcase.data}"`);
+      }
+
+      if (type !== "safe-only") {
+        test((_) => {
+          // Wrap in a div to ensure the processing instruction goes into the body.
+          const doc = Document.parseHTMLUnsafe(
+            `<div>${testcase.data}</div>`, config);
+          assert_testcase(doc.body.firstChild, testcase);
+        }, `parseHTMLUnsafe testcase ${group.id}/${index}, "${testcase.data}"`);
+      }
+    });
+  }
+</script>
+</head>
+<body></body>

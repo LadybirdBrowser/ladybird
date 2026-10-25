@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<head>
+<title>Test custom element callbacks with Sanitizer</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div></div>
+<script>
+window.constructed = 0;
+window.connected = 0;
+function cleanup() {
+  window.constructed = 0;
+  window.connected = 0;
+}
+customElements.define("x-probe", class extends HTMLElement {
+  constructor() { super(); window.constructed++; }
+  connectedCallback() { window.connected++; }
+});
+
+// Test cases involving named custom elements.
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTML("<x-probe></x-probe>");
+  assert_equals(window.constructed, 0);
+  assert_equals(window.connected, 0);
+}, "Custom element that is removed during sanitization.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTML("<x-probe></x-probe>",
+    {sanitizer: {elements: ["x-probe"]}});
+  assert_equals(window.constructed, 1);
+  assert_equals(window.connected, 1);
+}, "Custom element that is allowed.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  const div = document.createElement("div");
+  div.setHTML("<x-probe></x-probe>", {sanitizer: {elements: ["x-probe"]}});
+  assert_equals(window.constructed, 1, "constructed before setHTML() returns");
+  assert_equals(window.connected, 0);
+  assert_equals(div.firstChild.constructor.name, "", "upgraded element is not HTMLElement");
+}, "Custom element that is allowed, on a disconnected element.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  const div = document.createElement("div");
+  div.setHTMLUnsafe("<x-probe></x-probe>");
+  assert_equals(window.constructed, 1, "constructed before setHTMLUnsafe() returns");
+  assert_equals(window.connected, 0);
+}, "Custom element on a disconnected element, setHTMLUnsafe().");
+
+for (const method of ["setHTML", "setHTMLUnsafe"]) {
+  test(t => {
+    t.add_cleanup(cleanup);
+    const div = document.createElement("div");
+    div[method]("<span><x-probe></x-probe></span>",
+      {sanitizer: {elements: ["x-probe"], replaceWithChildrenElements: ["span"]}});
+    assert_equals(div.firstChild.localName, "x-probe");
+    assert_equals(window.constructed, 1, `constructed before ${method}() returns`);
+    assert_equals(window.connected, 0);
+  }, `Custom element inside an element that is replaced with its children, on a disconnected element, ${method}().`);
+
+  test(t => {
+    t.add_cleanup(cleanup);
+    const target = document.body.firstElementChild;
+    target[method]("<span><b><x-probe></x-probe></b></span>",
+      {sanitizer: {elements: ["x-probe"], replaceWithChildrenElements: ["span", "b"]}});
+    assert_equals(target.firstChild.localName, "x-probe");
+    assert_equals(window.constructed, 1);
+    assert_equals(window.connected, 1);
+  }, `Custom element inside nested elements that are replaced with their children, ${method}().`);
+
+  test(t => {
+    const scopedLog = [];
+    const registry = new CustomElementRegistry();
+    class ScopedProbe extends HTMLElement {
+      constructor() { super(); scopedLog.push("scoped"); }
+    }
+    registry.define("x-probe", ScopedProbe);
+    t.add_cleanup(cleanup);
+    const host = document.createElement("div");
+    const shadow = host.attachShadow({mode: "open", customElementRegistry: registry});
+    shadow[method]("<span><x-probe></x-probe></span>",
+      {sanitizer: {elements: ["x-probe"], replaceWithChildrenElements: ["span"]}});
+    const probe = shadow.firstChild;
+    assert_equals(probe.localName, "x-probe");
+    assert_equals(probe.customElementRegistry, registry, "element uses the scoped registry");
+    assert_true(probe instanceof ScopedProbe, "upgraded with the scoped definition");
+    assert_array_equals(scopedLog, ["scoped"]);
+    assert_equals(window.constructed, 0, "global definition is not used");
+  }, `Custom element inside an element that is replaced with its children uses the target's scoped registry, ${method}().`);
+}
+
+test(t => {
+  t.add_cleanup(cleanup);
+  const div = document.createElement("div");
+  div.setHTMLUnsafe(
+    "<span><template shadowrootmode=open><x-probe></x-probe></template></span>",
+    {sanitizer: {removeElements: ["span"]}});
+  assert_equals(div.childNodes.length, 0);
+  assert_equals(window.constructed, 0);
+  assert_equals(window.connected, 0);
+}, "Custom element in a declarative shadow root on a removed host is not constructed.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  const div = document.createElement("div");
+  div.setHTMLUnsafe("<span><x-probe></x-probe></span>",
+    {sanitizer: {removeElements: ["span"]}});
+  assert_equals(div.childNodes.length, 0);
+  assert_equals(window.constructed, 0);
+}, "Custom element inside a removed element is not constructed.");
+
+const attrLog = [];
+customElements.define("x-attrs", class extends HTMLElement {
+  static observedAttributes = ["a", "b"];
+  constructor() { super(); attrLog.push("constructor"); }
+  attributeChangedCallback(name, oldValue, newValue) {
+    attrLog.push(`attributeChanged ${name} ${oldValue} ${newValue}`);
+  }
+  connectedCallback() { attrLog.push("connected"); }
+});
+
+test(t => {
+  attrLog.length = 0;
+  const target = document.body.firstElementChild;
+  target.setHTML('<x-attrs a="1" b="2"></x-attrs>',
+    {sanitizer: {elements: ["x-attrs"], attributes: ["a"]}});
+  assert_array_equals(attrLog,
+    ["constructor", "attributeChanged a null 1", "connected"]);
+  assert_equals(target.firstChild.getAttribute("a"), "1");
+  assert_false(target.firstChild.hasAttribute("b"));
+}, "attributeChangedCallback only fires for attributes the sanitizer keeps.");
+
+// Test cases involving `is=`.
+customElements.define("x-div", class extends HTMLDivElement {
+  constructor() { super(); window.constructed++; }
+  connectedCallback() { window.connected++; }
+}, { extends: "div" });
+
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTML("<div is='x-div'></div>");
+  assert_equals(window.constructed, 0);
+  assert_equals(window.connected, 0);
+}, "Custom element via is-attribute, where is attribute is not default-allowed.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTML("<div is='x-div'></div>",
+    {sanitizer: {elements:["div"], removeAttributes:["is"]}});
+  assert_equals(window.constructed, 0);
+  assert_equals(window.connected, 0);
+}, "Custom element via is-attribute, where is attribute is removed.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTML("<div is='x-div'></div>",
+    {sanitizer: {elements:["div", "x-div"], removeAttributes:["is"]}});
+  assert_equals(window.constructed, 0);
+  assert_equals(window.connected, 0);
+}, "Custom element via is-attribute, where is attribute is removed but the custom element would have been allowed.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTML("<x-probe is='x-div'></x-probe>",
+    {sanitizer: {elements:["div", "x-probe"], removeAttributes:["is"]}});
+  assert_equals(window.constructed, 1);
+  assert_equals(window.connected, 1);
+}, "Custom element with an is-attribute, where the is=-attribute is blocked.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTML("<div is='x-div'></div>",
+    {sanitizer: {elements:["p", "x-div"], attributes:["is", "data-attr"]}});
+  assert_equals(window.constructed, 0);
+  assert_equals(window.connected, 0);
+}, "Custom element via is-attribute, where is attribute is allowed, but the element is not.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTML("<div is='x-div'></div>",
+    {sanitizer: {removeElements:["div"], attributes:["is", "data-attr"]}});
+  assert_equals(window.constructed, 0);
+  assert_equals(window.connected, 0);
+}, "Custom element via is-attribute, where is attribute is allowed, but the element is removed.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTML("<div is='x-div'></div>",
+    {sanitizer: {replaceWithChildrenElements:["div"], attributes:["is", "data-attr"]}});
+  assert_equals(window.constructed, 0);
+  assert_equals(window.connected, 0);
+}, "Custom element via is-attribute, where is attribute is allowed, but the element is replaced.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTMLUnsafe("<div is='x-div'></div>",
+    {sanitizer: "default"});
+  assert_equals(window.constructed, 0);
+  assert_equals(window.connected, 0);
+}, "Custom element via is-attribute with unsafe, where is attribute is not default-allowed.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTML(
+    "<div is='x-div'></div>",
+    {sanitizer: {elements:["p", "div"], attributes:["is"]}});
+  assert_equals(window.constructed, 1);
+  assert_equals(window.connected, 1);
+}, "Sanity check, that is= processing still works when allowed.");
+
+// Test cases involving `is=` with <html> or <script>
+customElements.define("x-script", class extends HTMLScriptElement {
+  constructor() { super(); window.constructed++; }
+  connectedCallback() { window.connected++; }
+}, {extends: "script"});
+
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTMLUnsafe(
+    "<script is='x-script'>2+2</sc" + "ript>",
+    {sanitizer: {elements: ["script"],removeAttributes:["is"]}});
+  assert_equals(window.constructed, 0);
+  assert_equals(window.connected, 0);
+}, "Custom element via is-attribute on script element, where is attribute is not allowed.");
+
+customElements.define("x-html", class extends HTMLHtmlElement {
+  constructor() { super(); window.constructed++; }
+  connectedCallback() { window.connected++; }
+}, {extends: "html"});
+
+test(t => {
+  t.add_cleanup(cleanup);
+  document.body.firstElementChild.setHTMLUnsafe(
+    "<html is='x-html'></html>",
+    {sanitizer: {elements: ["html"],removeAttributes:["is"]}});
+  assert_equals(window.constructed, 0);
+  assert_equals(window.connected, 0);
+}, "Custom element via is-attribute on html element, where is attribute is not default-allowed.");
+
+</script>
+</body>

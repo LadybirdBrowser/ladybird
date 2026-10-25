@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<head>
+<title>setHTML() and setHTMLUnsafe() with a sanitizer run custom element reactions before returning</title>
+<link rel="help" href="https://html.spec.whatwg.org/#dom-element-sethtml">
+<link rel="help" href="https://html.spec.whatwg.org/#dom-shadowroot-sethtml">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+// The methods are [CEReactions], so the reactions queued while they run
+// (construction and connectedCallback for the parsed elements, then
+// disconnectedCallback for the replaced children) are invoked before they
+// return.
+// setHTMLUnsafe() without a sanitizer is covered by
+// /html/webappapis/dynamic-markup-insertion/html-unsafe-methods/setHTMLUnsafe-CEReactions.html.
+const log = [];
+customElements.define("x-reaction", class extends HTMLElement {
+  constructor() { super(); log.push("constructed"); }
+  connectedCallback() { log.push("connected"); }
+  disconnectedCallback() { log.push("disconnected"); }
+});
+
+const allow = { sanitizer: { elements: ["x-reaction"] } };
+
+for (const [name, run] of [
+  ["Element.setHTML", target => target.setHTML("<x-reaction></x-reaction>", allow)],
+  ["Element.setHTMLUnsafe", target => target.setHTMLUnsafe("<x-reaction></x-reaction>", allow)],
+  ["ShadowRoot.setHTML", target => target.shadowRoot.setHTML("<x-reaction></x-reaction>", allow)],
+  ["ShadowRoot.setHTMLUnsafe", target => target.shadowRoot.setHTMLUnsafe("<x-reaction></x-reaction>", allow)],
+]) {
+  const parentOf = target => name.startsWith("ShadowRoot")
+      ? target.attachShadow({ mode: "open" }) : target;
+
+  test(t => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    t.add_cleanup(() => target.remove());
+    parentOf(target);
+    log.length = 0;
+    run(target);
+    assert_array_equals(log, ["constructed", "connected"]);
+  }, `${name} with a sanitizer runs custom element reactions before returning`);
+
+  test(t => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    t.add_cleanup(() => target.remove());
+    parentOf(target).append(document.createElement("x-reaction"));
+    log.length = 0;
+    run(target);
+    assert_array_equals(log, ["constructed", "connected", "disconnected"]);
+  }, `${name} with a sanitizer runs disconnectedCallback for the replaced children before returning`);
+}
+</script>
+</body>

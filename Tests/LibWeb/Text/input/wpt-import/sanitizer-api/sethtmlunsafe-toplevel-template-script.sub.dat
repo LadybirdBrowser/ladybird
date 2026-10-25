@@ -1,0 +1,66 @@
+#data
+<template><b>Hello</b></template>
+#method
+setHTMLUnsafe
+#document
+| <template>
+|   content
+|     <b>
+|       "Hello"
+
+#data
+<template shadowrootmode="open"><span>Inside</span></template>
+#method
+setHTMLUnsafe
+#document
+| <template>
+|   shadowrootmode="open"
+|   content
+|     <span>
+|       "Inside"
+
+#data
+<template><b>Hello</b></template>
+#method
+setHTMLUnsafe
+#config
+{ "replaceWithChildrenElements": ["template"] }
+#document
+
+#data
+<template><b>Hello</b></template>
+#method
+setHTMLUnsafe
+#config
+{ "removeElements": ["template"] }
+#document
+
+#data
+<script>alert(1);</script>
+#method
+setHTMLUnsafe
+#document
+| <script>
+|   "alert(1);"
+
+#data
+<script><b>Hello</b></script>
+#method
+setHTMLUnsafe
+#config
+{ "replaceWithChildrenElements": ["script"] }
+#document
+| "<b>Hello</b>"
+
+#data
+<template><p>Text</p><div>More</div></template>
+#method
+setHTMLUnsafe
+#document
+| <template>
+|   content
+|     <p>
+|       "Text"
+|     <div>
+|       "More"
+

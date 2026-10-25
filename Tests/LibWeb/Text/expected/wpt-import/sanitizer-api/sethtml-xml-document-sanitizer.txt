@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 26 tests
+
+14 Pass
+12 Fail
+Pass	innerHTML on XML document throws TypeError without calling createParserOptions if default policy provides only a sanitizer without createHTML
+Pass	outerHTML on XML document throws TypeError without calling createParserOptions if default policy provides only a sanitizer without createHTML
+Pass	insertAdjacentHTML on XML document throws TypeError without calling createParserOptions if default policy provides only a sanitizer without createHTML
+Pass	createContextualFragment on XML document throws TypeError without calling createParserOptions if default policy provides only a sanitizer without createHTML
+Pass	innerHTML on XML document created by DOMParser throws TypeError without calling createParserOptions if default policy provides only a sanitizer without createHTML
+Pass	innerHTML on XML document from XHR response throws TypeError without calling createParserOptions if default policy provides only a sanitizer without createHTML
+Fail	setHTMLUnsafe on XML document does not throw TypeError and applies createParserOptions sanitizer
+Fail	setHTMLUnsafe on XML document does not throw TypeError when createParserOptions has no sanitizer
+Fail	appendHTMLUnsafe on XML document does not throw TypeError and applies createParserOptions sanitizer
+Fail	appendHTMLUnsafe on XML document does not throw TypeError when createParserOptions has no sanitizer
+Fail	prependHTMLUnsafe on XML document does not throw TypeError and applies createParserOptions sanitizer
+Fail	prependHTMLUnsafe on XML document does not throw TypeError when createParserOptions has no sanitizer
+Fail	beforeHTMLUnsafe on XML document does not throw TypeError and applies createParserOptions sanitizer
+Fail	beforeHTMLUnsafe on XML document does not throw TypeError when createParserOptions has no sanitizer
+Fail	afterHTMLUnsafe on XML document does not throw TypeError and applies createParserOptions sanitizer
+Fail	afterHTMLUnsafe on XML document does not throw TypeError when createParserOptions has no sanitizer
+Fail	replaceWithHTMLUnsafe on XML document does not throw TypeError and applies createParserOptions sanitizer
+Fail	replaceWithHTMLUnsafe on XML document does not throw TypeError when createParserOptions has no sanitizer
+Pass	innerHTML on XML document executes createHTML and does not call createParserOptions when default policy provides both
+Pass	outerHTML on XML document executes createHTML and does not call createParserOptions when default policy provides both
+Pass	insertAdjacentHTML on XML document executes createHTML and does not call createParserOptions when default policy provides both
+Pass	createContextualFragment on XML document executes createHTML and does not call createParserOptions when default policy provides both
+Pass	innerHTML on XML document created by DOMParser executes createHTML and does not call createParserOptions when default policy provides both
+Pass	innerHTML on XML document from XHR response executes createHTML and does not call createParserOptions when default policy provides both
+Pass	innerHTML on XML document does not invoke throwing createParserOptions
+Pass	innerHTML on XML document accepts TrustedHTML without calling createParserOptions or throwing even if createHTML is missing

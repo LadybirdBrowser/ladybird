@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<head>
+<title>Form owner after the form element is replaced with its children</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+const input = '<form id="f"><input name="i"></form>';
+
+test(t => {
+  const div = document.createElement("div");
+  div.setHTMLUnsafe(input);
+  const form = div.firstChild;
+  assert_equals(form.localName, "form");
+  assert_equals(form.firstChild.form, form);
+}, "Without a sanitizer, the input's form owner is the parsed form");
+
+test(t => {
+  const div = document.createElement("div");
+  div.setHTMLUnsafe(input,
+    { sanitizer: { replaceWithChildrenElements: ["form"] } });
+  assert_equals(div.childNodes.length, 1);
+  const control = div.firstChild;
+  assert_equals(control.localName, "input");
+  assert_equals(control.name, "i");
+  assert_equals(control.form, null);
+}, "With the form replaced with its children, the input has no form owner");
+
+// The form element pointer condition is only reachable in a full document
+// parse, i.e. parseHTMLUnsafe().
+test(t => {
+  const doc = Document.parseHTMLUnsafe(input);
+  const form = doc.querySelector("form");
+  assert_not_equals(form, null);
+  assert_equals(doc.querySelector("input").form, form);
+}, "parseHTMLUnsafe(): without a sanitizer, the input's form owner is the parsed form");
+
+test(t => {
+  const doc = Document.parseHTMLUnsafe(input,
+    { sanitizer: { replaceWithChildrenElements: ["form"] } });
+  assert_equals(doc.querySelector("form"), null);
+  const control = doc.querySelector("input");
+  assert_not_equals(control, null);
+  assert_equals(control.name, "i");
+  assert_equals(control.form, null);
+}, "parseHTMLUnsafe(): with the form replaced with its children, the input has no form owner");
+</script>
+</body>

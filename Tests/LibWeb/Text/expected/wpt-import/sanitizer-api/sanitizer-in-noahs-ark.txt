@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Fail
+Fail	Testcase #0, "<p><b title=1>1<b title=2>2<b title=3>3<b title=4>4</p>x", config: "{ "removeAttributes": ["title"] }", with setHTML()
+Fail	Testcase #0, "<p><b title=1>1<b title=2>2<b title=3>3<b title=4>4</p>x", config: "{ "removeAttributes": ["title"] }", with setHTMLUnsafe()
+Fail	Testcase #0, "<p><b title=1>1<b title=2>2<b title=3>3<b title=4>4</p>x", config: "{ "removeAttributes": ["title"] }", with Document.parseHTML()
+Fail	Testcase #1, "<p><b title=1>1<b title=1>2<b title=1>3<b title=1>4</p>x", config: "{ "removeAttributes": ["title"] }", with setHTML()
+Fail	Testcase #1, "<p><b title=1>1<b title=1>2<b title=1>3<b title=1>4</p>x", config: "{ "removeAttributes": ["title"] }", with setHTMLUnsafe()
+Fail	Testcase #1, "<p><b title=1>1<b title=1>2<b title=1>3<b title=1>4</p>x", config: "{ "removeAttributes": ["title"] }", with Document.parseHTML()
+Fail	Testcase #2, "<p><b>1<b>2<b>3<b title=1>4</p>x", config: "{ "removeAttributes": ["title"] }", with setHTML()
+Fail	Testcase #2, "<p><b>1<b>2<b>3<b title=1>4</p>x", config: "{ "removeAttributes": ["title"] }", with setHTMLUnsafe()
+Fail	Testcase #2, "<p><b>1<b>2<b>3<b title=1>4</p>x", config: "{ "removeAttributes": ["title"] }", with Document.parseHTML()
+Fail	Testcase #3, "<p><b title=1>1<b>2<b>3<b>4</p>x", config: "{ "removeAttributes": ["title"] }", with setHTML()
+Fail	Testcase #3, "<p><b title=1>1<b>2<b>3<b>4</p>x", config: "{ "removeAttributes": ["title"] }", with setHTMLUnsafe()
+Fail	Testcase #3, "<p><b title=1>1<b>2<b>3<b>4</p>x", config: "{ "removeAttributes": ["title"] }", with Document.parseHTML()
+Fail	Testcase #4, "<p><b class=c title=1>1<b class=c title=2>2<b class=c title=3>3<b class=c title=4>4</p>x", config: "{ "removeAttributes": ["title"] }", with setHTML()
+Fail	Testcase #4, "<p><b class=c title=1>1<b class=c title=2>2<b class=c title=3>3<b class=c title=4>4</p>x", config: "{ "removeAttributes": ["title"] }", with setHTMLUnsafe()
+Fail	Testcase #4, "<p><b class=c title=1>1<b class=c title=2>2<b class=c title=3>3<b class=c title=4>4</p>x", config: "{ "removeAttributes": ["title"] }", with Document.parseHTML()
+Fail	Testcase #5, "<p><b class=c title=1>1<b class=c title=2>2<b class=c title=3>3<b class=c title=4>4</p>x", config: "{ "attributes": ["class"] }", with setHTML()
+Fail	Testcase #5, "<p><b class=c title=1>1<b class=c title=2>2<b class=c title=3>3<b class=c title=4>4</p>x", config: "{ "attributes": ["class"] }", with setHTMLUnsafe()
+Fail	Testcase #5, "<p><b class=c title=1>1<b class=c title=2>2<b class=c title=3>3<b class=c title=4>4</p>x", config: "{ "attributes": ["class"] }", with Document.parseHTML()
+Fail	Testcase #6, "<p><b onclick=1>1<b onclick=2>2<b onclick=3>3<b onclick=4>4</p>x", config: "undefined", with setHTML()
+Fail	Testcase #6, "<p><b onclick=1>1<b onclick=2>2<b onclick=3>3<b onclick=4>4</p>x", config: "undefined", with Document.parseHTML()
+Fail	Testcase #7, "<p><b onclick=1>1<b onclick=1>2<b onclick=1>3<b onclick=1>4</p>x", config: "undefined", with setHTML()
+Fail	Testcase #7, "<p><b onclick=1>1<b onclick=1>2<b onclick=1>3<b onclick=1>4</p>x", config: "undefined", with Document.parseHTML()

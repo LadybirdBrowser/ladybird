@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<head>
+<title>setHTML() and setHTMLUnsafe() parse noscript with scripting disabled</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+// The fragment parsing algorithm steps set the scripting mode to inert, so
+// <noscript> is parsed as raw text regardless of the options passed.
+const input = "<noscript><p>x</noscript>y";
+
+function assert_raw_text_noscript(div) {
+  assert_equals(div.childNodes.length, 2, "two child nodes");
+  const noscript = div.firstChild;
+  assert_equals(noscript.localName, "noscript");
+  assert_equals(noscript.childNodes.length, 1, "noscript has one child");
+  assert_equals(noscript.firstChild.nodeType, Node.TEXT_NODE);
+  assert_equals(noscript.firstChild.data, "<p>x");
+  assert_equals(div.lastChild.nodeType, Node.TEXT_NODE);
+  assert_equals(div.lastChild.data, "y");
+}
+
+for (const [name, options] of [
+  ["no options", undefined],
+  ["empty options", {}],
+  ["sanitizer: undefined", { sanitizer: undefined }],
+  ["empty sanitizer config", { sanitizer: {} }],
+]) {
+  test(t => {
+    const div = document.createElement("div");
+    div.setHTMLUnsafe(input, options);
+    assert_raw_text_noscript(div);
+  }, `setHTMLUnsafe() parses noscript as raw text (${name})`);
+}
+
+test(t => {
+  const div = document.createElement("div");
+  div.setHTML(input, { sanitizer: { elements: ["noscript"] } });
+  assert_raw_text_noscript(div);
+}, "setHTML() parses noscript as raw text when noscript is allowed");
+
+test(t => {
+  const div = document.createElement("div");
+  div.setHTML(input);
+  assert_equals(div.childNodes.length, 1);
+  assert_equals(div.firstChild.nodeType, Node.TEXT_NODE);
+  assert_equals(div.firstChild.data, "y");
+}, "setHTML() removes noscript with its raw text content by default");
+</script>
+</body>

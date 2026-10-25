@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 24 tests
+
+2 Pass
+22 Fail
+Fail	Custom element that is removed during sanitization.
+Fail	Custom element that is allowed.
+Fail	Custom element that is allowed, on a disconnected element.
+Pass	Custom element on a disconnected element, setHTMLUnsafe().
+Fail	Custom element inside an element that is replaced with its children, on a disconnected element, setHTML().
+Fail	Custom element inside nested elements that are replaced with their children, setHTML().
+Fail	Custom element inside an element that is replaced with its children uses the target's scoped registry, setHTML().
+Fail	Custom element inside an element that is replaced with its children, on a disconnected element, setHTMLUnsafe().
+Fail	Custom element inside nested elements that are replaced with their children, setHTMLUnsafe().
+Fail	Custom element inside an element that is replaced with its children uses the target's scoped registry, setHTMLUnsafe().
+Fail	Custom element in a declarative shadow root on a removed host is not constructed.
+Fail	Custom element inside a removed element is not constructed.
+Fail	attributeChangedCallback only fires for attributes the sanitizer keeps.
+Fail	Custom element via is-attribute, where is attribute is not default-allowed.
+Fail	Custom element via is-attribute, where is attribute is removed.
+Fail	Custom element via is-attribute, where is attribute is removed but the custom element would have been allowed.
+Fail	Custom element with an is-attribute, where the is=-attribute is blocked.
+Fail	Custom element via is-attribute, where is attribute is allowed, but the element is not.
+Fail	Custom element via is-attribute, where is attribute is allowed, but the element is removed.
+Fail	Custom element via is-attribute, where is attribute is allowed, but the element is replaced.
+Fail	Custom element via is-attribute with unsafe, where is attribute is not default-allowed.
+Fail	Sanity check, that is= processing still works when allowed.
+Fail	Custom element via is-attribute on script element, where is attribute is not allowed.
+Pass	Custom element via is-attribute on html element, where is attribute is not default-allowed.

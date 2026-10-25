@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	setHTML: children of a replaced element get the target's node document
+Fail	setHTML: a declarative shadow root inside a replaced element is not attached
+Fail	setHTMLUnsafe: children of a replaced element get the target's node document
+Fail	setHTMLUnsafe: a declarative shadow root inside a replaced element is not attached
+Fail	setHTMLUnsafe: a custom element inside a replaced element is constructed and connected to the target
+Fail	setHTMLUnsafe: a custom element inside a foster-parented replaced element is connected before the table

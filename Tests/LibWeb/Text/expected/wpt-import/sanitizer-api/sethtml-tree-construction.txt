@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	wrapper
+Fail	Non-string input: empty object.
+Fail	Non-string input: number.
+Fail	Non-string input: octal number.
+Fail	Non-string input: expression.
+Fail	Non-string input: undefined.

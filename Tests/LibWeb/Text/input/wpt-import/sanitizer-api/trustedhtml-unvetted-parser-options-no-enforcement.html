@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>TrustedHTML with parser options that would need vetting, without Trusted Types enforcement</title>
+<link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-compliant-parser-options-algorithm">
+<link rel="help" href="https://github.com/w3c/trusted-types/issues/615">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/trustedhtml-parser-options.js"></script>
+<body>
+<script>
+  const policy = trustedTypes.createPolicy("policy", { createHTML: s => s });
+
+  for (const sink of sinks) {
+    for (const [inputLabel, getInput] of [["TrustedHTML", () => policy.createHTML(markup)], ["string", () => markup]]) {
+      test(t => {
+        const target = sink.createTarget(t);
+        const root = sink.parse(target, getInput(), { sanitizer: { replaceWithChildrenElements: ["div"] } });
+        assert_equals(root.querySelector("#wrapper"), null, "sanitizer was applied");
+        assert_not_equals(root.querySelector("#inner"), null);
+      }, `${sink.name}: ${inputLabel} with a sanitizer config is allowed`);
+    }
+
+    if (sink.hasRunScripts) {
+      test(t => {
+        resetScriptRan(t);
+        const target = sink.createTarget(t);
+        sink.parse(target, policy.createHTML(scriptMarkup), { runScripts: true });
+        assert_true(window.scriptRan, "script ran");
+      }, `${sink.name}: TrustedHTML with runScripts true is allowed`);
+    }
+  }
+</script>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="require-trusted-types-for 'script';"
+    />
+  </head>
+  <body>
+    <div id="container"></div>
+    <script>
+      const container = document.querySelector("#container");
+
+      for (const returnValue of [null, undefined]) {
+        const policy = trustedTypes.createPolicy(`returns-${returnValue}`, {
+          createHTML: (html) => html,
+          createParserOptions: () => returnValue,
+        });
+
+        test(() => {
+          assert_throws_js(TypeError, () => {
+            policy.createParserOptions({});
+          });
+        }, `Named policy createParserOptions returning ${returnValue} throws TypeError`);
+      }
+    </script>
+  </body>
+</html>

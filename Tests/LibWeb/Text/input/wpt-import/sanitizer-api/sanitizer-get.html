@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./support/util.js"></script>
+</head>
+<body>
+<script>
+
+const TEST_CASES = [
+  [
+    ["b", "a"],
+    ["a", "b"]
+  ],
+  [
+    ["c", "b", "a"],
+    ["a", "b", "c"]
+  ],
+  [
+    [{name: "b", namespace: null}, {name: "a", namespace: null}],
+    [{name: "a", namespace: null}, {name: "b", namespace: null}]
+  ],
+  [
+    [{name: "_", namespace: "a"}, {name: "_", namespace: null}],
+    [{name: "_", namespace: null}, {name: "_", namespace: "a"}]
+  ],
+  [
+    [{name: "_", namespace: "b"}, {name: "_", namespace: "a"}],
+    [{name: "_", namespace: "a"}, {name: "_", namespace: "b"}]
+  ],
+  [
+    [{name: "a", namespace: "b"}, {name: "z", namespace: "a"}, {name: "b", namespace: "b"}],
+    [{name: "z", namespace: "a"}, {name: "a", namespace: "b"}, {name: "b", namespace: "b"}],
+  ]
+];
+
+for (const key of ["attributes", "removeAttributes", "elements", "removeElements", "replaceWithChildrenElements"]) {
+  test(() => {
+    for (const [input, expected] of TEST_CASES) {
+      let s = new Sanitizer({
+        [key]: input
+      });
+      assert_config(s.get(), {
+        [key]: expected
+      });
+    }
+  }, `Sorting of ${key}`);
+}
+
+for (const key of ["attributes", "removeAttributes"]) {
+  test(() => {
+      for (const [input, expected] of TEST_CASES) {
+        let s = new Sanitizer({
+          elements: [{name: "_", [key]: input}]
+        });
+        assert_config(s.get(), {
+          elements: [{name: "_", [key]: expected}]
+        });
+      }
+  }, `Sorting of element's ${key}`);
+}
+
+const PI_TEST_CASES = [
+  [
+    ["b", "a"],
+    ["a", "b"]
+  ],
+  [
+    ["c", "b", "a"],
+    ["a", "b", "c"]
+  ],
+  [
+    [{target: "b"}, {target: "a"}],
+    [{target: "a"}, {target: "b"}]
+  ],
+  [
+    [{target: "c"}, {target: "b"}, {target: "a"}],
+    [{target: "a"}, {target: "b"}, {target: "c"}]
+  ]
+];
+
+for (const key of ["processingInstructions", "removeProcessingInstructions"]) {
+  test(() => {
+    for (const [input, expected] of PI_TEST_CASES) {
+      let s = new Sanitizer({
+        [key]: input
+      });
+      assert_config(s.get(), {
+        [key]: expected
+      });
+    }
+  }, `Sorting of ${key}`);
+}
+
+</script>
+</body>
+</html>

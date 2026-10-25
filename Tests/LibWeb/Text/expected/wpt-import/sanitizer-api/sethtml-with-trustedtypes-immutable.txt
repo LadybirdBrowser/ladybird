@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Fail
+Fail	setHTMLUnsafe: createParserOptions doesn't mutate original object
+Fail	setHTMLUnsafe: createParserOptions doesn't mutate sanitizer object
+Fail	appendHTMLUnsafe: createParserOptions doesn't mutate original object
+Fail	appendHTMLUnsafe: createParserOptions doesn't mutate sanitizer object
+Fail	prependHTMLUnsafe: createParserOptions doesn't mutate original object
+Fail	prependHTMLUnsafe: createParserOptions doesn't mutate sanitizer object
+Fail	beforeHTMLUnsafe: createParserOptions doesn't mutate original object
+Fail	beforeHTMLUnsafe: createParserOptions doesn't mutate sanitizer object
+Fail	afterHTMLUnsafe: createParserOptions doesn't mutate original object
+Fail	afterHTMLUnsafe: createParserOptions doesn't mutate sanitizer object
+Fail	replaceWithHTMLUnsafe: createParserOptions doesn't mutate original object
+Fail	replaceWithHTMLUnsafe: createParserOptions doesn't mutate sanitizer object
+Fail	TrustedHTMLParserOptions interface has no public members
+Fail	TrustedHTMLParserOptions with config input applies sanitization without public members
+Fail	TrustedHTMLParserOptions clone testing with Sanitizer object input
+Fail	TrustedHTMLParserOptions with Preset string input

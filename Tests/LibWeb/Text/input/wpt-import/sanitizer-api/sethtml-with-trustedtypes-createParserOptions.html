@@ -1,0 +1,372 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+    <script src="../trusted-types/support/helper.sub.js"></script>
+
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="require-trusted-types-for 'script';"
+    />
+  </head>
+  <body>
+    <div id="container"></div>
+    <script>
+      const container = document.querySelector("#container");
+      // We have to replace this global because we are overriding the default policy from within the test.
+      let createParserOptions = (options) => ({
+        sanitizer: { removeElements: ["div"] },
+      });
+      let createHTML = (html) => html;
+
+      trustedTypes.createPolicy("default", {
+        createHTML: (html) => createHTML(html),
+        createParserOptions: (options) => createParserOptions(options),
+      });
+
+      const passthrough = trustedTypes.createPolicy("passthrough", {
+        createHTML: (html) => createHTML(html),
+        createParserOptions: (options) => options,
+      });
+
+      function createTarget(target_type, t) {
+        t.add_cleanup(() => {
+          createParserOptions = (options) => ({
+            sanitizer: { removeElements: ["div"] },
+          });
+          createHTML = (html) => html;
+        });
+
+        const target = document.createElement("div");
+        container.append(target);
+        t.add_cleanup(() => target.remove());
+        switch (target_type) {
+          case "Element":
+            return target;
+          case "ShadowRoot":
+            return target.attachShadow({ mode: "open" });
+        }
+      }
+
+      const noCreateHTMLPolicy = trustedTypes.createPolicy("no-create-html", {
+        createParserOptions: (options) => options,
+      });
+
+      const noSanitizerPolicy = trustedTypes.createPolicy("no-sanitizer", {
+        createParserOptions: (options) => ({}),
+      });
+
+      function createMethodTarget(target_type, method, t) {
+        const root = createTarget(target_type, t);
+        if (["beforeHTMLUnsafe", "afterHTMLUnsafe", "replaceWithHTMLUnsafe"].includes(method)) {
+          const ref = document.createElement("div");
+          root.appendChild(ref);
+          return { receiver: ref, root };
+        }
+        return { receiver: root, root };
+      }
+
+      for (const target of ["ShadowRoot", "Element"]) {
+        for (const method of [
+          "setHTMLUnsafe",
+          "appendHTMLUnsafe",
+          "prependHTMLUnsafe",
+          "beforeHTMLUnsafe",
+          "afterHTMLUnsafe",
+          "replaceWithHTMLUnsafe",
+        ]) {
+          if (
+            target === "ShadowRoot" &&
+            ["beforeHTMLUnsafe", "afterHTMLUnsafe", "replaceWithHTMLUnsafe"].includes(method)
+          ) {
+            continue;
+          }
+
+          test((t) => {
+            const { receiver, root } = createMethodTarget(target, method, t);
+            receiver[method](
+              "<div id='allowed'><span id=forbidden></span></div>",
+              passthrough.createParserOptions({
+                sanitizer: { removeElements: ["span"] },
+              }),
+            );
+            assert_equals(root.querySelector("#forbidden"), null);
+            assert_not_equals(root.querySelector("#allowed"), null);
+          }, `${target}.${method}: passing a TrustedHTMLParserOptions overrides default policy`);
+
+          test((t) => {
+            const { receiver, root } = createMethodTarget(target, method, t);
+            receiver[method](
+              "<div id='allowed'><span id=forbidden></span></div>",
+              noCreateHTMLPolicy.createParserOptions({
+                sanitizer: { removeElements: ["span"] },
+              }),
+            );
+            assert_equals(root.querySelector("#forbidden"), null);
+            assert_not_equals(root.querySelector("#allowed"), null);
+          }, `${target}.${method}: policy with only createParserOptions allows raw strings when sanitizer is present`);
+
+          test((t) => {
+            const { receiver, root } = createMethodTarget(target, method, t);
+            receiver[method](
+              "<div id='allowed'><span id='child'></span></div>",
+              noCreateHTMLPolicy.createParserOptions({}),
+            );
+            assert_not_equals(root.querySelector("#allowed"), null);
+            assert_not_equals(root.querySelector("#child"), null);
+          }, `${target}.${method}: policy with only createParserOptions allows raw strings without sanitizer`);
+
+          test((t) => {
+            const { receiver, root } = createMethodTarget(target, method, t);
+            createHTML = (html) => {
+              throw new Error("createHTML should not be called when TrustedHTMLParserOptions is passed");
+            };
+            receiver[method](
+              "<div id='allowed'><span id='allowed-child'></span></div>",
+              noSanitizerPolicy.createParserOptions({}),
+            );
+            assert_not_equals(root.querySelector("#allowed"), null);
+            assert_not_equals(root.querySelector("#allowed-child"), null);
+          }, `${target}.${method}: TrustedHTMLParserOptions without sanitizer satisfies Trusted Types and does not require createHTML`);
+
+          test((t) => {
+            const { receiver } = createMethodTarget(target, method, t);
+            let createHTMLCalled = false;
+            createParserOptions = (options) => {
+              throw new Error("createParserOptions failed");
+            };
+            createHTML = (html) => {
+              createHTMLCalled = true;
+              return html;
+            };
+            assert_throws_js(Error, () => {
+              receiver[method]("<div id='allowed'></div>");
+            });
+            assert_false(
+              createHTMLCalled,
+              "createHTML should not have been called",
+            );
+          }, `${target}.${method}: exception in default createParserOptions prevents createHTML from running`);
+
+          test((t) => {
+            const { receiver, root } = createMethodTarget(target, method, t);
+            createParserOptions = (options) => ({
+              sanitizer: { removeElements: ["span"] },
+            });
+            createHTML = (html) => {
+              throw new Error(
+                "createHTML should not be called when sanitizer is present",
+              );
+            };
+            receiver[method](
+              "<div id='allowed'><span id=forbidden></span></div>",
+            );
+            assert_equals(root.querySelector("#forbidden"), null);
+            assert_not_equals(root.querySelector("#allowed"), null);
+          }, `${target}.${method}: default policy createParserOptions with sanitizer prevents createHTML from running`);
+
+          test((t) => {
+            const { receiver, root } = createMethodTarget(target, method, t);
+            createParserOptions = (options) => ({});
+            createHTML = (html) => {
+              throw new Error("createHTML should not be called when default policy provides createParserOptions");
+            };
+            receiver[method](
+              "<div id='allowed'><span id='allowed-child'></span></div>",
+            );
+            assert_not_equals(root.querySelector("#allowed"), null);
+            assert_not_equals(root.querySelector("#allowed-child"), null);
+          }, `${target}.${method}: default policy createParserOptions without sanitizer prevents createHTML from running`);
+
+          test((t) => {
+            const { receiver, root } = createMethodTarget(target, method, t);
+            window.did_run = false;
+            t.add_cleanup(() => {
+              window.did_run = false;
+            });
+            createParserOptions = (options) => ({
+              runScripts: true,
+            });
+            createHTML = (html) => html;
+            receiver[method](
+              "<div id='allowed'><script>window.did_run = true;<" +
+                "/script></div>",
+              { runScripts: false },
+            );
+            assert_true(
+              window.did_run,
+              "Default policy createParserOptions can enable runScripts even if caller passed false",
+            );
+            assert_not_equals(root.querySelector("#allowed"), null);
+          }, `${target}.${method}: default policy createParserOptions can override runScripts from false to true`);
+
+          test((t) => {
+            const { receiver, root } = createMethodTarget(target, method, t);
+            window.did_run = false;
+            t.add_cleanup(() => {
+              window.did_run = false;
+            });
+            createParserOptions = (options) => ({
+              runScripts: false,
+            });
+            createHTML = (html) => html;
+            receiver[method](
+              "<div id='allowed'><script>window.did_run = true;<" +
+                "/script></div>",
+              { runScripts: true },
+            );
+            assert_false(
+              window.did_run,
+              "Default policy createParserOptions can override runScripts from true to false",
+            );
+            assert_not_equals(root.querySelector("#allowed"), null);
+          }, `${target}.${method}: default policy createParserOptions can override runScripts from true to false`);
+        }
+      }
+
+      test((t) => {
+        let capturedArgs = [];
+        const policy = trustedTypes.createPolicy("extra-args-policy", {
+          createParserOptions: (options, ...args) => {
+            capturedArgs = args;
+            return options;
+          },
+        });
+        policy.createParserOptions({}, "arg1", 42, { extra: true });
+        assert_equals(capturedArgs.length, 3);
+        assert_equals(capturedArgs[0], "arg1");
+        assert_equals(capturedArgs[1], 42);
+        assert_true(capturedArgs[2].extra);
+      }, "TrustedTypePolicy.createParserOptions forwards extra arguments to callback");
+
+      test((t) => {
+        let capturedOptions = null;
+        const policy = trustedTypes.createPolicy("options-inspect-policy", {
+          createParserOptions: (options) => {
+            capturedOptions = options;
+            return options;
+          },
+        });
+        const sanitizer = new Sanitizer();
+        policy.createParserOptions({ runScripts: true, sanitizer });
+        assert_true(capturedOptions.runScripts);
+        assert_true(capturedOptions.sanitizer instanceof Sanitizer);
+      }, "TrustedTypePolicy.createParserOptions callback receives converted options dictionary");
+
+      test((t) => {
+        const policy = trustedTypes.createPolicy("runscripts-reflect-policy", {
+          createParserOptions: (options) => options,
+        });
+        const optionsDefault = policy.createParserOptions({});
+        assert_true(optionsDefault instanceof TrustedHTMLParserOptions);
+        assert_false("runScripts" in optionsDefault, "TrustedHTMLParserOptions has no public runScripts member");
+
+        const optionsTrue = policy.createParserOptions({ runScripts: true });
+        assert_true(optionsTrue instanceof TrustedHTMLParserOptions);
+        assert_false("runScripts" in optionsTrue, "TrustedHTMLParserOptions has no public runScripts member");
+
+        const optionsFalse = policy.createParserOptions({ runScripts: false });
+        assert_true(optionsFalse instanceof TrustedHTMLParserOptions);
+        assert_false("runScripts" in optionsFalse, "TrustedHTMLParserOptions has no public runScripts member");
+
+        const div = document.createElement("div");
+        document.body.appendChild(div);
+        t.add_cleanup(() => div.remove());
+
+        window.did_run = false;
+        t.add_cleanup(() => { delete window.did_run; });
+
+        div.setHTMLUnsafe("<script>window.did_run = true;<" + "/script>", optionsDefault);
+        assert_false(window.did_run, "runScripts defaults to false in TrustedHTMLParserOptions");
+
+        div.setHTMLUnsafe("<script>window.did_run = true;<" + "/script>", optionsFalse);
+        assert_false(window.did_run, "runScripts false is respected in TrustedHTMLParserOptions");
+
+        div.setHTMLUnsafe("<script>window.did_run = true;<" + "/script>", optionsTrue);
+        assert_true(window.did_run, "runScripts true is respected in TrustedHTMLParserOptions");
+      }, "TrustedHTMLParserOptions applies runScripts option without exposing public members");
+
+      for (const value of [0, 123, true, false, "string"]) {
+        test((t) => {
+          const policy = trustedTypes.createPolicy(`non-object-cpo-${String(value)}`, {
+            createParserOptions: () => value,
+          });
+          assert_throws_js(TypeError, () => {
+            policy.createParserOptions({});
+          });
+        }, `TrustedTypePolicy.createParserOptions returning something other than an object (${typeof value}: ${JSON.stringify(value)}) throws a TypeError`);
+
+        test((t) => {
+          t.add_cleanup(() => {
+            createParserOptions = (options) => ({
+              sanitizer: { removeElements: ["div"] },
+            });
+            createHTML = (html) => html;
+          });
+          createParserOptions = () => value;
+          createHTML = (html) => html;
+          const node = createTarget("Element", t);
+          assert_throws_js(TypeError, () => {
+            node.setHTMLUnsafe("<div id='allowed'></div>");
+          });
+        }, `Element.setHTMLUnsafe: default policy createParserOptions returning something other than an object (${typeof value}: ${JSON.stringify(value)}) throws a TypeError`);
+      }
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = (options) => ({
+            sanitizer: { removeElements: ["div"] },
+          });
+          createHTML = (html) => html;
+        });
+        createHTML = (html) => {
+          throw new Error("createHTML should not be called when TrustedHTMLParserOptions is passed");
+        };
+        const doc = Document.parseHTMLUnsafe(
+          "<div id='allowed'><span id='allowed-child'></span></div>",
+          noSanitizerPolicy.createParserOptions({}),
+        );
+        assert_not_equals(doc.querySelector("#allowed"), null);
+        assert_not_equals(doc.querySelector("#allowed-child"), null);
+      }, "Document.parseHTMLUnsafe: TrustedHTMLParserOptions without sanitizer satisfies Trusted Types and does not require createHTML");
+
+      test((t) => {
+        t.add_cleanup(() => {
+          createParserOptions = (options) => ({
+            sanitizer: { removeElements: ["div"] },
+          });
+          createHTML = (html) => html;
+        });
+        createParserOptions = (options) => ({});
+        createHTML = (html) => {
+          throw new Error("createHTML should not be called when default policy provides createParserOptions");
+        };
+        const doc = Document.parseHTMLUnsafe(
+          "<div id='allowed'><span id='allowed-child'></span></div>",
+        );
+        assert_not_equals(doc.querySelector("#allowed"), null);
+        assert_not_equals(doc.querySelector("#allowed-child"), null);
+      }, "Document.parseHTMLUnsafe: default policy createParserOptions without sanitizer prevents createHTML from running");
+
+      promise_test(async (t) => {
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        t.add_cleanup(() => iframe.remove());
+
+        let createHTMLCalled = false;
+        iframe.contentWindow.trustedTypes.createPolicy("default", {
+          createHTML: (html) => {
+            createHTMLCalled = true;
+            return html;
+          },
+        });
+
+        const target = iframe.contentDocument.createElement("div");
+        target.setHTMLUnsafe("<div id='allowed'></div>");
+        assert_true(createHTMLCalled, "createHTML must be called when default policy lacks createParserOptions");
+        assert_not_equals(target.querySelector("#allowed"), null);
+      }, "Element.setHTMLUnsafe: default policy without createParserOptions falls back to createHTML");
+    </script>
+  </body>
+</html>

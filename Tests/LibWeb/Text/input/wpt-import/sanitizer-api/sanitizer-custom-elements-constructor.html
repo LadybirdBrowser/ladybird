@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="container"></div>
+<script>
+let constructor_called = false;
+let connectedCallback_called = false;
+
+class DisallowedElement extends HTMLElement {
+  constructor() {
+    super();
+    constructor_called = true;
+  }
+  connectedCallback() {
+    connectedCallback_called = true;
+  }
+}
+customElements.define("disallowed-element", DisallowedElement);
+
+const registry = new CustomElementRegistry();
+registry.define("disallowed-element-scoped", class extends HTMLElement {
+  constructor() {
+    super();
+    constructor_called = true;
+  }
+  connectedCallback() {
+    connectedCallback_called = true;
+  }
+});
+
+function assert_removed(method, sanitizer, scoped = false) {
+  constructor_called = connectedCallback_called = false;
+
+  let d = document.createElement("div");
+  document.body.append(d);
+
+  let target = d;
+  if (scoped) {
+    target = d.attachShadow({ mode: "open", customElementRegistry: registry });
+  }
+
+  const tag = scoped ? "disallowed-element-scoped" : "disallowed-element";
+
+  if (method === "setHTML") {
+    target.setHTML(`<${tag}></${tag}>`, { sanitizer });
+  } else if (method === "setHTMLUnsafe") {
+    target.setHTMLUnsafe(`<${tag}></${tag}>`, { sanitizer });
+  }
+
+  assert_equals(target.innerHTML, ``);
+  assert_false(constructor_called, "Constructor should not be called");
+  assert_false(connectedCallback_called, "ConnectedCallback should not be called");
+
+  d.remove();
+}
+
+for (const method of ["setHTML", "setHTMLUnsafe"]) {
+  for (const config of [
+    { name: "removeElements", options: { removeElements: ["disallowed-element"] }, scopedOptions: { removeElements: ["disallowed-element-scoped"] } },
+    { name: "allowElements", options: { elements: ["div"] }, scopedOptions: { elements: ["div"] } },
+    { name: "replaceWithChildrenElements", options: { replaceWithChildrenElements: ["disallowed-element"] }, scopedOptions: { replaceWithChildrenElements: ["disallowed-element-scoped"] } }
+  ]) {
+    test(t => {
+      assert_removed(method, config.options, false);
+    }, `${method} blocks CE constructor when element is dropped by explicit sanitizer config (${config.name})`);
+
+    test(t => {
+      assert_removed(method, config.scopedOptions, true);
+    }, `${method} blocks CE constructor in scoped registry when element is dropped by explicit sanitizer config (${config.name})`);
+  }
+}
+
+for (const method of ["setHTML", "setHTMLUnsafe"]) {
+  test(t => {
+    constructor_called = connectedCallback_called = false;
+    const d = document.createElement("div");
+    document.body.append(d);
+    t.add_cleanup(() => d.remove());
+    const shadow = d.attachShadow({ mode: "open", customElementRegistry: registry });
+    shadow[method]("<disallowed-element-scoped></disallowed-element-scoped>",
+      { sanitizer: { elements: ["disallowed-element-scoped"] } });
+    assert_equals(shadow.firstChild.localName, "disallowed-element-scoped");
+    assert_true(constructor_called, "Constructor should be called");
+    assert_true(connectedCallback_called, "ConnectedCallback should be called");
+  }, `${method} constructs an allowed CE from the scoped registry`);
+}
+
+</script>
+</body>
+</html>

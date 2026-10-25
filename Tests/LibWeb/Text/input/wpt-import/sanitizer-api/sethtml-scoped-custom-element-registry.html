@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>setHTML() and setHTMLUnsafe() use the target's scoped custom element registry</title>
+<link rel="help" href="https://html.spec.whatwg.org/#dom-element-sethtml">
+<link rel="help" href="https://html.spec.whatwg.org/#dom-element-sethtmlunsafe">
+<link rel="help" href="https://html.spec.whatwg.org/#look-up-a-custom-element-registry">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<div id="container"></div>
+<script>
+  // Elements created by the fragment parser look up the custom element
+  // registry of their intended parent, so custom elements in markup set via
+  // setHTML()/setHTMLUnsafe() on an element (or shadow root) with a scoped
+  // registry are constructed with that registry, like innerHTML.
+
+  for (const method of ["setHTML", "setHTMLUnsafe"]) {
+    const safe = method === "setHTML";
+
+    test((t) => {
+      const container = document.getElementById("container");
+      t.add_cleanup(() => container.replaceChildren());
+      const scoped = new CustomElementRegistry();
+      const log = [];
+      scoped.define("scoped-element", class extends HTMLElement {
+        constructor() { super(); log.push("constructed"); }
+        connectedCallback() { log.push("connected"); }
+      });
+      const target = document.createElement("div", { customElementRegistry: scoped });
+      container.append(target);
+
+      target[method]("<scoped-element></scoped-element>",
+                     safe ? { sanitizer: { elements: ["scoped-element"] } } : undefined);
+      assert_array_equals(log, ["constructed", "connected"]);
+      assert_equals(target.firstChild.customElementRegistry, scoped);
+    }, `${method} uses the target's scoped custom element registry`);
+
+    if (!safe) {
+      test((t) => {
+        const container = document.getElementById("container");
+        t.add_cleanup(() => container.replaceChildren());
+        const scoped = new CustomElementRegistry();
+        const log = [];
+        scoped.define("scoped-element", class extends HTMLElement {
+          constructor() { super(); log.push("constructed"); }
+          connectedCallback() { log.push("connected"); }
+        });
+        const target = document.createElement("div", { customElementRegistry: scoped });
+        container.append(target);
+
+        target.setHTMLUnsafe("<scoped-element></scoped-element>",
+                             { sanitizer: { elements: ["scoped-element"] } });
+        assert_array_equals(log, ["constructed", "connected"]);
+        assert_equals(target.firstChild.customElementRegistry, scoped);
+      }, `setHTMLUnsafe with a sanitizer uses the target's scoped custom element registry`);
+    }
+
+    test((t) => {
+      const container = document.getElementById("container");
+      t.add_cleanup(() => container.replaceChildren());
+      const scoped = new CustomElementRegistry();
+      const log = [];
+      scoped.define("scoped-replaced-child", class extends HTMLElement {
+        constructor() { super(); log.push("constructed"); }
+        connectedCallback() { log.push("connected"); }
+      });
+      const target = document.createElement("div", { customElementRegistry: scoped });
+      container.append(target);
+
+      target[method]("<div><scoped-replaced-child></scoped-replaced-child></div>", {
+        sanitizer: {
+          elements: ["scoped-replaced-child"],
+          replaceWithChildrenElements: ["div"],
+        },
+      });
+      assert_equals(target.firstChild.localName, "scoped-replaced-child");
+      assert_array_equals(log, ["constructed", "connected"]);
+    }, `${method} with replaceWithChildrenElements preserves the scoped custom element registry for children`);
+
+    test((t) => {
+      const container = document.getElementById("container");
+      t.add_cleanup(() => container.replaceChildren());
+      const hostRegistry = new CustomElementRegistry();
+      const shadowRegistry = new CustomElementRegistry();
+      const log = [];
+      hostRegistry.define("scoped-target-ce", class extends HTMLElement {
+        constructor() { super(); log.push("host-registry"); }
+      });
+      shadowRegistry.define("scoped-target-ce", class extends HTMLElement {
+        constructor() { super(); log.push("shadow-registry"); }
+      });
+      const host = document.createElement("div", { customElementRegistry: hostRegistry });
+      container.append(host);
+      const shadow = host.attachShadow({ mode: "open", customElementRegistry: shadowRegistry });
+
+      shadow[method]("<scoped-target-ce></scoped-target-ce>",
+                     safe ? { sanitizer: { elements: ["scoped-target-ce"] } } : undefined);
+      assert_array_equals(log, ["shadow-registry"]);
+    }, `${method} on a shadow root uses the shadow root's registry, not the host's`);
+
+    test((t) => {
+      const container = document.getElementById("container");
+      t.add_cleanup(() => container.replaceChildren());
+      const scoped = new CustomElementRegistry();
+      const log = [];
+      scoped.define("scoped-nested", class extends HTMLElement {
+        constructor() { super(); log.push("constructed"); }
+      });
+      const target = document.createElement("div", { customElementRegistry: scoped });
+      container.append(target);
+
+      target[method]("<section><p><scoped-nested></scoped-nested></p></section>",
+                     safe ? { sanitizer: { elements: ["section", "p", "scoped-nested"] } } : undefined);
+      assert_array_equals(log, ["constructed"]);
+      assert_equals(target.querySelector("p").customElementRegistry, scoped,
+                    "descendants inherit the target's registry");
+    }, `${method} constructs nested custom elements with the scoped registry`);
+  }
+</script>
+</body>

@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./support/util.js"></script>
+</head>
+<body>
+<script>
+test(() => {
+  let d = new Sanitizer();
+
+  // https://wicg.github.io/sanitizer-api/#built-in-safe-default-configuration
+  //
+  assert_config(d.get(), {
+    "elements": [
+      {
+        "name": "math",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "merror",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mfrac",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mi",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mmultiscripts",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mn",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mo",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": [
+          {
+            "name": "fence",
+            "namespace": null
+          },
+          {
+            "name": "form",
+            "namespace": null
+          },
+          {
+            "name": "largeop",
+            "namespace": null
+          },
+          {
+            "name": "lspace",
+            "namespace": null
+          },
+          {
+            "name": "maxsize",
+            "namespace": null
+          },
+          {
+            "name": "minsize",
+            "namespace": null
+          },
+          {
+            "name": "movablelimits",
+            "namespace": null
+          },
+          {
+            "name": "rspace",
+            "namespace": null
+          },
+          {
+            "name": "separator",
+            "namespace": null
+          },
+          {
+            "name": "stretchy",
+            "namespace": null
+          },
+          {
+            "name": "symmetric",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "mover",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": [
+          {
+            "name": "accent",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "mpadded",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": [
+          {
+            "name": "depth",
+            "namespace": null
+          },
+          {
+            "name": "height",
+            "namespace": null
+          },
+          {
+            "name": "lspace",
+            "namespace": null
+          },
+          {
+            "name": "voffset",
+            "namespace": null
+          },
+          {
+            "name": "width",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "mphantom",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mprescripts",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mroot",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mrow",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "ms",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mspace",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": [
+          {
+            "name": "depth",
+            "namespace": null
+          },
+          {
+            "name": "height",
+            "namespace": null
+          },
+          {
+            "name": "width",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "msqrt",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mstyle",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "msub",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "msubsup",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "msup",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mtable",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mtd",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": [
+          {
+            "name": "columnspan",
+            "namespace": null
+          },
+          {
+            "name": "rowspan",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "mtext",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "mtr",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "munder",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": [
+          {
+            "name": "accentunder",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "munderover",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": [
+          {
+            "name": "accent",
+            "namespace": null
+          },
+          {
+            "name": "accentunder",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "semantics",
+        "namespace": "http://www.w3.org/1998/Math/MathML",
+        "attributes": []
+      },
+      {
+        "name": "a",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": [
+          {
+            "name": "href",
+            "namespace": null
+          },
+          {
+            "name": "hreflang",
+            "namespace": null
+          },
+          {
+            "name": "type",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "abbr",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "address",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "article",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "aside",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "b",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "bdi",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "bdo",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "blockquote",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": [
+          {
+            "name": "cite",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "body",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "br",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "caption",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "cite",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "code",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "col",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": [
+          {
+            "name": "span",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "colgroup",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": [
+          {
+            "name": "span",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "data",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": [
+          {
+            "name": "value",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "dd",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "del",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": [
+          {
+            "name": "cite",
+            "namespace": null
+          },
+          {
+            "name": "datetime",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "dfn",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "div",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "dl",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "dt",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "em",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "figcaption",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "figure",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "footer",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "h1",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "h2",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "h3",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "h4",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "h5",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "h6",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "head",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "header",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "hgroup",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "hr",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "html",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "i",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "ins",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": [
+          {
+            "name": "cite",
+            "namespace": null
+          },
+          {
+            "name": "datetime",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "kbd",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "li",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": [
+          {
+            "name": "value",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "main",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "mark",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "menu",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "nav",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "ol",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": [
+          {
+            "name": "reversed",
+            "namespace": null
+          },
+          {
+            "name": "start",
+            "namespace": null
+          },
+          {
+            "name": "type",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "p",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "pre",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "q",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "rp",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "rt",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "ruby",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "s",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "samp",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "search",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "section",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "small",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "span",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "strong",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "sub",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "sup",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "table",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "tbody",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "td",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": [
+          {
+            "name": "colspan",
+            "namespace": null
+          },
+          {
+            "name": "headers",
+            "namespace": null
+          },
+          {
+            "name": "rowspan",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "tfoot",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "th",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": [
+          {
+            "name": "abbr",
+            "namespace": null
+          },
+          {
+            "name": "colspan",
+            "namespace": null
+          },
+          {
+            "name": "headers",
+            "namespace": null
+          },
+          {
+            "name": "rowspan",
+            "namespace": null
+          },
+          {
+            "name": "scope",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "thead",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "time",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": [
+          {
+            "name": "datetime",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "title",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "tr",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "u",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "ul",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "var",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "wbr",
+        "namespace": "http://www.w3.org/1999/xhtml",
+        "attributes": []
+      },
+      {
+        "name": "a",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "href",
+            "namespace": null
+          },
+          {
+            "name": "hreflang",
+            "namespace": null
+          },
+          {
+            "name": "type",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "circle",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "cx",
+            "namespace": null
+          },
+          {
+            "name": "cy",
+            "namespace": null
+          },
+          {
+            "name": "pathLength",
+            "namespace": null
+          },
+          {
+            "name": "r",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "defs",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": []
+      },
+      {
+        "name": "desc",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": []
+      },
+      {
+        "name": "ellipse",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "cx",
+            "namespace": null
+          },
+          {
+            "name": "cy",
+            "namespace": null
+          },
+          {
+            "name": "pathLength",
+            "namespace": null
+          },
+          {
+            "name": "rx",
+            "namespace": null
+          },
+          {
+            "name": "ry",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "foreignObject",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "height",
+            "namespace": null
+          },
+          {
+            "name": "width",
+            "namespace": null
+          },
+          {
+            "name": "x",
+            "namespace": null
+          },
+          {
+            "name": "y",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "g",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": []
+      },
+      {
+        "name": "line",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "pathLength",
+            "namespace": null
+          },
+          {
+            "name": "x1",
+            "namespace": null
+          },
+          {
+            "name": "x2",
+            "namespace": null
+          },
+          {
+            "name": "y1",
+            "namespace": null
+          },
+          {
+            "name": "y2",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "marker",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "markerHeight",
+            "namespace": null
+          },
+          {
+            "name": "markerUnits",
+            "namespace": null
+          },
+          {
+            "name": "markerWidth",
+            "namespace": null
+          },
+          {
+            "name": "orient",
+            "namespace": null
+          },
+          {
+            "name": "preserveAspectRatio",
+            "namespace": null
+          },
+          {
+            "name": "refX",
+            "namespace": null
+          },
+          {
+            "name": "refY",
+            "namespace": null
+          },
+          {
+            "name": "viewBox",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "metadata",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": []
+      },
+      {
+        "name": "path",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "d",
+            "namespace": null
+          },
+          {
+            "name": "pathLength",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "polygon",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "pathLength",
+            "namespace": null
+          },
+          {
+            "name": "points",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "polyline",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "pathLength",
+            "namespace": null
+          },
+          {
+            "name": "points",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "rect",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "height",
+            "namespace": null
+          },
+          {
+            "name": "pathLength",
+            "namespace": null
+          },
+          {
+            "name": "rx",
+            "namespace": null
+          },
+          {
+            "name": "ry",
+            "namespace": null
+          },
+          {
+            "name": "width",
+            "namespace": null
+          },
+          {
+            "name": "x",
+            "namespace": null
+          },
+          {
+            "name": "y",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "svg",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "height",
+            "namespace": null
+          },
+          {
+            "name": "preserveAspectRatio",
+            "namespace": null
+          },
+          {
+            "name": "viewBox",
+            "namespace": null
+          },
+          {
+            "name": "width",
+            "namespace": null
+          },
+          {
+            "name": "x",
+            "namespace": null
+          },
+          {
+            "name": "y",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "text",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "dx",
+            "namespace": null
+          },
+          {
+            "name": "dy",
+            "namespace": null
+          },
+          {
+            "name": "lengthAdjust",
+            "namespace": null
+          },
+          {
+            "name": "rotate",
+            "namespace": null
+          },
+          {
+            "name": "textLength",
+            "namespace": null
+          },
+          {
+            "name": "x",
+            "namespace": null
+          },
+          {
+            "name": "y",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "textPath",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "lengthAdjust",
+            "namespace": null
+          },
+          {
+            "name": "method",
+            "namespace": null
+          },
+          {
+            "name": "path",
+            "namespace": null
+          },
+          {
+            "name": "side",
+            "namespace": null
+          },
+          {
+            "name": "spacing",
+            "namespace": null
+          },
+          {
+            "name": "startOffset",
+            "namespace": null
+          },
+          {
+            "name": "textLength",
+            "namespace": null
+          }
+        ]
+      },
+      {
+        "name": "title",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": []
+      },
+      {
+        "name": "tspan",
+        "namespace": "http://www.w3.org/2000/svg",
+        "attributes": [
+          {
+            "name": "dx",
+            "namespace": null
+          },
+          {
+            "name": "dy",
+            "namespace": null
+          },
+          {
+            "name": "lengthAdjust",
+            "namespace": null
+          },
+          {
+            "name": "rotate",
+            "namespace": null
+          },
+          {
+            "name": "textLength",
+            "namespace": null
+          },
+          {
+            "name": "x",
+            "namespace": null
+          },
+          {
+            "name": "y",
+            "namespace": null
+          }
+        ]
+      }
+    ],
+    "processingInstructions": [],
+    "attributes": [
+      {
+        "name": "alignment-baseline",
+        "namespace": null
+      },
+      {
+        "name": "baseline-shift",
+        "namespace": null
+      },
+      {
+        "name": "clip-path",
+        "namespace": null
+      },
+      {
+        "name": "clip-rule",
+        "namespace": null
+      },
+      {
+        "name": "color",
+        "namespace": null
+      },
+      {
+        "name": "color-interpolation",
+        "namespace": null
+      },
+      {
+        "name": "cursor",
+        "namespace": null
+      },
+      {
+        "name": "dir",
+        "namespace": null
+      },
+      {
+        "name": "direction",
+        "namespace": null
+      },
+      {
+        "name": "display",
+        "namespace": null
+      },
+      {
+        "name": "displaystyle",
+        "namespace": null
+      },
+      {
+        "name": "dominant-baseline",
+        "namespace": null
+      },
+      {
+        "name": "fill",
+        "namespace": null
+      },
+      {
+        "name": "fill-opacity",
+        "namespace": null
+      },
+      {
+        "name": "fill-rule",
+        "namespace": null
+      },
+      {
+        "name": "font-family",
+        "namespace": null
+      },
+      {
+        "name": "font-size",
+        "namespace": null
+      },
+      {
+        "name": "font-size-adjust",
+        "namespace": null
+      },
+      {
+        "name": "font-stretch",
+        "namespace": null
+      },
+      {
+        "name": "font-style",
+        "namespace": null
+      },
+      {
+        "name": "font-variant",
+        "namespace": null
+      },
+      {
+        "name": "font-weight",
+        "namespace": null
+      },
+      {
+        "name": "lang",
+        "namespace": null
+      },
+      {
+        "name": "letter-spacing",
+        "namespace": null
+      },
+      {
+        "name": "marker-end",
+        "namespace": null
+      },
+      {
+        "name": "marker-mid",
+        "namespace": null
+      },
+      {
+        "name": "marker-start",
+        "namespace": null
+      },
+      {
+        "name": "mathbackground",
+        "namespace": null
+      },
+      {
+        "name": "mathcolor",
+        "namespace": null
+      },
+      {
+        "name": "mathsize",
+        "namespace": null
+      },
+      {
+        "name": "opacity",
+        "namespace": null
+      },
+      {
+        "name": "paint-order",
+        "namespace": null
+      },
+      {
+        "name": "pointer-events",
+        "namespace": null
+      },
+      {
+        "name": "scriptlevel",
+        "namespace": null
+      },
+      {
+        "name": "shape-rendering",
+        "namespace": null
+      },
+      {
+        "name": "stop-color",
+        "namespace": null
+      },
+      {
+        "name": "stop-opacity",
+        "namespace": null
+      },
+      {
+        "name": "stroke",
+        "namespace": null
+      },
+      {
+        "name": "stroke-dasharray",
+        "namespace": null
+      },
+      {
+        "name": "stroke-dashoffset",
+        "namespace": null
+      },
+      {
+        "name": "stroke-linecap",
+        "namespace": null
+      },
+      {
+        "name": "stroke-linejoin",
+        "namespace": null
+      },
+      {
+        "name": "stroke-miterlimit",
+        "namespace": null
+      },
+      {
+        "name": "stroke-opacity",
+        "namespace": null
+      },
+      {
+        "name": "stroke-width",
+        "namespace": null
+      },
+      {
+        "name": "text-anchor",
+        "namespace": null
+      },
+      {
+        "name": "text-decoration",
+        "namespace": null
+      },
+      {
+        "name": "text-overflow",
+        "namespace": null
+      },
+      {
+        "name": "text-rendering",
+        "namespace": null
+      },
+      {
+        "name": "title",
+        "namespace": null
+      },
+      {
+        "name": "transform",
+        "namespace": null
+      },
+      {
+        "name": "transform-origin",
+        "namespace": null
+      },
+      {
+        "name": "unicode-bidi",
+        "namespace": null
+      },
+      {
+        "name": "vector-effect",
+        "namespace": null
+      },
+      {
+        "name": "visibility",
+        "namespace": null
+      },
+      {
+        "name": "white-space",
+        "namespace": null
+      },
+      {
+        "name": "word-spacing",
+        "namespace": null
+      },
+      {
+        "name": "writing-mode",
+        "namespace": null
+      }
+    ],
+    "comments": false,
+    "dataAttributes": false,
+    "javascriptURLs": false
+  })
+}, "Get the expected default config")
+</script>
+</body>
+</html>

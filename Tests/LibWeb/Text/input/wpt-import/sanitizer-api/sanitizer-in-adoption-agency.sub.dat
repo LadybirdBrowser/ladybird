@@ -1,0 +1,634 @@
+#data
+<b><i onclick="alert(1)"><div></b>x
+#document
+| <b>
+|   <i>
+| <i>
+|   <div>
+|     <b>
+|     "x"
+
+#data
+<b><div>Text</b></div>
+#config
+{ "replaceWithChildrenElements": ["b"] }
+#document
+| <div>
+|   "Text"
+
+#data
+<b><i><div>Text</b></div>
+#config
+{ "replaceWithChildrenElements": ["i"] }
+#document
+| <b>
+| <div>
+|   <b>
+|     "Text"
+
+#data
+<b><div>Text</b>
+#config
+{ "removeElements": ["div"] }
+#document
+| <b>
+
+#data
+<b><div><b>x
+#config
+{ "removeElements": ["div"] }
+#document
+| <b>
+
+#data
+<b>1<p>foo</b>bar
+#config
+{ "replaceWithChildrenElements": ["b"] }
+#document
+| "1"
+| <p>
+|   "foobar"
+
+#data
+<b><div>Text</b>
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <b>
+|   "Text"
+| <b>
+
+#data
+<a href="https://wpt.live/1"><div><a href="https://wpt.live/2">Click</a></div></a>
+#config
+{ "removeElements": ["div"] }
+#document
+| <a>
+|   href="https://wpt.live/1"
+
+#data
+<b><i><p>foo</b>bar</i>
+#config
+{ "removeElements": ["p"] }
+#document
+| <b>
+|   <i>
+| <i>
+
+#data
+<b><i><p>foo</b>bar</i>
+#config
+{ "removeElements": ["i"] }
+#document
+| <b>
+| <p>
+
+#data
+<b><i><div>Text</b></i>
+#config
+{ "removeElements": ["div"], "replaceWithChildrenElements": ["i"] }
+#document
+| <b>
+
+#data
+<b><i onclick="alert(1)"><u onclick="alert(2)"><div></b>x
+#document
+| <b>
+|   <i>
+|     <u>
+| <i>
+|   <u>
+|     <div>
+|       <b>
+|       "x"
+
+#data
+<b><em><div>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <b>
+|   <em>
+|     "Text"
+| <em>
+|   <b>
+|   "after"
+
+#data
+<b><em><s><div>Text</b>after</div>more
+#config
+{ "replaceWithChildrenElements": ["div", "s"] }
+#document
+| <b>
+|   <em>
+|     "Text"
+| <em>
+|   <b>
+|   "aftermore"
+
+#data
+<b><em><u><div>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <b>
+|   <em>
+|     <u>
+|       "Text"
+| <em>
+|   <u>
+|     <b>
+|     "after"
+
+#data
+<b><u><em><div>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["div", "em"] }
+#document
+| <b>
+|   <u>
+|     "Text"
+| <u>
+|   <b>
+|   "after"
+
+#data
+<b><em><div>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["div"], "removeElements": ["em"] }
+#document
+| <b>
+
+#data
+<b><em><div><p>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <b>
+|   <em>
+| <em>
+|   <b>
+|   <p>
+|     <b>
+|       "Text"
+|     "after"
+
+#data
+<b><div><section>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["div", "section"] }
+#document
+| <b>
+|   "Text"
+| <b>
+| <b>
+| "after"
+
+#data
+<b><div><span>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["span"] }
+#document
+| <b>
+| <div>
+|   <b>
+|     "Text"
+|   "after"
+
+#data
+<b><em><div>Text</b>after</div>more
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <b>
+|   <em>
+|     "Text"
+| <em>
+|   <b>
+|   "aftermore"
+
+#data
+<b><div><div><div><div><div><div><div><div><section>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["section"] }
+#document
+| <b>
+| <div>
+|   <b>
+|   <div>
+|     <b>
+|     <div>
+|       <b>
+|       <div>
+|         <b>
+|         <div>
+|           <b>
+|           <div>
+|             <b>
+|             <div>
+|               <b>
+|               <div>
+|                 <b>
+|                   "Textafter"
+
+#data
+<b><div><div><div><div><div><div><div><div><section>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["section", "b"] }
+#document
+| <div>
+|   <div>
+|     <div>
+|       <div>
+|         <div>
+|           <div>
+|             <div>
+|               <div>
+|                 "Textafter"
+
+#data
+<b><div><div><div><div><div><div><div><div><section><span>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["section", "span"] }
+#document
+| <b>
+| <div>
+|   <b>
+|   <div>
+|     <b>
+|     <div>
+|       <b>
+|       <div>
+|         <b>
+|         <div>
+|           <b>
+|           <div>
+|             <b>
+|             <div>
+|               <b>
+|               <div>
+|                 <b>
+|                   "Textafter"
+
+#data
+<b><div><div><div><div><div><div><div><div><section><i><span>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["section", "span"] }
+#document
+| <b>
+| <div>
+|   <b>
+|   <div>
+|     <b>
+|     <div>
+|       <b>
+|       <div>
+|         <b>
+|         <div>
+|           <b>
+|           <div>
+|             <b>
+|             <div>
+|               <b>
+|               <div>
+|                 <b>
+|                   <i>
+|                     "Textafter"
+
+#data
+<table><b><div>x</b>y
+#document
+| <b>
+| <div>
+|   <b>
+|     "x"
+|   "y"
+| <table>
+
+#data
+<table><b><div>x</b>y
+#config
+{ "removeElements": ["table"] }
+#document
+| <b>
+| <div>
+|   <b>
+|     "x"
+|   "y"
+
+#data
+<table><b><div>x</b>y
+#config
+{ "replaceWithChildrenElements": ["b"] }
+#document
+| <div>
+|   "xy"
+| <table>
+
+#data
+<table><tbody><b><div>x</b>y
+#config
+{ "replaceWithChildrenElements": ["tbody"] }
+#document
+| <b>
+| <div>
+|   <b>
+|     "x"
+|   "y"
+| <table>
+
+#data
+<table><b><div>x</b>y
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <b>
+|   "x"
+| <b>
+| "y"
+| <table>
+
+#data
+<b><div>Text</b>after
+#config
+{ "removeElements": ["b"] }
+#document
+| <div>
+|   "after"
+
+#data
+<p><b>x</p>y
+#config
+{ "replaceWithChildrenElements": ["b"] }
+#document
+| <p>
+|   "x"
+| "y"
+
+#data
+<p><b>x</p>y
+#config
+{ "removeElements": ["b"] }
+#document
+| <p>
+
+#data
+<p><i onclick="1">x</p>y
+#document
+| <p>
+|   <i>
+|     "x"
+| <i>
+|   "y"
+
+#data
+<p><b a="1"><b a="2"><b a="3"><b a="4"></p>x
+#config
+{ "removeAttributes": ["a"] }
+#document
+| <p>
+|   <b>
+|     <b>
+|       <b>
+|         <b>
+| <b>
+|   <b>
+|     <b>
+|       <b>
+|         "x"
+
+#data
+<b><i><u><p>foo</b>bar
+#config
+{ "removeElements": ["i"] }
+#document
+| <b>
+
+#data
+<b><div><p>Text</b>after
+#config
+{ "removeElements": ["p"] }
+#document
+| <b>
+| <div>
+|   <b>
+
+#data
+<b><div>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["b", "div"] }
+#document
+| "Textafter"
+
+#data
+<a href="1">x<div>y<a href="2">z
+#config
+{ "replaceWithChildrenElements": ["a"] }
+#document
+| "x"
+| <div>
+|   "yz"
+
+#data
+<a href="1">x<div>y<a href="2">z
+#config
+{ "removeElements": ["a"] }
+#document
+| <div>
+
+#data
+<b><span><div>x</b>y
+#config
+{ "removeElements": ["span"] }
+#document
+| <b>
+| <div>
+|   <b>
+|     "x"
+|   "y"
+
+#data
+<b><div><table></b>x
+#config
+{ "replaceWithChildrenElements": ["b"] }
+#document
+| <div>
+|   "x"
+|   <table>
+
+#data
+<b><i><div>Text</b>after
+#config
+{ "removeElements": ["div"] }
+#document
+| <b>
+|   <i>
+| <i>
+
+#data
+<b><i><div>Text</b>after
+#config
+{ "replaceWithChildrenElements": ["i", "div"] }
+#document
+| <b>
+|   "Text"
+| <b>
+| "after"
+
+#data
+<div><b><p>x</b>y
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <b>
+| <p>
+|   <b>
+|     "x"
+|   "y"
+
+#data
+<div><b><p>x</b>y
+#config
+{ "removeElements": ["div"] }
+#document
+
+#data
+<b><u><em><div>Text</b>after</div>more
+#config
+{ "replaceWithChildrenElements": ["div", "em"] }
+#document
+| <b>
+|   <u>
+|     "Text"
+| <u>
+|   <b>
+|   "aftermore"
+
+#data
+<b><u><em><div>Text</b>after</div>more
+#config
+{ "replaceWithChildrenElements": ["div", "em"], "removeElements": ["u"] }
+#document
+| <b>
+
+#data
+<table><b><div>x</b><input type="hidden">
+#config
+{ "replaceWithChildrenElements": ["div"] }
+#document
+| <b>
+|   "x"
+| <b>
+| <input>
+|   type="hidden"
+| <table>
+
+#data
+<article><b><i><section><div><div><div><div><div><div><div><div>x</b>y</article>z
+#document
+| <article>
+|   <b>
+|     <i>
+|   <i>
+|     <section>
+|       <b>
+|       <div>
+|         <b>
+|         <div>
+|           <b>
+|           <div>
+|             <b>
+|             <div>
+|               <b>
+|               <div>
+|                 <b>
+|                 <div>
+|                   <b>
+|                   <div>
+|                     <b>
+|                       <div>
+|                         "xy"
+| <i>
+|   <b>
+|     "z"
+
+#data
+<article><b><i><section><div><div><div><div><div><div><div><div>x</b>y</article>z
+#config
+{ "replaceWithChildrenElements": ["section"] }
+#document
+| <article>
+|   <b>
+|     <i>
+|   <i>
+|     <b>
+|     <div>
+|       <b>
+|       <div>
+|         <b>
+|         <div>
+|           <b>
+|           <div>
+|             <b>
+|             <div>
+|               <b>
+|               <div>
+|                 <b>
+|                 <div>
+|                   <b>
+|                     <div>
+|                       "xy"
+| <i>
+|   <b>
+|     "z"
+
+#data
+<b><div><div><div><div><div><div><div><div>x</b>y
+#document
+| <b>
+| <div>
+|   <b>
+|   <div>
+|     <b>
+|     <div>
+|       <b>
+|       <div>
+|         <b>
+|         <div>
+|           <b>
+|           <div>
+|             <b>
+|             <div>
+|               <b>
+|               <div>
+|                 <b>
+|                   "xy"
+
+#data
+<b><div><div><div><div><div><div><div><div>x</b>y
+#config
+{ "replaceWithChildrenElements": ["b"] }
+#document
+| <div>
+|   <div>
+|     <div>
+|       <div>
+|         <div>
+|           <div>
+|             <div>
+|               <div>
+|                 "xy"
+
+#data
+<b><u>1<p>foo</b><i>bar</i>baz
+#config
+{ "replaceWithChildrenElements": ["u"] }
+#document
+| <b>
+|   "1"
+| <p>
+|   <b>
+|     "foo"
+|   <i>
+|     "bar"
+|   "baz"

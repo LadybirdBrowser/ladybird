@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sanitizer: duplicate &lt;html&gt; and &lt;body&gt; attribute sanitization</title>
+<link rel="help" href="https://github.com/whatwg/html/pull/12756">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/html5lib-testcase-support.js"></script>
+</head>
+<body>
+<script id="safe" type="html5lib-testcases">
+#data
+<body><body onload="alert(1)" onclick="alert(2)" class="safe-body" data-test="val"></body>
+#document
+| <html>
+|   <head>
+|   <body>
+
+#data
+<body id="initial" class="initial"><body id="duplicate" class="duplicate" dir="rtl" onclick="alert(1)"></body>
+#document
+| <html>
+|   <head>
+|   <body>
+|     dir="rtl"
+
+#data
+<html lang="en" id="root"><html id="duplicate" dir="rtl" onclick="alert(1)"><body></body>
+#document
+| <html>
+|   lang="en"
+|   dir="rtl"
+|   <head>
+|   <body>
+
+#data
+<body><body class="allowed" title="forbidden"></body>
+#config
+{ "attributes": ["class"] }
+#document
+| <html>
+|   <head>
+|   <body>
+|     class="allowed"
+
+#data
+<html lang="en" dir="ltr" class="html-cls"><body id="main" class="body-cls" dir="ltr"></body>
+#config
+{ "elements": [{ "name": "html", "attributes": ["lang"] }, { "name": "body", "attributes": ["class"] }] }
+#document
+| <html>
+|   lang="en"
+|   <body>
+|     class="body-cls"
+
+#data
+<html><body><body class="body-cls" data-foo="bar"></body>
+#config
+{ "elements": ["html", { "name": "body", "attributes": ["class"] }] }
+#document
+| <html>
+|   <body>
+|     class="body-cls"
+
+</script>
+<script id="unsafe" type="html5lib-testcases">
+#data
+<body><body data-bad="strip-me" data-good="keep-me"></body>
+#config
+{ "removeAttributes": ["data-bad"] }
+#document
+| <html>
+|   <head>
+|   <body>
+|     data-good="keep-me"
+
+#data
+<html data-bad-html="1" data-good-html="2"><body data-bad-body="3" data-good-body="4"></body>
+#config
+{ "elements": [{ "name": "html", "removeAttributes": ["data-bad-html"] }, { "name": "body", "removeAttributes": ["data-bad-body"] }] }
+#document
+| <html>
+|   data-good-html="2"
+|   <body>
+|     data-good-body="4"
+
+#data
+<html><body><html data-dup-bad-html="1" data-dup-good-html="2"><body data-dup-bad-body="3" data-dup-good-body="4"></body>
+#config
+{ "elements": [{ "name": "html", "removeAttributes": ["data-dup-bad-html"] }, { "name": "body", "removeAttributes": ["data-dup-bad-body"] }] }
+#document
+| <html>
+|   data-dup-good-html="2"
+|   <body>
+|     data-dup-good-body="4"
+
+#data
+<html title="html-title"><body title="body-title"><div title="div-title"></div></body>
+#config
+{ "elements": ["html", { "name": "body", "removeAttributes": ["title"] }, "div"] }
+#document
+| <html>
+|   title="html-title"
+|   <body>
+|     <div>
+|       title="div-title"
+
+</script>
+<script id="fragment" type="html5lib-testcases">
+#document-fragment
+html
+#data
+<body id="test-body" onclick="alert(1)" class="safe-body"></body>
+#document
+| <head>
+| <body>
+
+#document-fragment
+html
+#data
+<body id="first" class="first"><body id="second" dir="rtl" onclick="alert(1)"></body>
+#document
+| <head>
+| <body>
+|   dir="rtl"
+
+</script>
+<script>
+const safe = parse_html5lib_testcases(
+    document.getElementById("safe").textContent);
+const unsafe = parse_html5lib_testcases(
+    document.getElementById("unsafe").textContent);
+const fragment = parse_html5lib_testcases(
+    document.getElementById("fragment").textContent);
+
+safe.forEach((testcase, index) => {
+  let config = undefined;
+  if (testcase.config) {
+    config = { sanitizer: JSON.parse(testcase.config) };
+  }
+  test(_ => {
+    assert_testcase(Document.parseHTML(testcase.data, config), testcase);
+  }, `Document.parseHTML testcase ${index}, "${testcase.data}"`);
+});
+
+unsafe.forEach((testcase, index) => {
+  let config = undefined;
+  if (testcase.config) {
+    config = { sanitizer: JSON.parse(testcase.config) };
+  }
+  test(_ => {
+    assert_testcase(Document.parseHTMLUnsafe(testcase.data, config), testcase);
+  }, `Document.parseHTMLUnsafe testcase ${index}, "${testcase.data}"`);
+});
+
+fragment.forEach((testcase, index) => {
+  let config = undefined;
+  if (testcase.config) {
+    config = { sanitizer: JSON.parse(testcase.config) };
+  }
+  test(_ => {
+    const context = document.createElement(testcase["document-fragment"] ?? "div");
+    context.setHTML(testcase.data, config);
+    assert_testcase(context, testcase);
+  }, `Fragment setHTML testcase ${index}, "${testcase.data}"`);
+});
+</script>
+</body>
+</html>

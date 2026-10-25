@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	Testcase #0 with .setHTMLUnsafe("Hello!")
+Pass	Testcase #0, .innerHTML matches .setHTMLUnsafe
+Pass	Testcase #1 with .setHTMLUnsafe("<p>bla")
+Pass	Testcase #1, .innerHTML matches .setHTMLUnsafe
+Pass	Testcase #2 with .setHTMLUnsafe("<p id=abc def='123'>texty<!-- xxx -->textz")
+Pass	Testcase #2, .innerHTML matches .setHTMLUnsafe
+Pass	Testcase #3 with .setHTMLUnsafe("<p>Hello <b>World</b><span>!")
+Pass	Testcase #3, .innerHTML matches .setHTMLUnsafe
+Pass	Testcase #4 with .setHTMLUnsafe("<p>A template example.<template>Hello <b>World</b></template>!")
+Pass	Testcase #4, .innerHTML matches .setHTMLUnsafe
+Pass	Testcase #5 with .setHTMLUnsafe("<td>Interesting parse context.</td>")
+Pass	Testcase #5, .innerHTML matches .setHTMLUnsafe
+Pass	Testcase #6 with .setHTMLUnsafe("<p>A rather boring parse context.")
+Pass	Testcase #6, .innerHTML matches .setHTMLUnsafe
+Pass	Testcase #7 with .setHTMLUnsafe("<table><b>a</b>bb<tr><td>y")
+Pass	Testcase #7, .innerHTML matches .setHTMLUnsafe
+Pass	Testcase #8 with .setHTMLUnsafe("<table><div>d</div><td>")
+Pass	Testcase #8, .innerHTML matches .setHTMLUnsafe

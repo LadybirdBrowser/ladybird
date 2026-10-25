@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sanitizer: script and raw text tokenizer state during sanitization</title>
+<link rel="help" href="https://github.com/whatwg/html/pull/12756">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/html5lib-testcase-support.js"></script>
+</head>
+<body>
+<script>
+promise_test(async () => {
+  const testcases = await html5lib_testcases_from_response(fetch("sanitizer-script-tokenizer.sub.dat"));
+  testcases.forEach((testcase, index) => {
+    test(() => {
+      const context = document.createElement(testcase["document-fragment"] ?? "div");
+      let config = undefined;
+      if (testcase.config) {
+        config = { sanitizer: JSON.parse(testcase.config) };
+      }
+      const method = testcase.method ?? "setHTML";
+      context[method](testcase.data, config);
+      assert_testcase(context, testcase);
+    }, `Testcase #${index} [${testcase.method ?? "setHTML"}], "${testcase.data}", config: "${testcase.config ?? "{}"}"`);
+  });
+}, "Sanitizer script and raw text tokenizer testcases from sub.dat");
+</script>
+</body>
+</html>

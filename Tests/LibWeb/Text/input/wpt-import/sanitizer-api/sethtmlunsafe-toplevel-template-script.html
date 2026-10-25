@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sanitizer: Top-level &lt;template&gt; and &lt;script&gt; parsed through setHTMLUnsafe</title>
+<link rel="help" href="https://github.com/whatwg/html/pull/12756">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/html5lib-testcase-support.js"></script>
+</head>
+<body>
+<script>
+promise_test(async () => {
+  const testcases = await html5lib_testcases_from_response(
+      fetch("sethtmlunsafe-toplevel-template-script.sub.dat"));
+  testcases.forEach((testcase, index) => {
+    test(() => {
+      const context = document.createElement(testcase["document-fragment"] ?? "div");
+      let config = undefined;
+      if (testcase.config) {
+        config = { sanitizer: JSON.parse(testcase.config) };
+      }
+      const method = testcase.method ?? "setHTMLUnsafe";
+      context[method](testcase.data, config);
+      assert_testcase(context, testcase);
+    }, `Testcase #${index} [${testcase.method ?? "setHTMLUnsafe"}], "${testcase.data}", config: "${testcase.config ?? "{}"}"`);
+  });
+}, "Top-level template and script testcases from sub.dat");
+
+test((t) => {
+  window.toplevelScriptRan = false;
+  t.add_cleanup(() => { delete window.toplevelScriptRan; });
+
+  const container = document.createElement("div");
+  container.setHTMLUnsafe("<script>window.toplevelScriptRan = true;<" + "/script>");
+  assert_false(window.toplevelScriptRan, "Script should not execute without runScripts: true");
+  assert_equals(container.children.length, 1, "Script element should be inserted");
+  assert_equals(container.firstElementChild.tagName, "SCRIPT");
+}, "Top-level <script> parsed through setHTMLUnsafe() without runScripts does not execute");
+
+test((t) => {
+  window.toplevelScriptRan = false;
+  t.add_cleanup(() => { delete window.toplevelScriptRan; });
+
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  t.add_cleanup(() => { container.remove(); });
+
+  container.setHTMLUnsafe(
+    "<script>window.toplevelScriptRan = true;<" + "/script>",
+    { runScripts: true }
+  );
+  assert_true(window.toplevelScriptRan, "Script should execute with runScripts: true");
+}, "Top-level <script> parsed through setHTMLUnsafe() with runScripts: true executes");
+</script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+let constructor_called = false;
+let connectedCallback_called = false;
+
+class FooBarElement extends HTMLDivElement {
+  constructor() {
+    super();
+    constructor_called = true;
+  }
+
+  connectedCallback() {
+    connectedCallback_called = true;
+  }
+}
+
+customElements.define("foo-bar", FooBarElement, { extends: "div" });
+
+function assert_removed(sanitizer) {
+  constructor_called = connectedCallback_called = false;
+
+  let d = document.createElement("div");
+  document.body.append(d);
+  d.setHTML(`<div is="foo-bar">hello</div>`, { sanitizer } );
+  assert_equals(d.innerHTML, `<div>hello</div>`);
+  assert_false(d.firstChild.hasAttribute("is"));
+  assert_true(d.firstChild.matches(":defined"));
+
+  assert_false(constructor_called);
+  assert_false(connectedCallback_called);
+
+  d.remove();
+}
+
+test(t => {
+  assert_removed("default");
+}, "The is= attribute is removed by the default sanitizer config.");
+
+test(t => {
+  assert_removed({ removeAttributes: ["is"] });
+}, "The is= attribute is removed by the global removeAttributes");
+
+test(t => {
+  assert_removed({ elements: [{ name: "div", removeAttributes: ["is"] }], removeAttributes: [] });
+}, "The is= attribute is removed by the local removeAttributes");
+
+test(t => {
+  assert_removed({ elements: [{ name: "div", attributes: [] }], attributes: [] });
+}, "The is= attribute is removed by the local missing attributes");
+
+function assert_kept(sanitizer) {
+  constructor_called = connectedCallback_called = false;
+
+  let d = document.createElement("div");
+  document.body.append(d);
+  d.setHTML(`<div is="foo-bar">hello</div>`, { sanitizer });
+  assert_equals(d.innerHTML, `<div is="foo-bar">hello</div>`);
+  assert_true(d.firstChild.hasAttribute("is"));
+  assert_true(d.firstChild.matches(":defined"));
+
+  // "is" is re-created even after removing the attribute.
+  d.firstChild.removeAttribute("is");
+  assert_equals(d.innerHTML, `<div is="foo-bar">hello</div>`);
+
+  assert_true(constructor_called);
+  assert_true(connectedCallback_called);
+
+  d.remove();
+}
+
+test(t => {
+  assert_kept({ })
+}, "The is= attribute is kept when allowed with an empty config.");
+
+test(t => {
+  assert_kept({ attributes: ["is"] })
+}, "The is= attribute is kept when allowed by global attributes.");
+
+test(t => {
+  assert_kept({ removeAttributes: [] })
+}, "The is= attribute is kept when allowed by global removeAttributes.");
+
+test(t => {
+  assert_kept({ elements: [{ name: "div", attributes: ["is"] }], attributes: [] });
+}, "The is= attribute is kept when allowed by local attributes.");
+</script>
+</body>
+</html>
