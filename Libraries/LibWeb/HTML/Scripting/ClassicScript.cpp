@@ -69,7 +69,7 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, Utf16View sour
         dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to parse: {}", parse_error.to_utf16_string());
 
         // 1. Set script's parse error and its error to rethrow to result[0].
-        script->set_parse_error(JS::SyntaxError::create(settings.realm(), parse_error.to_utf16_string()));
+        script->set_parse_error(JS::SyntaxError::create(settings.realm(), parse_error.to_utf16_string()), parse_error.position);
         script->set_error_to_rethrow(script->parse_error());
 
         // 2. Return script.
@@ -105,7 +105,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_parsed(ByteString filename
         auto& parse_error = result.error().first();
         dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to compile: {}", parse_error.to_utf16_string());
 
-        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()));
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()), parse_error.position);
         script->set_error_to_rethrow(script->parse_error());
 
         return script;
@@ -138,7 +138,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filena
         auto& parse_error = result.error().first();
         dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to materialize: {}", parse_error.to_utf16_string());
 
-        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()));
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()), parse_error.position);
         script->set_error_to_rethrow(script->parse_error());
 
         return script;
@@ -171,7 +171,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_bytecode_cache(ByteString file
         auto& parse_error = result.error().first();
         dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to materialize bytecode cache: {}", parse_error.to_utf16_string());
 
-        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()));
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()), parse_error.position);
         script->set_error_to_rethrow(script->parse_error());
 
         return script;
@@ -241,7 +241,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
         VERIFY(rethrow_errors == RethrowErrors::No);
 
         // 1. Report an exception given by evaluationStatus.[[Value]] for script's settings object's global object.
-        report_an_exception(settings.global_object(), evaluation_status.value());
+        report_an_exception(settings.global_object(), evaluation_status.value(), OmitError::No, this);
 
         // 2. Clean up after running script with settings.
         clean_up_after_running_script(settings);

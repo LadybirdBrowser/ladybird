@@ -67,7 +67,7 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
-void report_an_exception(JS::Object& global, JS::Value exception, OmitError omit_error)
+void report_an_exception(JS::Object& global, JS::Value exception, OmitError omit_error, GC::Ptr<Script> script)
 {
     auto& realm = relevant_realm(global);
     auto& vm = realm.vm();
@@ -80,22 +80,38 @@ void report_an_exception(JS::Object& global, JS::Value exception, OmitError omit
 
     // 3. Let script be a script found in an implementation-defined way, or null. This should usually be the
     //    running script (most notably during run a classic script).
-    auto script_or_module = vm.get_active_script_or_module();
+    // NB: The running script's execution context is gone by the time its error gets reported, so callers that know
+    //     the script pass it in.
+    if (!script) {
+        vm.get_active_script_or_module().visit(
+            [&](GC::Ref<JS::Script> const& js_script) {
+                script = script_from_host_defined(js_script->host_defined());
+            },
+            [&](GC::Ref<JS::Module> const& module) {
+                script = script_from_host_defined(module->host_defined());
+            },
+            [](auto const&) { });
+    }
+
+    // NB: A parse error is created before its script runs, so take its location from the script.
+    if (script && !script->parse_error().is_null() && script->parse_error() == exception) {
+        error_info.filename = Utf16String::from_utf8(script->filename());
+        if (auto const& position = script->parse_error_position(); position.has_value()) {
+            error_info.lineno = position->line;
+            error_info.colno = position->column;
+        }
+    }
 
     // 4. If script is a classic script and script's muted errors is true, then set errorInfo[error] to null,
     //    errorInfo[message] to "Script error.", errorInfo[filename] to the empty string, errorInfo[lineno] to
     //    0, and errorInfo[colno] to 0.
-    script_or_module.visit(
-        [&](GC::Ref<JS::Script> const& js_script) {
-            if (as<ClassicScript>(script_from_host_defined(js_script->host_defined()))->muted_errors() == ClassicScript::MutedErrors::Yes) {
-                error_info.error = JS::js_null();
-                error_info.message = "Script error."_utf16;
-                error_info.filename = Utf16String {};
-                error_info.lineno = 0;
-                error_info.colno = 0;
-            }
-        },
-        [](auto const&) { });
+    if (auto* classic_script = as_if<ClassicScript>(script.ptr()); classic_script && classic_script->muted_errors() == ClassicScript::MutedErrors::Yes) {
+        error_info.error = JS::js_null();
+        error_info.message = "Script error."_utf16;
+        error_info.filename = Utf16String {};
+        error_info.lineno = 0;
+        error_info.colno = 0;
+    }
 
     // 5. If omitError is true, then set errorInfo[error] to null.
     if (omit_error == OmitError::Yes)
