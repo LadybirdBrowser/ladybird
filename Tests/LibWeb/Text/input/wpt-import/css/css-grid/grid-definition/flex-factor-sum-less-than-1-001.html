@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Grid Layout Test: flex factor sum smaller than 1.</title>
+<link rel="author" title="Javier Fernandez" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#algo-find-fr-size">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#fr-unit">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=520477">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<meta name="assert" content="Test that resolving auto tracks on grid items works properly even when the flex factor sum is less than 1." />
+
+<style>
+.onlyColumnFractionFlexFactors {
+    grid-template-columns: minmax(0, 0.1fr) minmax(0, 0.2fr) minmax(0, 0.3fr);
+    grid-template-rows: 50px;
+    width: 100px;
+}
+.onlyRowFractionFlexFactors {
+    grid-template-columns: 50px;
+    grid-template-rows: minmax(0, 0.1fr) minmax(0, 0.2fr) minmax(0, 0.3fr);
+    width: 50px;
+    height: 100px;
+}
+.fixedAndfractionFlexFactors {
+    grid-template-columns: 50px minmax(0, 0.2fr) 30px;
+    grid-template-rows: minmax(0, 0.1fr) 50px minmax(0, 0.3fr);
+    width: 100px;
+    height: 100px;
+}
+.zeroValueFlexFactor {
+    grid-template-columns: .0fr .2fr .3fr;
+    grid-template-rows: 50px;
+    width: 100px;
+}
+.firstRowThirdColumn {
+    background-color: yellow;
+    grid-column: 3;
+    grid-row: 1;
+}
+.secondRowThirdColumn {
+    background-color: yellow;
+    grid-column: 3;
+    grid-row: 2;
+}
+.thirdRowFirstColumn {
+    background-color: brown;
+    grid-column: 1;
+    grid-row: 3;
+}
+.thirdRowThirdColumn {
+    background-color: magenta;
+    grid-column: 3;
+    grid-row: 3;
+}
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.grid');">
+
+<div style="position: relative;">
+    <div class="grid onlyColumnFractionFlexFactors">
+        <div class="firstRowFirstColumn" data-expected-width="10" data-expected-height="50"></div>
+        <div class="firstRowSecondColumn" data-expected-width="20" data-expected-height="50"></div>
+        <div class="firstRowThirdColumn" data-expected-width="30" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative;">
+    <div class="grid onlyRowFractionFlexFactors">
+        <div class="firstRowFirstColumn" data-expected-width="50" data-expected-height="10"></div>
+        <div class="secondRowFirstColumn" data-expected-width="50" data-expected-height="20"></div>
+        <div class="thirdRowFirstColumn" data-expected-width="50" data-expected-height="30"></div>
+    </div>
+</div>
+
+<div style="position: relative;">
+    <div class="grid zeroValueFlexFactor">
+        <div class="firstRowFirstColumn" data-expected-width="0" data-expected-height="50"></div>
+        <div class="firstRowSecondColumn" data-expected-width="20" data-expected-height="50"></div>
+        <div class="firstRowThirdColumn" data-expected-width="30" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative;">
+    <div class="grid fixedAndfractionFlexFactors">
+        <div class="firstRowFirstColumn" data-expected-width="50" data-expected-height="5"></div>
+        <div class="firstRowSecondColumn" data-expected-width="4" data-expected-height="5"></div>
+        <div class="firstRowThirdColumn" data-expected-width="30" data-expected-height="5"></div>
+        <div class="secondRowFirstColumn" data-expected-width="50" data-expected-height="50"></div>
+        <div class="secondRowSecondColumn" data-expected-width="4" data-expected-height="50"></div>
+        <div class="secondRowThirdColumn" data-expected-width="30" data-expected-height="50"></div>
+        <div class="thirdRowFirstColumn" data-expected-width="50" data-expected-height="15"></div>
+        <div class="thirdRowSecondColumn" data-expected-width="4" data-expected-height="15"></div>
+        <div class="thirdRowThirdColumn" data-expected-width="30" data-expected-height="15"></div>
+    </div>
+</div>
+
+</body>
+</html>

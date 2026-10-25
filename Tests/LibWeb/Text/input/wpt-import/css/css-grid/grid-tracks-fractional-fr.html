@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>Tests fractional fr-units which should multiply to whole numbers.</title>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1515685">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="target" style="display: grid; grid-template-columns: 1.01fr 0.99fr 1fr; width: 600px;">
+  <div></div>
+  <div></div>
+  <div></div>
+</div>
+<script>
+test(() => {
+  const [a, b, c] = document.getElementById('target').children;
+  assert_equals(a.getBoundingClientRect().width, 202);
+  assert_equals(b.getBoundingClientRect().width, 198);
+  assert_equals(c.getBoundingClientRect().width, 200);
+});
+</script>
