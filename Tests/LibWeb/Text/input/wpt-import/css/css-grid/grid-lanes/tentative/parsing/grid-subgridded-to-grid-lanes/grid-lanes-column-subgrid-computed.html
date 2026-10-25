@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: grid-template-{columns,rows}: subgrid computed value in a column-direction grid-lanes</title>
+  <link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+  <meta name="assert" content="In a column-direction grid-lanes, the lanes axis (columns) accepts `subgrid` on a child grid container and preserves the syntax in the resolved value. The standalone axis (rows) cannot be subgridded, so `subgrid` on grid-template-rows resolves to the initial value `none`.">
+  <script src="../../../../../../resources/testharness.js"></script>
+  <script src="../../../../../../resources/testharnessreport.js"></script>
+  <script src="../../../../../../css/support/computed-testcommon.js"></script>
+  <style>
+    #parent {
+      display: grid-lanes;
+      grid-lanes-direction: column;
+      grid-auto-flow: row;
+      grid-template-columns: repeat(2, 100px);
+    }
+    #target {
+      display: grid;
+      grid-column: 1 / span 2;
+    }
+  </style>
+</head>
+<body>
+  <div id="parent">
+    <div id="target"></div>
+  </div>
+  <script>
+    // grid-template-columns: subgrid (subgridded into the lanes axis).
+    // Resolved value preserves the subgrid syntax, expanded to one line
+    // name set per grid line.
+    test_computed_value("grid-template-columns", "subgrid", "subgrid [] [] []");
+    test_computed_value("grid-template-columns", "subgrid [a]", "subgrid [a] [] []");
+    test_computed_value("grid-template-columns", "subgrid [a] [b]", "subgrid [a] [b] []");
+    test_computed_value("grid-template-columns", "subgrid [a] [] [b]");
+    test_computed_value("grid-template-columns", "subgrid repeat(auto-fill, [a])", "subgrid [a] [a] [a]");
+    test_computed_value("grid-template-columns", "subgrid repeat(2, [a] [b])", "subgrid [a] [b] [a]");
+    test_computed_value("grid-template-columns", "subgrid [a] repeat(auto-fill, [b]) [c]", "subgrid [a] [b] [c]");
+
+    // grid-template-rows: subgrid (subgridded into the standalone axis).
+    // The standalone axis of a grid-lanes container is treated as auto-sized,
+    // so subgrid in this direction is ignored and the computed value resolves
+    // to the initial value `none`.
+    test_computed_value("grid-template-rows", "subgrid", "none");
+    test_computed_value("grid-template-rows", "subgrid [a]", "none");
+    test_computed_value("grid-template-rows", "subgrid [a] [b]", "none");
+    test_computed_value("grid-template-rows", "subgrid [a] [] [b]", "none");
+    test_computed_value("grid-template-rows", "subgrid repeat(auto-fill, [a])", "none");
+    test_computed_value("grid-template-rows", "subgrid repeat(2, [a] [b])", "none");
+    test_computed_value("grid-template-rows", "subgrid [a] repeat(auto-fill, [b]) [c]", "none");
+  </script>
+</body>
+</html>

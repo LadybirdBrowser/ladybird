@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: orthogonal (vertical-lr) subgrid auto-fill with named lines in column grid-lanes</title>
+  <link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2/#auto-repeat">
+  <script src="../../../../../../resources/testharness.js"></script>
+  <script src="../../../../../../resources/testharnessreport.js"></script>
+  <style>
+    .parent {
+      display: inline grid-lanes;
+      grid-template-columns: 20px 20px 20px 20px 20px 20px;
+    }
+
+    .subgrid {
+      display: grid;
+      grid-column: 2 / span 4;
+      writing-mode: vertical-lr;
+    }
+
+    item {
+      min-width: 0;
+      min-height: 10px;
+      grid-row: x -2 / x -1;
+      background: grey;
+      writing-mode: horizontal-tb;
+    }
+  </style>
+</head>
+<body>
+
+<div class="parent"><div class="subgrid" id="t1" style="grid-template-rows:subgrid [] [] repeat(auto-fill,[]) [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t2" style="grid-template-rows:subgrid [] [] repeat(auto-fill,[x]) [] [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t3" style="grid-template-rows:subgrid [] [] repeat(auto-fill,[x]) [] [] [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t4" style="grid-template-rows:subgrid [x] [x] repeat(auto-fill,[x]) [] [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t5" style="grid-template-rows:subgrid [x] [x] repeat(auto-fill,[x]) [] [x] []"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t6" style="grid-template-rows:subgrid [x] [x] repeat(auto-fill,[x]) [x] [x] []"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t7" style="grid-template-rows:subgrid [] [] repeat(auto-fill,[x]) [] [] [] [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t8" style="grid-template-rows:subgrid [] [] repeat(1,[]) [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t9" style="grid-template-rows:subgrid [] [] repeat(1,[]) [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t10" style="grid-template-rows:subgrid [] [] repeat(1,[]) [] [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t11" style="grid-template-rows:subgrid [] [] repeat(1,[]) [] [] [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t12" style="grid-template-rows:subgrid repeat(2,[]) repeat(auto-fill,[]) [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t13" style="grid-template-rows:subgrid repeat(2,[x]) repeat(auto-fill,[]) [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t14" style="grid-template-rows:subgrid repeat(2,[x]) repeat(auto-fill,[x]) [] []"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t15" style="grid-template-rows:subgrid repeat(3,[]) repeat(auto-fill,[]) [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t16" style="grid-template-rows:subgrid repeat(4,[]) repeat(auto-fill,[x]) [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t17" style="grid-template-rows:subgrid [] [] [] [] repeat(auto-fill,[x]) [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t18" style="grid-template-rows:subgrid repeat(auto-fill,[]) [] [] [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t19" style="grid-template-rows:subgrid repeat(auto-fill,[x]) [] [] [] [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t20" style="grid-template-rows:subgrid [] repeat(auto-fill,[x]) [] [] [] [x]"><item></item></div></div>
+<div class="parent"><div class="subgrid" id="t21" style="grid-template-rows:subgrid repeat(5,[]) repeat(auto-fill,[]) [x]"><item></item></div></div>
+
+<script>
+  const expectedResults = [
+    ["t1", "subgrid [] [] [] [] [x]"],
+    ["t2", "subgrid [] [] [] [] [x]"],
+    ["t3", "subgrid [] [] [] [] []"],
+    ["t4", "subgrid [x] [x] [] [] [x]"],
+    ["t5", "subgrid [x] [x] [] [x] []"],
+    ["t6", "subgrid [x] [x] [x] [x] []"],
+    ["t7", "subgrid [] [] [] [] []"],
+    ["t8", "subgrid [] [] [] [x] []"],
+    ["t9", "subgrid [] [] [] [] [x]"],
+    ["t10", "subgrid [] [] [] [] []"],
+    ["t11", "subgrid [] [] [] [] []"],
+    ["t12", "subgrid [] [] [] [] [x]"],
+    ["t13", "subgrid [x] [x] [] [] [x]"],
+    ["t14", "subgrid [x] [x] [x] [] []"],
+    ["t15", "subgrid [] [] [] [] [x]"],
+    ["t16", "subgrid [] [] [] [] [x]"],
+    ["t17", "subgrid [] [] [] [] [x]"],
+    ["t18", "subgrid [] [] [] [] [x]"],
+    ["t19", "subgrid [] [] [] [] [x]"],
+    ["t20", "subgrid [] [] [] [] [x]"],
+    ["t21", "subgrid [] [] [] [] []"],
+  ];
+
+  for (const [id, expected] of expectedResults) {
+    test(() => {
+      const el = document.getElementById(id);
+      assert_equals(getComputedStyle(el).gridTemplateRows, expected);
+    }, `Orthogonal (vertical-lr) named line placement (${id})`);
+  }
+</script>
+
+</body>
+</html>

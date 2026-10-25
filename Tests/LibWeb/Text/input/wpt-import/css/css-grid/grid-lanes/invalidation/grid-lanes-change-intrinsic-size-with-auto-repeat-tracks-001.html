@@ -1,0 +1,93 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: changing item intrinsic size recomputes auto-repeat tracks</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <meta name="assert" content="This test checks that changing the intrinsic size of a track-spanning item properly recomputes auto-repeat track counts in a grid-lanes container, and that auto-placed items are positioned according to the new track count.">
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+  <script src="../../../../resources/check-layout-th.js"></script>
+  <style>
+    .grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: repeat(auto-fill, 20px) minmax(min-content, 40px);
+      position: relative;
+      width: max-content;
+      flow-tolerance: 0;
+    }
+    .auto-item {
+      height: 5px;
+      background: purple;
+    }
+  </style>
+</head>
+<body>
+<div id="gridLanes" class="grid-lanes">
+  <div id="item" style="grid-column: 1 / -1; height: 30px; background: cyan;"></div>
+  <div id="a1" class="auto-item"></div>
+  <div id="a2" class="auto-item"></div>
+  <div id="a3" class="auto-item"></div>
+  <div id="a4" class="auto-item"></div>
+</div>
+
+<script>
+setup({ explicit_done: true });
+
+function setExpected(itemsData) {
+    for (var d of itemsData) {
+        var el = document.getElementById(d.id);
+        el.setAttribute("data-expected-width", d.width);
+        el.setAttribute("data-offset-x", d.x);
+        el.setAttribute("data-offset-y", d.y);
+    }
+}
+
+function testChangingItemSize() {
+    var item = document.getElementById("item");
+
+    // The spanning item's width drives the container width (max-content),
+    // which determines how many auto-fill tracks are created.
+
+    // 100px spanner: 3 auto-repeat (60px) + 1 minmax (40px) = 4 tracks total.
+    // a1->col1, a2->col2, a3->col3, a4->col4(40px).
+    item.style.width = "100px";
+    item.setAttribute("data-expected-width", "100");
+    setExpected([
+        { id: "a1", width: "20", x: "0", y: "30" },
+        { id: "a2", width: "20", x: "20", y: "30" },
+        { id: "a3", width: "20", x: "40", y: "30" },
+        { id: "a4", width: "40", x: "60", y: "30" },
+    ]);
+    checkLayout("#gridLanes", false);
+
+    // 80px spanner: 2 auto-repeat (40px) + 1 minmax (40px) = 3 tracks total.
+    // a1->col1, a2->col2, a3->col3(40px), a4 wraps to col1 row 3.
+    item.style.width = "80px";
+    item.setAttribute("data-expected-width", "80");
+    setExpected([
+        { id: "a1", width: "20", x: "0", y: "30" },
+        { id: "a2", width: "20", x: "20", y: "30" },
+        { id: "a3", width: "40", x: "40", y: "30" },
+        { id: "a4", width: "20", x: "0", y: "35" },
+    ]);
+    checkLayout("#gridLanes", false);
+
+    // 60px spanner: 1 auto-repeat (20px) + 1 minmax (40px) = 2 tracks total.
+    // a1->col1, a2->col2(40px), a3 wraps to col1 row 3, a4 to col2 row 3.
+    item.style.width = "60px";
+    item.setAttribute("data-expected-width", "60");
+    setExpected([
+        { id: "a1", width: "20", x: "0", y: "30" },
+        { id: "a2", width: "40", x: "20", y: "30" },
+        { id: "a3", width: "20", x: "0", y: "35" },
+        { id: "a4", width: "40", x: "20", y: "35" },
+    ]);
+    checkLayout("#gridLanes", true);
+}
+
+testChangingItemSize();
+</script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: grid-lanes-direction dynamic change triggers relayout</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+  <script src="../../../../resources/check-layout-th.js"></script>
+  <style>
+    .grid-lanes {
+      display: grid-lanes;
+      position: relative;
+      flow-tolerance: 0;
+    }
+  </style>
+</head>
+<body>
+<div id="gridLanes" class="grid-lanes">
+  <div id="a" style="height: 40px; background: blue;"></div>
+  <div id="b" style="height: 20px; background: orange;"></div>
+  <div id="c" style="height: 30px; background: green;"></div>
+  <div id="d" style="height: 60px; background: red;"></div>
+  <div id="e" style="height: 30px; background: purple;"></div>
+</div>
+
+<script>
+setup({ explicit_done: true });
+
+function setItems(itemsData) {
+    for (var data of itemsData) {
+        var item = document.getElementById(data.id);
+        item.setAttribute("data-expected-width", data.width);
+        item.setAttribute("data-offset-x", data.x);
+        item.setAttribute("data-offset-y", data.y);
+    }
+}
+
+function testDirectionReverse() {
+    var gridLanes = document.getElementById("gridLanes");
+
+    gridLanes.style.gridTemplateColumns = "repeat(3, 50px)";
+    setItems([
+        { id: "a", width: "50", x: "0", y: "0" },
+        { id: "b", width: "50", x: "50", y: "0" },
+        { id: "c", width: "50", x: "100", y: "0" },
+        { id: "d", width: "50", x: "50", y: "20" },
+        { id: "e", width: "50", x: "100", y: "30" },
+    ]);
+    checkLayout("#gridLanes", false);
+
+    // Switch to column track-reverse: columns are rendered in reverse
+    // visual order (col1 at the right, col3 at the left), but items
+    // are still placed top-down within each column.
+    gridLanes.style.gridLanesDirection = "column track-reverse";
+    setItems([
+        { id: "a", width: "50", x: "100", y: "0" },
+        { id: "b", width: "50", x: "50", y: "0" },
+        { id: "c", width: "50", x: "0", y: "0" },
+        { id: "d", width: "50", x: "50", y: "20" },
+        { id: "e", width: "50", x: "0", y: "30" },
+    ]);
+    checkLayout("#gridLanes", false);
+
+    // Switch to column fill-reverse: items are placed from bottom to
+    // top within each column.
+    gridLanes.style.gridLanesDirection = "column fill-reverse";
+    setItems([
+        { id: "a", width: "50", x: "0", y: "40" },
+        { id: "b", width: "50", x: "50", y: "60" },
+        { id: "c", width: "50", x: "100", y: "50" },
+        { id: "d", width: "50", x: "50", y: "0" },
+        { id: "e", width: "50", x: "100", y: "20" },
+    ]);
+    checkLayout("#gridLanes", true);
+}
+
+testDirectionReverse();
+</script>
+</body>
+</html>

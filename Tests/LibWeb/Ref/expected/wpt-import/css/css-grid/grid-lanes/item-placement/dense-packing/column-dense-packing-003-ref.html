@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    background: gray;
+    flow-tolerance: 0;
+    grid-template-columns: repeat(3, 50px);
+    width: 170px;
+}
+</style>
+<body>
+  <p>Ensure that dense-packing has no impact when all items are single-spanning.</p>
+  <div class="grid-lanes">
+    <div style="background: lightskyblue; height: 20px;" >
+      1
+    </div>
+    <div style="background: lightcoral; height: 60px;" >
+      2
+    </div>
+    <div style="background: lightgreen; height: 60px;">
+      3
+    </div>
+    <div style="background: brown; height: 15px;">
+      4
+    </div>
+    <div style="background: red; height: 40px;">
+      5
+    </div>
+    <div style="background: pink; height: 40px;">
+      6
+    </div>
+    <div style="background: yellow; height: 40px;">
+      7
+    </div>
+  </div>
+</body>
+</html>

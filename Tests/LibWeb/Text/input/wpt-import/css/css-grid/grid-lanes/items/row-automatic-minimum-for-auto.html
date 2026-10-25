@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<title>CSS Grid Lanes: automatic minimum in 'auto' rows</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#layout-algorithm">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#automatic-minimum-size">
+<meta name="assert" content="Check that grid-lanes item's 'min-height' is honored when sizing 'auto' rows.">
+<link rel="stylesheet" href="../../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../../fonts/ahem.css">
+
+<style>
+.grid-lanes { display: grid-lanes; font: 10px/1 Ahem; }
+
+.minHeight10 { min-height: 10px; }
+.minHeight20 { min-height: 20px; }
+.minHeight30 { min-height: 30px; }
+.minHeight40 { min-height: 40px; }
+.minHeight50 { min-height: 50px; }
+.minHeight60 { min-height: 60px; }
+.minHeight70 { min-height: 70px; }
+.minHeight90 { min-height: 90px; }
+.minHeightMaxContent { min-height: max-content; }
+
+.height30 { height: 30px; }
+.height50 { height: 50px; }
+.height60 { height: 60px; }
+.height200 { height: 200px; }
+
+.border5 { border: 5px solid #abc; }
+.padding8 { padding: 8px 0px; }
+
+/* All these 4 cases are equivalent. We use them interchangeably. */
+.gridAuto { grid-template-rows: auto; }
+.gridMinMaxAutoAuto { grid-template-rows: minmax(auto, auto); }
+.gridMinMaxAutoMaxContent { grid-template-rows: minmax(auto, max-content); }
+.gridMinMaxMinContentAuto { grid-template-rows: minmax(min-content, auto); }
+
+/* All these 3 cases are equivalent. We use them interchangeably. */
+.gridAutoAndAuto { grid-template-rows: auto auto; }
+.gridAutoAndMinMaxAutoAuto { grid-template-rows: auto minmax(auto, auto); }
+.gridMinMaxAutoMaxContentAndAuto { grid-template-rows: minmax(auto, max-content) auto; }
+</style>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<div class="grid-lanes gridAuto constrainedContainer" id="gridAuto">
+  <div class="firstRowFirstColumn minHeight40">XX<br>XXX<br>XX<br>XXX<br>XXXX</div>
+</div>
+
+<div class="grid-lanes gridAuto constrainedContainer" id="gridAutoItemSmallerThanMinSize">
+  <div class="firstRowFirstColumn minHeight40">XX</div>
+</div>
+
+<div class="grid-lanes gridMinMaxAutoAuto constrainedContainer" id="gridMinMaxAutoAuto">
+  <div class="firstRowFirstColumn minHeight40">XX<br>XX</div>
+</div>
+
+<div class="grid-lanes gridMinMaxAutoMaxContent constrainedContainer" id="gridMinMaxAutoMaxContent">
+  <div class="firstRowFirstColumn minHeight20 height30"></div>
+</div>
+
+<div class="grid-lanes gridMinMaxMinContentAuto constrainedContainer" id="gridMinMaxMinContentAuto">
+  <div class="firstRowFirstColumn minHeight60">X</div>
+</div>
+
+<div class="grid-lanes gridAuto constrainedContainer" id="gridAutoMultipleItems">
+  <div class="firstRowFirstColumn minHeight60">X<br>X</div>
+  <div class="firstRowSecondColumn minHeight20">XXX<br>X<br>XX<br>XX</div>
+  <div class="firstRowAutoColumn minConstrainedContainer height50"></div>
+</div>
+
+<div class="grid-lanes gridMinMaxAutoAuto constrainedContainer" id="gridMinMaxAutoAutoMultipleItemsOneWithoutMinHeight">
+  <div class="firstRowFirstColumn height30">X<br>X</div>
+  <div class="firstRowSecondColumn minHeight50"></div>
+  <div class="firstRowAutoColumn minHeight20">XXXX<br>X<br>XX<br>XXX</div>
+</div>
+
+<div class="grid-lanes gridMinMaxAutoMaxContent constrainedContainer" id="gridMinMaxAutoMaxContentMultipleItemsOneWithAutoMinHeight">
+  <div class="firstRowFirstColumn minHeight30">X<br>X</div>
+  <div class="firstRowSecondColumn height60">XX</div>
+  <div class="firstRowAutoColumn minHeight20">XXX<br>XX<br>XXX<br>XX</div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAutoAndAuto" id="gridAutoAndAutoFixedHeightChildren">
+     <div class="firstRowFirstColumn height200"></div>
+     <div class="secondRowFirstColumn height50"></div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAutoAndAuto" id="gridAutoAndAutoOneSpanningOneNonSpannig">
+    <div class="firstRowFirstColumn">XX XX</div>
+    <div class="bothRowFirstColumn minHeight50">XXXXXX X XXX</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAutoAndAuto" id="gridAutoAndAutoOneSpanningMultipleNonSpanning">
+    <div class="bothRowSecondColumn minHeight60">XX XX XX</div>
+    <div class="firstRowFirstColumn">X X X X</div>
+    <div class="firstRowFirstColumn">XX XX</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAutoAndMinMaxAutoAuto" id="gridAutoAndMinMaxAutoAutoOneSpanningOneNonSpanning">
+    <div class="secondRowFirstColumn">X XXX XX</div>
+    <div class="bothRowSecondColumn minHeight70">XXX XXXX</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAutoAndMinMaxAutoAuto" id="gridAutoAndMinMaxAutoAutoMultipleSpanning">
+    <div class="bothRowSecondColumn minHeight70">XX XX XX</div>
+    <div class="bothRowFirstColumn">XXXXX X XXXXX</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridMinMaxAutoMaxContentAndAuto"
+      id="gridMinMaxAutoMaxContentAndAutoOneSpanningMultipleNonSpanning">
+    <div class="secondRowFirstColumn minHeight60">X XXX XX</div>
+    <div class="bothRowSecondColumn minHeight90">XXXXX XXXXX</div>
+    <div class="firstRowFirstColumn">XX XX</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridMinMaxAutoMaxContentAndAuto"
+      id="gridMinMaxAutoMaxContentAndAutoMultipleSpanningMultipleNonSpanning">
+    <div class="bothRowSecondColumn">XX XX XX XX</div>
+    <div class="firstRowFirstColumn minHeight40">XXX</div>
+    <div class="bothRowFirstColumn minHeight90">X XX XXX</div>
+    <div class="secondRowFirstColumn">X XX X</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAuto" id="gridAutoWithFixedHeightChild">
+    <div class="firstRowFirstColumn height60">XXX X</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAuto height30" id="gridAutoWithFixedHeightChildAndMinHeight">
+    <div class="firstRowFirstColumn height60 minHeight40">XXX X</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAuto" id="gridAutoWithFixedHeightChildAndHigherMinHeight">
+    <div class="firstRowFirstColumn height60 minHeight90">XXX X</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAutoAndAuto" id="gridAutoAndAutoOneSpanningFixedHeight">
+    <div class="bothRowFirstColumn height50">XX XXX XX XXX XX XXX</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAutoAndAuto height30" id="gridAutoAndAutoOneSpanningFixedHeightAndMinHeight">
+    <div class="bothRowFirstColumn height60 minHeight50">XX XXX XX</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAutoAndAuto" id="gridAutoAndAutoOneSpanningFixedHeightAndHigherMinHeight">
+    <div class="bothRowFirstColumn height60 minHeight70">XX XXX XX X XX</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAuto" id="gridAutoFixedMinHeightWithBorder">
+    <div class="firstRowFirstColumn minHeight40 border5">XXXXXX</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAuto" id="gridAutoFixedMinHeightWithPadding">
+    <div class="firstRowFirstColumn minHeight40 padding8">XXXXXX</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAuto" id="gridAutoFixedMinHeightWithBorderAndPadding">
+    <div class="firstRowFirstColumn minHeight40 border5 padding8">XXXXXX</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAuto" id="gridAutoAutoMinHeightWithBorder">
+    <div class="firstRowFirstColumn border5">XX<br>XXX X</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAuto" id="gridAutoAutoMinHeightWithPadding">
+    <div class="firstRowFirstColumn padding8">XX<br>XXX X</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAuto" id="gridAutoAutoMinHeightWithBorderAndPadding">
+    <div class="firstRowFirstColumn border5 padding8">XX<br>XXX X</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAuto" id="gridAutoMaxContentMinHeightWithBorder">
+    <div class="firstRowFirstColumn minHeightMaxContent border5">XXX X</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAuto" id="gridAutoMaxContentMinHeightWithPadding">
+    <div class="firstRowFirstColumn minHeightMaxContent padding8">XXX X</div>
+  </div>
+</div>
+
+<div class="constrainedContainer">
+  <div class="grid-lanes gridAuto" id="gridAutoMaxContentMinHeightWithBorderAndPadding">
+    <div class="firstRowFirstColumn border5 padding8 minHeightMaxContent">XXX X</div>
+  </div>
+</div>
+
+<script>
+function testGridRowsValues(id, computedRowValue)
+{
+  assert_equals(window.getComputedStyle(document.getElementById(id))
+      .getPropertyValue('grid-template-rows'), computedRowValue);
+}
+
+setup({ explicit_done: true });
+document.fonts.ready.then(() => {
+  test(() => {
+    testGridRowsValues('gridAuto', '40px');
+    testGridRowsValues('gridAutoItemSmallerThanMinSize', '40px');
+    testGridRowsValues('gridMinMaxAutoAuto', '40px');
+    testGridRowsValues('gridMinMaxAutoMaxContent', '30px');
+    testGridRowsValues('gridMinMaxMinContentAuto', '60px');
+    testGridRowsValues('gridAutoMultipleItems', '60px');
+    testGridRowsValues('gridMinMaxAutoAutoMultipleItemsOneWithoutMinHeight', '50px');
+    testGridRowsValues('gridMinMaxAutoMaxContentMultipleItemsOneWithAutoMinHeight', '60px');
+    testGridRowsValues('gridAutoAndAutoFixedHeightChildren', '200px 50px');
+  }, 'Check that min-height is honored when sizing auto rows.');
+  test(() => {
+    testGridRowsValues('gridAutoAndAutoOneSpanningOneNonSpannig', '20px 30px');
+    testGridRowsValues('gridAutoAndAutoOneSpanningMultipleNonSpanning', '40px 20px');
+    testGridRowsValues('gridAutoAndMinMaxAutoAutoOneSpanningOneNonSpanning', '40px 30px');
+    testGridRowsValues('gridAutoAndMinMaxAutoAutoMultipleSpanning', '35px 35px');
+    testGridRowsValues('gridMinMaxAutoMaxContentAndAutoOneSpanningMultipleNonSpanning', '25px 65px');
+    testGridRowsValues('gridMinMaxAutoMaxContentAndAutoMultipleSpanningMultipleNonSpanning', '50px 40px');
+  }, 'Check that min-height is honored when sizing auto rows and spanning grid items.');
+  test(() => {
+    testGridRowsValues('gridAutoWithFixedHeightChild', '60px');
+    testGridRowsValues('gridAutoWithFixedHeightChildAndMinHeight', '60px');
+    testGridRowsValues('gridAutoWithFixedHeightChildAndHigherMinHeight', '90px');
+    testGridRowsValues('gridAutoAndAutoOneSpanningFixedHeight', '25px 25px');
+    testGridRowsValues('gridAutoAndAutoOneSpanningFixedHeightAndMinHeight', '30px 30px');
+    testGridRowsValues('gridAutoAndAutoOneSpanningFixedHeightAndHigherMinHeight', '35px 35px');
+  }, 'Check the interactions between height and min-height and auto tracks.');
+  test(() => {
+    testGridRowsValues('gridAutoFixedMinHeightWithBorder', '50px');
+    testGridRowsValues('gridAutoFixedMinHeightWithPadding', '56px');
+    testGridRowsValues('gridAutoFixedMinHeightWithBorderAndPadding', '66px');
+    testGridRowsValues('gridAutoAutoMinHeightWithBorder', '40px');
+    testGridRowsValues('gridAutoAutoMinHeightWithPadding', '46px');
+    testGridRowsValues('gridAutoAutoMinHeightWithBorderAndPadding', '56px');
+    testGridRowsValues('gridAutoMaxContentMinHeightWithBorder', '30px');
+    testGridRowsValues('gridAutoMaxContentMinHeightWithPadding', '36px');
+    testGridRowsValues('gridAutoMaxContentMinHeightWithBorderAndPadding', '46px');
+  }, 'Check that borders and paddings are considering when computing min sizes.');
+  done();
+});
+</script>

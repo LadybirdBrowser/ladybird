@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="author" title="Javier Contreras" href="mailto:javiercon@microsoft.com">
+<style>
+  body { margin: 0; }
+  .lanes {
+    background: #cdd5e0;
+    display: grid-lanes;
+    gap: 20px;
+    grid-template-columns: repeat(2, 60px);
+    width: max-content;
+  }
+  .lanes > div {
+    background: #5b8def;
+    grid-column: 1;
+    height: 40px;
+  }
+  .lanes > .spanner {
+    background: #8a6df0;
+    grid-column: 1 / -1;
+  }
+</style>
+<div class="lanes">
+  <div></div>
+  <div class="spanner"></div>
+  <div></div>
+</div>

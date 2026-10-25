@@ -1,0 +1,50 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: removing child from grid-lanes container triggers relayout</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <meta name="assert" content="This test checks that removing a middle item from a grid-lanes container properly triggers auto-placement recompute, and that a later item fills the resulting gap under grid-lanes-pack: dense.">
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+  <script src="../../../../resources/check-layout-th.js"></script>
+  <style>
+    .grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: repeat(2, 50px);
+      grid-lanes-pack: dense;
+      position: relative;
+    }
+    .span2 {
+      grid-column: span 2;
+    }
+  </style>
+</head>
+<body>
+<div class="grid-lanes" id="gridLanes">
+  <div class="span2" id="A" data-offset-x="0" data-offset-y="0" style="height: 50px; background: blue;"></div>
+  <div id="B" data-offset-x="0" data-offset-y="50" style="height: 50px; background: orange;"></div>
+  <div id="C" data-offset-x="50" data-offset-y="50" style="height: 50px; background: red;"></div>
+  <div class="span2" id="D" data-offset-x="0" data-offset-y="100" style="height: 50px; background: green;"></div>
+  <div id="E" data-offset-x="0" data-offset-y="150" style="height: 50px; background: purple;"></div>
+</div>
+
+<script>
+setup({ explicit_done: true });
+
+function testRemoveChild() {
+    checkLayout("#gridLanes", false);
+
+    // Remove item C creates a gap at col2 row 2. With dense packing, E backtracks to fill the gap left by C.
+    document.getElementById("C").remove();
+
+    document.getElementById("E").setAttribute("data-offset-x", "50");
+    document.getElementById("E").setAttribute("data-offset-y", "50");
+    checkLayout("#gridLanes", true);
+}
+
+testRemoveChild();
+</script>
+</body>
+</html>

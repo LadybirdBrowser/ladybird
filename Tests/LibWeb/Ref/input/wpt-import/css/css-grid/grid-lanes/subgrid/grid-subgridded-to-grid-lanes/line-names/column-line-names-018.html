@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: subgrid inherits a named line before parent auto-repeat</title>
+<link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/line-names/column-line-names-018-ref.html">
+<style>
+body {
+  margin: 0;
+}
+
+.grid-lanes {
+  display: grid-lanes;
+  grid-template-columns: [before] 100px repeat(auto-fill, 100px);
+  width: 300px;
+}
+
+.subgrid {
+  display: grid;
+  grid: 100px / subgrid;
+  grid-column: 1 / -1;
+}
+
+x {
+  background: green;
+  grid-column: before / span 1;
+}
+</style>
+<div class="grid-lanes">
+  <div class="subgrid">
+    <x></x>
+  </div>
+</div>

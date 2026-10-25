@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Fail
+Fail	auto - rows
+Fail	min - rows
+Fail	max - rows
+Fail	size - rows
+Fail	min max - rows
+Fail	min size - rows
+Fail	max size - rows
+Fail	min max size - rows

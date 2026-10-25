@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Layout Test: Intrinsic sizing with spanning flex items in a min-content container</title>
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/items/row-flex-spanning-items-ref.html"/>
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#intrinsic-sizes"/>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com"/>
+<style>
+#grid-lanes {
+    display: grid-lanes;
+    grid-template-rows: 1fr 30px;
+    border: 10px solid fuchsia;
+    height: min-content;
+}
+#item {
+    grid-row: 1 / span 2;
+}
+#filler {
+    height: 300px;
+    width: 50px;
+    background: aqua;
+}
+</style>
+<div id="grid-lanes">
+  <div id="item">
+    <div id="filler"></div>
+  </div>
+</div>

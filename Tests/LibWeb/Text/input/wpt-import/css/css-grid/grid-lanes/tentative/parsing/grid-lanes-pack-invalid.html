@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes: parsing grid-lanes-pack with invalid values</title>
+  <link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <meta name="assert" content="grid-lanes-pack supports only the grammar 'grid-lanes-pack: normal | dense'.">
+  <script src="../../../../../resources/testharness.js"></script>
+  <script src="../../../../../resources/testharnessreport.js"></script>
+  <script src="../../../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+  <div id="target"></div>
+  </div>
+  <script>
+    test_invalid_value("grid-lanes-pack", "auto");
+    test_invalid_value("grid-lanes-pack", "100px");
+    test_invalid_value("grid-lanes-pack", "normal dense");
+    test_invalid_value("grid-lanes-pack", "dense reverse");
+    test_invalid_value("grid-lanes-pack", "pack");
+  </script>
+</body>
+</html>

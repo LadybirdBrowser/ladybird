@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/row-intrinsic-inline-container-size-ref.html">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid-lanes {
+    grid-template-rows: repeat(3, 20px);
+    display: grid-lanes;
+    background: gray;
+    position: relative;
+    flow-tolerance: 0;
+}
+
+.max-content-item {
+    width: max-content;
+    height: 20px;
+}
+</style>
+<body>
+  <p>Test that grid-lanes containers are correctly sized when an intrinsic inline size is specified.</p>
+  <div class="grid-lanes" style="width: max-content;">
+    <div class="first-track max-content-item">This is some text</div>
+    <div class="second-track max-content-item">Some larger words in this sentence</div>
+    <div class="third-track max-content-item">The cat cannot be separated from milk</div>
+  </div>
+  <div class="grid-lanes" style="width: min-content;">
+    <div class="first-track max-content-item">This is some text</div>
+    <div class="second-track max-content-item">Some larger words in this sentence</div>
+    <div class="third-track max-content-item">The cat cannot be separated from milk</div>
+  </div>
+  <div class="grid-lanes">
+    <div class="first-track max-content-item">This is some text</div>
+    <div class="second-track max-content-item">Some larger words in this sentence</div>
+    <div class="third-track max-content-item">The cat cannot be separated from milk</div>
+  </div>
+</body>
+</html>

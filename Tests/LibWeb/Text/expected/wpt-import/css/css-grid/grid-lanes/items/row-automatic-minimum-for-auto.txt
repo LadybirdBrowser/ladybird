@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	Check that min-height is honored when sizing auto rows.
+Fail	Check that min-height is honored when sizing auto rows and spanning grid items.
+Fail	Check the interactions between height and min-height and auto tracks.
+Fail	Check that borders and paddings are considering when computing min sizes.

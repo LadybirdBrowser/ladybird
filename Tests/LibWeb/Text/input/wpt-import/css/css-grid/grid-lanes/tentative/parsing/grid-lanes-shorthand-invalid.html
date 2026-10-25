@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes: parsing grid-lanes with invalid values</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <script src="../../../../../resources/testharness.js"></script>
+  <script src="../../../../../resources/testharnessreport.js"></script>
+  <script src="../../../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+  <script>
+    test_invalid_value("grid-lanes", '"a a" 1fr row normal extra');
+    test_invalid_value("grid-lanes", '"a a a" "b b b" 1fr 1fr 1fr column normal');
+    test_invalid_value("grid-lanes", 'row normal "a a" 1fr');
+    test_invalid_value("grid-lanes", '"a a" 1fr invalid normal');
+    test_invalid_value("grid-lanes", '10px reverse invalid');
+    test_invalid_value("grid-lanes", 'fit-content(-10px)');
+    test_invalid_value("grid-lanes", '[] normal');
+    test_invalid_value("grid-lanes", '[] repeat(auto-fill, 10px) "a" row-reverse');
+    test_invalid_value("grid-lanes", '[one] 10px [two] [three]');
+    test_invalid_value("grid-lanes", '[auto] 1px');
+    test_invalid_value("grid-lanes", '20% 40% column, reverse');
+    test_invalid_value("grid-lanes", 'none auto column-reverse reverse');
+    test_invalid_value("grid-lanes", '"a a" 1fr row normal fill-reverse');
+    test_invalid_value("grid-lanes", '"a a" 1fr normal track-reverse');
+    test_invalid_value("grid-lanes", '"a a" 1fr normal track-reverse fill-reverse');
+    test_invalid_value("grid-lanes", '"a a" 1fr normal fill-reverse track-reverse');
+    test_invalid_value("grid-lanes", 'repeat(auto-fill, 10px) row-reverse');
+    test_invalid_value("grid-lanes", '100px 100px column-reverse');
+    test_invalid_value("grid-lanes", 'row normal "a a" 100px 100px');
+    test_invalid_value("grid-lanes", '10px 20px "a a" "b b" row');
+    test_invalid_value("grid-lanes", '"a" "b" track-reverse fill-reverse row');
+  </script>
+</body>
+</html>

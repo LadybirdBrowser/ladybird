@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: Button subgrid (row-direction grid-lanes)</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrids">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/row-subgrid-button-ref.html">
+<style>
+.grid-lanes {
+  display: grid-lanes;
+  height: 400px;
+  grid-template-rows: auto auto 1fr;
+  background-color: #ccc;
+  width: min-content;
+}
+.button {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 3;
+  text-align: initial;
+
+  background: transparent;
+  padding: 5px 10px;
+  margin: 0;
+  border: 2px solid;
+  font: inherit;
+}
+.right {
+  text-align: right;
+}
+</style>
+<div class="grid-lanes">
+  <button class="button">
+    <span>hello</span>
+    <span>,</span>
+    <span class="right">world</span>
+  </button>
+</div>

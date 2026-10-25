@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: Subgrid item with margin-left auto (column-direction grid-lanes)</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#auto-margins">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/../../../../reference/ref-filled-green-100px-square.xht">
+<link rel="stylesheet" href="../../../../../fonts/ahem.css">
+<style>
+.content {
+  background-color: green;
+}
+.grid-lanes {
+  display: grid-lanes;
+  width: 100px;
+  font: 25px/1 Ahem;
+  color: green;
+}
+.subgrid {
+  grid-template-columns: subgrid;
+  display: grid;
+  margin-left: auto;
+}
+</style>
+</head>
+<body>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="grid-lanes">
+  <div class="subgrid">
+    <div class="content">X X X X X X X X</div>
+  </div>
+</div>
+</body>
+</html>

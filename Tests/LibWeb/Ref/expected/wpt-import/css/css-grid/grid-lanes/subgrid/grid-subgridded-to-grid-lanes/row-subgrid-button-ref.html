@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+.grid-lanes {
+  display: grid-lanes;
+  height: 400px;
+  grid-template-rows: auto auto 1fr;
+  background-color: #ccc;
+  width: min-content;
+}
+.button {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 3;
+  text-align: initial;
+
+  background: transparent;
+  padding: 5px 10px;
+  margin: 0;
+  border: 2px solid;
+  font: inherit;
+}
+.right {
+  text-align: right;
+}
+</style>
+<div class="grid-lanes">
+  <div class="button">
+    <span>hello</span>
+    <span>,</span>
+    <span class="right">world</span>
+  </div>
+</div>

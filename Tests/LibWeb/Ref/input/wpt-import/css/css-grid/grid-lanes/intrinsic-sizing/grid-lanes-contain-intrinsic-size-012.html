@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf8">
+<title>CSS contain-intrinsic-size: sized div</title>
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/../../../css-sizing/contain-intrinsic-size/contain-intrinsic-size-018-ref.html">
+<meta name="assert" content="width / height ignore intrinsic-size">
+
+<style>
+#target {
+  display: grid-lanes;
+  background: lightblue;
+  width: 55px;
+  height: 66px;
+  contain-intrinsic-size: 111px 222px;
+  contain: size;
+}
+</style>
+
+<div id=target></div>

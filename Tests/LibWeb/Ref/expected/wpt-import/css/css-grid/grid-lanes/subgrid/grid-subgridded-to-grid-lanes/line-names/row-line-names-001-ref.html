@@ -1,0 +1,34 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <style>
+html,body {
+  color:black; background-color:white; font:24px/1 monospace; padding:0; margin:0;
+}
+
+.grid-lanes {
+  display: inline-grid-lanes;
+  grid-template-rows: [a] 50px 50px [a] 50px 50px [a];
+  padding: 20px 10px;
+}
+
+.subgrid {
+  display: grid;
+  grid: subgrid / 50px;
+  grid-row: span 3;
+}
+
+x { background: grey; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid-lanes">
+  <div class="subgrid">
+    <x style="grid-row: 1 / 3"></x>
+  </div>
+</div>
+
+</body>
+</html>

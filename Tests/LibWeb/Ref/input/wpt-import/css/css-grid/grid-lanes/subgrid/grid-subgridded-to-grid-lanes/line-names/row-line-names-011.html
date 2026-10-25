@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: subgrid line names do not apply to non-subgrids (rows)</title>
+  <link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/line-names/row-line-names-011-ref.html">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace; padding:0; margin:0;
+}
+
+.grid-lanes > div { background: grey; grid-row:2 / span 2; }
+
+x { background: silver; }
+  </style>
+</head>
+<body>
+
+<div style="display:inline-grid-lanes; grid-template-rows: subgrid [a] [b] [c] [d];">
+  <x style="grid-row: a / d">x</x>
+</div>
+
+<div style="display:inline-grid-lanes; grid-template-rows: repeat(4, 30px);">
+  <div style="display:grid; grid:auto / subgrid [c] [d] [d] [e];">
+    <x style="grid-row: c">x</x>
+  </div>
+</div>
+</body>
+</html>

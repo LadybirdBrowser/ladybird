@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Pass	.masonry 1
+Pass	.masonry 2
+Fail	.masonry 3
+Pass	.masonry 4
+Pass	.masonry 5
+Fail	.masonry 6

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<title>Auto repeat tracks with fixed size and replaced items</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/auto-repeat/row-auto-repeat-025-ref.html">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    flow-tolerance: 0;
+    grid-template-rows: repeat(auto-fill, 100px);
+    height: 400px;
+    width: 200px;
+    gap: 10px;
+}
+
+img {
+  height: 100%;
+  width: auto;
+  display: block;
+}
+</style>
+<div class="grid-lanes">
+  <img src="resources/pink-image.png" width="113" height="120">
+  <img src="resources/pink-image.png" width="113" height="120">
+  <img src="resources/pink-image.png" width="113" height="120">
+  <img src="resources/pink-image.png" width="113" height="120">
+  <img src="resources/pink-image.png" width="113" height="120">
+  <img src="resources/pink-image.png" width="113" height="120">
+</div>
+</html>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: Subgridded item dynamically changing its height updates the grid-lanes min-content size</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/../../../../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="display: grid-lanes; height: 100px; width: min-content; background: green;">
+  <div style="display: grid; grid-template-rows: subgrid; writing-mode: vertical-rl;">
+    <div id="target" style="writing-mode: horizontal-tb; width: 50px;"></div>
+  </div>
+</div>
+<script>
+document.body.offsetTop;
+document.getElementById('target').style.width = '100px';
+</script>

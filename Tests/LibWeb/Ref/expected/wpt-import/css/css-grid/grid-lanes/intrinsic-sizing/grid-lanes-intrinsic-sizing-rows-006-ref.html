@@ -1,0 +1,50 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+  <meta charset="utf-8">
+  <title>Reference: Grid Lanes layout row auto-fill sizing</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+
+@import "support/grid-lanes-intrinsic-sizing-visual.css";
+
+grid {
+  display: inline-grid;
+  gap: 1px 2px;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(4,1em);
+  border: 1px solid;
+  padding: 0 1px 0 2px;
+  vertical-align: top;
+}
+</style>
+
+<body>
+
+<grid>
+  <item style="width:3ch; grid-column: span 2">1 1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="grid-column: span 2">5 5</item>
+</grid>
+
+<grid>
+  <item style="width:3ch; grid-column: span 2">1 1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="grid-column: span 2">5 5</item>
+</grid>
+
+<grid style="height:5em">
+  <item style="width:3ch; grid-column: span 2">1 1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="grid-column: span 2">5 5</item>
+</grid>
+

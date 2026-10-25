@@ -1,0 +1,43 @@
+/*
+    Take every possible line break so the box width is the width of largest
+    unbreakable line box.
+*/
+.min-content {
+    width: min-content;
+}
+
+.max-content {
+    width: max-content;
+}
+
+/*
+   Shrink wrap just like floating.
+   max(min-content, min(max-content, fill-available))
+*/
+.fit-content {
+    width: fit-content;
+}
+
+.max-width-min-content {
+    max-width: min-content;
+}
+
+.max-width-max-content {
+    max-width: max-content;
+}
+
+.max-width-fit-content {
+    max-width: fit-content;
+}
+
+.min-width-min-content {
+    min-width: min-content;
+}
+
+.min-width-max-content {
+    min-width: max-content;
+}
+
+.min-width-fit-content {
+    min-width: fit-content;
+}

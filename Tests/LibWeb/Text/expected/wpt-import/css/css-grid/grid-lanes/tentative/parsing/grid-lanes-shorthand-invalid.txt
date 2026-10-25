@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 21 tests
+
+21 Pass
+Pass	e.style['grid-lanes'] = "\"a a\" 1fr row normal extra" should not set the property value
+Pass	e.style['grid-lanes'] = "\"a a a\" \"b b b\" 1fr 1fr 1fr column normal" should not set the property value
+Pass	e.style['grid-lanes'] = "row normal \"a a\" 1fr" should not set the property value
+Pass	e.style['grid-lanes'] = "\"a a\" 1fr invalid normal" should not set the property value
+Pass	e.style['grid-lanes'] = "10px reverse invalid" should not set the property value
+Pass	e.style['grid-lanes'] = "fit-content(-10px)" should not set the property value
+Pass	e.style['grid-lanes'] = "[] normal" should not set the property value
+Pass	e.style['grid-lanes'] = "[] repeat(auto-fill, 10px) \"a\" row-reverse" should not set the property value
+Pass	e.style['grid-lanes'] = "[one] 10px [two] [three]" should not set the property value
+Pass	e.style['grid-lanes'] = "[auto] 1px" should not set the property value
+Pass	e.style['grid-lanes'] = "20% 40% column, reverse" should not set the property value
+Pass	e.style['grid-lanes'] = "none auto column-reverse reverse" should not set the property value
+Pass	e.style['grid-lanes'] = "\"a a\" 1fr row normal fill-reverse" should not set the property value
+Pass	e.style['grid-lanes'] = "\"a a\" 1fr normal track-reverse" should not set the property value
+Pass	e.style['grid-lanes'] = "\"a a\" 1fr normal track-reverse fill-reverse" should not set the property value
+Pass	e.style['grid-lanes'] = "\"a a\" 1fr normal fill-reverse track-reverse" should not set the property value
+Pass	e.style['grid-lanes'] = "repeat(auto-fill, 10px) row-reverse" should not set the property value
+Pass	e.style['grid-lanes'] = "100px 100px column-reverse" should not set the property value
+Pass	e.style['grid-lanes'] = "row normal \"a a\" 100px 100px" should not set the property value
+Pass	e.style['grid-lanes'] = "10px 20px \"a a\" \"b b\" row" should not set the property value
+Pass	e.style['grid-lanes'] = "\"a\" \"b\" track-reverse fill-reverse row" should not set the property value

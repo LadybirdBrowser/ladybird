@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Grid Lanes Test: fit-tolerance interpolation</title>
+    <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+    <link rel="help" href="https://drafts.csswg.org/css-grid-3/#placement-tolerance">
+    <meta name="assert" content="fit-tolerance supports animation as length.">
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+    <script src="../../../../css/support/interpolation-testcommon.js"></script>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      // Length values interpolate smoothly.
+      test_interpolation({
+        property: 'fit-tolerance',
+        from: '10px',
+        to: '50px'
+      }, [
+        {at: -1, expect: '0px'},
+        {at: 0, expect: '10px'},
+        {at: 0.25, expect: '20px'},
+        {at: 0.5, expect: '30px'},
+        {at: 0.75, expect: '40px'},
+        {at: 1, expect: '50px'},
+        {at: 2, expect: '90px'}
+      ]);
+
+      // Percentage values interpolate smoothly.
+      test_interpolation({
+        property: 'fit-tolerance',
+        from: '10%',
+        to: '50%'
+      }, [
+        {at: 0, expect: '10%'},
+        {at: 0.5, expect: '30%'},
+        {at: 1, expect: '50%'},
+      ]);
+
+      // Length to percentage uses calc.
+      test_interpolation({
+        property: 'fit-tolerance',
+        from: '10px',
+        to: '50%'
+      }, [
+        {at: 0, expect: 'calc(10px + 0%)'},
+        {at: 0.5, expect: 'calc(5px + 25%)'},
+        {at: 1, expect: '50%'},
+      ]);
+
+      // calc values interpolate smoothly.
+      test_interpolation({
+        property: 'fit-tolerance',
+        from: 'calc(20% + 10px)',
+        to: 'calc(60% + 50px)'
+      }, [
+        {at: 0, expect: 'calc(10px + 20%)'},
+        {at: 0.25, expect: 'calc(20px + 30%)'},
+        {at: 0.5, expect: 'calc(30px + 40%)'},
+        {at: 0.75, expect: 'calc(40px + 50%)'},
+        {at: 1, expect: 'calc(50px + 60%)'},
+      ]);
+
+      // Keywords use discrete interpolation.
+      test_no_interpolation({
+        property: 'fit-tolerance',
+        from: 'normal',
+        to: '50px'
+      });
+
+      test_no_interpolation({
+        property: 'fit-tolerance',
+        from: 'infinite',
+        to: '50px'
+      });
+
+      test_no_interpolation({
+        property: 'fit-tolerance',
+        from: 'normal',
+        to: 'infinite'
+      });
+
+      test_no_interpolation({
+        property: 'fit-tolerance',
+        from: '10px',
+        to: 'normal'
+      });
+    </script>
+  </body>
+</html>

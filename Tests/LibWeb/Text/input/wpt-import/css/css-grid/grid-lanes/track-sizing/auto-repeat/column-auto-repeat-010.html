@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<title>Auto repeat tracks and percentage min sizes with percentage track sizes</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<meta name="assert"
+  content="This test checks that auto repeat tracks can use percentage track
+  size when only a min size is available to compute the number of tracks.">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<style>
+.grid-lanes {
+    position: relative;
+    display: inline grid-lanes;
+    grid-template-columns: repeat(auto-fill, 25%);
+    min-width: 50%;
+    height: 200px;
+    float: left;
+    background: pink;
+}
+.wrapper {
+  width: 600px;
+}
+.item {
+  background: lime;
+  width: 100%;
+}
+</style>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="../../../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.grid-lanes');">
+
+  <div id="log"></div>
+
+  <div class="wrapper">
+    <div class="grid-lanes" data-expected-width="300" data-expected-height="200">
+      <div class="item" data-expected-width="75">Cell 1</div>
+      <div class="item" data-expected-width="75">Cell 2</div>
+      <div class="item" data-expected-width="75">Cell 3</div>
+      <div class="item" data-expected-width="75">Cell 4</div>
+      <div class="item" data-expected-width="75">Cell 5</div>
+    </div>
+  </div>
+
+</body>

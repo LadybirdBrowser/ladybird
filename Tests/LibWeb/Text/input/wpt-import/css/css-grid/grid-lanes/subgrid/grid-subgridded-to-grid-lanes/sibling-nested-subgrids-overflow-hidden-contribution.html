@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: sibling nested subgrids with overflow:hidden leaf contribute equally to their row tracks in a grid-lanes container</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-item-contribution">
+<meta name="assert" content="Test passes if the row heights of nested-subgrid leaves with overflow:hidden are identical across sibling subgrids of a row-axis grid-lanes container, regardless of each sibling's position in the outer grid. This test only checks row sizing.">
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    grid-template-rows: repeat(6, auto);
+    gap: 16px;
+    width: 400px;
+}
+.card {
+    border: 1px solid black;
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 2;
+    row-gap: 0;
+}
+.content {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 2;
+    padding: 16px;
+}
+.footer {
+    overflow: hidden;
+}
+</style>
+</head>
+<body>
+<div class="grid-lanes">
+    <div class="card">
+        <h2>Top</h2>
+        <div class="content">
+            <div class="footer" id="f1">
+                Long text long enough to wrap onto multiple lines so that overflow:hidden can clip the overflowing portion
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <h2>Top</h2>
+        <div class="content">
+            <div class="footer" id="f2">
+                Long text long enough to wrap onto multiple lines so that overflow:hidden can clip the overflowing portion
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <h2>Top</h2>
+        <div class="content">
+            <div class="footer" id="f3">
+                Long text long enough to wrap onto multiple lines so that overflow:hidden can clip the overflowing portion
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+test(() => {
+    const h1 = document.getElementById("f1").getBoundingClientRect().height;
+    const h2 = document.getElementById("f2").getBoundingClientRect().height;
+    const h3 = document.getElementById("f3").getBoundingClientRect().height;
+    assert_equals(h2, h1, "Second card's .footer height matches the first's");
+    assert_equals(h3, h1, "Third card's .footer height matches the first's");
+}, "Sibling nested subgrids with overflow:hidden leaves must size their rows identically");
+</script>
+</body>
+</html>

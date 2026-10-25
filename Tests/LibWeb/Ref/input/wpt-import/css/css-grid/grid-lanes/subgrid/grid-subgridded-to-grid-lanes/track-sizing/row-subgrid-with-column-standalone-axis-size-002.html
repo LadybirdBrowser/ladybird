@@ -1,0 +1,42 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: Subgridded item is measured against the subgrid's standalone-axis tracks</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/track-sizing/../../../../../reference/ref-filled-green-100px-square.xht">
+<link rel="stylesheet" type="text/css" href="../../../../../../fonts/ahem.css">
+<style>
+.wrapper {
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+.lanes {
+  display: grid-lanes;
+  grid-lanes-direction: row;
+  width: 100px;
+  background: green;
+  color: transparent;
+  font: 25px/1 Ahem;
+}
+.subgrid {
+  display: grid;
+  grid-template-rows: subgrid;
+}
+</style>
+</head>
+<body>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="wrapper">
+  <div class="lanes">
+    <div class="subgrid">
+      <div class="subgrid" style="grid-template-columns: 25px;">
+        <div>X X X X</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

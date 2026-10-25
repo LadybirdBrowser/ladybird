@@ -1,0 +1,84 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: grid-lanes-direction dynamic change triggers relayout</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+  <script src="../../../../resources/check-layout-th.js"></script>
+  <style>
+    .grid-lanes {
+      display: grid-lanes;
+      grid-lanes-direction: row;
+      position: relative;
+      flow-tolerance: 0;
+    }
+  </style>
+</head>
+<body>
+<div id="gridLanes" class="grid-lanes">
+  <div id="a" style="width: 40px; background: blue;"></div>
+  <div id="b" style="width: 20px; background: orange;"></div>
+  <div id="c" style="width: 30px; background: green;"></div>
+  <div id="d" style="width: 60px; background: red;"></div>
+  <div id="e" style="width: 30px; background: purple;"></div>
+</div>
+
+<script>
+setup({ explicit_done: true });
+
+function setItems(itemsData) {
+    for (var data of itemsData) {
+        var item = document.getElementById(data.id);
+        item.setAttribute("data-expected-height", data.height);
+        item.setAttribute("data-offset-x", data.x);
+        item.setAttribute("data-offset-y", data.y);
+    }
+}
+
+function testDirectionRowReverse() {
+    var gridLanes = document.getElementById("gridLanes");
+
+    gridLanes.style.gridTemplateRows = "repeat(3, 50px)";
+    setItems([
+        { id: "a", height: "50", x: "0", y: "0" },
+        { id: "b", height: "50", x: "0", y: "50" },
+        { id: "c", height: "50", x: "0", y: "100" },
+        { id: "d", height: "50", x: "20", y: "50" },
+        { id: "e", height: "50", x: "30", y: "100" },
+    ]);
+    checkLayout("#gridLanes", false);
+
+    // Switch to row track-reverse: rows are rendered in reverse
+    // visual order (row1 at the bottom, row3 at the top), but items
+    // are still placed left-to-right within each row.
+    gridLanes.style.gridLanesDirection = "row track-reverse";
+    setItems([
+        { id: "a", height: "50", x: "0", y: "100" },
+        { id: "b", height: "50", x: "0", y: "50" },
+        { id: "c", height: "50", x: "0", y: "0" },
+        { id: "d", height: "50", x: "20", y: "50" },
+        { id: "e", height: "50", x: "30", y: "0" },
+    ]);
+    checkLayout("#gridLanes", false);
+
+    // Switch to row fill-reverse: items are placed from right to
+    // left within each row.
+    gridLanes.style.gridLanesDirection = "row fill-reverse";
+    gridLanes.style.width = "80px";
+    setItems([
+        { id: "a", height: "50", x: "40", y: "0" },
+        { id: "b", height: "50", x: "60", y: "50" },
+        { id: "c", height: "50", x: "50", y: "100" },
+        { id: "d", height: "50", x: "0", y: "50" },
+        { id: "e", height: "50", x: "20", y: "100" },
+    ]);
+    checkLayout("#gridLanes", true);
+}
+
+testDirectionRowReverse();
+</script>
+</body>
+</html>

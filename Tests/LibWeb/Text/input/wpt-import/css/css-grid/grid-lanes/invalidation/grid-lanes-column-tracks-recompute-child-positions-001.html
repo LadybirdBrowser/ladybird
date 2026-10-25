@@ -1,0 +1,81 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: column-direction track changes recompute child positions</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <meta name="assert" content="This test checks that dynamically changing grid-template-columns/areas properly recomputes auto-placed item positions in a column-direction grid-lanes container.">
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+  <script src="../../../../resources/check-layout-th.js"></script>
+  <style>
+    .grid-lanes {
+      display: grid-lanes;
+      position: relative;
+      flow-tolerance: 0;
+    }
+  </style>
+</head>
+<body>
+<div id="gridLanes" class="grid-lanes">
+  <div id="a" style="height: 40px; background: blue;"></div>
+  <div id="b" style="height: 20px; background: orange;"></div>
+  <div id="c" style="height: 30px; background: green;"></div>
+  <div id="d" style="height: 60px; background: red;"></div>
+  <div id="e" style="height: 30px; background: purple;"></div>
+</div>
+
+<script>
+setup({ explicit_done: true });
+
+function setItems(itemsData) {
+    for (var data of itemsData) {
+        var item = document.getElementById(data.id);
+        item.setAttribute("data-expected-width", data.width);
+        item.setAttribute("data-offset-x", data.x);
+        item.setAttribute("data-offset-y", data.y);
+    }
+}
+
+function testColumnChanges() {
+    var gridLanes = document.getElementById("gridLanes");
+
+    gridLanes.style.gridTemplateColumns = "repeat(2, 60px)";
+    setItems([
+        { id: "a", width: "60", x: "0", y: "0" },
+        { id: "b", width: "60", x: "60", y: "0" },
+        { id: "c", width: "60", x: "60", y: "20" },
+        { id: "d", width: "60", x: "0", y: "40" },
+        { id: "e", width: "60", x: "60", y: "50" },
+    ]);
+    checkLayout("#gridLanes", false);
+
+    gridLanes.style.gridTemplateColumns = "repeat(3, 50px)";
+    setItems([
+        { id: "a", width: "50", x: "0", y: "0" },
+        { id: "b", width: "50", x: "50", y: "0" },
+        { id: "c", width: "50", x: "100", y: "0" },
+        { id: "d", width: "50", x: "50", y: "20" },
+        { id: "e", width: "50", x: "100", y: "30" },
+    ]);
+    checkLayout("#gridLanes", false);
+
+    // Change grid-template-areas: item "e" gets explicit placement in the
+    // "sidebar" area (col1), overriding auto-placement.
+    gridLanes.style.gridTemplateAreas = '"sidebar content extra"';
+    document.getElementById("e").style.gridArea = "sidebar";
+    setItems([
+        { id: "a", width: "50", x: "0", y: "0" },
+        { id: "b", width: "50", x: "50", y: "0" },
+        { id: "c", width: "50", x: "100", y: "0" },
+        { id: "d", width: "50", x: "50", y: "20" },
+        { id: "e", width: "50", x: "0", y: "40" },
+    ]);
+    checkLayout("#gridLanes", true);
+}
+
+testColumnChanges();
+</script>
+</body>
+</html>

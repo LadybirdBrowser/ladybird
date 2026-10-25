@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: row-axis subgrid track is sized accounting for inline padding when the subgrid is a scroll container</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-size-contribution">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/row-subgrid-scroller-padding-001-ref.html">
+<style>
+  .grid-lanes {
+    display: inline grid-lanes;
+    grid-template-rows: auto auto;
+  }
+
+  .box {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: 1 / span 2;
+    width: 220px;
+    overflow: hidden;
+    padding: 0 60px;
+    background: #eee;
+  }
+
+  .item { grid-row: 1; line-height: 24px; }
+  .footer { grid-row: 2; margin: 0; background: tomato; }
+</style>
+<div class="grid-lanes">
+  <div class="box">
+    <div class="item"><div>wrapping wrapping wrapping wrapping wrapping wrapping wrapping</div></div>
+    <p class="footer">FOOTER</p>
+  </div>
+</div>

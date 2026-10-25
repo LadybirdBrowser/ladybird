@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes: parsing grid-lanes-direction with invalid values</title>
+  <link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <meta name="assert" content="grid-lanes-direction supports only the grammar 'grid-lanes-direction: normal | [ row | column ] [ fill-reverse || track-reverse ]?'.">
+  <script src="../../../../../resources/testharness.js"></script>
+  <script src="../../../../../resources/testharnessreport.js"></script>
+  <script src="../../../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+  <div id="target"></div>
+  </div>
+  <script>
+    test_invalid_value("grid-lanes-direction", "auto");
+    test_invalid_value("grid-lanes-direction", "column row-reverse");
+    test_invalid_value("grid-lanes-direction", "normal track-reverse");
+    test_invalid_value("grid-lanes-direction", "normal fill-reverse");
+    test_invalid_value("grid-lanes-direction", "normal fill-reverse track-reverse");
+    test_invalid_value("grid-lanes-direction", "normal track-reverse fill-reverse");
+    test_invalid_value("grid-lanes-direction", "column-reverse");
+    test_invalid_value("grid-lanes-direction", "row-reverse");
+    test_invalid_value("grid-lanes-direction", "column reverse");
+    test_invalid_value("grid-lanes-direction", "row fill-reverse fill-reverse");
+    test_invalid_value("grid-lanes-direction", "column track-reverse track-reverse");
+    test_invalid_value("grid-lanes-direction", "column !important fill-reverse fill-reverse");
+    test_invalid_value("grid-lanes-direction", "row track-reverse !important fill-reverse");
+
+  </script>
+</body>
+</html>

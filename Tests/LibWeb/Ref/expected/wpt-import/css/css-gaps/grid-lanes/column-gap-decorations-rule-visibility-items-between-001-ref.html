@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="author" title="Javier Contreras" href="mailto:javiercon@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/#visibility">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#grid-lanes-model">
+<style>
+  body { margin: 0; }
+  .lanes {
+    display: grid-lanes;
+    grid-template-columns: repeat(3, 60px);
+    gap: 20px;
+    width: max-content;
+    background: #cdd5e0;
+  }
+  .lanes > div {
+    height: 60px;
+    background: #5b8def;
+  }
+  .first { grid-column: 1; }
+  .third { grid-column: 3; }
+</style>
+<div class="lanes">
+  <div class="first"></div>
+  <div class="third"></div>
+</div>

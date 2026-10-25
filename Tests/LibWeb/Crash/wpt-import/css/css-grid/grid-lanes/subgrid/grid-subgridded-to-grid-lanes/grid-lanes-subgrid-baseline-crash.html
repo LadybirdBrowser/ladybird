@@ -1,0 +1,19 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<title>Calculating baselines with a nested subgrid should not crash</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://issues.chromium.org/issues/497169221">
+<style>
+  grid-lanes {
+    display: inline grid-lanes;
+  }
+
+  subgrid {
+    display: grid;
+    grid: subgrid / subgrid;
+  }
+</style>
+<grid-lanes>
+  <div style="place-self: first baseline;"></div>
+  <subgrid></subgrid>
+</grid-lanes>
