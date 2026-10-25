@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Assigning to disconnected slot after connected slot should not crash and should trigger slotchange on previous slot
+1 Pass
+Pass	Assigning to disconnected slot after connected slot should not crash and should trigger slotchange on previous slot
