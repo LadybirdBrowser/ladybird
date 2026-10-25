@@ -1,0 +1,5 @@
+createIndex returns the cached handle: true
+index returns the same handle: true
+the handle survives renaming: true
+recreating the index makes a new handle: true
+the new handle is cached: true

@@ -41,6 +41,7 @@ void IDBObjectStore::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_transaction);
     visitor.visit(m_indexes);
     visitor.visit(m_key_path_arrays);
+    visitor.visit(m_index_handles);
 }
 
 JS::Object& IDBObjectStore::relevant_global_object() const
@@ -205,7 +206,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(Utf16String 
     queue_the_creation_of_an_index(*this, index);
 
     // 13. Return a new index handle associated with index and this.
-    return IDBIndex::create(index, *this);
+    return m_index_handles.ensure(index, [&] { return IDBIndex::create(index, *this); });
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-index
@@ -231,7 +232,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::index(Utf16String const& 
         return WebIDL::NotFoundError::create("Index not found in object store"_utf16);
 
     // 6. Return an index handle associated with index and this.
-    return IDBIndex::create(*index, *this);
+    // NOTE: Each call to this method on the same IDBObjectStore instance with the same name returns the same IDBIndex
+    //       instance.
+    return m_index_handles.ensure(*index, [&] { return IDBIndex::create(*index, *this); });
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-deleteindex

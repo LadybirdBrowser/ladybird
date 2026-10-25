@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 9 tests
 
-7 Pass
-2 Fail
-Fail	IndexedDB index rename in new transaction
-Fail	IndexedDB index rename in the transaction where it is created
+9 Pass
+Pass	IndexedDB index rename in new transaction
+Pass	IndexedDB index rename in the transaction where it is created
 Pass	IndexedDB index rename to the same name succeeds
 Pass	IndexedDB index rename to the name of a deleted index succeeds
 Pass	IndexedDB index swapping via renames succeeds
