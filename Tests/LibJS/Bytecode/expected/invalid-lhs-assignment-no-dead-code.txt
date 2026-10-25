@@ -1,4 +1,4 @@
-$3a21feac invalid-lhs-assignment-no-dead-code.js:8:1
+$b8c00624 invalid-lhs-assignment-no-dead-code.js:8:1
   Registers: 10
   Blocks:    3
   Constants:
@@ -6,23 +6,24 @@ $3a21feac invalid-lhs-assignment-no-dead-code.js:8:1
 
 block0:
   [   0] Enter
-  [   8] Jump target:block2
+  [   8] MovSrcUndefined dst:reg5
+  [  10] Jump target:block2
 
 block1:
-  [  10] Catch value_feedback:0, dst:reg5
-  [  18] Mov2 c0_dst:reg6, c0_src:Undefined, c1_dst:reg7, c1_src:reg6
-  [  30] End value:reg6
+  [  18] Catch value_feedback:0, dst:reg6
+  [  20] Mov2 c0_dst:reg7, c0_src:Undefined, c1_dst:reg5, c1_src:reg7
+  [  38] End value:reg5
 
 block2:
-  [  38] MovSrcUndefined dst:reg5
-  [  40] GetGlobal value_feedback:1, dst:reg8, `f`
-  [  50] NewFunction dst:reg9, shared_function_data_index:0
-  [  68] Call value_feedback:2, call_feedback:0, dst:reg6, callee:reg8, this_value:Undefined, f, arguments:[reg9]
-  [  90] Mov2 c0_dst:reg5, c0_src:reg6, c1_dst:reg6, c1_src:reg5
-  [  a8] End value:reg6
+  [  40] MovSrcUndefined dst:reg6
+  [  48] GetGlobal value_feedback:1, dst:reg8, `f`
+  [  58] NewFunction dst:reg9, shared_function_data_index:0
+  [  70] Call value_feedback:2, call_feedback:0, dst:reg7, callee:reg8, this_value:Undefined, f, arguments:[reg9]
+  [  98] Mov2 c0_dst:reg6, c0_src:reg7, c1_dst:reg5, c1_src:reg6
+  [  b0] End value:reg5
 
 Exception handlers:
-  [  38 ..   b0] => handler block1
+  [  40 ..   b8] => handler block1
 
 
 f$cb5318f8 invalid-lhs-assignment-no-dead-code.js:5:6
