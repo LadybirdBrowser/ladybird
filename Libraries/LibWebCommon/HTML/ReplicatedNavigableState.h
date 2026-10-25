@@ -20,6 +20,7 @@
 #include <LibWebCommon/Page/CompositorContextId.h>
 #include <LibWebCommon/PermissionsPolicy/PermissionsPolicy.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/UpgradeInsecureRequests/InsecureRequestsPolicy.h>
 
 namespace Web::HTML {
 
@@ -51,6 +52,15 @@ struct ReplicatedContainerState {
     // https://w3c.github.io/webappsec-permissions-policy/#container-policy
     // The result of processing the container's permissions policy attributes.
     PermissionsPolicy::PolicyDirective container_policy {};
+
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#insecure-requests-policy, of the container's node
+    // document's relevant settings object, which a browsing context created for the navigable in another process
+    // inherits.
+    UpgradeInsecureRequests::InsecureRequestsPolicy document_insecure_requests_policy { UpgradeInsecureRequests::InsecureRequestsPolicy::DoNotUpgrade };
+
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-insecure-navigations-set, of the container's
+    // node document's relevant settings object.
+    UpgradeInsecureRequests::UpgradeInsecureNavigationsSet document_upgrade_insecure_navigations_set {};
 };
 
 // What the process hosting a navigable's active document reports of it to the UI process, which composes the
