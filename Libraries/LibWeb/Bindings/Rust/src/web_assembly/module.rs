@@ -89,12 +89,9 @@ fn kind_of_import(description: &ImportDescription) -> ExternalKind {
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct Module {
-    // [[Module]]
+    // [[Module]], which keeps the bytes it was compiled from: [[Bytes]].
     #[gc(untraced)]
     module: CompiledModule,
-    // [[Bytes]]
-    #[gc(untraced)]
-    bytes: Vec<u8>,
     // [[BuiltinSets]]
     #[gc(untraced)]
     builtin_sets: Vec<UsvString>,
@@ -109,13 +106,18 @@ impl Module {
     /// https://webassembly.github.io/spec/js-api/#construct-a-webassembly-module-object
     pub(crate) fn new(
         module: CompiledModule,
-        bytes: Vec<u8>,
         builtin_sets: Vec<UsvString>,
         imported_string_module: Option<UsvString>,
     ) -> Self {
+        // 1. Let moduleObject be a new Module.
+        // 2. Set moduleObject.[[Module]] to module.
+        // 3. Set moduleObject.[[Bytes]] to bytes.
+        // NB: The compiled module keeps the bytes it was compiled from.
+        // 4. Set moduleObject.[[BuiltinSets]] to builtinSetNames.
+        // 5. Set moduleObject.[[ImportedStringModule]] to importedStringModule.
+        // 6. Return moduleObject.
         Self {
             module,
-            bytes,
             builtin_sets,
             imported_string_module,
         }
@@ -161,12 +163,12 @@ impl Module {
         // 8. Set this.[[Bytes]] to stableBytes.
         // 9. Set this.[[BuiltinSets]] to builtinSetNames.
         // 10. Set this.[[ImportedStringModule]] to importedStringModule.
-        Ok(Self::new(
-            module,
-            stable_bytes,
-            builtin_set_names,
-            imported_string_module,
-        ))
+        Ok(Self::new(module, builtin_set_names, imported_string_module))
+    }
+
+    /// [[Bytes]]: the bytes the module was compiled from.
+    fn bytes(&self) -> &[u8] {
+        &self.module.bytes
     }
 
     pub(crate) fn from_value(value: Value) -> Option<Ref<Self>> {
@@ -305,7 +307,7 @@ impl Serializable for Module {
         }
 
         // 2. Set serialized.[[Bytes]] to the sub-serialization of value.[[Bytes]].
-        serialized.write_bytes(&self.bytes);
+        serialized.write_bytes(self.bytes());
 
         // 3. Set serialized.[[AgentCluster]] to the current Realm’s corresponding agent cluster.
         serialized.write_optional_u64(current_agent_cluster());
@@ -330,6 +332,6 @@ impl Serializable for Module {
 
         // 4. Compile a WebAssembly module from bytes and set value.[[Module]] to the result.
         let module = compile_a_webassembly_module(cx.vm(), cx.realm(), &bytes)?;
-        Ok(Self::new(module, bytes, Vec::new(), None))
+        Ok(Self::new(module, Vec::new(), None))
     }
 }

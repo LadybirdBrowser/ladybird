@@ -174,7 +174,7 @@ fn parse_a_webassembly_module(
         .collect();
 
     // 4. Construct a WebAssembly module object from module and bytes, and let module be the result.
-    let module_source = allocate(vm, |_| Module::new(module, stable_bytes, Vec::new(), None));
+    let module_source = allocate(vm, |_| Module::new(module, Vec::new(), None));
 
     // 8. Let moduleRecord be { [[Instance]]: ~empty~, [[Realm]]: realm, [[Environment]]: ~empty~,
     //                          [[Namespace]]: ~empty~, [[ModuleSource]]: module, [[HostDefined]]: hostDefined,
