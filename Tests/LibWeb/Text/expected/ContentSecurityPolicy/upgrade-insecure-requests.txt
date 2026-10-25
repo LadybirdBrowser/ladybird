@@ -1,7 +1,7 @@
-Document fetch: failed
-Document fetch through an insecure redirect: failed
-about:blank iframe fetch: failed
-srcdoc iframe fetch: failed
-data: URL worker fetch: failed
-Cross-host top-level form submission: failed
-iframe navigation location, document and history entry URL schemes: failed
+Document fetch: loaded
+Document fetch through an insecure redirect: loaded
+about:blank iframe fetch: loaded
+srcdoc iframe fetch: loaded
+data: URL worker fetch: loaded
+Cross-host top-level form submission: loaded
+iframe navigation location, document and history entry URL schemes: https: https: https:

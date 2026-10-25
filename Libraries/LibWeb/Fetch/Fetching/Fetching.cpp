@@ -69,6 +69,7 @@
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/Streams/TransformStream.h>
+#include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWebCommon/Fetch/Infrastructure/DataURL.h>
@@ -446,7 +447,8 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
     // 4. Run report Content Security Policy violations for request.
     ContentSecurityPolicy::report_content_security_policy_violations_for_request(realm, request);
 
-    // FIXME: 5. Upgrade request to a potentially trustworthy URL, if appropriate.
+    // 5. Upgrade request to a potentially trustworthy URL, if appropriate.
+    UpgradeInsecureRequests::upgrade_request_to_a_potentially_trustworthy_url_if_appropriate(request);
 
     // 6. Upgrade a mixed content request to a potentially trustworthy URL, if appropriate.
     MixedContent::upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropriate(request);

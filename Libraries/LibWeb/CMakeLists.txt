@@ -955,6 +955,7 @@ set(SOURCES
     TrustedTypes/TrustedScriptURL.cpp
     TrustedTypes/TrustedTypePolicy.cpp
     TrustedTypes/TrustedTypePolicyFactory.cpp
+    UpgradeInsecureRequests/AbstractOperations.cpp
     UIEvents/CompositionEvent.cpp
     UIEvents/EventNames.cpp
     UIEvents/FocusEvent.cpp
