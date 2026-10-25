@@ -416,7 +416,10 @@ fn visit_node(
     match node.op {
         Op::CheckObject => {
             let value = input(0);
-            remove = removable && facts.is_object(value);
+            let is_object_constant = graph
+                .constant_value(value)
+                .is_some_and(|bits| crate::ir::value::tag(bits) == crate::ir::value::OBJECT_TAG);
+            remove = removable && (is_object_constant || facts.is_object(value));
             facts.set_object(value);
         }
         Op::CheckShape { ref shapes } => {
