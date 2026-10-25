@@ -772,7 +772,7 @@ fn pause_on_exceptions_name(mode: PauseOnExceptions) -> &'static [u8] {
 
 fn print_backtrace(pause_info: &PauseInfo) {
     for (index, frame) in pause_info.stack_trace.iter().enumerate() {
-        let context = unsafe { frame.execution_context.as_ref() };
+        let context = pause_info.execution_context(index);
         let executable = context
             .executable
             .get()
@@ -865,7 +865,7 @@ fn run_debugger_prompt(
 ) {
     let debugger = vm.debugger().expect("execution pauses in the attached debugger");
     if pause_info.reason == PauseReason::Breakpoint {
-        let context = unsafe { pause_info.stack_trace[0].execution_context.as_ref() };
+        let context = pause_info.execution_context(0);
         let conditions = breakpoint_conditions.borrow();
         let mut should_pause = false;
         for breakpoint_id in &pause_info.breakpoint_ids {
@@ -978,7 +978,7 @@ fn run_debugger_prompt(
                 eprintln!("Expression is not valid UTF-8.");
                 continue;
             };
-            let context = unsafe { pause_info.stack_trace[0].execution_context.as_ref() };
+            let context = pause_info.execution_context(0);
             match debugger.evaluate_in_frame(vm, context, Utf16View::Utf16(&expression), UpdateOriginalBindings::No) {
                 Ok(value) => {
                     let _ = print_value(vm, value, PrintTarget::StandardOutput, PrintEnd::Newline);
