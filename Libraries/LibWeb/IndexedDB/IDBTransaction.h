@@ -102,6 +102,7 @@ public:
 
     // Mutation log management. Logs are per-store and track both data and schema mutations.
     void set_up_mutation_logs();
+    u64 original_version() const { return m_original_version; }
     void set_up_mutation_log_for_new_store(GC::Ref<ObjectStore>);
     void revert_all_mutations();
     void discard_mutation_logs();

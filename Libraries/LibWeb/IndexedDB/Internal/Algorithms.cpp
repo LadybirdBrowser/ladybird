@@ -2659,12 +2659,21 @@ void resolve_database_info_list_promise(JS::Realm& realm, WebIDL::Promise const&
 
     u32 result_index = 0;
     for (auto const& db : databases) {
-        if (!db || db->version() == 0)
+        if (!db)
+            continue;
+
+        // INTEROP: A database's version is not reported until its upgrade transaction commits, so that databases()
+        //          does not pick up changes that have not been committed.
+        auto version = db->version();
+        if (auto upgrade_transaction = db->upgrade_transaction())
+            version = upgrade_transaction->original_version();
+
+        if (version == 0)
             continue;
 
         auto info = JS::Object::create(realm, realm.intrinsics().object_prototype());
         MUST(info->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), db->name())));
-        MUST(info->create_data_property("version"_utf16_fly_string, JS::Value(db->version())));
+        MUST(info->create_data_property("version"_utf16_fly_string, JS::Value(version)));
         MUST(result->create_data_property_or_throw(result_index++, info));
     }
 
