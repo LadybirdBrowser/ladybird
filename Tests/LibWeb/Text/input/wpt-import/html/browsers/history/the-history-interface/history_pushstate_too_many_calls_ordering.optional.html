@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>pushState too many calls ordering</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+const maxCalls = 500;
+
+async function createIframe(t) {
+  const iframe = document.createElement("iframe");
+  iframe.src = "../../../../common/blank.html";
+  t.add_cleanup(() => iframe.remove());
+
+  const iframeLoaded = new Promise(resolve => {
+    iframe.addEventListener("load", resolve, { once: true });
+  });
+  document.body.append(iframe);
+  await iframeLoaded;
+  return iframe;
+}
+
+function reachPushStateRateLimit(iframeWindow) {
+  for (let i = 0; i < maxCalls; ++i) {
+    const previousURL = iframeWindow.location.href;
+    iframeWindow.history.pushState(null, "", `#rate-limit-${i}`);
+    if (iframeWindow.location.href === previousURL) {
+      return;
+    }
+  }
+
+  assert_unreached("No rate limit reached.");
+}
+
+promise_test(async t => {
+  const iframe = await createIframe(t);
+  const iframeWindow = iframe.contentWindow;
+  reachPushStateRateLimit(iframeWindow);
+
+  assert_throws_dom("DataCloneError", iframeWindow.DOMException, () => {
+    iframeWindow.history.pushState(() => {}, "", "#after-rate-limit");
+  });
+}, "pushState serializes state before checking the rate limit");
+
+promise_test(async t => {
+  const iframe = await createIframe(t);
+  const iframeWindow = iframe.contentWindow;
+  reachPushStateRateLimit(iframeWindow);
+
+  assert_throws_dom("SecurityError", iframeWindow.DOMException, () => {
+    iframeWindow.history.pushState(null, "", "http://[");
+  });
+}, "pushState parses the URL before checking the rate limit");
+
+promise_test(async t => {
+  const iframe = await createIframe(t);
+  const iframeWindow = iframe.contentWindow;
+  reachPushStateRateLimit(iframeWindow);
+
+  assert_throws_dom("SecurityError", iframeWindow.DOMException, () => {
+    iframeWindow.history.pushState(null, "", "https://example.com/");
+  });
+}, "pushState checks whether the URL can be rewritten before checking the rate limit");
+
+promise_test(async t => {
+  const iframe = await createIframe(t);
+  const iframeWindow = iframe.contentWindow;
+  const iframeHistory = iframeWindow.history;
+  const iframeDOMException = iframeWindow.DOMException;
+  iframe.remove();
+
+  for (let i = 0; i < maxCalls; ++i) {
+    assert_throws_dom("SecurityError", iframeDOMException, () => {
+      iframeHistory.pushState(null, "", `#inactive-${i}`);
+    });
+  }
+}, "pushState checks fully active before checking the rate limit");
+</script>
+</body>
+</html>

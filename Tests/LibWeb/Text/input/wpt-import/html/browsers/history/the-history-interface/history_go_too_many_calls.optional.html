@@ -1,0 +1,48 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <title>history go too many calls</title>
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id="log"></div>
+    <script>
+    async function createIframe() {
+      const iframe = document.createElement('iframe');
+      iframe.src = '../../../../common/blank.html';
+      const iframeLoaded = new Promise(resolve => iframe.addEventListener('load', resolve, { once: true }));
+      document.body.append(iframe);
+      await iframeLoaded;
+      return iframe;
+    }
+
+    promise_test(async t => {
+      const iframe = await createIframe();
+      let navigateEvents = 0;
+      iframe.contentWindow.navigation.onnavigate = e => { navigateEvents++; return false; };
+      for (let i = 0; i < 500; i++) {
+        iframe.contentWindow.history.go(0);
+        await new Promise(resolve => t.step_timeout(resolve, 0));
+        if (i > navigateEvents) {
+          return;
+        }
+      }
+      assert_unreached("No rate limit reached.");
+    }, 'history go too many calls');
+
+    promise_test(async t => {
+      const iframe = await createIframe();
+      const iframeWindow = iframe.contentWindow;
+      const iframeDOMException = iframeWindow.DOMException;
+      const iframeHistory = iframeWindow.history;
+      iframe.remove();
+      for (let i = 0; i < 500; i++) {
+        assert_throws_dom("SecurityError", iframeDOMException, () => {
+          iframeHistory.go(0);
+        });
+      }
+    }, 'fully active check should be before rate limit check');
+    </script>
+  </body>
+</html>

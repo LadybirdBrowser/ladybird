@@ -1,0 +1,23 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <title>history replaceState too many calls</title>
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id="log"></div>
+    <script>
+    test(function () {
+      for (let i = 0; i < 500; i++) {
+        let prev = location.href;
+        window.history.replaceState(null, null, i);
+        if (location.href === prev) {
+          return;
+        }
+      }
+      assert_unreached("No rate limit reached.");
+    });
+    </script>
+  </body>
+</html>

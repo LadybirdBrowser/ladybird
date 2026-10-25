@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+1 Pass
+3 Fail
+Fail	replaceState serializes state before checking the rate limit
+Fail	replaceState parses the URL before checking the rate limit
+Fail	replaceState checks whether the URL can be rewritten before checking the rate limit
+Pass	replaceState checks fully active before checking the rate limit
