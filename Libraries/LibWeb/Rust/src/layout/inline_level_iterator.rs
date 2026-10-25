@@ -729,13 +729,20 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             && is_last_chunk
             && text_context.text.is_empty()
             && self.context().facts(text_node).produces_line_box_fragment_when_empty();
+        // INTEROP: A text control's text that ends in a preserved newline keeps the empty line after it, which gives
+        //          that line its height and the caret on it a fragment.
+        let synthesize_chunk_after_trailing_newline = chunk.is_none()
+            && text_context.next_chunk_index == chunks.len()
+            && text_context.should_respect_linebreaks
+            && chunks.last().is_some_and(|last| last.has_breaking_newline)
+            && self.context().facts(text_node).is_text_control_text();
         let chunk = if let Some(chunk) = chunk {
             chunk
-        } else if synthesize_zero_length_chunk {
-            text_context.next_chunk_index = 1;
+        } else if synthesize_zero_length_chunk || synthesize_chunk_after_trailing_newline {
+            text_context.next_chunk_index = chunks.len() + 1;
             let parent_style = self.context().style(self.context().parent_node(text_node));
             text_chunker::TextChunk {
-                start: 0,
+                start: text_context.text.len(),
                 length: 0,
                 font: parent_style.first_available_font(),
                 has_breaking_newline: false,
@@ -832,6 +839,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         }
         let chunk_inline_size = CssPixels::nearest_value_for_f32(glyphs.width + inline_offset);
         let generated_empty = synthesize_zero_length_chunk
+            || synthesize_chunk_after_trailing_newline
             || (self.context().facts(text_node).is_generated_for_pseudo_element() && chunk.length == 0);
         let mut item = Item::new(ItemType::Text, text_node);
         item.glyphs = Some(glyphs);

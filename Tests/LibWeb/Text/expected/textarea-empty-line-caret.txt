@@ -1,5 +1,5 @@
-a trailing newline adds a line: false
-a trailing newline adds a line with white-space: pre-line: false
+a trailing newline adds a line: true
+a trailing newline adds a line with white-space: pre-line: true
 typed: caret on the empty last line is visible: true
 execCommand: caret on the empty last line is visible: true
 caret moved onto an empty middle line is visible: true
