@@ -18,7 +18,6 @@
 #include <AK/Vector.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Forward.h>
-#include <LibGC/PrimitiveStorage.h>
 #include <LibGC/Ptr.h>
 #include <LibWasm/Export.h>
 
@@ -123,8 +122,6 @@ struct Limits {
     bool has_maximum { false };
     bool address64 { false };
     bool shared { false };
-
-    Optional<u64> maximum_if_any() const { return has_maximum ? Optional<u64> { maximum } : Optional<u64> {}; }
 };
 
 // What an import or export is: the type index of a function or tag, the limits of a memory or table, the element type
@@ -148,19 +145,9 @@ struct Import {
     ExternType type;
 };
 
-struct ModuleExport {
-    StringView name;
-    ExternType type;
-};
-
 struct InstanceExport {
     StringView name;
     Extern value;
-};
-
-struct CustomSection {
-    StringView name;
-    ReadonlyBytes contents;
 };
 
 // Values that may be references to cells, which the garbage collector finds while the vector lives.
@@ -174,11 +161,7 @@ public:
 
     size_t import_count() const;
     Import import(size_t index) const;
-    size_t export_count() const;
-    ModuleExport module_export(size_t index) const;
     Optional<FunctionType> function_type(u32 type_index) const;
-    size_t custom_section_count() const;
-    CustomSection custom_section(size_t index) const;
 
     FFI::WasmModule const* handle() const { return m_module; }
 
@@ -205,22 +188,14 @@ struct Failure {
     u64 exception { 0 };
 };
 
-// How a host function fails: it traps with a message, or throws an exception, which WebAssembly code can catch.
+// How a host function fails: it traps with a message.
 struct HostError {
     HostError(ByteString message)
         : message(move(message))
     {
     }
 
-    static HostError exception(u64 reference)
-    {
-        HostError error { ByteString {} };
-        error.thrown_exception = reference;
-        return error;
-    }
-
     ByteString message;
-    Optional<u64> thrown_exception;
 };
 
 // What the entities of one thread share: their heap, types, and the interpreter's state. One store serves a whole
@@ -239,8 +214,7 @@ public:
     // function visits the cells it captures, so it must not capture roots.
     using HostFunction = Function<ErrorOr<void, HostError>(Store&, ReadonlySpan<Value> arguments, Span<Value> results)>;
 
-    // `index` is the embedder's index of the host function, if it has one, which host_function_index() returns.
-    Entity allocate_host_function(FunctionType const&, HostFunction, Optional<u32> index = {});
+    Entity allocate_host_function(FunctionType const&, HostFunction);
     Optional<Entity> allocate_memory(Limits);
     Optional<Entity> allocate_table(ValueType element, Limits, u64 initial);
     Entity allocate_global(ValueType, bool is_mutable, Value);
@@ -255,71 +229,14 @@ public:
     u64 function_reference(Entity function);
     // The function a non-null function reference refers to.
     Entity function_from_reference(u64 reference);
-    // The index of a WebAssembly function in the function index space of the module that defines it, or nothing for
-    // a host function.
-    Optional<u32> function_index(Entity function);
-    // The index a host function was allocated with, or nothing.
-    Optional<u32> host_function_index(Entity function);
-
-    // The types of functions, tables, globals, and tags of the store name concrete heap types by store-wide
-    // identities, where the types of a module name them by their indices in the module. This is a type of `module`
-    // in the store's terms.
-    ValueType canonical_value_type(Module const&, ValueType);
-    // Whether a non-null reference matches a reference type of the store. A reference of the any hierarchy must be in
-    // its internal form: an i31 reference, a GC object, or a host reference.
-    bool reference_matches(u64 reference, ValueType);
-    // Whether the concrete heap type `identity` is a function type, as opposed to a struct or array type.
-    bool is_function_type(u32 identity);
-
-    Entity allocate_tag(ReadonlySpan<ValueType> parameters);
-    Vector<ValueType> tag_parameters(Entity tag);
-    // An exception is a cell of the heap, which keeps it while something refers to it.
-    u64 allocate_exception(Entity tag, ReadonlySpan<Value> values);
-    Entity exception_tag(u64 exception);
-    Values exception_values(u64 exception);
-
-    // The bytes of a memory move when it grows.
-    Bytes memory(Entity memory);
-    // The previous size in pages, or -1 if the memory cannot grow.
-    i64 grow_memory(Entity memory, u64 delta);
-    Limits memory_limits(Entity memory);
-    GC::PrimitiveStorageHandle memory_primitive_storage_handle(Entity memory);
-    // Runs after each memory.grow instruction that grows a memory, but not after grow_memory().
-    void set_memory_grow_callback(Function<void(Entity memory)>);
-    // Whether the agent the store runs code for may block ([[CanBlock]]); memory.atomic.wait traps where it may not.
-    void set_can_block(bool);
-    // Has an entity, or the cell of an exception or a GC object, keep `object` alive for as long as it lives itself.
-    // An object that stands for the cell and refers to it then stays the same object while the cell lives.
-    void set_host_object(GC::ForeignCell* cell, GC::Cell& object);
-    void set_host_object(GC::ForeignCell* cell, GC::ForeignCell& object);
-    // The object set_host_object() gave the cell, or null.
-    void* host_object(GC::ForeignCell* cell) const;
-
-    u64 table_size(Entity table);
-    ValueType table_element_type(Entity table);
-    Limits table_limits(Entity table);
-    Optional<u64> table_get(Entity table, u64 index);
-    bool table_set(Entity table, u64 index, u64 value);
-    // The previous size, or -1 if the table cannot grow.
-    i64 grow_table(Entity table, u64 delta, u64 initial);
-
-    // The number of elements of an array, which is a reference to one.
-    u32 array_length(u64 array);
-    // The bits of an element of an array of numbers (whose elements are neither references nor v128s), with packed
-    // elements zero-extended. The index must be in bounds.
-    u64 array_element(u64 array, u32 index);
-    // Set an element of an array of numbers to `bits`, which packed elements wrap. The index must be in bounds.
-    void set_array_element(u64 array, u32 index, u64 bits);
 
     ValueType global_type(Entity global, bool& is_mutable);
     Value global_get(Entity global);
-    void global_set(Entity global, Value);
 
     FFI::WasmStore* handle() { return m_store; }
 
 private:
     FFI::WasmStore* m_store { nullptr };
-    Function<void(Entity)> m_memory_grow_callback;
 };
 
 // The state of a WASI (wasi_snapshot_preview1) command. Its functions only work on Unix hosts.

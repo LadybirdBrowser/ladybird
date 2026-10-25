@@ -63,7 +63,6 @@ static FFI::WasmValue to_ffi(Value value) { return bit_cast<FFI::WasmValue>(valu
 static FFI::WasmLimits to_ffi(Limits limits) { return bit_cast<FFI::WasmLimits>(limits); }
 static ValueType from_ffi(FFI::WasmValueType type) { return bit_cast<ValueType>(type); }
 static Value from_ffi(FFI::WasmValue value) { return bit_cast<Value>(value); }
-static Limits from_ffi(FFI::WasmLimits limits) { return bit_cast<Limits>(limits); }
 static ExternType from_ffi(FFI::WasmExternType type) { return bit_cast<ExternType>(type); }
 static StringView from_ffi(FFI::WasmStringView view) { return { reinterpret_cast<char const*>(view.data), view.length }; }
 
@@ -113,19 +112,6 @@ Import Module::import(size_t index) const
     return { from_ffi(module_name), from_ffi(name), from_ffi(type) };
 }
 
-size_t Module::export_count() const
-{
-    return FFI::wasm_module_export_count(m_module);
-}
-
-ModuleExport Module::module_export(size_t index) const
-{
-    FFI::WasmStringView name {};
-    FFI::WasmExternType type {};
-    FFI::wasm_module_export(m_module, index, &name, &type);
-    return { from_ffi(name), from_ffi(type) };
-}
-
 static FunctionType make_function_type(size_t parameter_count, size_t result_count, auto copy)
 {
     Vector<FFI::WasmValueType> parameters;
@@ -152,19 +138,6 @@ Optional<FunctionType> Module::function_type(u32 type_index) const
     return make_function_type(parameter_count, result_count, [&](auto* parameters, auto* results) {
         FFI::wasm_module_function_type_values(m_module, type_index, parameters, results);
     });
-}
-
-size_t Module::custom_section_count() const
-{
-    return FFI::wasm_module_custom_section_count(m_module);
-}
-
-CustomSection Module::custom_section(size_t index) const
-{
-    FFI::WasmStringView name {};
-    FFI::WasmStringView contents {};
-    FFI::wasm_module_custom_section(m_module, index, &name, &contents);
-    return { from_ffi(name), ReadonlyBytes { contents.data, contents.length } };
 }
 
 template<typename To, typename From>
@@ -217,12 +190,11 @@ struct HostFunctionData {
 
     Store& store;
     Store::HostFunction function;
-    Optional<u32> index;
 };
 
 }
 
-static FFI::WasmStatus call_host_function(void* user_data, FFI::WasmStore*, FFI::WasmValue const* arguments, size_t argument_count, FFI::WasmValue* results, size_t result_count, FFI::WasmString* error, u64* exception)
+static FFI::WasmStatus call_host_function(void* user_data, FFI::WasmStore*, FFI::WasmValue const* arguments, size_t argument_count, FFI::WasmValue* results, size_t result_count, FFI::WasmString* error, u64*)
 {
     auto& data = *static_cast<HostFunctionData*>(user_data);
     ReadonlySpan<Value> argument_span { reinterpret_cast<Value const*>(arguments), argument_count };
@@ -230,10 +202,6 @@ static FFI::WasmStatus call_host_function(void* user_data, FFI::WasmStore*, FFI:
     auto result = data.function(data.store, argument_span, result_span);
     if (!result.is_error())
         return FFI::WasmStatus::Ok;
-    if (auto thrown = result.error().thrown_exception; thrown.has_value()) {
-        *exception = *thrown;
-        return FFI::WasmStatus::Exception;
-    }
     *error = make_string(result.error().message);
     return FFI::WasmStatus::Trap;
 }
@@ -250,7 +218,7 @@ static void release_host_function(void* user_data)
     delete static_cast<HostFunctionData*>(user_data);
 }
 
-Entity Store::allocate_host_function(FunctionType const& type, HostFunction function, Optional<u32> index)
+Entity Store::allocate_host_function(FunctionType const& type, HostFunction function)
 {
     Vector<FFI::WasmValueType> parameters;
     Vector<FFI::WasmValueType> results;
@@ -258,16 +226,8 @@ Entity Store::allocate_host_function(FunctionType const& type, HostFunction func
         parameters.append(to_ffi(parameter));
     for (auto result : type.results)
         results.append(to_ffi(result));
-    auto* data = new HostFunctionData { *this, move(function), index };
+    auto* data = new HostFunctionData { *this, move(function) };
     return entity_from_ffi(FFI::wasm_store_allocate_host_function(m_store, parameters.data(), parameters.size(), results.data(), results.size(), call_host_function, visit_host_function, release_host_function, data));
-}
-
-Optional<u32> Store::host_function_index(Entity function)
-{
-    auto* data = FFI::wasm_store_host_function_user_data(m_store, to_ffi(function));
-    if (!data)
-        return {};
-    return static_cast<HostFunctionData*>(data)->index;
 }
 
 Optional<Entity> Store::allocate_memory(Limits limits)
@@ -380,191 +340,14 @@ Entity Store::function_from_reference(u64 reference)
     return entity_from_ffi(function);
 }
 
-Optional<u32> Store::function_index(Entity function)
-{
-    u32 index = 0;
-    if (!FFI::wasm_store_function_index(m_store, to_ffi(function), &index))
-        return {};
-    return index;
-}
-
-ValueType Store::canonical_value_type(Module const& module, ValueType type)
-{
-    return from_ffi(FFI::wasm_store_canonical_value_type(m_store, module.handle(), to_ffi(type)));
-}
-
-bool Store::reference_matches(u64 reference, ValueType type)
-{
-    return FFI::wasm_store_reference_matches(m_store, reference, to_ffi(type));
-}
-
-bool Store::is_function_type(u32 identity)
-{
-    return FFI::wasm_store_is_function_type(m_store, identity);
-}
-
-Entity Store::allocate_tag(ReadonlySpan<ValueType> parameters)
-{
-    Vector<FFI::WasmValueType> types;
-    for (auto parameter : parameters)
-        types.append(to_ffi(parameter));
-    return entity_from_ffi(FFI::wasm_store_allocate_tag(m_store, types.data(), types.size()));
-}
-
-Vector<ValueType> Store::tag_parameters(Entity tag)
-{
-    Vector<FFI::WasmValueType> types;
-    types.resize(FFI::wasm_store_tag_parameter_count(m_store, to_ffi(tag)));
-    FFI::wasm_store_tag_parameters(m_store, to_ffi(tag), types.data());
-    Vector<ValueType> parameters;
-    parameters.ensure_capacity(types.size());
-    for (auto type : types)
-        parameters.unchecked_append(from_ffi(type));
-    return parameters;
-}
-
-u64 Store::allocate_exception(Entity tag, ReadonlySpan<Value> values)
-{
-    return FFI::wasm_store_allocate_exception(m_store, to_ffi(tag), reinterpret_cast<FFI::WasmValue const*>(values.data()), values.size());
-}
-
-Entity Store::exception_tag(u64 exception)
-{
-    return entity_from_ffi(FFI::wasm_store_exception_tag(m_store, exception));
-}
-
-Values Store::exception_values(u64 exception)
-{
-    Values values;
-    values.resize(FFI::wasm_store_tag_parameter_count(m_store, to_ffi(exception_tag(exception))));
-    FFI::wasm_store_exception_values(m_store, exception, reinterpret_cast<FFI::WasmValue*>(values.data()));
-    return values;
-}
-
-Bytes Store::memory(Entity memory)
-{
-    size_t size = 0;
-    auto* data = FFI::wasm_store_memory_data(m_store, to_ffi(memory), &size);
-    return { data, size };
-}
-
-i64 Store::grow_memory(Entity memory, u64 delta)
-{
-    return FFI::wasm_store_memory_grow(m_store, to_ffi(memory), delta);
-}
-
-Limits Store::memory_limits(Entity memory)
-{
-    return from_ffi(FFI::wasm_store_memory_limits(m_store, to_ffi(memory)));
-}
-
-GC::PrimitiveStorageHandle Store::memory_primitive_storage_handle(Entity memory)
-{
-    auto handle = FFI::wasm_store_memory_primitive_storage_handle(m_store, to_ffi(memory));
-    return { .index = static_cast<u32>(handle), .generation = static_cast<u32>(handle >> GC_PRIMITIVE_STORAGE_HANDLE_GENERATION_SHIFT) };
-}
-
-void Store::set_memory_grow_callback(Function<void(Entity)> callback)
-{
-    m_memory_grow_callback = move(callback);
-    if (!m_memory_grow_callback) {
-        FFI::wasm_store_clear_memory_grow_callback(m_store);
-        return;
-    }
-    FFI::wasm_store_set_memory_grow_callback(
-        m_store, [](void* user_data, void* memory) {
-            static_cast<Store*>(user_data)->m_memory_grow_callback(entity_from_ffi(memory));
-        },
-        this);
-}
-
-void Store::set_can_block(bool can_block)
-{
-    FFI::wasm_store_set_can_block(m_store, can_block);
-}
-
-void Store::set_host_object(GC::ForeignCell* cell, GC::Cell& object)
-{
-    FFI::wasm_set_host_object(cell, &object);
-}
-
-void Store::set_host_object(GC::ForeignCell* cell, GC::ForeignCell& object)
-{
-    FFI::wasm_set_host_object(cell, &object);
-}
-
-void* Store::host_object(GC::ForeignCell* cell) const
-{
-    return FFI::wasm_host_object(cell);
-}
-
-u64 Store::table_size(Entity table)
-{
-    return FFI::wasm_store_table_size(m_store, to_ffi(table));
-}
-
-ValueType Store::table_element_type(Entity table)
-{
-    FFI::WasmValueType element {};
-    FFI::WasmLimits limits {};
-    FFI::wasm_store_table_type(m_store, to_ffi(table), &element, &limits);
-    return from_ffi(element);
-}
-
-Limits Store::table_limits(Entity table)
-{
-    FFI::WasmValueType element {};
-    FFI::WasmLimits limits {};
-    FFI::wasm_store_table_type(m_store, to_ffi(table), &element, &limits);
-    return from_ffi(limits);
-}
-
-Optional<u64> Store::table_get(Entity table, u64 index)
-{
-    u64 value = 0;
-    if (!FFI::wasm_store_table_get(m_store, to_ffi(table), index, &value))
-        return {};
-    return value;
-}
-
-bool Store::table_set(Entity table, u64 index, u64 value)
-{
-    return FFI::wasm_store_table_set(m_store, to_ffi(table), index, value);
-}
-
-i64 Store::grow_table(Entity table, u64 delta, u64 initial)
-{
-    return FFI::wasm_store_table_grow(m_store, to_ffi(table), delta, initial);
-}
-
 ValueType Store::global_type(Entity global, bool& is_mutable)
 {
     return from_ffi(FFI::wasm_store_global_type(m_store, to_ffi(global), &is_mutable));
 }
 
-u32 Store::array_length(u64 array)
-{
-    return FFI::wasm_array_length(array);
-}
-
-u64 Store::array_element(u64 array, u32 index)
-{
-    return FFI::wasm_array_element(array, index);
-}
-
-void Store::set_array_element(u64 array, u32 index, u64 bits)
-{
-    FFI::wasm_array_set_element(array, index, bits);
-}
-
 Value Store::global_get(Entity global)
 {
     return from_ffi(FFI::wasm_store_global_get(m_store, to_ffi(global)));
-}
-
-void Store::global_set(Entity global, Value value)
-{
-    FFI::wasm_store_global_set(m_store, to_ffi(global), to_ffi(value));
 }
 
 static Vector<FFI::WasmStringView> string_views(ReadonlySpan<ByteString> strings)
