@@ -26,6 +26,13 @@ on:
         required: false
         type: string
         default: 'null'
+      version:
+        required: false
+        type: string
+        default: ''
+    secrets:
+      VCPKG_CACHE_SAS:
+        required: false
 
 env:
   # runner.workspace = /home/runner/work/ladybird
@@ -143,12 +150,14 @@ jobs:
         env:
           VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && secrets.VCPKG_CACHE_SAS || '' }}
           VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
+          RELEASE_VERSION: ${{ inputs.version }}
         run: |
           cmake --preset ${{ inputs.build_preset }} -B Build \
             ${{ steps.build-parameters.outputs.cmake_options }} \
             -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
-            -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
+            -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }} \
+            "-DLADYBIRD_VERSION=${RELEASE_VERSION}"
 
       - name: Create Build Environment (Windows)
         if: ${{ inputs.os_name == 'Windows' }}
@@ -201,6 +210,27 @@ jobs:
           retention-days: 3
           if-no-files-found: error
 
+      - name: Package the release
+        if: ${{ github.workflow == 'Distribution' }}
+        working-directory: ${{ github.workspace }}/Build
+        run: |
+          cpack -G TZST -B packages -D CPACK_COMPONENTS_ALL="ladybird_Runtime;ladybird_Symbols" \
+            -D CPACK_ARCHIVE_COMPRESSION_LEVEL=19 -D CPACK_COMPONENT_INCLUDE_TOPLEVEL_DIRECTORY=ON
+
+      - name: Attest the release
+        if: ${{ github.workflow == 'Distribution' }}
+        uses: actions/attest@v4
+        with:
+          subject-path: '${{ github.workspace }}/Build/packages/*.tar.zst'
+
+      - name: Upload the release
+        if: ${{ github.workflow == 'Distribution' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ladybird-${{ inputs.os_name }}-${{ inputs.arch }}
+          path: Build/packages/*.tar.zst
+          compression-level: 0
+          if-no-files-found: error
 
       - name: Save Caches
         uses: ./.github/actions/cache-save
