@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	IndexedDB Request Event Propagation: Bubbling and Capturing
+1 Pass
+Pass	IndexedDB Request Event Propagation: Bubbling and Capturing
