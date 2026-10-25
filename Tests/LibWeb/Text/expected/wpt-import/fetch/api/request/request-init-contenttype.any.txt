@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 18 tests
 
-17 Pass
-1 Fail
+18 Pass
 Pass	Default Content-Type for Request with empty body
 Pass	Default Content-Type for Request with Blob body (no type set)
 Pass	Default Content-Type for Request with Blob body (empty type)
-Fail	Default Content-Type for Request with Blob body (set type)
+Pass	Default Content-Type for Request with Blob body (set type)
 Pass	Default Content-Type for Request with buffer source body
 Pass	Default Content-Type for Request with FormData body
 Pass	Default Content-Type for Request with URLSearchParams body
