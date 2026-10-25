@@ -9,9 +9,15 @@
 #include <LibGC/RootVector.h>
 #include <LibGfx/Color.h>
 #include <LibWeb/Bindings/Document.h>
+#include <LibWeb/CSS/CSSGroupingRule.h>
+#include <LibWeb/CSS/CSSRuleList.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
+#include <LibWeb/CSS/CSSStyleRule.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
@@ -950,15 +956,46 @@ static GC::Ptr<DOM::Element> element_establishing_white_space(GC::Ref<DOM::Node>
     return as_if<DOM::Element>(establishing_node.ptr());
 }
 
+// Whether a style rule in one of the author style sheets of element's document sets its white-space style.
+// NB: This looks at the rules that match element, and not at the cascade, so it also finds rules that are overridden.
+static bool author_style_sheet_sets_white_space(DOM::Element& element)
+{
+    auto rule_list_sets_white_space = [&](auto& self, CSS::CSSRuleList& rules) -> bool {
+        for (size_t index = 0; index < rules.length(); ++index) {
+            auto* rule = rules.item(index);
+            if (auto* style_rule = as_if<CSS::CSSStyleRule>(rule); style_rule
+                && style_rule->style()->has_property(CSS::PropertyID::WhiteSpaceCollapse)) {
+                auto matches = element.matches(style_rule->selector_text());
+                if (!matches.is_error() && matches.value())
+                    return true;
+            }
+            if (auto* grouping_rule = as_if<CSS::CSSGroupingRule>(rule); grouping_rule && self(self, grouping_rule->css_rules()))
+                return true;
+        }
+        return false;
+    };
+
+    auto& style_sheets = element.document().style_sheets();
+    for (size_t index = 0; index < style_sheets.length(); ++index) {
+        auto* style_sheet = style_sheets.item(index);
+        if (!style_sheet || style_sheet->disabled())
+            continue;
+        auto rules = style_sheet->css_rules();
+        if (!rules.is_error() && rule_list_sets_white_space(rule_list_sets_white_space, *rules.value()))
+            return true;
+    }
+    return false;
+}
+
 // INTEROP: Browsers do not keep white-space styles that come from the default style of elements such as pre, and do not
-//          add white-space styles to content that is joined into such an element.
-// FIXME: Distinguish these from white-space styles that author style sheets set on such elements.
+//          add white-space styles to content that is joined into such an element. They do keep white-space styles that
+//          the style attribute or author style sheets set on such elements.
 static bool white_space_is_from_default_style(GC::Ref<DOM::Node> node)
 {
     auto element = element_establishing_white_space(node);
     return element
         && element->local_name().is_one_of(HTML::TagNames::pre, HTML::TagNames::listing, HTML::TagNames::xmp, HTML::TagNames::plaintext)
-        && !sets_white_space_in_style_attribute(*element);
+        && !sets_white_space_in_style_attribute(*element) && !author_style_sheet_sets_white_space(*element);
 }
 
 // Whether element gives its children formatting that its parent does not, as one of the command values that are

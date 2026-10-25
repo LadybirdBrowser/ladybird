@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 46 tests
 
-28 Pass
-18 Fail
+46 Pass
 Pass	delete at <pre>abc</pre><div>[]def</div>
 Pass	delete at <pre>abc</pre>\n<div>[]def</div>
 Pass	delete at <div>abc</div><pre>[]def</pre>
@@ -32,21 +31,21 @@ Pass	delete at <div>abc</div><pre><b>[]def\n</b>ghi</pre>
 Pass	delete at <div>abc</div>\n<pre><b>[]def\n</b>ghi</pre>
 Pass	delete at <div>abc</div><pre><b>[]def<br></b>ghi</pre>
 Pass	delete at <div>abc</div>\n<pre><b>[]def<br></b>ghi</pre>
-Fail	delete at <div>abc</div><pre>[]def</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div>\n<pre>[]def</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div><pre>[]def\nghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div>\n<pre>[]def\nghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div><pre>[]def<br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div>\n<pre>[]def<br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div><pre><b>[]def\nghi</b></pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div>\n<pre><b>[]def\nghi</b></pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div><pre><b>[]def<br>ghi</b></pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div>\n<pre><b>[]def<br>ghi</b></pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div><pre><b>[]def</b>\nghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div>\n<pre><b>[]def</b>\nghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div><pre><b>[]def</b><br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div>\n<pre><b>[]def</b><br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div><pre><b>[]def\n</b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div>\n<pre><b>[]def\n</b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div><pre><b>[]def<br></b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <div>abc</div>\n<pre><b>[]def<br></b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div><pre>[]def</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div>\n<pre>[]def</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div><pre>[]def\nghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div>\n<pre>[]def\nghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div><pre>[]def<br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div>\n<pre>[]def<br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div><pre><b>[]def\nghi</b></pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div>\n<pre><b>[]def\nghi</b></pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div><pre><b>[]def<br>ghi</b></pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div>\n<pre><b>[]def<br>ghi</b></pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div><pre><b>[]def</b>\nghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div>\n<pre><b>[]def</b>\nghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div><pre><b>[]def</b><br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div>\n<pre><b>[]def</b><br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div><pre><b>[]def\n</b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div>\n<pre><b>[]def\n</b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div><pre><b>[]def<br></b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <div>abc</div>\n<pre><b>[]def<br></b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
