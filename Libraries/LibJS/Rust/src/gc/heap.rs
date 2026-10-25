@@ -31,6 +31,9 @@ pub struct Heap {
     /// The size classes of each class, by class id, out of line, as few classes have any.
     size_class_tables: Box<[OnceCell<SizeClassTable>; CLASS_COUNT]>,
     inline_allocation_info: InlineAllocationInfo,
+    /// LibGC's count of deferrals, and whether a collection waits for it to reach zero.
+    deferrals: NonNull<usize>,
+    collect_when_deferrals_end: NonNull<bool>,
 }
 
 /// The size classes of a class, with the type infos their blocks dispatch through, which have to outlive the
@@ -158,6 +161,9 @@ impl Heap {
             NonNull::new(raw.as_ptr().wrapping_byte_add(offset as usize).cast::<usize>())
                 .expect("the fields of LibGC's heap are not at null")
         };
+        let (mut deferrals, mut collect_when_deferrals_end) = (core::ptr::null_mut(), core::ptr::null_mut());
+        // SAFETY: LibGC just created the heap.
+        capi::gc_heap_deferral_state(unsafe { raw.as_ref() }, &mut deferrals, &mut collect_when_deferrals_end);
         Self {
             raw,
             allocators: [const { Cell::new(None) }; CLASS_COUNT],
@@ -173,6 +179,9 @@ impl Heap {
                 local_end_offset: layout.local_end_offset as usize,
                 local_cell_size_offset: layout.local_cell_size_offset as usize,
             },
+            deferrals: NonNull::new(deferrals).expect("LibGC counts deferrals"),
+            collect_when_deferrals_end: NonNull::new(collect_when_deferrals_end)
+                .expect("LibGC tracks waiting collections"),
         }
     }
 
@@ -193,6 +202,26 @@ impl Heap {
     pub fn handle(&self) -> &GCHeap {
         // SAFETY: This owns the heap, which stays live for as long as this does.
         unsafe { self.raw.as_ref() }
+    }
+
+    /// GC::Heap::defer_gc(), without a call into LibGC.
+    pub(super) fn defer_gc(&self) {
+        // SAFETY: The count is a field of the live heap, which only this thread uses.
+        unsafe { *self.deferrals.as_ptr() += 1 };
+    }
+
+    /// GC::Heap::undefer_gc(), without a call into LibGC unless a collection waits for the last deferral to end.
+    pub(super) fn undefer_gc(&self) {
+        // SAFETY: The count and the flag are fields of the live heap, which only this thread uses.
+        unsafe {
+            let deferrals = self.deferrals.as_ptr();
+            debug_assert!(*deferrals > 0);
+            if *deferrals == 1 && *self.collect_when_deferrals_end.as_ptr() {
+                capi::gc_heap_undefer_gc(self.handle());
+            } else {
+                *deferrals -= 1;
+            }
+        }
     }
 
     /// Moves `cell` into the heap. Nothing can collect garbage between taking the storage and writing the cell, so

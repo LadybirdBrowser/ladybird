@@ -99,8 +99,12 @@ unsafe extern "C" {
     // NB: The functions that take a reference to the heap have no other preconditions.
     pub safe fn gc_heap_collect_garbage(heap: &GCHeap, collection_type: i32, print_report: bool);
     pub safe fn gc_heap_is_collecting_everything(heap: &GCHeap) -> bool;
-    pub safe fn gc_heap_defer_gc(heap: &GCHeap);
     pub safe fn gc_heap_undefer_gc(heap: &GCHeap);
+    pub safe fn gc_heap_deferral_state(
+        heap: &GCHeap,
+        deferrals: &mut *mut usize,
+        collect_when_deferrals_end: &mut *mut bool,
+    );
     pub safe fn gc_heap_should_collect_on_every_allocation(heap: &GCHeap) -> bool;
     pub safe fn gc_heap_set_should_collect_on_every_allocation(heap: &GCHeap, should_collect: bool);
     pub safe fn gc_heap_set_incremental_sweep_enabled(heap: &GCHeap, enabled: bool);

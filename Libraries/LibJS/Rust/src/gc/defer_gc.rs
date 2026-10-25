@@ -7,7 +7,6 @@
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
-use super::capi;
 use super::heap::Heap;
 use crate::interpreter::vm::Vm;
 
@@ -20,7 +19,7 @@ impl<'heap> DeferGc<'heap> {
     }
 
     pub(super) fn of_heap(heap: &'heap Heap) -> Self {
-        capi::gc_heap_defer_gc(heap.handle());
+        heap.defer_gc();
         Self(heap)
     }
 
@@ -35,7 +34,7 @@ impl<'heap> DeferGc<'heap> {
 
 impl Drop for DeferGc<'_> {
     fn drop(&mut self) {
-        capi::gc_heap_undefer_gc(self.0.handle());
+        self.0.undefer_gc();
     }
 }
 
