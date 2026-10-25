@@ -54,8 +54,6 @@ public:
     [[nodiscard]] Vector<DrawGlyph>& glyphs() { return m_glyphs; }
     [[nodiscard]] float width() const { return m_width; }
 
-    [[nodiscard]] NonnullRefPtr<GlyphRun> slice(size_t start, size_t length) const;
-
 private:
     Vector<DrawGlyph> m_glyphs;
     NonnullRefPtr<Font const> m_font;
@@ -74,7 +72,6 @@ private:
 [[nodiscard]] Vector<float> glyph_run_glyph_intercepts(Font const&, ReadonlySpan<DrawGlyph>, float scale, float y_top, float y_bottom);
 
 NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, float word_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType, TrailingWhitespace* = nullptr);
-Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const&, FontCascadeList const&, float letter_spacing = 0.f);
 float measure_text_width(Utf16View const&, Font const& font, float letter_spacing = 0.f);
 
 }

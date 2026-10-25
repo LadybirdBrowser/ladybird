@@ -34,20 +34,6 @@ GlyphRun::GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, T
 
 GlyphRun::~GlyphRun() = default;
 
-NonnullRefPtr<GlyphRun> GlyphRun::slice(size_t start, size_t length) const
-{
-    Vector<DrawGlyph> sliced_glyphs;
-    sliced_glyphs.ensure_capacity(length);
-
-    float width = 0;
-    for (size_t i = start; i < start + length; ++i) {
-        sliced_glyphs.unchecked_append(m_glyphs[i]);
-        width += m_glyphs[i].glyph_width;
-    }
-
-    return adopt_ref(*new GlyphRun(move(sliced_glyphs), m_font, m_text_type, width));
-}
-
 FloatRect glyph_run_bounding_box(Font const& font, ReadonlySpan<DrawGlyph> glyphs, float scale)
 {
     auto font_ascent = font.pixel_metrics().ascent;
@@ -395,45 +381,6 @@ Vector<float> glyph_run_glyph_intercepts(Font const& font, ReadonlySpan<DrawGlyp
         }
     }
     return intervals;
-}
-
-Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const& string, FontCascadeList const& font_cascade_list, float letter_spacing)
-{
-    if (string.is_empty())
-        return {};
-
-    Vector<NonnullRefPtr<GlyphRun>> runs;
-
-    auto it = string.begin();
-    auto substring_begin_offset = string.iterator_offset(it);
-    Font const* last_font = &font_cascade_list.font_for_code_point(*it);
-    FloatPoint last_position = baseline_start;
-
-    auto add_run = [&runs, &last_position, letter_spacing](Utf16View const& string, Font const& font) {
-        auto run = shape_text(last_position, letter_spacing, 0.f, string, font, GlyphRun::TextType::Common);
-        last_position.translate_by(run->width(), 0);
-        runs.append(*run);
-    };
-
-    while (it != string.end()) {
-        auto code_point = *it;
-        auto const* font = &font_cascade_list.font_for_code_point(code_point);
-        if (font != last_font) {
-            auto substring = string.substring_view(substring_begin_offset, string.iterator_offset(it) - substring_begin_offset);
-            add_run(substring, *last_font);
-            last_font = font;
-            substring_begin_offset = string.iterator_offset(it);
-        }
-        ++it;
-    }
-
-    auto end_offset = string.iterator_offset(it);
-    if (substring_begin_offset < end_offset) {
-        auto substring = string.substring_view(substring_begin_offset, end_offset - substring_begin_offset);
-        add_run(substring, *last_font);
-    }
-
-    return runs;
 }
 
 static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, GlyphRun::TextType text_type)
