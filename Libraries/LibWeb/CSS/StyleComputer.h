@@ -128,14 +128,9 @@ public:
     // the identity is no engine environment or was resolved over another.
     [[nodiscard]] RefPtr<CustomPropertyData const> engine_custom_property_environment(Layout::BegunRead const& read, u64 identity, RefPtr<CustomPropertyData const> const& inherited) const;
 
-    // Whether the collection refreshes a previously published style outside the drive; a refresh
-    // re-runs the animated element style adjustments and leaves the non-inherited-property
-    // inheritance invalidation mark itself.
-    enum class AnimationRefresh {
-        No,
-        Yes,
-    };
-    void collect_animations_into(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, AnimationRefresh) const;
+    // Refreshes a previously published style outside the drive: re-runs the animated element style
+    // adjustments and leaves the non-inherited-property inheritance invalidation mark itself.
+    void collect_animations_into(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
     // One element's animations, refreshed over the record it holds as `collect_animations_into()` refreshes them.
     struct AnimationRefreshRequest {
         DOM::AbstractElement abstract_element;

@@ -574,13 +574,8 @@ struct StyleComputer::AnimationSample {
     ComputedValuesFFI::FfiHostAnimationSample input {};
 };
 
-void StyleComputer::collect_animations_into(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties, AnimationRefresh refresh) const
+void StyleComputer::collect_animations_into(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties) const
 {
-    if (refresh == AnimationRefresh::No) {
-        collect_animation_effects_into(read, abstract_element, effects, computed_properties, {});
-        publish_animated_custom_properties(read, computed_properties, abstract_element);
-        return;
-    }
     m_keyframes_inherited_non_inherited_style_groups = 0;
     // A refresh samples over the record the element holds, which the working set was reconstructed from.
     collect_animation_effects_into(read, abstract_element, effects, computed_properties, abstract_element.style_record_identity());
@@ -1311,7 +1306,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::start_needed_transitions(Layout::
             return Animations::KeyframeEffect::composite_order(a, b) < 0;
         });
         if (!remaining_effects.is_empty())
-            collect_animations_into(read, abstract_element, remaining_effects.span(), *new_style, AnimationRefresh::Yes);
+            collect_animations_into(read, abstract_element, remaining_effects.span(), *new_style);
     }
 
     if (!newly_started_transition_effects.is_empty()) {
