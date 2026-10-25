@@ -17,6 +17,7 @@ pub mod form_controls;
 pub mod gradient_resolution;
 pub mod inline_box;
 pub mod inspector_overlay;
+pub mod math;
 pub mod outline;
 pub mod overlay;
 pub mod replaced;
@@ -31,6 +32,7 @@ use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::node_painting;
+use crate::painting::paintable_geometry;
 use crate::painting::record::{BasePaintFacts, PaintPhase, PaintRecorder};
 use crate::painting::style_queries;
 
@@ -104,6 +106,9 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
         }
         paint_base(recorder, paintable, phase);
         if phase == PaintPhase::Foreground {
+            if let Some(data) = paintable_geometry::committed_math_paint_data(recorder.source, paintable) {
+                math::paint_foreground(recorder, paintable, &data);
+            }
             if recorder.is_recording_svg_resource_content()
                 || recorder
                     .source

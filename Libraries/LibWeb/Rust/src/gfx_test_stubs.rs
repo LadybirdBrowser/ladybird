@@ -40,6 +40,15 @@ extern "C" fn ladybird_gfx_font_math_data(_font: *const c_void) -> *const libgfx
 }
 
 #[unsafe(no_mangle)]
+extern "C" fn ladybird_gfx_font_glyph_metrics(
+    _font: *const c_void,
+    _glyph_id: u32,
+    _out_metrics: *mut libgfx_rust::math_table::FfiGlyphMetrics,
+) {
+    unreachable!("no unit test reads a font");
+}
+
+#[unsafe(no_mangle)]
 extern "C" fn ladybird_gfx_font_invisible_variant(_font: *const c_void) -> *const c_void {
     unreachable!("no unit test reads a font");
 }

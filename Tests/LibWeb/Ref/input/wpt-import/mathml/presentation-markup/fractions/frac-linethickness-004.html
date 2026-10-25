@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>fractions linethickness</title>
+    <link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+    <meta name="assert" content="Verifies that unitless value of zero causes no fraction bar to be painted">
+    <link rel="match" href="../../../../../expected/wpt-import/mathml/presentation-markup/fractions/frac-linethickness-004-ref.html">
+    <style type="text/css">
+      @font-face {
+        font-family: TestFont;
+        src: url("../../../fonts/math/fraction-rulethickness10000.woff");
+      }
+      math {
+        /* FractionRuleThickness = 10000 * 1 / 1000 = 10px; */
+        font-family: "TestFont";
+        font-size: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <p>This test passes if you see no fraction bar.</p>
+    <math>
+      <mfrac linethickness="0">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+    </math>
+    <script src="../../../mathml/support/feature-detection.js"></script>
+    <script>MathMLFeatureDetection.ensure_for_match_reftest("has_mfrac");</script>
+  </body>
+</html>

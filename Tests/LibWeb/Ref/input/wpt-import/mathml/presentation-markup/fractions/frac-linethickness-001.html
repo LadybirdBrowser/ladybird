@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>fractions linethickness</title>
+    <link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+    <meta name="assert" content="Verifies deprecated 'thin', 'medium', 'thick' and unitless values have no effect on the linethickness of the mfrac element">
+    <link rel="match" href="../../../../../expected/wpt-import/mathml/presentation-markup/fractions/frac-linethickness-001-ref.html">
+    <style type="text/css">
+      @font-face {
+        font-family: TestFont;
+        src: url("../../../fonts/math/fraction-rulethickness10000.woff");
+      }
+      math {
+        /* FractionRuleThickness = 10000 * 1 / 1000 = 10px; */
+        font-family: "TestFont";
+        font-size: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <p>This test passes if you see the same fraction eight times.</p>
+    <math>
+      <mfrac linethickness="thin">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+      <mspace width="20px"/>
+      <mfrac linethickness="medium">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+      <mspace width="20px"/>
+      <mfrac linethickness="thick">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+      <mspace width="20px"/>
+      <mfrac linethickness="5">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+      <mspace width="20px"/>
+      <mfrac linethickness="100%">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+      <mspace width="20px"/>
+      <mfrac linethickness="100%">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+      <mspace width="20px"/>
+      <mfrac linethickness="2km">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+      <mspace width="20px"/>
+      <mfrac linethickness="cat">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+    </math>
+    <script src="../../../mathml/support/feature-detection.js"></script>
+    <script>MathMLFeatureDetection.ensure_for_match_reftest("has_mfrac");</script>
+  </body>
+</html>

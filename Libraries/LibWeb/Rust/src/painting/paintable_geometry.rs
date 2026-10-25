@@ -211,6 +211,13 @@ pub(crate) fn committed_multicol_layout_data(
     })
 }
 
+pub(crate) fn committed_math_paint_data(
+    arena: &impl GeometryRead,
+    slot: NodeSlotId,
+) -> Option<std::sync::Arc<crate::layout::math_formatting_context::MathPaintData>> {
+    arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.math_paint_data.clone()))
+}
+
 pub(crate) fn committed_flex_layout_data(
     arena: &impl GeometryRead,
     slot: NodeSlotId,
