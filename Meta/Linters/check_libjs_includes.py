@@ -105,7 +105,6 @@ ENGINE_INTERNAL_HEADERS = {
     "LibJS/Lexer.h",
     "LibJS/Parser.h",
     "LibJS/Runtime/EnvironmentShape.h",
-    "LibJS/Runtime/IndexedProperties.h",
     "LibJS/Runtime/InterpreterStack.h",
     "LibJS/Runtime/Shape.h",
     "LibJS/RustIntegration.h",
