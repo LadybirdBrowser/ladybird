@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Shadows are not drawn for transparent parts of canvases
+1 Pass
+Pass	Shadows are not drawn for transparent parts of canvases

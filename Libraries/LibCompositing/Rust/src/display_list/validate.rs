@@ -287,7 +287,17 @@ fn validate_canvas_2d_compositing(payload: Payload, offset: usize) -> Result<(),
     }
     payload.enum_at::<CompositingAndBlendingOperator>(
         offset + offset_of!(Canvas2DCompositing, compositing_and_blending_operator),
-    )
+    )?;
+    payload.bool_at(offset + offset_of!(Canvas2DCompositing, has_shadow))?;
+    let shadow_offset = offset + offset_of!(Canvas2DCompositing, shadow);
+    let shadow_offset_x = payload.f32_at(shadow_offset + offset_of!(Canvas2DShadow, offset_x));
+    let shadow_offset_y = payload.f32_at(shadow_offset + offset_of!(Canvas2DShadow, offset_y));
+    let shadow_blur = payload.f32_at(shadow_offset + offset_of!(Canvas2DShadow, blur));
+    if !shadow_offset_x.is_finite() || !shadow_offset_y.is_finite() || !(shadow_blur.is_finite() && shadow_blur >= 0.0)
+    {
+        return Err("Canvas 2D stream command has a shadow with an offset or blur that is not finite or is negative");
+    }
+    Ok(())
 }
 
 fn command_struct_size(command_type: DisplayListCommandType) -> usize {

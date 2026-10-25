@@ -15,7 +15,7 @@ use core::ptr::NonNull;
 use ak::Utf16String;
 use libcompositing_rust::display_list::canvas_2d::{Compositing, Paint, Stroke};
 use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpace, Recorder};
-use libcompositing_rust::display_list::commands::CanvasId;
+use libcompositing_rust::display_list::commands::{Canvas2DShadow, CanvasId};
 use libgfx_rust::path::Path;
 use libgfx_rust::{AffineTransform, Color, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, WindingRule};
 use libjs_rust::api::{ForeignCellSlot, Gc, Realm, Trace, Visitor, Vm};
@@ -715,44 +715,31 @@ impl ContextState {
             filter: state.filter.as_deref(),
             global_alpha: state.global_alpha,
             compositing_and_blending_operator: state.current_compositing_and_blending_operator,
+            shadow: Self::shadow_of(state),
         }
     }
 
-    /// A shadow is drawn through the filter with its operator, but without the global alpha, which its color holds.
-    fn shadow_compositing(state: &DrawingState) -> Compositing<'_> {
-        Compositing {
-            filter: state.filter.as_deref(),
-            global_alpha: 1.0,
-            compositing_and_blending_operator: state.current_compositing_and_blending_operator,
-        }
-    }
-
-    /// The color and the transformation matrix of the shadow of a draw, unless the draw casts none.
-    fn shadow_of(state: &DrawingState) -> Option<(Color, AffineTransform)> {
+    /// The shadow of a draw, unless the draw casts none, https://html.spec.whatwg.org/multipage/canvas.html#shadows
+    fn shadow_of(state: &DrawingState) -> Option<Canvas2DShadow> {
+        // NB: A draw with the copy operator replaces the whole bitmap with its source, which would replace its shadow.
         if state.current_compositing_and_blending_operator == CompositingAndBlendingOperator::Copy {
+            return None;
+        }
+
+        // Shadows are only drawn if the opacity component of the alpha component of the shadow color is nonzero and
+        // either the shadowBlur is nonzero, or the shadowOffsetX is nonzero, or the shadowOffsetY is nonzero.
+        if state.shadow_color.alpha() == 0 {
             return None;
         }
         if state.shadow_blur == 0.0 && state.shadow_offset_x == 0.0 && state.shadow_offset_y == 0.0 {
             return None;
         }
-        let mut alpha = state.global_alpha * (f32::from(state.shadow_color.alpha()) / 255.0);
-        if let Some(fill_style_color) = state.fill_style.as_color()
-            && fill_style_color.alpha() > 0
-        {
-            alpha = (f32::from(fill_style_color.alpha()) / 255.0) * state.global_alpha;
-        }
-        if alpha == 0.0 {
-            return None;
-        }
-        let transform = multiply_transforms(
-            translated(
-                AffineTransform::identity(),
-                state.shadow_offset_x,
-                state.shadow_offset_y,
-            ),
-            state.transform,
-        );
-        Some((state.shadow_color.in_color_space.with_opacity(alpha), transform))
+        Some(Canvas2DShadow {
+            color: state.shadow_color.in_color_space,
+            offset_x: state.shadow_offset_x,
+            offset_y: state.shadow_offset_y,
+            blur: state.shadow_blur,
+        })
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#drawing-model
@@ -775,36 +762,11 @@ impl ContextState {
         }
 
         let path_bytes = path.serialize_to_bytes();
-        self.paint_shadow_for_fill_internal(&path_bytes, winding_rule);
-
         {
             let state = self.drawing_state();
             self.record(|recorder| {
                 let paint = paint_of(recorder, &state.fill_style, self.context_attributes.color_space);
-                recorder.fill_path(&path_bytes, &paint, winding_rule, 0.0, &Self::compositing(&state));
-            });
-        }
-        self.did_draw();
-    }
-
-    /// `path_bytes` is a serialized Gfx::Path. The caller has readied the recorder.
-    fn paint_shadow_for_fill_internal(&self, path_bytes: &[u8], winding_rule: WindingRule) {
-        {
-            let state = self.drawing_state();
-            let Some((shadow_color, transform)) = Self::shadow_of(&state) else {
-                return;
-            };
-            self.record(|recorder| {
-                recorder.save();
-                recorder.set_transform(transform);
-                recorder.fill_path(
-                    path_bytes,
-                    &Paint::Color(shadow_color),
-                    winding_rule,
-                    state.shadow_blur,
-                    &Self::shadow_compositing(&state),
-                );
-                recorder.restore();
+                recorder.fill_path(&path_bytes, &paint, winding_rule, &Self::compositing(&state));
             });
         }
         self.did_draw();
@@ -823,7 +785,6 @@ impl ContextState {
 
         let dash_array = self.drawing_state().dash_array();
         let path_bytes = path.serialize_to_bytes();
-        self.paint_shadow_for_stroke_internal(&path_bytes, &dash_array);
 
         {
             let state = self.drawing_state();
@@ -837,38 +798,7 @@ impl ContextState {
             };
             self.record(|recorder| {
                 let paint = paint_of(recorder, &state.stroke_style, self.context_attributes.color_space);
-                recorder.stroke_path(&path_bytes, &paint, &stroke, 0.0, &Self::compositing(&state));
-            });
-        }
-        self.did_draw();
-    }
-
-    /// `path_bytes` is a serialized Gfx::Path. The caller has readied the recorder.
-    fn paint_shadow_for_stroke_internal(&self, path_bytes: &[u8], dash_array: &[f32]) {
-        {
-            let state = self.drawing_state();
-            let Some((shadow_color, transform)) = Self::shadow_of(&state) else {
-                return;
-            };
-            let stroke = Stroke {
-                thickness: state.line_width,
-                cap_style: state.cap_style(),
-                join_style: state.join_style(),
-                miter_limit: state.miter_limit,
-                dash_array,
-                dash_offset: state.line_dash_offset,
-            };
-            self.record(|recorder| {
-                recorder.save();
-                recorder.set_transform(transform);
-                recorder.stroke_path(
-                    path_bytes,
-                    &Paint::Color(shadow_color),
-                    &stroke,
-                    state.shadow_blur,
-                    &Self::shadow_compositing(&state),
-                );
-                recorder.restore();
+                recorder.stroke_path(&path_bytes, &paint, &stroke, &Self::compositing(&state));
             });
         }
         self.did_draw();

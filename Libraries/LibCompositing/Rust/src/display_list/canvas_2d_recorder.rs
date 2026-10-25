@@ -132,27 +132,13 @@ impl<T: Transport> Recorder<T> {
     }
 
     /// `path` is a serialized Gfx::Path.
-    pub fn fill_path(
-        &mut self,
-        path: &[u8],
-        paint: &Paint,
-        winding_rule: WindingRule,
-        blur_radius: f32,
-        compositing: &Compositing,
-    ) {
-        self.record(|tape| tape.fill_path(path, paint, winding_rule, blur_radius, compositing));
+    pub fn fill_path(&mut self, path: &[u8], paint: &Paint, winding_rule: WindingRule, compositing: &Compositing) {
+        self.record(|tape| tape.fill_path(path, paint, winding_rule, compositing));
     }
 
     /// `path` is a serialized Gfx::Path.
-    pub fn stroke_path(
-        &mut self,
-        path: &[u8],
-        paint: &Paint,
-        stroke: &Stroke,
-        blur_radius: f32,
-        compositing: &Compositing,
-    ) {
-        self.record(|tape| tape.stroke_path(path, paint, stroke, blur_radius, compositing));
+    pub fn stroke_path(&mut self, path: &[u8], paint: &Paint, stroke: &Stroke, compositing: &Compositing) {
+        self.record(|tape| tape.stroke_path(path, paint, stroke, compositing));
     }
 
     pub fn draw_glyph_run(

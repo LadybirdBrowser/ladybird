@@ -67,13 +67,6 @@ impl FillOrStrokeStyle {
     pub(crate) fn is_not_origin_clean(self) -> bool {
         matches!(self, Self::Pattern(pattern) if pattern.is_not_origin_clean())
     }
-
-    pub(crate) fn as_color(self) -> Option<CanvasColor> {
-        match self {
-            Self::Color(color) => Some(color),
-            Self::Gradient(_) | Self::Pattern(_) => None,
-        }
-    }
 }
 
 // SAFETY: Visits the gradient or the pattern, the cells that a style holds.
