@@ -95,6 +95,41 @@ describe("basic switch tests", () => {
         expect(switchTest(3)).toBe(8);
         expect(switchTest(4)).toBe(12);
     });
+
+    test("lexical declaration of a case skipped by the dispatch is uninitialized in a later case", () => {
+        function read(value) {
+            switch (value) {
+                case 0:
+                    let binding = 5;
+                case 1:
+                    return binding;
+            }
+        }
+        function call(value) {
+            switch (value) {
+                case 0:
+                    const callee = () => 5;
+                default:
+                    return callee();
+            }
+        }
+        function write(value) {
+            switch (value) {
+                case 0:
+                    let binding = 5;
+                case 1:
+                    binding = 7;
+                    return binding;
+            }
+        }
+
+        expect(read(0)).toBe(5);
+        expect(() => read(1)).toThrow(ReferenceError);
+        expect(call(0)).toBe(5);
+        expect(() => call(1)).toThrow(ReferenceError);
+        expect(write(0)).toBe(7);
+        expect(() => write(1)).toThrow(ReferenceError);
+    });
 });
 
 describe("errors", () => {
