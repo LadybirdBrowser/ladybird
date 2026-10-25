@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 46 tests
 
-18 Pass
-28 Fail
+36 Pass
+10 Fail
 Fail	delete at <pre>abc</pre><blockquote>[]def</blockquote>
 Fail	delete at <pre>abc</pre>\n<blockquote>[]def</blockquote>
 Pass	delete at <blockquote>abc</blockquote><pre>[]def</pre>
@@ -32,21 +32,21 @@ Pass	delete at <blockquote>abc</blockquote><pre><b>[]def\n</b>ghi</pre>
 Pass	delete at <blockquote>abc</blockquote>\n<pre><b>[]def\n</b>ghi</pre>
 Pass	delete at <blockquote>abc</blockquote><pre><b>[]def<br></b>ghi</pre>
 Pass	delete at <blockquote>abc</blockquote>\n<pre><b>[]def<br></b>ghi</pre>
-Fail	delete at <blockquote>abc</blockquote><pre>[]def</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote>\n<pre>[]def</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote><pre>[]def\nghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote>\n<pre>[]def\nghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote><pre>[]def<br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote>\n<pre>[]def<br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote><pre><b>[]def\nghi</b></pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote>\n<pre><b>[]def\nghi</b></pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote><pre><b>[]def<br>ghi</b></pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote>\n<pre><b>[]def<br>ghi</b></pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote><pre><b>[]def</b>\nghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote>\n<pre><b>[]def</b>\nghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote><pre><b>[]def</b><br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote>\n<pre><b>[]def</b><br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote><pre><b>[]def\n</b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote>\n<pre><b>[]def\n</b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote><pre><b>[]def<br></b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
-Fail	delete at <blockquote>abc</blockquote>\n<pre><b>[]def<br></b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote><pre>[]def</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote>\n<pre>[]def</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote><pre>[]def\nghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote>\n<pre>[]def\nghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote><pre>[]def<br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote>\n<pre>[]def<br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote><pre><b>[]def\nghi</b></pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote>\n<pre><b>[]def\nghi</b></pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote><pre><b>[]def<br>ghi</b></pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote>\n<pre><b>[]def<br>ghi</b></pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote><pre><b>[]def</b>\nghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote>\n<pre><b>[]def</b>\nghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote><pre><b>[]def</b><br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote>\n<pre><b>[]def</b><br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote><pre><b>[]def\n</b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote>\n<pre><b>[]def\n</b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote><pre><b>[]def<br></b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Pass	delete at <blockquote>abc</blockquote>\n<pre><b>[]def<br></b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
