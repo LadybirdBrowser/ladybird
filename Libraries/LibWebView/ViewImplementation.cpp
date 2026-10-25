@@ -3281,9 +3281,16 @@ void ViewImplementation::switch_webdriver_to_parent_frame(Function<void(Web::Web
     });
 }
 
-void ViewImplementation::did_complete_webdriver_content_command(Badge<WebContentPage>, u64 command_id, Web::WebDriver::Response response)
+void ViewImplementation::did_complete_webdriver_content_command(WebContentPage& page, u64 command_id, Web::WebDriver::Response response)
 {
-    if (m_pending_webdriver_crash_commands.contains(command_id)) {
+    // NB: Only the page that runs a command completes it. Another page of this view, such as one hosting a cross-site
+    //     frame, cannot.
+    auto is_running_command = [&](auto const& commands) {
+        auto command = commands.find(command_id);
+        return command != commands.end() && command->value.page.ptr() == &page;
+    };
+
+    if (is_running_command(m_pending_webdriver_crash_commands)) {
         // WebContent acknowledges the command before its deferred process exit. Keep the command pending until the
         // crash handler has obtained the page standing in for the crashed document and started session-history recovery.
         if (response.is_error()) {
@@ -3293,8 +3300,10 @@ void ViewImplementation::did_complete_webdriver_content_command(Badge<WebContent
         return;
     }
 
-    if (m_pending_webdriver_commands.remove(command_id))
+    if (is_running_command(m_pending_webdriver_commands)) {
+        m_pending_webdriver_commands.remove(command_id);
         Application::the().complete_webdriver_content_command(command_id, move(response));
+    }
 }
 
 void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
