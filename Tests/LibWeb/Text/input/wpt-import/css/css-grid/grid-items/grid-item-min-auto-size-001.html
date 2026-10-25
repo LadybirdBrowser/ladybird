@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>CSS Grid Test: computed style for auto minimum size</title>
+<link rel="author" title="Rune Lillesveen" href="mailto:futhark@chromium.org" />
+<link rel="help" href="https://drafts.csswg.org/css-grid/#min-size-auto" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  .grid { display: grid }
+  .none { display: none }
+  .min-wh {
+    min-width: auto;
+    min-height: auto;
+  }
+  .contents { display: contents }
+</style>
+<div class="grid">
+  <div class="min-wh"></div>
+</div>
+<div class="none">
+  <div class="grid">
+    <div class="min-wh"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="contents">
+    <div class="min-wh"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="min-wh none"></div>
+</div>
+<script>
+  const tests = [
+    { description: "Computed min-width/min-height of specified auto for grid item.", computed: "auto" },
+    { description: "Computed min-width/min-height of specified auto inside display:none which would otherwise have been a grid item.", computed: "0px" },
+    { description: "Computed min-width/min-height of specified auto for grid item inside display:contents.", computed: "auto" },
+    { description: "Computed min-width/min-height of specified auto with display:none which would otherwise have been a grid item.", computed: "0px" }
+  ];
+
+  const testElements = document.querySelectorAll(".min-wh");
+  let testNo = 0;
+  for (let testElement of testElements) {
+    test(() => {
+      assert_equals(getComputedStyle(testElement).minWidth, tests[testNo].computed);
+      assert_equals(getComputedStyle(testElement).minHeight, tests[testNo].computed);
+    }, tests[testNo].description);
+    testNo++;
+  }
+</script>

@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+2 Pass
+2 Fail
+Pass	Computed min-width/min-height of specified auto for grid item.
+Fail	Computed min-width/min-height of specified auto inside display:none which would otherwise have been a grid item.
+Pass	Computed min-width/min-height of specified auto for grid item inside display:contents.
+Fail	Computed min-width/min-height of specified auto with display:none which would otherwise have been a grid item.
