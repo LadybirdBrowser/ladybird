@@ -1106,7 +1106,7 @@ def write_rust_item_value(out: TextIO, context: GenerationContext, interface: In
             return false;
         }};
         let value = {conversion}.expect("converting an object to a JS value does not throw");
-        *out_value = value.0;
+        *out_value = value.to_raw();
         true
     }}
 """

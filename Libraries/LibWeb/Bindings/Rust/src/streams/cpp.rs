@@ -89,7 +89,7 @@ impl CppPromiseAlgorithmWithArgument {
         unsafe {
             promise_from_abi(web_streams_call_promise_algorithm_with_argument(
                 self.0.as_ptr(),
-                argument.0,
+                argument.to_raw(),
             ))
         }
     }
@@ -103,7 +103,7 @@ pub(crate) struct CppReadRequest(pub(crate) CppCell);
 impl CppReadRequest {
     pub(crate) fn chunk_steps(&self, chunk: Value) {
         // SAFETY: The cell is a live Streams::ReadRequest.
-        unsafe { web_streams_read_request_chunk_steps(self.0.as_ptr(), chunk.0) };
+        unsafe { web_streams_read_request_chunk_steps(self.0.as_ptr(), chunk.to_raw()) };
     }
 
     pub(crate) fn close_steps(&self) {
@@ -113,7 +113,7 @@ impl CppReadRequest {
 
     pub(crate) fn error_steps(&self, error: Value) {
         // SAFETY: The cell is a live Streams::ReadRequest.
-        unsafe { web_streams_read_request_error_steps(self.0.as_ptr(), error.0) };
+        unsafe { web_streams_read_request_error_steps(self.0.as_ptr(), error.to_raw()) };
     }
 }
 
@@ -137,7 +137,7 @@ pub(crate) struct CppValueSteps(pub(crate) CppCell);
 impl CppValueSteps {
     pub(crate) fn call(&self, value: Value) {
         // SAFETY: The cell is a live GC::Function<void(JS::Value)>.
-        unsafe { web_streams_call_value_steps(self.0.as_ptr(), value.0) };
+        unsafe { web_streams_call_value_steps(self.0.as_ptr(), value.to_raw()) };
     }
 }
 
@@ -200,8 +200,8 @@ impl AbortSignal {
 
     // https://dom.spec.whatwg.org/#abortsignal-abort-reason
     pub(crate) fn reason(&self) -> Value {
-        // SAFETY: The signal is live.
-        Value(unsafe { web_streams_abort_signal_reason(self.0.as_ptr()) })
+        // SAFETY: The signal is live, and so is its reason.
+        unsafe { Value::from_raw(web_streams_abort_signal_reason(self.0.as_ptr())) }
     }
 
     /// Adds the abort algorithm, a native function with no arguments, to the signal,
@@ -222,6 +222,6 @@ impl AbortSignal {
     // https://dom.spec.whatwg.org/#abortsignal-signal-abort
     pub(crate) fn signal_abort(&self, reason: Value, realm: Gc<libjs_rust::api::Realm>) {
         // SAFETY: The signal, the reason and the realm are live.
-        unsafe { web_streams_abort_signal_signal_abort(self.0.as_ptr(), reason.0, realm.as_ptr().cast()) };
+        unsafe { web_streams_abort_signal_signal_abort(self.0.as_ptr(), reason.to_raw(), realm.as_ptr().cast()) };
     }
 }

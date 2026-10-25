@@ -128,8 +128,8 @@ impl CrossRealmTransformPort {
             },
             |vm: &Vm, function: &NativeSteps<(C, Gc<Realm>), MessageSteps<C>>| {
                 let (state, realm) = function.captures;
-                // SAFETY: The port's message event handler is called with a MessageEvent.
-                let data = Value(unsafe { web_streams_message_event_data(vm.argument(0).0) });
+                // SAFETY: The port's message event handler is called with a MessageEvent, whose data is live.
+                let data = unsafe { Value::from_raw(web_streams_message_event_data(vm.argument(0).to_raw())) };
                 (function.steps)(&CallContext::new(vm, realm), state, data);
                 Ok(Value::UNDEFINED)
             },
@@ -193,7 +193,7 @@ impl CrossRealmTransformPort {
             web_streams_message_port_post_message(
                 cx.realm().as_ptr().cast(),
                 self.as_ptr(),
-                Value::from_object(message).0,
+                Value::from_object(message).to_raw(),
             )
         }
         .into_completion()?;
@@ -643,11 +643,11 @@ pub(crate) fn deserialize_message_port(
 /// Sets the data holder to ! StructuredSerializeWithTransfer(value, « value »).
 pub(crate) fn serialize_with_transfer(data_holder: &mut TransferDataWriter, value: Value) {
     // SAFETY: The data holder is lent for the transfer steps, and the value is live.
-    unsafe { web_streams_serialize_with_transfer(data_holder.as_raw(), value.0) };
+    unsafe { web_streams_serialize_with_transfer(data_holder.as_raw(), value.to_raw()) };
 }
 
 /// ! StructuredDeserializeWithTransfer(dataHolder, the current Realm).[[Deserialized]]
 pub(crate) fn deserialize_with_transfer(data_holder: &mut TransferDataReader) -> Value {
-    // SAFETY: The data holder is lent for the transfer-receiving steps.
-    Value(unsafe { web_streams_deserialize_with_transfer(data_holder.as_raw()) })
+    // SAFETY: The data holder is lent for the transfer-receiving steps, which return a live value.
+    unsafe { Value::from_raw(web_streams_deserialize_with_transfer(data_holder.as_raw())) }
 }
