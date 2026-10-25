@@ -14,6 +14,7 @@
 #include <LibWeb/Bindings/BiquadFilterNode.h>
 #include <LibWeb/Bindings/OscillatorNode.h>
 #include <LibWeb/Bindings/PannerNode.h>
+#include <LibWeb/Bindings/WaveShaperNode.h>
 #include <LibWeb/WebAudio/Rendering/AudioData.h>
 #include <LibWeb/WebAudio/Rendering/ConvolverKernel.h>
 #include <LibWeb/WebAudio/Types.h>
@@ -78,6 +79,12 @@ struct SetPannerParameters {
     double cone_outer_gain { 0 };
 };
 
+struct SetWaveShaperParameters {
+    NodeID node_id { 0 };
+    RefPtr<Rendering::WaveShaperCurve> curve;
+    Bindings::OverSampleType oversample { Bindings::OverSampleType::None };
+};
+
 // Attaches the ring buffer that carries a MediaStreamTrack's audio into a
 // MediaStreamAudioSourceNode's render node. Shipped as a message rather than a constructor
 // argument so the ring can be replaced without rebuilding the render node.
@@ -95,6 +102,7 @@ using NodeMessage = Variant<
     SetMediaStreamSourceRing,
     SetOscillatorWaveform,
     SetPannerParameters,
+    SetWaveShaperParameters,
     StartBufferSource,
     StartSource,
     StopSource>;

@@ -235,6 +235,64 @@ private:
     Vector<FilterState> m_filter_states;
 };
 
+// https://webaudio.github.io/web-audio-api/#IIRFilterNode
+class IIRFilterRenderNode final : public RenderNode {
+public:
+    IIRFilterRenderNode(NodeID, size_t quantum_size, Vector<double> feedforward, Vector<double> feedback);
+
+    virtual void process(RenderGraph&, RenderContext const&) override;
+
+private:
+    // The previous inputs and outputs of the filter for one channel, as ring buffers indexed by the frame number.
+    static constexpr size_t history_size = 32;
+    struct FilterState {
+        Array<double, history_size> inputs {};
+        Array<double, history_size> outputs {};
+    };
+
+    Vector<double> m_feedforward;
+    Vector<double> m_feedback;
+    Vector<FilterState> m_filter_states;
+    size_t m_position { 0 };
+};
+
+// https://webaudio.github.io/web-audio-api/#WaveShaperNode
+class WaveShaperRenderNode final : public RenderNode {
+public:
+    WaveShaperRenderNode(NodeID, size_t quantum_size);
+
+    virtual void process(RenderGraph&, RenderContext const&) override;
+    virtual void handle_message(NodeMessage const&) override;
+
+private:
+    // A lowpass FIR filter that passes the lower half of its band, which is the band of the signal at half its sample
+    // rate. Up-sampling by 2 filters the input with zeros between its samples, and down-sampling by 2 keeps every other
+    // sample of the filtered signal.
+    static constexpr size_t half_band_filter_length = 31;
+    struct HalfBandFilter {
+        float process(float sample);
+
+        Array<float, half_band_filter_length * 2> history {};
+        size_t position { 0 };
+    };
+
+    struct ChannelState {
+        Array<HalfBandFilter, 2> up_sampling_filters;
+        Array<HalfBandFilter, 2> down_sampling_filters;
+    };
+
+    static Array<float, half_band_filter_length> const& half_band_filter_coefficients();
+    float shape(float sample) const;
+    void up_sample(HalfBandFilter&, ReadonlySpan<float> input, Span<float> output);
+    void down_sample(HalfBandFilter&, ReadonlySpan<float> input, Span<float> output);
+
+    RefPtr<WaveShaperCurve> m_curve;
+    Bindings::OverSampleType m_oversample { Bindings::OverSampleType::None };
+    Vector<ChannelState> m_channel_states;
+    Vector<float> m_two_times_samples;
+    Vector<float> m_four_times_samples;
+};
+
 // Convolves the input with an impulse response. The head of the impulse response is convolved directly, and the rest
 // through uniformly partitioned overlap-save convolution: every quantum, the window spanning the previous and the
 // current quantum is transformed and pushed into a frequency delay line, whose spectra are then multiplied with the

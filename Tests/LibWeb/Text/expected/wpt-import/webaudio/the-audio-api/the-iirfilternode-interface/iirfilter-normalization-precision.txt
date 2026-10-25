@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	IIR coefficient normalization stays precise when feedback[0] is not exactly representable as a float
+1 Pass
+Pass	IIR coefficient normalization stays precise when feedback[0] is not exactly representable as a float

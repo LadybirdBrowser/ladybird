@@ -288,6 +288,7 @@ IDBRecord
 IDBRequest
 IDBTransaction
 IDBVersionChangeEvent
+IIRFilterNode
 IdleDeadline
 Image
 ImageBitmap
@@ -584,6 +585,7 @@ VideoTrackList
 ViewTimeline
 ViewTransition
 VisualViewport
+WaveShaperNode
 WeakMap
 WeakRef
 WeakSet
