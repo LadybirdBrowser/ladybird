@@ -2176,7 +2176,7 @@ pub(crate) mod inlining {
         // A callee too big to inline.
         let big = assemble(|_| {
             let mut instructions = vec![Instruction::Enter];
-            instructions.extend((0..40).map(|_| Instruction::Mov { dst: r(5), src: a(0) }));
+            instructions.extend((0..40).map(|_| Instruction::Typeof { dst: r(5), src: a(0) }));
             instructions.push(Instruction::Return { value: r(5) });
             instructions
         });

@@ -446,8 +446,9 @@ that a `GetById` found for the shapes it switched on, inlines each of them (or c
 path for those it cannot inline). Where the phi's block is a join of nothing but the edges that
 bring the constants, each inlined call starts on its edges, which keep what the code knew there
 (the shape of the receiver); otherwise the code branches on the callee, and calls generically
-where it could inline none of them. Even callees small enough to always be inlined are
-charged to the budget as cases of such calls, which may each inline several and nest.
+where it could inline none of them. Callees that are small but for moves and jumps
+(`OpCode::is_free_when_inlined()`) are always inlined, whatever the budget, except as cases of
+such calls, which may each inline several and nest.
 
 **Shapes the caches learned.** A speculation that failed is never made again at the same place,
 with one exception: a `BadShape` exit at an instruction whose property lookup cache the code
