@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Fail	window.onerror - compile error in setTimeout
+Pass	window.onerror - compile error in setTimeout (column)
