@@ -36,6 +36,7 @@ u8 web_rust_readable_stream_state(void* stream);
 bool web_rust_readable_stream_is_locked(void* stream);
 bool web_rust_readable_stream_is_disturbed(void* stream);
 bool web_rust_readable_stream_close_requested(void* stream);
+bool web_rust_readable_stream_is_readable_byte_stream(void* stream);
 JSCompletion web_rust_readable_stream_enqueue(JSVM*, void* stream, JSValue chunk);
 JSCompletion web_rust_readable_stream_enqueue_native_bytes(JSVM*, void* stream, ReadonlyBytes);
 bool web_rust_readable_stream_current_byob_request_view_byte_length(JSVM*, void* stream, u64* byte_length);
@@ -108,6 +109,11 @@ GC::Ref<ReadableStream> ReadableStream::create(JS::Realm& realm)
 void ReadableStream::set_up_with_byte_reading_support(JS::Realm& realm, GC::Ptr<PullAlgorithm> pull_algorithm, GC::Ptr<CancelAlgorithm> cancel_algorithm, double high_water_mark)
 {
     web_rust_readable_stream_set_up_with_byte_reading_support(vm_abi(), &realm, this, pull_algorithm.ptr(), cancel_algorithm.ptr(), high_water_mark);
+}
+
+bool ReadableStream::is_readable_byte_stream() const
+{
+    return web_rust_readable_stream_is_readable_byte_stream(const_cast<ReadableStream*>(this));
 }
 
 bool ReadableStream::is_readable() const
