@@ -115,7 +115,7 @@ pub extern "C" fn web_dom_rect_list_create(vm: &Vm, rects: ak::Span<'_, [f64; 4]
     for &[x, y, width, height] in rects.as_slice() {
         created.push(allocate(vm, DOMRect::new(x, y, width, height)));
     }
-    let list = DOMRectList::new(created.to_vec());
+    let list = DOMRectList::new(&created.values());
     cell_into_abi(allocate(vm, list))
 }
 

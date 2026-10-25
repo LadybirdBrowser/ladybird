@@ -7,7 +7,7 @@
 //! https://registry.khronos.org/webgl/specs/latest/2.0/#3.7
 
 use ak::Utf16String;
-use libjs_rust::api::{Array, Gc, TypedArrayBase, Value};
+use libjs_rust::api::{Array, Gc, MarkedVec, TypedArrayBase, Value};
 
 use super::buffer_kind::BufferKind;
 use super::buffer_source::{
@@ -1505,7 +1505,7 @@ impl RenderingContext<WebGL2> {
             &mut params,
         );
 
-        let mut params_as_values = Vec::with_capacity(params.len());
+        let params_as_values = MarkedVec::with_capacity(cx.vm(), params.len());
         for param in params {
             params_as_values.push(match pname {
                 GL_UNIFORM_TYPE | GL_UNIFORM_SIZE => Value::from_f64(f64::from(param.cast_unsigned())),
@@ -1519,7 +1519,7 @@ impl RenderingContext<WebGL2> {
                 }
             });
         }
-        Ok(Value::from_object(Array::create_from(
+        Ok(Value::from_object(Array::create_from_list(
             cx.vm(),
             self.realm(),
             &params_as_values,
