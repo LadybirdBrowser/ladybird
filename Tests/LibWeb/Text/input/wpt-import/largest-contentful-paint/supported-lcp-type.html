@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<head>
+<title>PerformanceObserver.supportedEntryTypes contains "largest-contentful-paint"</title>
+</head>
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  if (typeof PerformanceObserver.supportedEntryTypes === "undefined")
+    assert_unreached("supportedEntryTypes is not supported.");
+  assert_greater_than(PerformanceObserver.supportedEntryTypes.indexOf("largest-contentful-paint"), -1,
+    "There should be an entry 'largest-contentful-paint' in PerformanceObserver.supportedEntryTypes");
+}, "supportedEntryTypes contains 'largest-contentful-paint'.");
+</script>
+</body>
+</html>

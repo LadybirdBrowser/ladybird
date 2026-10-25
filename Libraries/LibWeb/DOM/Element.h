@@ -859,6 +859,11 @@ public:
 
     ProximityToTheViewport proximity_to_the_viewport() const;
     void determine_proximity_to_the_viewport(Layout::BegunRead const& read);
+
+    // https://w3c.github.io/paint-timing/#set-of-elements-with-rendered-text
+    bool is_in_set_of_elements_with_rendered_text() const { return m_is_in_set_of_elements_with_rendered_text; }
+    void append_to_set_of_elements_with_rendered_text() { m_is_in_set_of_elements_with_rendered_text = true; }
+    void remove_from_set_of_elements_with_rendered_text() { m_is_in_set_of_elements_with_rendered_text = false; }
     bool is_relevant_to_the_user();
 
     // https://drafts.csswg.org/css-contain-2/#skips-its-contents
@@ -1103,6 +1108,7 @@ private:
     bool m_uses_document_global_custom_element_registry : 1 { false };
     bool m_has_name : 1 { false };
     mutable bool m_style_attribute_is_dirty : 1 { false };
+    bool m_is_in_set_of_elements_with_rendered_text : 1 { false };
 
     // The child indices the element remembers, or zero for those not counted yet, and the generation of its parent's
     // child list they were counted in; zero for none.

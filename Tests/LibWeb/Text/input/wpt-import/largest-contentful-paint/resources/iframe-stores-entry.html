@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<body>
+<p>Text</p>
+<script>
+  const observer = new PerformanceObserver(entryList => {
+    window.parent.triggerTest(entryList.getEntries()[0]);
+  });
+  observer.observe({type: 'largest-contentful-paint', buffered: true});
+</script>
+</body>
+</html>

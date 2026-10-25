@@ -1,0 +1,40 @@
+﻿<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>Largest Contentful Paint: toJSON</title>
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<p>Text!</p>
+<script>
+  async_test(function (t) {
+    assert_implements(window.LargestContentfulPaint, "LargestContentfulPaint is not implemented");
+    const observer = new PerformanceObserver(
+      t.step_func_done(function(entryList) {
+        const entry = entryList.getEntries()[0];
+        assert_equals(typeof(entry.toJSON), 'function');
+        const json = entry.toJSON();
+        assert_equals(typeof(json), 'object');
+        const keys = [
+          // PerformanceEntry
+          'name',
+          'entryType',
+          'startTime',
+          'duration',
+          // LargestContentfulPaint
+          'renderTime',
+          'loadTime',
+          'size',
+          'id',
+          'url',
+        ];
+        for (const key of keys) {
+          assert_equals(json[key], entry[key],
+            'LargestContentfulPaint ${key} entry does not match its toJSON value');
+        }
+        assert_equals(json['element'], undefined, 'toJSON should not include element');
+      })
+    );
+    observer.observe({type: 'largest-contentful-paint', buffered: true});
+  }, 'Test toJSON() in LargestContentfulPaint.');
+</script>
+</body>

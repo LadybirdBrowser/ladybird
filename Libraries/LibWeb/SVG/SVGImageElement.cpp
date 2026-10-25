@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/PaintTiming/PaintTiming.h>
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
@@ -113,6 +114,14 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
             CSS::record_element_replaced_content_input(*this);
             Painting::push_replaced_image_paint_facts(*this, *this);
             set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
+
+            // https://w3c.github.io/paint-timing/#sec-modifications-dom
+            // When an Element element's associated image request has become completely available, run the algorithm
+            // to process an image that finished loading passing in element and its associated image request as
+            // inputs.
+            // NB: A request that finishes after href has changed is no longer the element's image request.
+            if (m_resource_request.ptr() == resource_request.ptr())
+                PaintTiming::process_an_image_that_finished_loading(*this, PaintTiming::image_request_info(Utf16String::from_utf8(resource_request->url().serialize()), resource_request->image_data()));
 
             dispatch_event(DOM::Event::create(HTML::EventNames::load,
                 HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));

@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Text element is not reconsidered as LCP after modification.</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<link rel="author" title="Shubham Gupta" href="mailto:shubhamg13.work@gmail.com">
+
+<body>
+  <div id="text" style="position: absolute; width: auto; white-space: nowrap;">short</div>
+  <script>
+    promise_test(async (t) => {
+      // Set up an observer that looks for LCP entries for the text div,
+      // identified by its id.
+      const entries = [];
+      const observer = new PerformanceObserver((l) => {
+        entries.push(...l.getEntries().filter((e) => e.id == "text"));
+      });
+      observer.observe({ type: "largest-contentful-paint", buffered: true });
+
+      // Wait for the initial LCP entry to be emitted, and verify it's as expected.
+      await t.step_wait(() => entries.length > 0,
+        "Waiting for initial LCP entry to be emitted.");
+      assert_equals(entries.length, 1,
+        "There should be exactly one LCP entry.");
+      assert_equals(entries[0].id, "text",
+        "Entry id should match the text element.");
+      assert_equals(entries[0].entryType, "largest-contentful-paint",
+        "Entry type should be largest-contentful-paint.");
+      assert_equals(entries[0].url, "",
+        "Entry url should be empty for text.");
+
+      const element = document.getElementById("text");
+      const elementArea = element.clientWidth * element.clientHeight;
+      // The LCP size should approximately match the element's client area.
+      assert_greater_than_equal(entries[0].size, elementArea * 0.75,
+        `LCP size should cover most of the element area (size=${entries[0].size}, element=${elementArea}).`);
+      assert_less_than_equal(entries[0].size, elementArea * 1.25,
+        `LCP size should not significantly exceed the element area (size=${entries[0].size}, element=${elementArea}).`);
+
+      const initialSize = entries[0].size;
+
+      // Modify the text content — a longer text would produce a larger
+      // element area if the element were reconsidered for LCP.
+      element.textContent =
+        "much longer text that would increase the bounding rectangle if reconsidered";
+
+      // Wait for layout + paint cycles, then disconnect.
+      await new Promise((resolve) => {
+        requestAnimationFrame(() => {
+          t.step_timeout(() => {
+            observer.disconnect();
+            resolve();
+          }, 1000);
+        });
+      });
+
+      // Verify the element was not reconsidered — per spec each element
+      // is reported exactly once, even after modification.
+      assert_equals(entries.length, 1,
+        "There should still be exactly one LCP entry after text modification.");
+      assert_equals(entries[0].id, "text",
+        "Entry id should still be the original text element.");
+      assert_equals(entries[0].size, initialSize,
+        "LCP size should remain unchanged after text modification.");
+    }, "Text element should not be reconsidered as LCP after text content changes.");
+  </script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>Largest Contentful Paint: text fragment union across line wraps.</title>
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<link rel="author" title="Shubham Gupta" href="mailto:shubhamg13.work@gmail.com">
+<script>
+  promise_test(async (t) => {
+    assert_implements(window.LargestContentfulPaint, "LargestContentfulPaint is not implemented");
+
+    // Create a text element narrow enough to force line wrapping across
+    // multiple fragments. Without correct union, only a single line's
+    // bounding box would be reported instead of all lines combined.
+    const div = document.createElement('div');
+    div.id = 'multi-line-text';
+    div.textContent =
+      'This is a long text that wraps across several lines creating ' +
+      'multiple layout fragments that must be unioned for correct LCP size calculation';
+    div.style.cssText = 'width: 250px; font-size: 24px; line-height: 1.5;';
+    document.body.appendChild(div);
+
+    await new Promise(resolve => {
+      new PerformanceObserver(
+        t.step_func((entryList, observer) => {
+        for (const entry of entryList.getEntries()) {
+          if (entry.id !== 'multi-line-text') continue;
+
+          assert_equals(entry.entryType, 'largest-contentful-paint',
+            'Entry type should be largest-contentful-paint.');
+          assert_equals(entry.element, div,
+            'Entry element should be multi-line-text div.');
+          assert_equals(entry.url, '', 'Entry url should be empty.');
+          assert_equals(entry.loadTime, 0, 'Entry loadTime should be 0.');
+
+          // With correct fragment union, the LCP size should reflect all
+          // line boxes — approximately the element's client area.
+          const elementArea = div.clientWidth * div.clientHeight;
+
+          // Single-fragment (broken union) would produce a much smaller
+          // size — roughly one line's worth. We use a lower bound
+          // to distinguish between union and single-line behavior.
+          assert_greater_than_equal(entry.size, elementArea * 0.65,
+            `LCP size should cover most of the element area (size=${entry.size}, element=${elementArea}).`);
+          assert_less_than_equal(entry.size, elementArea * 1.2,
+            `LCP size should not significantly exceed the element area (size=${entry.size}, element=${elementArea}).`);
+
+          observer.disconnect();
+          resolve();
+        }
+      })).observe({type: 'largest-contentful-paint', buffered: true});
+    });
+  }, 'Text fragment union: wrapped text LCP size reflects the union of all line boxes.');
+</script>
+</body>

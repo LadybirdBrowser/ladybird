@@ -225,6 +225,14 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     // 1. Set event’s dispatch flag.
     event.set_dispatched(true);
 
+    // https://w3c.github.io/largest-contentful-paint/#sec-modifications-DOM
+    // If target's relevant global object is a Window object, event's type is scroll and its isTrusted is true, set
+    // target's relevant global object's has dispatched scroll event to true.
+    if (event.is_trusted() && event.type() == HTML::EventNames::scroll) {
+        if (auto* window = EventTiming::relevant_window_of_event_target(*target))
+            window->set_has_dispatched_scroll_event();
+    }
+
     // https://w3c.github.io/event-timing/#sec-modifications-DOM
     // OPTIMIZATION: Only trusted events of some types are timed, so nothing else needs to look up the window.
     GC::Ptr<EventTiming::PerformanceEventTiming> timing_entry;

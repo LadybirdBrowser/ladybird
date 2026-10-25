@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<!--
+  Transparent text with shadow decoration should be eligible for LCP.
+-->
+<style>
+  .large-transparent {
+    font-size: 200px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding: 0;
+    margin: 0;
+    pointer-events: none;
+    color: transparent;
+    z-index: -999;
+    text-shadow: green 5px 5px;
+  }
+</style>
+
+<body>
+  <img src='../images/lcp-133x106.png' id='image' />
+  <p id='larger_text' class='large-transparent'>fake LCP</p>
+
+  <script>
+    const LcpEntryPromise = (entry_id) => {
+      return new Promise(resolve => {
+        new PerformanceObserver((entryList, observer) => {
+          if (entryList.getEntries().filter(e => e.id == entry_id).length > 0) {
+            resolve(entryList.getEntries());
+            observer.disconnect();
+          }
+        }).observe({ type: 'largest-contentful-paint', buffered: true });
+      });
+    }
+
+    promise_test(async t => {
+      assert_implements(window.LargestContentfulPaint, "LargestContentfulPaint is not implemented");
+
+      lcpEntries = await LcpEntryPromise('larger_text');
+
+      assert_equals(lcpEntries[lcpEntries.length - 1].id, 'larger_text',
+        "Transparent text with shadow decoration was included in LCP but not at correct place in timeline.");
+    }, "Transparent text with shadow decoration should not be excluded from LCP.")
+  </script>
+</body>

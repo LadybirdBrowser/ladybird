@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="font-size: 40px; display: none"> </div>
+<script>
+    asyncTest(async done => {
+        const entries = [];
+        const observer = new PerformanceObserver(list => entries.push(...list.getEntries()));
+        observer.observe({ type: "largest-contentful-paint", buffered: true });
+
+        // The white space in the hidden element paints nothing, until its data is filled in and the element is shown.
+        const target = document.getElementById("target");
+        await animationFrame();
+        await animationFrame();
+
+        target.firstChild.data = "This text was filled in after it was inserted";
+        target.style.display = "block";
+        await animationFrame();
+        await animationFrame();
+        entries.push(...observer.takeRecords());
+
+        const entry = entries.find(entry => entry.element === target);
+        println(`Entry for the filled in text: ${entry !== undefined}`);
+        if (entry)
+            println(`Entry id: ${entry.id}, size is not zero: ${entry.size > 0}`);
+        done();
+    });
+</script>

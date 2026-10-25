@@ -51,6 +51,7 @@
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/PaintTiming/PaintTiming.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -961,8 +962,10 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
                 m_current_request->set_current_url(document(), *url_string);
 
                 // 3. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
-                if (!maybe_omit_events || previous_url != *url_string)
+                if (!maybe_omit_events || previous_url != *url_string) {
+                    associated_image_request_became_completely_available(*m_current_request);
                     dispatch_event(DOM::Event::create(HTML::relevant_global_object(*this), HTML::EventNames::load));
+                }
             });
 
             // 8. Abort the update the image data algorithm.
@@ -1121,8 +1124,10 @@ after_step_7:
                 if (restart_animations)
                     restart_the_animation();
                 m_current_request->set_current_url(document(), *url_string);
-                if (!maybe_omit_events || previous_url != *url_string)
+                if (!maybe_omit_events || previous_url != *url_string) {
+                    associated_image_request_became_completely_available(*m_current_request);
                     dispatch_event(DOM::Event::create(HTML::relevant_global_object(*this), HTML::EventNames::load));
+                }
             });
             return;
         }
@@ -1293,8 +1298,10 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 set_needs_layout_update_or_repaint_after_image_data_change();
 
                 // 4. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
-                if (!maybe_omit_events || previous_url != url_string)
+                if (!maybe_omit_events || previous_url != url_string) {
+                    associated_image_request_became_completely_available(*image_request);
                     dispatch_event(create_event_for_element(*this, HTML::EventNames::load));
+                }
 
                 m_load_event_delayer.clear();
             }));
@@ -1453,6 +1460,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
             set_needs_layout_update_or_repaint_after_image_data_change();
 
             // 7. Fire an event named load at the img element.
+            associated_image_request_became_completely_available(*image_request);
             dispatch_event(create_event_for_element(*this, HTML::EventNames::load));
         });
     };
@@ -1824,6 +1832,14 @@ Optional<CSSPixelFraction> HTMLImageElement::intrinsic_aspect_ratio() const
     if (auto const& data = decoded_image_data())
         return data->intrinsic_aspect_ratio();
     return {};
+}
+
+// https://w3c.github.io/paint-timing/#sec-modifications-dom
+void HTMLImageElement::associated_image_request_became_completely_available(ImageRequest const& image_request)
+{
+    // When an Element element's associated image request has become completely available, run the algorithm to process
+    // an image that finished loading passing in element and its associated image request as inputs.
+    PaintTiming::process_an_image_that_finished_loading(*this, PaintTiming::image_request_info(image_request.current_url(), image_request.image_data()));
 }
 
 }

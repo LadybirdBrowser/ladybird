@@ -1,0 +1,32 @@
+<!DOCTYPE HTML>
+<title>Largest Contentful Paint: invisible images are not observable</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/invisible-images.js"></script>
+<style>
+  .opacity0 {
+    opacity: 0;
+  }
+  .visibilityHidden {
+    visibility: hidden;
+  }
+  .displayNone {
+    display: none;
+  }
+  .willChangeTransform {
+    will-change: transform;
+  }
+  .willChangeOpacity {
+    will-change: opacity;
+  }
+</style>
+<script>
+setup({"hide_test_state": true});
+</script>
+<img src='../images/blue.png' class='opacity0 willChangeTransform' id='opacity0-willChangeTransform'/>
+<img src='../images/green.png' class='visibilityHidden willChangeTransform' id='visibilityHidden'/>
+<img src='../images/red.png' class='displayNone willChangeTransform' id='displayNone'/>
+<img src='../images/blue.png' class='opacity0 willChangeOpacity' id='opacity0-willChangeOpacity'/>
+<div class='opacity0 composited'><img src='../images/yellow.png' id='divOpacity0'/></div>
+<div class='visibilityHidden composited'><img src='../images/yellow.png' id='divVisibilityHidden'/></div>
+<div class='displayNone composited'><img src='../images/yellow.png' id='divDisplayNone'/></div>

@@ -97,6 +97,7 @@
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/PaintTiming/PaintTiming.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
@@ -2405,6 +2406,10 @@ void Node::set_document(Document& document)
         if (element->style_uses_if_css_function() || element->style_uses_custom_function() || element->style_depends_on_viewport_metrics())
             document.add_element_with_viewport_dependent_style(*element);
         element->on_document_changed(old_document, document);
+
+        // NB: The set of elements with rendered text is the old document's, and the element is not in the new
+        //     document's.
+        element->remove_from_set_of_elements_with_rendered_text();
     }
 }
 
@@ -2788,6 +2793,9 @@ void Node::inserted()
     // subtree arrival either, so it waits to arrive from here.
     if (auto* text = as_if<Text>(*this); text && text->style_node_id() == 0)
         CSS::record_text_connected(*text);
+
+    if (auto* text = as_if<Text>(*this); text && is_connected())
+        PaintTiming::text_node_may_be_painted_for_the_first_time(*text);
 
     if (auto* element = as_if<Element>(*this)) {
         // The content an element clones into its shadow tree from its own insertion steps lands under

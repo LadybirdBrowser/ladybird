@@ -1,0 +1,46 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>Largest Contentful Paint: observe element rendered by MathML</title>
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/largest-contentful-paint-helpers.js"></script>
+<style>
+mathml {
+  font-size: 12px;
+}
+</style>
+<script>
+  async_test(function (t) {
+    assert_implements(window.LargestContentfulPaint, "LargestContentfulPaint is not implemented");
+    let beforeLoad;
+    const observer = new PerformanceObserver(
+      t.step_func_done(function(entryList) {
+        assert_equals(entryList.getEntries().length, 1);
+        const entry = entryList.getEntries()[0];
+        assert_equals(entry.entryType, 'largest-contentful-paint');
+        assert_greater_than_equal(entry.renderTime, beforeRender);
+        assert_approx_equals(entry.startTime, entry.renderTime, 0.001,
+          'startTime should be equal to renderTime to the precision of 1 millisecond.');
+        assert_equals(entry.duration, 0);
+        // Some lower bound: height of at least 12 px.
+        // Width of at least 100 px.
+        assert_greater_than(entry.size, 1200);
+        assert_equals(entry.loadTime, 0);
+        assert_equals(entry.id, 'mathml');
+        assert_equals(entry.url, '');
+        assert_equals(entry.element, document.getElementById('mathml'));
+      })
+    );
+    observer.observe({type: 'largest-contentful-paint', buffered: true});
+    beforeRender = performance.now();
+  }, 'Element rendered by MathML is observable');
+</script>
+<math display="block">
+  <mrow>
+    <msup>
+      <mi id="mathml">This is important text! :)</mi>
+    </msup>
+  </mrow>
+</math>
+</body>

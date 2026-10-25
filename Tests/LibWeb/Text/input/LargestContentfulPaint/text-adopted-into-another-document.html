@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<p id="target" style="font-size: 40px">This text is painted in two documents</p>
+<script>
+    asyncTest(async done => {
+        const frame = document.createElement("iframe");
+        frame.srcdoc = "<!DOCTYPE html><body></body>";
+        await new Promise(resolve => {
+            frame.onload = resolve;
+            document.body.appendChild(frame);
+        });
+
+        // An entry may take several frames under load, so frames are waited for until it is there.
+        const waitForEntry = async (targetWindow, observer, entries) => {
+            for (let i = 0; i < 100 && !entries.some(entry => entry.element === target); ++i) {
+                await new Promise(resolve => targetWindow.requestAnimationFrame(() => targetWindow.setTimeout(resolve)));
+                entries.push(...observer.takeRecords());
+            }
+            return entries.some(entry => entry.element === target);
+        };
+
+        const target = document.getElementById("target");
+        const entries = [];
+        const observer = new PerformanceObserver(list => entries.push(...list.getEntries()));
+        observer.observe({ type: "largest-contentful-paint", buffered: true });
+        println(`Entry in the first document: ${await waitForEntry(window, observer, entries)}`);
+
+        // The element is in the first document's set of elements with rendered text, but not in the second's.
+        const frameWindow = frame.contentWindow;
+        const frameEntries = [];
+        const frameObserver = new frameWindow.PerformanceObserver(list => frameEntries.push(...list.getEntries()));
+        frameObserver.observe({ type: "largest-contentful-paint", buffered: true });
+        frame.contentDocument.body.appendChild(target);
+        println(`Entry in the second document: ${await waitForEntry(frameWindow, frameObserver, frameEntries)}`);
+        done();
+    });
+</script>

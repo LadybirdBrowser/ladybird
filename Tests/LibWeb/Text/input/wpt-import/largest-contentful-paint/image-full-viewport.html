@@ -1,0 +1,45 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>Largest Contentful Paint: size when image overflows</title>
+<!-- In this test, an image with an intrinsic size of 100 x 50 is added, but
+  scaled up in order to overflow the viewport. It should not be reported. -->
+<body>
+<style>
+body {
+  margin: 0px;
+}
+</style>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/largest-contentful-paint-helpers.js"></script>
+<script>
+  const viewportWidth = document.documentElement.clientWidth;
+  const viewportHeight = document.documentElement.clientHeight;
+  setup({"hide_test_state": true});
+  async_test(function (t) {
+    assert_implements(window.LargestContentfulPaint, "LargestContentfulPaint is not implemented");
+    const beforeLoad = performance.now();
+    new PerformanceObserver(
+      t.step_func_done(function(entryList) {
+        assert_equals(entryList.getEntries().length, 1, 'Should have received only one entry!');
+        const entry = entryList.getEntries()[0];
+        if (entry.url)
+          assert_unreached('Should not have received an image entry!');
+      })
+    ).observe({type: 'largest-contentful-paint', buffered: true});
+    // Add an image, setting width and height equal to viewport.
+    img = document.createElement('img');
+    img.src = '../images/lcp-100x50.png';
+    img.id = 'image_id';
+    img.width = viewportWidth * 2;
+    img.height = viewportHeight * 2;
+    img.onload = () => {
+      const p = document.createElement('p');
+      p.innerHTML = 'a';
+      p.style = 'position: absolute; top: 10px; left: 10px;';
+      document.body.appendChild(p);
+    }
+    document.body.appendChild(img);
+  }, 'The intersectionRect of an img element overflowing is computed correctly');
+</script>
+</body>

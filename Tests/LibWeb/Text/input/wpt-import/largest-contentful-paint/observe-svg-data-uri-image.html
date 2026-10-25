@@ -1,0 +1,29 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>Largest Contentful Paint: observe image.</title>
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/largest-contentful-paint-helpers.js"></script>
+<script>
+  async_test(function (t) {
+    assert_implements(window.LargestContentfulPaint, "LargestContentfulPaint is not implemented");
+    const beforeLoad = performance.now();
+    const observer = new PerformanceObserver(
+      t.step_func_done(function(entryList) {
+        assert_equals(entryList.getEntries().length, 1);
+        const entry = entryList.getEntries()[0];
+        let url = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"';
+        url += ' width="100" height="50"><rect fill="lime" width="100"';
+        url += ' height="50"/></svg>';
+        // green.svg is 100 by 50
+        const size = 100 * 50;
+        checkImage(entry, url, 'image_id', size, beforeLoad);
+      })
+    );
+    observer.observe({type: 'largest-contentful-paint', buffered: true});
+  }, 'Same-origin image is observable.');
+</script>
+
+<img src='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><rect fill="lime" width="100" height="50"/></svg>' id='image_id'/>
+</body>

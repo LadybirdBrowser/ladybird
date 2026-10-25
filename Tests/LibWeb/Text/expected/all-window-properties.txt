@@ -300,6 +300,7 @@ IntersectionObserverEntry
 Iterator
 KeyboardEvent
 KeyframeEffect
+LargestContentfulPaint
 Location
 Lock
 LockManager

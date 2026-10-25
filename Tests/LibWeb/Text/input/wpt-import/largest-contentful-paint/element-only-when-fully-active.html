@@ -1,0 +1,18 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>Largest Contentful Paint: element is only exposed for fully active documents.</title>
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<iframe src="resources/iframe-stores-entry.html" id="ifr"></iframe>
+<script>
+  setup({"hide_test_state": true});
+  let t = async_test('Only expose element attribute for fully active documents');
+  window.triggerTest = t.step_func_done(entry => {
+    assert_not_equals(entry.element, null);
+    const iframe = document.getElementById('ifr');
+    iframe.remove();
+    assert_equals(entry.element, null);
+  });
+</script>
+</body>
