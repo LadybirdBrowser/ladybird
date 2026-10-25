@@ -121,6 +121,9 @@ def define_the_maplike_declaration(
 """
     )
     if not interface.maplike.readonly:
+        operation_callbacks = operation_callback_names(interface)
+        if "set" not in operation_callbacks:
+            out.write("    object.define_native_function(realm, vm.names.set, set, 2, default_attributes);\n")
         out.write(
             """    object.define_native_function(realm, vm.names.delete_, delete_, 1, default_attributes);
     object.define_native_function(realm, vm.names.clear, clear, 0, default_attributes);
@@ -616,7 +619,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::set)
     {type_check_idl_value(interface.maplike.value_type, "value", includes, context, interface.name)}
 
     // 9. Set map[key] to value.
-    TRY(WebIDL::throw_dom_exception_if_needed(vm, this_object_realm, [&] {{ return set(this_object_realm, *this_impl, key.to_string(), value); }}));
+    TRY(WebIDL::throw_dom_exception_if_needed(vm, this_object_realm, [&] {{ return Web::Bindings::set(this_object_realm, *this_impl, key, value); }}));
 
     // 10. Return O.
     return vm.this_value();

@@ -449,11 +449,18 @@ def sequence_to_javascript_value(
 ) -> str:
     includes.add("LibJS/Runtime/Array.h")
     element_type = sequence_type.parameters[0]
-    length_name = "sequence_length"
-    array_name = "sequence_array"
-    index_name = "sequence_index"
-    element_name = "sequence_element"
-    js_element_name = "js_sequence_element"
+
+    # A sequence nested in the element of another sequence must not shadow the names of the outer conversion, as the
+    # value it converts refers to them.
+    nesting_depth = 0
+    while f"sequence_element{f'_{nesting_depth}' if nesting_depth else ''}" in value:
+        nesting_depth += 1
+    suffix = f"_{nesting_depth}" if nesting_depth else ""
+    length_name = f"sequence_length{suffix}"
+    array_name = f"sequence_array{suffix}"
+    index_name = f"sequence_index{suffix}"
+    element_name = f"sequence_element{suffix}"
+    js_element_name = f"js_sequence_element{suffix}"
     converted_element = to_javascript_value(element_type, element_name, includes, context, realm, wrapper_world)
 
     freeze_array = ""
