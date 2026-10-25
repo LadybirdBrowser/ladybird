@@ -103,7 +103,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::HostModule>> parse_a_webassembly_module(ByteBu
     auto module = TRY(Detail::compile_a_webassembly_module(realm, stable_bytes));
 
     // 4. Construct a WebAssembly module object from module and bytes, and let module be the result.
-    auto module_object = GC::Heap::the().allocate<WebAssembly::Module>(module, move(bytes));
+    auto module_object = GC::Heap::the().allocate<WebAssembly::Module>(module, move(bytes), Vector<Utf16String> {}, OptionalNone {});
 
     // 5. Let requestedModules be a set.
     HashTable<ByteString> requested_modules;

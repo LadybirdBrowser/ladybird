@@ -984,6 +984,7 @@ set(SOURCES
     WebLocks/LockManager.cpp
     WebLocks/LockRequest.cpp
     WebLocks/NavigatorLocks.cpp
+    WebAssembly/Builtins.cpp
     WebAssembly/Exception.cpp
     WebAssembly/Global.cpp
     WebAssembly/Instance.cpp

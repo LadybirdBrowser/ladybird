@@ -11,8 +11,10 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/Module.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/WebAssembly.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/WebAssembly/Builtins.h>
 #include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -44,10 +46,12 @@ GC::Ref<Module> Module::create()
     return GC::Heap::the().allocate<Module>();
 }
 
-WebIDL::ExceptionOr<GC::Ref<Module>> Module::create(JS::Realm& realm, WebIDL::BufferSource bytes)
+// https://webassembly.github.io/spec/js-api/#dom-module-module
+WebIDL::ExceptionOr<GC::Ref<Module>> Module::create(JS::Realm& realm, WebIDL::BufferSource bytes, Bindings::WebAssemblyCompileOptions const& options)
 {
     auto& vm = realm.vm();
 
+    // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
     auto stable_bytes_or_error = WebIDL::get_buffer_source_copy(bytes);
     if (stable_bytes_or_error.is_error()) {
         VERIFY(stable_bytes_or_error.error().code() == ENOMEM);
@@ -55,48 +59,86 @@ WebIDL::ExceptionOr<GC::Ref<Module>> Module::create(JS::Realm& realm, WebIDL::Bu
     }
     auto stable_bytes = stable_bytes_or_error.release_value();
 
-    auto compiled_module = TRY(Detail::compile_a_webassembly_module(realm, stable_bytes));
-    return GC::Heap::the().allocate<Module>(move(compiled_module), move(stable_bytes));
+    // 2. Compile the WebAssembly module stableBytes and store the result as module.
+    // 3. If module is error, throw a CompileError exception.
+    auto module = TRY(Detail::compile_a_webassembly_module(realm, stable_bytes));
+
+    // 4. Let builtinSetNames be options["builtins"].
+    auto const& builtin_set_names = options.builtins;
+
+    // 5. Let importedStringModule be options["importedStringConstants"].
+    auto const& imported_string_module = options.imported_string_constants;
+
+    // 6. If validating builtins and imported strings for module with builtinSetNames and importedStringModule returns
+    //    false, throw a CompileError exception.
+    if (!Detail::validate_builtins_and_imported_strings(*module->module, builtin_set_names, imported_string_module))
+        return vm.throw_completion<CompileError>("Invalid builtin or imported string"sv);
+
+    // 7. Set this.[[Module]] to module.
+    // 8. Set this.[[Bytes]] to stableBytes.
+    // 9. Set this.[[BuiltinSets]] to builtinSetNames.
+    // 10. Set this.[[ImportedStringModule]] to importedStringModule.
+    return GC::Heap::the().allocate<Module>(move(module), move(stable_bytes), builtin_set_names, imported_string_module);
 }
 
-Module::Module(NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module, ByteBuffer bytes)
+Module::Module(NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module, ByteBuffer bytes, Vector<Utf16String> builtin_sets, Optional<Utf16String> imported_string_module)
     : m_compiled_module(move(compiled_module))
     , m_bytes(move(bytes))
+    , m_builtin_sets(move(builtin_sets))
+    , m_imported_string_module(move(imported_string_module))
 {
 }
 
-// https://webassembly.github.io/threads/js-api/index.html#dom-module-imports
+// https://webassembly.github.io/spec/js-api/#dom-module-imports
 WebIDL::ExceptionOr<Vector<Bindings::ModuleImportDescriptor>> Module::imports(GC::Ref<Module> module_object)
 {
     // 1. Let module be moduleObject.[[Module]].
-    // 2. Let imports be « ».
+    auto& module = *module_object->m_compiled_module->module;
+
+    // 2. Let builtinSetNames be moduleObject.[[BuiltinSets]].
+    auto const& builtin_set_names = module_object->m_builtin_sets;
+
+    // 3. Let importedStringModule be moduleObject.[[ImportedStringModule]].
+    Optional<String> imported_string_module;
+    if (module_object->m_imported_string_module.has_value())
+        imported_string_module = module_object->m_imported_string_module->to_utf8();
+
+    // 4. Let imports be « ».
     Vector<Bindings::ModuleImportDescriptor> import_objects;
 
-    // 3. For each (moduleName, name, type) of module_imports(module),
-    auto& module = *module_object->m_compiled_module->module;
+    // 5. For each (moduleName, name, type) of module_imports(module),
     auto import_count = module.import_count();
     import_objects.ensure_capacity(import_count);
     for (size_t index = 0; index < import_count; ++index) {
         auto import = module.import(index);
-        // 3.1. Let kind be the string value of the extern type type.
+
+        // 1. If find a builtin for (moduleName, name, type) and builtinSetNames is not null, then continue.
+        if (Detail::import_refers_to_a_builtin(import, builtin_set_names))
+            continue;
+
+        // 2. If importedStringModule is not null and moduleName equals importedStringModule, then continue.
+        if (imported_string_module.has_value() && import.module == imported_string_module->bytes_as_string_view())
+            continue;
+
+        // 3. Let kind be the string value of the extern type type.
         auto kind = import_export_kind(import.type.kind);
         if (!kind.has_value()) {
             dbgln("Not yet implemented: importing tags");
             continue;
         }
 
-        // 3.2. Let obj be «[ "module" → moduleName, "name" → name, "kind" → kind ]».
+        // 4. Let obj be «[ "module" → moduleName, "name" → name, "kind" → kind ]».
         Bindings::ModuleImportDescriptor descriptor {
             .kind = *kind,
             .module = Utf16String::from_utf8(import.module),
             .name = Utf16String::from_utf8(import.name),
         };
 
-        // 3.3. Append obj to imports.
+        // 5. Append obj to imports.
         import_objects.append(move(descriptor));
     }
 
-    // 4. Return imports.
+    // 6. Return imports.
     return import_objects;
 }
 

@@ -30,9 +30,24 @@ namespace Web::WebAssembly {
 
 GC_DEFINE_ALLOCATOR(Instance);
 
-WebIDL::ExceptionOr<GC::Ref<Instance>> Instance::create(JS::Realm& realm, Module& module, GC::Ptr<JS::Object> import_object)
+// https://webassembly.github.io/spec/js-api/#dom-instance-instance
+WebIDL::ExceptionOr<GC::Ref<Instance>> Instance::create(JS::Realm& realm, Module& module_object, GC::Ptr<JS::Object> import_object)
 {
-    auto instance = TRY(Detail::instantiate_module(realm.vm(), *module.compiled_module()->module, import_object));
+    // 1. Let builtinSetNames be moduleObject.[[BuiltinSets]].
+    auto const& builtin_set_names = module_object.builtin_sets();
+
+    // 2. Let importedStringModule be moduleObject.[[ImportedStringModule]].
+    auto const& imported_string_module = module_object.imported_string_module();
+
+    // 3. Let module be moduleObject.[[Module]].
+    auto const& module = *module_object.compiled_module()->module;
+
+    // 4. Read the imports of module with imports importObject, builtinSetNames, and importedStringModule, and let
+    //    imports be the result.
+    // 5. Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
+    auto instance = TRY(Detail::instantiate_module(realm.vm(), module, import_object, builtin_set_names, imported_string_module));
+
+    // 6. Initialize this from module and instance.
     return Instance::create(realm, instance);
 }
 

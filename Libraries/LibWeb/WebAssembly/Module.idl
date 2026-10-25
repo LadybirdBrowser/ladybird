@@ -20,8 +20,7 @@ dictionary ModuleImportDescriptor {
 [LegacyNamespace=WebAssembly, Exposed=*, Serializable]
 interface Module {
     // FIXME: Bytes should be an AllowSharedBufferSource;
-    // FIXME: Constructor is missing the WebAssemblyCompileOptions parameter.
-    constructor(BufferSource bytes);
+    constructor(BufferSource bytes, optional WebAssemblyCompileOptions options = {});
 
     static sequence<ModuleExportDescriptor> exports(Module moduleObject);
     static sequence<ModuleImportDescriptor> imports(Module moduleObject);
