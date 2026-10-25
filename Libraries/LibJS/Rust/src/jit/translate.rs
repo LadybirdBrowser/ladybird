@@ -25,6 +25,7 @@ use std::collections::HashMap;
 
 use libjs_abi::register;
 use libjs_jit::code::{CALLEE_SLOT, FrameState, Repr, ResumeMode, Site, SiteKind, ValueLocation};
+use libjs_runtime_macros::Trace;
 
 use super::code::{CompileState, EXIT_COUNT_BEFORE_DISCARD, InlinedFunction, JitCode};
 use super::{executable_of, frame_of, frames_above};
@@ -33,6 +34,7 @@ use crate::bytecode::instruction::{OpCode, instruction_length_from_bytes};
 use crate::bytecode::instruction_at;
 use crate::bytecode::op;
 use crate::gc::defer_gc::{DeferGc, Deferred};
+use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
@@ -846,12 +848,15 @@ pub(super) fn materialize_call_site_frames(
 
 /// A frame of an inlined call that a call at a call site of the code running a frame is in, as stack walks see it while
 /// the call runs without it (View translation).
+#[derive(Clone, Trace)]
 pub struct CallSiteFrame {
     pub function: Gc<FunctionObject>,
     pub executable: Gc<Executable>,
     /// The pc of the call the frame makes.
+    #[gc(untraced)]
     pub program_counter: u32,
     /// The index of its frame state in the site.
+    #[gc(untraced)]
     pub frame_state: usize,
 }
 
@@ -871,7 +876,12 @@ pub fn frame_pointer_from_low_half(low_half: u32) -> u64 {
 
 /// View translation: the frames of the inlined calls that a call at the call site `index` of the code running `frame`
 /// is in, innermost first, while it runs without them, with the JIT frame at `frame_pointer`.
-pub fn call_site_frames(vm: &Vm, frame: &ExecutionContext, index: u32, frame_pointer: u64) -> Vec<CallSiteFrame> {
+pub fn call_site_frames<'vm>(
+    vm: &'vm Vm,
+    frame: &ExecutionContext,
+    index: u32,
+    frame_pointer: u64,
+) -> MarkedVec<'vm, CallSiteFrame> {
     let compiled_executable = executable_of(frame);
     let code = compiled_executable
         .jit_code(vm)
@@ -880,41 +890,39 @@ pub fn call_site_frames(vm: &Vm, frame: &ExecutionContext, index: u32, frame_poi
     assert_eq!(site.kind, SiteKind::Call);
     let dump = RegisterDump::of_stack_slots(frame_pointer);
     let (_, inlined) = site.frames.split_last().expect("a call site has frames");
-    inlined
-        .iter()
-        .enumerate()
-        .map(|(index, frame_state)| {
-            let snapshot_executable = code.snapshot_executable(frame_state.executable);
-            // NB: Frames of inlined closures run the closure that was called. Walks create no objects, and the closure
-            //     never is one the code did not create.
-            let closure = frame_state
-                .values
-                .iter()
-                .find(|(slot, _)| *slot == CALLEE_SLOT)
-                .and_then(|(_, location)| match location {
-                    ValueLocation::Stack(..) | ValueLocation::Constant(_) => Some(read_location(*location, &dump)),
-                    _ => None,
-                });
-            let function = match closure {
-                Some(closure) => as_ecmascript_function_object(closure.as_object())
-                    .expect("an inlined closure is a function")
-                    .as_function_object_gc(),
-                None => match snapshot_executable
-                    .function
-                    .expect("an inlined executable has a function")
-                {
-                    InlinedFunction::Ecmascript(function) => function.as_function_object_gc(),
-                    InlinedFunction::Builtin(function) => function.as_function_object_gc(),
-                },
-            };
-            CallSiteFrame {
-                function,
-                executable: snapshot_executable.executable,
-                program_counter: frame_state.pc,
-                frame_state: index,
-            }
-        })
-        .collect()
+    let frames = MarkedVec::with_capacity(vm, inlined.len());
+    for (index, frame_state) in inlined.iter().enumerate() {
+        let snapshot_executable = code.snapshot_executable(frame_state.executable);
+        // NB: Frames of inlined closures run the closure that was called. Walks create no objects, and the closure
+        //     never is one the code did not create.
+        let closure = frame_state
+            .values
+            .iter()
+            .find(|(slot, _)| *slot == CALLEE_SLOT)
+            .and_then(|(_, location)| match location {
+                ValueLocation::Stack(..) | ValueLocation::Constant(_) => Some(read_location(*location, &dump)),
+                _ => None,
+            });
+        let function = match closure {
+            Some(closure) => as_ecmascript_function_object(closure.as_object())
+                .expect("an inlined closure is a function")
+                .as_function_object_gc(),
+            None => match snapshot_executable
+                .function
+                .expect("an inlined executable has a function")
+            {
+                InlinedFunction::Ecmascript(function) => function.as_function_object_gc(),
+                InlinedFunction::Builtin(function) => function.as_function_object_gc(),
+            },
+        };
+        frames.push(CallSiteFrame {
+            function,
+            executable: snapshot_executable.executable,
+            program_counter: frame_state.pc,
+            frame_state: index,
+        });
+    }
+    frames
 }
 
 /// View translation: the passed arguments of the frame of an inlined call that a call at the call site `index` of the

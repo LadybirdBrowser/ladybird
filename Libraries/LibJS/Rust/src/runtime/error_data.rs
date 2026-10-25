@@ -101,13 +101,13 @@ impl ErrorData {
     fn populate_stack(vm: &Vm, skipped_innermost_frames: usize) -> Vec<TracebackFrame> {
         let stack_trace = vm.stack_trace();
         let mut traceback = Vec::with_capacity(stack_trace.len().saturating_sub(skipped_innermost_frames));
-        for element in stack_trace.into_iter().skip(skipped_innermost_frames) {
+        for element in stack_trace.values().iter().skip(skipped_innermost_frames) {
             traceback.push(TracebackFrame {
                 function_name: element
                     .function
                     .map(|function| function.name_for_call_stack())
                     .unwrap_or_default(),
-                cached_source_range: element.source_range,
+                cached_source_range: element.source_range.clone(),
             });
         }
         traceback
