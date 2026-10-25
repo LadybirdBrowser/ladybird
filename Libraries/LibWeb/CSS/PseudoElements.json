@@ -93,6 +93,11 @@
     ],
     "implementation": "synthetic"
   },
+  "highlight": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-highlight",
+    "type": "function",
+    "function-syntax": "<highlight-name-selector>"
+  },
   "marker": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-marker",
     "is-tree-abiding": true,

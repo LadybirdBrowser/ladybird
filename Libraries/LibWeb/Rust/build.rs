@@ -626,6 +626,7 @@ fn generate_selector_pseudo_types(manifest_dir: &Path, out_dir: &Path) -> Result
         let parameter_type = match function_syntax {
             None => "None",
             Some("<compound-selector>") => "CompoundSelector",
+            Some("<highlight-name-selector>") => "HighlightNameSelector",
             Some("<ident>+") => "IdentList",
             Some("<pt-name-and-class-selector>") => "PTNameAndClassSelector",
             Some(argument) => return Err(format!("unsupported pseudo-element parameter type {argument}").into()),

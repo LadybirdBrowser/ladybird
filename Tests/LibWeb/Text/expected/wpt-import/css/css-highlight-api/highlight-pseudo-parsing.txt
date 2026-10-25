@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 16 tests
 
-7 Pass
-9 Fail
-Fail	"::highlight(foo)" should be a valid selector
-Fail	".a::highlight(foo)" should be a valid selector
-Fail	"div ::highlight(foo)" should be a valid selector
-Fail	"::part(my-part)::highlight(foo)" should be a valid selector
-Fail	"::highlight(multi\\ word)" should be a valid selector
-Fail	"::highlight(\\31\\32\\33)" should be a valid selector
-Fail	"::highlight(\\*)" should be a valid selector
-Fail	"div::highlight(\\*)" should be a valid selector
-Fail	":root::highlight(\\*)" should be a valid selector
+16 Pass
+Pass	"::highlight(foo)" should be a valid selector
+Pass	".a::highlight(foo)" should be a valid selector
+Pass	"div ::highlight(foo)" should be a valid selector
+Pass	"::part(my-part)::highlight(foo)" should be a valid selector
+Pass	"::highlight(multi\\ word)" should be a valid selector
+Pass	"::highlight(\\31\\32\\33)" should be a valid selector
+Pass	"::highlight(\\*)" should be a valid selector
+Pass	"div::highlight(\\*)" should be a valid selector
+Pass	":root::highlight(\\*)" should be a valid selector
 Pass	"::highlight" should be an invalid selector
 Pass	"::before::highlight(foo)" should be an invalid selector
 Pass	"::highlight(foo).a" should be an invalid selector

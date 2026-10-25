@@ -3,7 +3,8 @@ Harness status: OK
 Found 28 tests
 
 26 Pass
-2 Optional Feature Unsupported
+1 Fail
+1 Optional Feature Unsupported
 Pass	Resolution of width is correct when pseudo-element argument is ignored (due to no colon)
 Pass	Resolution of width is correct when pseudo-element argument is invalid (due to a trailing token)
 Pass	Resolution of width is correct for ::before and ::after pseudo-elements (single-colon)
@@ -21,7 +22,7 @@ Pass	CSSStyleDeclaration is immutable
 Pass	Unknown pseudo-element with a known identifier: backdrop
 Pass	Unknown pseudo-element with a known identifier: file-selector-button
 Optional Feature Unsupported	Unknown pseudo-element with a known identifier: grammar-error
-Optional Feature Unsupported	Unknown pseudo-element with a known identifier: highlight(name)
+Fail	Unknown pseudo-element with a known identifier: highlight(name)
 Pass	Unknown pseudo-element with a known identifier: marker
 Pass	Unknown pseudo-element with a known identifier: placeholder
 Pass	Unknown pseudo-element with a known identifier: spelling-error

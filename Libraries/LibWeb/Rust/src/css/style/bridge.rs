@@ -2587,10 +2587,10 @@ pub enum FfiDemandedPseudoElement {
     SliderFill = 14,
     SliderThumb = 15,
     SliderTrack = 16,
-    ViewTransitionGroup = 19,
-    ViewTransitionImagePair = 20,
-    ViewTransitionNew = 21,
-    ViewTransitionOld = 22,
+    ViewTransitionGroup = 20,
+    ViewTransitionImagePair = 21,
+    ViewTransitionNew = 22,
+    ViewTransitionOld = 23,
 }
 
 /// The answer to a record demand: the record, or that the pseudo-element read generates no box
