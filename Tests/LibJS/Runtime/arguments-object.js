@@ -146,3 +146,23 @@ test("functions whose arguments object is never used", () => {
     }
     expect(withParametersAndArguments(1)).toEqual([1, undefined, 1]);
 });
+
+test("block-level function named arguments with arguments object reached through direct eval", () => {
+    function f() {
+        const before = eval("typeof arguments");
+        {
+            function arguments() {}
+        }
+        return [before, eval("typeof arguments")];
+    }
+    expect(f(1)).toEqual(["object", "function"]);
+
+    function g() {
+        const before = (() => eval("arguments.length"))();
+        {
+            function arguments() {}
+        }
+        return [before, (() => eval("typeof arguments"))()];
+    }
+    expect(g(1, 2)).toEqual([2, "function"]);
+});
