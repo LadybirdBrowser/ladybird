@@ -535,7 +535,9 @@ impl ScopeCollector {
 
         for name in bound_names {
             let flags = self.records[index].variable(name).flags;
-            if flags.intersects(VarFlags::VAR | VarFlags::FORBIDDEN_LEXICAL | VarFlags::FUNCTION | VarFlags::LEXICAL) {
+            if flags.intersects(
+                VarFlags::VAR | VarFlags::FORBIDDEN_LEXICAL | VarFlags::FUNCTION | VarFlags::LEXICAL | VarFlags::IMPORT,
+            ) {
                 self.already_declared_error(name, declaration_line, declaration_column);
             }
             self.records[index].variable(name).flags |= VarFlags::LEXICAL;
@@ -569,7 +571,9 @@ impl ScopeCollector {
             let mut scope_index = index;
             loop {
                 let existing_flags = self.records[scope_index].variable(name).flags;
-                if existing_flags.intersects(VarFlags::LEXICAL | VarFlags::FUNCTION | VarFlags::FORBIDDEN_VAR) {
+                if existing_flags
+                    .intersects(VarFlags::LEXICAL | VarFlags::FUNCTION | VarFlags::FORBIDDEN_VAR | VarFlags::IMPORT)
+                {
                     self.already_declared_error(name, declaration_line, declaration_column);
                 }
                 let var = self.records[scope_index].variable(name);
@@ -623,7 +627,7 @@ impl ScopeCollector {
                 .get(name)
                 .map_or(VarFlags::EMPTY, |v| v.flags);
 
-            if existing_flags.intersects(VarFlags::VAR | VarFlags::LEXICAL) {
+            if existing_flags.intersects(VarFlags::VAR | VarFlags::LEXICAL | VarFlags::IMPORT) {
                 self.already_declared_error(name, declaration_line, declaration_column);
             }
 
@@ -675,8 +679,15 @@ impl ScopeCollector {
 
     // https://tc39.es/ecma262/#sec-imports
     // Imported bindings live in the module environment, next to the module's own declarations.
-    pub fn add_import_binding(&mut self, name: &[u16]) {
+    // https://tc39.es/ecma262/#sec-module-semantics-static-semantics-early-errors
+    // They are lexically declared names of the module, so they must not collide with any other
+    // import, var, function, or lexical binding of the module.
+    pub fn add_import_binding(&mut self, name: &[u16], declaration_line: u32, declaration_column: u32) {
         let index = self.current.expect("no current scope");
+        let flags = self.records[index].variable(name).flags;
+        if flags.intersects(VarFlags::VAR | VarFlags::FUNCTION | VarFlags::LEXICAL | VarFlags::IMPORT) {
+            self.already_declared_error(name, declaration_line, declaration_column);
+        }
         self.records[index].variable(name).flags |= VarFlags::IMPORT;
     }
 
