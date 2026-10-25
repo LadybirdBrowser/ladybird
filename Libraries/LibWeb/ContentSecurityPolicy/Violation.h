@@ -8,6 +8,7 @@
 
 #include <AK/Utf16String.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/Function.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
@@ -137,6 +138,9 @@ private:
     // https://w3c.github.io/webappsec-csp/#violation-sample
     // Each violation has a sample, which is a string. It is the empty string unless otherwise specified.
     Utf16String m_sample;
+
+    // Reports this violation to its global object in another process. See create_a_violation_object_for_request_and_policy().
+    GC::Ptr<GC::Function<void()>> m_report_in_other_process;
 };
 
 }

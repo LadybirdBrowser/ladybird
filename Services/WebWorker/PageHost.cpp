@@ -104,6 +104,11 @@ void PageHost::page_did_report_worker_exception(Utf16String const& message, Utf1
     m_client.async_did_report_worker_exception(message, filename, lineno, colno);
 }
 
+void PageHost::did_report_outside_settings_content_security_policy_violation(u64 policy_index, String effective_directive, URL::URL resource)
+{
+    m_client.async_did_report_outside_settings_content_security_policy_violation(policy_index, effective_directive, resource);
+}
+
 void PageHost::page_did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage const& message)
 {
     m_client.async_did_post_broadcast_channel_message(message);

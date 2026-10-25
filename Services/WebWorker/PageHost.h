@@ -61,6 +61,7 @@ public:
     void set_maximum_frames_per_second(double maximum_frames_per_second) { m_maximum_frames_per_second = maximum_frames_per_second; }
     void did_finish_loading_worker_script(bool worker_is_secure_context);
     void did_fail_loading_worker_script();
+    void did_report_outside_settings_content_security_policy_violation(u64 policy_index, String effective_directive, URL::URL resource);
 
 private:
     explicit PageHost(ConnectionFromClient&);

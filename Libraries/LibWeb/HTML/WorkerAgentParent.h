@@ -28,6 +28,7 @@ public:
 
     static WEB_API void did_fail_loading_worker_script(WorkerAgentOwnerToken);
     static WEB_API void did_report_worker_exception(WorkerAgentOwnerToken, Utf16String message, Utf16String filename, u32 lineno, u32 colno);
+    static WEB_API void did_report_content_security_policy_violation(WorkerAgentOwnerToken, u64 policy_index, String effective_directive, URL::URL resource);
     static WEB_API void did_close_worker(WorkerAgentOwnerToken);
     static WEB_API void did_worker_agent_die(WorkerAgentOwnerToken);
 
@@ -46,6 +47,7 @@ private:
     void forget_agent();
     void dispatch_error_event();
     void dispatch_worker_exception(Utf16String message, Utf16String filename, u32 lineno, u32 colno);
+    void report_content_security_policy_violation(u64 policy_index, String effective_directive, URL::URL resource);
 
     static WorkerAgentOwnerToken next_owner_token();
 

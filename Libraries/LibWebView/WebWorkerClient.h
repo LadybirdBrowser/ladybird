@@ -52,6 +52,7 @@ public:
     virtual void did_finish_loading_worker_script(bool worker_is_secure_context) override;
     virtual void did_fail_loading_worker_script() override;
     virtual void did_report_worker_exception(Utf16String message, Utf16String filename, u32 lineno, u32 colno) override;
+    virtual void did_report_outside_settings_content_security_policy_violation(u64 policy_index, String effective_directive, URL::URL resource) override;
     virtual Messages::WebWorkerClient::DidRequestCookieResponse did_request_cookie(URL::URL, HTTP::Cookie::Source) override;
     virtual Messages::WebWorkerClient::DidAddBlobUrlEntryResponse did_add_blob_url_entry(Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry) override;
     virtual void did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, Vector<Utf16String> urls) override;

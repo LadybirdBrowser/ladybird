@@ -35,6 +35,7 @@ void EnvironmentSettingsSnapshot::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_policy_container);
+    visitor.visit(m_report_violation);
 }
 
 }
