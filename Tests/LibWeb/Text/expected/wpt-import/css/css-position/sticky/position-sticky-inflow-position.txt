@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	sticky offset should not affect the position of other elements.
+1 Pass
+Pass	sticky offset should not affect the position of other elements.

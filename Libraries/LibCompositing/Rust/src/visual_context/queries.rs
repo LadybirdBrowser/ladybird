@@ -552,6 +552,23 @@ impl VisualContextTree {
         offset
     }
 
+    /// The sum of the resolved offsets of the sticky nodes on the spatial chain from `index` up to the viewport, in
+    /// device pixels.
+    pub fn accumulated_sticky_offset(&self, index: SpatialNodeIndex, resolved_offsets: &[FloatPoint]) -> FloatPoint {
+        let mut offset = FloatPoint::default();
+        let mut current = index;
+        while current != VISUAL_VIEWPORT_NODE_INDEX && (current.0 as usize) < self.spatial_nodes.len() {
+            let node = &self.spatial_nodes[current.0 as usize];
+            if matches!(node.data, SpatialData::Sticky(_)) {
+                let entry = device_offset_for_index(resolved_offsets, current);
+                offset.x += entry.x;
+                offset.y += entry.y;
+            }
+            current = node.parent;
+        }
+        offset
+    }
+
     /// The sticky nodes' resolved offsets as `(node, offset)` pairs in dependency order, for a
     /// consumer that keeps its own copy of the scroll offsets: the compositor overlays them on the
     /// snapshot it received.

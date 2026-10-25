@@ -109,6 +109,8 @@ WEB_API Layout::RustFFI::FfiRectToViewportTransform identity_rect_to_viewport_tr
 WEB_API Layout::RustFFI::FfiRectToViewportTransform rect_to_viewport_transform(DOM::Document const&, Compositing::AccumulatedVisualContextTree const&);
 WEB_API Vector<CSSPixelRect> client_rects(Layout::Node const&, Layout::RustFFI::FfiRectToViewportTransform const&);
 WEB_API CSSPixelRect bounding_client_rect(Layout::Node const&, Layout::RustFFI::FfiRectToViewportTransform const&);
+WEB_API bool has_sticky_positioned_inclusive_ancestor(Layout::Node const&);
+WEB_API CSSPixelPoint accumulated_sticky_offset(Layout::Node const&, Layout::RustFFI::FfiRectToViewportTransform const&);
 
 WEB_API CSSPixelPoint cumulative_scroll_compensation(Layout::Node const&);
 

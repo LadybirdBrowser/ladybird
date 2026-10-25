@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	offsetTop/offsetLeft should be correct for sticky after script insertion
-Fail	offsetTop/offsetLeft should be correct for sticky after script-caused layout
+2 Pass
+Pass	offsetTop/offsetLeft should be correct for sticky after script insertion
+Pass	offsetTop/offsetLeft should be correct for sticky after script-caused layout
