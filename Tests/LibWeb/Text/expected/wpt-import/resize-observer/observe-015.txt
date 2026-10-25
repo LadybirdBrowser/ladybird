@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	observe the same target but using a different box should override the previous one
+1 Pass
+Pass	observe the same target but using a different box should override the previous one

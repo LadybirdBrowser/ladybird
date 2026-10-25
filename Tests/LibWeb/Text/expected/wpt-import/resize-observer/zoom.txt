@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	ResizeObserver sizes account for zoom
+1 Pass
+Pass	ResizeObserver sizes account for zoom

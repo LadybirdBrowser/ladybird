@@ -17,11 +17,13 @@ WebIDL::ExceptionOr<GC::Ref<ResizeObservation>> ResizeObservation::create(DOM::E
     return GC::Heap::the().allocate<ResizeObservation>(target, observed_box);
 }
 
+// https://drafts.csswg.org/resize-observer-1/#dom-resizeobservation-resizeobservation
 ResizeObservation::ResizeObservation(DOM::Element& target, ObservedBox observed_box)
     : m_target(target)
     , m_observed_box(observed_box)
 {
-    m_last_reported_sizes.append({});
+    // 4. Set this internal lastReportedSizes slot to [(-1,-1)].
+    m_last_reported_sizes.append({ .inline_size = -1, .block_size = -1 });
 }
 
 // https://drafts.csswg.org/resize-observer-1/#dom-resizeobservation-isactive

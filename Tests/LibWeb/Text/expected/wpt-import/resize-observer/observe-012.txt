@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	simple observation with vertical writing mode
+1 Pass
+Pass	simple observation with vertical writing mode
