@@ -19,6 +19,7 @@
 #include <QPainterPath>
 #include <QPalette>
 #include <QStyleHints>
+#include <QWidget>
 
 namespace Ladybird::ChromeStyle {
 
@@ -124,10 +125,19 @@ QColor mix(QColor const& from, QColor const& to, double amount)
 }
 
 // The tab strip is darker than the toolbar below it, whose color the selected tab shares, so the selected tab stands out.
-QColor chrome_tab_strip_background(QPalette const& palette)
+WindowActivity window_activity(QWidget const& widget)
+{
+    return widget.isActiveWindow() ? WindowActivity::Active : WindowActivity::Inactive;
+}
+
+QColor chrome_tab_strip_background(QPalette const& palette, WindowActivity activity)
 {
     auto dark = is_dark(palette);
-    return mix(chrome_window(palette), material_color_anchors(dark).tab_strip, dark ? 0.70 : 0.68);
+    auto color = mix(chrome_window(palette), material_color_anchors(dark).tab_strip, dark ? 0.70 : 0.68);
+    // An inactive window's tab strip is lifted toward the toolbar, so the window recedes behind the active one.
+    if (activity == WindowActivity::Inactive)
+        color = mix(color, chrome_background(palette), 0.4);
+    return color;
 }
 
 // In dark mode, the chrome is lifted from near black toward a cool slate rather than a plain gray.
@@ -1210,6 +1220,7 @@ QString tab_widget_style_sheet(QPalette const& palette)
     auto dark = is_dark(palette);
     auto tab_strip_background = chrome_tab_strip_background(palette);
     auto background = style_sheet_color(tab_strip_background);
+    auto inactive_background = style_sheet_color(chrome_tab_strip_background(palette, WindowActivity::Inactive));
     auto hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto control_border = style_sheet_color(chrome_control_border(palette));
@@ -1254,6 +1265,11 @@ QToolButton#LadybirdVerticalTabsToggleButton {{
     background: transparent;
     border: 0;
     padding: 0;
+}}
+
+QWidget#LadybirdTabStrip[windowInactive="true"],
+QWidget#LadybirdVerticalTabBar[windowInactive="true"] {{
+    background: {9};
 }}
 
 QWidget#LadybirdVerticalTabsResizeHandle {{
@@ -1389,7 +1405,7 @@ QWidget#LadybirdVerticalTabsContentSeparator {{
 )"
 #endif
         ,
-        background, hover, pressed, control_border, text, close_hover, close_text, sidebar_separator, sidebar_separator_hover);
+        background, hover, pressed, control_border, text, close_hover, close_text, sidebar_separator, sidebar_separator_hover, inactive_background);
 }
 
 QString autocomplete_popup_style_sheet(QPalette const& palette)
