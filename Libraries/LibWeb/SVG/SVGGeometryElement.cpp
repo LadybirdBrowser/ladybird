@@ -109,35 +109,36 @@ bool SVGGeometryElement::with_computed_values(Function<void(CSSPixelSize viewpor
     return true;
 }
 
-// The geometry the element draws, built by the same shape builders layout uses, from what the element parses and from
-// the given computed values.
-static Gfx::Path geometry_path(SVGGeometryElement const& element, CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values)
+// The shape element whose geometry `measure` measures, with what the element parses and the given computed values,
+// which Rust builds the geometry from with the same shape builders layout uses.
+template<typename Measure>
+static auto measure_geometry(SVGGeometryElement const& element, CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values, Measure measure)
 {
     Array<void const*, to_underlying(CSS::StyleGroupIndex::Count)> payloads;
     for (size_t index = 0; index < payloads.size(); ++index)
         payloads[index] = computed_values.style_group_payload(static_cast<CSS::StyleGroupIndex>(index));
     auto points = Layout::svg_shape_points(element);
     static_assert(sizeof(Gfx::FloatPoint) == sizeof(Layout::RustFFI::FfiFloatPoint));
-    Vector<u8> path_bytes;
-    Layout::RustFFI::svg_geometry_element_encode_path(
-        Layout::svg_geometry_facts(element),
-        payloads.data(),
-        payloads.size(),
-        reinterpret_cast<Layout::RustFFI::FfiFloatPoint const*>(points.data()),
-        points.size(),
-        viewport_size,
-        &path_bytes,
-        [](void* context, u8 const* data, size_t length) { static_cast<Vector<u8>*>(context)->append(data, length); });
-    return Gfx::Path::from_serialized_bytes(path_bytes);
+    Layout::RustFFI::FfiSvgGeometryElementShape shape {
+        .geometry = Layout::svg_geometry_facts(element),
+        .payloads = payloads.data(),
+        .payload_count = payloads.size(),
+        .points = reinterpret_cast<Layout::RustFFI::FfiFloatPoint const*>(points.data()),
+        .point_count = points.size(),
+        .viewport_size = viewport_size,
+    };
+    return measure(shape);
 }
 
-Gfx::Path SVGGeometryElement::computed_path()
+Vector<PathVertex> SVGGeometryElement::equivalent_path_vertices()
 {
-    Gfx::Path path;
+    Vector<PathVertex> vertices;
     with_computed_values([&](CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values) {
-        path = geometry_path(*this, viewport_size, computed_values);
+        measure_geometry(*this, viewport_size, computed_values, [&](auto const& shape) {
+            Layout::RustFFI::svg_geometry_element_vertices(&shape, &vertices, append_path_vertices);
+        });
     });
-    return path;
+    return vertices;
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGeometryElement__isPointInFill
@@ -148,7 +149,7 @@ WebIDL::ExceptionOr<bool> SVGGeometryElement::is_point_in_fill(Bindings::DOMPoin
     // the fill-rule property of an element; and must return false otherwise. Open subpaths must be implicitly closed
     // when computing the area inside the path, without affecting the actual subpaths. Points on the path itself must be
     // considered to be inside the path.
-    // NB: Gfx::Path::contains() closes open subpaths and counts points on the path as inside.
+    // NB: svg_geometry_element_fill_contains() closes open subpaths and counts points on the path as inside.
 
     // The returned value is independent of any visual CSS property but fill-rule
     // If either of the x or y properties on point are infinite or NaN, then the method must return false.
@@ -159,8 +160,9 @@ WebIDL::ExceptionOr<bool> SVGGeometryElement::is_point_in_fill(Bindings::DOMPoin
     // then throw an InvalidStateError.
     bool is_point_in_fill = false;
     auto has_geometry = with_computed_values([&](CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values) {
-        auto winding_rule = computed_values.fill_rule() == CSS::FillRule::Evenodd ? Gfx::WindingRule::EvenOdd : Gfx::WindingRule::Nonzero;
-        is_point_in_fill = geometry_path(*this, viewport_size, computed_values).contains({ point.x, point.y }, winding_rule);
+        is_point_in_fill = measure_geometry(*this, viewport_size, computed_values, [&](auto const& shape) {
+            return Layout::RustFFI::svg_geometry_element_fill_contains(&shape, static_cast<float>(point.x), static_cast<float>(point.y));
+        });
     });
     if (!has_geometry)
         return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "The element's geometry cannot be computed"_utf16);
@@ -193,30 +195,16 @@ WebIDL::ExceptionOr<bool> SVGGeometryElement::is_point_in_stroke(Bindings::DOMPo
     // then throw an InvalidStateError.
     bool is_point_in_stroke = false;
     auto has_geometry = with_computed_values([&](CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values) {
-        Array<void const*, to_underlying(CSS::StyleGroupIndex::Count)> payloads;
-        for (size_t index = 0; index < payloads.size(); ++index)
-            payloads[index] = computed_values.style_group_payload(static_cast<CSS::StyleGroupIndex>(index));
-
-        // https://svgwg.org/svg2-draft/paths.html#PathLengthAttribute
-        // The user agent will scale all distance-along-a-path computations by the ratio of ‘pathLength’ to the user
-        // agent's own computed value for total path length.
-        // FIXME: A value of zero must be treated as a scaling factor of infinity.
-        float dash_scale = 1;
-        if (auto path_length = parse_number(get_attribute_value(AttributeNames::pathLength)); path_length.has_value() && *path_length > 0)
-            dash_scale = geometry_path(*this, viewport_size, computed_values).length() / *path_length;
-
-        auto points = Layout::svg_shape_points(*this);
-        is_point_in_stroke = Layout::RustFFI::svg_geometry_element_stroke_contains(
-            Layout::svg_geometry_facts(*this),
-            payloads.data(),
-            payloads.size(),
-            reinterpret_cast<Layout::RustFFI::FfiFloatPoint const*>(points.data()),
-            points.size(),
-            viewport_size,
-            dash_scale,
-            host_scale,
-            static_cast<float>(point.x),
-            static_cast<float>(point.y));
+        is_point_in_stroke = measure_geometry(*this, viewport_size, computed_values, [&](auto const& shape) {
+            // https://svgwg.org/svg2-draft/paths.html#PathLengthAttribute
+            // The user agent will scale all distance-along-a-path computations by the ratio of ‘pathLength’ to the
+            // user agent's own computed value for total path length.
+            // FIXME: A value of zero must be treated as a scaling factor of infinity.
+            float dash_scale = 1;
+            if (auto path_length = parse_number(get_attribute_value(AttributeNames::pathLength)); path_length.has_value() && *path_length > 0)
+                dash_scale = Layout::RustFFI::svg_geometry_element_total_length(&shape) / *path_length;
+            return Layout::RustFFI::svg_geometry_element_stroke_contains(&shape, dash_scale, host_scale, static_cast<float>(point.x), static_cast<float>(point.y));
+        });
     });
     if (!has_geometry)
         return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "The element's geometry cannot be computed"_utf16);
@@ -228,29 +216,40 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
 {
     // When getTotalLength() is called, the user agent's computed value for the total length of the path, in user units,
     // is returned.
-    return computed_path().length();
+    float total_length = 0;
+    with_computed_values([&](CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values) {
+        total_length = measure_geometry(*this, viewport_size, computed_values, [](auto const& shape) {
+            return Layout::RustFFI::svg_geometry_element_total_length(&shape);
+        });
+    });
+    return total_length;
 }
 
 // https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getPointAtLength
 WebIDL::ExceptionOr<GC::Ref<Geometry::DOMPoint>> SVGGeometryElement::get_point_at_length(float distance)
 {
     // When getPointAtLength(distance) is called, the following steps are run:
-    auto path = computed_path();
-
     // 1. If current element is a non-rendered element, and the UA is not able to compute the total length of the path,
     //    then throw an InvalidStateError.
     // NB: Like other engines, throw for an empty path whether or not the element is rendered.
-    auto point_along_path = path.point_at_length(distance);
+    Optional<Gfx::FloatPoint> point_along_path;
+    with_computed_values([&](CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values) {
+        measure_geometry(*this, viewport_size, computed_values, [&](auto const& shape) {
+            Layout::RustFFI::FfiFloatPoint point;
+            if (Layout::RustFFI::svg_geometry_element_point_at_length(&shape, distance, &point))
+                point_along_path = Gfx::FloatPoint { point.x, point.y };
+        });
+    });
     if (!point_along_path.has_value())
         return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "The element's path is empty"_utf16);
 
     // 2. Let length be the user agent's computed value for the total length of the path, in user units.
     // 3. Clamp distance to [0, length].
     // 4. Let (x, y) be the point on the path at distance distance.
-    // NB: Gfx::Path::point_at_length() clamps the distance to the ends of the path.
+    // NB: svg_geometry_element_point_at_length() clamps the distance to the ends of the path.
 
     // 5. Return a newly created, detached DOMPoint object representing the point (x, y).
-    return Geometry::DOMPoint::create(point_along_path->point.x(), point_along_path->point.y(), 0, 1);
+    return Geometry::DOMPoint::create(point_along_path->x(), point_along_path->y(), 0, 1);
 }
 
 GC::Ref<SVGAnimatedNumber> SVGGeometryElement::path_length()

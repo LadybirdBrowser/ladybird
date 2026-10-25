@@ -1371,20 +1371,6 @@ pub unsafe extern "C" fn rust_svg_path_serialize(
     unsafe { append(context, serialized.as_ptr(), serialized.len()) };
 }
 
-/// Calls `append` once with the byte form of the path that `path` draws, which `Gfx::Path` reads.
-///
-/// # Safety
-/// `context` must be valid for `append` for the duration of this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_svg_path_encode_gfx_path(
-    path: &ParsedPath,
-    context: *mut c_void,
-    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
-) {
-    let bytes = path.to_gfx_path().serialize_to_bytes();
-    unsafe { append(context, bytes.as_ptr(), bytes.len()) };
-}
-
 #[cfg(test)]
 mod tests {
     use super::{Input, ParsedPath, Parser, PathInstruction};
