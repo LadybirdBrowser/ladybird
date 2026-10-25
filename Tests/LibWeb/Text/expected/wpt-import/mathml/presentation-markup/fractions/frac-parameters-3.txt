@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	nonzero linethickness, displaystyle=false
-Fail	nonzero linethickness, displaystyle=true
-Fail	linethickness=0, displaystyle=false
-Fail	linethickness=0, displaystyle=true
+4 Pass
+Pass	nonzero linethickness, displaystyle=false
+Pass	nonzero linethickness, displaystyle=true
+Pass	linethickness=0, displaystyle=false
+Pass	linethickness=0, displaystyle=true

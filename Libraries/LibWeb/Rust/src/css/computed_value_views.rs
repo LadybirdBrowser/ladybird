@@ -504,6 +504,7 @@ scalar_accessors! {
         font_x_height: f32 => font_x_height,
         font_zero_advance: f32 => font_zero_advance,
         math_style: u8 => math_style,
+        math_shift: u8 => math_shift,
     }
     alignment: {
         webkit_box_orient: u8 => webkit_box_orient,
