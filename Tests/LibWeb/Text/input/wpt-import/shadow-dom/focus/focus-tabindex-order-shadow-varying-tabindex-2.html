@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>HTML Test: focus - the sequential focus navigation order with shadow dom with varying tabindex values</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="resources/shadow-utils.js"></script>
+<body>
+<script>
+promise_test(async () => {
+  function createButtonInShadowDOM(host) {
+    const root = host.attachShadow({mode: "open"});
+    root.innerHTML = "<input>";
+    document.body.appendChild(host);
+    return root;
+  }
+  const host1 = document.createElement("div");
+  const root1 = createButtonInShadowDOM(host1);
+
+  const forwarder = document.createElement("div");
+  forwarder.setAttribute("tabindex", 0);
+  document.body.appendChild(forwarder);
+
+  const host2 = document.createElement("div");
+  host2.setAttribute("tabindex", -1);
+  const root2 = createButtonInShadowDOM(host2);
+
+  const host3 = document.createElement("div");
+  const root3 = createButtonInShadowDOM(host3);
+
+  root1.querySelector("input").focus();
+
+  let forwarderFocused = false;
+  forwarder.addEventListener("focus", () => {
+    forwarderFocused = true;
+    root2.querySelector("input").focus();
+  });
+
+  // Structure:
+  // <div #host1></div>
+  //   #ShadowRoot
+  //     <button>Button</button>
+  // <div #forwarder tabindex=0></div>
+  // <div #host2 tabindex=-1></div>
+  //   #ShadowRoot
+  //     <button>Button</button>
+  // <div #host3></div>
+  //   #ShadowRoot
+  //     <button>Button</button>
+  assert_equals(document.activeElement, host1);
+  assert_equals(root1.activeElement, root1.querySelector("input"));
+
+  await navigateFocusForward();
+  assert_true(forwarderFocused);
+  assert_equals(document.activeElement, host2);
+  assert_equals(root2.activeElement, root2.querySelector("input"));
+
+  // In buggy Firefox build, the following focus navigation will
+  // move the focus back to #host1's button.
+  await navigateFocusForward();
+  assert_equals(document.activeElement, host3);
+  assert_equals(root3.activeElement, root3.querySelector("input"));
+}, "Order with different tabindex on host")
+</script>

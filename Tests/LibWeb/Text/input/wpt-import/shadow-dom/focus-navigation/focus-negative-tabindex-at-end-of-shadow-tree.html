@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tab/Shift+Tab from a tabindex=-1 element at either end of a shadow tree</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#sequential-navigation-search-algorithm">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="resources/focus-utils.js"></script>
+
+<button id="before">before</button>
+<div id="host">
+  <template shadowrootmode="open">
+    <span id="first" tabindex="-1">first</span>
+    <button id="inner">inner</button>
+    <span id="last" tabindex="-1">last</span>
+  </template>
+</div>
+<button id="after">after</button>
+
+<script>
+promise_test(async () => {
+  host.shadowRoot.getElementById("last").focus();
+  await navigateFocusForward();
+  assert_equals(document.activeElement, after);
+}, "Tab moves focus past the shadow host, not back to the start of the shadow tree");
+
+promise_test(async () => {
+  host.shadowRoot.getElementById("first").focus();
+  await navigateFocusBackward();
+  assert_equals(document.activeElement, before);
+}, "Shift+Tab moves focus before the shadow host, not back to the end of the shadow tree");
+</script>

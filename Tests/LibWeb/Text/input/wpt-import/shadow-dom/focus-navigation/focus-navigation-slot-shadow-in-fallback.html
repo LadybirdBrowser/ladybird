@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="resources/shadow-dom.js"></script>
+<script src="resources/focus-utils.js"></script>
+<div id="log"></div>
+
+<input id="i0" tabindex=0 value="i0">
+<div id="fallback">
+  <template data-mode="open">
+    <slot id="s0" name="s0">
+      <div id="x-foo">
+        <template data-mode="open">
+          <input id="a2" tabindex=3 value="a2">
+          <slot id="s1" name="s1" tabindex=2>
+            <slot id="s2" name="s2">
+              <input id="a1" slot="s2" value="a1">
+            </slot>
+          </slot>
+          <input id="a0" tabindex=1 value="a0">
+        </template>
+      </div>
+    </slot>
+  </template>
+</div>
+
+<script>
+'use strict';
+
+promise_test(async () => {
+    let fallback = document.getElementById('fallback');
+    convertTemplatesToShadowRootsWithin(fallback);
+
+    let elements = [
+        'i0',
+        'fallback/x-foo/a0',
+        'fallback/x-foo/a1',
+        'fallback/x-foo/a2'
+    ];
+
+    await assert_focus_navigation_bidirectional(elements);
+}, 'Focus should cover assigned elements of an assigned slot, as well as elements that are directly assigned to a slot.');
+</script>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="resources/shadow-dom.js"></script>
+<script src="resources/focus-utils.js"></script>
+
+<template id="custom-radio">
+  <span aria-role="radio" tabindex="0">&#x1F518;</span>
+  <slot></slot>
+</template>
+
+<div tabindex="0" id="start">OUT</div>
+<form>
+  <custom-radio name="radio" id="A">A</x-radio>
+  <custom-radio name="radio" id="B">B</x-radio>
+</form>
+<form>
+  <custom-radio name="radio" id="C">C</x-radio>
+  <custom-radio name="radio" id="D">D</x-radio>
+</form>
+<div tabindex="0" id="end">OUT</div>
+
+<script>
+const template = document.querySelector('#custom-radio');
+
+class CustomRadio extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open', delegatesFocus: true }).appendChild(
+        template.content.cloneNode(true),
+    );
+  }
+}
+customElements.define('custom-radio', CustomRadio);
+
+async function assert_web_component_focus_navigation_forward(elements) {
+  let start = document.getElementById(elements[0]);
+  start.focus();
+  for (let i = 1; i < elements.length; i++) {
+    await navigateFocusForward();
+    assert_equals(document.activeElement.id, elements[i]);
+  }
+}
+
+async function assert_web_component_focus_navigation_backward(elements) {
+  let end = document.getElementById(elements[elements.length - 1]);
+  end.focus();
+  for (let i = elements.length - 2; i >= 0; i--) {
+    await navigateFocusBackward();
+    assert_equals(document.activeElement.id, elements[i]);
+  }
+}
+
+promise_test(async () => {
+  let elements = [
+    'start',
+    'A',
+    'B',
+    'C',
+    'D',
+    'end'
+  ];
+
+  await assert_web_component_focus_navigation_forward(elements);
+  await assert_web_component_focus_navigation_backward(elements);
+}, 'Focus for web component input type elements should be bound by <form> inside shadow DOM');
+</script>
