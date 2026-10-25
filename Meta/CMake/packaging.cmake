@@ -15,7 +15,10 @@ endif()
 
 set(CPACK_ARCHIVE_JS_FILE_NAME "ladybird-js-${CPACK_SYSTEM_NAME}")
 set(CPACK_ARCHIVE_WASM_FILE_NAME "ladybird-wasm-${CPACK_SYSTEM_NAME}")
-set(CPACK_ARCHIVE_LADYBIRD_RUNTIME_FILE_NAME "ladybird-${CPACK_SYSTEM_NAME}")
-set(CPACK_ARCHIVE_LADYBIRD_SYMBOLS_FILE_NAME "ladybird-symbols-${CPACK_SYSTEM_NAME}")
+
+string(JOIN "-" ladybird_package_name ${LADYBIRD_VERSION} ${CPACK_SYSTEM_NAME})
+set(CPACK_PACKAGE_FILE_NAME "ladybird-${ladybird_package_name}")
+set(CPACK_ARCHIVE_LADYBIRD_RUNTIME_FILE_NAME "ladybird-${ladybird_package_name}")
+set(CPACK_ARCHIVE_LADYBIRD_SYMBOLS_FILE_NAME "ladybird-symbols-${ladybird_package_name}")
 
 include(CPack)
