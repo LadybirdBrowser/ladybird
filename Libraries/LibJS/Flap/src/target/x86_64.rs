@@ -387,6 +387,8 @@ define_machine_opcodes! {
     [UnsignedDivide(IntegerWidth)] => Self::UnsignedDivide(width) => [[R]] printing simple!("div"; integer(0, width));
     [CountLeadingZeros(IntegerWidth)] => Self::CountLeadingZeros(width) => [[R, R]] printing simple!("lzcnt"; integer(0, width), integer(1, width));
     [CountTrailingZeros(IntegerWidth)] => Self::CountTrailingZeros(width) => [[R, R]] printing simple!("tzcnt"; integer(0, width), integer(1, width));
+    [BitScanReverse(IntegerWidth)] => Self::BitScanReverse(width) => [[R, R]] printing simple!("bsr"; integer(0, width), integer(1, width));
+    [BitScanForward(IntegerWidth)] => Self::BitScanForward(width) => [[R, R]] printing simple!("bsf"; integer(0, width), integer(1, width));
     [PopulationCount(IntegerWidth)] => Self::PopulationCount(width) => [[R, R]] printing simple!("popcnt"; integer(0, width), integer(1, width));
     [RotateLeft(IntegerWidth)] => Self::RotateLeft(width) => [[R]] printing simple!("rol"; integer(0, width), SimpleOperand::Literal("cl"));
     [RotateRight(IntegerWidth)] => Self::RotateRight(width) => [[R]] printing simple!("ror"; integer(0, width), SimpleOperand::Literal("cl"));

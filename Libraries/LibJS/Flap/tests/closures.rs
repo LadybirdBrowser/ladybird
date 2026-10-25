@@ -13,6 +13,8 @@ fn compile(source: &str, architecture: Architecture) -> Result<String, String> {
             object_format: ObjectFormat::Elf,
         },
         has_jscvt: false,
+        has_lzcnt: false,
+        has_bmi1: false,
         enable_assertions: true,
         profiling: false,
         profile: flapc::Profile::JavaScript,

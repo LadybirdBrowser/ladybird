@@ -1430,6 +1430,8 @@ mod tests {
                 object_format: ObjectFormat::Coff,
             },
             has_jscvt: false,
+            has_lzcnt: false,
+            has_bmi1: false,
             enable_assertions: false,
             profiling: false,
             profile: crate::Profile::JavaScript,

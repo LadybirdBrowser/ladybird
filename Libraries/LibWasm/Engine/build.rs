@@ -70,6 +70,8 @@ fn main() {
             object_format,
         },
         has_jscvt: false,
+        has_lzcnt: false,
+        has_bmi1: false,
         enable_assertions: true,
         profiling: false,
         profile: flapc::Profile::WebAssembly,

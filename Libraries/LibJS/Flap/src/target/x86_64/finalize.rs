@@ -2410,6 +2410,7 @@ impl Backend for X86_64Backend {
             | CountTrailingZeros32 | PopulationCount32 | RotateLeft32 | RotateRight32 => IntegerWidth::U32,
             _ => IntegerWidth::U64,
         };
+        let bits: i64 = if width == IntegerWidth::U32 { 32 } else { 64 };
         match operation {
             DivideSigned32 | DivideUnsigned32 | RemainderSigned32 | RemainderUnsigned32 | DivideSigned64
             | DivideUnsigned64 | RemainderSigned64 | RemainderUnsigned64 => {
@@ -2434,11 +2435,37 @@ impl Backend for X86_64Backend {
             }
             CountLeadingZeros32 | CountLeadingZeros64 => {
                 let [destination, source] = operands.physical_registers();
-                emit!(emit.output, X86_64; Opcode::CountLeadingZeros(width) => [register destination, register source];);
+                if emit.has_lzcnt {
+                    emit!(emit.output, X86_64; Opcode::CountLeadingZeros(width) => [register destination, register source];);
+                } else {
+                    // NB: bsr finds the index of the highest set bit, and the xor turns it into bits - 1 - index, the
+                    //     count. For zero, bsr leaves the destination undefined, so it takes 2 * bits - 1 instead,
+                    //     which the xor turns into bits.
+                    let nonzero = emit.unique_label("leading_zeros_nonzero");
+                    emit!(emit.output, X86_64;
+                        Opcode::BitScanReverse(width) => [register destination, register source];
+                        Opcode::JumpCondition(super::Condition::NonZero) => [label nonzero.clone()];
+                        Opcode::Move32Immediate => [register destination, immediate 2 * bits - 1];
+                        Opcode::Label => [label nonzero];
+                    );
+                    push_alu_immediate(emit, super::AluOperation::Xor, width, destination, bits - 1);
+                }
             }
             CountTrailingZeros32 | CountTrailingZeros64 => {
                 let [destination, source] = operands.physical_registers();
-                emit!(emit.output, X86_64; Opcode::CountTrailingZeros(width) => [register destination, register source];);
+                if emit.has_bmi1 {
+                    emit!(emit.output, X86_64; Opcode::CountTrailingZeros(width) => [register destination, register source];);
+                } else {
+                    // NB: bsf finds the index of the lowest set bit, which is the count, but leaves the destination
+                    //     undefined for zero, whose count is the bit width.
+                    let nonzero = emit.unique_label("trailing_zeros_nonzero");
+                    emit!(emit.output, X86_64;
+                        Opcode::BitScanForward(width) => [register destination, register source];
+                        Opcode::JumpCondition(super::Condition::NonZero) => [label nonzero.clone()];
+                        Opcode::Move32Immediate => [register destination, immediate bits];
+                        Opcode::Label => [label nonzero];
+                    );
+                }
             }
             PopulationCount32 | PopulationCount64 => {
                 let [destination, source] = operands.physical_registers();
