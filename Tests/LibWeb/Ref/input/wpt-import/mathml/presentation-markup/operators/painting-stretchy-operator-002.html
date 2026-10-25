@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head>
+<meta charset="utf-8">
+<title>Painting of a stretchy operator with lspace/rspace</title>
+<link rel="match" href="../../../../../expected/wpt-import/mathml/presentation-markup/operators/painting-stretchy-operator-002-ref.html">
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<meta name="assert" content="">
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  @font-face {
+    font-family: stretchy;
+    src: url("../../../fonts/math/stretchy.woff");
+  }
+  div {
+      margin-bottom: 50px;
+  }
+
+  math {
+      font-size: 25px;
+      line-height: 1;
+      font-family: stretchy, Ahem;
+      color: green;
+  }
+  .operator {
+      color: red;
+  }
+  .frame {
+      position: absolute;
+      box-sizing: border-box;
+      background: green;
+      border: 2px solid green;
+  }
+</style>
+<script>
+  function runTests() {
+    Array.from(document.getElementsByTagName('math')).forEach(math => {
+      // Each math renders as a 2x1 green rectangle for <mn>22</mn>, a red
+      // rectangle for the vertical stretchy <mo> operator (with lspace=3em and
+      // rspace=5em spacing around it) and a 3x1 green rectangle for
+      // <mn>333</mn>. We try and cover the operator with a green rectangle at
+      // the expected horizontal offset. The reftest fails if the stretchy
+      // operator is painted somewhere else.
+      const pxPerEm = 25;
+      let isRTL = math.getAttribute("dir") === "rtl";
+      let lspace = pxPerEm * 3;
+      let rspace = pxPerEm * 5;
+      let expectedOperatorLeft = math.getBoundingClientRect().left +
+          (isRTL ? 3 * pxPerEm + rspace : 2 * pxPerEm + lspace);
+      let expectedOperatorWidth = pxPerEm;
+      let actualOperatorBox =
+          math.querySelector(".operator").getBoundingClientRect();
+      let div = document.createElement("div");
+      div.className = 'frame';
+      div.style.left = `${expectedOperatorLeft-1}px`;
+      div.style.top = `${actualOperatorBox.top-1}px`;
+      div.style.width = `${expectedOperatorWidth+2}px`;
+      div.style.height = `${actualOperatorBox.height+2}px`;
+      document.body.appendChild(div);
+    });
+    document.documentElement.classList.remove("reftest-wait");
+  }
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+</script>
+<p>This test passes if you see green boxes and no red.</p>
+<div>
+  <!-- Child of math. -->
+  <math>
+    <mn>22</mn>
+    <mo class="operator" lspace="3em" rspace="5em"
+        stretchy="true" minsize="2em" symmetric="true">&#x295C;</mo>
+    <mn>333</mn>
+  </math>
+</div>
+<div>
+  <!-- Child of mrow. -->
+  <math>
+    <mrow>
+      <mn>22</mn>
+      <mo class="operator" lspace="3em" rspace="5em"
+          stretchy="true" minsize="2em" symmetric="true">&#x295C;</mo>
+      <mn>333</mn>
+    </mrow>
+  </math>
+</div>
+<div>
+  <!-- Child of math, embellished operator. -->
+  <math>
+    <mn>22</mn>
+    <mrow class="operator">
+      <mo lspace="3em" rspace="5em"
+          stretchy="true" minsize="2em" symmetric="true">&#x295C;</mo>
+    </mrow>
+    <mn>333</mn>
+  </math>
+</div>
+<div>
+  <!-- Child of mrow, embellished operator. -->
+  <math>
+    <mrow>
+      <mn>22</mn>
+      <mrow class="operator">
+        <mo lspace="3em" rspace="5em"
+            stretchy="true" minsize="2em" symmetric="true">&#x295C;</mo>
+      </mrow>
+      <mn>333</mn>
+    </mrow>
+  </math>
+</div>
+<div>
+  <!-- Child of math, RTL. -->
+  <math dir="rtl">
+    <mn>22</mn>
+    <mo class="operator" lspace="3em" rspace="5em"
+        stretchy="true" minsize="2em" symmetric="true">&#x295C;</mo>
+    <mn>333</mn>
+  </math>
+</div>
+<div>
+  <!-- Child of mrow, RTL. -->
+  <math dir="rtl">
+    <mrow>
+      <mn>22</mn>
+      <mo class="operator" lspace="3em" rspace="5em"
+          stretchy="true" minsize="2em" symmetric="true">&#x295C;</mo>
+      <mn>333</mn>
+    </mrow>
+  </math>
+</div>
+<div>
+  <!-- Child of math, embellished operator, RTL. -->
+  <math dir="rtl">
+    <mn>22</mn>
+    <mrow class="operator">
+      <mo lspace="3em" rspace="5em"
+          stretchy="true" minsize="2em" symmetric="true">&#x295C;</mo>
+    </mrow>
+    <mn>333</mn>
+  </math>
+</div>
+<div>
+  <!-- Child of mrow, embellished operator, RTL. -->
+  <math dir="rtl">
+    <mrow>
+      <mn>22</mn>
+      <mrow class="operator">
+        <mo lspace="3em" rspace="5em"
+            stretchy="true" minsize="2em" symmetric="true">&#x295C;</mo>
+      </mrow>
+      <mn>333</mn>
+    </mrow>
+  </math>
+</div>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script>
+  MathMLFeatureDetection.ensure_for_match_reftest("has_operator_spacing");
+</script>

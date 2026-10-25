@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Horizontal stretchy operator</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-algorithms">
+<link rel="help" href="https://w3c.github.io/mathml-core/#algorithm-for-stretching-operators-along-the-inline-axis">
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-of-operators">
+<link rel="match" href="../../../../../expected/wpt-import/mathml/presentation-markup/scripts/underover-stretchy-001-ref.html"/>
+<meta name="assert" content="Verify visual rendering of padding/border/margin on an operator, stretchy along the inline axis.">
+<script src="../../../mathml/support/feature-detection.js"></script>
+<style>
+  @font-face {
+    font-family: TestFont;
+    src: url("../../../fonts/math/stretchy.woff");
+  }
+  math, mo {
+    font-family: TestFont;
+    font-size: 50px;
+  }
+</style>
+<body>
+  <p>This test passes if you see green rectangles and no red.</p>
+  <!-- The red mspace elements below are expected to be covered by the green
+       stretchy mo elements. -->
+
+  <div style="position: absolute; left: 3em; top; 3em;
+              width: 1000px; height: 500px; background: lightgreen;">
+
+    <div style="position: absolute; top: 1px; left: 1px;">
+      <!-- stretchy base in munder -->
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munder>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+            <mspace width="200px" height="0px"/>
+          </munder>
+        </math>
+      </div>
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munder>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+            <mspace width="200px" height="0px"/>
+          </munder>
+        </math>
+      </div>
+    </div>
+
+    <div style="position: absolute; top: 1px; left: 251px;">
+      <!-- stretchy script in munder -->
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munder>
+            <mspace width="200px" height="0px"/>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+          </munder>
+        </math>
+      </div>
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munder>
+            <mspace width="200px" height="0px"/>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+          </munder>
+        </math>
+      </div>
+    </div>
+
+    <div style="position: absolute; top: 101px; left: 1px;">
+      <!-- stretchy base in mover -->
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <mover>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+            <mspace width="200px" height="0px"/>
+          </mover>
+        </math>
+      </div>
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <mover>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+            <mspace width="200px" height="0px"/>
+          </mover>
+        </math>
+      </div>
+    </div>
+
+    <div style="position: absolute; top: 101px; left: 251px;">
+      <!-- stretchy script in mover -->
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <mover>
+            <mspace width="200px" height="0px"/>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+          </mover>
+        </math>
+      </div>
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <mover>
+            <mspace width="200px" height="0px"/>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+          </mover>
+        </math>
+      </div>
+    </div>
+
+    <div style="position: absolute; top: 201px; left: 1px;">
+      <!-- stretchy base in munderover -->
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+            <mspace width="200px" height="0px"/>
+            <mspace width="200px" height="0px"/>
+          </munderover>
+        </math>
+      </div>
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+            <mspace width="200px" height="0px"/>
+            <mspace width="200px" height="0px"/>
+          </munderover>
+        </math>
+      </div>
+    </div>
+
+    <div style="position: absolute; top: 201px; left: 251px;">
+      <!-- stretchy underscript in munderover -->
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mspace width="200px" height="0px"/>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+            <mspace width="200px" height="0px"/>
+          </munderover>
+        </math>
+      </div>
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mspace width="200px" height="0px"/>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+            <mspace width="200px" height="0px"/>
+          </munderover>
+        </math>
+      </div>
+    </div>
+
+    <div style="position: absolute; top: 301px; left: 1px;">
+      <!-- stretchy overscript in munderover -->
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mspace width="200px" height="0px"/>
+            <mspace width="200px" height="0px"/>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+          </munderover>
+        </math>
+      </div>
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mspace width="200px" height="0px"/>
+            <mspace width="200px" height="0px"/>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+          </munderover>
+        </math>
+      </div>
+    </div>
+
+    <div style="position: absolute; top: 1px; left: 501px;">
+      <!-- stretchy base and underscript in munderover -->
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+            <mspace width="200px" height="0px"/>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+          </munderover>
+        </math>
+      </div>
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+            <mspace width="200px" height="0px"/>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+          </munderover>
+        </math>
+      </div>
+    </div>
+
+    <div style="position: absolute; top: 151px; left: 501px;">
+      <!-- stretchy base and overscript in munderover -->
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+            <mspace width="200px" height="0px"/>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+          </munderover>
+        </math>
+      </div>
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+            <mspace width="200px" height="0px"/>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+          </munderover>
+        </math>
+      </div>
+    </div>
+
+    <div style="position: absolute; top: 301px; left: 501px;">
+      <!-- stretchy scripts in munderover -->
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mspace width="200px" height="0px"/>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+          </munderover>
+        </math>
+      </div>
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mspace width="200px" height="0px"/>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+            <mo lspace="0" rspace="0" style="color: green;">⥚</mo>
+          </munderover>
+        </math>
+      </div>
+    </div>
+
+    <div style="position: absolute; top: 1px; left: 751px;">
+      <!-- Only stretchy operators in munderover. The widest unstretched size
+           is used as the target size. -->
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mspace width="198px" height="48px" style="background: red; margin: 1px;"/>
+            <mspace width="198px" height="198px" style="background: red; margin: 1px;"/>
+            <mspace width="198px" height="98px" style="background: red; margin: 1px;"/>
+          </munderover>
+        </math>
+      </div>
+      <div style="position: absolute; left: 0; top: 0;">
+        <math>
+          <munderover>
+            <mo lspace="0" rspace="0" style="font-size: 1em; color: green;">⥚</mo>
+            <mo lspace="0" rspace="0" style="font-size: 4em; color: green;">⥚</mo>
+            <mo lspace="0" rspace="0" style="font-size: 2em; color: green;">⥚</mo>
+          </munderover>
+        </math>
+      </div>
+    </div>
+  </div>
+  <script>
+    MathMLFeatureDetection.ensure_for_match_reftest("has_mspace");
+    MathMLFeatureDetection.ensure_for_match_reftest("has_munderover");
+  </script>
+</body>
+</html>

@@ -106,10 +106,13 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
         }
         paint_base(recorder, paintable, phase);
         if phase == PaintPhase::Foreground {
-            if let Some(data) = paintable_geometry::committed_math_paint_data(recorder.source, paintable) {
-                math::paint_foreground(recorder, paintable, &data);
+            let math_paint_data = paintable_geometry::committed_math_paint_data(recorder.source, paintable);
+            if let Some(data) = &math_paint_data {
+                math::paint_foreground(recorder, paintable, data);
             }
-            if recorder.is_recording_svg_resource_content()
+            if math_paint_data.is_some_and(|data| data.replaces_text) {
+                // NB: The glyph of a stretched or large operator is painted instead of its text.
+            } else if recorder.is_recording_svg_resource_content()
                 || recorder
                     .source
                     .committed_side_data(paintable)

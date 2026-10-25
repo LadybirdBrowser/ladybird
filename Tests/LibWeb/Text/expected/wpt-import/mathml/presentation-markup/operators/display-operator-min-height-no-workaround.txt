@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	DisplayOperatorMinHeight is not modified
+1 Pass
+Pass	DisplayOperatorMinHeight is not modified

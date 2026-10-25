@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Placement of operators
+1 Pass
+Pass	Placement of operators

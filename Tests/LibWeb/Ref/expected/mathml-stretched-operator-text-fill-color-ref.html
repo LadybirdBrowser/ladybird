@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    @font-face {
+        font-family: stretchy;
+        src: url("../input/wpt-import/fonts/math/stretchy.woff");
+    }
+    math {
+        font-family: stretchy;
+        font-size: 50px;
+    }
+    mo {
+        color: green;
+    }
+</style>
+<math>
+    <mspace height="4em"/>
+    <mo stretchy="true" symmetric="true">&#x295C;</mo>
+</math>
+<script>
+    document.fonts.ready.then(() => document.documentElement.classList.remove("reftest-wait"));
+</script>
+</html>

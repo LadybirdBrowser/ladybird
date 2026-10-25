@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>embellished operators: maction and mrow-like as space-like children
+    </title>
+    <link rel="mismatch" href="../../../../../expected/wpt-import/mathml/presentation-markup/operators/embellished-op-3-2-ref.html"/>
+    <link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=21479"/>
+    <link rel="stylesheet" href="../../../fonts/ahem.css" />
+    <style>
+      @font-face {
+        font-family: operators;
+        src: url("../../../fonts/math/operators.woff");
+      }
+      math {
+        font: 25px/1 Ahem;
+      }
+      mo {
+        font-family: operators;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div>
+      <!-- space-like mrow -->
+      <math xmlns="http://www.w3.org/1998/Math/MathML">
+        <mover>
+          <mtext>abcdef</mtext>
+          <mrow><mrow><mspace/></mrow><mo>&#xaf;</mo></mrow>
+        </mover>
+      </math>
+    </div>
+  </body>
+</html>

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Stretchy vertical line
+1 Pass
+Pass	Stretchy vertical line

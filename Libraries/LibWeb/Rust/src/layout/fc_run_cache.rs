@@ -179,6 +179,7 @@ fn sizing_directives_match_ignoring_unobserved(
         float_avoidance_inline_size,
         outer_float_intrusion_before_list_item_children,
         treat_block_axis_percentage_insets_as_auto_beyond_root,
+        math_stretch_size_constraint,
     } = *a;
     forced_content_inline_size == b.forced_content_inline_size
         && forced_content_block_size == b.forced_content_block_size
@@ -192,6 +193,7 @@ fn sizing_directives_match_ignoring_unobserved(
         && outer_float_intrusion_before_list_item_children == b.outer_float_intrusion_before_list_item_children
         && treat_block_axis_percentage_insets_as_auto_beyond_root
             == b.treat_block_axis_percentage_insets_as_auto_beyond_root
+        && math_stretch_size_constraint == b.math_stretch_size_constraint
         && match (
             flex_self_block_size_resolution_space,
             b.flex_self_block_size_resolution_space,

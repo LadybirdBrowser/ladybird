@@ -341,6 +341,24 @@ pub(crate) struct RootSizingDirectives {
     pub(crate) float_avoidance_inline_size: Option<CssPixels>,
     pub(crate) outer_float_intrusion_before_list_item_children: inline_formatting_context::SpaceUsedByFloats,
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
+    // Input-only: MathML layout lays out an embellished operator with the size its core operator should stretch to
+    // cover.
+    pub(crate) math_stretch_size_constraint: Option<MathStretchSizeConstraint>,
+}
+
+/// The size that MathML layout asks the core operator of an embellished operator to stretch to cover.
+// https://w3c.github.io/mathml-core/#box-model
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MathStretchSizeConstraint {
+    /// The ink line-ascent and ink line-descent that a core operator stretched along the block axis should cover.
+    Block { ascent: CssPixels, descent: CssPixels },
+    /// The target size that a core operator stretched along the inline axis should cover.
+    Inline(CssPixels),
+    /// AD-HOC: A block stretch size constraint that also covers the in-flow children of the embellished operators
+    ///         it passes through. It stands in for laying out an embellished operator with the block stretch size
+    ///         constraint (0, 0) and then with its own ink line-ascent and ink line-descent, as a box is laid out
+    ///         only once in a run.
+    BlockCoveringContent { ascent: CssPixels, descent: CssPixels },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

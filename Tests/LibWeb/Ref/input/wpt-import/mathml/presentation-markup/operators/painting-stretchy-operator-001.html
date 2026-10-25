@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head>
+<meta charset="utf-8">
+<title>Painting of vertical assembly</title>
+<link rel="match" href="../../../../../expected/wpt-import/mathml/presentation-markup/operators/painting-stretchy-operator-001-ref.html">
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<link rel="help" href="https://crbug.com/1409380">
+<meta name="assert" content="Verify that vertical glyph assemblies are painted at the position of their bounding box.">
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  .container {
+      font-size: 50px;
+      position: absolute;
+      left: 1em;
+      top: 1em;
+      padding: 5px;
+      background: green;
+      width: 4em;
+      height: 8em;
+  }
+  mo {
+      color: green;
+      background: red;
+  }
+  .frame {
+      position: absolute;
+      box-sizing: border-box;
+      border: 2px solid green;
+  }
+  @font-face {
+    font-family: stretchy;
+    src: url("../../../fonts/math/stretchy.woff");
+  }
+  @font-face {
+    font-family: stretchy-centered-on-baseline;
+    src: url("../../../fonts/math/stretchy-centered-on-baseline.woff");
+  }
+</style>
+<script>
+  function runTests() {
+      // Add a green frame around mo to avoid antialisasing/rounding issues.
+      Array.from(document.getElementsByTagName('mo')).forEach(mo => {
+          let box = mo.getBoundingClientRect();
+          let div = document.createElement("div");
+          div.className = 'frame';
+          div.style.left = `${box.left-1}px`;
+          div.style.top = `${box.top-1}px`;
+          div.style.width = `${box.width+1}px`;
+          div.style.height = `${box.height+1}px`;
+          document.body.appendChild(div);
+      });
+      document.documentElement.classList.remove("reftest-wait");
+  }
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+</script>
+<body>
+  <p>This test passes if you see a green rectangle and no red.</p>
+  <div class="container">
+    <!-- This font uses assembly glyphs with zero ink descent, which is what
+         Latin Modern Math does for U+007C VERTICAL LINE. -->
+    <math style="font-family: stretchy">
+      <mspace height="4em"/>
+      <mo stretchy="true" symmetric="true">&#x295C;</mo>
+    </math>
+    <!-- This font uses assembly glyphs with non-zero ink descent, which is what
+         Cambria Math does for U+007C VERTICAL LINE. -->
+    <math style="font-family: stretchy-centered-on-baseline">
+      <mspace height="4em"/>
+      <mo stretchy="true" symmetric="true">&#x295C;</mo>
+    </math>
+  </div>
+</body>

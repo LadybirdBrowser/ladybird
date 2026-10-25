@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-1 Pass
-4 Fail
-Fail	Taking into account stretch axis.
+5 Pass
+Pass	Taking into account stretch axis.
 Pass	Taking into account stretchy property.
-Fail	Only operators with a stretchy property and block stretch axis.
-Fail	Operators smaller and larger than non-stretchy siblings.
-Fail	Embellished operators
+Pass	Only operators with a stretchy property and block stretch axis.
+Pass	Operators smaller and larger than non-stretchy siblings.
+Pass	Embellished operators
