@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	arc() draws correctly when start = 2 and end = start + 2pi+e and clockwise
+1 Pass
+Pass	arc() draws correctly when start = 2 and end = start + 2pi+e and clockwise
