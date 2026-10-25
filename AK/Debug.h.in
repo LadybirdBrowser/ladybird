@@ -26,10 +26,6 @@
 #    cmakedefine01 CALLBACK_MACHINE_DEBUG
 #endif
 
-#ifndef CANVAS_RENDERING_CONTEXT_2D_DEBUG
-#    cmakedefine01 CANVAS_RENDERING_CONTEXT_2D_DEBUG
-#endif
-
 #ifndef CRYPTO_DEBUG
 #    cmakedefine01 CRYPTO_DEBUG
 #endif
@@ -44,10 +40,6 @@
 
 #ifndef CSS_PARSER_DEBUG
 #    cmakedefine01 CSS_PARSER_DEBUG
-#endif
-
-#ifndef CSS_TOKENIZER_DEBUG
-#    cmakedefine01 CSS_TOKENIZER_DEBUG
 #endif
 
 #ifndef CURL_DEBUG
@@ -74,10 +66,6 @@
 #    cmakedefine01 FLAC_ENCODER_DEBUG
 #endif
 
-#ifndef FORMATTING_CONTEXT_TRACE_DEBUG
-#    cmakedefine01 FORMATTING_CONTEXT_TRACE_DEBUG
-#endif
-
 #ifndef GIF_DEBUG
 #    cmakedefine01 GIF_DEBUG
 #endif
@@ -88,10 +76,6 @@
 
 #ifndef INCREMENTAL_SWEEP_DEBUG
 #    cmakedefine01 INCREMENTAL_SWEEP_DEBUG
-#endif
-
-#ifndef HIGHLIGHT_FOCUSED_FRAME_DEBUG
-#    cmakedefine01 HIGHLIGHT_FOCUSED_FRAME_DEBUG
 #endif
 
 #ifndef HTML_SCRIPT_DEBUG
@@ -146,10 +130,6 @@
 #    cmakedefine01 LEXER_DEBUG
 #endif
 
-#ifndef LIBWEB_CSS_ANIMATION_DEBUG
-#    cmakedefine01 LIBWEB_CSS_ANIMATION_DEBUG
-#endif
-
 #ifndef LIBWEB_CSS_DEBUG
 #    cmakedefine01 LIBWEB_CSS_DEBUG
 #endif
@@ -184,10 +164,6 @@
 
 #ifndef HTML_PARSER_DEBUG
 #    cmakedefine01 HTML_PARSER_DEBUG
-#endif
-
-#ifndef PATH_DEBUG
-#    cmakedefine01 PATH_DEBUG
 #endif
 
 #ifndef PLAYBACK_MANAGER_DEBUG
@@ -292,10 +268,6 @@
 
 #ifndef VIDEO_PRESENTATION_CHANNEL_DEBUG
 #    cmakedefine01 VIDEO_PRESENTATION_CHANNEL_DEBUG
-#endif
-
-#ifndef WEBGL_CONTEXT_DEBUG
-#    cmakedefine01 WEBGL_CONTEXT_DEBUG
 #endif
 
 #ifndef WEBVIEW_PROCESS_DEBUG
