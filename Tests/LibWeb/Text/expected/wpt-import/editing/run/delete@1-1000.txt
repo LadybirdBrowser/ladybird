@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-989 Pass
-11 Fail
+992 Pass
+8 Fail
 Pass	[["delete",""]] "foo[]bar": execCommand("delete", false, "") return value
 Pass	[["delete",""]] "foo[]bar" checks for modifications to non-editable content
 Pass	[["delete",""]] "foo[]bar" compare innerHTML
@@ -822,7 +822,7 @@ Pass	[["delete",""]] "foo <span>&nbsp;</span>[] bar" queryCommandState("delete")
 Pass	[["delete",""]] "foo <span>&nbsp;</span>[] bar" queryCommandValue("delete") after
 Pass	[["delete",""]] "foo <span>&nbsp;</span> []bar": execCommand("delete", false, "") return value
 Pass	[["delete",""]] "foo <span>&nbsp;</span> []bar" checks for modifications to non-editable content
-Fail	[["delete",""]] "foo <span>&nbsp;</span> []bar" compare innerHTML
+Pass	[["delete",""]] "foo <span>&nbsp;</span> []bar" compare innerHTML
 Pass	[["delete",""]] "foo <span>&nbsp;</span> []bar" queryCommandIndeterm("delete") before
 Pass	[["delete",""]] "foo <span>&nbsp;</span> []bar" queryCommandState("delete") before
 Pass	[["delete",""]] "foo <span>&nbsp;</span> []bar" queryCommandValue("delete") before
@@ -840,7 +840,7 @@ Pass	[["delete",""]] "<b>foo </b>&nbsp;[]bar" queryCommandState("delete") after
 Pass	[["delete",""]] "<b>foo </b>&nbsp;[]bar" queryCommandValue("delete") after
 Pass	[["delete",""]] "<b>foo&nbsp;</b> []bar": execCommand("delete", false, "") return value
 Pass	[["delete",""]] "<b>foo&nbsp;</b> []bar" checks for modifications to non-editable content
-Fail	[["delete",""]] "<b>foo&nbsp;</b> []bar" compare innerHTML
+Pass	[["delete",""]] "<b>foo&nbsp;</b> []bar" compare innerHTML
 Pass	[["delete",""]] "<b>foo&nbsp;</b> []bar" queryCommandIndeterm("delete") before
 Pass	[["delete",""]] "<b>foo&nbsp;</b> []bar" queryCommandState("delete") before
 Pass	[["delete",""]] "<b>foo&nbsp;</b> []bar" queryCommandValue("delete") before
@@ -849,7 +849,7 @@ Pass	[["delete",""]] "<b>foo&nbsp;</b> []bar" queryCommandState("delete") after
 Pass	[["delete",""]] "<b>foo&nbsp;</b> []bar" queryCommandValue("delete") after
 Pass	[["delete",""]] "<b>foo&nbsp;</b>&nbsp;[]bar": execCommand("delete", false, "") return value
 Pass	[["delete",""]] "<b>foo&nbsp;</b>&nbsp;[]bar" checks for modifications to non-editable content
-Fail	[["delete",""]] "<b>foo&nbsp;</b>&nbsp;[]bar" compare innerHTML
+Pass	[["delete",""]] "<b>foo&nbsp;</b>&nbsp;[]bar" compare innerHTML
 Pass	[["delete",""]] "<b>foo&nbsp;</b>&nbsp;[]bar" queryCommandIndeterm("delete") before
 Pass	[["delete",""]] "<b>foo&nbsp;</b>&nbsp;[]bar" queryCommandState("delete") before
 Pass	[["delete",""]] "<b>foo&nbsp;</b>&nbsp;[]bar" queryCommandValue("delete") before

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-984 Pass
-16 Fail
+985 Pass
+15 Fail
 Pass	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}": execCommand("inserttext", false, " ") return value
 Pass	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}" checks for modifications to non-editable content
 Fail	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}" compare innerHTML
@@ -15,7 +15,7 @@ Pass	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}" queryCommandState("insert
 Pass	[["inserttext"," "]] "<b>a</b><i>@</i><u>b</u>{}" queryCommandValue("inserttext") after
 Pass	[["inserttext"," "]] "a@b<b>[]c</b>": execCommand("inserttext", false, " ") return value
 Pass	[["inserttext"," "]] "a@b<b>[]c</b>" checks for modifications to non-editable content
-Fail	[["inserttext"," "]] "a@b<b>[]c</b>" compare innerHTML
+Pass	[["inserttext"," "]] "a@b<b>[]c</b>" compare innerHTML
 Pass	[["inserttext"," "]] "a@b<b>[]c</b>" queryCommandIndeterm("inserttext") before
 Pass	[["inserttext"," "]] "a@b<b>[]c</b>" queryCommandState("inserttext") before
 Pass	[["inserttext"," "]] "a@b<b>[]c</b>" queryCommandValue("inserttext") before
