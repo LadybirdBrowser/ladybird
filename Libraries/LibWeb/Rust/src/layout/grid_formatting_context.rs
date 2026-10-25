@@ -4603,13 +4603,40 @@ impl<'pass> GridFormattingContext<'pass> {
         if self.run.layout_mode != LayoutMode::Normal {
             return;
         }
+        // https://drafts.csswg.org/css-grid-2/#static-position
+        // The static position of an absolutely-positioned child of a grid container is determined as if it were the
+        // sole grid item in a grid area whose edges coincide with the content edges of the grid container.
+        // NOTE: Note that this position is affected by the values of 'justify-self' and 'align-self' on the child,
+        //       and that, as in most other layout models, the absolutely-positioned child has no effect on the size of
+        //       the containing block or layout of its contents.
+        let static_position_alignment = |child: Node, axis: Axis| {
+            let reversed = self.axis_is_reversed(axis);
+            match self.item_alignment_for_node(child, axis) {
+                Alignment::Center => StaticPositionAlignment::Center,
+                Alignment::End if reversed => StaticPositionAlignment::Start,
+                Alignment::End => StaticPositionAlignment::End,
+                _ if reversed => StaticPositionAlignment::End,
+                _ => StaticPositionAlignment::Start,
+            }
+        };
+        let (horizontal_axis, vertical_axis) = if self.grid_axes_are_transposed {
+            (Axis::Row, Axis::Column)
+        } else {
+            (Axis::Column, Axis::Row)
+        };
         for child in self.run.callbacks.children(self.run.box_) {
             if self.facts(child).is_absolutely_positioned() {
                 let rect = abspos_inputs::StaticPositionRect {
-                    rect: geometry::LogicalRect::default(),
-                    inline_alignment: StaticPositionAlignment::Start,
-                    block_alignment: StaticPositionAlignment::Start,
-                    alignment_derives_from_own_computed_values: false,
+                    rect: geometry::LogicalRect {
+                        offset: Default::default(),
+                        size: geometry::LogicalSize {
+                            inline_size: self.container_used().content_inline_size.get(),
+                            block_size: self.container_used().content_block_size.get(),
+                        },
+                    },
+                    inline_alignment: static_position_alignment(child, horizontal_axis),
+                    block_alignment: static_position_alignment(child, vertical_axis),
+                    alignment_derives_from_own_computed_values: true,
                     is_known: true,
                 };
                 // The grid area supplies both the containing block and the
