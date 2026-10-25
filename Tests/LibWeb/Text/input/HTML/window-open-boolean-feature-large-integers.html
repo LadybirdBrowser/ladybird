@@ -1,0 +1,16 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const features of [
+            "noopener=2147483648",
+            "noopener=-99999999999999999999",
+            "noreferrer=2147483648",
+            "noopener=00000000000000000000",
+        ]) {
+            const result = window.open("about:blank", "_blank", features);
+            println(`${features}: ${result === null ? "null" : "window"}`);
+            if (result) result.close();
+        }
+    });
+</script>

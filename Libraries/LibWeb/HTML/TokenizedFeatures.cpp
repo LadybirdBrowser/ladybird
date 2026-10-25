@@ -5,6 +5,7 @@
  */
 
 #include <AK/GenericLexer.h>
+#include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
 
@@ -79,13 +80,15 @@ TokenizedFeature::Map tokenize_open_features(Utf16View features)
         lexer.ignore_while(Infra::is_ascii_whitespace);
 
         // 7. If the code point at position in features is a feature separator:
-        //    1. While position is not past the end of features and the code point at position in features is a feature separator:
-        //       1. If the code point at position in features is U+002C (,), then break.
-        //       2. Advance position by 1.
-        lexer.ignore_while([](auto character) { return Infra::is_ascii_whitespace(character) || character == '='; });
+        if (!lexer.is_eof() && is_feature_separator(lexer.peek())) {
+            // 1. While position is not past the end of features and the code point at position in features is a feature separator:
+            //    1. If the code point at position in features is U+002C (,), then break.
+            //    2. Advance position by 1.
+            lexer.ignore_while([](auto character) { return Infra::is_ascii_whitespace(character) || character == '='; });
 
-        // 2. Collect a sequence of code points that are not feature separators code points from features given position. Set value to the collected code points, converted to ASCII lowercase.
-        value = lexer.consume_until(is_feature_separator).to_ascii_lowercase();
+            // 2. Collect a sequence of code points that are not feature separators code points from features given position. Set value to the collected code points, converted to ASCII lowercase.
+            value = lexer.consume_until(is_feature_separator).to_ascii_lowercase();
+        }
 
         // 8. If name is not the empty string, then set tokenizedFeatures[name] to value.
         if (!normalized_name.is_empty()) {
@@ -117,14 +120,19 @@ T parse_boolean_feature(Utf16View value)
         return T::Yes;
 
     // 4. Let parsed be the result of parsing value as an integer.
-    auto parsed = value.to_number<i64>();
+    // NOTE: The integer can be arbitrarily large, so we only look at its digits, which are nonzero if any of them is.
+    auto parsed = parse_integer_digits(value);
 
     // 5. If parsed is an error, then set it to 0.
-    if (!parsed.has_value())
-        parsed = 0;
-
     // 6. Return false if parsed is 0, and true otherwise.
-    return parsed == 0 ? T::No : T::Yes;
+    if (!parsed.has_value())
+        return T::No;
+    for (size_t i = 0; i < parsed->length_in_code_units(); ++i) {
+        auto code_unit = parsed->code_unit_at(i);
+        if (code_unit != '0' && code_unit != '-' && code_unit != '+')
+            return T::Yes;
+    }
+    return T::No;
 }
 
 template TokenizedFeature::Location parse_boolean_feature<TokenizedFeature::Location>(Utf16View value);

@@ -1,0 +1,4 @@
+noopener=2147483648: null
+noopener=-99999999999999999999: null
+noreferrer=2147483648: null
+noopener=00000000000000000000: window
