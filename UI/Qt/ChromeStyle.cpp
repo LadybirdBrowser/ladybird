@@ -11,6 +11,7 @@
 
 #include <QAbstractButton>
 #include <QElapsedTimer>
+#include <QFont>
 #include <QGuiApplication>
 #include <QImage>
 #include <QPainter>
@@ -254,6 +255,18 @@ QColor chrome_muted_text(QPalette const& palette)
         return is_dark(palette) ? QColor(154, 163, 176) : QColor(98, 108, 122);
 
     return palette.color(QPalette::PlaceholderText);
+}
+
+// The titles of tabs and bookmarks share one size.
+QFont chrome_title_font(QFont font)
+{
+#if defined(AK_OS_MACOS)
+    // NB: The macOS style gives tab bars and tool buttons small fonts of different sizes when it polishes them, so the
+    //     titles are drawn a point smaller than the application's font rather than in the font of their widget.
+    if (auto application_point_size = QGuiApplication::font().pointSizeF(); application_point_size > 0)
+        font.setPointSizeF(application_point_size - 1);
+#endif
+    return font;
 }
 
 static QColor chrome_destructive_hover()

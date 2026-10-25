@@ -360,6 +360,7 @@ QToolButton* Tab::create_navigation_history_toolbar_button(QWidget& parent, QAct
     return button;
 }
 
+static constexpr int TAB_FAVICON_SIZE = 16;
 static constexpr int TOOLBAR_HORIZONTAL_MARGIN = 12;
 #ifdef AK_OS_MACOS
 static constexpr int WEB_VIEW_INSET = 5;
@@ -683,7 +684,7 @@ Tab::Tab(BrowserWindow* window, DeferredTab deferred_tab)
     : QWidget(window)
     , m_window(window)
     , m_title(deferred_tab.title)
-    , m_favicon(deferred_tab.favicon)
+    , m_favicon(favicon_with_rounded_corners(deferred_tab.favicon, TAB_FAVICON_SIZE))
     , m_session_tab_id(deferred_tab.session_tab_id)
     , m_deferred_tab(AK::move(deferred_tab))
 {
@@ -1047,7 +1048,7 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         if (qpixmap.isNull())
             return;
 
-        m_favicon = qpixmap;
+        m_favicon = favicon_with_rounded_corners(qpixmap);
         if (m_content_blocking_popover)
             m_content_blocking_popover->set_favicon(m_favicon);
         update_tab_icon();
