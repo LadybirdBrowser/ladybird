@@ -380,7 +380,6 @@ pub(crate) struct UsedValues {
     // the display along with the columns (CSS 2.2 §17.5.5).
     pub hidden_by_collapsed_columns: Cell<bool>,
 
-    pub inline_size_constraint: Cell<SizeConstraint>,
     pub block_size_constraint: Cell<SizeConstraint>,
 
     // Keep these as separate cells: content_offset is read by placement code
@@ -443,7 +442,6 @@ impl Default for UsedValues {
             table_column_index: Cell::new(0),
             table_column_span: Cell::new(0),
             hidden_by_collapsed_columns: Cell::new(false),
-            inline_size_constraint: Cell::new(SizeConstraint::None),
             block_size_constraint: Cell::new(SizeConstraint::None),
             has_content_offset: SealableCell::new(false),
             content_offset: SealableCell::new(FfiCssPixelPoint::default()),
@@ -608,7 +606,6 @@ impl UsedValues {
         );
         self.has_definite_inline_size.set(state.has_definite_inline_size);
         self.has_definite_block_size.set(state.has_definite_block_size);
-        self.inline_size_constraint.set(state.inline_size_constraint);
         self.block_size_constraint.set(state.block_size_constraint);
         self.has_first_baseline.set(state.has_first_baseline);
         self.has_last_baseline.set(state.has_last_baseline);
@@ -694,7 +691,6 @@ used_values_cell_state! {
     table_column_index: u32,
     table_column_span: u32,
     hidden_by_collapsed_columns: bool,
-    inline_size_constraint: SizeConstraint,
     block_size_constraint: SizeConstraint,
     has_content_offset: bool,
     content_offset: FfiCssPixelPoint,
@@ -740,7 +736,10 @@ impl UsedValuesCellState {
         if from.is_orthogonal_to(to) {
             std::mem::swap(&mut self.content_inline_size, &mut self.content_block_size);
             std::mem::swap(&mut self.has_definite_inline_size, &mut self.has_definite_block_size);
-            std::mem::swap(&mut self.inline_size_constraint, &mut self.block_size_constraint);
+            debug_assert!(
+                self.block_size_constraint == SizeConstraint::None,
+                "a box measured for its block size never lays out in an orthogonal frame"
+            );
             self.has_first_baseline = false;
             self.has_last_baseline = false;
             self.inline_alignment_baseline = None;
@@ -774,12 +773,11 @@ impl UsedValues {
         scratch.padding_bottom.set(self.padding_bottom.get());
         scratch.content_inline_size.set(self.content_inline_size.get());
         scratch.content_block_size.set(self.content_block_size.get());
-        scratch.inline_size_constraint.set(self.inline_size_constraint.get());
         scratch.block_size_constraint.set(self.block_size_constraint.get());
     }
 
     pub(crate) fn has_definite_inline_size(&self) -> bool {
-        self.has_definite_inline_size.get() && self.inline_size_constraint.get() == SizeConstraint::None
+        self.has_definite_inline_size.get()
     }
 
     pub(crate) fn has_definite_block_size(&self) -> bool {
@@ -938,13 +936,10 @@ impl UsedValues {
     pub(crate) fn available_inner_space_or_constraints_from(&self, outer: AvailableSpace) -> AvailableSpace {
         use AvailableSize;
 
-        let mut inline_size = match self.inline_size_constraint.get() {
-            SizeConstraint::MinContent => AvailableSize::MinContent,
-            SizeConstraint::MaxContent => AvailableSize::MaxContent,
-            SizeConstraint::None if self.has_definite_inline_size.get() => {
-                AvailableSize::definite(self.content_inline_size.get())
-            }
-            SizeConstraint::None => AvailableSize::Indefinite,
+        let mut inline_size = if self.has_definite_inline_size.get() {
+            AvailableSize::definite(self.content_inline_size.get())
+        } else {
+            AvailableSize::Indefinite
         };
         let mut block_size = match self.block_size_constraint.get() {
             SizeConstraint::MinContent => AvailableSize::MinContent,

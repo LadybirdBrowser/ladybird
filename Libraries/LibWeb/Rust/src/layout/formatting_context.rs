@@ -2465,7 +2465,7 @@ fn enter_own_frame(
     // In the sizing phase [...] the dimensions of the box and the containing block are mapped to the inline
     // size and block size and calculations are performed accordingly using the writing mode of the box
     // establishing the orthogonal flow.
-    if used.inline_size_constraint.get() == SizeConstraint::None && !used.has_definite_inline_size.get() {
+    if !used.has_definite_inline_size.get() {
         // NB: A flex or grid container sizes its items in both axes before laying out their contents, even where it
         //     leaves a size indefinite for the percentages of their contents.
         let inline_size = if input.participation == ParticipationInParentFormattingContext::Item
@@ -2507,12 +2507,7 @@ fn leave_own_frame(
         // orthogonal flow, the used block size of the child is calculated to fit its content; and this resulting
         // content-based size is used as input to the inline-axis min-content size and max-content size of the
         // parent.
-        // NB: A root measured under an intrinsic inline size constraint has its inline size only in the result.
-        let content_inline_size = if used.inline_size_constraint.get() == SizeConstraint::None {
-            used.content_inline_size.get()
-        } else {
-            result.automatic_content_inline_size
-        };
+        let content_inline_size = used.content_inline_size.get();
         // NB: The root's baselines lie across its own block axis, which is the horizontal axis of its parent's frame.
         let block_start_is_left = matches!(
             own_frame.side_in(geometry::Side::Top, parent_frame),
@@ -2694,7 +2689,6 @@ pub(crate) fn layout_inside_child(
     if !force_independent_context_run
         && layout_mode == LayoutMode::IntrinsicSizing
         && !facts.is_inline()
-        && used.inline_size_constraint.get() == SizeConstraint::None
         && used.block_size_constraint.get() == SizeConstraint::None
         && used.has_definite_inline_size()
         && used.has_definite_block_size()

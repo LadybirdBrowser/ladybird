@@ -235,7 +235,6 @@ pub(crate) struct TableCellMeasurementKey {
     pub(crate) content_block_size: CssPixels,
     pub(crate) has_definite_inline_size: bool,
     pub(crate) has_definite_block_size: bool,
-    pub(crate) inline_size_constraint: SizeConstraint,
     pub(crate) block_size_constraint: SizeConstraint,
     pub(crate) uses_collapsing_borders_model: bool,
     pub(crate) adopt_automatic_content_block_size: bool,
@@ -262,7 +261,6 @@ impl Hash for TableCellMeasurementKey {
         self.content_block_size.raw_value().hash(state);
         self.has_definite_inline_size.hash(state);
         self.has_definite_block_size.hash(state);
-        (self.inline_size_constraint as u8).hash(state);
         (self.block_size_constraint as u8).hash(state);
         self.uses_collapsing_borders_model.hash(state);
         self.adopt_automatic_content_block_size.hash(state);
@@ -7934,7 +7932,6 @@ mod tests {
             content_block_size: CssPixels::default(),
             has_definite_inline_size: true,
             has_definite_block_size: false,
-            inline_size_constraint: used_values::SizeConstraint::None,
             block_size_constraint: used_values::SizeConstraint::None,
             uses_collapsing_borders_model: true,
             adopt_automatic_content_block_size: true,

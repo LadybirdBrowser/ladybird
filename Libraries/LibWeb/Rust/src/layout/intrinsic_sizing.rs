@@ -17,7 +17,6 @@ impl ContentSizingScope {
         node: Node,
         constraints: ContainingBlockConstraints,
         block_size: Option<CssPixels>,
-        inline_size_constraint: SizeConstraint,
     ) -> Self {
         let root = used_values::create_used_values(callbacks, node, constraints);
         // NB: A parent layout can assign a definite block size that is not present in computed style,
@@ -27,7 +26,6 @@ impl ContentSizingScope {
             root.set_content_block_size(block_size);
             root.has_definite_block_size.set(true);
         }
-        root.inline_size_constraint.set(inline_size_constraint);
         root.has_definite_inline_size.set(false);
         Self { node, root }
     }
@@ -45,7 +43,7 @@ impl ContentSizingScope {
     }
 
     fn enter<R>(&self, callbacks: LayoutPass<'_>, size_content: impl FnOnce(&FormattingContextRun<'_>) -> R) -> R {
-        RunRecords::with_content_sizing_root(
+        RunRecords::with_content_inline_sizes_root(
             callbacks,
             self.node,
             callbacks.in_flow_containing_block(self.node),
@@ -565,7 +563,7 @@ fn content_sizes_of_container_under_each_inline_size_constraint(
     };
     let content_inline_size_under =
         |inline_size_constraint: SizeConstraint, content_size_named_by_maximum: Option<CssPixels>| {
-            let scope = ContentSizingScope::new(&callbacks, node, constraints, block_size, inline_size_constraint);
+            let scope = ContentSizingScope::new(&callbacks, node, constraints, block_size);
             scope.enter(callbacks, |run| {
                 let sizing = run.sizing();
                 let mut input = LayoutInput::new(

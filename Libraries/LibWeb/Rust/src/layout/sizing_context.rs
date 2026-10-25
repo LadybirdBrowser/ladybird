@@ -1032,7 +1032,7 @@ impl<'pass> SizingContext<'pass> {
             && facts.is_anonymous()
             && !facts.is_table_cell()
             && !facts.has_auto_content_box_size()
-            && ((used.inline_size_constraint.get() == SizeConstraint::None
+            && ((!self.records.measures_content_inline_sizes_of(node)
                 && used.block_size_constraint.get() == SizeConstraint::None)
                 || self.is_anonymous_block_box_in_block_flow(node))
     }
@@ -1960,9 +1960,7 @@ impl<'pass> SizingContext<'pass> {
             return None;
         }
         let used = self.used(node);
-        if used.inline_size_constraint.get() != SizeConstraint::None
-            || used.block_size_constraint.get() != SizeConstraint::None
-        {
+        if used.block_size_constraint.get() != SizeConstraint::None {
             return None;
         }
         self.callbacks
@@ -2910,13 +2908,7 @@ impl<'pass> SizingContext<'pass> {
 
         let trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
         let depends_on_block_size = self.intrinsic_inline_measurement_may_depend_on_block_size(node, block_size);
-        let scope = intrinsic_sizing::ContentSizingScope::new(
-            &self.callbacks,
-            node,
-            constraints,
-            block_size,
-            Self::inline_size_constraint_measured_by(kind),
-        );
+        let scope = intrinsic_sizing::ContentSizingScope::new(&self.callbacks, node, constraints, block_size);
         if let Some(sizes) = intrinsic_sizing::content_sizes_of_inline_content(
             self.callbacks,
             &scope,
@@ -3007,13 +2999,7 @@ impl<'pass> SizingContext<'pass> {
             };
         let lay_out_under = |inline_size_constraint: SizeConstraint,
                              content_size_named_by_maximum: Option<CssPixels>| {
-            let scope = intrinsic_sizing::ContentSizingScope::new(
-                &self.callbacks,
-                node,
-                constraints,
-                block_size,
-                inline_size_constraint,
-            );
+            let scope = intrinsic_sizing::ContentSizingScope::new(&self.callbacks, node, constraints, block_size);
             let mut input = LayoutInput::new(
                 AvailableSpace {
                     inline_size: available_inline_size_under(inline_size_constraint),
@@ -3087,14 +3073,6 @@ impl<'pass> SizingContext<'pass> {
         ContentInlineSizeAnswer::from_cache(measurement, kind)
     }
 
-    fn inline_size_constraint_measured_by(kind: IntrinsicSizeCacheKind) -> SizeConstraint {
-        match kind {
-            IntrinsicSizeCacheKind::MinContentInline => SizeConstraint::MinContent,
-            IntrinsicSizeCacheKind::MaxContentInline => SizeConstraint::MaxContent,
-            _ => unreachable!("inline measurement cache kind must use the inline axis"),
-        }
-    }
-
     // Lays `node` out at `inline_size` under an intrinsic block-size constraint, reusing and populating the cache.
     fn measure_intrinsic_block_size(
         &self,
@@ -3103,6 +3081,9 @@ impl<'pass> SizingContext<'pass> {
         constraints: ContainingBlockConstraints,
         kind: IntrinsicSizeCacheKind,
     ) -> CssPixels {
+        if self.establishes_orthogonal_flow(node) {
+            return self.content_block_size_of_orthogonal_flow(node, inline_size, constraints, kind);
+        }
         let (size_constraint, available_block_size) = match kind {
             IntrinsicSizeCacheKind::MinContentBlock => (SizeConstraint::MinContent, AvailableSize::MinContent),
             IntrinsicSizeCacheKind::MaxContentBlock => (SizeConstraint::MaxContent, AvailableSize::MaxContent),
@@ -3148,6 +3129,39 @@ impl<'pass> SizingContext<'pass> {
             },
         );
         value
+    }
+
+    /// The min-content or max-content block size of a box that establishes an orthogonal flow: its block axis here is
+    /// its inline axis in its own frame, so this is its content inline size there, at `inline_size` as its block size.
+    fn content_block_size_of_orthogonal_flow(
+        &self,
+        node: Node,
+        inline_size: CssPixels,
+        constraints: ContainingBlockConstraints,
+        kind: IntrinsicSizeCacheKind,
+    ) -> CssPixels {
+        let own_frame = formatting_context::frame_established_by(&self.callbacks, node);
+        let sizing = SizingContext::new(
+            self.purpose,
+            self.records,
+            self.callbacks.in_frame_of(own_frame.writing_mode()),
+        );
+        let constraints_in_own_frame = ContainingBlockConstraints {
+            percentage_basis_inline_size: constraints.percentage_basis_block_size,
+            percentage_basis_block_size: constraints.percentage_basis_inline_size,
+            quirks_mode_percentage_basis_block_size: None,
+        };
+        let inline_kind = match kind {
+            IntrinsicSizeCacheKind::MinContentBlock => IntrinsicSizeCacheKind::MinContentInline,
+            IntrinsicSizeCacheKind::MaxContentBlock => IntrinsicSizeCacheKind::MaxContentInline,
+            _ => unreachable!("block size cache kind must use the block axis"),
+        };
+        let answer = sizing.content_inline_size(node, constraints_in_own_frame, Some(inline_size), inline_kind);
+        self.charge_measurement_dependency_to_measured_box_and_containing_block(
+            node,
+            answer.dependencies.percentage_block_size,
+        );
+        answer.size
     }
 
     pub(crate) fn calculate_min_content_block_size(
