@@ -4,15 +4,21 @@ include(GNUInstallDirs)
 
 set(package Ladybird)
 
-set(ladybird_applications ladybird ${ladybird_helper_processes})
+if (APPLE)
+    set(ladybird_executable_install_dir bundle/Ladybird.app/Contents/MacOS)
+    set(ladybird_helper_install_dir ${ladybird_executable_install_dir})
+else()
+    set(ladybird_executable_install_dir ${CMAKE_INSTALL_BINDIR})
+    set(ladybird_helper_install_dir ${CMAKE_INSTALL_LIBEXECDIR})
+endif()
 
-set(app_install_targets ${ladybird_applications})
+set(ladybird_applications ladybird WebDriver ${ladybird_helper_processes})
 
-install(TARGETS ladybird
+install(TARGETS ladybird WebDriver
   EXPORT ladybirdTargets
   RUNTIME
     COMPONENT ladybird_Runtime
-    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    DESTINATION ${ladybird_executable_install_dir}
   BUNDLE
     COMPONENT ladybird_Runtime
     DESTINATION bundle
@@ -30,7 +36,7 @@ install(TARGETS ${ladybird_helper_processes}
   EXPORT ladybirdTargets
   RUNTIME
     COMPONENT ladybird_Runtime
-    DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}
+    DESTINATION ${ladybird_helper_install_dir}
 )
 
 include("${LADYBIRD_SOURCE_DIR}/Meta/CMake/get_linked_lagom_libraries.cmake")
