@@ -872,6 +872,12 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         // NOTE: request_body_length is captured by copy as to not UAF it when we leave `send()` and the callback gets called.
         // NOTE: `this` is kept alive by FetchAlgorithms using GC::HeapFunction.
         auto process_request_body_chunk_length = [this, request_body_length](u64 bytes_length) {
+            // AD-HOC: Fetch transmits the body again for each redirect, and runs process request end-of-body for a
+            //         null body, so ignore everything after the upload completed.
+            //         Spec issue: https://github.com/whatwg/xhr/issues/242
+            if (m_upload_complete)
+                return;
+
             // 1. Increase requestBodyTransmitted by bytesLength.
             m_request_body_transmitted += bytes_length;
 
@@ -892,6 +898,12 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         // NOTE: request_body_length is captured by copy as to not UAF it when we leave `send()` and the callback gets called.
         // NOTE: `this` is kept alive by FetchAlgorithms using GC::HeapFunction.
         auto process_request_end_of_body = [this, request_body_length]() {
+            // AD-HOC: Fetch transmits the body again for each redirect, and runs process request end-of-body for a
+            //         null body, so ignore everything after the upload completed.
+            //         Spec issue: https://github.com/whatwg/xhr/issues/242
+            if (m_upload_complete)
+                return;
+
             // 1. Set this’s upload complete flag.
             m_upload_complete = true;
 
