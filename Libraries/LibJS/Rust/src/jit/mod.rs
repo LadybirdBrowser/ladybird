@@ -33,6 +33,8 @@ use core::ptr::NonNull;
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
+use libjs_runtime_macros::Trace;
+
 use crate::bytecode::executable::Executable;
 use crate::gc::defer_gc::{DeferGc, Deferred};
 use crate::gc::visitor::{Trace, Visitor};
@@ -111,6 +113,7 @@ impl InterpreterTier {
 
 /// A compile job running on a compile thread. The VM keeps the executable and every cell its snapshot refers to
 /// alive until the job's code is installed or the job is abandoned.
+#[derive(Trace)]
 pub struct CompileJob {
     pub executable: Gc<Executable>,
     pub cells: Vec<Gc<CellHeader>>,
@@ -456,16 +459,7 @@ impl Drop for JitState {
 unsafe impl Trace for JitState {
     fn trace(&self, visitor: &mut Visitor) {
         for job in self.jobs.borrow().values() {
-            visitor.visit(job.executable);
-            for cell in &job.cells {
-                visitor.visit(*cell);
-            }
-            for executable in &job.snapshot_executables {
-                visitor.visit(executable.executable);
-                if let Some(function) = executable.function {
-                    function.visit(visitor);
-                }
-            }
+            job.trace(visitor);
         }
     }
 }

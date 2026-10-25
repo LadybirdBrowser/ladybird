@@ -2014,6 +2014,14 @@ impl Drop for Vm {
     }
 }
 
+// SAFETY: gather_roots() visits the VM's roots. The caches it skips are weak, and the VM clears them of dead cells after
+// each collection.
+unsafe impl Trace for Vm {
+    fn trace(&self, visitor: &mut Visitor) {
+        self.gather_roots(visitor);
+    }
+}
+
 unsafe extern "C" fn gather_roots(context: *mut c_void, visitor: *mut GCVisitor) {
     // SAFETY: The heap was created with the VM as its context, and LibGC passes a live visitor.
     let (vm, mut visitor) = unsafe { (&*context.cast::<Vm>(), Visitor::from_raw(visitor)) };

@@ -244,14 +244,17 @@ impl Default for JsonStringifyCache {
     }
 }
 
+// SAFETY: The objects being serialized are the only cells the cache keeps alive; its shapes are weak.
+unsafe impl Trace for JsonStringifyCache {
+    fn trace(&self, visitor: &mut Visitor) {
+        self.objects.borrow().trace(visitor);
+    }
+}
+
 impl JsonStringifyCache {
     const ENTRY_COUNT: usize = 64;
     /// The most that the builder of a JSON text starts out with room for.
     const MAXIMUM_INITIAL_TEXT_CAPACITY: usize = 64 * 1024;
-
-    pub fn trace(&self, visitor: &mut Visitor) {
-        self.objects.borrow().trace(visitor);
-    }
 
     fn slot(shape: Gc<Shape>) -> usize {
         let address = address_of(shape) as u64;

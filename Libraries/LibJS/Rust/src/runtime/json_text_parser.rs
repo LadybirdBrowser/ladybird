@@ -110,8 +110,10 @@ pub struct JsonParseCache {
     tables: Cell<Option<Box<JsonParseTables>>>,
 }
 
-impl JsonParseCache {
-    pub fn trace(&self, visitor: &mut Visitor) {
+// SAFETY: The values being parsed are the only cells the cache keeps alive; its keys are strings and its shapes are
+// weak.
+unsafe impl Trace for JsonParseCache {
+    fn trace(&self, visitor: &mut Visitor) {
         self.values.borrow().trace(visitor);
     }
 }
