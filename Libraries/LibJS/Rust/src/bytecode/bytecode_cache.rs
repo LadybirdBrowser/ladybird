@@ -192,14 +192,16 @@ pub fn materialize_cached_function_executable(
 
 enum Replacement {
     CachedExecutable(DecodedCachedExecutableRecord),
-    Executable(Gc<Executable>),
+    /// The executable at this index of `new_executables`.
+    Executable(usize),
     /// The function keeps the executable it has, which has JIT code, or a compile on its way.
     KeepExecutable,
 }
 
 /// What installing a blob gives one function, once every function turned out to have its counterpart in the blob.
 struct PendingFunctionInstall {
-    function: Gc<SharedFunctionInstanceData>,
+    /// The index of the function among the existing functions.
+    function: usize,
     replacement: Replacement,
     metadata: FunctionSfdMetadata,
 }
@@ -209,7 +211,7 @@ struct PendingFunctionInstall {
 pub struct BytecodeCacheInstall<'vm, 'source> {
     vm: &'vm Vm,
     source_code: &'source Rc<SourceCode>,
-    existing_functions: Vec<Gc<SharedFunctionInstanceData>>,
+    existing_functions: &'source MarkedVec<'vm, Gc<SharedFunctionInstanceData>>,
     /// The indices of the existing functions by the source text range a blob identifies them by, in their order.
     existing_functions_by_source_text_range: HashMap<(usize, usize), Vec<usize>, foldhash::fast::RandomState>,
     matched: Vec<bool>,
@@ -219,16 +221,13 @@ pub struct BytecodeCacheInstall<'vm, 'source> {
 }
 
 impl<'vm, 'source> BytecodeCacheInstall<'vm, 'source> {
-    /// `existing_functions` must stay alive until the install commits or is dropped, as the record does for those it
-    /// created.
     pub fn new(
         vm: &'vm Vm,
         source_code: &'source Rc<SourceCode>,
-        existing_functions: &MarkedVec<'_, Gc<SharedFunctionInstanceData>>,
+        existing_functions: &'source MarkedVec<'vm, Gc<SharedFunctionInstanceData>>,
     ) -> Self {
-        let existing_functions = existing_functions.to_vec();
         let mut existing_functions_by_source_text_range: HashMap<_, Vec<_>, _> = HashMap::default();
-        for (index, function) in existing_functions.iter().enumerate() {
+        for (index, function) in existing_functions.values().iter().enumerate() {
             existing_functions_by_source_text_range
                 .entry(function.bytecode_cache_source_text_range())
                 .or_default()
@@ -245,11 +244,7 @@ impl<'vm, 'source> BytecodeCacheInstall<'vm, 'source> {
         }
     }
 
-    fn take_matching_function(
-        &mut self,
-        function: &DecodedFunctionRecord,
-        outer_strict: bool,
-    ) -> Option<Gc<SharedFunctionInstanceData>> {
+    fn take_matching_function(&mut self, function: &DecodedFunctionRecord, outer_strict: bool) -> Option<usize> {
         let source_text_range = function.source_text_range();
         let index = self
             .existing_functions_by_source_text_range
@@ -261,10 +256,18 @@ impl<'vm, 'source> BytecodeCacheInstall<'vm, 'source> {
             .copied()
             .find(|&index| {
                 !self.matched[index]
-                    && self.existing_functions[index].matches_bytecode_cache_function(function, outer_strict)
+                    && self
+                        .existing_function(index)
+                        .matches_bytecode_cache_function(function, outer_strict)
             })?;
         self.matched[index] = true;
-        Some(self.existing_functions[index])
+        Some(index)
+    }
+
+    fn existing_function(&self, index: usize) -> Gc<SharedFunctionInstanceData> {
+        self.existing_functions
+            .get(index)
+            .expect("the index is that of an existing function")
     }
 
     /// Matches a function of the blob, nested in code that is strict if `outer_strict` is, to one the record created,
@@ -276,7 +279,8 @@ impl<'vm, 'source> BytecodeCacheInstall<'vm, 'source> {
         function: &DecodedFunctionRecord,
         outer_strict: bool,
     ) -> Option<Gc<SharedFunctionInstanceData>> {
-        let existing_function = self.take_matching_function(function, outer_strict)?;
+        let existing_function_index = self.take_matching_function(function, outer_strict)?;
+        let existing_function = self.existing_function(existing_function_index);
         let replacement = match existing_function.executable() {
             None => Replacement::CachedExecutable(function.cached_executable()),
             // NB: JIT code is tied to the executable it was compiled for, and an executable from the blob would compile
@@ -291,11 +295,13 @@ impl<'vm, 'source> BytecodeCacheInstall<'vm, 'source> {
             }
             Some(existing_executable) => {
                 let record = function.cached_executable().decode_executable()?;
-                Replacement::Executable(self.prepare_executable(&record, Some(existing_executable))?)
+                self.prepare_executable(&record, Some(existing_executable))?;
+                // NB: prepare_executable() pushes the executable it makes last.
+                Replacement::Executable(self.new_executables.len() - 1)
             }
         };
         self.pending_installs.push(PendingFunctionInstall {
-            function: existing_function,
+            function: existing_function_index,
             replacement,
             metadata: function.scope_metadata().clone(),
         });
@@ -326,17 +332,23 @@ impl<'vm, 'source> BytecodeCacheInstall<'vm, 'source> {
             return false;
         }
         for install in self.pending_installs {
+            let function = self
+                .existing_functions
+                .get(install.function)
+                .expect("the index is that of an existing function");
             match install.replacement {
-                Replacement::CachedExecutable(cached_executable) => install
-                    .function
-                    .install_cached_bytecode_executable(cached_executable, &install.metadata),
-                Replacement::Executable(executable) => install
-                    .function
-                    .install_bytecode_cache_executable(executable, &install.metadata),
-                Replacement::KeepExecutable => install.function.clear_compile_inputs(),
+                Replacement::CachedExecutable(cached_executable) => {
+                    function.install_cached_bytecode_executable(cached_executable, &install.metadata);
+                }
+                Replacement::Executable(index) => function.install_bytecode_cache_executable(
+                    self.new_executables
+                        .get(index)
+                        .expect("the index is that of a new executable"),
+                    &install.metadata,
+                ),
+                Replacement::KeepExecutable => function.clear_compile_inputs(),
             }
         }
-        drop(self.new_executables);
         true
     }
 }
