@@ -140,3 +140,29 @@ test("yield-star does not get value from non-terminal sync results", () => {
     expect(outer.next()).toEqual({ value: 42, done: true });
     expect(log).toBe("indvndv");
 });
+
+test("yield-star closes an iterator without a throw method when the last result has no done property", () => {
+    let log = "";
+    const iterator = {
+        next() {
+            log += "n";
+            return { value: 1 };
+        },
+        return() {
+            log += "r";
+            return {};
+        },
+        [Symbol.iterator]() {
+            return this;
+        },
+    };
+
+    function* generator() {
+        yield* iterator;
+    }
+
+    const outer = generator();
+    outer.next();
+    expect(() => outer.throw(new Error("thrown"))).toThrow(TypeError);
+    expect(log).toBe("nr");
+});
