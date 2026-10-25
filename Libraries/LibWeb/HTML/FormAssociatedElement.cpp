@@ -930,7 +930,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_start_
     }
 
     // 2. Let end be the value of this element's selectionEnd attribute.
-    auto end = m_selection_end;
+    auto end = selection_end();
 
     // 3. If end is less than the given value, set end to the given value.
     if (value.has_value() && end < value.value())
@@ -984,7 +984,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_end_bi
 
     // 2. Set the selection range with the value of this element's selectionStart attribute, the
     //    given value, and the value of this element's selectionDirection attribute.
-    set_the_selection_range(m_selection_start, value, selection_direction_state());
+    set_the_selection_range(selection_start(), value, selection_direction_state());
     return {};
 }
 
@@ -1030,7 +1030,9 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direct
     //    throw an "InvalidStateError" DOMException.
     TRY(validate_selection_direction_applies(*this));
 
-    set_the_selection_range(m_selection_start, m_selection_end, string_to_selection_direction(optional_utf16_view(direction)));
+    // 2. Set the selection range with the value of this element's selectionStart attribute, the value of this
+    //    element's selectionEnd attribute, and the given value.
+    set_the_selection_range(selection_start(), selection_end(), string_to_selection_direction(optional_utf16_view(direction)));
     return {};
 }
 
@@ -1038,7 +1040,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direct
 {
     TRY(validate_selection_direction_applies(*this));
 
-    set_the_selection_range(m_selection_start, m_selection_end, string_to_selection_direction(direction));
+    set_the_selection_range(selection_start(), selection_end(), string_to_selection_direction(direction));
     return {};
 }
 
@@ -1226,6 +1228,11 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
     //    where there is no concept of an empty selection, this must set the cursor to be just
     //    before the character with offset end.
     new_selection_start = AK::min(new_selection_start, new_selection_end);
+
+    // NB: m_selection_start and m_selection_end hold the anchor and the focus of the selection. The focus of a
+    //     backward selection is its start, so that the user extends it from there.
+    if (direction == SelectionDirection::Backward)
+        swap(new_selection_start, new_selection_end);
 
     bool was_modified = m_selection_start != new_selection_start || m_selection_end != new_selection_end;
     m_selection_start = new_selection_start;

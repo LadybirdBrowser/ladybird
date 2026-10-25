@@ -1,0 +1,24 @@
+input 2-4 backward, selectionStart = 1: 1-4 backward
+input 2-4 backward, selectionStart = 3: 3-4 backward
+input 2-4 backward, selectionEnd = 5: 2-5 backward
+input 2-4 backward, selectionEnd = 3: 2-3 backward
+input 2-4 backward, selectionDirection = "forward": 2-4 forward
+input 2-4 backward, selectionDirection = "backward": 2-4 backward
+input 2-4 backward, selectionDirection = "none": 2-4 none
+textarea 2-4 backward, selectionStart = 1: 1-4 backward
+textarea 2-4 backward, selectionStart = 3: 3-4 backward
+textarea 2-4 backward, selectionEnd = 5: 2-5 backward
+textarea 2-4 backward, selectionEnd = 3: 2-3 backward
+textarea 2-4 backward, selectionDirection = "forward": 2-4 forward
+textarea 2-4 backward, selectionDirection = "backward": 2-4 backward
+textarea 2-4 backward, selectionDirection = "none": 2-4 none
+input setSelectionRange(2, 4, "backward") (2-4 backward), Shift+Left: 1-4 backward
+input 2-4 forward, selectionDirection = "backward" (2-4 backward), Shift+Left: 1-4 backward
+input 2-4 backward, selectionStart = 1 (1-4 backward), Shift+Left: 0-4 backward
+input 2-4 backward, selectionEnd = 5 (2-5 backward), Shift+Left: 1-5 backward
+input setSelectionRange(2, 4, "forward") (2-4 forward), Shift+Left: 2-3 forward
+textarea setSelectionRange(2, 4, "backward") (2-4 backward), Shift+Left: 1-4 backward
+textarea 2-4 forward, selectionDirection = "backward" (2-4 backward), Shift+Left: 1-4 backward
+textarea 2-4 backward, selectionStart = 1 (1-4 backward), Shift+Left: 0-4 backward
+textarea 2-4 backward, selectionEnd = 5 (2-5 backward), Shift+Left: 1-5 backward
+textarea setSelectionRange(2, 4, "forward") (2-4 forward), Shift+Left: 2-3 forward
