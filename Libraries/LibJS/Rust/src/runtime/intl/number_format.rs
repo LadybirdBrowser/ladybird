@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ops::Deref;
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Class, Finalize, GcCell, define_cell};
-use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -53,7 +52,7 @@ pub enum ComputedRoundingPriority {
 pub struct NumberFormatBase {
     base: Object,
     #[gc(untraced)]
-    locale: GcRefCell<Utf16String>, // [[Locale]]
+    locale: RefCell<Utf16String>, // [[Locale]]
     #[gc(untraced)]
     min_integer_digits: Cell<i32>, // [[MinimumIntegerDigits]]
     #[gc(untraced)]
@@ -81,7 +80,7 @@ pub struct NumberFormatBase {
 
     // Non-standard. Stores the ICU number formatter for the Intl object's formatting options.
     #[gc(untraced)]
-    formatter: GcRefCell<Option<unicode::NumberFormat>>,
+    formatter: RefCell<Option<unicode::NumberFormat>>,
 }
 
 define_cell!(NumberFormatBase, Object, extends: [Object], finalize: finalize);
@@ -104,7 +103,7 @@ impl NumberFormatBase {
     pub fn new(vm: &Vm, class: &'static Class, prototype: Gc<Object>) -> NumberFormatBase {
         NumberFormatBase {
             base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
-            locale: GcRefCell::default(),
+            locale: RefCell::default(),
             min_integer_digits: Cell::new(0),
             min_fraction_digits: Cell::new(None),
             max_fraction_digits: Cell::new(None),
@@ -117,7 +116,7 @@ impl NumberFormatBase {
             rounding_mode: Cell::new(RoundingMode::HalfExpand),
             rounding_increment: Cell::new(1),
             trailing_zero_display: Cell::new(TrailingZeroDisplay::Auto),
-            formatter: GcRefCell::new(None),
+            formatter: RefCell::new(None),
         }
     }
 
@@ -328,17 +327,17 @@ impl NumberFormatBase {
 pub struct NumberFormat {
     base: NumberFormatBase,
     #[gc(untraced)]
-    numbering_system: GcRefCell<Utf16String>, // [[NumberingSystem]]
+    numbering_system: RefCell<Utf16String>, // [[NumberingSystem]]
     #[gc(untraced)]
     style: Cell<NumberFormatStyle>, // [[Style]]
     #[gc(untraced)]
-    currency: GcRefCell<Option<Utf16String>>, // [[Currency]]
+    currency: RefCell<Option<Utf16String>>, // [[Currency]]
     #[gc(untraced)]
     currency_display: Cell<Option<CurrencyDisplay>>, // [[CurrencyDisplay]]
     #[gc(untraced)]
     currency_sign: Cell<Option<CurrencySign>>, // [[CurrencySign]]
     #[gc(untraced)]
-    unit: GcRefCell<Option<Utf16String>>, // [[Unit]]
+    unit: RefCell<Option<Utf16String>>, // [[Unit]]
     #[gc(untraced)]
     unit_display: Cell<Option<Style>>, // [[UnitDisplay]]
     #[gc(untraced)]
@@ -362,12 +361,12 @@ impl NumberFormat {
     pub fn new(vm: &Vm, prototype: Gc<Object>) -> NumberFormat {
         NumberFormat {
             base: NumberFormatBase::new(vm, Self::CLASS, prototype),
-            numbering_system: GcRefCell::default(),
+            numbering_system: RefCell::default(),
             style: Cell::new(NumberFormatStyle::Decimal),
-            currency: GcRefCell::new(None),
+            currency: RefCell::new(None),
             currency_display: Cell::new(None),
             currency_sign: Cell::new(None),
-            unit: GcRefCell::new(None),
+            unit: RefCell::new(None),
             unit_display: Cell::new(None),
             use_grouping: Cell::new(Grouping::False),
             sign_display: Cell::new(SignDisplay::Auto),

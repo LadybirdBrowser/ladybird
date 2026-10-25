@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ops::Deref;
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
-use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -55,7 +54,7 @@ pub enum Fallback {
 pub struct DisplayNames {
     base: Object,
     #[gc(untraced)]
-    locale: GcRefCell<Utf16String>, // [[Locale]]
+    locale: RefCell<Utf16String>, // [[Locale]]
     #[gc(untraced)]
     style: Cell<Style>, // [[Style]]
     #[gc(untraced)]
@@ -67,7 +66,7 @@ pub struct DisplayNames {
 
     // Non-standard. Stores the ICU locale for display-name lookups.
     #[gc(untraced)]
-    icu_locale: GcRefCell<Utf16String>,
+    icu_locale: RefCell<Utf16String>,
 }
 
 define_cell!(DisplayNames, Object, extends: [Object]);
@@ -84,12 +83,12 @@ impl DisplayNames {
     pub fn new(vm: &Vm, prototype: Gc<Object>) -> DisplayNames {
         DisplayNames {
             base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
-            locale: GcRefCell::default(),
+            locale: RefCell::default(),
             style: Cell::new(Style::Long),
             type_: Cell::new(Type::Invalid),
             fallback: Cell::new(Fallback::Invalid),
             language_display: Cell::new(None),
-            icu_locale: GcRefCell::default(),
+            icu_locale: RefCell::default(),
         }
     }
 

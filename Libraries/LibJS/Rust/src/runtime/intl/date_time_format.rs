@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ops::Deref;
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Finalize, GcCell, define_cell};
-use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -61,52 +60,52 @@ pub enum ValueFormatter {
 pub struct DateTimeFormat {
     base: Object,
     #[gc(untraced)]
-    locale: GcRefCell<Utf16String>, // [[Locale]]
+    locale: RefCell<Utf16String>, // [[Locale]]
     #[gc(untraced)]
-    calendar: GcRefCell<Utf16String>, // [[Calendar]]
+    calendar: RefCell<Utf16String>, // [[Calendar]]
     #[gc(untraced)]
-    numbering_system: GcRefCell<Utf16String>, // [[NumberingSystem]]
+    numbering_system: RefCell<Utf16String>, // [[NumberingSystem]]
     #[gc(untraced)]
-    time_zone: GcRefCell<Utf16String>, // [[TimeZone]]
+    time_zone: RefCell<Utf16String>, // [[TimeZone]]
     #[gc(untraced)]
     date_style: Cell<Option<DateTimeStyle>>, // [[DateStyle]]
     #[gc(untraced)]
     time_style: Cell<Option<DateTimeStyle>>, // [[TimeStyle]]
     #[gc(untraced)]
-    date_time_format: GcRefCell<CalendarPattern>, // [[DateTimeFormat]]
+    date_time_format: RefCell<CalendarPattern>, // [[DateTimeFormat]]
     #[gc(untraced)]
-    temporal_plain_date_format: GcRefCell<Option<CalendarPattern>>, // [[TemporalPlainDateFormat]]
+    temporal_plain_date_format: RefCell<Option<CalendarPattern>>, // [[TemporalPlainDateFormat]]
     #[gc(untraced)]
-    temporal_plain_year_month_format: GcRefCell<Option<CalendarPattern>>, // [[TemporalPlainYearMonthFormat]]
+    temporal_plain_year_month_format: RefCell<Option<CalendarPattern>>, // [[TemporalPlainYearMonthFormat]]
     #[gc(untraced)]
-    temporal_plain_month_day_format: GcRefCell<Option<CalendarPattern>>, // [[TemporalPlainMonthDayFormat]]
+    temporal_plain_month_day_format: RefCell<Option<CalendarPattern>>, // [[TemporalPlainMonthDayFormat]]
     #[gc(untraced)]
-    temporal_plain_time_format: GcRefCell<Option<CalendarPattern>>, // [[TemporalPlainTimeFormat]]
+    temporal_plain_time_format: RefCell<Option<CalendarPattern>>, // [[TemporalPlainTimeFormat]]
     #[gc(untraced)]
-    temporal_plain_date_time_format: GcRefCell<Option<CalendarPattern>>, // [[TemporalPlainDateTimeFormat]]
+    temporal_plain_date_time_format: RefCell<Option<CalendarPattern>>, // [[TemporalPlainDateTimeFormat]]
     #[gc(untraced)]
-    temporal_instant_format: GcRefCell<Option<CalendarPattern>>, // [[TemporalInstantFormat]]
+    temporal_instant_format: RefCell<Option<CalendarPattern>>, // [[TemporalInstantFormat]]
     bound_format: Cell<Option<Gc<DateTimeFormatFunction>>>, // [[BoundFormat]]
 
     // Non-standard. Stores the ICU date-time formatters for the Intl object's formatting options.
     #[gc(untraced)]
-    icu_locale: GcRefCell<Utf16String>,
+    icu_locale: RefCell<Utf16String>,
     #[gc(untraced)]
-    formatter: GcRefCell<Option<unicode::DateTimeFormat>>,
+    formatter: RefCell<Option<unicode::DateTimeFormat>>,
     #[gc(untraced)]
-    temporal_plain_date_formatter: GcRefCell<Option<unicode::DateTimeFormat>>,
+    temporal_plain_date_formatter: RefCell<Option<unicode::DateTimeFormat>>,
     #[gc(untraced)]
-    temporal_plain_year_month_formatter: GcRefCell<Option<unicode::DateTimeFormat>>,
+    temporal_plain_year_month_formatter: RefCell<Option<unicode::DateTimeFormat>>,
     #[gc(untraced)]
-    temporal_plain_month_day_formatter: GcRefCell<Option<unicode::DateTimeFormat>>,
+    temporal_plain_month_day_formatter: RefCell<Option<unicode::DateTimeFormat>>,
     #[gc(untraced)]
-    temporal_plain_time_formatter: GcRefCell<Option<unicode::DateTimeFormat>>,
+    temporal_plain_time_formatter: RefCell<Option<unicode::DateTimeFormat>>,
     #[gc(untraced)]
-    temporal_plain_date_time_formatter: GcRefCell<Option<unicode::DateTimeFormat>>,
+    temporal_plain_date_time_formatter: RefCell<Option<unicode::DateTimeFormat>>,
     #[gc(untraced)]
-    temporal_instant_formatter: GcRefCell<Option<unicode::DateTimeFormat>>,
+    temporal_instant_formatter: RefCell<Option<unicode::DateTimeFormat>>,
     #[gc(untraced)]
-    temporal_time_zone: GcRefCell<Utf16String>,
+    temporal_time_zone: RefCell<Utf16String>,
 }
 
 define_cell!(DateTimeFormat, Object, extends: [Object], finalize: finalize);
@@ -139,29 +138,29 @@ impl DateTimeFormat {
     pub fn new(vm: &Vm, prototype: Gc<Object>) -> DateTimeFormat {
         DateTimeFormat {
             base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
-            locale: GcRefCell::default(),
-            calendar: GcRefCell::default(),
-            numbering_system: GcRefCell::default(),
-            time_zone: GcRefCell::default(),
+            locale: RefCell::default(),
+            calendar: RefCell::default(),
+            numbering_system: RefCell::default(),
+            time_zone: RefCell::default(),
             date_style: Cell::new(None),
             time_style: Cell::new(None),
-            date_time_format: GcRefCell::default(),
-            temporal_plain_date_format: GcRefCell::new(None),
-            temporal_plain_year_month_format: GcRefCell::new(None),
-            temporal_plain_month_day_format: GcRefCell::new(None),
-            temporal_plain_time_format: GcRefCell::new(None),
-            temporal_plain_date_time_format: GcRefCell::new(None),
-            temporal_instant_format: GcRefCell::new(None),
+            date_time_format: RefCell::default(),
+            temporal_plain_date_format: RefCell::new(None),
+            temporal_plain_year_month_format: RefCell::new(None),
+            temporal_plain_month_day_format: RefCell::new(None),
+            temporal_plain_time_format: RefCell::new(None),
+            temporal_plain_date_time_format: RefCell::new(None),
+            temporal_instant_format: RefCell::new(None),
             bound_format: Cell::new(None),
-            icu_locale: GcRefCell::default(),
-            formatter: GcRefCell::new(None),
-            temporal_plain_date_formatter: GcRefCell::new(None),
-            temporal_plain_year_month_formatter: GcRefCell::new(None),
-            temporal_plain_month_day_formatter: GcRefCell::new(None),
-            temporal_plain_time_formatter: GcRefCell::new(None),
-            temporal_plain_date_time_formatter: GcRefCell::new(None),
-            temporal_instant_formatter: GcRefCell::new(None),
-            temporal_time_zone: GcRefCell::default(),
+            icu_locale: RefCell::default(),
+            formatter: RefCell::new(None),
+            temporal_plain_date_formatter: RefCell::new(None),
+            temporal_plain_year_month_formatter: RefCell::new(None),
+            temporal_plain_month_day_formatter: RefCell::new(None),
+            temporal_plain_time_formatter: RefCell::new(None),
+            temporal_plain_date_time_formatter: RefCell::new(None),
+            temporal_instant_formatter: RefCell::new(None),
+            temporal_time_zone: RefCell::default(),
         }
     }
 
@@ -289,8 +288,8 @@ impl DateTimeFormat {
         &self,
         value_formatter: ValueFormatter,
     ) -> (
-        &GcRefCell<Option<CalendarPattern>>,
-        &GcRefCell<Option<unicode::DateTimeFormat>>,
+        &RefCell<Option<CalendarPattern>>,
+        &RefCell<Option<unicode::DateTimeFormat>>,
     ) {
         match value_formatter {
             ValueFormatter::DateTimeFormat => unreachable!("[[DateTimeFormat]] is not the format of a Temporal type"),

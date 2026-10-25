@@ -6,7 +6,7 @@
 
 //! The console namespace of https://console.spec.whatwg.org, and the client a host gives it to print with.
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -15,7 +15,6 @@ use libjs_runtime_macros::Trace;
 
 use crate::console_log_level::ConsoleLogLevel;
 use crate::gc::class::{GcCell, define_cell};
-use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -68,11 +67,11 @@ pub struct Console {
     client: Cell<Option<Gc<ConsoleClient>>>,
 
     #[gc(untraced)]
-    counters: GcRefCell<HashMap<Utf16FlyString, u32>>,
+    counters: RefCell<HashMap<Utf16FlyString, u32>>,
     #[gc(untraced)]
-    timer_table: GcRefCell<HashMap<Utf16FlyString, Instant>>,
+    timer_table: RefCell<HashMap<Utf16FlyString, Instant>>,
     #[gc(untraced)]
-    group_stack: GcRefCell<Vec<Group>>,
+    group_stack: RefCell<Vec<Group>>,
 }
 
 define_cell!(Console, Other);
@@ -99,9 +98,9 @@ impl Console {
             header: CellHeader::for_class(Self::CLASS),
             realm,
             client: Cell::new(None),
-            counters: GcRefCell::default(),
-            timer_table: GcRefCell::default(),
-            group_stack: GcRefCell::default(),
+            counters: RefCell::default(),
+            timer_table: RefCell::default(),
+            group_stack: RefCell::default(),
         })
     }
 
@@ -113,7 +112,7 @@ impl Console {
         self.realm
     }
 
-    pub fn counters(&self) -> &GcRefCell<HashMap<Utf16FlyString, u32>> {
+    pub fn counters(&self) -> &RefCell<HashMap<Utf16FlyString, u32>> {
         &self.counters
     }
 

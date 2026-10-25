@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ops::Deref;
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
-use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -30,23 +29,23 @@ use crate::utf16::Utf16View;
 pub struct Locale {
     base: Object,
     #[gc(untraced)]
-    locale: GcRefCell<Utf16String>, // [[Locale]]
+    locale: RefCell<Utf16String>, // [[Locale]]
     #[gc(untraced)]
-    calendar: GcRefCell<Option<Utf16String>>, // [[Calendar]]
+    calendar: RefCell<Option<Utf16String>>, // [[Calendar]]
     #[gc(untraced)]
-    case_first: GcRefCell<Option<Utf16String>>, // [[CaseFirst]]
+    case_first: RefCell<Option<Utf16String>>, // [[CaseFirst]]
     #[gc(untraced)]
-    collation: GcRefCell<Option<Utf16String>>, // [[Collation]]
+    collation: RefCell<Option<Utf16String>>, // [[Collation]]
     #[gc(untraced)]
-    first_day_of_week: GcRefCell<Option<Utf16String>>, // [[FirstDayOfWeek]]
+    first_day_of_week: RefCell<Option<Utf16String>>, // [[FirstDayOfWeek]]
     #[gc(untraced)]
-    hour_cycle: GcRefCell<Option<Utf16String>>, // [[HourCycle]]
+    hour_cycle: RefCell<Option<Utf16String>>, // [[HourCycle]]
     #[gc(untraced)]
-    numbering_system: GcRefCell<Option<Utf16String>>, // [[NumberingSystem]]
+    numbering_system: RefCell<Option<Utf16String>>, // [[NumberingSystem]]
     #[gc(untraced)]
     numeric: Cell<bool>, // [[Numeric]]
     #[gc(untraced)]
-    cached_locale_id: GcRefCell<Option<LocaleID>>,
+    cached_locale_id: RefCell<Option<LocaleID>>,
 }
 
 define_cell!(Locale, Object, extends: [Object]);
@@ -63,15 +62,15 @@ impl Locale {
     pub fn new(vm: &Vm, prototype: Gc<Object>) -> Locale {
         Locale {
             base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
-            locale: GcRefCell::default(),
-            calendar: GcRefCell::default(),
-            case_first: GcRefCell::default(),
-            collation: GcRefCell::default(),
-            first_day_of_week: GcRefCell::default(),
-            hour_cycle: GcRefCell::default(),
-            numbering_system: GcRefCell::default(),
+            locale: RefCell::default(),
+            calendar: RefCell::default(),
+            case_first: RefCell::default(),
+            collation: RefCell::default(),
+            first_day_of_week: RefCell::default(),
+            hour_cycle: RefCell::default(),
+            numbering_system: RefCell::default(),
             numeric: Cell::new(false),
-            cached_locale_id: GcRefCell::default(),
+            cached_locale_id: RefCell::default(),
         }
     }
 

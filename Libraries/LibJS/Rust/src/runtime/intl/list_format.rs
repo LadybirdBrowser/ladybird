@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ops::Deref;
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Finalize, GcCell, define_cell};
-use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -34,7 +33,7 @@ use crate::utf16::Utf16View;
 pub struct ListFormat {
     base: Object,
     #[gc(untraced)]
-    locale: GcRefCell<Utf16String>, // [[Locale]]
+    locale: RefCell<Utf16String>, // [[Locale]]
     #[gc(untraced)]
     type_: Cell<ListFormatType>, // [[Type]]
     #[gc(untraced)]
@@ -42,7 +41,7 @@ pub struct ListFormat {
 
     // Non-standard. Stores the ICU list formatter for the Intl object's formatting options.
     #[gc(untraced)]
-    formatter: GcRefCell<Option<unicode::ListFormat>>,
+    formatter: RefCell<Option<unicode::ListFormat>>,
 }
 
 define_cell!(ListFormat, Object, extends: [Object], finalize: finalize);
@@ -65,10 +64,10 @@ impl ListFormat {
     pub fn new(vm: &Vm, prototype: Gc<Object>) -> ListFormat {
         ListFormat {
             base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
-            locale: GcRefCell::default(),
+            locale: RefCell::default(),
             type_: Cell::new(ListFormatType::Conjunction),
             style: Cell::new(Style::Long),
-            formatter: GcRefCell::new(None),
+            formatter: RefCell::new(None),
         }
     }
 
