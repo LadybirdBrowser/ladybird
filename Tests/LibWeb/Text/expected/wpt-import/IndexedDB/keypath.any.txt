@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 20 tests
+
+19 Pass
+1 Fail
+Pass	undefined - my.key
+Pass	undefined - my.køi
+Pass	undefined - my.key_ya
+Pass	undefined - public.key$ya
+Pass	undefined - true.$
+Pass	undefined - my._
+Pass	undefined - delete.a7
+Pass	undefined - p.p.p.p.p.p.p.p.p.p.p.p.p.p
+Pass	undefined - str.length
+Pass	undefined - arr.length
+Pass	undefined - length
+Pass	undefined - '' uses value as key
+Pass	undefined - [''] uses value as [key]
+Pass	undefined - ['x', 'y']
+Pass	undefined - [['x'], 'y'] (stringifies)
+Pass	undefined - ['x', {toString->'y'}] (stringifies)
+Pass	undefined - name,type
+Pass	undefined - name,type.name
+Pass	undefined - list with 1 field
+Fail	Key path conversion: a self-referential array exhausts the stack

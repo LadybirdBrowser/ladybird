@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Fail	IDBIndex's keyPath attribute returns the same object.
+Pass	IDBIndex's keyPath array with a single value
+Pass	IDBIndex's keyPath array with multiple values

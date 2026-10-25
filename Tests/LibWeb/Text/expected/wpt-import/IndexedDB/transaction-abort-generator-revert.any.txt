@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	The current number of a key generator is reverted when a versionchange transaction aborts
+Pass	The current number of a key generator is reverted when a readwrite transaction aborts

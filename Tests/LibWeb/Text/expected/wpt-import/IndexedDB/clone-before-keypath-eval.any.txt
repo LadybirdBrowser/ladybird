@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Key generator and key path validity check operates on a clone
+Pass	Failing key path validity check operates on a clone
+Pass	Index key path evaluations operate on a clone
+Pass	Store and index key path evaluations operate on the same clone
+Pass	Cursor update checks and keypath evaluations operate on a clone
+Pass	Blob expando properties are stripped in the clone used for index key path evaluation
