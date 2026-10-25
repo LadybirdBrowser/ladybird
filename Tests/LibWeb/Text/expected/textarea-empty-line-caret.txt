@@ -3,4 +3,4 @@ a trailing newline adds a line with white-space: pre-line: false
 typed: caret on the empty last line is visible: true
 execCommand: caret on the empty last line is visible: false
 caret moved onto an empty middle line is visible: false
-caret on an empty first line is painted: false
+caret on an empty first line is painted: true
