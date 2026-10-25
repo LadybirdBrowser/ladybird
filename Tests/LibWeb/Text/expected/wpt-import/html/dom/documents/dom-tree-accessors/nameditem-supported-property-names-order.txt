@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Values from id attributes precede values from name attributes when the same element contributes both
+1 Pass
+Pass	Values from id attributes precede values from name attributes when the same element contributes both
