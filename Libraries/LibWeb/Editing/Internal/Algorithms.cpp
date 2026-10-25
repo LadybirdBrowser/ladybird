@@ -990,7 +990,7 @@ static bool author_style_sheet_sets_white_space(DOM::Element& element)
 // INTEROP: Browsers do not keep white-space styles that come from the default style of elements such as pre, and do not
 //          add white-space styles to content that is joined into such an element. They do keep white-space styles that
 //          the style attribute or author style sheets set on such elements.
-static bool white_space_is_from_default_style(GC::Ref<DOM::Node> node)
+bool white_space_is_from_default_style(GC::Ref<DOM::Node> node)
 {
     auto element = element_establishing_white_space(node);
     return element
