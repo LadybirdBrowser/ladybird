@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	tagName should not be uppercased when appended to XML document
+1 Pass
+Pass	tagName should not be uppercased when appended to XML document

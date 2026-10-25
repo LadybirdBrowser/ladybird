@@ -6974,6 +6974,10 @@ GC::Ptr<NamedNodeMap const> Element::attributes() const
 
 Utf16FlyString const& Element::html_uppercased_qualified_name() const
 {
+    // NB: Whether the qualified name is uppercased depends on the node document, which can change when the element is
+    //     adopted. So we only use the cached uppercased name while it applies.
+    if (namespace_uri() != Namespace::HTML || document().document_type() != Document::Type::HTML)
+        return qualified_name();
     return ensure_element_rare_data().html_uppercased_qualified_name.ensure([&] { return make_html_uppercased_qualified_name(); });
 }
 
