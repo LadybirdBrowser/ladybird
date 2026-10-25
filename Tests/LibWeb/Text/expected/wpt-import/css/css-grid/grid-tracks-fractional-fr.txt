@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Tests fractional fr-units which should multiply to whole numbers.
+1 Pass
+Pass	Tests fractional fr-units which should multiply to whole numbers.
