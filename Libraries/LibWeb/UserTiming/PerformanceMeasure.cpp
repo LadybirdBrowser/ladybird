@@ -5,8 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/NavigationTiming/EntryNames.h>
@@ -36,11 +34,11 @@ Utf16FlyString const& PerformanceMeasure::entry_type() const
     return PerformanceTimeline::EntryTypes::measure;
 }
 
-WebIDL::ExceptionOr<JS::Value> PerformanceMeasure::detail(JS::Object const& relevant_global_object) const
+// https://w3c.github.io/user-timing/#dom-performancemeasure-detail
+WebIDL::ExceptionOr<JS::Value> PerformanceMeasure::detail(JS::Object const&) const
 {
-    auto& relevant_realm = HTML::relevant_realm(relevant_global_object);
-    auto serialized = TRY(HTML::structured_serialize(relevant_realm.vm(), m_detail));
-    return HTML::structured_deserialize(relevant_realm.vm(), serialized, relevant_realm);
+    // NB: The detail was structured-cloned when this entry was created, so it is returned as is.
+    return m_detail;
 }
 
 void PerformanceMeasure::visit_edges(JS::Cell::Visitor& visitor)
