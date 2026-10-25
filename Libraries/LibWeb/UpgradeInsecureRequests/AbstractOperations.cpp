@@ -12,6 +12,72 @@
 
 namespace Web::UpgradeInsecureRequests {
 
+// https://w3c.github.io/webappsec-upgrade-insecure-requests/#nesting
+void inherit_the_insecure_requests_policy_into_a_nested_browsing_context(HTML::BrowsingContext& context, InsecureRequestsPolicy embedding_document_policy, UpgradeInsecureNavigationsSet const& embedding_document_set)
+{
+    // 1. When a nested browsing context context is created:
+    // NB: The caller passes context's embedding document's insecure requests policy and upgrade insecure navigations
+    //     set, which the process holding that document reports when context is created in another one.
+
+    // 1. If context's embedding document's insecure requests policy is Upgrade, then:
+    if (embedding_document_policy != InsecureRequestsPolicy::Upgrade)
+        return;
+
+    // 1. Set context's insecure requests policy to Upgrade.
+    context.set_insecure_requests_policy(InsecureRequestsPolicy::Upgrade);
+
+    // 2. For each value in context's embedding document's upgrade insecure navigations set, add value to context's
+    //    upgrade insecure navigations set.
+    for (auto const& value : embedding_document_set.tuples())
+        context.add_to_upgrade_insecure_navigations_set(value);
+}
+
+// https://w3c.github.io/webappsec-upgrade-insecure-requests/#nesting
+void inherit_the_insecure_requests_policy_into_a_new_document(HTML::EnvironmentSettingsObject& document_settings, HTML::BrowsingContext const& context)
+{
+    // 2. When creating a new Document object document in a browsing context context:
+
+    // 1. If context's insecure requests policy is Upgrade, then:
+    if (context.insecure_requests_policy() != InsecureRequestsPolicy::Upgrade)
+        return;
+
+    // 1. Let settings be document's incumbent settings object.
+    // NB: That is document's relevant settings object, which the caller passes. A document that reuses its browsing
+    //     context's initial about:blank document's window shares its settings object, which inherited the same.
+    auto& settings = document_settings;
+
+    // 2. Set settings' insecure requests policy to Upgrade.
+    settings.set_insecure_requests_policy(InsecureRequestsPolicy::Upgrade);
+
+    // 3. For each value in context's upgrade insecure navigations set, add value to settings's upgrade insecure
+    //    navigations set.
+    for (auto const& value : context.upgrade_insecure_navigations_set().tuples())
+        settings.add_to_upgrade_insecure_navigations_set(value);
+}
+
+// https://w3c.github.io/webappsec-upgrade-insecure-requests/#nesting
+void inherit_the_insecure_requests_policy_into_a_worker(HTML::EnvironmentSettingsObject& settings_object, InsecureRequestsPolicy outside_settings_policy, UpgradeInsecureNavigationsSet const& outside_settings_set)
+{
+    // When executing the set up a worker environment settings object algorithm, perform the following steps after the
+    // current step #4:
+
+    // 1. If inherited responsible browsing context's insecure requests policy is Upgrade, then:
+    // AD-HOC: HTML no longer has an inherited responsible browsing context, which was outside settings' responsible
+    //         browsing context. We inherit outside settings' insecure requests policy and upgrade insecure navigations
+    //         set instead, which the caller passes. Those include what outside settings inherited from its browsing
+    //         context, and the policies its own CSP list enforces, so a top-level document's workers inherit too.
+    if (outside_settings_policy != InsecureRequestsPolicy::Upgrade)
+        return;
+
+    // 1. Set settings object's insecure requests policy to Upgrade.
+    settings_object.set_insecure_requests_policy(InsecureRequestsPolicy::Upgrade);
+
+    // 2. For each value in inherited responsible browsing context's upgrade insecure navigations set, add value to
+    //    settings object's upgrade insecure navigations set.
+    for (auto const& value : outside_settings_set.tuples())
+        settings_object.add_to_upgrade_insecure_navigations_set(value);
+}
+
 // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-request
 void upgrade_request_to_a_potentially_trustworthy_url_if_appropriate(Fetch::Infrastructure::Request& request)
 {

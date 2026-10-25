@@ -1,0 +1,4 @@
+Cross-site iframe fetch: loaded
+Cross-site iframe is in another process: true
+Cross-site iframe's worker fetch: loaded
+Nested iframe fetch: loaded

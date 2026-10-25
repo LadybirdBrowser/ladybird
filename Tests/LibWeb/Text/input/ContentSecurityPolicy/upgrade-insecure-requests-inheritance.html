@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- The policy comes after include.js, which it would otherwise upgrade. -->
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+<script>
+    // This port serves HTTPS, so a fetch of an http: URL with it only succeeds if the request was upgraded to https:.
+    // The frames and the worker below enforce no policy of their own: they upgrade it only if they inherited ours.
+    const insecureOrigin = `http://127.0.0.1:${internals.getHttpsEchoServerPort()}`;
+    const resource = `${insecureOrigin}/common/blank.html`;
+    const secureServer = new HTTPTestServer(`https://127.0.0.1:${internals.getHttpsEchoServerPort()}`);
+
+    const fetchSource = `
+        async function tryFetch(url) {
+            try {
+                await fetch(url, { mode: "no-cors" });
+                return "loaded";
+            } catch {
+                return "failed";
+            }
+        }`;
+
+    function nextMessage() {
+        return new Promise(resolve => {
+            window.addEventListener("message", event => resolve(event.data), { once: true });
+        });
+    }
+
+    asyncTest(async done => {
+        const workerURL = await secureServer.createEcho("GET", "/upgrade-insecure-requests-inheritance/worker.js", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: `${fetchSource}; tryFetch("${resource}").then(postMessage);`,
+        });
+
+        // The nested frame is same-site with its parent frame, so it is created in that frame's process.
+        const nestedFrameURL = await secureServer.createEcho("GET", "/upgrade-insecure-requests-inheritance/nested-frame.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<script>${fetchSource}; tryFetch("${resource}").then(result => top.postMessage(result, "*"));<\/script>`,
+        });
+
+        // The frame is cross-site with this document, so it is created in another process.
+        const frameURL = await secureServer.createEcho("GET", "/upgrade-insecure-requests-inheritance/frame.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<script>
+                ${fetchSource}
+                (async () => {
+                    parent.postMessage(await tryFetch("${resource}"), "*");
+                    const worker = new Worker("${new URL(workerURL).pathname}");
+                    parent.postMessage(await new Promise(resolve => {
+                        worker.onmessage = event => resolve(event.data);
+                    }), "*");
+                    const nestedFrame = document.createElement("iframe");
+                    nestedFrame.src = "${insecureOrigin}${new URL(nestedFrameURL).pathname}";
+                    document.body.appendChild(nestedFrame);
+                })();
+            <\/script>`,
+        });
+
+        const frame = document.createElement("iframe");
+        frame.src = `${insecureOrigin}${new URL(frameURL).pathname}`;
+        document.body.appendChild(frame);
+
+        println(`Cross-site iframe fetch: ${await nextMessage()}`);
+        println(`Cross-site iframe is in another process: ${remoteFrameCount() > 0}`);
+        println(`Cross-site iframe's worker fetch: ${await nextMessage()}`);
+        println(`Nested iframe fetch: ${await nextMessage()}`);
+
+        done();
+    });
+</script>

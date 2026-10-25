@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
 
 namespace Web::HTML {
 
@@ -44,6 +45,9 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
     // FIXME: Is it enough to cache the has_cross_site_ancestor of outside_settings, or do we need to check the live object somehow?
     auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), *worker, move(origin), outside_settings.has_cross_site_ancestor, unsafe_worker_creation_time, agent_cluster_id, agent_cluster_cross_origin_isolation_mode);
     settings_object->target_browsing_context = nullptr;
+
+    // NB: Upgrade Insecure Requests has the worker inherit the insecure requests policy here.
+    UpgradeInsecureRequests::inherit_the_insecure_requests_policy_into_a_worker(settings_object, outside_settings.insecure_requests_policy, outside_settings.upgrade_insecure_navigations_set);
 
     // 5. Set settings object's id to a new unique opaque string, creation URL to worker global scope's url, top-level
     //    creation URL to null, target browsing context to null, and active service worker to null.

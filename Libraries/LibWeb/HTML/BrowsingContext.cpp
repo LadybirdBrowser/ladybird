@@ -28,6 +28,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::HTML {
@@ -77,6 +78,13 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
 {
     // 1. Let browsingContext be a new browsing context.
     GC::Ref<BrowsingContext> browsing_context = *GC::Heap::the().allocate<BrowsingContext>(page);
+
+    // NB: Upgrade Insecure Requests has a nested browsing context inherit its embedding document's insecure requests
+    //     policy when it is created.
+    if (embedder) {
+        auto const& embedding_document_settings = embedder->document().relevant_settings_object();
+        UpgradeInsecureRequests::inherit_the_insecure_requests_policy_into_a_nested_browsing_context(*browsing_context, embedding_document_settings.insecure_requests_policy(), embedding_document_settings.upgrade_insecure_navigations_set());
+    }
 
     // 2. Let unsafeContextCreationTime be the unsafe shared current time.
     [[maybe_unused]] auto unsafe_context_creation_time = HighResolutionTime::unsafe_shared_current_time();
@@ -221,6 +229,9 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
 
     // custom element registry: A new CustomElementRegistry object.
     document->set_custom_element_registry(CustomElementRegistry::create_global(*document));
+
+    // NB: Upgrade Insecure Requests has a new Document inherit its browsing context's insecure requests policy.
+    UpgradeInsecureRequests::inherit_the_insecure_requests_policy_into_a_new_document(document->relevant_settings_object(), browsing_context);
 
     // 16. Let iframeReferrerPolicy be the result of determining the iframe element referrer policy given embedder.
     auto iframe_referrer_policy = determine_iframe_element_referrer_policy(embedder);

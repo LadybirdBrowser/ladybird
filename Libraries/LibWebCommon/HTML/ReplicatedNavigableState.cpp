@@ -22,6 +22,8 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedContainerState const
     TRY(encoder.encode(state.local_name));
     TRY(encoder.encode(state.iframe_referrer_policy));
     TRY(Web::PermissionsPolicy::encode_policy_directive(encoder, state.container_policy));
+    TRY(encoder.encode(state.document_insecure_requests_policy));
+    TRY(encoder.encode(state.document_upgrade_insecure_navigations_set));
     return {};
 }
 
@@ -37,6 +39,8 @@ ErrorOr<Web::HTML::ReplicatedContainerState> decode(Decoder& decoder)
         .local_name = TRY(decoder.decode<Optional<Utf16FlyString>>()),
         .iframe_referrer_policy = TRY(decoder.decode<Web::ReferrerPolicy::ReferrerPolicy>()),
         .container_policy = TRY(Web::PermissionsPolicy::decode_policy_directive(decoder)),
+        .document_insecure_requests_policy = TRY(decoder.decode<Web::UpgradeInsecureRequests::InsecureRequestsPolicy>()),
+        .document_upgrade_insecure_navigations_set = TRY(decoder.decode<Web::UpgradeInsecureRequests::UpgradeInsecureNavigationsSet>()),
     };
 }
 
