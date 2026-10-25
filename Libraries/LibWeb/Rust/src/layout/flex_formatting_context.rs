@@ -1103,11 +1103,8 @@ impl<'pass> FlexFormattingContext<'pass> {
         )
     }
 
-    // https://drafts.csswg.org/css-flexbox-1/#algo-main-item
-    fn determine_flex_base_size(&mut self, index: usize) {
-        let node = self.flex_items[index].box_;
+    fn determine_used_flex_basis(&mut self, index: usize) {
         let basis = self.used_flex_basis_for_item(index);
-        self.flex_items[index].used_flex_basis = basis;
         let basis_is_definite = match basis {
             UsedFlexBasis::Content => false,
             UsedFlexBasis::Size { value, .. } => {
@@ -1123,7 +1120,16 @@ impl<'pass> FlexFormattingContext<'pass> {
                 }
             }
         };
+        self.flex_items[index].used_flex_basis = basis;
         self.flex_items[index].used_flex_basis_is_definite = basis_is_definite;
+    }
+
+    // https://drafts.csswg.org/css-flexbox-1/#algo-main-item
+    fn determine_flex_base_size(&mut self, index: usize) {
+        let node = self.flex_items[index].box_;
+        self.determine_used_flex_basis(index);
+        let basis = self.flex_items[index].used_flex_basis;
+        let basis_is_definite = self.flex_items[index].used_flex_basis_is_definite;
 
         let mut flex_base_size = match basis {
             // A. If the item has a definite used flex basis, that’s the flex base size.
@@ -1775,30 +1781,33 @@ impl<'pass> FlexFormattingContext<'pass> {
             self.flex_items[index].main_size = Some(target);
             self.flex_items[index].automatic_minimum_size_before_flexing = None;
             self.set_main_size(index, target);
-            // https://drafts.csswg.org/css-flexbox-1/#definite-sizes
-            // 1. If the flex container has a definite main size, then the post-flexing main sizes of its flex items are treated as definite.
-            // 2. If a flex item’s flex basis is definite, then its post-flexing main size is also definite.
-            // AD-HOC: 3. If a flex item’s main size was resolved from its intrinsic aspect ratio, then its post-flexing main size is also definite.
-            let item_is_orthogonal = self.inline_axis_is_horizontal(self.flex_items[index].box_)
-                != self.inline_axis_is_horizontal(self.run.box_);
-            let container_has_vertical_inline_main_axis =
-                self.is_row_layout() && !self.inline_axis_is_horizontal(self.run.box_);
-            // INTEROP: The block size of a non-replaced item with an aspect ratio follows from its inline size, so other
-            //          engines treat its post-flexing main size as definite when the main axis is its block axis.
-            let node = self.flex_items[index].box_;
-            let aspect_ratio_provides_block_main_size = !self.main_axis_is_parallel_to_inline_axis(node)
-                && !self.facts(node).is_replaced_box()
-                && self.facts(node).has_preferred_aspect_ratio();
-            if self.has_definite_main_size_used(self.container_used())
-                || self.flex_items[index].used_flex_basis_is_definite
-                || self.flex_items[index].main_size_was_resolved_from_aspect_ratio
-                || aspect_ratio_provides_block_main_size
-                || container_has_vertical_inline_main_axis
-                || (item_is_orthogonal && self.main_axis_is_parallel_to_inline_axis(self.flex_items[index].box_))
-            {
+            if self.post_flexing_main_size_is_definite(index) {
                 self.set_has_definite_main_size(index);
             }
         }
+    }
+
+    // https://drafts.csswg.org/css-flexbox-1/#definite-sizes
+    fn post_flexing_main_size_is_definite(&self, index: usize) -> bool {
+        // 1. If the flex container has a definite main size, then the post-flexing main sizes of its flex items are treated as definite.
+        // 2. If a flex item’s flex basis is definite, then its post-flexing main size is also definite.
+        // AD-HOC: 3. If a flex item’s main size was resolved from its intrinsic aspect ratio, then its post-flexing main size is also definite.
+        let item_is_orthogonal = self.inline_axis_is_horizontal(self.flex_items[index].box_)
+            != self.inline_axis_is_horizontal(self.run.box_);
+        let container_has_vertical_inline_main_axis =
+            self.is_row_layout() && !self.inline_axis_is_horizontal(self.run.box_);
+        // INTEROP: The block size of a non-replaced item with an aspect ratio follows from its inline size, so other
+        //          engines treat its post-flexing main size as definite when the main axis is its block axis.
+        let node = self.flex_items[index].box_;
+        let aspect_ratio_provides_block_main_size = !self.main_axis_is_parallel_to_inline_axis(node)
+            && !self.facts(node).is_replaced_box()
+            && self.facts(node).has_preferred_aspect_ratio();
+        self.has_definite_main_size_used(self.container_used())
+            || self.flex_items[index].used_flex_basis_is_definite
+            || self.flex_items[index].main_size_was_resolved_from_aspect_ratio
+            || aspect_ratio_provides_block_main_size
+            || container_has_vertical_inline_main_axis
+            || (item_is_orthogonal && self.main_axis_is_parallel_to_inline_axis(node))
     }
 
     // https://drafts.csswg.org/css-flexbox-1/#resolve-flexible-lengths
@@ -3438,6 +3447,26 @@ impl<'pass> FlexFormattingContext<'pass> {
         cross_size_may_transfer_from_main_size || self.sizing().intrinsic_inline_size_may_depend_on_block_size(node)
     }
 
+    fn cross_content_contribution_observes_used_main_size(&mut self, index: usize) -> bool {
+        if !self.cross_content_contribution_depends_on_used_main_size(index) {
+            return false;
+        }
+        let node = self.flex_items[index].box_;
+        if self.facts(node).has_preferred_aspect_ratio()
+            || self.has_definite_main_size(index)
+            || self
+                .layout_input
+                .unwrap()
+                .sizing
+                .flex_self_block_size_resolution_space
+                .is_some()
+        {
+            return true;
+        }
+        self.determine_used_flex_basis(index);
+        self.post_flexing_main_size_is_definite(index)
+    }
+
     pub(super) fn content_inline_size(&mut self, layout_input: LayoutInput) -> CssPixels {
         if self.main_axis_is_horizontal() {
             self.prepare_items(layout_input);
@@ -3457,7 +3486,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             return self.calculate_intrinsic_cross_size_of_flex_container();
         }
         self.generate_items_and_determine_available_space(layout_input);
-        if (0..self.flex_items.len()).any(|index| self.cross_content_contribution_depends_on_used_main_size(index)) {
+        if (0..self.flex_items.len()).any(|index| self.cross_content_contribution_observes_used_main_size(index)) {
             self.determine_flex_base_sizes_and_hypothetical_main_sizes();
             self.collect_flex_items_into_flex_lines();
             self.resolve_flexible_lengths();
