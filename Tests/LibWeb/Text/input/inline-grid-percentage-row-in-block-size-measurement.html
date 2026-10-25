@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px SerenitySans; }
+    .parent { height: 300px; }
+    .measured { width: 200px; }
+    .grid { display: inline-grid; grid-template-rows: 50% auto; grid-template-columns: 10px; }
+    .grid-with-fixed-first-row { display: inline-grid; grid-template-rows: 10px auto; grid-template-columns: 10px; }
+    .item { grid-row: 2; height: 40px; font-size: 10px; line-height: 10px; }
+</style>
+<div class="parent"><div id="auto" class="measured">x<div class="grid"><div class="item">y</div></div></div></div>
+<div class="parent"><div id="fit-content" class="measured" style="height: fit-content">x<div class="grid"><div class="item">y</div></div></div></div>
+<div class="parent"><div id="max-content" class="measured" style="height: max-content">x<div class="grid"><div class="item">y</div></div></div></div>
+<div class="parent"><div id="fit-content-with-fixed-first-row" class="measured" style="height: fit-content">x<div class="grid-with-fixed-first-row"><div class="item">y</div></div></div></div>
+<script>
+    test(() => {
+        for (const id of ["auto", "fit-content", "max-content", "fit-content-with-fixed-first-row"])
+            println(`${id}: ${document.getElementById(id).getBoundingClientRect().height}`);
+    });
+</script>

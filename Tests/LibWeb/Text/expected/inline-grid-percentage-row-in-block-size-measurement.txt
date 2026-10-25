@@ -1,0 +1,4 @@
+auto: 40
+fit-content: 40
+max-content: 40
+fit-content-with-fixed-first-row: 50

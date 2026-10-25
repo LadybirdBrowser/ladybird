@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .measured { width: 200px; font-size: 0; }
+    .grid { display: inline-grid; grid-template-columns: 10px 10px; }
+    .short { height: 10px; align-self: start; }
+    .tall { height: 30px; }
+    .sibling { display: inline-block; width: 10px; height: 30px; }
+</style>
+<div class="measured" id="auto"><div class="grid"><div class="short"></div><div class="tall"></div></div><span class="sibling"></span></div>
+<div class="measured" id="maxContent" style="height: max-content"><div class="grid"><div class="short"></div><div class="tall"></div></div><span class="sibling"></span></div>
+<div class="measured" id="fitContent" style="height: fit-content"><div class="grid"><div class="short"></div><div class="tall"></div></div><span class="sibling"></span></div>
+<script>
+    test(() => {
+        for (const id of ["auto", "maxContent", "fitContent"])
+            println(`${id}: ${document.getElementById(id).getBoundingClientRect().height}`);
+    });
+</script>

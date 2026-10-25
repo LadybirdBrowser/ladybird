@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px SerenitySans; }
+    #parent { height: 300px; width: 200px; }
+    #measured { height: fit-content; }
+    #flowRoot { display: flow-root; }
+</style>
+<div id="parent"><div id="measured"><div id="flowRoot">some words that wrap inside the flow root</div><span id="editable">text</span></div></div>
+<script>
+    layoutTest({
+        steps: [
+            {
+                name: "measuring the block again after its text changes reuses its flow-root child",
+                mutate: () => {
+                    editable.firstChild.data = "other text";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#measured MEASURE max-content block (cache=miss)
+                            BlockContainer<DIV>#measured/block RUN (cache=miss)
+                              BlockContainer<DIV>#flowRoot/block REUSE SUBTREE
+                          BlockContainer<DIV>#flowRoot/block REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(measured.getBoundingClientRect().height, flowRoot.getBoundingClientRect().height + 20, "measured height");
+                },
+            },
+        ],
+    });
+</script>
