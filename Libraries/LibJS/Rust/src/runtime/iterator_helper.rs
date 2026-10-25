@@ -156,7 +156,7 @@ impl IteratorHelper {
                 counter: Cell::new(0.0),
             },
         );
-        *iterator.underlying_iterators.borrow_mut() = underlying_iterators.to_vec();
+        *iterator.underlying_iterators.borrow_mut(vm) = underlying_iterators.to_vec();
         iterator
     }
 

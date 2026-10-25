@@ -158,7 +158,7 @@ impl WritableStream {
         for write_request in self.write_requests.borrow().iter() {
             write_requests.push(*write_request);
         }
-        self.write_requests.borrow_mut().clear();
+        self.write_requests.borrow_mut(vm).clear();
         write_requests
     }
 
@@ -341,7 +341,7 @@ pub(crate) fn create_writable_stream(
     let stream = allocate(cx.vm(), WritableStream::new(cx.realm()));
 
     // 3. Perform ! InitializeWritableStream(stream).
-    initialize_writable_stream(stream);
+    initialize_writable_stream(cx.vm(), stream);
 
     // 4. Let controller be a new WritableStreamDefaultController.
     let controller = allocate(cx.vm(), WritableStreamDefaultController::new());
@@ -365,7 +365,7 @@ pub(crate) fn create_writable_stream(
 }
 
 // https://streams.spec.whatwg.org/#initialize-writable-stream
-pub(crate) fn initialize_writable_stream(stream: Ref<WritableStream>) {
+pub(crate) fn initialize_writable_stream(vm: &Vm, stream: Ref<WritableStream>) {
     // 1. Set stream.[[state]] to "writable".
     stream.state.set(WritableStreamState::Writable);
 
@@ -380,7 +380,7 @@ pub(crate) fn initialize_writable_stream(stream: Ref<WritableStream>) {
     stream.pending_abort_request.set(None);
 
     // 3. Set stream.[[writeRequests]] to a new empty list.
-    stream.write_requests.borrow_mut().clear();
+    stream.write_requests.borrow_mut(vm).clear();
 
     // 4. Set stream.[[backpressure]] to false.
     stream.backpressure.set(false);
@@ -618,7 +618,7 @@ pub(crate) fn writable_stream_add_write_request(cx: &CallContext, stream: Ref<Wr
     let promise = create_promise(cx.vm(), cx.realm());
 
     // 4. Append promise to stream.[[writeRequests]].
-    stream.write_requests.borrow_mut().push_back(promise);
+    stream.write_requests.borrow_mut(cx.vm()).push_back(promise);
 
     // 5. Return promise.
     promise
@@ -667,7 +667,7 @@ pub(crate) fn writable_stream_finish_erroring(cx: &CallContext, stream: Ref<Writ
 
     // 4. Perform ! stream.[[controller]].[[ErrorSteps]]().
     let controller = stream.controller().expect("a stream that is set up has a controller");
-    WritableStreamDefaultController::error_steps(controller);
+    WritableStreamDefaultController::error_steps(vm, controller);
 
     // 5. Let storedError be stream.[[storedError]].
     let stored_error = stream.stored_error();
@@ -888,7 +888,7 @@ pub(crate) fn writable_stream_mark_close_request_in_flight(stream: Ref<WritableS
 }
 
 // https://streams.spec.whatwg.org/#writable-stream-mark-first-write-request-in-flight
-pub(crate) fn writable_stream_mark_first_write_request_in_flight(stream: Ref<WritableStream>) {
+pub(crate) fn writable_stream_mark_first_write_request_in_flight(vm: &Vm, stream: Ref<WritableStream>) {
     // 1. Assert: stream.[[inFlightWriteRequest]] is undefined.
     assert!(stream.in_flight_write_request.get().is_none());
 
@@ -897,7 +897,7 @@ pub(crate) fn writable_stream_mark_first_write_request_in_flight(stream: Ref<Wri
     // 4. Remove writeRequest from stream.[[writeRequests]].
     let write_request = stream
         .write_requests
-        .borrow_mut()
+        .borrow_mut(vm)
         .pop_front()
         .expect("a stream has a write request to mark in flight");
 

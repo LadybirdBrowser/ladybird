@@ -13,7 +13,7 @@ pub use crate::embedding::host::host_object::{HostObject, host_class_of, host_da
 pub use crate::gc::class::ExternalMemorySize;
 pub use crate::gc::embedder_cell::{EmbedderCell, EmbedderClass, EmbedderValue};
 pub use crate::gc::foreign::ForeignCellSlot;
-pub use crate::gc::gc_ref_cell::GcRefCell;
+pub use crate::gc::gc_ref_cell::{GcRefCell, GcRefMut};
 pub use crate::gc::root::{MarkedVec, Root};
 pub use crate::gc::visitor::{Trace, Visitor};
 pub use crate::gc::weak::GcWeak;

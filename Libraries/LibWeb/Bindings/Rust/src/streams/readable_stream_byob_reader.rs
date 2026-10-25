@@ -55,8 +55,8 @@ impl ReadableStreamBYOBReader {
         &self.generic
     }
 
-    pub(crate) fn append_read_into_request(&self, read_into_request: ReadIntoRequest) {
-        self.read_into_requests.borrow_mut().push_back(read_into_request);
+    pub(crate) fn append_read_into_request(&self, vm: &Vm, read_into_request: ReadIntoRequest) {
+        self.read_into_requests.borrow_mut(vm).push_back(read_into_request);
     }
 
     /// Takes the reader's [[readIntoRequests]], leaving an empty list.
@@ -65,14 +65,14 @@ impl ReadableStreamBYOBReader {
         for read_into_request in self.read_into_requests.borrow().iter() {
             read_into_requests.push(read_into_request.clone());
         }
-        self.read_into_requests.borrow_mut().clear();
+        self.read_into_requests.borrow_mut(vm).clear();
         read_into_requests
     }
 
     /// Removes the first of the reader's [[readIntoRequests]], which are not empty.
-    pub(crate) fn take_first_read_into_request(&self) -> ReadIntoRequest {
+    pub(crate) fn take_first_read_into_request(&self, vm: &Vm) -> ReadIntoRequest {
         self.read_into_requests
-            .borrow_mut()
+            .borrow_mut(vm)
             .pop_front()
             .expect("the reader has a read-into request")
     }
@@ -291,6 +291,6 @@ pub(crate) fn set_up_readable_stream_byob_reader(
     readable_stream_reader_generic_initialize(cx, ReadableStreamReader::ReadableStreamBYOBReader(reader), stream);
 
     // 4. Set reader.[[readIntoRequests]] to a new empty list.
-    reader.read_into_requests.borrow_mut().clear();
+    reader.read_into_requests.borrow_mut(cx.vm()).clear();
     Ok(())
 }

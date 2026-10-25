@@ -1110,7 +1110,11 @@ pub(crate) fn readable_stream_from_iterable_cancel_algorithm(
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-add-read-into-request
-pub(crate) fn readable_stream_add_read_into_request(stream: Ref<ReadableStream>, read_into_request: ReadIntoRequest) {
+pub(crate) fn readable_stream_add_read_into_request(
+    vm: &Vm,
+    stream: Ref<ReadableStream>,
+    read_into_request: ReadIntoRequest,
+) {
     // 1. Assert: stream.[[reader]] implements ReadableStreamBYOBReader.
     let Some(ReadableStreamReader::ReadableStreamBYOBReader(reader)) = stream.reader() else {
         panic!("the stream is locked to a ReadableStreamBYOBReader");
@@ -1123,11 +1127,11 @@ pub(crate) fn readable_stream_add_read_into_request(stream: Ref<ReadableStream>,
     ));
 
     // 3. Append readRequest to stream.[[reader]].[[readIntoRequests]].
-    reader.append_read_into_request(read_into_request);
+    reader.append_read_into_request(vm, read_into_request);
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-add-read-request
-pub(crate) fn readable_stream_add_read_request(stream: Ref<ReadableStream>, read_request: ReadRequest) {
+pub(crate) fn readable_stream_add_read_request(vm: &Vm, stream: Ref<ReadableStream>, read_request: ReadRequest) {
     // 1. Assert: stream.[[reader]] implements ReadableStreamDefaultReader.
     let Some(ReadableStreamReader::ReadableStreamDefaultReader(reader)) = stream.reader() else {
         panic!("the stream is locked to a ReadableStreamDefaultReader");
@@ -1137,7 +1141,7 @@ pub(crate) fn readable_stream_add_read_request(stream: Ref<ReadableStream>, read
     assert!(stream.state() == ReadableStreamState::Readable);
 
     // 3. Append readRequest to stream.[[reader]].[[readRequests]].
-    reader.append_read_request(read_request);
+    reader.append_read_request(vm, read_request);
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-cancel
@@ -1293,7 +1297,7 @@ pub(crate) fn readable_stream_fulfill_read_into_request(
     // 3. Assert: reader.[[readIntoRequests]] is not empty.
     // 4. Let readIntoRequest be reader.[[readIntoRequests]][0].
     // 5. Remove readIntoRequest from reader.[[readIntoRequests]].
-    let read_into_request = reader.take_first_read_into_request();
+    let read_into_request = reader.take_first_read_into_request(vm);
 
     // 6. If done is true, perform readIntoRequest’s close steps, given chunk.
     if done {
@@ -1316,7 +1320,7 @@ pub(crate) fn readable_stream_fulfill_read_request(vm: &Vm, stream: Ref<Readable
     // 3. Assert: reader.[[readRequests]] is not empty.
     // 4. Let readRequest be reader.[[readRequests]][0].
     // 5. Remove readRequest from reader.[[readRequests]].
-    let read_request = reader.take_first_read_request();
+    let read_request = reader.take_first_read_request(vm);
 
     // 6. If done is true, perform readRequest’s close steps.
     if done {

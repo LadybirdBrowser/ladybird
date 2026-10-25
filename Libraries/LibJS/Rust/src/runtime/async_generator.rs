@@ -170,7 +170,7 @@ impl AsyncGenerator {
     }
 
     // 27.6.3.4 AsyncGeneratorEnqueue ( generator, completion, promiseCapability ), https://tc39.es/ecma262/#sec-asyncgeneratorenqueue
-    pub fn async_generator_enqueue(&self, completion: Completion, promise_capability: Gc<PromiseCapability>) {
+    pub fn async_generator_enqueue(&self, vm: &Vm, completion: Completion, promise_capability: Gc<PromiseCapability>) {
         // 1. Let request be AsyncGeneratorRequest { [[Completion]]: completion, [[Capability]]: promiseCapability }.
         let request = AsyncGeneratorRequest {
             completion,
@@ -178,7 +178,7 @@ impl AsyncGenerator {
         };
 
         // 2. Append request to generator.[[AsyncGeneratorQueue]].
-        self.async_generator_queue.borrow_mut().push_back(request);
+        self.async_generator_queue.borrow_mut(vm).push_back(request);
 
         // 3. Return unused.
     }
@@ -578,7 +578,7 @@ impl AsyncGenerator {
         // 3. Remove the first element from generator.[[AsyncGeneratorQueue]].
         let next = self
             .async_generator_queue
-            .borrow_mut()
+            .borrow_mut(vm)
             .pop_front()
             .expect("the queue is not empty");
 

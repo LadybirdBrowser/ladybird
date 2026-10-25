@@ -717,8 +717,8 @@ impl EcmascriptFunctionObject {
         self.name.get().unwrap_or_else(|| self.shared_data().name())
     }
 
-    fn ensure_class_data(&self) {
-        let mut class_data = self.storage.class_data.borrow_mut();
+    fn ensure_class_data(&self, vm: &Vm) {
+        let mut class_data = self.storage.class_data.borrow_mut(vm);
         if class_data.is_none() {
             *class_data = Some(Box::default());
         }
@@ -747,11 +747,11 @@ impl EcmascriptFunctionObject {
             .clone()
     }
 
-    pub fn add_field(&self, field: ClassFieldDefinition) {
-        self.ensure_class_data();
+    pub fn add_field(&self, vm: &Vm, field: ClassFieldDefinition) {
+        self.ensure_class_data(vm);
         self.storage
             .class_data
-            .borrow_mut()
+            .borrow_mut(vm)
             .as_mut()
             .expect("the function has class data")
             .fields
@@ -777,11 +777,11 @@ impl EcmascriptFunctionObject {
             .clone()
     }
 
-    pub fn add_private_method(&self, method: PrivateElement) {
-        self.ensure_class_data();
+    pub fn add_private_method(&self, vm: &Vm, method: PrivateElement) {
+        self.ensure_class_data(vm);
         self.storage
             .class_data
-            .borrow_mut()
+            .borrow_mut(vm)
             .as_mut()
             .expect("the function has class data")
             .private_methods

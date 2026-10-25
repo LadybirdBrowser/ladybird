@@ -1150,9 +1150,10 @@ impl Vm {
     /// over. Only the sweep callback calls this, through its Sweep.
     pub(crate) fn enqueue_finalization_registry_cleanup_job_after_collection(
         &self,
+        sweep: &Sweep<'_>,
         finalization_registry: Gc<FinalizationRegistry>,
     ) {
-        let mut finalization_registries = self.finalization_registries_with_dead_cells.borrow_mut();
+        let mut finalization_registries = self.finalization_registries_with_dead_cells.borrow_mut_in_sweep(sweep);
         if finalization_registries.is_empty() {
             let context = core::ptr::from_ref::<Vm>(self).cast_mut().cast();
             // SAFETY: The VM outlives its heap, which runs the task before it is destroyed.
@@ -1168,7 +1169,7 @@ impl Vm {
         // NB: Each registry stays in the rooted list until it is handed to the host, which may allocate.
         loop {
             let finalization_registry = {
-                let mut finalization_registries = self.finalization_registries_with_dead_cells.borrow_mut();
+                let mut finalization_registries = self.finalization_registries_with_dead_cells.borrow_mut(self);
                 if finalization_registries.is_empty() {
                     break;
                 }
@@ -1551,7 +1552,7 @@ impl Vm {
     fn run_queued_promise_jobs_impl(&self) {
         let job_queues = self.job_queues();
         loop {
-            let Some(job) = job_queues.promise_jobs.borrow_mut().pop_front() else {
+            let Some(job) = job_queues.promise_jobs.borrow_mut(self).pop_front() else {
                 break;
             };
             let _ = HeapFunction::call(job, self);
@@ -1565,13 +1566,14 @@ impl Vm {
         // - FIXME: Let scriptOrModule be GetActiveScriptOrModule() at the time HostEnqueuePromiseJob is invoked. If realm is not null, each time job is invoked the implementation must perform implementation-defined steps
         //          such that scriptOrModule is the active script or module at the time of job's invocation.
         // - Jobs must run in the same order as the HostEnqueuePromiseJob invocations that scheduled them.
-        self.job_queues().promise_jobs.borrow_mut().push_back(job);
+        self.job_queues().promise_jobs.borrow_mut(self).push_back(job);
     }
 
     pub fn run_queued_finalization_registry_cleanup_jobs(&self) {
         let job_queues = self.job_queues();
         loop {
-            let Some(finalization_registry) = job_queues.finalization_registry_cleanup_jobs.borrow_mut().pop() else {
+            let Some(finalization_registry) = job_queues.finalization_registry_cleanup_jobs.borrow_mut(self).pop()
+            else {
                 break;
             };
             // FIXME: Handle any uncatched exceptions here.
@@ -1579,7 +1581,7 @@ impl Vm {
             if result.is_err() && finalization_registry.has_empty_cells() {
                 job_queues
                     .finalization_registry_cleanup_jobs
-                    .borrow_mut()
+                    .borrow_mut(self)
                     .push(finalization_registry);
             }
         }
@@ -1589,7 +1591,7 @@ impl Vm {
     pub fn enqueue_finalization_registry_cleanup_job(&self, finalization_registry: Gc<FinalizationRegistry>) {
         self.job_queues()
             .finalization_registry_cleanup_jobs
-            .borrow_mut()
+            .borrow_mut(self)
             .push(finalization_registry);
     }
 
@@ -2233,13 +2235,16 @@ impl Vm {
     }
 
     fn store_module(&self, referrer: ImportedModuleReferrer, filename: String, module: Gc<Module>) {
-        self.loaded_modules().stored_modules.borrow_mut().push(StoredModule {
-            referrer,
-            filename,
-            module_type: String::new(),
-            module,
-            has_once_started_linking: true,
-        });
+        self.loaded_modules()
+            .stored_modules
+            .borrow_mut(self)
+            .push(StoredModule {
+                referrer,
+                filename,
+                module_type: String::new(),
+                module,
+                has_once_started_linking: true,
+            });
     }
 
     pub fn link_and_eval_module(&self, module: Gc<CyclicModule>) -> ThrowCompletionOr<()> {

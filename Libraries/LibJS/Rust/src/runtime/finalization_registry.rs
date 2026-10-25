@@ -10,8 +10,8 @@ use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
-use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::sweep::Sweep;
+use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak_container::WeakContainer;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -112,12 +112,13 @@ impl FinalizationRegistry {
 
     pub fn add_finalization_record(
         &self,
+        vm: &Vm,
         target: Gc<CellHeader>,
         held_value: Value,
         unregister_token: Option<Gc<CellHeader>>,
     ) {
         assert!(!held_value.is_empty());
-        self.records.borrow_mut().0.push(FinalizationRecord {
+        self.records.borrow_mut(vm).0.push(FinalizationRecord {
             target: Some(target),
             held_value,
             unregister_token,
@@ -125,12 +126,12 @@ impl FinalizationRegistry {
     }
 
     // Extracted from FinalizationRegistry.prototype.unregister ( unregisterToken )
-    pub fn remove_by_token(&self, unregister_token: Gc<CellHeader>) -> bool {
+    pub fn remove_by_token(&self, vm: &Vm, unregister_token: Gc<CellHeader>) -> bool {
         // 4. Let removed be false.
         let mut removed = false;
 
         // 5. For each Record { [[WeakRefTarget]], [[HeldValue]], [[UnregisterToken]] } cell of finalizationRegistry.[[Cells]], do
-        self.records.borrow_mut().0.retain(|record| {
+        self.records.borrow_mut(vm).0.retain(|record| {
             //  a. If cell.[[UnregisterToken]] is not empty and SameValue(cell.[[UnregisterToken]], unregisterToken) is true, then
             if record.unregister_token == Some(unregister_token) {
                 // i. Remove cell from finalizationRegistry.[[Cells]].
@@ -155,7 +156,7 @@ impl FinalizationRegistry {
             .downcast::<FinalizationRegistry>()
             .expect("the weak container is a FinalizationRegistry");
         let mut any_cells_were_removed = false;
-        for record in &mut finalization_registry.records.borrow_mut().0 {
+        for record in &mut finalization_registry.records.borrow_mut_in_sweep(sweep).0 {
             let Some(target) = record.target else {
                 continue;
             };
@@ -185,7 +186,7 @@ impl FinalizationRegistry {
             // a. Choose any such cell.
             // b. Remove cell from finalizationRegistry.[[Cells]].
             let held_value = {
-                let mut records = self.records.borrow_mut();
+                let mut records = self.records.borrow_mut(vm);
                 let Some(index) = records.0.iter().position(|record| record.target.is_none()) else {
                     break;
                 };

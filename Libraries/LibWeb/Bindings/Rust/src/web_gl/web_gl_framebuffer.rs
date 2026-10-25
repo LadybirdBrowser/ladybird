@@ -65,13 +65,18 @@ impl WebGLFramebuffer {
             .copied()
     }
 
-    fn set_attachment(&self, attachment: u32, new_attachment: Option<Attachment>) {
-        let mut attachments = self.attachments.borrow_mut();
+    fn set_attachment(&self, vm: &Vm, attachment: u32, new_attachment: Option<Attachment>) {
+        let mut attachments = self.attachments.borrow_mut(vm);
         attachments.retain(|existing| existing.attachment != attachment);
         attachments.extend(new_attachment);
     }
 
-    pub(crate) fn set_renderbuffer_attachment(&self, attachment: u32, renderbuffer: Option<Ref<WebGLRenderbuffer>>) {
+    pub(crate) fn set_renderbuffer_attachment(
+        &self,
+        vm: &Vm,
+        attachment: u32,
+        renderbuffer: Option<Ref<WebGLRenderbuffer>>,
+    ) {
         let new_attachment = renderbuffer.map(|renderbuffer| Attachment {
             attachment,
             texture: None,
@@ -79,11 +84,12 @@ impl WebGLFramebuffer {
             texture_target: 0,
             texture_level: 0,
         });
-        self.set_attachment(attachment, new_attachment);
+        self.set_attachment(vm, attachment, new_attachment);
     }
 
     pub(crate) fn set_texture_attachment(
         &self,
+        vm: &Vm,
         attachment: u32,
         texture: Option<Ref<WebGLTexture>>,
         texture_target: u32,
@@ -96,6 +102,6 @@ impl WebGLFramebuffer {
             texture_target,
             texture_level,
         });
-        self.set_attachment(attachment, new_attachment);
+        self.set_attachment(vm, attachment, new_attachment);
     }
 }

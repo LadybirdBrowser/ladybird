@@ -10,7 +10,7 @@ use std::collections::VecDeque;
 
 use core::cell::Cell;
 
-use libjs_rust::api::{GcRefCell, Trace, Value};
+use libjs_rust::api::{GcRefCell, Trace, Value, Vm};
 
 use crate::bindings::{Exception, WebIdlResult};
 use crate::streams::abstract_operations::is_non_negative_number;
@@ -53,14 +53,14 @@ impl QueueWithSizes {
     }
 
     // https://streams.spec.whatwg.org/#dequeue-value
-    pub(crate) fn dequeue_value(&self) -> Value {
+    pub(crate) fn dequeue_value(&self, vm: &Vm) -> Value {
         // 1. Assert: container has [[queue]] and [[queueTotalSize]] internal slots.
         // 2. Assert: container.[[queue]] is not empty.
         // 3. Let valueWithSize be container.[[queue]][0].
         // 4. Remove valueWithSize from container.[[queue]].
         let value_with_size = self
             .queue
-            .borrow_mut()
+            .borrow_mut(vm)
             .pop_front()
             .expect("a container dequeues from a queue that is not empty");
 
@@ -79,7 +79,7 @@ impl QueueWithSizes {
     }
 
     // https://streams.spec.whatwg.org/#enqueue-value-with-size
-    pub(crate) fn enqueue_value_with_size(&self, value: Value, size: Value) -> WebIdlResult<()> {
+    pub(crate) fn enqueue_value_with_size(&self, vm: &Vm, value: Value, size: Value) -> WebIdlResult<()> {
         // 1. Assert: container has [[queue]] and [[queueTotalSize]] internal slots.
         // 2. If ! IsNonNegativeNumber(size) is false, throw a RangeError exception.
         if !is_non_negative_number(size) {
@@ -93,7 +93,7 @@ impl QueueWithSizes {
         }
 
         // 4. Append a new value-with-size with value value and size size to container.[[queue]].
-        self.queue.borrow_mut().push_back(ValueWithSize { value, size });
+        self.queue.borrow_mut(vm).push_back(ValueWithSize { value, size });
 
         // 5. Set container.[[queueTotalSize]] to container.[[queueTotalSize]] + size.
         self.queue_total_size.set(self.queue_total_size.get() + size);
@@ -114,10 +114,10 @@ impl QueueWithSizes {
     }
 
     // https://streams.spec.whatwg.org/#reset-queue
-    pub(crate) fn reset_queue(&self) {
+    pub(crate) fn reset_queue(&self, vm: &Vm) {
         // 1. Assert: container has [[queue]] and [[queueTotalSize]] internal slots.
         // 2. Set container.[[queue]] to a new empty list.
-        self.queue.borrow_mut().clear();
+        self.queue.borrow_mut(vm).clear();
 
         // 3. Set container.[[queueTotalSize]] to 0.
         self.queue_total_size.set(0.0);

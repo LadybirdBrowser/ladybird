@@ -6,10 +6,10 @@
 
 //! Precise roots for values that live outside cells and outside the stack, where the collector would not find them.
 
-use core::cell::{OnceCell, Ref, RefCell, RefMut};
+use core::cell::{OnceCell, Ref, RefCell};
 use core::ops::{Deref, DerefMut};
 
-use super::gc_ref_cell::GcRefCell;
+use super::gc_ref_cell::{GcRefCell, GcRefMut};
 use super::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 
@@ -96,7 +96,7 @@ impl<'vm, T: Trace + Clone + 'static> MarkedVec<'vm, T> {
     pub fn with_capacity(vm: &'vm Vm, capacity: usize) -> Self {
         let list = Self::new(vm);
         if capacity > 0 {
-            list.rooted_values().borrow_mut().reserve(capacity);
+            list.rooted_values().borrow_mut(vm).reserve(capacity);
         }
         list
     }
@@ -108,25 +108,25 @@ impl<'vm, T: Trace + Clone + 'static> MarkedVec<'vm, T> {
     }
 
     pub fn push(&self, value: T) {
-        self.rooted_values().borrow_mut().push(value);
+        self.rooted_values().borrow_mut(self.vm).push(value);
     }
 
     pub fn extend_from_slice(&self, values: &[T]) {
-        self.rooted_values().borrow_mut().extend_from_slice(values);
+        self.rooted_values().borrow_mut(self.vm).extend_from_slice(values);
     }
 
     pub fn insert(&self, index: usize, value: T) {
-        self.rooted_values().borrow_mut().insert(index, value);
+        self.rooted_values().borrow_mut(self.vm).insert(index, value);
     }
 
     pub fn clear(&self) {
         if let Some(values) = self.values.get() {
-            values.get().borrow_mut().clear();
+            values.get().borrow_mut(self.vm).clear();
         }
     }
 
     pub fn pop(&self) -> Option<T> {
-        self.values.get()?.get().borrow_mut().pop()
+        self.values.get()?.get().borrow_mut(self.vm).pop()
     }
 
     pub fn get(&self, index: usize) -> Option<T> {
@@ -134,11 +134,11 @@ impl<'vm, T: Trace + Clone + 'static> MarkedVec<'vm, T> {
     }
 
     pub fn resize(&self, length: usize, value: T) {
-        self.rooted_values().borrow_mut().resize(length, value);
+        self.rooted_values().borrow_mut(self.vm).resize(length, value);
     }
 
     pub fn set(&self, index: usize, value: T) {
-        self.rooted_values().borrow_mut()[index] = value;
+        self.rooted_values().borrow_mut(self.vm)[index] = value;
     }
 
     pub fn len(&self) -> usize {
@@ -154,10 +154,10 @@ impl<'vm, T: Trace + Clone + 'static> MarkedVec<'vm, T> {
         MarkedValues(self.values.get().map(|values| values.get().borrow()))
     }
 
-    /// Lends the values to change in place until the result drops. Nothing may collect meanwhile, which stops the
-    /// process, and using the list meanwhile panics.
+    /// Lends the values to change in place until the result drops, which collections wait for. Using the list meanwhile
+    /// panics.
     pub fn values_mut(&self) -> MarkedValuesMut<'_, T> {
-        MarkedValuesMut(self.values.get().map(|values| values.get().borrow_mut()))
+        MarkedValuesMut(self.values.get().map(|values| values.get().borrow_mut(self.vm)))
     }
 
     /// Copies the values out, for handing them to code that does not collect.
@@ -180,7 +180,7 @@ impl<T> Deref for MarkedValues<'_, T> {
 }
 
 /// The values of a MarkedVec, which stay alive while this lends them to change in place.
-pub struct MarkedValuesMut<'a, T>(Option<RefMut<'a, Vec<T>>>);
+pub struct MarkedValuesMut<'a, T>(Option<GcRefMut<'a, Vec<T>>>);
 
 impl<T> Deref for MarkedValuesMut<'_, T> {
     type Target = [T];

@@ -152,7 +152,7 @@ impl SymbolConstructor {
         let new_symbol = Symbol::create(vm, Some(string_key.clone()), Kind::Global);
 
         // 5. Append the Record { [[Key]]: stringKey, [[Symbol]]: newSymbol } to the GlobalSymbolRegistry List.
-        global_symbol_registry.set(&string_key, new_symbol);
+        global_symbol_registry.set(vm, &string_key, new_symbol);
 
         // 6. Return newSymbol.
         Ok(Value::from_symbol(new_symbol))

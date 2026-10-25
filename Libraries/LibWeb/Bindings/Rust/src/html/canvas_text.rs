@@ -7,6 +7,7 @@
 //! https://html.spec.whatwg.org/multipage/canvas.html#canvastext
 
 use core::ptr::NonNull;
+use libjs_rust::api::Vm;
 
 use ak::Utf16String;
 use libcompositing_rust::display_list::commands::DisplayListGlyph;
@@ -27,12 +28,12 @@ use crate::html::canvas_rendering_context2d::CanvasTextBaseline;
 
 impl ContextState {
     /// The outlines of the glyphs of the text, drawn at the point.
-    fn text_path(&self, text: &[u16], x: f32, y: f32, max_width: Option<f64>) -> Path {
+    fn text_path(&self, vm: &Vm, text: &[u16], x: f32, y: f32, max_width: Option<f64>) -> Path {
         if max_width.is_some_and(|max_width| max_width <= 0.0) {
             return Path::new();
         }
 
-        let font = self.current_font();
+        let font = self.current_font(vm);
         let letter_spacing = self.resolved_letter_spacing();
         let word_spacing = self.resolved_word_spacing();
         let runs = shape_text(&font.cascade, text, FloatPoint { x, y }, letter_spacing, word_spacing);
@@ -60,7 +61,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filltext
     pub(crate) fn fill_text(
         &self,
-        _: &mut CallContext,
+        cx: &mut CallContext,
         text: Utf16String,
         x: f64,
         y: f64,
@@ -81,11 +82,11 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             state.shadow_blur != 0.0 || state.shadow_offset_x != 0.0 || state.shadow_offset_y != 0.0
         };
         if max_width.is_some() || has_shadow {
-            self.fill_internal(&self.text_path(&text, x, y, max_width), WindingRule::Nonzero);
+            self.fill_internal(&self.text_path(cx.vm(), &text, x, y, max_width), WindingRule::Nonzero);
             return Ok(());
         }
 
-        let font = self.current_font();
+        let font = self.current_font(cx.vm());
         let letter_spacing = self.resolved_letter_spacing();
         let word_spacing = self.resolved_word_spacing();
         let runs = shape_text(
@@ -96,11 +97,11 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             word_spacing,
         );
         let [run] = runs.as_slice() else {
-            self.fill_internal(&self.text_path(&text, x, y, max_width), WindingRule::Nonzero);
+            self.fill_internal(&self.text_path(cx.vm(), &text, x, y, max_width), WindingRule::Nonzero);
             return Ok(());
         };
         if run.font.is_invisible() {
-            self.fill_internal(&self.text_path(&text, x, y, max_width), WindingRule::Nonzero);
+            self.fill_internal(&self.text_path(cx.vm(), &text, x, y, max_width), WindingRule::Nonzero);
             return Ok(());
         }
 
@@ -147,7 +148,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-stroketext
     pub(crate) fn stroke_text(
         &self,
-        _: &mut CallContext,
+        cx: &mut CallContext,
         text: Utf16String,
         x: f64,
         y: f64,
@@ -160,7 +161,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         // https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm
         // 2. Replace all ASCII whitespace in text with U+0020 SPACE characters.
         let text = replace_ascii_whitespace(&text.to_utf16());
-        self.stroke_internal(&self.text_path(&text, x, y, max_width));
+        self.stroke_internal(&self.text_path(cx.vm(), &text, x, y, max_width));
         Ok(())
     }
 
@@ -176,7 +177,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         let replaced_text = replace_ascii_whitespace(&text.to_utf16());
 
         // 3. Let font be the current font of target, as given by that object's font attribute.
-        let font = self.current_font();
+        let font = self.current_font(cx.vm());
         let letter_spacing = self.resolved_letter_spacing();
         let word_spacing = self.resolved_word_spacing();
         let runs = shape_text(

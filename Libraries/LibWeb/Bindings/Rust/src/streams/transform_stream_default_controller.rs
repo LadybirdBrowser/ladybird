@@ -77,7 +77,7 @@ impl TransformStreamDefaultController {
     }
 
     pub(crate) fn set_cancel_algorithm(&self, algorithm: Option<CancelAlgorithm>) {
-        *self.cancel_algorithm.borrow_mut() = algorithm;
+        self.cancel_algorithm.replace(algorithm);
     }
 
     pub(crate) fn flush_algorithm(&self) -> Option<FlushAlgorithm> {
@@ -85,7 +85,7 @@ impl TransformStreamDefaultController {
     }
 
     pub(crate) fn set_flush_algorithm(&self, algorithm: Option<FlushAlgorithm>) {
-        *self.flush_algorithm.borrow_mut() = algorithm;
+        self.flush_algorithm.replace(algorithm);
     }
 
     pub(crate) fn transform_algorithm(&self) -> Option<TransformAlgorithm> {
@@ -93,7 +93,7 @@ impl TransformStreamDefaultController {
     }
 
     pub(crate) fn set_transform_algorithm(&self, algorithm: Option<TransformAlgorithm>) {
-        *self.transform_algorithm.borrow_mut() = algorithm;
+        self.transform_algorithm.replace(algorithm);
     }
 
     // https://streams.spec.whatwg.org/#ts-default-controller-desired-size

@@ -299,7 +299,7 @@ impl PipeTo {
 
     // chunk steps, given chunk, of the read request of the pipe
     pub(crate) fn read_request_chunk_steps(this: PipeToRef, vm: &Vm, chunk: Value) {
-        this.unwritten_chunks.borrow_mut().push_back(chunk);
+        this.unwritten_chunks.borrow_mut(vm).push_back(chunk);
 
         if Self::check_for_error_and_close_states(this, vm) {
             return;
@@ -335,7 +335,7 @@ impl PipeTo {
         }
 
         // NB: Shutdown writes every unwritten chunk, which can run before the write that a read queued.
-        let Some(chunk) = this.unwritten_chunks.borrow_mut().pop_front() else {
+        let Some(chunk) = this.unwritten_chunks.borrow_mut(vm).pop_front() else {
             return;
         };
         let promise = writable_stream_default_writer_write(vm, this.writer, chunk);
@@ -616,7 +616,7 @@ pub(crate) fn readable_stream_pipe_to(
         let signal_id = signal
             .add_algorithm(abort_algorithm)
             .expect("a signal that is not aborted takes algorithms");
-        *this.signal.borrow_mut() = Some(signal);
+        *this.signal.borrow_mut(vm) = Some(signal);
         this.signal_algorithm_id.set(Some(signal_id));
     }
 

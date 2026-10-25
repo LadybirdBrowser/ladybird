@@ -116,7 +116,7 @@ impl WeakSetPrototype {
         //         i. Replace the element of S.[[WeakSetData]] whose value is e with an element whose value is empty.
         //         ii. Return true.
         // 5. Return false.
-        Ok(Value::from_bool(weak_set.weak_set_remove(value.as_cell())))
+        Ok(Value::from_bool(weak_set.weak_set_remove(vm, value.as_cell())))
     }
 
     // 24.4.3.4 WeakSet.prototype.has ( value ), https://tc39.es/ecma262/#sec-weakset.prototype.has

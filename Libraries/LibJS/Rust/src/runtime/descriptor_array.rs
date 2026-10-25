@@ -170,9 +170,9 @@ impl DescriptorArray {
         Some(entries[index].metadata())
     }
 
-    pub fn set(&self, property_key: &PropertyKey, metadata: PropertyMetadata, enum_index: u32) {
+    pub fn set(&self, vm: &Vm, property_key: &PropertyKey, metadata: PropertyMetadata, enum_index: u32) {
         set_entry(
-            &mut self.entries.borrow_mut(),
+            &mut self.entries.borrow_mut(vm),
             &mut self.entry_indices_by_enum_index.borrow_mut(),
             property_key,
             metadata,
@@ -180,14 +180,20 @@ impl DescriptorArray {
         );
     }
 
-    pub fn set_attributes(&self, property_key: &PropertyKey, attributes: PropertyAttributes, descriptor_count: u32) {
-        let mut entries = self.entries.borrow_mut();
+    pub fn set_attributes(
+        &self,
+        vm: &Vm,
+        property_key: &PropertyKey,
+        attributes: PropertyAttributes,
+        descriptor_count: u32,
+    ) {
+        let mut entries = self.entries.borrow_mut(vm);
         let index = find(&entries, property_key, descriptor_count).expect("the property has a descriptor");
         entries[index].attributes = u16::from(attributes.bits());
     }
 
-    pub fn remove(&self, property_key: &PropertyKey, descriptor_count: u32) {
-        let mut entries = self.entries.borrow_mut();
+    pub fn remove(&self, vm: &Vm, property_key: &PropertyKey, descriptor_count: u32) {
+        let mut entries = self.entries.borrow_mut(vm);
         let mut entry_indices_by_enum_index = self.entry_indices_by_enum_index.borrow_mut();
         let index = find(&entries, property_key, descriptor_count).expect("the property has a descriptor");
 

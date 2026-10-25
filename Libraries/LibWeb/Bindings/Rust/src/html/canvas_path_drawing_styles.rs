@@ -18,14 +18,14 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(f64::from(self.drawing_state().line_width))
     }
 
-    pub(crate) fn set_line_width(&self, _: &mut CallContext, line_width: f64) -> WebIdlResult<()> {
+    pub(crate) fn set_line_width(&self, cx: &mut CallContext, line_width: f64) -> WebIdlResult<()> {
         // On setting, zero, negative, infinite, and NaN values must be ignored, leaving the value unchanged;
         let line_width = float(line_width);
         if line_width <= 0.0 || !line_width.is_finite() {
             return Ok(());
         }
         // other values must change the current value to the new value.
-        self.drawing_state_mut().line_width = line_width;
+        self.drawing_state_mut(cx.vm()).line_width = line_width;
         Ok(())
     }
 
@@ -34,8 +34,8 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(self.drawing_state().line_cap)
     }
 
-    pub(crate) fn set_line_cap(&self, _: &mut CallContext, line_cap: CanvasLineCap) -> WebIdlResult<()> {
-        self.drawing_state_mut().line_cap = line_cap;
+    pub(crate) fn set_line_cap(&self, cx: &mut CallContext, line_cap: CanvasLineCap) -> WebIdlResult<()> {
+        self.drawing_state_mut(cx.vm()).line_cap = line_cap;
         Ok(())
     }
 
@@ -44,8 +44,8 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(self.drawing_state().line_join)
     }
 
-    pub(crate) fn set_line_join(&self, _: &mut CallContext, line_join: CanvasLineJoin) -> WebIdlResult<()> {
-        self.drawing_state_mut().line_join = line_join;
+    pub(crate) fn set_line_join(&self, cx: &mut CallContext, line_join: CanvasLineJoin) -> WebIdlResult<()> {
+        self.drawing_state_mut(cx.vm()).line_join = line_join;
         Ok(())
     }
 
@@ -54,19 +54,19 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(f64::from(self.drawing_state().miter_limit))
     }
 
-    pub(crate) fn set_miter_limit(&self, _: &mut CallContext, miter_limit: f64) -> WebIdlResult<()> {
+    pub(crate) fn set_miter_limit(&self, cx: &mut CallContext, miter_limit: f64) -> WebIdlResult<()> {
         // On setting, zero, negative, infinite, and NaN values must be ignored, leaving the value unchanged;
         let miter_limit = float(miter_limit);
         if miter_limit <= 0.0 || !miter_limit.is_finite() {
             return Ok(());
         }
         // other values must change the current value to the new value.
-        self.drawing_state_mut().miter_limit = miter_limit;
+        self.drawing_state_mut(cx.vm()).miter_limit = miter_limit;
         Ok(())
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-setlinedash
-    pub(crate) fn set_line_dash(&self, _: &mut CallContext, mut segments: Vec<f64>) -> WebIdlResult<()> {
+    pub(crate) fn set_line_dash(&self, cx: &mut CallContext, mut segments: Vec<f64>) -> WebIdlResult<()> {
         // 1. If any value in segments is not finite (e.g. an Infinity or a NaN value), or if any value is negative
         //    (less than zero), then return (without throwing an exception; user agents could show a message on a
         //    developer console, though, as that would be helpful for debugging).
@@ -81,7 +81,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         }
 
         // 3. Set the object's dash list to segments.
-        self.drawing_state_mut().dash_list = segments;
+        self.drawing_state_mut(cx.vm()).dash_list = segments;
         Ok(())
     }
 
@@ -97,14 +97,14 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(f64::from(self.drawing_state().line_dash_offset))
     }
 
-    pub(crate) fn set_line_dash_offset(&self, _: &mut CallContext, line_dash_offset: f64) -> WebIdlResult<()> {
+    pub(crate) fn set_line_dash_offset(&self, cx: &mut CallContext, line_dash_offset: f64) -> WebIdlResult<()> {
         // On setting, infinite and NaN values must be ignored, leaving the value unchanged;
         let line_dash_offset = float(line_dash_offset);
         if !line_dash_offset.is_finite() {
             return Ok(());
         }
         // other values must change the current value to the new value.
-        self.drawing_state_mut().line_dash_offset = line_dash_offset;
+        self.drawing_state_mut(cx.vm()).line_dash_offset = line_dash_offset;
         Ok(())
     }
 }

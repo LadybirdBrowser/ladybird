@@ -9,7 +9,7 @@
 
 use core::cell::Cell;
 
-use libjs_rust::api::{GcRefCell, Trace, Value};
+use libjs_rust::api::{GcRefCell, Trace, Value, Vm};
 
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::{Ref, Wrappable, allocate, wrap};
@@ -157,9 +157,9 @@ impl WritableStreamDefaultController {
     }
 
     // https://streams.spec.whatwg.org/#ws-default-controller-private-error
-    pub(crate) fn error_steps(this: Ref<Self>) {
+    pub(crate) fn error_steps(vm: &Vm, this: Ref<Self>) {
         // 1. Perform ! ResetQueue(this).
-        this.queue.reset_queue();
+        this.queue.reset_queue(vm);
     }
 }
 
@@ -190,29 +190,29 @@ pub(crate) fn set_up_writable_stream_default_controller(
     stream.set_controller(Some(controller));
 
     // 5. Perform ! ResetQueue(controller).
-    controller.queue.reset_queue();
+    controller.queue.reset_queue(vm);
 
     // 6. Set controller.[[abortController]] to a new AbortController.
     let signal = AbortSignal::create();
-    *controller.signal.borrow_mut() = Some(signal);
+    *controller.signal.borrow_mut(vm) = Some(signal);
 
     // 7. Set controller.[[started]] to false.
     controller.started.set(false);
 
     // 8. Set controller.[[strategySizeAlgorithm]] to sizeAlgorithm.
-    *controller.strategy_size_algorithm.borrow_mut() = Some(size_algorithm);
+    *controller.strategy_size_algorithm.borrow_mut(vm) = Some(size_algorithm);
 
     // 9. Set controller.[[strategyHWM]] to highWaterMark.
     controller.strategy_hwm.set(high_water_mark);
 
     // 10. Set controller.[[writeAlgorithm]] to writeAlgorithm.
-    *controller.write_algorithm.borrow_mut() = Some(write_algorithm);
+    *controller.write_algorithm.borrow_mut(vm) = Some(write_algorithm);
 
     // 11. Set controller.[[closeAlgorithm]] to closeAlgorithm.
-    *controller.close_algorithm.borrow_mut() = Some(close_algorithm);
+    *controller.close_algorithm.borrow_mut(vm) = Some(close_algorithm);
 
     // 12. Set controller.[[abortAlgorithm]] to abortAlgorithm.
-    *controller.abort_algorithm.borrow_mut() = Some(abort_algorithm);
+    *controller.abort_algorithm.borrow_mut(vm) = Some(abort_algorithm);
 
     // 13. Let backpressure be ! WritableStreamDefaultControllerGetBackpressure(controller).
     let backpressure = writable_stream_default_controller_get_backpressure(controller);
@@ -398,16 +398,16 @@ pub(crate) fn writable_stream_default_controller_advance_queue_if_needed(
 // https://streams.spec.whatwg.org/#writable-stream-default-controller-clear-algorithms
 pub(crate) fn writable_stream_default_controller_clear_algorithms(controller: Ref<WritableStreamDefaultController>) {
     // 1. Set controller.[[writeAlgorithm]] to undefined.
-    *controller.write_algorithm.borrow_mut() = None;
+    controller.write_algorithm.replace(None);
 
     // 2. Set controller.[[closeAlgorithm]] to undefined.
-    *controller.close_algorithm.borrow_mut() = None;
+    controller.close_algorithm.replace(None);
 
     // 3. Set controller.[[abortAlgorithm]] to undefined.
-    *controller.abort_algorithm.borrow_mut() = None;
+    controller.abort_algorithm.replace(None);
 
     // 4. Set controller.[[strategySizeAlgorithm]] to undefined.
-    *controller.strategy_size_algorithm.borrow_mut() = None;
+    controller.strategy_size_algorithm.replace(None);
 }
 
 // https://streams.spec.whatwg.org/#writable-stream-default-controller-close
@@ -418,7 +418,7 @@ pub(crate) fn writable_stream_default_controller_close(
     // 1. Perform ! EnqueueValueWithSize(controller, close sentinel, 0).
     controller
         .queue
-        .enqueue_value_with_size(create_close_sentinel(), Value::from_f64(0.0))
+        .enqueue_value_with_size(cx.vm(), create_close_sentinel(), Value::from_f64(0.0))
         .must();
 
     // 2. Perform ! WritableStreamDefaultControllerAdvanceQueueIfNeeded(controller).
@@ -521,7 +521,7 @@ pub(crate) fn writable_stream_default_controller_process_close(
     writable_stream_mark_close_request_in_flight(stream);
 
     // 3. Perform ! DequeueValue(controller).
-    controller.queue.dequeue_value();
+    controller.queue.dequeue_value(cx.vm());
 
     // 4. Assert: controller.[[queue]] is empty.
     assert!(controller.queue.is_empty());
@@ -566,7 +566,7 @@ pub(crate) fn writable_stream_default_controller_process_write(
     let stream = controller.stream();
 
     // 2. Perform ! WritableStreamMarkFirstWriteRequestInFlight(stream).
-    writable_stream_mark_first_write_request_in_flight(stream);
+    writable_stream_mark_first_write_request_in_flight(cx.vm(), stream);
 
     // 3. Let sinkWritePromise be the result of performing controller.[[writeAlgorithm]], passing in chunk.
     let write_algorithm = controller
@@ -590,7 +590,7 @@ pub(crate) fn writable_stream_default_controller_process_write(
             assert!(state == WritableStreamState::Writable || state == WritableStreamState::Erroring);
 
             // 4. Perform ! DequeueValue(controller).
-            controller.queue.dequeue_value();
+            controller.queue.dequeue_value(cx.vm());
 
             // 5. If ! WritableStreamCloseQueuedOrInFlight(stream) is false and state is "writable",
             if !writable_stream_close_queued_or_in_flight(stream) && state == WritableStreamState::Writable {
@@ -630,7 +630,7 @@ pub(crate) fn writable_stream_default_controller_write(
     chunk_size: Value,
 ) {
     // 1. Let enqueueResult be EnqueueValueWithSize(controller, chunk, chunkSize).
-    let enqueue_result = controller.queue.enqueue_value_with_size(chunk, chunk_size);
+    let enqueue_result = controller.queue.enqueue_value_with_size(cx.vm(), chunk, chunk_size);
 
     // 2. If enqueueResult is an abrupt completion,
     if let Err(exception) = enqueue_result {

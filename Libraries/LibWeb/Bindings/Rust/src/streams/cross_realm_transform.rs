@@ -508,7 +508,7 @@ pub(crate) fn set_up_cross_realm_transform_writable(
     port: CrossRealmTransformPort,
 ) {
     // 1. Perform ! InitializeWritableStream(stream).
-    initialize_writable_stream(stream);
+    initialize_writable_stream(cx.vm(), stream);
 
     // 2. Let controller be a new WritableStreamDefaultController.
     let controller = allocate(cx.vm(), WritableStreamDefaultController::new());

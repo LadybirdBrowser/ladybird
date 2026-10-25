@@ -101,7 +101,7 @@ impl WeakMapPrototype {
         //         ii. Set p.[[Value]] to empty.
         //         iii. Return true.
         // 5. Return false.
-        Ok(Value::from_bool(weak_map.weak_map_remove(key.as_cell())))
+        Ok(Value::from_bool(weak_map.weak_map_remove(vm, key.as_cell())))
     }
 
     // 24.3.3.3 WeakMap.prototype.get ( key ), https://tc39.es/ecma262/#sec-weakmap.prototype.get

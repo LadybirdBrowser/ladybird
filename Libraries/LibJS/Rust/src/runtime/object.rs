@@ -1218,7 +1218,7 @@ impl Object {
                         target_shape = target_shape.create_configure_transition(vm, property_key, new_attributes);
                     }
                 }
-                shape.set_cached_integrity_level_shape(level, target_shape);
+                shape.set_cached_integrity_level_shape(vm, level, target_shape);
                 target_shape
             }
         };
@@ -1458,10 +1458,13 @@ impl Object {
                 for property_key in &enumerable_keys {
                     copy_shape = copy_shape.create_put_transition(vm, property_key, DEFAULT_ATTRIBUTES);
                 }
-                from_shape.set_cached_assign_copy(AssignCopy {
-                    prototype_validity,
-                    copy_shape,
-                });
+                from_shape.set_cached_assign_copy(
+                    vm,
+                    AssignCopy {
+                        prototype_validity,
+                        copy_shape,
+                    },
+                );
                 copy_shape
             }
         };
@@ -1694,7 +1697,7 @@ impl Object {
         }
 
         // 4. Append PrivateElement { [[Key]]: P, [[Kind]]: field, [[Value]]: value } to O.[[PrivateElements]].
-        self.private_elements.ensure().borrow_mut().push(PrivateElement {
+        self.private_elements.ensure().borrow_mut(vm).push(PrivateElement {
             key: name.clone(),
             kind: PrivateElementKind::Field,
             value,
@@ -1725,7 +1728,7 @@ impl Object {
         }
 
         // 5. Append method to O.[[PrivateElements]].
-        self.private_elements.ensure().borrow_mut().push(element);
+        self.private_elements.ensure().borrow_mut(vm).push(element);
 
         // 6. Return unused.
         Ok(())
@@ -1792,7 +1795,7 @@ impl Object {
             self.private_elements
                 .get()
                 .expect("the object has private elements")
-                .borrow_mut()[entry_index]
+                .borrow_mut(vm)[entry_index]
                 .value = value;
             return Ok(());
         }
@@ -3985,7 +3988,7 @@ impl Object {
     #[cold]
     fn indexed_put_into_dictionary(&self, index: u32, value: Value, attributes: PropertyAttributes) {
         let promote = {
-            let mut dictionary = self.indexed_dictionary().borrow_mut();
+            let mut dictionary = self.indexed_dictionary().borrow_mut(self.vm());
             let old_size = dictionary.size();
             dictionary.put(index, value, attributes);
             let length = dictionary.array_like_size();
@@ -4041,7 +4044,7 @@ impl Object {
     }
 
     fn indexed_put_dictionary_and_update_size(&self, index: u32, value: Value, attributes: PropertyAttributes) {
-        let mut dictionary = self.indexed_dictionary().borrow_mut();
+        let mut dictionary = self.indexed_dictionary().borrow_mut(self.vm());
         dictionary.put(index, value, attributes);
         self.indexed_array_like_size.set(dictionary.array_like_size() as u32);
     }
@@ -4156,7 +4159,7 @@ impl Object {
                 }
                 self.set_indexed_element(index, Value::EMPTY);
             }
-            IndexedStorageKind::Dictionary => self.indexed_dictionary().borrow_mut().remove(index),
+            IndexedStorageKind::Dictionary => self.indexed_dictionary().borrow_mut(self.vm()).remove(index),
         }
     }
 
@@ -4166,7 +4169,7 @@ impl Object {
         }
 
         if self.indexed_storage_kind() == IndexedStorageKind::Dictionary {
-            let mut dictionary = self.indexed_dictionary().borrow_mut();
+            let mut dictionary = self.indexed_dictionary().borrow_mut(self.vm());
             let result = dictionary.set_array_like_size(new_size);
             self.indexed_array_like_size.set(dictionary.array_like_size() as u32);
             return result;
@@ -4265,7 +4268,7 @@ impl Object {
 
     pub fn indexed_take_first(&self) -> ValueAndAttributes {
         if self.indexed_storage_kind() == IndexedStorageKind::Dictionary {
-            let mut dictionary = self.indexed_dictionary().borrow_mut();
+            let mut dictionary = self.indexed_dictionary().borrow_mut(self.vm());
             let result = dictionary.take_first();
             self.indexed_array_like_size.set(dictionary.array_like_size() as u32);
             return result;
@@ -4300,7 +4303,7 @@ impl Object {
 
     pub fn indexed_take_last(&self) -> ValueAndAttributes {
         if self.indexed_storage_kind() == IndexedStorageKind::Dictionary {
-            let mut dictionary = self.indexed_dictionary().borrow_mut();
+            let mut dictionary = self.indexed_dictionary().borrow_mut(self.vm());
             let result = dictionary.take_last();
             self.indexed_array_like_size.set(dictionary.array_like_size() as u32);
             return result;
