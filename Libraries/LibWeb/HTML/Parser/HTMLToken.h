@@ -41,9 +41,7 @@ public:
     };
 
     struct Attribute {
-        Optional<Utf16FlyString> prefix;
         Utf16FlyString local_name;
-        Optional<Utf16FlyString> namespace_;
         Utf16String value;
         Position name_start_position;
         Position value_start_position;
@@ -63,13 +61,6 @@ public:
         bool missing_system_identifier { true };
         bool force_quirks { false };
     };
-
-    static HTMLToken make_start_tag(Utf16FlyString const& tag_name)
-    {
-        HTMLToken token { Type::StartTag };
-        token.set_tag_name(tag_name);
-        return token;
-    }
 
     HTMLToken() = default;
 
@@ -173,13 +164,6 @@ public:
         }
     }
 
-    Optional<Utf16String> attribute(Utf16FlyString const& attribute_name) const
-    {
-        if (auto result = raw_attribute(attribute_name); result.has_value())
-            return result->value;
-        return {};
-    }
-
     Optional<Attribute const&> raw_attribute(Utf16FlyString const& attribute_name) const
     {
         VERIFY(is_start_tag() || is_end_tag());
@@ -192,11 +176,6 @@ public:
                 return attribute;
         }
         return {};
-    }
-
-    bool has_attribute(Utf16FlyString const& attribute_name) const
-    {
-        return attribute(attribute_name).has_value();
     }
 
     DoctypeData const& doctype_data() const
