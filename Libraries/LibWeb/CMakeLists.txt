@@ -418,7 +418,6 @@ set(SOURCES
     Geometry/DOMRectList.cpp
     Geometry/DOMRectReadOnly.cpp
     GPC/GlobalPrivacyControl.cpp
-    GraphemeEdgeTracker.cpp
     HighResolutionTime/Performance.cpp
     HighResolutionTime/TimeOrigin.cpp
     HTML/AbstractWorker.cpp

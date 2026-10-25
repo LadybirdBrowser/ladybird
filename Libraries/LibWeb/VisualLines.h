@@ -50,6 +50,9 @@ Optional<CursorLinePosition> compute_cursor_position_on_previous_character(DOM::
 size_t find_visual_line_start(DOM::Text const&, size_t offset, TextAffinity);
 CursorLinePosition find_visual_line_end(DOM::Text const&, size_t offset, TextAffinity);
 
+size_t find_line_start(Utf16View const&, size_t offset);
+size_t find_line_end(Utf16View const&, size_t offset);
+
 // Helpers for caret navigation across node boundaries.
 // The absolute inline-axis coordinate of the caret at the given offset, used to keep the caret column when moving
 // between lines. Returns nothing for positions on lines without rendered text.

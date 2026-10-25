@@ -28,7 +28,6 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
-#include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DragDataStore.h>
@@ -78,6 +77,7 @@
 #include <LibWeb/UIEvents/PointerEvent.h>
 #include <LibWeb/UIEvents/TextEvent.h>
 #include <LibWeb/UIEvents/WheelEvent.h>
+#include <LibWeb/VisualLines.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/UIEvents/MouseButton.h>
