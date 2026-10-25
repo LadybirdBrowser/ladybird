@@ -763,10 +763,15 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
         // A table-column box is a child of a table-column-group, or a direct child of the table root: the fixup
         // algorithm leaves the latter in place, as "A table-column box is misparented if its parent is neither a
         // table-column-group box nor a table-root box": https://www.w3.org/TR/css-tables-3/#fixup-algorithm
+        // A table-column-group box without table-column children stands for the columns it spans itself, as
+        // the HTML table forming algorithm forms them: https://html.spec.whatwg.org/multipage/tables.html#forming-a-table
         let columns_in_child = if tree.display(child).is_table_column() {
             tree.table_column_span(child)
         } else {
-            count_columns_in_subtree(tree, child)
+            match count_columns_in_subtree(tree, child) {
+                0 => tree.table_column_span(child),
+                count => count,
+            }
         };
         column_count = column_count.saturating_add(columns_in_child);
     }
@@ -866,6 +871,24 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
 
 const BORDER_COLLAPSE_SEPARATE: u8 = 0;
 const TABLE_LAYOUT_FIXED: u8 = 1;
+
+/// The grid columns that a table-column box, or a table-column-group box without table-column children, corresponds
+/// to (see column_track_ranges()).
+#[derive(Clone, Copy)]
+struct ColumnTrackRange {
+    /// The table-column box, or the table-column-group box that stands for the columns it spans itself.
+    box_: Node,
+    /// The table-column-group box of the columns, if any.
+    group: Option<Node>,
+    start: usize,
+    end: usize,
+}
+
+impl ColumnTrackRange {
+    fn is_group_without_columns(&self) -> bool {
+        self.group == Some(self.box_)
+    }
+}
 
 pub(crate) trait TableTree {
     fn first_child(&self, node: Node) -> Node;
@@ -1090,6 +1113,38 @@ impl<'pass> TableFormattingContext<'pass> {
             .collect()
     }
 
+    /// The grid columns of the table-column boxes in tree order, each spanning the columns that its span attribute
+    /// gives it. A table-column-group box without table-column children stands for the columns it spans itself, as
+    /// the HTML table forming algorithm forms them: https://html.spec.whatwg.org/multipage/tables.html#forming-a-table
+    /// A table-column box is a child of a table-column-group, or a direct child of the table root (see
+    /// table_columns()).
+    fn column_track_ranges(&mut self) -> Vec<ColumnTrackRange> {
+        let column_count = self.columns.len();
+        let mut ranges = Vec::new();
+        let mut column_index = 0usize;
+        for child in self.matching_children(self.run.box_, |facts| {
+            facts.is_table_column_group() || facts.is_table_column()
+        }) {
+            let (group, columns) = if self.node_facts(child).is_table_column() {
+                (None, vec![child])
+            } else {
+                let columns = self.matching_children(child, |facts| facts.is_table_column());
+                (Some(child), if columns.is_empty() { vec![child] } else { columns })
+            };
+            for column in columns {
+                let end = (column_index + self.table_column_span(column)).min(column_count);
+                ranges.push(ColumnTrackRange {
+                    box_: column,
+                    group,
+                    start: column_index,
+                    end,
+                });
+                column_index = end;
+            }
+        }
+        ranges
+    }
+
     /// The table-column boxes of the table in grid order. A table-column box is a child of a table-column-group, or
     /// a direct child of the table root: the fixup algorithm leaves the latter in place, as "A table-column box is
     /// misparented if its parent is neither a table-column-group box nor a table-root box":
@@ -1260,31 +1315,23 @@ impl<'pass> TableFormattingContext<'pass> {
             grid.apply_borders(borders, start, row_index, 0, column_count, take_source_order());
         }
 
-        // Column (<col>) elements, inside a column group or directly under the table root (see table_columns()).
-        let mut column_index = 0usize;
-        let mut column_group_ranges = Vec::new();
-        for child in self.matching_children(self.run.box_, |facts| {
-            facts.is_table_column_group() || facts.is_table_column()
-        }) {
-            let is_column_group = self.node_facts(child).is_table_column_group();
-            let group_start = column_index;
-            let columns = if is_column_group {
-                self.matching_children(child, |facts| facts.is_table_column())
-            } else {
-                vec![child]
-            };
-            for column in columns {
-                let span = self.table_column_span(column);
-                let end = (column_index + span).min(column_count);
-                let borders = self.element_borders(column);
-                let source_order = take_source_order();
-                while column_index < end {
-                    grid.apply_borders(borders, 0, row_count, column_index, column_index + 1, source_order);
-                    column_index += 1;
+        // Column (<col>) elements, inside a column group or directly under the table root (see
+        // column_track_ranges()).
+        let mut column_group_ranges: Vec<(Node, usize, usize)> = Vec::new();
+        for range in self.column_track_ranges() {
+            if let Some(group) = range.group {
+                match column_group_ranges.last_mut() {
+                    Some((last_group, _, group_end)) if *last_group == group => *group_end = range.end,
+                    _ => column_group_ranges.push((group, range.start, range.end)),
                 }
             }
-            if is_column_group {
-                column_group_ranges.push((child, group_start, column_index));
+            if range.is_group_without_columns() {
+                continue;
+            }
+            let borders = self.element_borders(range.box_);
+            let source_order = take_source_order();
+            for column_index in range.start..range.end {
+                grid.apply_borders(borders, 0, row_count, column_index, column_index + 1, source_order);
             }
         }
         for (column_group, group_start, group_end) in column_group_ranges {
@@ -2334,15 +2381,12 @@ impl<'pass> TableFormattingContext<'pass> {
         for cell in &self.cells {
             self.columns[cell.column_index].has_originating_cells = true;
         }
-        let mut column_index = 0usize;
-        for column in self.table_columns() {
-            let end = (column_index + self.table_column_span(column)).min(self.columns.len());
-            if self.column_is_collapsed(column) {
-                for index in column_index..end {
+        for range in self.column_track_ranges() {
+            if self.column_is_collapsed(range.box_) {
+                for index in range.start..range.end {
                     self.columns[index].is_collapsed = true;
                 }
             }
-            column_index = end;
         }
 
         // The containing block of every internal table box and caption is the table wrapper;
@@ -3250,29 +3294,24 @@ impl<'pass> TableFormattingContext<'pass> {
         }
         column_offsets.push(offset);
 
-        // Columns are assigned to grid columns in tree order, like the cells they contain (see table_columns()). A
-        // column group is placed before its columns: a table-column-group box is the containing block of its
-        // columns, so they are positioned relative to it.
-        let mut column_index = 0usize;
-        let mut placements = Vec::new();
-        for child in self.matching_children(self.run.box_, |facts| {
-            facts.is_table_column_group() || facts.is_table_column()
-        }) {
-            let group_start = column_index;
-            if self.node_facts(child).is_table_column() {
-                let end = (column_index + self.table_column_span(child)).min(column_count);
-                placements.push((child, None, column_index, end));
-                column_index = end;
-            } else {
-                let columns = self.matching_children(child, |facts| facts.is_table_column());
-                let mut column_placements = Vec::with_capacity(columns.len());
-                for column in columns {
-                    let end = (column_index + self.table_column_span(column)).min(column_count);
-                    column_placements.push((column, Some(child), column_index, end));
-                    column_index = end;
-                }
-                placements.push((child, None, group_start, column_index));
-                placements.extend(column_placements);
+        // Columns are assigned to grid columns in tree order, like the cells they contain (see
+        // column_track_ranges()). A column group is placed before its columns: a table-column-group box is the
+        // containing block of its columns, so they are positioned relative to it.
+        let mut placements: Vec<(Node, Option<Node>, usize, usize)> = Vec::new();
+        let mut group_placement: Option<usize> = None;
+        for range in self.column_track_ranges() {
+            match range.group {
+                Some(group) => match group_placement {
+                    Some(index) if placements[index].0 == group => placements[index].3 = range.end,
+                    _ => {
+                        group_placement = Some(placements.len());
+                        placements.push((group, None, range.start, range.end));
+                    }
+                },
+                None => group_placement = None,
+            }
+            if !range.is_group_without_columns() {
+                placements.push((range.box_, range.group, range.start, range.end));
             }
         }
         for (node, group, start, end) in placements {
