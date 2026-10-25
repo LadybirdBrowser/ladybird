@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	javascript: navigation using <a href> should be refused due to missing unsafe-hashes

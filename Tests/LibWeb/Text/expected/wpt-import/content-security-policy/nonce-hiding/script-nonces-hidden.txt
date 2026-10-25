@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+10 Pass
+2 Fail
+Pass	Reading 'nonce' content attribute and IDL attribute.
+Pass	Cloned node retains nonce.
+Pass	Cloned node retains nonce when inserted.
+Pass	Writing 'nonce' content attribute.
+Pass	Writing 'nonce' IDL attribute.
+Pass	Document-written script executes.
+Pass	Document-written script's nonce value.
+Fail	createElement.nonce.
+Pass	setAttribute('nonce') overwrites '.nonce' upon insertion.
+Pass	createElement.setAttribute.
+Fail	Custom elements expose the correct events.
+Pass	Nonces don't leak via CSS side-channels.

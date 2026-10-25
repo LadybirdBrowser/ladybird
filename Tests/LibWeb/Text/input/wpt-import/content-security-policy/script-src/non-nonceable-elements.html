@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<head>
+  <meta http-equiv="Content-Security-Policy"
+        content="script-src 'nonce-secret-script'; style-src 'nonce-secret-style'">
+  <script nonce="secret-script" src="../../resources/testharness.js"></script>
+  <script nonce="secret-script" src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+  <script nonce="secret-script">
+    var scriptTest0 = false;
+    var scriptTest1 = false;
+    var scriptTest2 = false;
+    var scriptTest3 = false;
+    var scriptTest4 = false;
+    var scriptTest5 = false;
+    var scriptTest6 = false;
+    var scriptTest7 = false;
+    var scriptTest8 = false;
+    var scriptTest9 = false;
+  </script>
+
+  <script nonce="secret-script">
+    scriptTest0 = true;
+  </script>
+  <script nonce="secret-script" data="<script">
+    scriptTest1 = true;
+  </script>
+  <script nonce="secret-script" data="<sCRIpt">
+    scriptTest2 = true;
+  </script>
+  <script nonce="secret-script" data="<style">
+    scriptTest3 = true;
+  </script>
+  <script nonce="secret-script" data="<stYlE">
+    scriptTest4 = true;
+  </script>
+  <script nonce="secret-script" data="<link">
+    scriptTest5 = true;
+  </script>
+  <script nonce="secret-script" data="<LinK">
+    scriptTest6 = true;
+  </script>
+  <script nonce="secret-script" data="aaa<sCripTbb">
+    scriptTest7 = true;
+  </script>
+  <script nonce="secret-script" data="aa<sTylEbbb">
+    scriptTest8 = true;
+  </script>
+  <script nonce="secret-script" data="cc<lInKddd">
+    scriptTest9 = true;
+  </script>
+
+  <script nonce="secret-script">
+    test(t =>
+      assert_true(
+        scriptTest0,
+        "<script> element with no special attributes should execute"),
+      "Nonceable script element 0");
+    test(t =>
+      assert_false(
+        scriptTest1,
+        "<script> element with attribute '<script' should not execute"),
+      "Non-nonceable script element 1");
+    test(t =>
+      assert_false(
+        scriptTest2,
+        "<script> element with attribute '<sCRIpt' should not execute"),
+      "Non-nonceable script element 2");
+    test(t =>
+      assert_false(
+        scriptTest3,
+        "<script> element with attribute '<style' should not execute"),
+      "Non-nonceable script element 3");
+    test(t =>
+      assert_false(
+        scriptTest4,
+        "<script> element with attribute '<stYlE' should not execute"),
+      "Non-nonceable script element 4");
+    test(t =>
+      assert_false(
+        scriptTest5,
+        "<script> element with attribute '<link' should not execute"),
+      "Non-nonceable script element 5");
+    test(t =>
+      assert_false(
+        scriptTest6,
+        "<script> element with attribute '<LinK' should not execute"),
+      "Non-nonceable script element 6");
+    test(t =>
+      assert_false(
+        scriptTest7,
+        "<script> element with attribute 'aaa<sCripTbb' should not execute"),
+      "Non-nonceable script element 7");
+    test(t =>
+      assert_false(
+        scriptTest8,
+        "<script> element with attribute 'aa<sTylEbbb' should not execute"),
+      "Non-nonceable script element 8");
+    test(t =>
+      assert_false(
+        scriptTest9,
+        "<script> element with attribute 'cc<lInKddd' should not execute"),
+      "Non-nonceable script element 9");
+ </script>
+</body>

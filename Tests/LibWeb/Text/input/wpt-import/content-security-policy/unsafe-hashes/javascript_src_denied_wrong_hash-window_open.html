@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-hashes' 'nonce-abc'
+    'sha256-VjH6k67F4kobUnNDOBE85QiJ9cuZMiYT6desKXvezVg=';">
+    <!--
+    'sha256-IIiAJ8UuliU8o1qAv6CV4P3R8DeTf/v3MrsCwXW171Y=' ==> 'javascript:opener.postMessage('pass', '*')'
+    -->
+    <script src='../../resources/testharness.js' nonce='abc'></script>
+    <script src='../../resources/testharnessreport.js' nonce='abc'></script>
+</head>
+
+<body>
+    <div id='log'></div>
+    <script nonce='abc'>
+        var t1 = async_test("Test that the javascript: src is not allowed to run");
+
+        window.onmessage = t1.unreached_func("Should have not received any message");
+
+        window.addEventListener('securitypolicyviolation', t1.step_func_done(function(e) {
+            assert_equals(e.violatedDirective, 'script-src-elem');
+            assert_equals(e.blockedURI, 'inline');
+        }));
+
+        window.open("javascript:opener.postMessage('pass', '*')");
+    </script>
+</body>
+
+</html>
