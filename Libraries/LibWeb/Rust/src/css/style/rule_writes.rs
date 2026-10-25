@@ -322,9 +322,11 @@ impl RuleWrite {
             }
             Self::PublishRules { sheet, before, rules } => {
                 let before = rule_number(engine, before);
-                for rule in rules {
-                    rule.publish(engine, sheet, before);
-                }
+                engine.publish_sheet_rules(sheet, |engine| {
+                    for rule in rules {
+                        rule.publish(engine, sheet, before);
+                    }
+                });
             }
             Self::ReplaceSelectors { identity, selectors } => {
                 let rule = rule_number(engine, identity);

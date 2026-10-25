@@ -3363,6 +3363,31 @@ impl RouteDirectory {
         }
     }
 
+    fn is_empty(&self) -> bool {
+        match self {
+            Self::BuildingAfterIdle(building)
+            | Self::BuildingAfterChange(building)
+            | Self::BuildingIdleAfterChange(building) => building.is_empty(),
+            Self::FlatAfterIdle { data } | Self::FlatAfterChange { data } => data.is_none(),
+        }
+    }
+
+    /// Whether this directory is the flat directory `other` is, which nothing has been pushed to since.
+    fn is_flat_copy_of(&self, other: &Self) -> bool {
+        let (
+            Self::FlatAfterIdle { data } | Self::FlatAfterChange { data },
+            Self::FlatAfterIdle { data: other } | Self::FlatAfterChange { data: other },
+        ) = (self, other)
+        else {
+            return false;
+        };
+        match (data, other) {
+            (None, None) => true,
+            (Some(data), Some(other)) => Arc::ptr_eq(data, other),
+            _ => false,
+        }
+    }
+
     fn finish(&mut self, pool: &mut WeakPool<SharedFlatRouteDirectory>) -> bool {
         match std::mem::take(self) {
             Self::FlatAfterIdle { data } | Self::FlatAfterChange { data } => {
@@ -3382,6 +3407,16 @@ impl RouteDirectory {
                 true
             }
         }
+    }
+
+    /// Flatten the directory now, however recently it changed.
+    fn flatten_now(&mut self, pool: &mut WeakPool<SharedFlatRouteDirectory>) {
+        *self = match std::mem::take(self) {
+            Self::BuildingAfterIdle(building)
+            | Self::BuildingAfterChange(building)
+            | Self::BuildingIdleAfterChange(building) => Self::flatten(building, false, pool),
+            flat => flat,
+        };
     }
 
     fn flatten(
@@ -4528,6 +4563,57 @@ impl RoutingRegistry {
             | self.arrival_by_input.finish(&mut pools.flat_route_directories);
         self.routes.share(&mut pools);
         changed
+    }
+
+    /// Flatten the directories and share the route columns now, for a registry other engines take copies of.
+    pub(super) fn finish_for_sharing(&mut self) {
+        let mut pools = routing_pools();
+        self.by_input.flatten_now(&mut pools.flat_route_directories);
+        self.arrival_by_input.flatten_now(&mut pools.flat_route_directories);
+        self.routes.share(&mut pools);
+    }
+
+    /// Whether no rule has been routed.
+    pub(super) fn is_empty(&self) -> bool {
+        self.routes.is_empty() && self.by_input.is_empty() && self.arrival_by_input.is_empty()
+    }
+
+    /// Whether this registry holds the finished routes of `other` and has routed nothing since: every route either
+    /// joins the route columns or is pushed to a directory, and either one stops sharing it.
+    pub(super) fn is_finished_copy_of(&self, other: &Self) -> bool {
+        matches!(
+            (&self.routes, &other.routes),
+            (RouteColumns::Shared(routes), RouteColumns::Shared(other)) if Arc::ptr_eq(routes, other)
+        ) && self.by_input.is_flat_copy_of(&other.by_input)
+            && self.arrival_by_input.is_flat_copy_of(&other.arrival_by_input)
+    }
+
+    /// A copy of the routes for another engine, whose liveness view is prepared again before it is read: the view
+    /// was prepared for this engine's program, whose liveness version the other's may share.
+    pub(super) fn copy_for_another_engine(&self) -> Self {
+        Self {
+            route_liveness_version: None,
+            ..self.clone()
+        }
+    }
+
+    /// Whether this registry routes what `other` routes, to the same routes.
+    #[cfg(test)]
+    pub(super) fn has_routes_of(&self, other: &Self) -> bool {
+        fn directory(directory: &RouteDirectory) -> HashMap<RoutingKey, Vec<RouteID>> {
+            match directory {
+                RouteDirectory::BuildingAfterIdle(building)
+                | RouteDirectory::BuildingAfterChange(building)
+                | RouteDirectory::BuildingIdleAfterChange(building) => building.clone(),
+                RouteDirectory::FlatAfterIdle { data } | RouteDirectory::FlatAfterChange { data } => {
+                    RouteDirectory::reopen(data.clone())
+                }
+            }
+        }
+        *self.routes == *other.routes
+            && self.sibling_first_by_origin == other.sibling_first_by_origin
+            && directory(&self.by_input) == directory(&other.by_input)
+            && directory(&self.arrival_by_input) == directory(&other.arrival_by_input)
     }
 
     #[cfg(test)]

@@ -1023,6 +1023,9 @@ pub struct RetainedState {
     relational_arrival_keys_version: u64,
     selector_programs_need_sweep: bool,
     routing: Arc<RoutingRegistry>,
+    /// The rules of a user-agent sheet being published, in the order they are routed, which are routed together as the
+    /// publication ends; see `route_user_agent_rules`.
+    deferred_user_agent_routes: Option<Vec<(RuleID, SelectorProgramID)>>,
     /// Exact selector changes and refresh requests emitted by the current transaction.
     selector_truth_changes: SelectorTruthChanges,
     already_planned_selector_truth: DeltaBatch<AlreadyPlannedSelectorTruthCandidate>,

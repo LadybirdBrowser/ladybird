@@ -12122,3 +12122,100 @@ fn inheritance_parent_keeps_the_dom_parent_of_nodes_outside_the_flat_tree() {
     assert_eq!(tree.flat_tree_parent(*fallback), None);
     assert_eq!(tree.inheritance_parent(*fallback), Some(*slot));
 }
+
+/// A document whose engine shares the process's user-agent selector programs, as a live engine does.
+fn user_agent_sharing_document() -> StyleEngine {
+    let (mut engine, _) = linear_document();
+    engine.atoms = crate::fork::ForkShared::new(DocumentAtoms::for_test());
+    assert!(engine.shares_user_agent_selector_programs());
+    engine
+}
+
+/// Records `source` as a user-agent sheet, whose rules the identities from `first_identity` name, and publishes its
+/// rules as the host does.
+fn record_user_agent_sheet(engine: &mut StyleEngine, source: &str, first_identity: u64) -> SheetID {
+    let rules = native_rules(source);
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::UserAgent);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    engine.publish_sheet_rules(sheet.0 + 1, |engine| {
+        for index in 0..rules.len() {
+            let rule = rules.rule_at(index);
+            let bound = rule.matching_selectors();
+            let selectors: Vec<_> = bound.selectors.iter().map(|selector| selector.as_ref()).collect();
+            engine.add_user_agent_style_rule(sheet, None, first_identity + index as u64, &selectors, None);
+        }
+    });
+    sheet
+}
+
+/// The routing an engine makes when it routes every rule of `sheets` itself, once a transaction has committed them.
+fn routing_built_from(engine: &StyleEngine, sheets: &[SheetID]) -> selector::RoutingRegistry {
+    let mut routing = selector::RoutingRegistry::new();
+    for &sheet in sheets {
+        for rule in engine.program.rules_in_sheet(sheet) {
+            if let Some(program) = engine.program.rule_version(rule).selector_program {
+                routing.add_rule(rule, program, &engine.programs);
+            }
+        }
+    }
+    routing
+}
+
+#[test]
+fn later_documents_copy_the_routing_user_agent_sheets_made() {
+    const SHEETS: [(&str, u64); 2] = [
+        (".a {} .b > .c {}", 0x5541_0001_0000_0000),
+        ("[hidden] {} .b ~ .c {}", 0x5541_0002_0000_0000),
+    ];
+    let mut documents: Vec<_> = (0..3)
+        .map(|_| {
+            let mut engine = user_agent_sharing_document();
+            let sheets: Vec<_> = SHEETS
+                .iter()
+                .map(|&(source, identity)| record_user_agent_sheet(&mut engine, source, identity))
+                .collect();
+            (engine, sheets)
+        })
+        .collect();
+    // The first document routes both sheets itself, and the later ones take copies of what it made.
+    for (engine, _) in &documents[1..] {
+        assert!(engine.routing.is_finished_copy_of(&documents[0].0.routing));
+    }
+    for (engine, sheets) in &mut documents {
+        discard_transaction(engine);
+        assert!(engine.routing.has_routes_of(&routing_built_from(engine, sheets)));
+    }
+}
+
+#[test]
+fn a_document_with_other_routes_routes_user_agent_rules_itself() {
+    const SHEET: (&str, u64) = (".d {} .e + .f {}", 0x5541_0003_0000_0000);
+    let mut first = user_agent_sharing_document();
+    let first_sheet = record_user_agent_sheet(&mut first, SHEET.0, SHEET.1);
+
+    let mut engine = user_agent_sharing_document();
+    let author = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
+    engine.attach_sheet(author, TreeScopeID::DOCUMENT);
+    let rules = native_rules(".g {}");
+    let rule = rules.rule_at(0);
+    let bound = rule.matching_selectors();
+    let selectors: Vec<_> = bound.selectors.iter().map(|selector| selector.as_ref()).collect();
+    super::bridge::publish_style_rule(
+        &mut engine,
+        author.0 + 1,
+        0,
+        &selectors,
+        NamespaceScope::default(),
+        &super::bridge::BoundScopeChain::default(),
+    );
+    let sheet = record_user_agent_sheet(&mut engine, SHEET.0, SHEET.1);
+    assert!(!engine.routing.is_finished_copy_of(&first.routing));
+    discard_transaction(&mut first);
+    discard_transaction(&mut engine);
+    assert!(
+        engine
+            .routing
+            .has_routes_of(&routing_built_from(&engine, &[author, sheet]))
+    );
+    assert!(first.routing.has_routes_of(&routing_built_from(&first, &[first_sheet])));
+}
