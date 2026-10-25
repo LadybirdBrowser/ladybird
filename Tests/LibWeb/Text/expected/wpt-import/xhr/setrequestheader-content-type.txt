@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 34 tests
 
-33 Pass
-1 Fail
+34 Pass
 Pass	setRequestHeader("") sends a blank string
 Pass	setRequestHeader(" ") sends the string " "
 Pass	setRequestHeader(null) sends the string "null"
@@ -23,7 +22,7 @@ Pass	Blob request respects setRequestHeader("") to be specified
 Pass	Blob request with unset type sends no Content-Type without setRequestHeader() call
 Pass	Blob request with unset type keeps setRequestHeader() Content-Type and charset
 Pass	Blob request with set type respects setRequestHeader("") to be specified
-Fail	Blob request with set type uses that it for Content-Type unless setRequestHeader()
+Pass	Blob request with set type uses that it for Content-Type unless setRequestHeader()
 Pass	Blob request with set type keeps setRequestHeader() Content-Type and charset
 Pass	ArrayBuffer request respects setRequestHeader("")
 Pass	ArrayBuffer request sends no Content-Type without setRequestHeader() call

@@ -13,7 +13,6 @@ use core::ptr::NonNull;
 
 use ak::{Utf16String, Utf16StringUnits};
 use libjs_rust::api::{MarkedVec, RawNativeFunctionResult, Trace};
-use libwebcommon_rust::mime_sniff::mime_type::MimeType;
 
 use super::file::File;
 use crate::bindings::conversions::{BufferSource, UsvString};
@@ -283,23 +282,25 @@ fn is_basic_latin(string: &Utf16String) -> bool {
 
 /// The type of a Blob or a File that is constructed with the type member of its options.
 pub(crate) fn type_from_options(r#type: &Utf16String) -> Utf16String {
-    // FIXME: 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
+    // 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
     //    If t contains any characters outside the range U+0020 to U+007E, then set t to the empty string and return
     //    from these substeps.
-    // FIXME: 2. Convert every character in t to ASCII lowercase.
-
-    // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
     if !is_basic_latin(r#type) {
         return Utf16String::default();
     }
-    let input: Vec<char> = r#type
+
+    // 2. Convert every character in t to ASCII lowercase.
+    to_ascii_lowercase(r#type)
+}
+
+/// Converts a string whose code units are all in the range U+0020 to U+007E to ASCII lowercase.
+fn to_ascii_lowercase(string: &Utf16String) -> Utf16String {
+    let lowercase: Vec<u8> = string
         .to_utf16()
         .iter()
-        .map(|&code_unit| char::from(code_unit as u8))
+        .map(|&code_unit| (code_unit as u8).to_ascii_lowercase())
         .collect();
-    MimeType::parse(&input).map_or_else(Utf16String::default, |mime_type| {
-        Utf16String::from_ascii(mime_type.serialize().as_bytes())
-    })
+    Utf16String::from_ascii(&lowercase)
 }
 
 impl Blob {
@@ -444,14 +445,7 @@ impl Blob {
             //    relativeContentType to the empty string and return from these substeps:
             Some(content_type) if !is_basic_latin(content_type) => Utf16String::default(),
             // 2. Convert every character in relativeContentType to ASCII lowercase.
-            Some(content_type) => {
-                let lowercase: Vec<u8> = content_type
-                    .to_utf16()
-                    .iter()
-                    .map(|&code_unit| (code_unit as u8).to_ascii_lowercase())
-                    .collect();
-                Utf16String::from_ascii(&lowercase)
-            }
+            Some(content_type) => to_ascii_lowercase(content_type),
         };
 
         // 5. Let span be max((relativeEnd - relativeStart), 0).
