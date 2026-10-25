@@ -48,6 +48,7 @@ use crate::code::Repr;
 use crate::code::ResumeMode;
 use crate::ir::Block;
 use crate::ir::BlockId;
+use crate::ir::BranchCondition;
 use crate::ir::CALLEE_SLOT;
 use crate::ir::FrameState;
 use crate::ir::FrameStateId;
@@ -108,6 +109,10 @@ pub(super) struct CallbackTarget {
     index: u32,
     closures: bool,
 }
+
+/// How many functions a call whose callee is a phi of function constants may
+/// switch on (see `GraphBuilder::try_inline_callee_cases()`).
+const MAX_CALLEE_CASES: usize = 4;
 
 /// Whether the callee can be built as an inlined call: its frame must not be
 /// needed in memory outside generic nodes, its environments must stay those
@@ -701,6 +706,9 @@ impl GraphBuilder<'_> {
             };
             return self.inline_call(call);
         }
+        if let Some(flow) = self.try_inline_callee_cases(instruction)? {
+            return Ok(Some(flow));
+        }
         let Some(feedback) = self.call_feedback(*call_feedback) else {
             return Ok(None);
         };
@@ -855,6 +863,289 @@ impl GraphBuilder<'_> {
             return Ok(None);
         }
         self.inline_call(InlinedCallSite::through_call(index, arguments, *argument_count, *dst))
+    }
+
+    /// The functions the callee of a call may be, with the snapshot
+    /// executables of those whose calls may be inlined, if the callee is a
+    /// phi of a few function constants in the current block, like the
+    /// methods a property lookup found for the shapes it switched on.
+    fn callee_cases(&self, callee: Operand) -> Option<Vec<(u64, Option<u32>)>> {
+        let SlotState::Value { node, .. } = self.peek(callee) else {
+            return None;
+        };
+        // NB: Phis of loop headers get the inputs of their back edges later.
+        let block = &self.graph.blocks[self.block.index()];
+        if block.is_loop_header || !block.phis.contains(&node) {
+            return None;
+        }
+        let mut cases: Vec<(u64, Option<u32>)> = Vec::new();
+        for input in &self.graph.node(node).inputs {
+            let bits = self.graph.constant_value(*input)?;
+            if value::tag(bits) != value::OBJECT_TAG {
+                return None;
+            }
+            if !cases.iter().any(|(case, _)| *case == bits) {
+                cases.push((bits, self.inlinable_functions.get(&bits).copied()));
+            }
+        }
+        if cases.len() < 2 || cases.len() > MAX_CALLEE_CASES || cases.iter().all(|(_, index)| index.is_none()) {
+            return None;
+        }
+        Some(cases)
+    }
+
+    /// The edges into the current block that bring the callee of a call to
+    /// each of `cases`, by case, if the block is a join of nothing but them:
+    /// it has no body, its only phi is the callee's, and all its
+    /// predecessors jump to it. Each case can then start on its edges, which
+    /// keep what the code knew there, like the shape of the receiver the
+    /// `GetById` that found the methods switched on.
+    fn callee_case_edges(&self, callee_phi: NodeId, cases: &[(u64, Option<u32>)]) -> Option<Vec<Vec<BlockId>>> {
+        let block = &self.graph.blocks[self.block.index()];
+        if !block.body.is_empty() || block.phis != [callee_phi] {
+            return None;
+        }
+        // NB: The phi reaches only the first case, so only the callee's slot,
+        //     which each case gives its function, may hold it.
+        let holders = self
+            .frame
+            .slots
+            .iter()
+            .filter(|slot| matches!(slot, SlotState::Value { node, .. } if *node == callee_phi))
+            .count();
+        if holders != 1 {
+            return None;
+        }
+        let jumps_here = |predecessor: &BlockId| matches!(self.graph.control(*predecessor).op, Op::Jump { target } if target == self.block);
+        if !block.predecessors.iter().all(jumps_here) {
+            return None;
+        }
+        let inputs = &self.graph.node(callee_phi).inputs;
+        Some(
+            cases
+                .iter()
+                .map(|(bits, _)| {
+                    block
+                        .predecessors
+                        .iter()
+                        .zip(inputs)
+                        .filter(|(_, input)| self.graph.constant_value(**input) == Some(*bits))
+                        .map(|(predecessor, _)| *predecessor)
+                        .collect()
+                })
+                .collect(),
+        )
+    }
+
+    /// Makes `edges`, edges into the current block `join` (see
+    /// `callee_case_edges()`), lead to a block of their own, and returns it:
+    /// for the first case, `join` itself, which keeps only those edges.
+    fn start_callee_case_on_edges(
+        &mut self,
+        join: BlockId,
+        callee_phi: NodeId,
+        case: usize,
+        edges: &[BlockId],
+    ) -> BlockId {
+        if case == 0 {
+            let block = &self.graph.blocks[join.index()];
+            let kept_inputs = block
+                .predecessors
+                .iter()
+                .zip(&self.graph.node(callee_phi).inputs)
+                .filter(|(predecessor, _)| edges.contains(predecessor))
+                .map(|(_, input)| *input)
+                .collect::<Vec<_>>();
+            self.graph.nodes[callee_phi.index()].inputs = kept_inputs;
+            self.graph.blocks[join.index()].predecessors = edges.to_vec();
+            return join;
+        }
+        let block = self.graph.add_block(Block {
+            predecessors: edges.to_vec(),
+            ..Block::default()
+        });
+        self.order.push(block);
+        for predecessor in edges {
+            self.graph.replace_successor(*predecessor, join, block);
+        }
+        block
+    }
+
+    /// Inlines a `Call` whose callee is one of a few function constants (see
+    /// `callee_cases()`): an inlined call of each, or the call's slow path
+    /// for those that cannot be inlined, on the edges that bring it where
+    /// it can (see `callee_case_edges()`), and branching on the callee
+    /// otherwise. Returns `None`, having built nothing, if the callee is no
+    /// such phi.
+    fn try_inline_callee_cases(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
+        let Instruction::Call {
+            dst,
+            callee,
+            this_value,
+            argument_count,
+            arguments,
+            ..
+        } = instruction
+        else {
+            return Ok(None);
+        };
+        let Some(cases) = self.callee_cases(*callee) else {
+            return Ok(None);
+        };
+        // NB: Without a case to inline, one generic call does better than a
+        //     slow path call for each case.
+        if !cases
+            .iter()
+            .any(|(_, index)| index.is_some_and(|index| self.may_inline_callee_case(index)))
+        {
+            return Ok(None);
+        }
+        let Handling::Generic(info) = handling(OpCode::Call) else {
+            unreachable!("calls are generic instructions");
+        };
+        // NB: Every case continues with the frame the call starts with, but
+        //     for the destination, which the cases' values join in, and slots
+        //     only frame memory held, which reading the operands in a case
+        //     may load. The slow path keeps the destination in an SSA value,
+        //     and touches no other slot.
+        let Some(dst_slot) = self.function.layout.tracked_index(*dst) else {
+            return Ok(None);
+        };
+        let operands = std::iter::once(*callee)
+            .chain(std::iter::once(*this_value))
+            .chain(arguments.iter().copied())
+            .collect::<Vec<_>>();
+        if self.is_reserved(*dst)
+            || self.graph.legacy_arguments.contains(&dst.raw())
+            || info.reads_whole_frame
+            || crate::codegen::slow_path_call(OpCode::Call).is_none()
+            || !super::slow_paths::is_ssa_slow_path_output(&self.function.layout, *dst, self.function.is_virtual())
+            || operands.iter().any(|operand| self.holds_virtual_arguments(*operand))
+        {
+            return Ok(None);
+        }
+        let SlotState::Value {
+            node: callee_phi,
+            in_sync: callee_in_sync,
+        } = self.peek(*callee)
+        else {
+            unreachable!("the callee is a phi");
+        };
+        let callee_slot = self
+            .function
+            .layout
+            .tracked_index(*callee)
+            .expect("the callee is in a slot");
+        let edges = self.callee_case_edges(callee_phi, &cases);
+        let callee_value = match edges {
+            Some(_) => None,
+            None => {
+                for operand in &operands {
+                    self.read(*operand)?;
+                }
+                Some(self.read(*callee)?)
+            }
+        };
+        let join = self.block;
+        let frame = self.frame.clone();
+        let mut results = Vec::new();
+        let mut case_shapes = Vec::new();
+        for (case, (bits, index)) in cases.iter().enumerate() {
+            let mut next_case = None;
+            match (&edges, callee_value) {
+                (Some(edges), _) => {
+                    self.block = self.start_callee_case_on_edges(join, callee_phi, case, &edges[case]);
+                    // NB: Here the callee is the case's function, which frame
+                    //     states of the case give it as.
+                    let function = self.constant(*bits);
+                    self.frame.slots[callee_slot] = SlotState::Value {
+                        node: function,
+                        in_sync: callee_in_sync,
+                    };
+                    self.function.eager_frame_state = None;
+                }
+                // NB: The callee is one of the cases, so the last one needs
+                //     no branch.
+                (None, Some(callee_value)) if case + 1 < cases.len() => {
+                    let expected = self.constant(*bits);
+                    let (if_true, if_false) = self.branch_both_ways(
+                        BranchCondition::TaggedEquals { equal: true },
+                        vec![callee_value, expected],
+                    );
+                    self.block = if_true;
+                    next_case = Some(if_false);
+                }
+                _ => {}
+            }
+            let inlined = match index {
+                Some(index) if self.may_inline_callee_case(*index) => self.inline_call(InlinedCallSite::new(
+                    *index,
+                    InlineValue::Operand(*this_value),
+                    arguments.iter().copied().map(InlineValue::Operand).collect(),
+                    *argument_count,
+                    *dst,
+                ))?,
+                _ => None,
+            };
+            let flow = match inlined {
+                Some(flow) => flow,
+                None => self
+                    .try_build_slow_path_call(instruction, info)?
+                    .expect("calls have a slow path on values"),
+            };
+            if matches!(flow, Flow::Continue) {
+                let SlotState::Value { node, .. } = self.frame.slots[dst_slot] else {
+                    unreachable!("the destination holds the call's value");
+                };
+                debug_assert!(
+                    (0..frame.slots.len()).all(|slot| slot == dst_slot
+                        || (slot == callee_slot && edges.is_some())
+                        || frame.slots[slot] == self.frame.slots[slot]
+                        || (frame.slots[slot] == SlotState::InMemory
+                            && matches!(self.frame.slots[slot], SlotState::Value { in_sync: true, .. }))),
+                    "cases change no slot but the destination"
+                );
+                results.push((self.block, node, *bits));
+                case_shapes.push(std::mem::take(&mut self.frame.fresh_shapes));
+            }
+            self.frame = frame.clone();
+            if let Some(next_case) = next_case {
+                self.block = next_case;
+            }
+        }
+        self.function.eager_frame_state = None;
+        if results.is_empty() {
+            return Ok(Some(Flow::Ended));
+        }
+        self.join_blocks(results.iter().map(|(block, _, _)| *block).collect());
+        if edges.is_some() {
+            // NB: The callee's phi no longer reaches here.
+            let functions = results
+                .iter()
+                .map(|(_, _, bits)| self.constant(*bits))
+                .collect::<Vec<_>>();
+            let function = if functions.iter().all(|function| *function == functions[0]) {
+                functions[0]
+            } else {
+                self.add_phi(functions)
+            };
+            self.frame.slots[callee_slot] = SlotState::Value {
+                node: function,
+                in_sync: callee_in_sync,
+            };
+        }
+        let values = results
+            .iter()
+            .map(|(block, value, _)| self.tagged_at_end_of(*block, *value))
+            .collect::<Vec<_>>();
+        let result = if values.iter().all(|value| *value == values[0]) {
+            values[0]
+        } else {
+            self.add_phi(values)
+        };
+        self.frame.fresh_shapes = AbstractFrame::common_fresh_shapes(case_shapes.iter().map(Vec::as_slice));
+        self.write(*dst, result)?;
+        Ok(Some(Flow::Continue))
     }
 
     /// Inlines the call of the getter whose executable is snapshot executable
@@ -1028,6 +1319,44 @@ impl GraphBuilder<'_> {
         }
     }
 
+    /// Whether calls of `callee_executable` may be inlined here at all: it is
+    /// no executable being inlined already, the inlined frames are not as
+    /// deep as they may be, and no inlined call exited here before.
+    fn may_inline_calls_of(&self, callee_executable: &crate::snapshot::ExecutableSnapshot) -> bool {
+        let recursive = self.function.executable.cell == callee_executable.cell
+            || self
+                .callers
+                .iter()
+                .any(|caller| caller.executable.cell == callee_executable.cell);
+        !recursive
+            && self.callers.len() < self.snapshot.options.inlining.max_depth as usize
+            && self.may_speculate(ExitKind::BadCallTarget)
+    }
+
+    /// Whether a call with a few callees (see `try_inline_callee_cases()`)
+    /// may inline its call of snapshot executable `index`: calls of it may
+    /// be inlined here, and it fits in the inlining budget. Small callees
+    /// are charged to the budget here too, as one call inlines up to
+    /// `MAX_CALLEE_CASES` of them, which may have calls with a few callees
+    /// themselves.
+    fn may_inline_callee_case(&self, index: u32) -> bool {
+        let Some(callee_executable) = self.snapshot.executables.get(index as usize) else {
+            return false;
+        };
+        if callee_executable.function.is_none() || !self.may_inline_calls_of(callee_executable) {
+            return false;
+        }
+        // NB: Builtins are always inlined (see the snapshot's inlining rules).
+        if callee_executable.builtin {
+            return true;
+        }
+        let Ok(decoded) = super::decoded_function(callee_executable, &self.decoded[index as usize]) else {
+            return false;
+        };
+        self.inlined_instructions + decoded.instructions.len()
+            <= self.snapshot.options.inlining.budget_instructions as usize
+    }
+
     /// Inlines the call `call` describes, if its callee qualifies.
     fn inline_call(&mut self, call: InlinedCallSite) -> Result<Option<Flow>, CompileFailure> {
         let InlinedCallSite {
@@ -1059,16 +1388,8 @@ impl GraphBuilder<'_> {
         let Some(function) = callee_executable.function else {
             return Ok(None);
         };
-        let recursive = self.function.executable.cell == callee_executable.cell
-            || self
-                .callers
-                .iter()
-                .any(|caller| caller.executable.cell == callee_executable.cell);
         let limits = snapshot.options.inlining;
-        if recursive
-            || self.callers.len() + 1 > limits.max_depth as usize
-            || !self.may_speculate(ExitKind::BadCallTarget)
-        {
+        if !self.may_inline_calls_of(callee_executable) {
             return Ok(None);
         }
         let Ok(decoded) = super::decoded_function(callee_executable, &self.decoded[index as usize]) else {
