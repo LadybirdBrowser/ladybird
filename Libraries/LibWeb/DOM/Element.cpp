@@ -3292,9 +3292,10 @@ static void prefetch_inline_style_image_resources(CSS::CSSStyleProperties const&
 
 void Element::clone_inline_style_from(Element const& source)
 {
-    // NB: A source whose style attribute still awaits its check leaves the copy to make that check once connected.
+    // NB: A source whose style attribute still awaits its check leaves the copy to make that check once connected. So
+    //     does a source in another document, whose declarations were checked against another policy.
     auto const* source_declarations = source.inline_style_declarations();
-    if ((!m_inline_style && !m_inline_declarations) || !source_declarations || source.m_style_attribute_awaits_content_security_policy_check)
+    if ((!m_inline_style && !m_inline_declarations) || !source_declarations || source.m_style_attribute_awaits_content_security_policy_check || &source.document() != &document())
         return;
     if (m_inline_style)
         m_inline_style->set_declarations_from(*source.inline_style());

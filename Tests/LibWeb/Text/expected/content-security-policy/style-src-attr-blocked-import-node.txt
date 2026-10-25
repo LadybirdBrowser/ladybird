@@ -1,0 +1,5 @@
+Source: "red" rgb(255, 0, 0)
+Set while not connected: "" rgb(0, 0, 0)
+Imported: "" rgb(0, 0, 0)
+Imported CSSOM style: "" rgb(0, 0, 0)
+Clone of CSSOM style: "green" rgb(0, 128, 0)
