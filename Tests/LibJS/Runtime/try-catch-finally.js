@@ -162,6 +162,22 @@ test("try/catch/finally with exception in try, catch and finally", () => {
     expect(finallyHasBeenExecuted).toBeTrue();
 });
 
+test("exception from a variable read in a callee is caught by the caller", () => {
+    function call(read) {
+        try {
+            read();
+        } catch (error) {
+            return error;
+        }
+        return null;
+    }
+    for (let padding = 0; padding < 64; ++padding) {
+        const read = new Function(`return () => { ${"debugger; ".repeat(padding)}return x; }; let x;`)();
+        expect(call(read)).toBeInstanceOf(ReferenceError);
+        expect(call(read)).toBeInstanceOf(ReferenceError);
+    }
+});
+
 test("try statement must have either 'catch' or 'finally' clause", () => {
     expect("try {} catch {}").toEval();
     expect("try {} catch (e) {}").toEval();
