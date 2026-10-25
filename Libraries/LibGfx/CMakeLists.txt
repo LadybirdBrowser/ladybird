@@ -23,9 +23,7 @@ set(SOURCES
     Font/WOFF2/Loader.cpp
     FontCascadeList.cpp
     GpuDeviceIdentity.cpp
-    Gradients.cpp
     LinuxDmaBufHandle.cpp
-    Matrix4x4.cpp
     DecodedImageFrame.cpp
     RustProcessState.cpp
     ImageFormats/BMPWriter.cpp

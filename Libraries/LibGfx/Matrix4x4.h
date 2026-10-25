@@ -11,7 +11,6 @@
 #include <LibGfx/Matrix.h>
 #include <LibGfx/Vector3.h>
 #include <LibGfx/Vector4.h>
-#include <LibIPC/Forward.h>
 
 namespace Gfx {
 
@@ -139,13 +138,3 @@ typedef Matrix4x4<double> DoubleMatrix4x4;
 using Gfx::DoubleMatrix4x4;
 using Gfx::FloatMatrix4x4;
 using Gfx::Matrix4x4;
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder&, Gfx::FloatMatrix4x4 const&);
-
-template<>
-ErrorOr<Gfx::FloatMatrix4x4> decode(Decoder&);
-
-}
