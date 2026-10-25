@@ -3878,13 +3878,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             if input.sizing.finds_automatic_line_clamp_lines || run.fragments.is_none() {
                 self.automatic_line_clamp_block_size.set(automatic_block_size);
             } else if automatic_block_size.is_some() {
-                let measurement = formatting_context::MeasurementState::create(self.run.callbacks);
-                let measurement_root =
-                    used_values::RootInputCells::capture(self.used(self.run.box_)).materialize_record();
-                let measurement_result = measurement.run_with_layout_mode(
+                let measurement_result = formatting_context::lay_out_measurement_root_for_its_result(
+                    self.run.callbacks,
                     self.run.box_,
-                    &measurement_root,
-                    self.run.layout_mode,
+                    used_values::RootInputCells::capture(self.used(self.run.box_)),
                     LayoutInput {
                         sizing: RootSizingDirectives {
                             finds_automatic_line_clamp_lines: true,

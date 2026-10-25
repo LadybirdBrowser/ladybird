@@ -783,9 +783,9 @@ pub(super) fn run_root_validity(callbacks: &LayoutPass<'_>, box_: Node) -> FcRun
 /// the run executes. Uncacheable classes bypass entirely: subgridded grid
 /// items copy the parent grid's mid-run track state, which the key cannot
 /// see; anchor()-positioned roots keep their bypass while the resolved-inset
-/// side effects are audited; pass entries, measurement roots and internal
-/// runs are not spawned child runs; devtools collection emits per-run
-/// callbacks a replay would skip.
+/// side effects are audited; pass entries, measurement roots that do not
+/// keep their result and internal runs are not spawned child runs; devtools
+/// collection emits per-run callbacks a replay would skip.
 pub(super) enum FcRunCacheAttempt {
     Bypass,
     Store {
@@ -821,6 +821,7 @@ impl FcRunCacheAttempt {
         parent_grid_is_present: bool,
         builds_fragments: bool,
         should_collect_devtools_layout_data: bool,
+        measurement_root_keeps_its_result: bool,
         callbacks: &LayoutPass<'_>,
         key: &FcRunCacheKey,
     ) -> Result<Self, FcRunCacheHit> {
@@ -828,6 +829,7 @@ impl FcRunCacheAttempt {
             box_,
             parent_grid_is_present,
             should_collect_devtools_layout_data,
+            measurement_root_keeps_its_result,
             callbacks,
             key,
         ) {
@@ -960,13 +962,14 @@ pub(super) fn can_describe_run(
     box_: Node,
     parent_grid_is_present: bool,
     should_collect_devtools_layout_data: bool,
+    measurement_root_keeps_its_result: bool,
     callbacks: &LayoutPass<'_>,
     key: &FcRunCacheKey,
 ) -> bool {
     let fc_type = key.fc_type;
     let input = &key.input;
     if should_collect_devtools_layout_data
-        || input.participation == ParticipationInParentFormattingContext::Root
+        || (input.participation == ParticipationInParentFormattingContext::Root && !measurement_root_keeps_its_result)
         || matches!(
             fc_type,
             formatting_context::FormattingContextType::InternalReplaced | formatting_context::FormattingContextType::InternalDummy

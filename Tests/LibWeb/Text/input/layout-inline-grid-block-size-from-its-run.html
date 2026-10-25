@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; }
+    #grid { display: inline-grid; width: 100px; }
+</style>
+<span>x</span><div id="grid"><div id="bar" style="height: 30px"></div></div>
+<script>
+    layoutTest({
+        steps: [
+            {
+                name: "the inline grid takes its automatic block size from its run instead of measuring itself again",
+                mutate: () => {
+                    bar.style.height = "40px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#grid/grid RUN (cache=miss)
+                            BlockContainer<DIV>#bar/block RUN (cache=miss)
+                `,
+                check: equal => {
+                    equal(grid.getBoundingClientRect().height, 40, "grid height");
+                },
+            },
+        ],
+    });
+</script>

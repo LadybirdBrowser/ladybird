@@ -1510,21 +1510,18 @@ pub(crate) fn independent_root_automatic_block_size(
     constraints: ContainingBlockConstraints,
     automatic_content_block_size_of_completed_run: Option<CssPixels>,
 ) -> CssPixels {
-    let facts = NodeFacts::new(callbacks, node);
-    if facts.creates_block_formatting_context() {
-        return automatic_content_block_size_of_completed_run.unwrap_or_default();
+    if let Some(automatic_content_block_size_reported_by_completed_run) = automatic_content_block_size_of_completed_run
+    {
+        return automatic_content_block_size_reported_by_completed_run;
+    }
+    if NodeFacts::new(callbacks, node).creates_block_formatting_context() {
+        return CssPixels::default();
     }
     let style = StyleValues::for_node(callbacks, node);
     // https://w3c.github.io/mathml-core/#layout-algorithms
     // After calculating the line-ascent and line-descent of a math content box, its block size is set to their sum.
     if style.display().is_math_inside() {
-        return automatic_content_block_size_of_completed_run.unwrap_or_default();
-    }
-    if style.display().is_flex_inside()
-        && let Some(automatic_content_block_size_reported_by_completed_run) =
-            automatic_content_block_size_of_completed_run
-    {
-        return automatic_content_block_size_reported_by_completed_run;
+        return CssPixels::default();
     }
     if style.display().is_flex_inside() || style.display().is_grid_inside() || style.display().is_table_inside() {
         // The automatic block size of a flex, grid, or table container is its
@@ -1616,7 +1613,6 @@ fn apply_root_sizing_directives(
                 run.box_,
                 input.available_space,
                 input.containing_block_constraints,
-                run.layout_mode,
                 run_cache_may_reuse_this_run_at_other_available_inline_sizes,
             );
             let mut body_input = body_input_with_inner_available_space(run, input);
@@ -1694,20 +1690,14 @@ fn dimension_block_level_root(
         && lays_out_content_against_min_block_size(NodeFacts::new(&run.callbacks, node), fc_type)
     {
         let content_block_size =
-            sizing.measure_automatic_content_block_size(node, run.layout_mode, body_input.available_space, constraints);
+            sizing.measure_automatic_content_block_size(node, body_input.available_space, constraints);
         measured_content_block_size = Some(content_block_size);
         let min_block_size = sizing.calculate_inner_block_size(node, available_space, style.min_height(), constraints);
         if content_block_size < min_block_size {
             body_input.available_space.block_size = AvailableSize::definite(min_block_size);
         }
     }
-    sizing.make_form_control_content_box_definite(
-        node,
-        run.layout_mode,
-        available_space,
-        constraints,
-        measured_content_block_size,
-    );
+    sizing.make_form_control_content_box_definite(node, available_space, constraints, measured_content_block_size);
     body_input
 }
 
@@ -1939,6 +1929,7 @@ pub(super) fn run_formatting_context(
         parent_grid.is_some(),
         builds_fragments,
         should_collect_devtools_layout_data,
+        false,
         &callbacks,
         &cache_key,
     ) {
@@ -2887,6 +2878,24 @@ pub(crate) fn item_is_block_container_whose_committing_run_can_adopt_its_measure
         && !block_formatting_context::root_lays_out_content_against_its_own_block_size(sizing, item)
 }
 
+impl ChildRunShape {
+    pub(crate) fn of_measurement_root(
+        callbacks: &LayoutPass<'_>,
+        node: Node,
+        root_cells: used_values::RootInputCells,
+        input: LayoutInput,
+    ) -> Self {
+        debug_assert_eq!(input.participation, ParticipationInParentFormattingContext::Root);
+        Self {
+            node,
+            fc_type: independent_formatting_context_type(node, callbacks),
+            input,
+            root_cells,
+            root_containing_block: callbacks.containing_block_for_child_run(node, &input.participation),
+        }
+    }
+}
+
 pub(crate) struct ChildRunPlan {
     pub(crate) fc_type: FormattingContextType,
     pub(crate) root_containing_block: Node,
@@ -2925,6 +2934,19 @@ pub(crate) fn child_run_plan(
         root_containing_block,
         input,
     })
+}
+
+pub(crate) fn lay_out_measurement_root_for_its_result(
+    callbacks: LayoutPass<'_>,
+    node: Node,
+    root_cells: used_values::RootInputCells,
+    input: LayoutInput,
+) -> ChildLayoutResult {
+    lay_out_shape_for_its_result(
+        callbacks,
+        ChildRunShape::of_measurement_root(&callbacks, node, root_cells, input),
+        LayoutMode::Normal,
+    )
 }
 
 pub(crate) fn lay_out_shape_for_its_result(
@@ -2968,22 +2990,29 @@ pub(crate) fn lay_out_shape_for_its_result(
     let runs_ahead_of_intrinsic_block_padding =
         builds_fragments && input.sizing.table_cell_intrinsic_block_padding.is_some();
     let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, layout_mode, input, root_cells);
-    let cache_attempt =
-        match fc_run_cache::FcRunCacheAttempt::probe(node, false, builds_fragments, false, &callbacks, &cache_key) {
-            Ok(attempt) => attempt,
-            Err(hit) => {
-                let action = if runs_ahead_of_intrinsic_block_padding {
-                    "READ RESULT AHEAD OF INTRINSIC BLOCK PADDING"
-                } else {
-                    "READ RESULT"
-                };
-                let _trace = callbacks
-                    .arena()
-                    .layout_trace
-                    .run(node, fc_type, layout_mode, || action);
-                return result_with_host_findings(&hit.entry.outputs);
-            }
-        };
+    let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
+        node,
+        false,
+        builds_fragments,
+        false,
+        true,
+        &callbacks,
+        &cache_key,
+    ) {
+        Ok(attempt) => attempt,
+        Err(hit) => {
+            let action = if runs_ahead_of_intrinsic_block_padding {
+                "READ RESULT AHEAD OF INTRINSIC BLOCK PADDING"
+            } else {
+                "READ RESULT"
+            };
+            let _trace = callbacks
+                .arena()
+                .layout_trace
+                .run(node, fc_type, layout_mode, || action);
+            return result_with_host_findings(&hit.entry.outputs);
+        }
+    };
     let action = if runs_ahead_of_intrinsic_block_padding {
         "RUN AHEAD OF INTRINSIC BLOCK PADDING"
     } else {

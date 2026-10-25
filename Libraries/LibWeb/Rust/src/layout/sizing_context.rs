@@ -2006,7 +2006,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         constraints: ContainingBlockConstraints,
         layout_mode: LayoutMode,
     ) {
-        self.dimension_atomic_root(node, available_space, constraints, layout_mode, false);
+        self.dimension_atomic_root(node, available_space, constraints, false);
         self.resolve_used_block_size_if_treated_as_auto(
             node,
             available_space,
@@ -2026,7 +2026,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-        layout_mode: LayoutMode,
         report_for_run_cache_the_available_inline_sizes_this_sizing_repeats_for: bool,
     ) -> Option<CssPixels> {
         let containing_inline_size = available_space.inline_size.to_px_or_zero();
@@ -2082,7 +2081,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             block_size: AvailableSize::Indefinite,
         };
         self.resolve_used_block_size_if_not_treated_as_auto(node, inline_definite_space, constraints);
-        self.make_form_control_content_box_definite(node, layout_mode, available_space, constraints, None);
+        self.make_form_control_content_box_definite(node, available_space, constraints, None);
         sizing_repeats_for_available_inline_sizes_at_or_above
     }
 
@@ -3301,7 +3300,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     pub(crate) fn measure_automatic_content_block_size(
         &self,
         node: Node,
-        layout_mode: LayoutMode,
         inner_available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
@@ -3314,21 +3312,17 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 constraints,
             );
         }
-
-        let measurement = formatting_context::MeasurementState::create(self.callbacks);
-        let node_used = measurement.create_used_values(node, constraints);
-        measurement
-            .run_with_layout_mode(
-                node,
-                &node_used,
-                layout_mode,
-                LayoutInput::new(
-                    inner_available_space,
-                    constraints,
-                    ParticipationInParentFormattingContext::Root,
-                ),
-            )
-            .automatic_content_block_size
+        formatting_context::lay_out_measurement_root_for_its_result(
+            self.callbacks,
+            node,
+            used_values::RootInputCells::capture(&used_values::create_used_values(&self.callbacks, node, constraints)),
+            LayoutInput::new(
+                inner_available_space,
+                constraints,
+                ParticipationInParentFormattingContext::Root,
+            ),
+        )
+        .automatic_content_block_size
     }
 
     /// Buttons and text inputs center their content within their content box, which therefore has to be definite
@@ -3336,7 +3330,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     pub(crate) fn make_form_control_content_box_definite(
         &self,
         node: Node,
-        layout_mode: LayoutMode,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         measured_content_block_size: Option<CssPixels>,
@@ -3370,7 +3363,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let natural = measured_content_block_size.unwrap_or_else(|| {
             self.measure_automatic_content_block_size(
                 node,
-                layout_mode,
                 self.used(node)
                     .available_inner_space_or_constraints_from(available_space),
                 constraints,
