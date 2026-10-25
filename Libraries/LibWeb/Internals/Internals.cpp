@@ -537,6 +537,8 @@ static constexpr Optional<WebDriverKeyData> webdriver_key_to_key_code(u32 code_p
         return WebDriverKeyData { UIEvents::Key_LeftControl, UIEvents::Mod_Ctrl, 0 };
     case 0xE00A: // Alt
         return WebDriverKeyData { UIEvents::Key_LeftAlt, UIEvents::Mod_Alt, 0 };
+    case 0xE00C: // Escape
+        return WebDriverKeyData { UIEvents::Key_Escape, 0, 0 };
     case 0xE00D: // Space
         return WebDriverKeyData { UIEvents::Key_Space, 0, ' ' };
     case 0xE010: // End
