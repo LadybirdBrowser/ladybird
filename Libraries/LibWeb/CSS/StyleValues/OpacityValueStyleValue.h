@@ -19,8 +19,6 @@ public:
     }
     virtual ~OpacityValueStyleValue() override = default;
 
-    double resolved() const { return value()->as_number().number(); }
-
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 
 private:

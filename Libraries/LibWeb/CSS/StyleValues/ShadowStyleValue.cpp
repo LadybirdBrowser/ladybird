@@ -8,8 +8,6 @@
  */
 
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 
 namespace Web::CSS {
@@ -20,26 +18,5 @@ static_assert(to_underlying(ShadowStyleValue::ShadowType::Normal) == 0);
 static_assert(to_underlying(ShadowStyleValue::ShadowType::Text) == 1);
 static_assert(to_underlying(ShadowPlacement::Outer) == 0);
 static_assert(to_underlying(ShadowPlacement::Inner) == 1);
-
-ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::color() const
-{
-    if (auto color = color_or_null())
-        return color.release_nonnull();
-    return KeywordStyleValue::create(Keyword::Currentcolor);
-}
-
-ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::blur_radius() const
-{
-    if (auto blur_radius = blur_radius_or_null())
-        return blur_radius.release_nonnull();
-    return LengthStyleValue::create(Length::make_px(0));
-}
-
-ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::spread_distance() const
-{
-    if (auto spread_distance = spread_distance_or_null())
-        return spread_distance.release_nonnull();
-    return LengthStyleValue::create(Length::make_px(0));
-}
 
 }

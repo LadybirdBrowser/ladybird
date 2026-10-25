@@ -40,16 +40,11 @@ public:
     }
     virtual ~ShadowStyleValue() override = default;
 
-    ShadowType shadow_type() const { return static_cast<ShadowType>(m_value->shadow.shadow_type); }
-    ValueComparingNonnullRefPtr<StyleValue const> color() const;
     ValueComparingRefPtr<StyleValue const> color_or_null() const { return wrap_rust_child_or_null(m_value->shadow.color); }
     ValueComparingNonnullRefPtr<StyleValue const> offset_x() const { return wrap_rust_child(m_value->shadow.offset_x); }
     ValueComparingNonnullRefPtr<StyleValue const> offset_y() const { return wrap_rust_child(m_value->shadow.offset_y); }
-    ValueComparingNonnullRefPtr<StyleValue const> blur_radius() const;
     ValueComparingRefPtr<StyleValue const> blur_radius_or_null() const { return wrap_rust_child_or_null(m_value->shadow.blur_radius); }
-    ValueComparingNonnullRefPtr<StyleValue const> spread_distance() const;
     ValueComparingRefPtr<StyleValue const> spread_distance_or_null() const { return wrap_rust_child_or_null(m_value->shadow.spread_distance); }
-    ShadowPlacement placement() const { return static_cast<ShadowPlacement>(m_value->shadow.placement); }
 
 private:
     ShadowStyleValue(

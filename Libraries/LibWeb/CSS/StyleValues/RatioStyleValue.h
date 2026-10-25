@@ -18,8 +18,6 @@ public:
     }
     virtual ~RatioStyleValue() override = default;
 
-    Ratio resolved() const;
-
 private:
     friend class StyleValue;
 
@@ -32,9 +30,6 @@ private:
         : StyleValueWithDefaultOperators(Type::Ratio, StyleValueFFI::rust_style_value_create_ratio(StyleValueFFI::rust_style_value_retain(numerator->rust_style_value_data()), StyleValueFFI::rust_style_value_retain(denominator->rust_style_value_data())))
     {
     }
-
-    ValueComparingNonnullRefPtr<StyleValue const> numerator() const { return wrap_rust_child(m_value->ratio.numerator); }
-    ValueComparingNonnullRefPtr<StyleValue const> denominator() const { return wrap_rust_child(m_value->ratio.denominator); }
 };
 
 }
