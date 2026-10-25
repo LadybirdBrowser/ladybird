@@ -116,17 +116,22 @@ pub(super) enum ArrayElement {
 }
 
 impl GraphBuilder<'_> {
+    /// Whether compiled code allocates arrays of `count` elements.
+    pub(super) fn can_allocate_array(&self, count: usize) -> bool {
+        // NB: The runtime always allocates arrays; the codegen tests of slow
+        //     path conventions leave its allocation out to run NewArray's.
+        count <= MAX_ARRAY_LITERAL_ELEMENTS && self.runtime.array_allocation.slow_path != 0
+    }
+
     /// Builds `NewArray` or `NewPrimitiveArray` as an `AllocateArray` and
-    /// the stores of its elements. Returns false, having built nothing, for
-    /// arrays with too many elements.
+    /// the stores of its elements. Returns false, having built nothing that
+    /// matters, for arrays with too many elements or with holes.
     pub(super) fn try_build_new_array(
         &mut self,
         dst: Operand,
         elements: &[ArrayElement],
     ) -> Result<bool, CompileFailure> {
-        // NB: The runtime always allocates arrays; the codegen tests of slow
-        //     path conventions leave its allocation out to run NewArray's.
-        if elements.len() > MAX_ARRAY_LITERAL_ELEMENTS || self.runtime.array_allocation.slow_path == 0 {
+        if !self.can_allocate_array(elements.len()) {
             return Ok(false);
         }
         let values = elements

@@ -1644,7 +1644,12 @@ impl<'a> GraphBuilder<'a> {
                     return Ok(None);
                 }
             }
-            Instruction::CallConstruct { .. } => return self.try_inline_construct(instruction),
+            Instruction::CallConstruct { .. } => {
+                if let Some(flow) = self.try_build_array_construct(instruction)? {
+                    return Ok(Some(flow));
+                }
+                return self.try_inline_construct(instruction);
+            }
             Instruction::Call { .. } => {
                 if let Some(flow) = self.try_build_builtin_call(instruction)? {
                     return Ok(Some(flow));

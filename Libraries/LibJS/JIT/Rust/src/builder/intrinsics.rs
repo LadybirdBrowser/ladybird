@@ -685,6 +685,94 @@ impl GraphBuilder<'_> {
         Ok(())
     }
 
+    /// Builds a call or construct of the `Array` constructor `callee`, which
+    /// the code checked, with at most one argument: an array of length
+    /// `length` (a nonnegative int32), or of none, through `ArrayCreate`.
+    /// Other lengths and realms take the instruction's cold slow path.
+    fn build_array_of_length(
+        &mut self,
+        dst: Operand,
+        callee: Operand,
+        length: Option<Operand>,
+    ) -> Result<Flow, CompileFailure> {
+        // 23.1.1.1 Array ( ...values ), https://tc39.es/ecma262/#sec-array
+        let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
+        let length = match length {
+            Some(argument) => {
+                let length = self.read(argument)?;
+                // NB: Other numbers are lengths that throw, and other
+                //     values elements.
+                let length =
+                    self.branch_to_slow_path(&mut slow_paths, BranchCondition::NonNegativeInt32, vec![length], true);
+                self.emit(Op::UnboxInt32, vec![length], Some(Repr::Int32))
+            }
+            None => self.int32_constant(0),
+        };
+        let function = self.read(callee)?;
+        let array = self.emit(Op::ArrayCreate, vec![length, function], Some(Repr::Tagged));
+        let array = self.branch_if_empty(&mut slow_paths, array);
+        let array = self
+            .join_slow_paths(slow_paths, Some(array))
+            .expect("calls have a value");
+        self.write(dst, array)?;
+        Ok(Flow::Continue)
+    }
+
+    /// Builds `new Array(...)` of the `Array` constructor, if the site saw
+    /// only it. Since the constructor is its own NewTarget, it makes what
+    /// its call makes: with one argument, an array of that length (see
+    /// `build_array_of_length()`), and otherwise an array of the arguments,
+    /// which code of the constructor's realm allocates like an array
+    /// literal. Returns `None`, having built nothing, if the construct is no
+    /// such construct.
+    pub(super) fn try_build_array_construct(
+        &mut self,
+        instruction: &Instruction,
+    ) -> Result<Option<Flow>, CompileFailure> {
+        let Instruction::CallConstruct {
+            call_feedback,
+            dst,
+            callee,
+            arguments,
+            ..
+        } = instruction
+        else {
+            return Ok(None);
+        };
+        let Some((target, Intrinsic::ArrayConstructor)) = self
+            .call_feedback(*call_feedback)
+            .and_then(|feedback| feedback.monomorphic_intrinsic())
+        else {
+            return Ok(None);
+        };
+        if arguments.iter().any(|operand| self.holds_virtual_arguments(*operand)) {
+            return Ok(None);
+        }
+        if let [length] = arguments.as_slice() {
+            if self.checked_intrinsic_callee(*call_feedback, *callee)?.is_none() {
+                return Ok(None);
+            }
+            return self.build_array_of_length(*dst, *callee, Some(*length)).map(Some);
+        }
+        // 23.1.1.1 Array ( ...values ), https://tc39.es/ecma262/#sec-array
+        if target != self.runtime.array_constructor
+            || !self.can_allocate_array(arguments.len())
+            || self.checked_intrinsic_callee(*call_feedback, *callee)?.is_none()
+        {
+            return Ok(None);
+        }
+        let elements = arguments
+            .iter()
+            .copied()
+            .map(super::allocation::ArrayElement::Operand)
+            .collect::<Vec<_>>();
+        // NB: Arrays with holes are left to the generic construct, which reading the operands does not affect.
+        if !self.try_build_new_array(*dst, &elements)? {
+            return Ok(None);
+        }
+        Ok(Some(Flow::Continue))
+    }
+
     /// Builds calls of the `String`, `Array`, `Object` and `Boolean`
     /// constructors with at most one argument, if the site saw only that
     /// constructor: `Boolean(x)` is the truthiness of `x`, `String(x)` is a
@@ -735,32 +823,10 @@ impl GraphBuilder<'_> {
             }
             return Ok(Some(Flow::Continue));
         }
-        // 23.1.1.1 Array ( ...values ), https://tc39.es/ecma262/#sec-array
         if constructor == Intrinsic::ArrayConstructor {
-            let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
-            let length = match arguments.first() {
-                Some(argument) => {
-                    let length = self.read(*argument)?;
-                    // NB: Other numbers are lengths that throw, and other
-                    //     values elements.
-                    let length = self.branch_to_slow_path(
-                        &mut slow_paths,
-                        BranchCondition::NonNegativeInt32,
-                        vec![length],
-                        true,
-                    );
-                    self.emit(Op::UnboxInt32, vec![length], Some(Repr::Int32))
-                }
-                None => self.int32_constant(0),
-            };
-            let function = self.read(*callee)?;
-            let array = self.emit(Op::ArrayCreate, vec![length, function], Some(Repr::Tagged));
-            let array = self.branch_if_empty(&mut slow_paths, array);
-            let array = self
-                .join_slow_paths(slow_paths, Some(array))
-                .expect("calls have a value");
-            self.write(*dst, array)?;
-            return Ok(Some(Flow::Continue));
+            return self
+                .build_array_of_length(*dst, *callee, arguments.first().copied())
+                .map(Some);
         }
         let Some(argument) = arguments.first() else {
             return Ok(None);
