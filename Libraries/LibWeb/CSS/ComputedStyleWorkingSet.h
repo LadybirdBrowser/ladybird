@@ -83,8 +83,6 @@ public:
     bool font_metrics_depend_on_viewport_metrics() const { return metadata().dependency_flags & to_underlying(StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics); }
     // Whether the element this style was computed for has computed display none, or is a descendant of one that does.
     bool in_display_none_subtree() const { return metadata().in_display_none_subtree; }
-    bool highlight_colors_authored() const { return metadata().dependency_flags & to_underlying(StyleRecordDependencyFlag::HighlightColorsAuthored); }
-    bool highlight_color_is_current_color() const { return metadata().dependency_flags & to_underlying(StyleRecordDependencyFlag::HighlightColorIsCurrentColor); }
     bool has_pseudo_element_style(PseudoElement) const;
     ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_mutation(Badge<StyleComputer>);
     ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_finalization(Badge<StyleComputer>);
