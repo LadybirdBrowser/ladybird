@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <title>Microtask checkpoint after window.onerror events (module)</title>
+  <script src="../../../../../resources/testharness.js"></script>
+  <script src="../../../../../resources/testharnessreport.js"></script>
+  <script src="resources/checkpoint-after-error-event.js" type="module"></script>
+  <script type="module">self.postMessage("foo");</script>
+</head>
