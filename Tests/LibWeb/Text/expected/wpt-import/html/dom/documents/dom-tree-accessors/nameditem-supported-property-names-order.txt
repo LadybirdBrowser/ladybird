@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Values from id attributes precede values from name attributes when the same element contributes both
