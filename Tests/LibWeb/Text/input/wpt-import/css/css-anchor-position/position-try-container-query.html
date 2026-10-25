@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<title>@position-try with container query responding to fallback widths</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#fallback">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #relative {
+    background: maroon;
+    position: relative;
+    width: 195px;
+    height: 200px;
+  }
+  #target1 {
+    container-type: inline-size;
+    container-name: target1;
+    position-try-fallbacks: --fallback1;
+    background: green;
+    position: absolute;
+    top: 0px;
+    left: 999999px; /* force fallback */
+    width: 100px;
+    height: 100px;
+  }
+  @position-try --fallback1 {
+    top: 100px;
+    left: 0px;
+    width: 150px;
+  }
+  @container (width > 100px) {
+    #inner1 {
+      background-color: lime;
+      width: 100px;
+      height: 100px;
+    }
+  }
+
+  #target2 {
+    container-type: inline-size;
+    container-name: target2;
+    position-try-fallbacks: --fallback2, --fallback3;
+    background: orange;
+    position: absolute;
+    top: 0px;
+    left: 999999px; /* force fallback */
+    width: 100px;
+  }
+  @position-try --fallback2 {
+    top: 100px;
+    left: 0px;
+    width: 150px;
+  }
+  @position-try --fallback3 {
+    top: 0px;
+    left: 0px;
+    width: 150px;
+  }
+  @container target2 (width = 150px) {
+    #inner2 {
+      background-color: yellow;
+      width: 100px;
+      height: 150px;
+    }
+  }
+</style>
+<div id="relative">
+  <div id="target1">
+    <div id="inner1"></div>
+  </div>
+  <div id="target2">
+    <div id="inner2"></div>
+  </div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(inner1).backgroundColor, "rgb(0, 255, 0)");
+    assert_equals(getComputedStyle(inner1).width, "100px");
+    assert_equals(getComputedStyle(inner1).height, "100px");
+    assert_equals(getComputedStyle(target1).top, "100px");
+    assert_equals(getComputedStyle(target1).left, "0px");
+    assert_equals(getComputedStyle(target1).width, "150px");
+  }, "Size container query responds to fallback width");
+
+  test(() => {
+    assert_equals(getComputedStyle(inner2).backgroundColor, "rgb(255, 255, 0)");
+    assert_equals(getComputedStyle(inner2).width, "100px");
+    assert_equals(getComputedStyle(inner2).height, "150px");
+    assert_equals(getComputedStyle(target2).top, "0px");
+    assert_equals(getComputedStyle(target2).left, "0px");
+    assert_equals(getComputedStyle(target2).width, "150px");
+  }, "Size container query responds to fallback width and applies height to not fit the first fallback");
+</script>

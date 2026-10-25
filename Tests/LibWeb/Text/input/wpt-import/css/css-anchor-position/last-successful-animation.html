@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: last successful position fallback with animation</title>
+<link rel="author" title="Kiet Ho" href="mailto:kiet.ho@apple.com">
+<meta name="description" content="Tests a bug in WebKit where the last-successful position fallback isn't remembered when the anchor-positioned element is animated">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#last-successful-position-fallback">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+  #container {
+    position: relative;
+    width: 400px;
+    height: 400px;
+    background: teal;
+  }
+
+  #anchor {
+    position: relative;
+    top: 100px;
+    left: 100px;
+    width: 100px;
+    height: 100px;
+    background: red;
+    anchor-name: --a;
+  }
+
+  /* Dummy animation keyframe */
+  @keyframes anime {
+    from { background: #000000; }
+    to { background: #ffffff; }
+  }
+
+  #anchored {
+    position-anchor: --a;
+    position-try-fallbacks: flip-block;
+    position: absolute;
+    width: 100px;
+    height: 200px;
+    position-area: top center;
+    background: lime;
+    animation: anime 1s linear;
+  }
+</style>
+<div id="container">
+  <div id="anchor"></div>
+  <div id="anchored"></div>
+</div>
+<script>
+  promise_test(async () => {
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    assert_equals(anchored.offsetTop, 200);
+  }, "Starts rendering with flip-block");
+
+  promise_test(async () => {
+    anchor.style.top = "150px";
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    assert_equals(anchored.offsetTop, 200);
+  }, "No successful position, keep flip-block");
+
+  promise_test(async () => {
+    anchor.style.top = "200px";
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    assert_equals(anchored.offsetTop, 0);
+  }, "Base position without fallback now successful");
+</script>

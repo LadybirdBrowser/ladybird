@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Transition to a flipped state
+Fail	Transition to an unflipped state

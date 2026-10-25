@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning Test: position fallbacks list limit</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#fallback-apply">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+  }
+  .positioned {
+    width: 200px;
+    height: 200px;
+    position: absolute;
+    top: 0;
+    left: 10px; /* overflowing #container */
+  }
+
+  @position-try --bar {
+    left: 0; /* not overflowing #container */
+  }
+  #t1 {
+    /* If --foo is not found, we should still try --bar even if we limit the
+       number of applied position fallbacks to five because the --foo's are not
+       added to the `position fallbacks list` per spec. */
+    position-try-fallbacks: --foo, --foo, --foo, --foo, --foo, --foo, --foo, --bar;
+  }
+
+  /* --f1 .. --f4 all overflowing #container */
+  @position-try --f1 { left: 10px; }
+  @position-try --f2 { left: 10px; }
+  @position-try --f3 { left: 10px; }
+  @position-try --f4 { left: 10px; }
+  @position-try --f5 { left: 20px; width: 20px; /* not overflowing #container */ }
+  #t2 {
+    position-try-fallbacks: --f1, --f2, --f3, --f4, --f5;
+  }
+
+</style>
+<div id="container">
+  <div id="t1" class="positioned"></div>
+  <div id="t2" class="positioned"></div>
+</div>
+<script>
+  test(() => {
+      assert_equals(t1.offsetLeft, 0, "The --bar try fallback should be applied");
+  }, "Try fallbacks which are not found are not part of the limit");
+
+  test(() => {
+      assert_equals(t2.offsetLeft, 20, "The --f5 try fallback should be applied");
+  }, "Must support At least five try fallbacks");
+</script>

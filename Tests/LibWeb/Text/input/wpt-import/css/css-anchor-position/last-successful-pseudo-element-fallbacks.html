@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+
+<title>CSS Anchor Positioning: changing position-try-fallbacks invalidates last successful position fallback on pseudo-elements</title>
+<link rel="author" title="Kiet Ho" href="mailto:kiet.ho@apple.com">
+
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#last-successful-position-fallback">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/test-common.js"></script>
+
+<style>
+  #container {
+    position: relative;
+    width: 400px;
+    height: 400px;
+    background: teal;
+  }
+  #anchor {
+    position: relative;
+    top: 100px;
+    left: 100px;
+    width: 100px;
+    height: 100px;
+    background: red;
+    anchor-name: --a;
+  }
+  #anchored::before {
+    position-anchor: --a;
+    bottom: anchor(top);
+    left: anchor(left);
+    position-try-fallbacks: flip-block;
+    position: absolute;
+    width: 100px;
+    height: 200px;
+    background: lime;
+    content: "";
+  }
+  /*
+    Hack to change position-try-fallbacks of the pseudo-element,
+    since there's no easy way to change it in JavaScript.
+  */
+  #anchored.new-fallback::before {
+    position-try-fallbacks: flip-block, --foo;
+  }
+</style>
+
+<div id="container">
+  <div id="anchor"></div>
+  <div id="anchored"></div>
+</div>
+<script>
+  promise_test(async () => {
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    const anchoredStyle = getComputedStyle(anchored, "::before");
+    assert_equals(anchoredStyle.top, "200px");
+  }, "Starts rendering with flip-block");
+
+  promise_test(async () => {
+    anchor.style.top = "150px";
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    const anchoredStyle = getComputedStyle(anchored, "::before");
+    assert_equals(anchoredStyle.top, "250px");
+  }, "No successful position, keep flip-block");
+
+  promise_test(async () => {
+    anchored.classList.add("new-fallback");
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    const anchoredStyle = getComputedStyle(anchored, "::before");
+    assert_equals(anchoredStyle.top, "-50px");
+  }, "No successful position, last successful invalidated by position-try-fallbacks change");
+</script>
+

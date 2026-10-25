@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#anchor-pos">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#fallback">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#abspos-items">
+<link rel="author" href="mailto:kojii@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+.cb {
+  position: relative;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 100px);
+  grid-template-rows: 50px 100px 50px 50px;
+}
+.item {
+  background: lightgray;
+}
+.spacer {
+  background: yellow;
+}
+.anchor1 {
+  anchor-name: --a1;
+  background: orange;
+  margin-left: 15px;
+  width: 20px;
+  height: 30px;
+}
+.target {
+  grid-column: 2 / 4;
+  grid-row: 2 / 4;
+  position: absolute;
+  position-try-fallbacks: --f1, --f2, --f3;
+  width: 100px;
+  height: 100px;
+  background: lime;
+  opacity: .2;
+  /* Position to the left of the anchor. */
+  position-anchor: --a1;
+  right: anchor(left);
+  top: anchor(top);
+}
+@position-try --f1 {
+  inset: auto;
+  left: anchor(right);
+  top: anchor(top);
+  width: 250px;
+}
+@position-try --f2 {
+  /* Position to the right of the anchor. This entry should succeed. */
+  inset: auto;
+  left: anchor(right);
+  top: anchor(top);
+}
+@position-try --f3 {
+  /* Zero-sized, the last entry wins if none succeeded. */
+  inset: auto;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+</style>
+<body onload="checkLayoutForAnchorPos('.target')">
+  <div>
+    <div class="spacer" style="height: 10px"></div>
+    <div class="grid cb">
+      <div class="item">1</div>
+      <div class="item">2</div>
+      <div class="item">3</div>
+      <div class="item">4</div>
+      <div class="item">5</div>
+      <div class="item">
+        <div class="spacer" style="height: 20px"></div>
+        <div class="anchor1"></div>
+      </div>
+      <div class="item">7</div>
+      <div class="item">8</div>
+      <div class="item">9</div>
+      <div class="item">10</div>
+      <div class="item">11</div>
+      <div class="item">12</div>
+      <div class="item">13</div>
+      <div class="item">14</div>
+      <div class="item">15</div>
+      <div class="item">16</div>
+
+      <div class="target"
+           data-offset-x=135 data-offset-y=70
+           data-expected-height=100></div>
+    </div>
+  </div>
+</body>

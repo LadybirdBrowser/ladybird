@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<title>Tests that @position-try rules are reordered by cascade layers</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#fallback-rule">
+<link rel="help" href="https://www.w3.org/TR/css-cascade-5/#layering">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+body { margin: 0; }
+#anchor {
+  width: 100px;
+  height: 100px;
+  margin-left: 200px;
+  margin-top: 200px;
+  color: orange;
+  anchor-name: --a;
+}
+
+.target {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  color: lime;
+  position-try-fallbacks: --fallback;
+  left: 999999px; /* force fallback */
+}
+</style>
+
+<div id="anchor"></div>
+
+<script>
+function createTargetWithStyle(test, style) {
+  let styleElement = document.createElement('style');
+  styleElement.textContent = style;
+  let target = document.createElement('div');
+  target.classList.add('target');
+
+  test.add_cleanup(() => {
+    styleElement.remove();
+    target.remove();
+  });
+
+  document.head.appendChild(styleElement);
+  document.body.appendChild(target);
+  return target;
+}
+
+test(t => {
+  const target = createTargetWithStyle(t, `
+    @position-try --fallback {
+      left: auto;
+      right: anchor(--a left);
+    }
+    @position-try --fallback {
+      left: anchor(--a right);
+    }
+  `);
+  assert_equals(target.offsetLeft, 300);
+}, 'When in the same layer, the last rule of each name wins');
+
+test(t => {
+  const target = createTargetWithStyle(t, `
+    @position-try --fallback {
+      left: auto;
+      bottom: anchor(--a top);
+    }
+    @layer {
+      @position-try --fallback {
+        left: auto;
+        top: anchor(--a bottom);
+      }
+    }
+  `);
+  assert_equals(target.offsetTop, 100);
+}, 'When in different layers, the rule of each name in the highest layer wins');
+</script>

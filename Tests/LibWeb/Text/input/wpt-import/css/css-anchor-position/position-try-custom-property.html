@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<title>Variable substitution in @position-try rules</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#fallback">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+.cb {
+  position: relative;
+  width: 195px;
+  height: 70px;
+  background: yellow;
+  border-bottom: 1px solid black;
+}
+.spacer {
+  width: 1px;
+  height: 20px;
+}
+.anchor1 {
+  anchor-name: --a1;
+  margin-left: 45px;
+  width: 100px;
+  height: 30px;
+  background: blue;
+}
+.target {
+  position: absolute;
+  position-try-fallbacks: --fallback1;
+  width: 40px;
+  height: 15px;
+  margin: 5px;
+  background: orange;
+  --left: anchor(--a1 right);
+  --top: anchor(--a1 top);
+}
+.fallback1 {
+  position-try-fallbacks: --fallback1;
+}
+.fallback2 {
+  position-try-fallbacks: --fallback2;
+}
+@position-try --fallback1 {
+  /* Position to the right of the anchor. */
+  left: var(--left);
+  top: var(--top);
+}
+/* Same as above, but using a shorthand. */
+@position-try --fallback2 {
+  inset: var(--top) 0px 0px var(--left);
+}
+</style>
+<body onload="checkLayoutForAnchorPos('.target')">
+  <div class="cb">
+    <div class="spacer"></div>
+    <div class="anchor1"></div>
+    <div class="target fallback1"
+         data-offset-x=150 data-offset-y=25></div>
+  </div>
+  <div class="cb">
+    <div class="spacer"></div>
+    <div class="anchor1"></div>
+    <div class="target fallback2"
+         data-offset-x=150 data-offset-y=25></div>
+  </div>
+</body>

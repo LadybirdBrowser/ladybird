@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<title>Tests margin properties in position fallback</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#accepted-try-properties">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+
+<style>
+body {
+  margin: 0;
+}
+
+.cb {
+  width: 300px;
+  height: 150px;
+  position: relative;
+  background: lightgray;
+}
+
+.anchor {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  top: 25px;
+  background: orange;
+  anchor-name: --a;
+}
+
+.target {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  background: lime;
+  position-try-fallbacks: --fallback;
+  top: anchor(--a top);
+  right: anchor(--a left);
+  margin-top: 10px;
+  margin-right: 10px;
+}
+
+@position-try --fallback {
+  inset: auto;
+  bottom: anchor(--a bottom);
+  left: anchor(--a right);
+  margin: 0;
+  margin-bottom: 10px;
+  margin-left: 10px;
+}
+</style>
+
+<body onload="checkLayoutForAnchorPos('.target')">
+
+<div class=cb>
+  <div class=anchor style="left: 110px"></div>
+  <!-- Chooses base style. -->
+  <div class=target data-offset-x=0
+       data-expected-margin-left=0 data-expected-margin-right=10
+       data-expected-margin-top=10 data-expected-margin-bottom=0></div>
+</div>
+
+<div class=cb>
+  <div class=anchor style="right: 110px"></div>
+  <!-- Chooses @position-try block. -->
+  <div class=target data-offset-x=200
+       data-expected-margin-left=10 data-expected-margin-right=0
+       data-expected-margin-top=0 data-expected-margin-bottom=10></div>
+</div>
+
+</body>

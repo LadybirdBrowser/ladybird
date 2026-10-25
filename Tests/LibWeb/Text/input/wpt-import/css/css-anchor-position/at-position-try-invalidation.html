@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning Test: Dynamically change @position-try rules</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#fallback-rule">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  body { margin: 0; }
+
+  #anchor {
+    anchor-name: --a;
+    margin-left: 100px;
+    width: 100px;
+    height: 100px;
+  }
+
+  #anchored {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    position-try-fallbacks: --pf;
+    left: 999999px; /* force fallback */
+  }
+</style>
+
+<style id="to-enable" media="print">
+  @position-try --pf {
+    left: anchor(--a left);
+  }
+</style>
+
+<div>
+  <div id="anchor">anchor</div>
+  <div id="anchored">anchored</div>
+</div>
+
+<script>
+  test(() => {
+    assert_equals(anchored.offsetLeft, 999999);
+  }, "position-try-fallbacks initially not matching any rules");
+
+  test(() => {
+    document.getElementById("to-enable").media = "";
+    assert_equals(anchored.offsetLeft, 100);
+  }, "Enable @position-try rule stylesheet");
+
+  const sheet = document.getElementById("to-enable").sheet;
+
+  test(() => {
+    sheet.insertRule(
+      `@position-try --pf {
+         left: anchor(--a right);
+       }`, 1);
+    assert_equals(anchored.offsetLeft, 200);
+  }, "Insert overriding @position-try rule");
+
+  test(() => {
+    sheet.disabled = "true";
+    assert_equals(anchored.offsetLeft, 999999);
+  }, "Disable the @position-try rules");
+
+</script>

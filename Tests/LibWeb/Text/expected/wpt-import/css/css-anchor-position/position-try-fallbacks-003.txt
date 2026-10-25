@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Fail
+Fail	initial position
+Fail	scroll to 100
+Fail	scroll to 101
+Fail	scroll back to 100
+Fail	redisplay at 100
+Fail	scroll to 200
+Fail	scroll to 300
+Fail	scroll back to 0

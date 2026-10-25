@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: changing @position-try rules invalidates last successful position fallback</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#last-successful-position-fallback">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/test-common.js"></script>
+<style id="anchor_sheet">
+  #container {
+    position: relative;
+    width: 400px;
+    height: 400px;
+    background: teal;
+  }
+  #anchor {
+    position: relative;
+    top: 100px;
+    left: 100px;
+    width: 100px;
+    height: 100px;
+    background: red;
+    anchor-name: --a;
+  }
+  #anchored {
+    position-anchor: --a;
+    position-try-fallbacks: --try;
+    position: absolute;
+    width: 100px;
+    height: 200px;
+    position-area: top center;
+    background: lime;
+  }
+  @position-try --try {
+    position-area: bottom center;
+  }
+</style>
+<div id="container">
+  <div id="anchor"></div>
+  <div id="anchored"></div>
+</div>
+<script>
+  promise_test(async () => {
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    assert_equals(anchored.offsetTop, 200);
+  }, "Starts rendering with --try");
+
+  promise_test(async () => {
+    anchor.style.top = "150px";
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    assert_equals(anchored.offsetTop, 200);
+  }, "No successful position, keep --try");
+
+  promise_test(async () => {
+    // Changing @position-try --try {}
+    anchor_sheet.sheet.cssRules[3].style.positionArea = "bottom";
+    await waitUntilNextAnimationFrame();
+    await waitUntilNextAnimationFrame();
+    assert_equals(anchored.offsetTop, 0);
+  }, "No successful position, last successful invalidated by @position-try change");
+</script>

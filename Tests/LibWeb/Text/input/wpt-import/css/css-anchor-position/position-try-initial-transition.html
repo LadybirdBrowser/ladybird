@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning Test: Initial @position-try does not trigger a transition</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#fallback-apply">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id=cb>
+  <div id=abs></div>
+</div>
+<style>
+  #cb {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    background: lightpink;
+  }
+  #abs {
+    position: absolute;
+    background: darkcyan;
+    top: 10px;
+    left: 10px;
+    width: 150px; /* force fallback */
+    height: 25px;
+    position-try-fallbacks: --pf;
+    transition-property: top, left;
+    transition-duration: 10s;
+    transition-timing-function: steps(2, start);
+  }
+  @position-try --pf {
+    width: 50px;
+    top: 50px;
+    left: 50px;
+  }
+</style>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(abs).top, '50px');
+    assert_equals(getComputedStyle(abs).left, '50px');
+  }, 'No transition for initial style with @position-try');
+</script>

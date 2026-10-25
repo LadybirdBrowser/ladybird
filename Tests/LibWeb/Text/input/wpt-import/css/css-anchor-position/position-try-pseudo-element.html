@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>@position-try for ::before and ::after pseudo elements</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#fallback">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #container {
+    background: maroon;
+    position: relative;
+    width: 195px;
+    height: 200px;
+  }
+  #target::before {
+    position-try-fallbacks: --f1, --f2;
+    background: lime;
+    position: absolute;
+    left: 200px;
+    top: 200px;
+    width: 100px;
+    height: 200px;
+    content: "";
+  }
+  #target::after {
+    position-try-fallbacks: --f1, --f2;
+    background: green;
+    position: absolute;
+    left: 100px;
+    width: 100px;
+    height: 100px;
+    content: "";
+  }
+  @position-try --f1 {
+    top: 100px;
+    left: 50px;
+  }
+  @position-try --f2 {
+    top: 0px;
+    left: 0px;
+  }
+</style>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+  test(() => {
+    const before_style = getComputedStyle(target, "::before");
+    assert_equals(before_style.top, "0px");
+    assert_equals(before_style.left, "0px");
+  }, "::before using second fallback");
+  test(() => {
+    const after_style = getComputedStyle(target, "::after");
+    assert_equals(after_style.top, "100px");
+    assert_equals(after_style.left, "50px");
+  }, "::after using first fallback");
+</script>

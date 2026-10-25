@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Modifying one sheet containing @position-try rule doesn't affect another sheet

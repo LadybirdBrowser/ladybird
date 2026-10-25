@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning Test: Dynamically change @position-try rules in Shadow DOM</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#fallback-rule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  body { margin: 0; }
+  #host { width: 200px }
+</style>
+
+<div id="host">
+  <template shadowrootmode="open">
+    <style>
+      ::slotted(#slotted), :host {
+        position-try-fallbacks: --pf;
+        position: absolute;
+        left: 999999px; /* force fallback */
+      }
+    </style>
+    <slot></slot>
+  </template>
+  <div id="slotted"></div>
+</div>
+
+<script>
+  test(() => {
+    assert_equals(host.offsetLeft, 999999);
+  }, "#host is initially left: 999999px");
+
+  test(() => {
+    assert_equals(slotted.offsetLeft, 999999);
+  }, "#slotted is initially left: 999999px");
+
+  host.shadowRoot.styleSheets[0].insertRule(`
+    @position-try --pf { left: 100px; }
+  `);
+
+  test(() => {
+    assert_equals(host.offsetLeft, 100);
+  }, "#host with inserted @position-try applied");
+
+  test(() => {
+    assert_equals(slotted.offsetLeft, 100);
+  }, "#slotted with inserted @position-try applied");
+</script>

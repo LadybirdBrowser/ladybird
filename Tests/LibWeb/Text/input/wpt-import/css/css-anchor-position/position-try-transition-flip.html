@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: Transition to a flipped state</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#fallback-apply">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #cb {
+    display: inline-block;
+    position: relative;
+    width: 400px;
+    height: 250px;
+    border: 1px solid black;
+  }
+  #cb.shrink {
+    width: 325px;
+  }
+  #anchor {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background: coral;
+    left: 250px;
+    top: 50px;
+    anchor-name: --a;
+  }
+  #target {
+    position-anchor: --a;
+    position: absolute;
+    left: anchor(right);
+    top: anchor(top);
+    width: 50px;
+    height: 50px;
+    background: skyblue;
+  }
+  #target.fallback {
+    position-try-fallbacks: flip-start;
+  }
+  #target.anim {
+    transition: left 1000s steps(2, start);
+  }
+</style>
+<div id=cb>
+  <div id=anchor></div>
+  <div id=target></div>
+</div>
+<script>
+  function cleanup() {
+    target.className = '';
+    cb.className = '';
+    // Clean up running transition
+    target.getAnimations().forEach(a => a.cancel());
+  }
+
+  test((t) => {
+    t.add_cleanup(cleanup);
+    assert_equals(target.offsetLeft, 300);
+    cb.classList.add('shrink');
+    target.classList.add('fallback', 'anim');
+    assert_equals(target.offsetLeft, 275);
+  }, 'Transition to a flipped state');
+
+  test((t) => {
+    t.add_cleanup(cleanup);
+    cb.classList.add('shrink');
+    target.classList.add('fallback');
+    assert_equals(target.offsetLeft, 250);
+    cb.classList.remove('shrink');
+    target.classList.remove('fallback');
+    target.classList.add('anim');
+    assert_equals(target.offsetLeft, 275);
+  }, 'Transition to an unflipped state');
+
+</script>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: try-tactic, back to base values</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #cb {
+    position: absolute;
+    width: 400px;
+    height: 200px;
+    border: 1px solid black;
+  }
+  #target {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    /* Does not fit ... */
+    left: 180px;
+    top: 190px;
+    /* ... and neither does this. */
+    position-try-fallbacks: flip-block;
+    background-color: coral;
+
+  }
+</style>
+<div id=cb>
+  <div id=target></div>
+</div>
+<script>
+  test(() => {
+    let cs = getComputedStyle(target);
+    assert_equals(cs.left, '180px');
+    assert_equals(cs.top, '190px');
+  }, 'Should use base values when nothing fits');
+</script>
