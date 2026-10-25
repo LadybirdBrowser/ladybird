@@ -4395,14 +4395,15 @@ impl LayoutNodeArena {
         self.shape_writes.identity() + self.bound_rows.borrow().version()
     }
 
-    /// The text rows and the replaced, layer image and SVG paint resource tables as they are now,
-    /// for a recording to read. Each is shared until the arena next writes it.
+    /// The text rows, the replaced, layer image and SVG paint resource tables, and the image maps as they are now, for
+    /// a recording to read. Each is shared until the arena next writes it.
     pub(crate) fn publish_paint_facts(&mut self) -> crate::painting::published_frame::PublishedPaintFacts {
         crate::painting::published_frame::PublishedPaintFacts {
             text: self.text_slots.published.publish(),
             replaced: self.replaced_paint_facts.borrow().clone(),
             layer_images: self.layer_image_paint_facts.borrow().clone(),
             svg_paint_resources: self.svg_paint_resources.publish(),
+            image_maps: self.image_map_areas().snapshot(),
         }
     }
 

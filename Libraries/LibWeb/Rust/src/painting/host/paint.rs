@@ -95,14 +95,10 @@ impl FfiRecordingInputs {
         };
 
         // SAFETY: The caller lends these arrays and buffers for this call.
-        let (grid_overlays, flex_overlays, outline_path, text_fragment_indications) = unsafe {
+        let (grid_overlays, flex_overlays, text_fragment_indications) = unsafe {
             (
                 ak::slice_from_raw_parts(self.grid_overlays, self.grid_overlay_count),
                 ak::slice_from_raw_parts(self.flex_overlays, self.flex_overlay_count),
-                ak::slice_from_raw_parts(
-                    self.focused_area_outline.path_bytes,
-                    self.focused_area_outline.path_byte_count,
-                ),
                 ak::slice_from_raw_parts(self.text_fragment_indications, self.text_fragment_indication_count),
             )
         };
@@ -205,9 +201,9 @@ impl FfiRecordingInputs {
                 start: control.start,
                 end: control.end,
             }),
-            focused_area_outline: (!outline_path.is_empty()).then(|| FocusedAreaOutline {
+            focused_area_outline: (self.focused_area_outline.area != 0).then_some(FocusedAreaOutline {
                 image: self.focused_area_outline.image,
-                path_bytes: outline_path.into(),
+                area: self.focused_area_outline.area,
             }),
             text_fragment_indications: text_fragment_indications.to_vec().into(),
             mark_color: self.mark_color,
@@ -252,14 +248,13 @@ pub struct FfiFocusedTextControlSelection {
 }
 
 /// The focus ring of a focused image-map area, painted by the image whose rendering makes the
-/// area's shape focusable. No path bytes means no focus ring.
+/// area's shape focusable, along the shape the image's map gives the area its style-tree identity
+/// names. An identity of zero means no focus ring.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiFocusedAreaOutline {
     pub image: crate::layout::node_data::NodeSlotId,
-    /// A serialised `Gfx::Path` in the image's own coordinate space, live for the recording call.
-    pub path_bytes: *const u8,
-    pub path_byte_count: usize,
+    pub area: u32,
 }
 
 /// The platform default font at an overlay label's CSS size and at that size in device pixels.

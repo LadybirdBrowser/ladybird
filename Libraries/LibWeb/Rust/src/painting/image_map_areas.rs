@@ -158,15 +158,19 @@ fn shape_path(shape: AreaShape, coords: &[f64]) -> Option<Path> {
             // corner is given by the coordinate (x2, y2), those coordinates being interpreted as CSS pixels from the
             // top left corner of the image.
             let [left, top, right, bottom] = corners.map(|corner| corner as f32);
-            let mut builder = Path::new();
-            builder.move_to(FloatPoint { x: left, y: top });
-            builder.line_to(FloatPoint { x: right, y: top });
-            builder.line_to(FloatPoint { x: right, y: bottom });
-            builder.line_to(FloatPoint { x: left, y: bottom });
-            builder.close();
-            Some(builder)
+            Some(rectangle_path(left, top, right, bottom))
         }
     }
+}
+
+fn rectangle_path(left: f32, top: f32, right: f32, bottom: f32) -> Path {
+    let mut builder = Path::new();
+    builder.move_to(FloatPoint { x: left, y: top });
+    builder.line_to(FloatPoint { x: right, y: top });
+    builder.line_to(FloatPoint { x: right, y: bottom });
+    builder.line_to(FloatPoint { x: left, y: bottom });
+    builder.close();
+    builder
 }
 
 // The `<area>` elements of the image map an image is associated with, as the hit test sees them.
@@ -223,6 +227,20 @@ impl ImageMapAreaColumn {
     /// Where the maps are, which moves when a write copies the ones a snapshot shares.
     pub(crate) fn address(&self) -> usize {
         Arc::as_ptr(&self.maps.borrow()).addr()
+    }
+}
+
+/// The shape of the area of the map of the image whose paintable row is `slot` that its style-tree identity `area` names,
+/// in the coordinate space of the image, whose size is `width` by `height`. None when the map lists no such area, or its
+/// shape is empty.
+pub(crate) fn area_shape_path(maps: &ImageMaps, slot: NodeSlotId, area: u32, width: f32, height: f32) -> Option<Path> {
+    let area = maps.get(&slot)?.iter().find(|published| published.style_node == area)?;
+    match &area.coverage {
+        // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
+        // The shape is a rectangle that exactly covers the entire image.
+        AreaCoverage::WholeImage => Some(rectangle_path(0.0, 0.0, width, height)),
+        AreaCoverage::Shape(path) => Some(path.clone()),
+        AreaCoverage::Nothing => None,
     }
 }
 

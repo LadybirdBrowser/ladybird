@@ -642,7 +642,7 @@ Layout::RustFFI::FfiFocusedTextControlSelection resolve_focused_text_control_sel
     return selection;
 }
 
-Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(Layout::BegunRead const& read, DOM::Document const& document, Vector<u8>& path_bytes)
+Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(Layout::BegunRead const& read, DOM::Document const& document)
 {
     // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
     // The shapes of area elements in an image map associated with an img element that is being rendered and is not
@@ -664,13 +664,8 @@ Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(Layout::Begu
     auto area_computed_values = area_element->computed_style();
     if (!area_computed_values || area_computed_values->outline_style() != CSS::OutlineStyle::Auto)
         return outline;
-    auto path = area_element->shape_path(absolute_rect(*layout_node).size());
-    if (!path.has_value())
-        return outline;
-    path_bytes = path->serialize_to_bytes();
     outline.image = committed_row_slot(*layout_node);
-    outline.path_bytes = path_bytes.data();
-    outline.path_byte_count = path_bytes.size();
+    outline.area = DOM::NodeIdentity::of(*area_element).style_node().value();
     return outline;
 }
 

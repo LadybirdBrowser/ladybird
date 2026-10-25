@@ -151,9 +151,16 @@ fn paint_focused_area_outline<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     if outline.image != paintable {
         return;
     }
-    let path = libgfx_rust::path::Path::from_serialized_bytes(&outline.path_bytes);
-    let converter = recorder.converter;
     let image_rect = paintable_geometry::absolute_rect(recorder.source, paintable);
+    let Some(path) = recorder.source.image_map_area_shape_path(
+        outline.image,
+        outline.area,
+        image_rect.width.to_float(),
+        image_rect.height.to_float(),
+    ) else {
+        return;
+    };
+    let converter = recorder.converter;
     let scale = recorder.inputs.device_pixels_per_css_pixel as f32;
     let color = recorder.inputs.outline_auto_color;
     let device_origin = converter.rounded_device_point(image_rect.location());

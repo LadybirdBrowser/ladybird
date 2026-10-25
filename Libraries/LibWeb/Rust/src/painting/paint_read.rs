@@ -480,6 +480,24 @@ impl<'a> PaintSource<'a> {
         self.frame.expect("only a recording reads a frame")
     }
 
+    /// The shape of an `<area>` of the map of the image whose paintable row is `image` (see
+    /// [`crate::painting::image_map_areas::area_shape_path`]).
+    pub(crate) fn image_map_area_shape_path(
+        &self,
+        image: NodeSlotId,
+        area: u32,
+        width: f32,
+        height: f32,
+    ) -> Option<libgfx_rust::path::Path> {
+        crate::painting::image_map_areas::area_shape_path(
+            &self.rows().paint_facts.image_maps,
+            image,
+            area,
+            width,
+            height,
+        )
+    }
+
     fn rows(&self) -> &'a PublishedRows {
         self.rows
     }

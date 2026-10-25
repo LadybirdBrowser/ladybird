@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Path.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Event.h>
@@ -103,104 +102,6 @@ Vector<double> HTMLAreaElement::shape_coords() const
     if (!coords_attribute.has_value())
         return {};
     return parse_list_of_floating_point_numbers(coords_attribute->utf16_view());
-}
-
-// https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
-// FIXME: The Rust image map area column builds the same shape for hit testing. Paint a focused area's outline from
-//        that one too, so the two cannot disagree.
-Optional<Gfx::Path> HTMLAreaElement::shape_path(CSSPixelSize image_size) const
-{
-    // Each area element in areas must be processed as follows to obtain a shape to layer onto the image:
-
-    // 1. Find the state that the element's shape attribute represents.
-    auto shape = shape_state();
-
-    // 2. Use the rules for parsing a list of floating-point numbers to parse the element's coords attribute, if it
-    //    is present, and let the coords list be the result. If the attribute is absent, let the coords list be the
-    //    empty list.
-    auto coords = shape_coords();
-
-    auto vertex = [&](size_t index) {
-        return Gfx::FloatPoint { static_cast<float>(coords[2 * index]), static_cast<float>(coords[2 * index + 1]) };
-    };
-
-    auto rectangle_path = [](Gfx::FloatPoint top_left, Gfx::FloatPoint bottom_right) {
-        Gfx::Path path;
-        path.move_to(top_left);
-        path.line_to({ bottom_right.x(), top_left.y() });
-        path.line_to(bottom_right);
-        path.line_to({ top_left.x(), bottom_right.y() });
-        path.close();
-        return path;
-    };
-
-    // 3. If the number of items in the coords list is less than the minimum number given for the area element's
-    //    current state, as per the following table, then the shape is empty; return.
-    // 4. Check for excess items in the coords list as per the entry in the following list corresponding to the
-    //    shape attribute's state:
-    // NB: Excess items require no handling, because each shape reads only the items it requires.
-    // 8. Now, the shape represented by the element is the one described for the entry in the list below
-    //    corresponding to the state of the shape attribute:
-    switch (shape) {
-    case ShapeState::Circle: {
-        if (coords.size() < 3)
-            return {};
-
-        // 7. If the shape attribute represents the circle state, and the third number in the list is less than or
-        //    equal to zero, then the shape is empty; return.
-        if (coords[2] <= 0)
-            return {};
-
-        // Let x be the first number in coords, y be the second number, and r be the third number.
-        // The shape is a circle whose center is x CSS pixels from the left edge of the image and y CSS pixels from
-        // the top edge of the image, and whose radius is r CSS pixels.
-        auto x = static_cast<float>(coords[0]);
-        auto y = static_cast<float>(coords[1]);
-        auto radius = static_cast<float>(coords[2]);
-        Gfx::Path path;
-        path.move_to({ x + radius, y });
-        path.arc_to({ x, y + radius }, radius, false, true);
-        path.arc_to({ x - radius, y }, radius, false, true);
-        path.arc_to({ x, y - radius }, radius, false, true);
-        path.arc_to({ x + radius, y }, radius, false, true);
-        path.close();
-        return path;
-    }
-    case ShapeState::Default:
-        // The shape is a rectangle that exactly covers the entire image.
-        return rectangle_path({ 0, 0 }, { static_cast<float>(image_size.width().to_double()), static_cast<float>(image_size.height().to_double()) });
-    case ShapeState::Polygon: {
-        if (coords.size() < 6)
-            return {};
-
-        Gfx::Path path;
-        path.move_to(vertex(0));
-        for (size_t i = 1; i < coords.size() / 2; ++i)
-            path.line_to(vertex(i));
-        path.close();
-        return path;
-    }
-    case ShapeState::Rectangle: {
-        if (coords.size() < 4)
-            return {};
-
-        // 5. If the shape attribute represents the rectangle state, and the first number in the list is numerically
-        //    greater than the third number in the list, then swap those two numbers around.
-        if (coords[0] > coords[2])
-            swap(coords[0], coords[2]);
-
-        // 6. If the shape attribute represents the rectangle state, and the second number in the list is
-        //    numerically greater than the fourth number in the list, then swap those two numbers around.
-        if (coords[1] > coords[3])
-            swap(coords[1], coords[3]);
-
-        // The shape is a rectangle whose top-left corner is given by the coordinate (x1, y1) and whose bottom right
-        // corner is given by the coordinate (x2, y2), those coordinates being interpreted as CSS pixels from the
-        // top left corner of the image.
-        return rectangle_path(vertex(0), vertex(1));
-    }
-    }
-    VERIFY_NOT_REACHED();
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#dom-area-rellist
