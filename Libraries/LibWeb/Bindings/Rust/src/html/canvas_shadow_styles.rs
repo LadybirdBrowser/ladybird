@@ -19,10 +19,10 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(f64::from(self.drawing_state().shadow_offset_x))
     }
 
-    pub(crate) fn set_shadow_offset_x(&self, _: &mut CallContext, offset_x: f64) -> WebIdlResult<()> {
+    pub(crate) fn set_shadow_offset_x(&self, cx: &mut CallContext, offset_x: f64) -> WebIdlResult<()> {
         let offset_x = float(offset_x);
         if offset_x.is_finite() {
-            self.drawing_state_mut().shadow_offset_x = offset_x;
+            self.drawing_state_mut(cx.vm()).shadow_offset_x = offset_x;
         }
         Ok(())
     }
@@ -32,10 +32,10 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(f64::from(self.drawing_state().shadow_offset_y))
     }
 
-    pub(crate) fn set_shadow_offset_y(&self, _: &mut CallContext, offset_y: f64) -> WebIdlResult<()> {
+    pub(crate) fn set_shadow_offset_y(&self, cx: &mut CallContext, offset_y: f64) -> WebIdlResult<()> {
         let offset_y = float(offset_y);
         if offset_y.is_finite() {
-            self.drawing_state_mut().shadow_offset_y = offset_y;
+            self.drawing_state_mut(cx.vm()).shadow_offset_y = offset_y;
         }
         Ok(())
     }
@@ -45,14 +45,14 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(f64::from(self.drawing_state().shadow_blur))
     }
 
-    pub(crate) fn set_shadow_blur(&self, _: &mut CallContext, blur_radius: f64) -> WebIdlResult<()> {
+    pub(crate) fn set_shadow_blur(&self, cx: &mut CallContext, blur_radius: f64) -> WebIdlResult<()> {
         // On setting, the attribute must be set to the new value, except if the value is negative, infinite or NaN,
         // in which case the new value must be ignored.
         let blur_radius = float(blur_radius);
         if blur_radius < 0.0 || !blur_radius.is_finite() {
             return Ok(());
         }
-        self.drawing_state_mut().shadow_blur = blur_radius;
+        self.drawing_state_mut(cx.vm()).shadow_blur = blur_radius;
         Ok(())
     }
 
@@ -61,7 +61,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(serialize_color(self.drawing_state().shadow_color.srgb))
     }
 
-    pub(crate) fn set_shadow_color(&self, _: &mut CallContext, color: Utf16String) -> WebIdlResult<()> {
+    pub(crate) fn set_shadow_color(&self, cx: &mut CallContext, color: Utf16String) -> WebIdlResult<()> {
         // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
 
         // 2. Let parsedValue be the result of parsing the given value with context if non-null.
@@ -71,7 +71,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         };
 
         // 4. Set this's shadow color to parsedValue.
-        self.drawing_state_mut().shadow_color = parsed_value;
+        self.drawing_state_mut(cx.vm()).shadow_color = parsed_value;
         Ok(())
     }
 }

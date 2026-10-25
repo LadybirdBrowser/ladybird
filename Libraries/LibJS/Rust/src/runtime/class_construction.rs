@@ -401,11 +401,11 @@ pub fn construct_class(
     }
 
     for index in 0..instance_fields.len() {
-        class_constructor.add_field(instance_fields.get(index).expect("the index is in bounds"));
+        class_constructor.add_field(vm, instance_fields.get(index).expect("the index is in bounds"));
     }
 
     for index in 0..instance_private_methods.len() {
-        class_constructor.add_private_method(instance_private_methods.get(index).expect("the index is in bounds"));
+        class_constructor.add_private_method(vm, instance_private_methods.get(index).expect("the index is in bounds"));
     }
 
     for index in 0..static_private_methods.len() {

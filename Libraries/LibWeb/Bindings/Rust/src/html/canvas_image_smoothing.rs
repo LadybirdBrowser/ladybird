@@ -16,8 +16,8 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(self.drawing_state().image_smoothing_enabled)
     }
 
-    pub(crate) fn set_image_smoothing_enabled(&self, _: &mut CallContext, enabled: bool) -> WebIdlResult<()> {
-        self.drawing_state_mut().image_smoothing_enabled = enabled;
+    pub(crate) fn set_image_smoothing_enabled(&self, cx: &mut CallContext, enabled: bool) -> WebIdlResult<()> {
+        self.drawing_state_mut(cx.vm()).image_smoothing_enabled = enabled;
         Ok(())
     }
 
@@ -28,10 +28,10 @@ impl<K: CanvasKind> RenderingContext2D<K> {
 
     pub(crate) fn set_image_smoothing_quality(
         &self,
-        _: &mut CallContext,
+        cx: &mut CallContext,
         quality: ImageSmoothingQuality,
     ) -> WebIdlResult<()> {
-        self.drawing_state_mut().image_smoothing_quality = quality;
+        self.drawing_state_mut(cx.vm()).image_smoothing_quality = quality;
         Ok(())
     }
 }

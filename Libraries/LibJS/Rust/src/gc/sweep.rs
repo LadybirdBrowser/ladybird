@@ -34,6 +34,6 @@ impl<'vm> Sweep<'vm> {
     /// Hands `finalization_registry` to HostEnqueueFinalizationRegistryCleanupJob once the collection is over.
     pub fn enqueue_finalization_registry_cleanup_job(&self, finalization_registry: Gc<FinalizationRegistry>) {
         self.0
-            .enqueue_finalization_registry_cleanup_job_after_collection(finalization_registry);
+            .enqueue_finalization_registry_cleanup_job_after_collection(self, finalization_registry);
     }
 }

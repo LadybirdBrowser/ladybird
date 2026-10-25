@@ -1209,7 +1209,9 @@ impl ArrayBuffer {
 
         let old_external_memory_size = self.external_memory_size();
         let old_data_offset = self.data_offset();
-        self.data_block.borrow_mut().try_resize(new_size, zero_fill_new_bytes)?;
+        self.data_block
+            .borrow_mut(vm)
+            .try_resize(new_size, zero_fill_new_bytes)?;
         if self.data_offset() != old_data_offset {
             self.invalidate_cached_typed_array_view_offsets();
         }
@@ -1220,7 +1222,7 @@ impl ArrayBuffer {
     pub fn try_ensure_capacity(&self, vm: &Vm, new_capacity: usize) -> Result<(), OutOfMemory> {
         let old_external_memory_size = self.external_memory_size();
         let old_data_offset = self.data_offset();
-        self.data_block.borrow_mut().try_ensure_capacity(new_capacity)?;
+        self.data_block.borrow_mut(vm).try_ensure_capacity(new_capacity)?;
         if self.data_offset() != old_data_offset {
             self.invalidate_cached_typed_array_view_offsets();
         }
@@ -1260,7 +1262,7 @@ impl ArrayBuffer {
 
     pub fn register_cached_typed_array_view(&self, vm: &Vm, view: Gc<TypedArrayBase>) {
         let view = GcWeak::new(vm.heap(), view);
-        let mut cached_views = self.cached_views.borrow_mut();
+        let mut cached_views = self.cached_views.borrow_mut(vm);
         // NB: Views that died stay in the list until it is full, which keeps registering amortized constant time.
         if cached_views.len() == cached_views.capacity() {
             cached_views.retain(|view| view.get().is_some());

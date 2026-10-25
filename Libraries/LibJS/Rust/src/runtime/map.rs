@@ -150,7 +150,7 @@ impl Map {
 
     // 24.1.3.1 Map.prototype.clear ( ), https://tc39.es/ecma262/#sec-map.prototype.clear
     pub fn map_clear(&self, vm: &Vm) {
-        let mut storage = self.storage.borrow_mut();
+        let mut storage = self.storage.borrow_mut(vm);
         storage.entries = Vec::new();
         storage.indices = HashMap::default();
         storage.removed_entry_count = 0;
@@ -162,7 +162,7 @@ impl Map {
 
     // 24.1.3.3 Map.prototype.delete ( key ), https://tc39.es/ecma262/#sec-map.prototype.delete
     pub fn map_remove(&self, vm: &Vm, key: Value) -> bool {
-        let mut storage = self.storage.borrow_mut();
+        let mut storage = self.storage.borrow_mut(vm);
         let Some(index) = storage.indices.remove(&ValueTraitsKey(key)) else {
             return false;
         };
@@ -200,7 +200,7 @@ impl Map {
 
     // 24.1.3.9 Map.prototype.set ( key, value ), https://tc39.es/ecma262/#sec-map.prototype.set
     pub fn map_set(&self, vm: &Vm, key: Value, value: Value) {
-        let mut storage = self.storage.borrow_mut();
+        let mut storage = self.storage.borrow_mut(vm);
         let new_index = storage.entries.len();
         let index = *storage.indices.entry(ValueTraitsKey(key)).or_insert(new_index);
         if index != new_index {

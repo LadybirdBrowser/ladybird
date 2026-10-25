@@ -227,7 +227,7 @@ impl ContextState {
         match extension.kind {
             Kind::Interface(interface) => {
                 let object = interface.create(cx.vm(), self);
-                self.enabled_extensions.borrow_mut().push(EnabledExtension {
+                self.enabled_extensions.borrow_mut(cx.vm()).push(EnabledExtension {
                     name: extension.name,
                     object,
                 });

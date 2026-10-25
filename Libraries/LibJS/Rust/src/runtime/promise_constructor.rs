@@ -111,7 +111,7 @@ fn run_promise_all_resolve_element_job(
     value: Value,
 ) -> ThrowCompletionOr<Value> {
     // 5. Set values[thisIndex] to value.
-    values.set(index, value);
+    values.set(vm, index, value);
 
     // 6. Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
     // 7. If remainingElementsCount.[[Value]] = 0, then
@@ -296,7 +296,7 @@ fn perform_promise_common(
         };
 
         // c. Append undefined to values.
-        values.append(Value::UNDEFINED);
+        values.append(vm, Value::UNDEFINED);
 
         // d. Let nextPromise be ? Call(promiseResolve, constructor, « next »).
         let next_promise = call(vm, promise_resolve, constructor, &[next])?;

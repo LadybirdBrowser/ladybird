@@ -458,11 +458,11 @@ impl Promise {
             PromiseState::Pending => {
                 // a. Append fulfillReaction as the last element of the List that is promise.[[PromiseFulfillReactions]].
                 let fulfill_reaction = create_fulfill_reaction();
-                self.fulfill_reactions.borrow_mut().push(fulfill_reaction);
+                self.fulfill_reactions.borrow_mut(vm).push(fulfill_reaction);
 
                 // b. Append rejectReaction as the last element of the List that is promise.[[PromiseRejectReactions]].
                 let reject_reaction = create_reject_reaction();
-                self.reject_reactions.borrow_mut().push(reject_reaction);
+                self.reject_reactions.borrow_mut(vm).push(reject_reaction);
             }
             // 10. Else if promise.[[PromiseState]] is fulfilled, then
             PromiseState::Fulfilled => {

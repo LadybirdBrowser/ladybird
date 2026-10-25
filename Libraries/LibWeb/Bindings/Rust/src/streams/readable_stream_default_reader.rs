@@ -72,8 +72,8 @@ impl ReadableStreamDefaultReader {
         &self.generic
     }
 
-    pub(crate) fn append_read_request(&self, read_request: ReadRequest) {
-        self.read_requests.borrow_mut().push_back(read_request);
+    pub(crate) fn append_read_request(&self, vm: &Vm, read_request: ReadRequest) {
+        self.read_requests.borrow_mut(vm).push_back(read_request);
     }
 
     /// Takes the reader's [[readRequests]], leaving an empty list.
@@ -82,14 +82,14 @@ impl ReadableStreamDefaultReader {
         for read_request in self.read_requests.borrow().iter() {
             read_requests.push(read_request.clone());
         }
-        self.read_requests.borrow_mut().clear();
+        self.read_requests.borrow_mut(vm).clear();
         read_requests
     }
 
     /// Removes the first of the reader's [[readRequests]], which are not empty.
-    pub(crate) fn take_first_read_request(&self) -> ReadRequest {
+    pub(crate) fn take_first_read_request(&self, vm: &Vm) -> ReadRequest {
         self.read_requests
-            .borrow_mut()
+            .borrow_mut(vm)
             .pop_front()
             .expect("the reader has a read request")
     }
@@ -350,6 +350,6 @@ pub(crate) fn set_up_readable_stream_default_reader(
     readable_stream_reader_generic_initialize(cx, ReadableStreamReader::ReadableStreamDefaultReader(reader), stream);
 
     // 3. Set reader.[[readRequests]] to a new empty list.
-    reader.read_requests.borrow_mut().clear();
+    reader.read_requests.borrow_mut(cx.vm()).clear();
     Ok(())
 }

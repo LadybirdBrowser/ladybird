@@ -153,6 +153,7 @@ impl ModuleEnvironment {
     // 9.1.1.5.5 CreateImportBinding ( N, M, N2 ), https://tc39.es/ecma262/#sec-createimportbinding
     pub fn create_import_binding(
         &self,
+        vm: &Vm,
         name: Utf16FlyString,
         module: Option<Gc<Module>>,
         binding_name: Utf16FlyString,
@@ -165,7 +166,7 @@ impl ModuleEnvironment {
         // 3. Create an immutable indirect binding in envRec for N that references M and N2 as its target binding and record that the binding is initialized.
         // Note: We use the fact that the binding is in this map as it being initialized.
         self.indirect_bindings
-            .borrow_mut()
+            .borrow_mut(vm)
             .0
             .insert(name, IndirectBinding { module, binding_name });
 

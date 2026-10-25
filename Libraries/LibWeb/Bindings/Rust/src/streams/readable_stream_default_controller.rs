@@ -133,7 +133,7 @@ impl ReadableStreamDefaultController {
     // https://streams.spec.whatwg.org/#rs-default-controller-private-cancel
     pub(crate) fn cancel_steps(this: Ref<Self>, cx: &CallContext, reason: Value) -> WebIdlPromise {
         // 1. Perform ! ResetQueue(this).
-        this.queue.reset_queue();
+        this.queue.reset_queue(cx.vm());
 
         // 2. Let result be the result of performing this.[[cancelAlgorithm]], passing reason.
         let cancel_algorithm = this
@@ -157,7 +157,7 @@ impl ReadableStreamDefaultController {
         // 2. If this.[[queue]] is not empty,
         if !this.queue.is_empty() {
             // 1. Let chunk be ! DequeueValue(this).
-            let chunk = this.queue.dequeue_value();
+            let chunk = this.queue.dequeue_value(vm);
 
             // 2. If this.[[closeRequested]] is true and this.[[queue]] is empty,
             if this.close_requested() && this.queue.is_empty() {
@@ -178,7 +178,7 @@ impl ReadableStreamDefaultController {
         // 3. Otherwise,
         else {
             // 1. Perform ! ReadableStreamAddReadRequest(stream, readRequest).
-            readable_stream_add_read_request(stream, read_request);
+            readable_stream_add_read_request(vm, stream, read_request);
 
             // 2. Perform ! ReadableStreamDefaultControllerCallPullIfNeeded(this).
             readable_stream_default_controller_call_pull_if_needed(cx, this);
@@ -294,13 +294,13 @@ pub(crate) fn readable_stream_default_controller_should_call_pull(
 // https://streams.spec.whatwg.org/#readable-stream-default-controller-clear-algorithms
 pub(crate) fn readable_stream_default_controller_clear_algorithms(controller: Ref<ReadableStreamDefaultController>) {
     // 1. Set controller.[[pullAlgorithm]] to undefined.
-    *controller.pull_algorithm.borrow_mut() = None;
+    controller.pull_algorithm.replace(None);
 
     // 2. Set controller.[[cancelAlgorithm]] to undefined.
-    *controller.cancel_algorithm.borrow_mut() = None;
+    controller.cancel_algorithm.replace(None);
 
     // 3. Set controller.[[strategySizeAlgorithm]] to undefined.
-    *controller.strategy_size_algorithm.borrow_mut() = None;
+    controller.strategy_size_algorithm.replace(None);
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-default-controller-close
@@ -374,7 +374,7 @@ pub(crate) fn readable_stream_default_controller_enqueue(
         };
 
         // 4. Let enqueueResult be EnqueueValueWithSize(controller, chunk, chunkSize).
-        let enqueue_result = controller.queue.enqueue_value_with_size(chunk, chunk_size);
+        let enqueue_result = controller.queue.enqueue_value_with_size(vm, chunk, chunk_size);
 
         // 5. If enqueueResult is an abrupt completion,
         if let Err(exception) = enqueue_result {
@@ -408,7 +408,7 @@ pub(crate) fn readable_stream_default_controller_error(
     }
 
     // 3. Perform ! ResetQueue(controller).
-    controller.queue.reset_queue();
+    controller.queue.reset_queue(cx.vm());
 
     // 4. Perform ! ReadableStreamDefaultControllerClearAlgorithms(controller).
     readable_stream_default_controller_clear_algorithms(controller);
@@ -488,7 +488,7 @@ pub(crate) fn set_up_readable_stream_default_controller(
     controller.stream.set(Some(stream));
 
     // 3. Perform ! ResetQueue(controller).
-    controller.queue.reset_queue();
+    controller.queue.reset_queue(vm);
 
     // 4. Set controller.[[started]], controller.[[closeRequested]], controller.[[pullAgain]], and
     //    controller.[[pulling]] to false.
@@ -498,14 +498,14 @@ pub(crate) fn set_up_readable_stream_default_controller(
     controller.pulling.set(false);
 
     // 5. Set controller.[[strategySizeAlgorithm]] to sizeAlgorithm and controller.[[strategyHWM]] to highWaterMark.
-    *controller.strategy_size_algorithm.borrow_mut() = Some(size_algorithm);
+    *controller.strategy_size_algorithm.borrow_mut(vm) = Some(size_algorithm);
     controller.strategy_hwm.set(high_water_mark);
 
     // 6. Set controller.[[pullAlgorithm]] to pullAlgorithm.
-    *controller.pull_algorithm.borrow_mut() = Some(pull_algorithm);
+    *controller.pull_algorithm.borrow_mut(vm) = Some(pull_algorithm);
 
     // 7. Set controller.[[cancelAlgorithm]] to cancelAlgorithm.
-    *controller.cancel_algorithm.borrow_mut() = Some(cancel_algorithm);
+    *controller.cancel_algorithm.borrow_mut(vm) = Some(cancel_algorithm);
 
     // 8. Set stream.[[controller]] to controller.
     stream.set_controller(Some(ReadableStreamController::ReadableStreamDefaultController(

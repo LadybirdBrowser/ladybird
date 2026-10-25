@@ -11,8 +11,8 @@ use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
-use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::sweep::Sweep;
+use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak_container::WeakContainer;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -95,7 +95,7 @@ impl WeakSet {
     }
 
     pub fn weak_set_add(&self, vm: &Vm, value: Gc<CellHeader>) {
-        let mut values = self.values.borrow_mut();
+        let mut values = self.values.borrow_mut(vm);
         let old_size = values.0.allocation_size();
         values.0.insert(value);
         let new_size = values.0.allocation_size();
@@ -103,8 +103,8 @@ impl WeakSet {
         vm.heap().account_external_memory_change(old_size, new_size);
     }
 
-    pub fn weak_set_remove(&self, value: Gc<CellHeader>) -> bool {
-        self.values.borrow_mut().0.remove(&value)
+    pub fn weak_set_remove(&self, vm: &Vm, value: Gc<CellHeader>) -> bool {
+        self.values.borrow_mut(vm).0.remove(&value)
     }
 
     pub fn weak_set_size(&self) -> usize {
@@ -116,6 +116,10 @@ impl WeakSet {
             .as_gc()
             .downcast::<WeakSet>()
             .expect("the weak container is a WeakSet");
-        weak_set.values.borrow_mut().0.retain(|&cell| !sweep.is_dead(cell));
+        weak_set
+            .values
+            .borrow_mut_in_sweep(sweep)
+            .0
+            .retain(|&cell| !sweep.is_dead(cell));
     }
 }

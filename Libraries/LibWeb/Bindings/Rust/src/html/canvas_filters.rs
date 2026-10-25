@@ -26,12 +26,12 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filter
-    pub(crate) fn set_filter(&self, _: &mut CallContext, filter: Utf16String) -> WebIdlResult<()> {
-        self.drawing_state_mut().filter = None;
+    pub(crate) fn set_filter(&self, cx: &mut CallContext, filter: Utf16String) -> WebIdlResult<()> {
+        self.drawing_state_mut(cx.vm()).filter = None;
 
         // 1. If the given value is "none", then set this's current filter to "none" and return.
         if filter == Utf16String::from_ascii(b"none") {
-            self.drawing_state_mut().filter_string = None;
+            self.drawing_state_mut(cx.vm()).filter_string = None;
             return Ok(());
         }
 
@@ -47,7 +47,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
 
         // 4. Set this's current filter to the given value.
         let graph = filter_functions_graph(functions.into_iter().map(Filter::from));
-        let mut state = self.drawing_state_mut();
+        let mut state = self.drawing_state_mut(cx.vm());
         state.filter = graph.map(|graph| Rc::from(graph.serialize()));
         state.filter_string = Some(filter);
         Ok(())

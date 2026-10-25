@@ -10,6 +10,7 @@
 //! changes the matrix transforms the path by the inverse of the change.
 
 use libgfx_rust::AffineTransform;
+use libjs_rust::api::Vm;
 
 use crate::bindings::interface::{Ref, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
@@ -25,13 +26,13 @@ fn all_finite(values: &[f64]) -> bool {
 
 impl<K: CanvasKind> RenderingContext2D<K> {
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-scale
-    pub(crate) fn scale(&self, _: &mut CallContext, x: f64, y: f64) -> WebIdlResult<()> {
+    pub(crate) fn scale(&self, cx: &mut CallContext, x: f64, y: f64) -> WebIdlResult<()> {
         let (x, y) = (float(x), float(y));
         if !x.is_finite() || !y.is_finite() {
             return Ok(());
         }
         {
-            let mut state = self.drawing_state_mut();
+            let mut state = self.drawing_state_mut(cx.vm());
             state.transform = scaled(state.transform, x, y);
         }
         self.flush_transform();
@@ -47,13 +48,13 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-translate
-    pub(crate) fn translate(&self, _: &mut CallContext, x: f64, y: f64) -> WebIdlResult<()> {
+    pub(crate) fn translate(&self, cx: &mut CallContext, x: f64, y: f64) -> WebIdlResult<()> {
         let (x, y) = (float(x), float(y));
         if !x.is_finite() || !y.is_finite() {
             return Ok(());
         }
         {
-            let mut state = self.drawing_state_mut();
+            let mut state = self.drawing_state_mut(cx.vm());
             state.transform = translated(state.transform, x, y);
         }
         self.flush_transform();
@@ -62,13 +63,13 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-rotate
-    pub(crate) fn rotate(&self, _: &mut CallContext, radians: f64) -> WebIdlResult<()> {
+    pub(crate) fn rotate(&self, cx: &mut CallContext, radians: f64) -> WebIdlResult<()> {
         let radians = float(radians);
         if !radians.is_finite() {
             return Ok(());
         }
         {
-            let mut state = self.drawing_state_mut();
+            let mut state = self.drawing_state_mut(cx.vm());
             state.transform = rotated(state.transform, radians);
         }
         self.flush_transform();
@@ -80,7 +81,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     #[allow(clippy::too_many_arguments, reason = "the arguments of transform()")]
     pub(crate) fn transform(
         &self,
-        _: &mut CallContext,
+        cx: &mut CallContext,
         a: f64,
         b: f64,
         c: f64,
@@ -88,11 +89,12 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         e: f64,
         f: f64,
     ) -> WebIdlResult<()> {
-        self.multiply_transform(a, b, c, d, e, f);
+        self.multiply_transform(cx.vm(), a, b, c, d, e, f);
         Ok(())
     }
 
-    fn multiply_transform(&self, a: f64, b: f64, c: f64, d: f64, e: f64, f: f64) {
+    #[allow(clippy::too_many_arguments, reason = "the arguments of transform()")]
+    fn multiply_transform(&self, vm: &Vm, a: f64, b: f64, c: f64, d: f64, e: f64, f: f64) {
         // 1. If any of the arguments are infinite or NaN, then return.
         if !all_finite(&[a, b, c, d, e, f]) {
             return;
@@ -105,7 +107,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         //    0 0 1
         let transform = AffineTransform::new(float(a), float(b), float(c), float(d), float(e), float(f));
         {
-            let mut state = self.drawing_state_mut();
+            let mut state = self.drawing_state_mut(vm);
             state.transform = multiply_transforms(state.transform, transform);
         }
 
@@ -149,7 +151,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     #[allow(clippy::too_many_arguments, reason = "the arguments of setTransform()")]
     pub(crate) fn set_transform(
         &self,
-        _: &mut CallContext,
+        cx: &mut CallContext,
         a: f64,
         b: f64,
         c: f64,
@@ -166,19 +168,15 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         //    a c e
         //    b d f
         //    0 0 1
-        self.set_current_transform(AffineTransform::new(
-            float(a),
-            float(b),
-            float(c),
-            float(d),
-            float(e),
-            float(f),
-        ));
+        self.set_current_transform(
+            cx.vm(),
+            AffineTransform::new(float(a), float(b), float(c), float(d), float(e), float(f)),
+        );
         Ok(())
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-settransform-matrix
-    pub(crate) fn set_transform_to_matrix(&self, _: &mut CallContext, transform: DOMMatrix2DInit) -> WebIdlResult<()> {
+    pub(crate) fn set_transform_to_matrix(&self, cx: &mut CallContext, transform: DOMMatrix2DInit) -> WebIdlResult<()> {
         // 1. Let matrix be the result of creating a DOMMatrix from the 2D dictionary transform.
         let matrix = validate_and_fixup_2d(&transform)?;
 
@@ -189,22 +187,22 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         }
 
         // 3. Reset the current transformation matrix to matrix.
-        self.set_current_transform(matrix.to_affine_transform());
+        self.set_current_transform(cx.vm(), matrix.to_affine_transform());
         Ok(())
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-resettransform
-    pub(crate) fn reset_transform(&self, _: &mut CallContext) -> WebIdlResult<()> {
+    pub(crate) fn reset_transform(&self, cx: &mut CallContext) -> WebIdlResult<()> {
         // The resetTransform() method, when invoked, must reset the current transformation matrix to the identity
         // matrix.
-        self.set_current_transform(AffineTransform::identity());
+        self.set_current_transform(cx.vm(), AffineTransform::identity());
         Ok(())
     }
 
     /// Replaces the current transformation matrix, which leaves the current default path where it is on the output
     /// bitmap.
-    fn set_current_transform(&self, transform: AffineTransform) {
-        self.drawing_state_mut().transform = transform;
+    fn set_current_transform(&self, vm: &Vm, transform: AffineTransform) {
+        self.drawing_state_mut(vm).transform = transform;
         self.keep_path_in_place();
         self.flush_transform();
     }

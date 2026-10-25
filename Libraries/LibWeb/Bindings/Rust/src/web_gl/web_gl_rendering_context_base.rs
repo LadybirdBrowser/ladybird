@@ -683,7 +683,7 @@ impl<V: Version> RenderingContext<V> {
 
     pub(crate) fn framebuffer_renderbuffer(
         &self,
-        _: &mut CallContext,
+        cx: &mut CallContext,
         target: u32,
         attachment: u32,
         renderbuffertarget: u32,
@@ -718,13 +718,13 @@ impl<V: Version> RenderingContext<V> {
         }
         self.proxy
             .framebuffer_renderbuffer(target, attachment, renderbuffertarget, renderbuffer_handle);
-        bound_framebuffer.set_renderbuffer_attachment(attachment, renderbuffer);
+        bound_framebuffer.set_renderbuffer_attachment(cx.vm(), attachment, renderbuffer);
         Ok(())
     }
 
     pub(crate) fn framebuffer_texture2d(
         &self,
-        _: &mut CallContext,
+        cx: &mut CallContext,
         target: u32,
         attachment: u32,
         textarget: u32,
@@ -765,7 +765,7 @@ impl<V: Version> RenderingContext<V> {
         }
         self.proxy
             .framebuffer_texture2d(target, attachment, textarget, texture_handle, level);
-        bound_framebuffer.set_texture_attachment(attachment, texture, textarget, level);
+        bound_framebuffer.set_texture_attachment(cx.vm(), attachment, texture, textarget, level);
         Ok(())
     }
 

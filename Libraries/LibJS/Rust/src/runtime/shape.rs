@@ -12,8 +12,8 @@ use indexmap::IndexMap;
 
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
-use crate::gc::sweep::Sweep;
 use crate::gc::root::MarkedVec;
+use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
@@ -370,12 +370,14 @@ impl Shape {
 
     fn set_descriptors(&self, descriptors: Option<Gc<DescriptorArray>>) {
         assert!(!self.is_dictionary());
-        *self.storage.property_storage.borrow_mut() = PropertyStorage::Descriptors(descriptors);
+        self.storage
+            .property_storage
+            .replace(PropertyStorage::Descriptors(descriptors));
     }
 
-    fn with_property_table<R>(&self, callback: impl FnOnce(&mut PropertyTable) -> R) -> R {
+    fn with_property_table<R>(&self, vm: &Vm, callback: impl FnOnce(&mut PropertyTable) -> R) -> R {
         assert!(self.is_dictionary());
-        match &mut *self.storage.property_storage.borrow_mut() {
+        match &mut *self.storage.property_storage.borrow_mut(vm) {
             PropertyStorage::PropertyTable(property_table) => callback(property_table),
             PropertyStorage::Descriptors(_) => unreachable!("a dictionary shape has a property table"),
         }
@@ -383,12 +385,14 @@ impl Shape {
 
     fn become_dictionary_shape(&self) {
         assert!(!self.is_dictionary());
-        *self.storage.property_storage.borrow_mut() = PropertyStorage::PropertyTable(Box::default());
+        self.storage
+            .property_storage
+            .replace(PropertyStorage::PropertyTable(Box::default()));
         self.flags.set(self.flags.get() | shape_flag::DICTIONARY);
     }
 
-    fn with_rare_data<R>(&self, callback: impl FnOnce(&mut RareData) -> R) -> R {
-        let mut rare_data = self.storage.rare_data.borrow_mut();
+    fn with_rare_data<R>(&self, vm: &Vm, callback: impl FnOnce(&mut RareData) -> R) -> R {
+        let mut rare_data = self.storage.rare_data.borrow_mut(vm);
         callback(rare_data.get_or_insert_with(Box::default))
     }
 
@@ -401,7 +405,7 @@ impl Shape {
             .set(new_shape.flags.get() | (self.flags.get() & shape_flag::HAS_PARAMETER_MAP));
         new_shape.prototype.set(self.prototype());
         self.invalidate_prototype_if_needed_for_new_prototype(vm, new_shape);
-        self.copy_properties_to_dictionary_shape(&new_shape);
+        self.copy_properties_to_dictionary_shape(vm, &new_shape);
         new_shape
     }
 
@@ -441,11 +445,11 @@ impl Shape {
         longest
     }
 
-    fn get_or_prune_cached_forward_transition(&self, key: &TransitionKey) -> Option<Gc<Shape>> {
+    fn get_or_prune_cached_forward_transition(&self, vm: &Vm, key: &TransitionKey) -> Option<Gc<Shape>> {
         if self.is_prototype_shape() {
             return None;
         }
-        let mut forward_transitions = self.storage.forward_transitions.borrow_mut();
+        let mut forward_transitions = self.storage.forward_transitions.borrow_mut(vm);
         match &mut *forward_transitions {
             ForwardTransitions::Empty => None,
             ForwardTransitions::Single {
@@ -479,7 +483,7 @@ impl Shape {
         assert!(!self.is_prototype_shape());
         let target = GcWeak::new(vm.heap(), shape);
 
-        let mut forward_transitions = self.storage.forward_transitions.borrow_mut();
+        let mut forward_transitions = self.storage.forward_transitions.borrow_mut(vm);
         match core::mem::replace(&mut *forward_transitions, ForwardTransitions::Empty) {
             ForwardTransitions::Empty => {
                 *forward_transitions = ForwardTransitions::Single {
@@ -527,11 +531,11 @@ impl Shape {
         }
     }
 
-    fn get_or_prune_cached_delete_transition(&self, key: &PropertyKey) -> Option<Gc<Shape>> {
+    fn get_or_prune_cached_delete_transition(&self, vm: &Vm, key: &PropertyKey) -> Option<Gc<Shape>> {
         if self.is_prototype_shape() {
             return None;
         }
-        let mut rare_data = self.storage.rare_data.borrow_mut();
+        let mut rare_data = self.storage.rare_data.borrow_mut(vm);
         let delete_transitions = &mut rare_data.as_mut()?.delete_transitions;
         let target = delete_transitions.get(key)?;
         let Some(shape) = target.get() else {
@@ -542,11 +546,11 @@ impl Shape {
         Some(shape)
     }
 
-    fn get_or_prune_cached_prototype_transition(&self, prototype: Option<Gc<Object>>) -> Option<Gc<Shape>> {
+    fn get_or_prune_cached_prototype_transition(&self, vm: &Vm, prototype: Option<Gc<Object>>) -> Option<Gc<Shape>> {
         if self.is_prototype_shape() {
             return None;
         }
-        let mut rare_data = self.storage.rare_data.borrow_mut();
+        let mut rare_data = self.storage.rare_data.borrow_mut(vm);
         let prototype_transitions = &mut rare_data.as_mut()?.prototype_transitions;
         let key = prototype_address(prototype);
         let target = prototype_transitions.get(&key)?;
@@ -569,7 +573,7 @@ impl Shape {
             property_key: property_key.clone(),
             attributes,
         };
-        if let Some(existing_shape) = self.get_or_prune_cached_forward_transition(&key) {
+        if let Some(existing_shape) = self.get_or_prune_cached_forward_transition(vm, &key) {
             return existing_shape;
         }
         let new_shape = vm
@@ -583,13 +587,13 @@ impl Shape {
         };
         match self.descriptors() {
             Some(descriptors) if descriptors.size() == property_count => {
-                descriptors.set(property_key, metadata, property_count);
+                descriptors.set(vm, property_key, metadata, property_count);
                 new_shape.set_descriptors(Some(descriptors));
             }
             _ => {
                 let descriptors = self.copy_descriptors(vm);
                 new_shape.set_descriptors(Some(descriptors));
-                descriptors.set(property_key, metadata, property_count);
+                descriptors.set(vm, property_key, metadata, property_count);
             }
         }
         self.invalidate_prototype_if_needed_for_new_prototype(vm, new_shape);
@@ -610,7 +614,7 @@ impl Shape {
             property_key: property_key.clone(),
             attributes,
         };
-        if let Some(existing_shape) = self.get_or_prune_cached_forward_transition(&key) {
+        if let Some(existing_shape) = self.get_or_prune_cached_forward_transition(vm, &key) {
             return existing_shape;
         }
         let new_shape = vm
@@ -618,7 +622,7 @@ impl Shape {
             .allocate(Self::new_from_previous_shape(self, PropertyCountChange::Preserve));
         let descriptors = self.copy_descriptors(vm);
         new_shape.set_descriptors(Some(descriptors));
-        descriptors.set_attributes(property_key, attributes, self.property_count());
+        descriptors.set_attributes(vm, property_key, attributes, self.property_count());
         self.invalidate_prototype_if_needed_for_new_prototype(vm, new_shape);
         if !self.is_prototype_shape() {
             self.cache_forward_transition(vm, key, new_shape);
@@ -634,7 +638,7 @@ impl Shape {
         if let Some(existing_shape) = cache.and_then(|cache| cache.get(self.as_gc(), prototype)) {
             return existing_shape;
         }
-        if let Some(existing_shape) = self.get_or_prune_cached_prototype_transition(new_prototype) {
+        if let Some(existing_shape) = self.get_or_prune_cached_prototype_transition(vm, new_prototype) {
             if let Some(cache) = cache {
                 cache.set(self.as_gc(), prototype, existing_shape);
             }
@@ -643,7 +647,9 @@ impl Shape {
         let new_shape = self.build_prototype_transition(vm, self.realm(), new_prototype);
         if !self.is_prototype_shape() {
             let target = GcWeak::new(vm.heap(), new_shape);
-            self.with_rare_data(|rare_data| rare_data.prototype_transitions.insert(prototype, target));
+            self.with_rare_data(vm, |rare_data| {
+                rare_data.prototype_transitions.insert(prototype, target)
+            });
         }
         if let Some(cache) = cache {
             cache.set(self.as_gc(), prototype, new_shape);
@@ -672,7 +678,7 @@ impl Shape {
             .allocate(Self::new_from_previous_shape_with_prototype(self, realm, new_prototype));
         if self.is_dictionary() && self.property_count() > MAX_DESCRIPTOR_COUNT {
             new_shape.become_dictionary_shape();
-            self.copy_properties_to_dictionary_shape(&new_shape);
+            self.copy_properties_to_dictionary_shape(vm, &new_shape);
         } else if self.is_dictionary() {
             new_shape.set_descriptors(Some(self.copy_descriptors(vm)));
         } else {
@@ -684,7 +690,7 @@ impl Shape {
 
     pub fn create_delete_transition(&self, vm: &Vm, property_key: &PropertyKey) -> Gc<Shape> {
         self.mark_unstable(vm);
-        if let Some(existing_shape) = self.get_or_prune_cached_delete_transition(property_key) {
+        if let Some(existing_shape) = self.get_or_prune_cached_delete_transition(vm, property_key) {
             return existing_shape;
         }
         let new_shape = vm
@@ -692,10 +698,12 @@ impl Shape {
             .allocate(Self::new_from_previous_shape(self, PropertyCountChange::Decrement));
         let descriptors = self.copy_descriptors(vm);
         new_shape.set_descriptors(Some(descriptors));
-        descriptors.remove(property_key, self.property_count());
+        descriptors.remove(vm, property_key, self.property_count());
         self.invalidate_prototype_if_needed_for_new_prototype(vm, new_shape);
         let target = GcWeak::new(vm.heap(), new_shape);
-        self.with_rare_data(|rare_data| rare_data.delete_transitions.insert(property_key.clone(), target));
+        self.with_rare_data(vm, |rare_data| {
+            rare_data.delete_transitions.insert(property_key.clone(), target)
+        });
         new_shape
     }
 
@@ -717,15 +725,15 @@ impl Shape {
 
         let descriptors = DescriptorArray::create(vm);
         self.for_each_property_in_insertion_order(|property_key, metadata| {
-            descriptors.set(property_key, metadata, descriptors.size());
+            descriptors.set(vm, property_key, metadata, descriptors.size());
             ControlFlow::Continue(())
         });
         descriptors
     }
 
-    fn copy_properties_to_dictionary_shape(&self, shape: &Shape) {
+    fn copy_properties_to_dictionary_shape(&self, vm: &Vm, shape: &Shape) {
         assert!(shape.is_dictionary());
-        let property_count = shape.with_property_table(|property_table| {
+        let property_count = shape.with_property_table(vm, |property_table| {
             self.for_each_property_in_insertion_order(|property_key, metadata| {
                 property_table.insert(property_key.clone(), metadata);
                 ControlFlow::Continue(())
@@ -745,8 +753,9 @@ impl Shape {
             attributes,
         };
         if self.is_dictionary() {
-            let inserted_new_entry = self
-                .with_property_table(|property_table| property_table.insert(property_key.clone(), metadata).is_none());
+            let inserted_new_entry = self.with_property_table(vm, |property_table| {
+                property_table.insert(property_key.clone(), metadata).is_none()
+            });
             if inserted_new_entry {
                 assert!(property_count < u32::MAX);
                 self.property_count.set(property_count + 1);
@@ -762,11 +771,11 @@ impl Shape {
         let descriptors = self.descriptors().expect("the shape has a descriptor array");
         if descriptors.lookup(property_key, property_count).is_none() {
             assert!(property_count < u32::MAX);
-            descriptors.set(property_key, metadata, property_count);
+            descriptors.set(vm, property_key, metadata, property_count);
             self.property_count.set(property_count + 1);
             return;
         }
-        descriptors.set(property_key, metadata, property_count);
+        descriptors.set(vm, property_key, metadata, property_count);
     }
 
     pub fn set_property_attributes_without_transition(
@@ -777,7 +786,7 @@ impl Shape {
     ) {
         self.invalidate_prototype_if_needed_for_change_without_transition(vm);
         assert!(self.is_dictionary());
-        self.with_property_table(|property_table| {
+        self.with_property_table(vm, |property_table| {
             property_table
                 .get_mut(property_key)
                 .expect("the dictionary has the property")
@@ -789,7 +798,7 @@ impl Shape {
     pub fn remove_property_without_transition(&self, vm: &Vm, property_key: &PropertyKey, offset: u32) {
         self.invalidate_prototype_if_needed_for_change_without_transition(vm);
         assert!(self.is_dictionary());
-        let removed = self.with_property_table(|property_table| {
+        let removed = self.with_property_table(vm, |property_table| {
             let removed = property_table.shift_remove(property_key).is_some();
             for metadata in property_table.values_mut() {
                 assert!(metadata.offset != offset);
@@ -829,7 +838,7 @@ impl Shape {
             for (property_key, _) in &property_keys {
                 keys.push(property_key.to_value(vm));
             }
-            self.with_rare_data(|rare_data| {
+            self.with_rare_data(vm, |rare_data| {
                 rare_data.own_string_keys = Some(OwnStringKeys {
                     generation,
                     keys: keys.values().iter().copied().collect(),
@@ -854,9 +863,9 @@ impl Shape {
             .and_then(|rare_data| rare_data.assign_copy)
     }
 
-    pub fn set_cached_assign_copy(&self, assign_copy: AssignCopy) {
+    pub fn set_cached_assign_copy(&self, vm: &Vm, assign_copy: AssignCopy) {
         assert!(!self.is_dictionary());
-        self.with_rare_data(|rare_data| rare_data.assign_copy = Some(assign_copy));
+        self.with_rare_data(vm, |rare_data| rare_data.assign_copy = Some(assign_copy));
     }
 
     /// The shape that SetIntegrityLevel with `level` gave objects of this shape that have no accessor properties, if
@@ -869,9 +878,11 @@ impl Shape {
             .and_then(|rare_data| rare_data.integrity_level_shapes[level as usize])
     }
 
-    pub fn set_cached_integrity_level_shape(&self, level: IntegrityLevel, shape: Gc<Shape>) {
+    pub fn set_cached_integrity_level_shape(&self, vm: &Vm, level: IntegrityLevel, shape: Gc<Shape>) {
         assert!(!self.is_dictionary() && !self.is_prototype_shape());
-        self.with_rare_data(|rare_data| rare_data.integrity_level_shapes[level as usize] = Some(shape));
+        self.with_rare_data(vm, |rare_data| {
+            rare_data.integrity_level_shapes[level as usize] = Some(shape);
+        });
     }
 
     fn increment_dictionary_generation(&self) {
@@ -890,7 +901,7 @@ impl Shape {
         new_shape.prototype.set(self.prototype());
         if self.is_dictionary() && self.property_count() > MAX_DESCRIPTOR_COUNT {
             new_shape.become_dictionary_shape();
-            self.copy_properties_to_dictionary_shape(&new_shape);
+            self.copy_properties_to_dictionary_shape(vm, &new_shape);
         } else if self.is_dictionary() {
             new_shape.set_descriptors(Some(self.copy_descriptors(vm)));
             new_shape.property_count.set(self.property_count());
@@ -922,7 +933,7 @@ impl Shape {
         assert!(self.is_prototype_shape());
         assert!(child.is_prototype_shape());
         let child = GcWeak::new(vm.heap(), child);
-        self.with_rare_data(|rare_data| rare_data.child_prototype_shapes.push(child));
+        self.with_rare_data(vm, |rare_data| rare_data.child_prototype_shapes.push(child));
     }
 
     fn invalidate_prototype_if_needed_for_new_prototype(&self, vm: &Vm, new_prototype_shape: Gc<Shape>) {
@@ -940,12 +951,14 @@ impl Shape {
         let child_prototype_shapes = self
             .storage
             .rare_data
-            .borrow_mut()
+            .borrow_mut(vm)
             .as_mut()
             .filter(|rare_data| !rare_data.child_prototype_shapes.is_empty())
             .map(|rare_data| core::mem::take(&mut rare_data.child_prototype_shapes));
         if let Some(child_prototype_shapes) = child_prototype_shapes {
-            new_prototype_shape.with_rare_data(|rare_data| rare_data.child_prototype_shapes = child_prototype_shapes);
+            new_prototype_shape.with_rare_data(vm, |rare_data| {
+                rare_data.child_prototype_shapes = child_prototype_shapes;
+            });
         }
     }
 
@@ -981,7 +994,7 @@ impl Shape {
         let shapes_to_invalidate = MarkedVec::new(vm);
         let worklist = MarkedVec::new(vm);
         let enqueue_children_of = |shape: &Shape, shapes_already_enqueued: &mut HashSet<usize>| {
-            let mut rare_data = shape.storage.rare_data.borrow_mut();
+            let mut rare_data = shape.storage.rare_data.borrow_mut(vm);
             let Some(rare_data) = rare_data.as_mut() else {
                 return;
             };
@@ -1088,9 +1101,8 @@ impl Shape {
             Some(WatchedSlot::Watched(watchpoint_set)) if watchpoint_set.is_valid() => return Some(*watchpoint_set),
             _ => {}
         }
-        // NB: Allocating may collect garbage, which reads the rare data, so the set is made before borrowing it.
         let watchpoint_set = WatchpointSet::create(vm);
-        self.with_rare_data(|rare_data| {
+        self.with_rare_data(vm, |rare_data| {
             rare_data
                 .watched_slots
                 .insert(offset, WatchedSlot::Watched(watchpoint_set))
@@ -1133,7 +1145,7 @@ impl Shape {
             return;
         }
         let watchpoint_set = {
-            let mut rare_data = self.storage.rare_data.borrow_mut();
+            let mut rare_data = self.storage.rare_data.borrow_mut(vm);
             let Some(rare_data) = rare_data.as_mut() else {
                 return;
             };
@@ -1158,8 +1170,9 @@ impl Shape {
         if !self.is_prototype_shape() {
             return;
         }
-        let watched_slot =
-            self.with_rare_data(|rare_data| rare_data.watched_slots.insert(offset, WatchedSlot::WrittenByCaches));
+        let watched_slot = self.with_rare_data(vm, |rare_data| {
+            rare_data.watched_slots.insert(offset, WatchedSlot::WrittenByCaches)
+        });
         if let Some(WatchedSlot::Watched(watchpoint_set)) = watched_slot {
             watchpoint_set.fire(vm);
         }
@@ -1174,7 +1187,7 @@ impl Shape {
         }
         self.flags.set(self.flags.get() & !shape_flag::HAS_WATCHED_SLOTS);
         let watchpoint_sets = MarkedVec::new(vm);
-        if let Some(rare_data) = self.storage.rare_data.borrow_mut().as_mut() {
+        if let Some(rare_data) = self.storage.rare_data.borrow_mut(vm).as_mut() {
             rare_data.watched_slots.retain(|_, watched_slot| match watched_slot {
                 WatchedSlot::Watched(watchpoint_set) => {
                     watchpoint_sets.push(*watchpoint_set);
@@ -1213,7 +1226,10 @@ impl Shape {
             return None;
         }
         if self.is_dictionary() {
-            return self.with_property_table(|property_table| property_table.get(property_key).copied());
+            return match &*self.storage.property_storage.borrow() {
+                PropertyStorage::PropertyTable(property_table) => property_table.get(property_key).copied(),
+                PropertyStorage::Descriptors(_) => unreachable!("a dictionary shape has a property table"),
+            };
         }
         self.descriptors()?.lookup(property_key, self.property_count())
     }

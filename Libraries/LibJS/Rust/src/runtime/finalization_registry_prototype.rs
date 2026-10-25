@@ -129,6 +129,7 @@ impl FinalizationRegistryPrototype {
         // 6. Let cell be the Record { [[WeakRefTarget]]: target, [[HeldValue]]: heldValue, [[UnregisterToken]]: unregisterToken }.
         // 7. Append cell to finalizationRegistry.[[Cells]].
         finalization_registry.add_finalization_record(
+            vm,
             target.as_cell(),
             held_value,
             (!unregister_token.is_undefined()).then(|| unregister_token.as_cell()),
@@ -157,7 +158,7 @@ impl FinalizationRegistryPrototype {
 
         // 4-6.
         Ok(Value::from_bool(
-            finalization_registry.remove_by_token(unregister_token.as_cell()),
+            finalization_registry.remove_by_token(vm, unregister_token.as_cell()),
         ))
     }
 }

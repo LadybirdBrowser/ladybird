@@ -794,7 +794,7 @@ impl SourceTextModule {
 
         // NB: A link that fails resets the module to unlinked, so this can run more than once.
         {
-            let mut imported_bindings = self.imported_bindings.borrow_mut();
+            let mut imported_bindings = self.imported_bindings.borrow_mut(vm);
             imported_bindings.clear();
             imported_bindings.reserve(self.import_entries.len());
         }
@@ -814,7 +814,7 @@ impl SourceTextModule {
                 // ii. Perform ! env.CreateImmutableBinding(in.[[LocalName]], true).
                 // iii. Perform ! env.InitializeBinding(in.[[LocalName]], namespace, normal).
                 // AD-HOC: Both steps are performed after step 24.
-                self.imported_bindings.borrow_mut().push(ImportedBinding {
+                self.imported_bindings.borrow_mut(vm).push(ImportedBinding {
                     namespace: Some(namespace),
                     ..ImportedBinding::default()
                 });
@@ -844,7 +844,7 @@ impl SourceTextModule {
                 // 2. Perform ! env.CreateImmutableBinding(in.[[LocalName]], true).
                 // 3. Perform ! env.InitializeBinding(in.[[LocalName]], namespace, normal).
                 // AD-HOC: Both steps are performed after step 24.
-                self.imported_bindings.borrow_mut().push(ImportedBinding {
+                self.imported_bindings.borrow_mut(vm).push(ImportedBinding {
                     namespace: Some(namespace),
                     ..ImportedBinding::default()
                 });
@@ -854,12 +854,13 @@ impl SourceTextModule {
                 // 1. Perform env.CreateImportBinding(in.[[LocalName]], resolution.[[Module]], resolution.[[BindingName]]).
                 environment
                     .create_import_binding(
+                        vm,
                         import_entry.local_name.clone(),
                         Some(resolved_module),
                         resolution.export_name.clone(),
                     )
                     .must();
-                self.imported_bindings.borrow_mut().push(ImportedBinding {
+                self.imported_bindings.borrow_mut(vm).push(ImportedBinding {
                     module: Some(resolved_module),
                     binding_name: resolution.export_name,
                     ..ImportedBinding::default()
@@ -1039,7 +1040,7 @@ impl SourceTextModule {
                 let binding_index = u32::try_from(binding_index.expect("the target module binds the name directly"))
                     .expect("the binding index fits in u32");
                 {
-                    let mut imported_bindings = self.imported_bindings.borrow_mut();
+                    let mut imported_bindings = self.imported_bindings.borrow_mut(vm);
                     imported_bindings[import_index].environment = Some(target_environment);
                     imported_bindings[import_index].binding_index = binding_index;
                 }

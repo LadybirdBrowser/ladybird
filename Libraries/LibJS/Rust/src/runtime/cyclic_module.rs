@@ -572,7 +572,7 @@ impl CyclicModule {
                 // 2. Append module to requiredModule.[[AsyncParentModules]].
                 cyclic_module
                     .async_parent_modules
-                    .borrow_mut()
+                    .borrow_mut(vm)
                     .push(self.as_cyclic_module_gc());
             }
         }
@@ -967,7 +967,7 @@ pub fn inner_module_loading(vm: &Vm, state: Gc<GraphLoadingState>, module: Gc<Mo
         let cyclic_module = cyclic_module.as_cyclic_module_gc();
 
         // a. Append module to state.[[Visited]].
-        state.append_to_visited(cyclic_module);
+        state.append_to_visited(vm, cyclic_module);
 
         // b. Let requestedModulesCount be the number of elements in module.[[RequestedModules]].
         let requested_modules_count = cyclic_module.requested_modules().len();

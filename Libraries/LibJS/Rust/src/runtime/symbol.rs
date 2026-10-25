@@ -162,8 +162,8 @@ impl GlobalSymbolRegistry {
         self.symbols.borrow().0.get(&key).copied()
     }
 
-    pub fn set(&self, key: &Utf16String, symbol: Gc<Symbol>) {
+    pub fn set(&self, vm: &Vm, key: &Utf16String, symbol: Gc<Symbol>) {
         let key = Utf16View::of_string(key).code_units().collect();
-        self.symbols.borrow_mut().0.insert(key, symbol);
+        self.symbols.borrow_mut(vm).0.insert(key, symbol);
     }
 }

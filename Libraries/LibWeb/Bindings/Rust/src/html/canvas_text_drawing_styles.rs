@@ -74,7 +74,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-font
-    pub(crate) fn set_font(&self, _: &mut CallContext, font: Utf16String) -> WebIdlResult<()> {
+    pub(crate) fn set_font(&self, cx: &mut CallContext, font: Utf16String) -> WebIdlResult<()> {
         // The font IDL attribute, on setting, must be parsed as a CSS <'font'> value (but without supporting
         // property-independent style sheet syntax like 'inherit'), and the resulting font must be assigned to the
         // context, with the 'line-height' component forced to 'normal', with the 'font-size' component converted to
@@ -82,7 +82,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         // If the new value is syntactically incorrect (including using property-independent style sheet syntax like
         // 'inherit' or 'initial'), then it must be ignored, without assigning a new font value.
         // NB: LibWeb's C++ parses the value and resolves it against the canvas.
-        self.assign_font(&font);
+        self.assign_font(cx.vm(), &font);
         Ok(())
     }
 
@@ -91,8 +91,8 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(self.drawing_state().text_align)
     }
 
-    pub(crate) fn set_text_align(&self, _: &mut CallContext, text_align: CanvasTextAlign) -> WebIdlResult<()> {
-        self.drawing_state_mut().text_align = text_align;
+    pub(crate) fn set_text_align(&self, cx: &mut CallContext, text_align: CanvasTextAlign) -> WebIdlResult<()> {
+        self.drawing_state_mut(cx.vm()).text_align = text_align;
         Ok(())
     }
 
@@ -101,8 +101,12 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(self.drawing_state().text_baseline)
     }
 
-    pub(crate) fn set_text_baseline(&self, _: &mut CallContext, text_baseline: CanvasTextBaseline) -> WebIdlResult<()> {
-        self.drawing_state_mut().text_baseline = text_baseline;
+    pub(crate) fn set_text_baseline(
+        &self,
+        cx: &mut CallContext,
+        text_baseline: CanvasTextBaseline,
+    ) -> WebIdlResult<()> {
+        self.drawing_state_mut(cx.vm()).text_baseline = text_baseline;
         Ok(())
     }
 
@@ -111,8 +115,8 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         Ok(self.drawing_state().direction)
     }
 
-    pub(crate) fn set_direction(&self, _: &mut CallContext, direction: CanvasDirection) -> WebIdlResult<()> {
-        self.drawing_state_mut().direction = direction;
+    pub(crate) fn set_direction(&self, cx: &mut CallContext, direction: CanvasDirection) -> WebIdlResult<()> {
+        self.drawing_state_mut(cx.vm()).direction = direction;
         Ok(())
     }
 
@@ -126,7 +130,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-letterspacing
-    pub(crate) fn set_letter_spacing(&self, _: &mut CallContext, letter_spacing: Utf16String) -> WebIdlResult<()> {
+    pub(crate) fn set_letter_spacing(&self, cx: &mut CallContext, letter_spacing: Utf16String) -> WebIdlResult<()> {
         // 1. Let parsed be the result of parsing the given value as a CSS <length>.
         // 2. If parsed is failure, then return.
         let Some((length, serialized)) = parse_length(&letter_spacing) else {
@@ -134,7 +138,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         };
 
         // 3. Set this's letter spacing to parsed.
-        self.drawing_state_mut().letter_spacing = Some(Spacing { length, serialized });
+        self.drawing_state_mut(cx.vm()).letter_spacing = Some(Spacing { length, serialized });
         Ok(())
     }
 
@@ -145,9 +149,9 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-lang
-    pub(crate) fn set_lang(&self, _: &mut CallContext, lang: Utf16String) -> WebIdlResult<()> {
+    pub(crate) fn set_lang(&self, cx: &mut CallContext, lang: Utf16String) -> WebIdlResult<()> {
         // The lang setter steps are to set this's language to the given value.
-        self.drawing_state_mut().language = lang;
+        self.drawing_state_mut(cx.vm()).language = lang;
         Ok(())
     }
 
@@ -161,7 +165,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-wordspacing
-    pub(crate) fn set_word_spacing(&self, _: &mut CallContext, word_spacing: Utf16String) -> WebIdlResult<()> {
+    pub(crate) fn set_word_spacing(&self, cx: &mut CallContext, word_spacing: Utf16String) -> WebIdlResult<()> {
         // 1. Let parsed be the result of parsing the given value as a CSS <length>.
         // 2. If parsed is failure, then return.
         let Some((length, serialized)) = parse_length(&word_spacing) else {
@@ -169,7 +173,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         };
 
         // 3. Set this's word spacing to parsed.
-        self.drawing_state_mut().word_spacing = Some(Spacing { length, serialized });
+        self.drawing_state_mut(cx.vm()).word_spacing = Some(Spacing { length, serialized });
         Ok(())
     }
 
@@ -180,11 +184,11 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-fontkerning
-    pub(crate) fn set_font_kerning(&self, _: &mut CallContext, font_kerning: CanvasFontKerning) -> WebIdlResult<()> {
+    pub(crate) fn set_font_kerning(&self, cx: &mut CallContext, font_kerning: CanvasFontKerning) -> WebIdlResult<()> {
         // On setting, the current value must be changed to the new value.
         if self.drawing_state().font_kerning != font_kerning {
-            self.drawing_state_mut().font_kerning = font_kerning;
-            self.font_selection_did_change();
+            self.drawing_state_mut(cx.vm()).font_kerning = font_kerning;
+            self.font_selection_did_change(cx.vm());
         }
         Ok(())
     }
@@ -196,11 +200,11 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-fontstretch
-    pub(crate) fn set_font_stretch(&self, _: &mut CallContext, font_stretch: CanvasFontStretch) -> WebIdlResult<()> {
+    pub(crate) fn set_font_stretch(&self, cx: &mut CallContext, font_stretch: CanvasFontStretch) -> WebIdlResult<()> {
         // On setting, the current value must be changed to the new value.
         if self.drawing_state().font_stretch != font_stretch {
-            self.drawing_state_mut().font_stretch = font_stretch;
-            self.font_selection_did_change();
+            self.drawing_state_mut(cx.vm()).font_stretch = font_stretch;
+            self.font_selection_did_change(cx.vm());
         }
         Ok(())
     }
@@ -214,13 +218,13 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-fontvariantcaps
     pub(crate) fn set_font_variant_caps(
         &self,
-        _: &mut CallContext,
+        cx: &mut CallContext,
         font_variant_caps: CanvasFontVariantCaps,
     ) -> WebIdlResult<()> {
         // On setting, the current value must be changed to the new value.
         if self.drawing_state().font_variant_caps != font_variant_caps {
-            self.drawing_state_mut().font_variant_caps = font_variant_caps;
-            self.font_selection_did_change();
+            self.drawing_state_mut(cx.vm()).font_variant_caps = font_variant_caps;
+            self.font_selection_did_change(cx.vm());
         }
         Ok(())
     }
@@ -234,13 +238,13 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-textrendering
     pub(crate) fn set_text_rendering(
         &self,
-        _: &mut CallContext,
+        cx: &mut CallContext,
         text_rendering: CanvasTextRendering,
     ) -> WebIdlResult<()> {
         // On setting, the current value must be changed to the new value.
         if self.drawing_state().text_rendering != text_rendering {
-            self.drawing_state_mut().text_rendering = text_rendering;
-            self.font_selection_did_change();
+            self.drawing_state_mut(cx.vm()).text_rendering = text_rendering;
+            self.font_selection_did_change(cx.vm());
         }
         Ok(())
     }

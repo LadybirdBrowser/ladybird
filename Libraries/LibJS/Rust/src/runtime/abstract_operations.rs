@@ -2152,7 +2152,7 @@ pub fn add_disposable_resource(
     // 3. Append resource to disposeCapability.[[DisposableResourceStack]].
     // NB: Creating the resource can run JavaScript, so the capability is only borrowed to append to it.
     dispose_capability
-        .borrow_mut()
+        .borrow_mut(vm)
         .disposable_resource_stack
         .get_or_insert_with(Vec::new)
         .push(resource);
@@ -2417,7 +2417,7 @@ pub fn dispose_resources(
     //    collection, at this point.
 
     // 6. Set disposeCapability.[[DisposableResourceStack]] to a new empty List.
-    dispose_capability.borrow_mut().disposable_resource_stack = None;
+    dispose_capability.borrow_mut(vm).disposable_resource_stack = None;
 
     // 7. Return completion.
     completion

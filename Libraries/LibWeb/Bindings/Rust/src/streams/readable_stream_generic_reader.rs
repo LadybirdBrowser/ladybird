@@ -184,7 +184,7 @@ pub(crate) fn readable_stream_reader_generic_release(vm: &Vm, reader: ReadableSt
             ReadableStreamDefaultController::release_steps(controller);
         }
         ReadableStreamController::ReadableByteStreamController(controller) => {
-            ReadableByteStreamController::release_steps(controller);
+            ReadableByteStreamController::release_steps(vm, controller);
         }
     }
 

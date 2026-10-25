@@ -171,8 +171,8 @@ impl GraphLoadingState {
         self.visited.borrow().contains(&module)
     }
 
-    pub fn append_to_visited(&self, module: Gc<CyclicModule>) {
-        self.visited.borrow_mut().push(module);
+    pub fn append_to_visited(&self, vm: &Vm, module: Gc<CyclicModule>) {
+        self.visited.borrow_mut(vm).push(module);
     }
 
     /// The modules of [[Visited]], kept alive by the returned list.
@@ -490,7 +490,7 @@ pub fn finish_loading_imported_module(
         // b. Else,
         if !found_record {
             // i. Append the LoadedModuleRequest Record { [[Specifier]]: moduleRequest.[[Specifier]], [[Attributes]]: moduleRequest.[[Attributes]], [[Module]]: result.[[Value]] } to referrer.[[LoadedModules]].
-            loaded_modules.borrow_mut().push(LoadedModuleRequest {
+            loaded_modules.borrow_mut(vm).push(LoadedModuleRequest {
                 specifier: Utf16String::from(&module_request.module_specifier),
                 attributes: module_request.attributes.clone(),
                 module,

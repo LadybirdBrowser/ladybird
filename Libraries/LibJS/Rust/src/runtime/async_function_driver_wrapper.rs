@@ -139,7 +139,7 @@ impl AsyncFunctionDriverWrapper {
                 .running_execution_context_if_any()
                 .expect("an async function awaits in an execution context")
                 .copy_without_values();
-            *this.suspended_execution_context.borrow_mut() = Some(copy);
+            *this.suspended_execution_context.borrow_mut(vm) = Some(copy);
         }
 
         // OPTIMIZATION: Fast path for non-thenable values.

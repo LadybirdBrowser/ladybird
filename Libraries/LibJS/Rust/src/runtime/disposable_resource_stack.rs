@@ -160,7 +160,7 @@ impl DisposableResourceStack {
             }
 
             self.dispose_capability
-                .borrow_mut()
+                .borrow_mut(vm)
                 .disposable_resource_stack
                 .as_mut()
                 .expect("the stack has the resource")
@@ -211,7 +211,7 @@ impl DisposableResourceStack {
 
         // 6. NOTE: At this point disposableResourceStack will never be used again. The contents of
         //    disposableResourceStack can be discarded in implementations, such as by garbage collection.
-        self.dispose_capability.borrow_mut().disposable_resource_stack = None;
+        self.dispose_capability.borrow_mut(vm).disposable_resource_stack = None;
 
         // 7. Return ? outputCompletion.
         let output_completion_value = self.output_completion_value.get();

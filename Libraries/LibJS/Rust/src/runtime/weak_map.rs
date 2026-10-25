@@ -11,8 +11,8 @@ use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
-use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::sweep::Sweep;
+use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak_container::WeakContainer;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -104,7 +104,7 @@ impl WeakMap {
     }
 
     pub fn weak_map_set(&self, vm: &Vm, key: Gc<CellHeader>, value: Value) {
-        let mut values = self.values.borrow_mut();
+        let mut values = self.values.borrow_mut(vm);
         let old_size = values.0.allocation_size();
         values.0.insert(key, value);
         let new_size = values.0.allocation_size();
@@ -112,8 +112,8 @@ impl WeakMap {
         vm.heap().account_external_memory_change(old_size, new_size);
     }
 
-    pub fn weak_map_remove(&self, key: Gc<CellHeader>) -> bool {
-        self.values.borrow_mut().0.remove(&key).is_some()
+    pub fn weak_map_remove(&self, vm: &Vm, key: Gc<CellHeader>) -> bool {
+        self.values.borrow_mut(vm).0.remove(&key).is_some()
     }
 
     pub fn weak_map_size(&self) -> usize {
@@ -125,6 +125,10 @@ impl WeakMap {
             .as_gc()
             .downcast::<WeakMap>()
             .expect("the weak container is a WeakMap");
-        weak_map.values.borrow_mut().0.retain(|&key, _| !sweep.is_dead(key));
+        weak_map
+            .values
+            .borrow_mut_in_sweep(sweep)
+            .0
+            .retain(|&key, _| !sweep.is_dead(key));
     }
 }
