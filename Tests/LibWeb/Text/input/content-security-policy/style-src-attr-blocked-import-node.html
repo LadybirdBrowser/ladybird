@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="source" style="color: red"></div>
+<div id="cssom"></div>
+<script>
+    asyncTest(done => {
+        cssom.style.color = "red";
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `<!DOCTYPE html><meta http-equiv="Content-Security-Policy" content="style-src-attr 'none'"><body></body>`;
+        iframe.onload = () => {
+            const destination = iframe.contentDocument;
+            const destinationWindow = iframe.contentWindow;
+            const color = element => destinationWindow.getComputedStyle(element).color;
+
+            println(`Source: "${source.style.color}" ${getComputedStyle(source).color}`);
+
+            const detached = destination.createElement("div");
+            detached.setAttribute("style", "color: red");
+            destination.body.append(detached);
+            println(`Set while not connected: "${detached.style.color}" ${color(detached)}`);
+
+            const imported = destination.importNode(source);
+            destination.body.append(imported);
+            println(`Imported: "${imported.style.color}" ${color(imported)}`);
+
+            const importedCSSOM = destination.importNode(cssom);
+            destination.body.append(importedCSSOM);
+            println(`Imported CSSOM style: "${importedCSSOM.style.color}" ${color(importedCSSOM)}`);
+
+            const local = destination.createElement("div");
+            destination.body.append(local);
+            local.style.color = "green";
+            const localClone = local.cloneNode();
+            destination.body.append(localClone);
+            println(`Clone of CSSOM style: "${localClone.style.color}" ${color(localClone)}`);
+            done();
+        };
+        document.body.append(iframe);
+    });
+</script>
