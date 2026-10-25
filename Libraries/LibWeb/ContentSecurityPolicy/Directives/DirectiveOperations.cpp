@@ -956,16 +956,20 @@ enum class NonceableResult {
             auto attribute = element->attributes()->item(attribute_index);
             VERIFY(attribute);
 
-            // 1. If attribute’s name contains an ASCII case-insensitive match for "<script" or "<style", return
-            //    "Not Nonceable".
-            auto attribute_name = attribute->name().view();
-            if (attribute_name.find_code_unit_offset_ignoring_case("<script"sv).has_value() || attribute_name.find_code_unit_offset_ignoring_case("<style"sv).has_value())
+            auto contains_dangling_markup = [](Utf16View string) {
+                return string.find_code_unit_offset_ignoring_case("<link"sv).has_value()
+                    || string.find_code_unit_offset_ignoring_case("<script"sv).has_value()
+                    || string.find_code_unit_offset_ignoring_case("<style"sv).has_value();
+            };
+
+            // 1. If attribute’s name contains an ASCII case-insensitive match for "<link", "<script", or "<style",
+            //    return "Not Nonceable".
+            if (contains_dangling_markup(attribute->name().view()))
                 return NonceableResult::NotNonceable;
 
-            // 2. If attribute’s value contains an ASCII case-insensitive match for "<script" or "<style", return
-            //    "Not Nonceable".
-            auto attribute_value = attribute->value();
-            if (attribute_value.find_code_unit_offset_ignoring_case("<script"sv).has_value() || attribute_value.find_code_unit_offset_ignoring_case("<style"sv).has_value())
+            // 2. If attribute’s value contains an ASCII case-insensitive match for "<link", "<script", or "<style",
+            //    return "Not Nonceable".
+            if (contains_dangling_markup(attribute->value()))
                 return NonceableResult::NotNonceable;
         }
     }
