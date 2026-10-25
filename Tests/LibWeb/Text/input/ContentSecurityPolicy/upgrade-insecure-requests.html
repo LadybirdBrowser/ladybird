@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- The policy comes after include.js, which it would otherwise upgrade. -->
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+<script>
+    // This port serves HTTPS, so a fetch of an http: URL with it only succeeds if the request was upgraded to https:.
+    const insecureOrigin = `http://127.0.0.1:${internals.getHttpsEchoServerPort()}`;
+    const resource = `${insecureOrigin}/common/blank.html`;
+    const redirect = `${insecureOrigin}/common/redirect.py?location=${encodeURIComponent(resource)}`;
+
+    const fetchSource = `
+        async function tryFetch(url) {
+            try {
+                await fetch(url, { mode: "no-cors" });
+                return "loaded";
+            } catch {
+                return "failed";
+            }
+        }`;
+
+    function nextMessage() {
+        return new Promise(resolve => {
+            window.addEventListener("message", event => resolve(event.data), { once: true });
+        });
+    }
+
+    asyncTest(async done => {
+        eval(fetchSource);
+
+        println(`Document fetch: ${await tryFetch(resource)}`);
+        println(`Document fetch through an insecure redirect: ${await tryFetch(redirect)}`);
+
+        const blankFrame = document.createElement("iframe");
+        document.body.appendChild(blankFrame);
+        blankFrame.contentWindow.eval(fetchSource);
+        println(`about:blank iframe fetch: ${await blankFrame.contentWindow.tryFetch(resource)}`);
+
+        const srcdocFrame = document.createElement("iframe");
+        srcdocFrame.srcdoc = `<script>${fetchSource}; tryFetch("${resource}").then(result => parent.postMessage(result, "*"));<\/script>`;
+        document.body.appendChild(srcdocFrame);
+        println(`srcdoc iframe fetch: ${await nextMessage()}`);
+
+        const worker = new Worker(`data:text/javascript,${encodeURIComponent(`${fetchSource}; tryFetch("${resource}").then(postMessage);`)}`);
+        println(`data: URL worker fetch: ${await new Promise(resolve => {
+            worker.onmessage = event => resolve(event.data);
+        })}`);
+
+        // A top-level form submission to another host is upgraded, unlike other top-level navigations to it.
+        // NB: The policy upgrades requests to the HTTP echo server, so register the echo with the HTTPS one.
+        const secureServer = new HTTPTestServer(`https://127.0.0.1:${internals.getHttpsEchoServerPort()}`);
+        const formTargetURL = await secureServer.createEcho("GET", "/upgrade-insecure-requests/form-target.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<script>opener.postMessage("loaded", "*");<\/script>`,
+        });
+        const popup = window.open("about:blank", "form-target");
+        const form = document.createElement("form");
+        form.action = `${insecureOrigin}${new URL(formTargetURL).pathname}`;
+        form.target = "form-target";
+        document.body.appendChild(form);
+        form.submit();
+        // NB: A navigation that is not upgraded fails without telling this document, so give up after a while.
+        println(`Cross-host top-level form submission: ${await Promise.race([
+            nextMessage(),
+            new Promise(resolve => setTimeout(() => resolve("failed"), 2000)),
+        ])}`);
+        popup.close();
+
+        // A nested navigation is upgraded without a redirect, and the upgraded URL becomes its session history entry's.
+        const frameTargetURL = await secureServer.createEcho("GET", "/upgrade-insecure-requests/frame-target.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<script>parent.postMessage([location.href, document.URL, navigation.currentEntry.url].map(url => new URL(url).protocol).join(" "), "*");<\/script>`,
+        });
+        const navigatedFrame = document.createElement("iframe");
+        navigatedFrame.src = `${insecureOrigin}${new URL(frameTargetURL).pathname}`;
+        document.body.appendChild(navigatedFrame);
+        println(`iframe navigation location, document and history entry URL schemes: ${await Promise.race([
+            nextMessage(),
+            new Promise(resolve => setTimeout(() => resolve("failed"), 2000)),
+        ])}`);
+
+        done();
+    });
+</script>

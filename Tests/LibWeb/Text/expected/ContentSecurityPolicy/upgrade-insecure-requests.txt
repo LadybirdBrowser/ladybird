@@ -1,0 +1,7 @@
+Document fetch: failed
+Document fetch through an insecure redirect: failed
+about:blank iframe fetch: failed
+srcdoc iframe fetch: failed
+data: URL worker fetch: failed
+Cross-host top-level form submission: failed
+iframe navigation location, document and history entry URL schemes: failed

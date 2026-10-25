@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // This port serves HTTPS, so a fetch of an http: URL with it only succeeds if the request was upgraded to
+        // https:. A report-only policy must not upgrade it.
+        const resource = `http://127.0.0.1:${internals.getHttpsEchoServerPort()}/common/blank.html`;
+        try {
+            await fetch(resource, { mode: "no-cors" });
+            println("Document fetch: loaded");
+        } catch {
+            println("Document fetch: failed");
+        }
+        done();
+    });
+</script>
