@@ -108,6 +108,15 @@ private:
 
     // A cursor also has a key only flag, that indicates whether the cursor’s value is exposed via the API.
     bool m_key_only { false };
+
+    // NB: The key and primaryKey getters return the same object instance every time they are inspected, until the
+    //     cursor's key or effective key changes. These cache the converted values along with the keys they came from.
+    struct CachedKeyValue {
+        GC::Ptr<Key> key;
+        JS::Value value;
+    };
+    CachedKeyValue m_cached_key_value;
+    CachedKeyValue m_cached_primary_key_value;
 };
 
 }

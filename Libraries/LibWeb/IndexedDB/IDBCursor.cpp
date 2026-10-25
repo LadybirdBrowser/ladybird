@@ -22,17 +22,31 @@ JS::Value IDBCursor::key(JS::Realm& realm)
 {
     // The key getter steps are to return the result of converting a key to a
     // value with the cursor's current key.
-    if (auto key = current_key())
-        return convert_a_key_to_a_value(realm, *key);
+    // NOTE: If key returns an object (e.g. a Date or Array), it returns the same object instance every time it is
+    //       inspected, until the cursor's key is changed. This means that if the object is modified, those
+    //       modifications will be seen by anyone inspecting the value of the cursor. However modifying such an object
+    //       does not modify the contents of the database.
+    auto key = current_key();
+    if (!key)
+        return JS::js_undefined();
 
-    return JS::js_undefined();
+    if (m_cached_key_value.key != key)
+        m_cached_key_value = { key, convert_a_key_to_a_value(realm, *key) };
+    return m_cached_key_value.value;
 }
 
 JS::Value IDBCursor::primary_key(JS::Realm& realm)
 {
     // The primaryKey getter steps are to return the result of converting a key
     // to a value with the cursor's current effective key.
-    return convert_a_key_to_a_value(realm, effective_key());
+    // NOTE: If primaryKey returns an object (e.g. a Date or Array), it returns the same object instance every time it
+    //       is inspected, until the cursor's effective key is changed. This means that if the object is modified,
+    //       those modifications will be seen by anyone inspecting the value of the cursor. However modifying such an
+    //       object does not modify the contents of the database.
+    auto effective_key = this->effective_key();
+    if (m_cached_primary_key_value.key.ptr() != effective_key.ptr())
+        m_cached_primary_key_value = { effective_key, convert_a_key_to_a_value(realm, effective_key) };
+    return m_cached_primary_key_value.value;
 }
 
 IDBCursor::IDBCursor(CursorSourceHandle source_handle, GC::Ptr<Key> position, CursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
@@ -66,6 +80,10 @@ void IDBCursor::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_request);
 
     visitor.visit(m_value);
+    visitor.visit(m_cached_key_value.key);
+    visitor.visit(m_cached_key_value.value);
+    visitor.visit(m_cached_primary_key_value.key);
+    visitor.visit(m_cached_primary_key_value.value);
 
     m_source_handle.visit([&](auto& source) {
         visitor.visit(source);
