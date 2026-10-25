@@ -1,0 +1,71 @@
+<!doctype html>
+<title>ResizeObserver test: simple content-box observation but keep border-box size unchanged</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./resources/resizeTestHelper.js"></script>
+<body>
+<div id="log"></div>
+
+<script>
+'use strict';
+
+function test() {
+  let t = createAndAppendElement("div");
+  t.style.width = "100px";
+  t.style.height = "100px";
+
+  let helper = new ResizeTestHelper(
+    "simple content-box observation but keep border-box size unchanged",
+  [
+    {
+      setup: observer => {
+        observer.observe(t, { box: "content-box" });
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 100, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentRect.top, 0, "target top padding");
+        assert_equals(entries[0].contentRect.left, 0, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 100,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 100,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 100,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        // Keep the border-box size the same, and change the content-box size.
+        t.style.width = "92px";
+        t.style.height = "92px";
+        t.style.padding = "4px";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 92, "target width");
+        assert_equals(entries[0].contentRect.height, 92, "target height");
+        assert_equals(entries[0].contentRect.top, 4, "target top padding");
+        assert_equals(entries[0].contentRect.left, 4, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 92,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 92,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 100,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 100,
+                      "target border-box block size");
+      }
+    }
+  ]);
+  return helper.start(() => t.remove());
+}
+
+(async () => await test())();
+</script>

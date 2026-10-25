@@ -1,0 +1,44 @@
+<!doctype html>
+<title>ResizeObserver test: observations fire once with 0x0 size for non-replaced inline elements</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./resources/resizeTestHelper.js"></script>
+<body>
+<div id="log"></div>
+
+<script>
+'use strict';
+
+function test() {
+  let t = createAndAppendElement("span");
+
+  let helper = new ResizeTestHelper(
+    // See: https://drafts.csswg.org/resize-observer/#intro.
+    "observations fire once with 0x0 size for non-replaced inline elements",
+  [
+    {
+      setup: observer => {
+        observer.observe(t);
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 0, "target width");
+        assert_equals(entries[0].contentRect.height, 0, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 0,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 0,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 0,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 0,
+                      "target border-box block size");
+      }
+    }
+  ]);
+
+  return helper.start(() => t.remove());
+}
+
+(async () => await test())();
+</script>

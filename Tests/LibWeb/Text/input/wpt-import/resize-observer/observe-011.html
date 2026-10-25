@@ -1,0 +1,82 @@
+<!doctype html>
+<title>ResizeObserver test: simple border-box observation</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./resources/resizeTestHelper.js"></script>
+<body>
+<div id="log"></div>
+
+<script>
+'use strict';
+
+function test() {
+  let t = createAndAppendElement("div");
+  t.style.width = "100px";
+  t.style.height = "100px";
+
+  let helper = new ResizeTestHelper(
+    "simple border-box observation",
+  [
+    {
+      setup: observer => {
+        observer.observe(t, { box: "border-box" });
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 100, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentRect.top, 0, "target top padding");
+        assert_equals(entries[0].contentRect.left, 0, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 100,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 100,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 100,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        t.style.padding = "4px";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 100, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentRect.top, 4, "target top padding");
+        assert_equals(entries[0].contentRect.left, 4, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 100,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 108,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 108,
+                      "target border-box block size");
+      }
+    },
+    {
+      setup: observer => {
+        t.style.width = "104px";
+        t.style.height = "104px";
+        t.style.padding = "2px";
+      },
+      notify: entries => {
+        assert_unreached("the 'border-box' ResizeObserver shouldn't fire " +
+                         "for restyles that don't affect the border-box size");
+      },
+      timeout: () => {
+        // expected: 104 + 2 * 2 = 108. The border-box size is the same.
+      }
+    }
+  ]);
+  return helper.start(() => t.remove());
+}
+
+(async () => await test())();
+</script>

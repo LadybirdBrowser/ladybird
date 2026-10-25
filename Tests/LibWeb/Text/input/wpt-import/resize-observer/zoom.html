@@ -1,0 +1,55 @@
+<!doctype html>
+<link rel="help" href="https://drafts.csswg.org/css-viewport/#zoom-om">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/9398">
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<title>ResizeObserver sizes account for zoom</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<style>
+  div {
+    width: 100px;
+    height: 100px;
+    border: 5px solid;
+    padding: 5px;
+    margin: 5px;
+    box-sizing: border-box;
+  }
+</style>
+<div></div>
+<div style="zoom: 2"></div>
+<div style="zoom: 4"></div>
+<script>
+promise_test(async function() {
+  let { promise, resolve } = Promise.withResolvers();
+  let observer = new ResizeObserver(entries => {
+    resolve(entries);
+  });
+  for (let div of document.querySelectorAll("div")) {
+    observer.observe(div);
+  }
+  let entries = await promise;
+  observer.disconnect();
+  assert_equals(entries.length, 3, "Should have three entries");
+  for (let entry of entries) {
+    assert_equals(entry.contentRect.top, 5, "content-rect top should be scaled by zoom");
+    assert_equals(entry.contentRect.left, 5, "content-rect left should be scaled by zoom");
+    assert_equals(entry.contentRect.width, 80, "content-rect width should be scaled by zoom");
+    assert_equals(entry.contentRect.height, 80, "content-rect height should be scaled by zoom");
+
+    for (let sizeArray of [entry.borderBoxSize, entry.contentBoxSize, entry.devicePixelContentBoxSize]) {
+      assert_equals(sizeArray.length, 1, "Should have one box");
+    }
+    let borderBoxSize = entry.borderBoxSize[0];
+    let contentBoxSize = entry.contentBoxSize[0];
+    let devicePixelContentBoxSize = entry.devicePixelContentBoxSize[0];
+    assert_equals(borderBoxSize.inlineSize, 100, "border inline size should be scaled by zoom");
+    assert_equals(borderBoxSize.blockSize, 100, "border block size should be scaled by zoom");
+    assert_equals(contentBoxSize.inlineSize, 80, "content inline size should be scaled by zoom");
+    assert_equals(contentBoxSize.blockSize, 80, "content block size should be scaled by zoom");
+    assert_equals(devicePixelContentBoxSize.inlineSize, 80 * entry.target.currentCSSZoom * window.devicePixelRatio, "dev-px size should _not_ be scaled by zoom");
+    assert_equals(devicePixelContentBoxSize.blockSize, 80 * entry.target.currentCSSZoom * window.devicePixelRatio, "dev-px size should _not_ be scaled by zoom");
+  }
+});
+</script>
