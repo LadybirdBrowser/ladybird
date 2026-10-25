@@ -2989,6 +2989,10 @@ impl<'pass> SizingContext<'pass> {
         constraints: ContainingBlockConstraints,
         block_size: Option<CssPixels>,
     ) -> ContentInlineSizes {
+        debug_assert!(
+            formatting_context::content_inline_sizes_are_measured_by_layout(&self.callbacks, node),
+            "the content inline sizes of a horizontal box are computed without layout"
+        );
         let available_inline_size_under = |inline_size_constraint: SizeConstraint| match inline_size_constraint {
             SizeConstraint::MinContent => AvailableSize::MinContent,
             _ => AvailableSize::MaxContent,

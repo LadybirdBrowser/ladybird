@@ -2053,6 +2053,27 @@ pub(crate) fn explicit_intrinsic_inner_inline_size(facts: &NodeFacts<'_>) -> Css
     }
 }
 
+/// Whether the content inline sizes of `box_` are measured by laying it out: those of a box in a vertical writing mode,
+/// of a box that establishes an orthogonal flow, whose block size they are, and of a MathML box.
+pub(crate) fn content_inline_sizes_are_measured_by_layout(callbacks: &LayoutPass<'_>, box_: Node) -> bool {
+    StyleValues::for_node(callbacks, box_).writing_mode() != writing_mode::HORIZONTAL_TB
+        || frame_established_by(callbacks, box_).is_orthogonal_to(callbacks.frame)
+        || independent_formatting_context_type(box_, callbacks) == FormattingContextType::Math
+}
+
+fn lays_out_box_for_its_content_inline_sizes(
+    callbacks: &LayoutPass<'_>,
+    box_: Node,
+    purpose: LayoutPurpose,
+    layout_mode: LayoutMode,
+    participation: ParticipationInParentFormattingContext,
+) -> bool {
+    purpose.is_measurement()
+        && layout_mode == LayoutMode::IntrinsicSizing
+        && participation == ParticipationInParentFormattingContext::Root
+        && content_inline_sizes_are_measured_by_layout(callbacks, box_)
+}
+
 #[expect(clippy::too_many_arguments)]
 fn execute_formatting_context_run(
     purpose: LayoutPurpose,
@@ -2118,6 +2139,17 @@ fn execute_formatting_context_run(
                 body_input,
                 atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
             } = apply_root_sizing_directives(run, &input, fc_type);
+            debug_assert!(
+                !body_input.available_space.inline_size.is_intrinsic_sizing_constraint()
+                    || lays_out_box_for_its_content_inline_sizes(
+                        &callbacks,
+                        box_,
+                        purpose,
+                        layout_mode,
+                        input.participation
+                    ),
+                "only a box whose content inline sizes are measured by layout lays out under an intrinsic inline size"
+            );
 
             let body_input = if changes_frame {
                 enter_own_frame(run, body_run, &input, body_input, parent_frame, own_frame)

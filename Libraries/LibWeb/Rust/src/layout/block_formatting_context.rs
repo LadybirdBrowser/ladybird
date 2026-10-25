@@ -851,13 +851,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                     if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
                         inline_size = Some(underflow.max(CssPixels::default()));
                     } else if available_space.inline_size == AvailableSize::MinContent {
-                        if formatting_context::formatting_context_type_created_by_box(facts).is_some() {
-                            inline_size = Some(sizing.calculate_min_content_inline_size(node, constraints));
-                        }
+                        inline_size = Some(sizing.calculate_min_content_inline_size(node, constraints));
                     } else if available_space.inline_size == AvailableSize::MaxContent {
-                        if formatting_context::formatting_context_type_created_by_box(facts).is_some() {
-                            inline_size = Some(sizing.calculate_max_content_inline_size(node, constraints));
-                        }
+                        inline_size = Some(sizing.calculate_max_content_inline_size(node, constraints));
                     } else {
                         unreachable!();
                     }
@@ -2698,9 +2694,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             !self.facts(block_container).is_table_wrapper(),
             "table wrappers are laid out by layout_table_wrapper_children"
         );
-        let available_space = available_space_for_children;
         let child_input = self.child_layout_input(block_container, input, available_space_for_children);
-        let mut bottom_of_lowest_margin_box = CssPixels::default();
+        let mut dummy_bottom = CssPixels::default();
         let saved = self
             .block_offset_of_current_block_container
             .replace(Some(CssPixels::default()));
@@ -2743,21 +2738,12 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
             laid_out_children = Some((laid_out_children.map_or(child, |(first, _)| first), child));
             let invisible = self.line_clamp_reached() && !self.facts(child).is_absolutely_positioned();
-            let previous_bottom = bottom_of_lowest_margin_box;
             if invisible {
                 self.laying_out_invisible_line_clamp_content.set(true);
             }
-            self.layout_block_level_box(
-                run,
-                child,
-                block_container,
-                &mut bottom_of_lowest_margin_box,
-                child_input,
-                None,
-            );
+            self.layout_block_level_box(run, child, block_container, &mut dummy_bottom, child_input, None);
             if invisible {
                 self.laying_out_invisible_line_clamp_content.set(false);
-                bottom_of_lowest_margin_box = previous_bottom;
             }
             if let (Some(fragmentainer), Some(state)) = (fragmentainer.as_deref(), fragmentation_state.as_mut())
                 && self.fragmentation_step_after_child(fragmentainer, state, block_container, child)
@@ -2777,7 +2763,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .remove(&block_container);
         }
         self.block_offset_of_current_block_container.set(saved);
-        self.finish_block_level_children_layout(block_container, input, available_space, bottom_of_lowest_margin_box);
+        self.compute_and_store_baselines(block_container);
     }
 
     fn fragmentation_step_before_child(
@@ -3762,7 +3748,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             ..input
         };
         let caption_input = self.child_layout_input(wrapper, input, available_space_for_children);
-        let mut bottom_of_lowest_margin_box = CssPixels::default();
+        let mut dummy_bottom = CssPixels::default();
         let saved = self
             .block_offset_of_current_block_container
             .replace(Some(CssPixels::default()));
@@ -3773,88 +3759,16 @@ impl<'pass> BlockFormattingContext<'pass> {
                 caption_input
             };
             let invisible = self.line_clamp_reached() && !self.facts(child).is_absolutely_positioned();
-            let previous_bottom = bottom_of_lowest_margin_box;
             if invisible {
                 self.laying_out_invisible_line_clamp_content.set(true);
             }
-            self.layout_block_level_box(run, child, wrapper, &mut bottom_of_lowest_margin_box, child_input, None);
+            self.layout_block_level_box(run, child, wrapper, &mut dummy_bottom, child_input, None);
             if invisible {
                 self.laying_out_invisible_line_clamp_content.set(false);
-                bottom_of_lowest_margin_box = previous_bottom;
             }
         }
         self.block_offset_of_current_block_container.set(saved);
-        self.finish_block_level_children_layout(
-            wrapper,
-            input,
-            available_space_for_children,
-            bottom_of_lowest_margin_box,
-        );
-    }
-
-    fn finish_block_level_children_layout(
-        &self,
-        block_container: Node,
-        input: LayoutInput,
-        available_space: AvailableSpace,
-        bottom_of_lowest_margin_box: CssPixels,
-    ) {
-        if self.run.layout_mode == LayoutMode::IntrinsicSizing && !self.used(block_container).has_definite_inline_size()
-        {
-            let mut inline_size = self.greatest_child_inline_size_including_floats(block_container);
-            let style = self.style(block_container);
-            // NOTE: Min and max constraints are not applied to a box that is being sized as intrinsic because
-            //       according to css-sizing-3 spec:
-            //       The min-content size of a box in each axis is the size it would have if it was a float given an
-            //       auto size in that axis (and no minimum or maximum size in that axis) and if its containing block
-            //       was zero-sized in that axis.
-            if self.used(block_container).inline_size_constraint.get() == SizeConstraint::None {
-                let sizing = self.sizing();
-                // https://drafts.csswg.org/css-values-5/#calc-size
-                // For the purpose of sizing (including for intrinsic size contributions), calc-size() resolves to the
-                // result of its calc-size calculation.
-                if style.width().is_auto() {
-                    inline_size = sizing.resolve_calc_size(
-                        block_container,
-                        SizingAxis::Inline,
-                        style.width(),
-                        inline_size,
-                        input.containing_block_constraints.percentage_basis_inline_size,
-                    );
-                }
-                if !sizing.should_treat_max_inline_size_as_none(
-                    block_container,
-                    available_space.inline_size,
-                    input.containing_block_constraints,
-                ) {
-                    inline_size = inline_size.min(sizing.calculate_inner_inline_size(
-                        block_container,
-                        available_space.inline_size,
-                        style.max_width(),
-                        input.containing_block_constraints,
-                    ));
-                }
-                if let Some(limits) = sizing.transferred_inline_size_limits(
-                    block_container,
-                    available_space,
-                    input.containing_block_constraints,
-                ) {
-                    inline_size = limits.clamp(inline_size);
-                }
-                if !crate::layout::sizing_context::is_plain_auto(style.min_width()) {
-                    inline_size = inline_size.max(sizing.calculate_inner_inline_size(
-                        block_container,
-                        available_space.inline_size,
-                        style.min_width(),
-                        input.containing_block_constraints,
-                    ));
-                }
-            }
-            let used = self.used(block_container);
-            used.set_content_inline_size(inline_size);
-            used.set_content_block_size(bottom_of_lowest_margin_box);
-        }
-        self.compute_and_store_baselines(block_container);
+        self.compute_and_store_baselines(wrapper);
     }
 
     // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
@@ -3869,12 +3783,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         let legend = self.facts(fieldset).rendered_legend();
         assert!(!legend.is_invalid());
 
+        let mut dummy_bottom = CssPixels::default();
         // Lay out the legend to determine its dimensions.
         {
             let saved = self
                 .block_offset_of_current_block_container
                 .replace(Some(CssPixels::default()));
-            let mut dummy_bottom = CssPixels::default();
             self.layout_block_level_box(run, legend, fieldset, &mut dummy_bottom, child_input, None);
             self.block_offset_of_current_block_container.set(saved);
         }
@@ -3891,62 +3805,21 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         // Lay out non-legend children below the legend accommodation.
         self.margin_state.borrow_mut().reset();
-        let mut bottom_of_lowest_margin_box = CssPixels::default();
         {
             let saved = self.block_offset_of_current_block_container.replace(Some(extra_top));
             for child in self.children(fieldset) {
                 if child != legend {
                     let invisible = self.line_clamp_reached() && !self.facts(child).is_absolutely_positioned();
-                    let previous_bottom = bottom_of_lowest_margin_box;
                     if invisible {
                         self.laying_out_invisible_line_clamp_content.set(true);
                     }
-                    self.layout_block_level_box(
-                        run,
-                        child,
-                        fieldset,
-                        &mut bottom_of_lowest_margin_box,
-                        child_input,
-                        None,
-                    );
+                    self.layout_block_level_box(run, child, fieldset, &mut dummy_bottom, child_input, None);
                     if invisible {
                         self.laying_out_invisible_line_clamp_content.set(false);
-                        bottom_of_lowest_margin_box = previous_bottom;
                     }
                 }
             }
             self.block_offset_of_current_block_container.set(saved);
-        }
-
-        if self.run.layout_mode == LayoutMode::IntrinsicSizing && !self.used(fieldset).has_definite_inline_size() {
-            let mut inline_size = self.greatest_child_inline_size_including_floats(fieldset);
-            let style = self.style(fieldset);
-            if self.used(fieldset).inline_size_constraint.get() == SizeConstraint::None {
-                let sizing = self.sizing();
-                if !sizing.should_treat_max_inline_size_as_none(
-                    fieldset,
-                    available_space.inline_size,
-                    input.containing_block_constraints,
-                ) {
-                    inline_size = inline_size.min(sizing.calculate_inner_inline_size(
-                        fieldset,
-                        available_space.inline_size,
-                        style.max_width(),
-                        input.containing_block_constraints,
-                    ));
-                }
-                if !crate::layout::sizing_context::is_plain_auto(style.min_width()) {
-                    inline_size = inline_size.max(sizing.calculate_inner_inline_size(
-                        fieldset,
-                        available_space.inline_size,
-                        style.min_width(),
-                        input.containing_block_constraints,
-                    ));
-                }
-            }
-            let used = self.used(fieldset);
-            used.set_content_inline_size(inline_size);
-            used.set_content_block_size(bottom_of_lowest_margin_box);
         }
 
         // The element is expected to be positioned in the block-flow direction such that its border box is centered over
