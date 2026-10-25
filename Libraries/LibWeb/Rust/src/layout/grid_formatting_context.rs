@@ -1099,6 +1099,8 @@ pub(crate) struct GridFormattingContext<'pass> {
     // Set once the rows are sized, so that the columns can be resolved again with percentage heights resolved against
     // them.
     use_row_sizes_for_column_percentages: bool,
+    // Whether resolving column item sizes transfers the stretched block sizes of replaced items to their inline sizes.
+    transfer_stretched_block_sizes: bool,
     // Whether the grid's columns run vertically and its rows horizontally, as they do in a vertical writing mode.
     grid_axes_are_transposed: bool,
     // Whether the Column and Row axes run from right to left and from bottom to top, respectively.
@@ -1204,6 +1206,7 @@ impl<'pass> GridFormattingContext<'pass> {
             row_alignment_container_size: CssPixels::default(),
             use_row_alignment_container_size: false,
             use_row_sizes_for_column_percentages: false,
+            transfer_stretched_block_sizes: false,
             grid_axes_are_transposed: geometry::Frame::of(container_style.writing_mode())
                 .is_orthogonal_to(run.callbacks.frame),
             columns_are_reversed: !geometry::start_is_low_side_in_frame(
@@ -3536,6 +3539,46 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn resolve_item_sizes(&mut self, axis: Axis) {
         self.resolve_sizes_of_items_where(axis, |_| true);
+        if axis.is_column() {
+            return;
+        }
+        // NB: A replaced item stretched in the row axis has its automatic inline size transferred from the stretched
+        //     block size through its aspect ratio, which is only known once the rows are sized.
+        let transferring_items: Vec<Node> = self
+            .items
+            .iter()
+            .filter(|&&item| self.inline_size_transfers_from_stretched_block_size(item))
+            .map(|item| item.box_)
+            .collect();
+        if !transferring_items.is_empty() {
+            self.transfer_stretched_block_sizes = true;
+            self.resolve_sizes_of_items_where(Axis::Column, |item| transferring_items.contains(&item.box_));
+            self.transfer_stretched_block_sizes = false;
+        }
+    }
+
+    // https://drafts.csswg.org/css-grid-2/#grid-item-sizing
+    // stretch: Use the inline size calculation rules for non-replaced boxes (defined in CSS 2 § 10.3.3 Block-level,
+    //          non-replaced elements in normal flow), i.e. the stretch-fit size.
+    // NB: This applies to replaced items too, which are otherwise sized by their natural size.
+    fn replaced_item_is_explicitly_stretched(&self, item: GridItem, axis: Axis) -> bool {
+        self.facts(item.box_).is_replaced_box()
+            && self.item_alignment(item, axis) == Alignment::Stretch
+            && self.item_is_stretched(item, axis)
+    }
+
+    /// Whether the automatic size of a replaced item in the given axis follows, through its aspect ratio, the size it
+    /// is stretched to in the other axis.
+    fn size_transfers_from_stretched_size(&self, item: GridItem, axis: Axis) -> bool {
+        let other_axis = axis.select(Axis::Row, Axis::Column);
+        self.facts(item.box_).has_preferred_aspect_ratio()
+            && self.item_preferred_size(item, axis).is_auto()
+            && !self.replaced_item_is_explicitly_stretched(item, axis)
+            && self.replaced_item_is_explicitly_stretched(item, other_axis)
+    }
+
+    fn inline_size_transfers_from_stretched_block_size(&self, item: GridItem) -> bool {
+        self.size_transfers_from_stretched_size(item, Axis::Column)
     }
 
     fn resolve_sizes_of_items_where(&mut self, axis: Axis, filter: impl Fn(GridItem) -> bool) {
@@ -3600,7 +3643,22 @@ impl<'pass> GridFormattingContext<'pass> {
             }
 
             let mut transferred_block_size = None;
-            let size = if use_replaced {
+            let size = if self.replaced_item_is_explicitly_stretched(item, axis) {
+                containing - self.item_margin_box_start(item, axis) - self.item_margin_box_end(item, axis)
+            } else if self.size_transfers_from_stretched_size(item, axis)
+                && (!axis.is_column() || self.transfer_stretched_block_sizes)
+            {
+                // NB: The item is sized consistent with the size calculation rules for block-level replaced elements,
+                //     which transfer the used size of the other axis through the aspect ratio.
+                let used = self.used(item);
+                if axis.is_column() {
+                    self.sizing()
+                        .content_inline_size_from_aspect_ratio(item.box_, used.content_block_size.get())
+                } else {
+                    self.sizing()
+                        .content_block_size_from_aspect_ratio(item.box_, used.content_inline_size.get())
+                }
+            } else if use_replaced {
                 if axis.is_column() {
                     self.sizing()
                         .compute_inline_size_for_replaced_element(item.box_, available, constraints)
