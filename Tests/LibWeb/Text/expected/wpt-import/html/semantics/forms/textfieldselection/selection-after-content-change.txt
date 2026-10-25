@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 18 tests
 
-17 Pass
-1 Fail
+18 Pass
 Pass	input out of document: selection must not change when setting the same value
 Pass	input out of document: selection must change when setting a different value
 Pass	input out of document: selection must not change when setting a value that becomes the same after the value sanitization algorithm
@@ -14,7 +13,7 @@ Pass	input in document, with focus: selection must not change when setting the s
 Pass	input in document, with focus: selection must change when setting a different value
 Pass	input in document, with focus: selection must not change when setting a value that becomes the same after the value sanitization algorithm
 Pass	textarea out of document: selection must not change when setting the same value
-Fail	textarea out of document: selection must change when setting a different value
+Pass	textarea out of document: selection must change when setting a different value
 Pass	textarea out of document: selection must not change when setting the same normalized value
 Pass	textarea in document: selection must not change when setting the same value
 Pass	textarea in document: selection must change when setting a different value
