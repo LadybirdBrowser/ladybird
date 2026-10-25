@@ -426,15 +426,14 @@ private:
         // NB: The horizontal new tab button's shape is square, so this pill is a circle.
         QPainterPath tab_path;
         tab_path.addRoundedRect(shape_rect, shape_rect.height() / 2.0, shape_rect.height() / 2.0);
-        auto hovered = underMouse();
-
-        if (isDown()) {
-            painter.setBrush(ChromeStyle::chrome_surface_pressed(palette()));
-            painter.setPen(QPen(ChromeStyle::chrome_control_border(palette()), 1));
-            painter.drawPath(tab_path);
-        } else if (hovered) {
-            painter.setBrush(tab_hover_surface(palette(), 1.0));
-            painter.setPen(Qt::NoPen);
+        // NB: Hovered and pressed, the button looks like the toolbar's buttons, though in the shape of a tab.
+        auto hovered = underMouse() && rect().contains(mapFromGlobal(QCursor::pos()));
+        if (auto colors = ChromeStyle::circular_control_frame_colors(*this); colors.has_value()) {
+            // NB: Hovered but not pressed, it lights up like the tabs beside it.
+            if (hovered && !isDown())
+                colors->background = tab_hover_surface(palette(), 1.0);
+            painter.setBrush(colors->background);
+            painter.setPen(colors->border.alpha() > 0 ? QPen(colors->border, 1) : QPen(Qt::NoPen));
             painter.drawPath(tab_path);
         }
 
