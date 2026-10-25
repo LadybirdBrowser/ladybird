@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://crbug.com/40437604">
+<style>
+#flex {
+  display: flex;
+  flex-wrap: wrap;
+  width: 10px;
+  height: 40px;
+  align-content: space-between;
+  outline: solid 1px;
+}
+#flex > div {
+  width: 10px;
+  height: 5px;
+  background: lime;
+}
+</style>
+<div id="flex">
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div id="last"></div>
+</div>
+<script>
+test(function() {
+  /* Increase the flexbox by 0.1px increments. */
+  for (let i = 0; i < 10; i++) {
+    const height = (40 + i/10) + 'px';
+    flex.style.height = height;
+    assert_equals(last.getBoundingClientRect().bottom, flex.getBoundingClientRect().bottom, height);
+  }
+}, 'The last item should match the end edge.');
+</script>
