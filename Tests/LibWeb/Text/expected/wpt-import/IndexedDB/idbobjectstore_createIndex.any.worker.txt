@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 21 tests
 
-18 Pass
-3 Fail
+20 Pass
+1 Fail
 Pass	Returns an IDBIndex and the properties are set correctly
 Pass	Attempt to create an index that requires unique values on an object store already contains duplicates
 Pass	The index is usable right after being made
 Fail	Event ordering for a later deleted index
 Pass	Empty keyPath
-Fail	Event order when unique constraint is triggered
-Fail	Event ordering for ConstraintError on request
+Pass	Event order when unique constraint is triggered
+Pass	Event ordering for ConstraintError on request
 Pass	Index can be valid keys
 Pass	IDBObjectStore.createIndex() - empty name
 Pass	If an index with the name name already exists in this object store, the implementation must throw a DOMException of type ConstraintError

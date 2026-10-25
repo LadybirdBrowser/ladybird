@@ -347,7 +347,11 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
             }
 
             // 6. If parent is a Window object, or parent is a node and target’s root is a shadow-including inclusive ancestor of parent, then:
+            // INTEROP: A parent that is neither a Window object nor a node, such as the transaction and the connection
+            //          an IndexedDB request propagates its events to, is handled like a Window object too. This keeps
+            //          the event's target as it propagates, as other browsers do.
             if (is<HTML::Window>(parent)
+                || !is<Node>(parent)
                 || (is<Node>(parent) && as<Node>(*target).root().is_shadow_including_inclusive_ancestor_of(as<Node>(*parent)))) {
                 // 1. If isActivationEvent is true, event’s bubbles attribute is true, activationTarget is null, and parent has activation behavior, then set activationTarget to parent.
                 if (is_activation_event && event.bubbles() && !activation_target && parent->has_activation_behavior())
