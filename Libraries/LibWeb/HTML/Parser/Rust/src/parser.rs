@@ -1326,9 +1326,13 @@ impl TreeBuilder {
                 return;
             }
 
+            // 1. Remove the second element on the stack of open elements from its parent node, if it has one.
+            // NB: The body element can have been removed from its parent, for example by script.
             let body = self.stack_of_open_elements[1].handle;
-            unsafe {
-                ladybird_html_parser_remove_node(body);
+            if self.parent_node(body) != 0 {
+                unsafe {
+                    ladybird_html_parser_remove_node(body);
+                }
             }
             while self.stack_of_open_elements.len() > 1 && !self.current_node_named(tag_name!("html")) {
                 self.pop_stack_node();
