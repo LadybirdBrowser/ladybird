@@ -155,26 +155,6 @@ public:
         VERIFY_NOT_REACHED();
     }
 
-    ALWAYS_INLINE CSSPixels to_px(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const
-    {
-        if (is_absolute())
-            return absolute_length_to_px();
-        if (is_font_relative())
-            return font_relative_length_to_px(font_metrics, root_font_metrics);
-        if (is_viewport_relative())
-            return viewport_relative_length_to_px(viewport_rect);
-        if (is_container_relative()) {
-            ResolutionContext context {
-                .viewport_rect = viewport_rect,
-                .font_metrics = font_metrics,
-                .root_font_metrics = root_font_metrics,
-            };
-            return CSSPixels::nearest_value_for(container_relative_length_to_px_without_rounding(context));
-        }
-
-        VERIFY_NOT_REACHED();
-    }
-
     [[nodiscard]] ALWAYS_INLINE CSSPixels absolute_length_to_px() const
     {
         return CSSPixels::nearest_value_for(absolute_length_to_px_without_rounding());
@@ -193,9 +173,7 @@ public:
         return m_unit == other.m_unit && m_value == other.m_value;
     }
 
-    CSSPixels font_relative_length_to_px(FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
     double font_relative_length_to_px_without_rounding(FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
-    CSSPixels viewport_relative_length_to_px(CSSPixelRect const& viewport_rect) const;
     double viewport_relative_length_to_px_without_rounding(CSSPixelRect const& viewport_rect) const;
     double container_relative_length_to_px_without_rounding(ResolutionContext const&) const;
 
@@ -206,63 +184,7 @@ private:
     double m_value { 0 };
 };
 
-// FIXME: This should be CSSPixelsOrAuto since it's only used after computation when lengths have been absolutized
-class LengthOrAuto {
-public:
-    LengthOrAuto(Length length)
-        : m_length(move(length))
-    {
-    }
-
-    static LengthOrAuto make_auto() { return LengthOrAuto { OptionalNone {} }; }
-
-    bool is_length() const { return m_length.has_value(); }
-    bool is_auto() const { return !m_length.has_value(); }
-
-    Length const& length() const { return m_length.value(); }
-
-    void serialize(StringBuilder& builder, SerializationMode mode = SerializationMode::Normal) const
-    {
-        if (is_auto())
-            builder.append("auto"sv);
-        else
-            m_length->serialize(builder, mode);
-    }
-
-    String to_string(SerializationMode mode = SerializationMode::Normal) const
-    {
-        StringBuilder builder;
-        serialize(builder, mode);
-        return builder.to_string_without_validation();
-    }
-
-    CSSPixels to_px_or_zero() const
-    {
-        if (is_auto())
-            return 0;
-        return m_length->absolute_length_to_px();
-    }
-
-    bool operator==(LengthOrAuto const&) const = default;
-
-private:
-    explicit LengthOrAuto(Optional<Length> maybe_length)
-        : m_length(move(maybe_length))
-    {
-    }
-
-    Optional<Length> m_length;
-};
-
 double ratio_between_font_relative_unit_and_px(LengthUnit font_relative_unit, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics);
 double ratio_between_viewport_relative_unit_and_px(LengthUnit viewport_relative_unit, CSSPixelRect const& viewport_rect);
 
 }
-
-template<>
-struct AK::Formatter<Web::CSS::LengthOrAuto> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::LengthOrAuto const& length_or_auto)
-    {
-        return Formatter<StringView>::format(builder, length_or_auto.to_string());
-    }
-};

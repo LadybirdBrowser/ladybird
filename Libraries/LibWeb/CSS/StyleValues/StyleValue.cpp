@@ -287,8 +287,6 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::create_guaranteed_inva
 
 void StyleValue::set_style_sheet(StyleSheetState* style_sheet)
 {
-    m_has_style_sheet_context = !!style_sheet;
-
     // Only the types holding nested values with document-associated state care.
     switch (type()) {
     case Type::Content:
@@ -558,17 +556,6 @@ StyleValueVector StyleValue::subdivide_into_iterations(PropertyNameAndID const& 
     if (type() == Type::ValueList)
         return as_value_list().subdivide_into_iterations(property);
     return StyleValueVector { *this };
-}
-
-i32 int_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
-{
-    if (style_value->is_integer())
-        return style_value->as_integer().integer();
-
-    if (style_value->is_calculated())
-        return style_value->as_calculated().resolve_integer({}).value();
-
-    VERIFY_NOT_REACHED();
 }
 
 double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<double> percentage_basis)

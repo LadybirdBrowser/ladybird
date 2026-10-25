@@ -111,19 +111,9 @@ Length Length::percentage_of(Percentage const& percentage) const
     return Length { percentage.as_fraction() * raw_value(), m_unit };
 }
 
-CSSPixels Length::font_relative_length_to_px(Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
-{
-    return CSSPixels::nearest_value_for(font_relative_length_to_px_without_rounding(font_metrics, root_font_metrics));
-}
-
 double Length::font_relative_length_to_px_without_rounding(Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
 {
     return ratio_between_font_relative_unit_and_px(m_unit, font_metrics, root_font_metrics) * m_value;
-}
-
-CSSPixels Length::viewport_relative_length_to_px(CSSPixelRect const& viewport_rect) const
-{
-    return CSSPixels::nearest_value_for(viewport_relative_length_to_px_without_rounding(viewport_rect));
 }
 
 double Length::viewport_relative_length_to_px_without_rounding(CSSPixelRect const& viewport_rect) const

@@ -15,8 +15,6 @@ struct SubstitutionFunctionsPresence {
     bool if_ { false };
     bool inherit { false };
     bool var { false };
-
-    bool has_any() const { return attr || dashed_function || env || if_ || inherit || var; }
 };
 
 }
