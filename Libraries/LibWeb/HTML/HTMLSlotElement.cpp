@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/ConservativeHashTable.h>
 #include <LibWeb/Bindings/HTMLSlotElement.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -123,6 +124,7 @@ void HTMLSlotElement::assign(GC::ConservativeVector<SlottableHandle> nodes)
 
     // 2. Let nodesSet be a new ordered set.
     GC::ConservativeVector<DOM::Slottable> nodes_set;
+    GC::ConservativeHashTable<GC::Ref<DOM::Node const>> nodes_in_nodes_set;
 
     // 3. For each node of nodes:
     for (auto& node_handle : nodes) {
@@ -140,7 +142,9 @@ void HTMLSlotElement::assign(GC::ConservativeVector<SlottableHandle> nodes)
         node.set_manual_slot_assignment(this);
 
         // 3. Append node to nodesSet.
-        nodes_set.append(slottable);
+        // NB: nodesSet is an ordered set, so a node that is already in it is not appended again.
+        if (nodes_in_nodes_set.set(node_handle.visit([](auto& node) -> GC::Ref<DOM::Node const> { return *node; })) == HashSetResult::InsertedNewEntry)
+            nodes_set.append(slottable);
     }
 
     // 4. Set this's manually assigned nodes to nodesSet.
