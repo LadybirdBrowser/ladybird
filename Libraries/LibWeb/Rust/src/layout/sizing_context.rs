@@ -356,7 +356,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         node: Node,
         natural_size: formatting_context::ReplacedIntrinsicSize,
         dimension: formatting_context::SizeDimension,
-        constraints: formatting_context::ReplacedMaxContentSizeConstraints,
+        constraints: formatting_context::ReplacedMaxContentSizeLimits,
     ) -> Option<CssPixels> {
         // https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes
         // the intrinsic sizes of replaced elements without natural sizes are defined below:
@@ -1939,13 +1939,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-        layout_mode: LayoutMode,
         layout_builds_fragments: bool,
     ) -> Option<std::sync::Arc<fragment_tree::Fragment>> {
         if layout_builds_fragments && let Some(fragment) = self.try_reuse_empty_atomic_root_metrics(node) {
             return Some(fragment);
         }
-        self.dimension_empty_atomic_root_fresh(node, available_space, constraints, layout_mode);
+        self.dimension_empty_atomic_root_fresh(node, available_space, constraints);
         None
     }
 
@@ -1990,7 +1989,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-        layout_mode: LayoutMode,
     ) {
         self.dimension_atomic_root(node, available_space, constraints, false);
         self.resolve_used_block_size_if_treated_as_auto(
@@ -2000,9 +1998,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             Some(CssPixels::default()),
             || unreachable!("an empty atomic block has a zero automatic content block size"),
         );
-        if layout_mode == LayoutMode::Normal
-            && !self.box_is_sized_as_replaced_element(node, available_space, constraints)
-        {
+        if !self.box_is_sized_as_replaced_element(node, available_space, constraints) {
             self.resolve_used_block_size_if_not_treated_as_auto(node, available_space, constraints);
         }
     }
@@ -2724,7 +2720,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 node,
                 auto_size,
                 formatting_context::SizeDimension::Inline,
-                formatting_context::ReplacedMaxContentSizeConstraints::default(),
+                formatting_context::ReplacedMaxContentSizeLimits::default(),
             )
         {
             return answered_from_style(fallback);
@@ -2836,7 +2832,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 style.min_height(),
                 formatting_context::CyclicPercentageSizeProperty::MinSize,
             );
-            let replaced_constraints = formatting_context::ReplacedMaxContentSizeConstraints {
+            let replaced_constraints = formatting_context::ReplacedMaxContentSizeLimits {
                 definite_size_in_ratio_determining_axis: definite_block_size,
                 minimum_inline_size: definite_minimum_inline_size,
                 minimum_block_size: definite_minimum_block_size,
@@ -2998,24 +2994,19 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             formatting_context::content_inline_sizes_are_measured_by_layout(&self.callbacks, node),
             "the content inline sizes of a horizontal box are computed without layout"
         );
-        let available_inline_size_under = |inline_size_constraint: SizeConstraint| match inline_size_constraint {
-            SizeConstraint::MinContent => AvailableSize::MinContent,
-            _ => AvailableSize::MaxContent,
-        };
         let content_size_named_by_grid_maximum_inline_size =
             if formatting_context::independent_formatting_context_type(node, &self.callbacks)
                 == formatting_context::FormattingContextType::Grid
             {
                 intrinsic_sizing::content_size_named_by_maximum_inline_size(&self.callbacks, node)
             } else {
-                SizeConstraint::None
+                None
             };
-        let lay_out_under = |inline_size_constraint: SizeConstraint,
-                             content_size_named_by_maximum: Option<CssPixels>| {
+        let lay_out_under = |available_inline_size: AvailableSize, content_size_named_by_maximum: Option<CssPixels>| {
             let scope = intrinsic_sizing::ContentSizingScope::new(&self.callbacks, node, constraints, block_size);
             let mut input = LayoutInput::new(
                 AvailableSpace {
-                    inline_size: available_inline_size_under(inline_size_constraint),
+                    inline_size: available_inline_size,
                     block_size: scope.available_block_size(),
                 },
                 constraints,
@@ -3025,11 +3016,13 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 self.apply_transferred_limits_to_intrinsic_inline_size(
                     node,
                     clamp_to_max_dimension_value(content_size),
-                    available_inline_size_under(content_size_named_by_grid_maximum_inline_size),
+                    intrinsic_sizing::available_inline_size_under_content_size_named_by_maximum(
+                        content_size_named_by_grid_maximum_inline_size,
+                    ),
                     constraints,
                 )
             });
-            formatting_context::MeasurementState::create(self.callbacks).run(node, scope.root(), input)
+            formatting_context::run_root_without_parent_fragments(self.callbacks, node, scope.root(), input)
         };
         let (min_content_result, max_content_result) =
             intrinsic_sizing::measure_under_each_inline_size_constraint_named_maximum_first(
@@ -3111,7 +3104,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let result = if let Some(child_run_shapes) = self.child_run_shapes
             && let Some(shape) = child_run_shapes.child_run_shape_at(node, inline_size, constraints)
         {
-            formatting_context::lay_out_shape_for_its_result(self.callbacks, shape, LayoutMode::Normal)
+            formatting_context::lay_out_shape_for_its_result(self.callbacks, shape)
         } else {
             let _trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
             self.measure_block_size_with_normal_layout(node, inline_size, constraints)
@@ -3271,7 +3264,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             node,
             auto_size,
             formatting_context::SizeDimension::Block,
-            formatting_context::ReplacedMaxContentSizeConstraints::default(),
+            formatting_context::ReplacedMaxContentSizeLimits::default(),
         ) {
             return fallback;
         }
@@ -3443,7 +3436,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 let table_run = FormattingContextRun {
                     records,
                     box_: table_box,
-                    layout_mode: LayoutMode::IntrinsicSizing,
                     callbacks,
                     should_collect_devtools_layout_data: false,
                     treat_block_axis_percentage_insets_as_auto_beyond_root: false,
@@ -3488,7 +3480,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             containing_block_inline_size,
             table_constraints,
             |table_run, table_used| {
-                let mut table = table_formatting_context::TableFormattingContext::new(table_run);
+                let mut table = table_formatting_context::TableFormattingContext::new(
+                    table_run,
+                    table_formatting_context::AutoTableInlineSize::ShrinksToFitAvailableInlineSize,
+                );
                 let table_available = table_used.available_inner_space_or_constraints_from(available_space);
                 table.run_until_inline_size_calculation(
                     LayoutInput::new(
@@ -3531,15 +3526,18 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 indefinite_containing_block_inline_size,
                 table_wrapper_constraints,
                 |table_run, _| {
-                    let sizes = table_formatting_context::TableFormattingContext::new(table_run)
-                        .border_box_inline_sizes(LayoutInput::new(
-                            AvailableSpace {
-                                inline_size: AvailableSize::MaxContent,
-                                block_size: available_block_size,
-                            },
-                            table_wrapper_constraints,
-                            ParticipationInParentFormattingContext::Root,
-                        ));
+                    let sizes = table_formatting_context::TableFormattingContext::new(
+                        table_run,
+                        table_formatting_context::AutoTableInlineSize::ShrinksToFitAvailableInlineSize,
+                    )
+                    .border_box_inline_sizes(LayoutInput::new(
+                        AvailableSpace {
+                            inline_size: AvailableSize::MaxContent,
+                            block_size: available_block_size,
+                        },
+                        table_wrapper_constraints,
+                        ParticipationInParentFormattingContext::Root,
+                    ));
                     (
                         table_run.box_,
                         sizes,

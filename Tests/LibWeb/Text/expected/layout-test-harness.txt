@@ -8,7 +8,6 @@ PASS: bypass is different from a miss
 PASS: extra pass
 PASS: nested work
 PASS: repeated run
-PASS: intrinsic sizing
 PASS: traces mutation, flush and checks
 PASS: stops tracing after a throwing mutation
 PASS: stops tracing after a failed check

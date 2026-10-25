@@ -2805,7 +2805,10 @@ impl<'pass> GridFormattingContext<'pass> {
         if !axis.is_column() && self.own_block_size_is_being_measured() {
             return true;
         }
-        self.run.layout_mode == LayoutMode::IntrinsicSizing && maximum.calc_size().is_some()
+        self.container_available_space()
+            .inline_size
+            .is_intrinsic_sizing_constraint()
+            && maximum.calc_size().is_some()
     }
 
     fn own_block_size_is_being_measured(&self) -> bool {
@@ -3027,9 +3030,9 @@ impl<'pass> GridFormattingContext<'pass> {
         subgrid: GridItem,
         measure: impl for<'a> FnOnce(&mut GridFormattingContext<'a>, &FormattingContextRun<'a>) -> R,
     ) -> R {
-        let scratch = formatting_context::MeasurementState::create(self.run.callbacks);
         let live = self.used(subgrid);
-        let scratch_root = scratch.create_used_values(subgrid.box_, ContainingBlockConstraints::default());
+        let scratch_root =
+            used_values::create_used_values(&self.run.callbacks, subgrid.box_, ContainingBlockConstraints::default());
         live.mirror_box_metrics_into(&scratch_root);
         scratch_root
             .has_definite_inline_size
@@ -3047,7 +3050,6 @@ impl<'pass> GridFormattingContext<'pass> {
                 let scratch_run = FormattingContextRun {
                     records,
                     box_: subgrid.box_,
-                    layout_mode: LayoutMode::Normal,
                     callbacks,
                     should_collect_devtools_layout_data: false,
                     treat_block_axis_percentage_insets_as_auto_beyond_root: false,
@@ -4124,8 +4126,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn offers_item_runs_to_row_measurements(&self) -> bool {
         let available = self.layout_input.unwrap().available_space;
-        self.run.layout_mode == LayoutMode::Normal
-            && !self.run.should_collect_devtools_layout_data
+        !self.run.should_collect_devtools_layout_data
             && !available.inline_size.is_intrinsic_sizing_constraint()
             && !available.block_size.is_intrinsic_sizing_constraint()
             && self.style(self.run.box_).writing_mode() == writing_mode::HORIZONTAL_TB
@@ -4219,15 +4220,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 // grid area in both axes for the table's percentage resolution.
                 input.containing_block_constraints.percentage_basis_inline_size = Some(inline_basis);
             }
-            match formatting_context::layout_inside_child(
-                run,
-                None,
-                Some(self),
-                item.box_,
-                LayoutMode::Normal,
-                input,
-                false,
-            ) {
+            match formatting_context::layout_inside_child(run, None, Some(self), item.box_, input, false) {
                 ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped => {}
                 ChildLayoutOutcome::ReenterCurrent => {
                     self.run(run, input);
@@ -4617,20 +4610,6 @@ impl<'pass> GridFormattingContext<'pass> {
 
     pub(crate) fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         let available = input.available_space;
-        // OPTIMIZATION: If we're in intrinsic sizing layout, but the grid container is not the
-        //               box being measured, we can skip everything here.
-        //               The parent formatting context has already figured out our size anyway.
-        //               However, an inline-level container must still lay out its items, since the
-        //               parent inline formatting context derives the fragment's baseline from them.
-        //               An automatic block size must also be computed here, since a parent block
-        //               formatting context takes it from our run.
-        if self.run.layout_mode == LayoutMode::IntrinsicSizing
-            && !available.inline_size.is_intrinsic_sizing_constraint()
-            && !self.facts(self.run.box_).display().is_inline_outside()
-            && self.container_used().has_definite_block_size()
-        {
-            return;
-        }
         self.reset_for_run(input);
         let grid_style = self.grid_style(self.run.box_);
         self.cache_subgrid_axes(grid_style);
@@ -4662,13 +4641,14 @@ impl<'pass> GridFormattingContext<'pass> {
         self.row_alignment_container_size = self.automatic_content_block_size;
         self.use_row_alignment_container_size = false;
         let intrinsic_block_size = self.automatic_content_block_size;
-        if self.run.layout_mode == LayoutMode::Normal && available.block_size == AvailableSize::Indefinite {
+        let lays_out_under_intrinsic_inline_size = available.inline_size.is_intrinsic_sizing_constraint();
+        if !lays_out_under_intrinsic_inline_size && available.block_size == AvailableSize::Indefinite {
             let resolved_block_size = self.used_container_block_size_for_second_row_layout();
             self.rerun_rows_with_container_block_size(resolved_block_size);
             self.row_alignment_container_size = resolved_block_size;
             self.use_row_alignment_container_size = true;
             self.automatic_content_block_size = intrinsic_block_size;
-        } else if self.run.layout_mode == LayoutMode::Normal
+        } else if !lays_out_under_intrinsic_inline_size
             && let AvailableSize::Definite(block_size) = available.block_size
             && self.sizing().should_treat_block_size_as_auto(
                 self.run.box_,
@@ -4732,9 +4712,6 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     pub(crate) fn parent_did_dimension(&self) {
-        if self.run.layout_mode != LayoutMode::Normal {
-            return;
-        }
         // https://drafts.csswg.org/css-grid-2/#static-position
         // The static position of an absolutely-positioned child of a grid container is determined as if it were the
         // sole grid item in a grid area whose edges coincide with the content edges of the grid container.

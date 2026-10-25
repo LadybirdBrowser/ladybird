@@ -6,15 +6,6 @@
 
 use super::*;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(u8)]
-pub(crate) enum SizeConstraint {
-    #[default]
-    None,
-    MinContent,
-    MaxContent,
-}
-
 pub use crate::css::css_pixels::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

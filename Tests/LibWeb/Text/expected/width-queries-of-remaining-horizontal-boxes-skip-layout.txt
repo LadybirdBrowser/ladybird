@@ -1,12 +1,12 @@
-inline-table-among-blocks: 1 inline misses answered from children, 0 runs under them, 0 intrinsic runs of the box, width 100
-inline-table-among-blocks-at-min-content: 1 inline misses answered from children, 0 runs under them, 0 intrinsic runs of the box, width 50
-inline-fieldset: 1 inline misses answered from children, 0 runs under them, 0 intrinsic runs of the box, width 119
-fieldset-with-limited-legend: 1 inline misses answered from children, 0 runs under them, 0 intrinsic runs of the box, width 183
-line-clamp: 1 inline misses answered from children, 0 runs under them, 0 intrinsic runs of the box, width 160
-grid-limited-to-min-content: 1 inline misses answered from grid tracks, 0 runs under them, 0 intrinsic runs of the box, width 100
-grid-limited-to-max-content: 1 inline misses answered from grid tracks, 0 runs under them, 0 intrinsic runs of the box, width 150
-grid-limited-to-min-content-in-fixed-width-box: 1 inline misses answered from grid tracks, 0 runs under them, 0 intrinsic runs of the box, width 100
-grid-limited-to-max-content-in-fixed-width-box: 1 inline misses answered from grid tracks, 0 runs under them, 0 intrinsic runs of the box, width 150
-svg-without-natural-size: 1 inline misses answered from replaced content, 0 runs under them, 0 intrinsic runs of the box, width 200
-contained-with-ratio: 0 inline misses answered from nothing, 0 runs under them, 0 intrinsic runs of the box, width 50
-block-ruby: 1 inline misses answered from replaced content, 0 runs under them, 0 intrinsic runs of the box, width 0
+inline-table-among-blocks: 1 inline misses answered from children, 0 runs under them, width 100
+inline-table-among-blocks-at-min-content: 1 inline misses answered from children, 0 runs under them, width 50
+inline-fieldset: 1 inline misses answered from children, 0 runs under them, width 119
+fieldset-with-limited-legend: 1 inline misses answered from children, 0 runs under them, width 183
+line-clamp: 1 inline misses answered from children, 0 runs under them, width 160
+grid-limited-to-min-content: 1 inline misses answered from grid tracks, 0 runs under them, width 100
+grid-limited-to-max-content: 1 inline misses answered from grid tracks, 0 runs under them, width 150
+grid-limited-to-min-content-in-fixed-width-box: 1 inline misses answered from grid tracks, 0 runs under them, width 100
+grid-limited-to-max-content-in-fixed-width-box: 1 inline misses answered from grid tracks, 0 runs under them, width 150
+svg-without-natural-size: 1 inline misses answered from replaced content, 0 runs under them, width 200
+contained-with-ratio: 0 inline misses answered from nothing, 0 runs under them, width 50
+block-ruby: 1 inline misses answered from replaced content, 0 runs under them, width 0

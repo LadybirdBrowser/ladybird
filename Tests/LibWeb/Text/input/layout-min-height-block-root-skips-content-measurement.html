@@ -13,7 +13,7 @@
     // Whether a change inside `root` has it lay out its content in a measurement run before its own layout.
     const measuresContentFirst = (root, change) => {
         const work = layoutWork(change);
-        return work.count(event => event.event === "run" && event.box.endsWith(`#${root.id}`) && event.action === "RUN" && !event.intrinsic) > 1;
+        return work.count(event => event.event === "run" && event.box.endsWith(`#${root.id}`) && event.action === "RUN") > 1;
     };
 
     test(() => {

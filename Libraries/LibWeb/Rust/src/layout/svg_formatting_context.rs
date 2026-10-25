@@ -2113,15 +2113,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 sizing: RootSizingDirectives::default(),
                 participation: ParticipationInParentFormattingContext::Item,
             };
-            match formatting_context::layout_inside_child(
-                run,
-                None,
-                None,
-                child,
-                self.run.layout_mode,
-                child_input,
-                true,
-            ) {
+            match formatting_context::layout_inside_child(run, None, None, child, child_input, true) {
                 ChildLayoutOutcome::Created(_) => {}
                 ChildLayoutOutcome::Skipped | ChildLayoutOutcome::ReenterCurrent => {
                     panic!("SVG foreign object did not create an independent formatting context")

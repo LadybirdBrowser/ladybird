@@ -5,7 +5,7 @@
  */
 
 use super::LayoutNodeArena;
-use super::formatting_context::{FormattingContextType, LayoutMode};
+use super::formatting_context::FormattingContextType;
 use super::layout_node_arena::IntrinsicSizeCacheKind;
 use super::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::render_state::DocumentHost;
@@ -184,7 +184,6 @@ impl LayoutTrace {
         &self,
         root: NodeSlotId,
         fc_type: FormattingContextType,
-        mode: LayoutMode,
         action: impl FnOnce() -> &'static str,
     ) -> Option<Scope<'_>> {
         self.scope("", Some(root), || {
@@ -199,11 +198,7 @@ impl LayoutTrace {
                 FormattingContextType::InternalReplaced => "internal-replaced",
                 FormattingContextType::InternalDummy => "internal-dummy",
             };
-            let intrinsic = match mode {
-                LayoutMode::Normal => "",
-                LayoutMode::IntrinsicSizing => " (intrinsic)",
-            };
-            format!("/{context}{intrinsic} {}", action())
+            format!("/{context} {}", action())
         })
     }
 }
@@ -409,7 +404,7 @@ mod tests {
         drop(
             arena
                 .layout_trace
-                .run(owner.slot, FormattingContextType::Block, LayoutMode::Normal, || "RUN"),
+                .run(owner.slot, FormattingContextType::Block, || "RUN"),
         );
         assert!(arena.leave_active_layout_pass());
         let names = arena

@@ -2876,8 +2876,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn offers_item_runs_to_block_size_measurements(&self) -> bool {
         let space = self.available_space_for_items.unwrap().space;
-        self.run.layout_mode == LayoutMode::Normal
-            && !self.run.should_collect_devtools_layout_data
+        !self.run.should_collect_devtools_layout_data
             && !space.inline_size.is_intrinsic_sizing_constraint()
             && self.inline_axis_is_horizontal(self.run.box_)
     }
@@ -2965,7 +2964,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             self.available_space_for_items.unwrap().space,
         );
         self.flex_items[index].content_baselines =
-            match formatting_context::layout_inside_child(run, None, None, node, LayoutMode::Normal, input, false) {
+            match formatting_context::layout_inside_child(run, None, None, node, input, false) {
                 ChildLayoutOutcome::Created(result) => result.baselines,
                 ChildLayoutOutcome::ReenterCurrent => {
                     self.run(run, input);
@@ -3724,7 +3723,11 @@ impl<'pass> FlexFormattingContext<'pass> {
         //               If this is a single-line flex container and the sum of flex bases sizes
         //               won't exceed the available space in the main axis, we know the layout
         //               algorithm won't have to shrink anything, thus not needing the minimum size.
-        let should_skip_automatic_minimum_size_clamp = self.run.layout_mode != LayoutMode::IntrinsicSizing
+        let should_skip_automatic_minimum_size_clamp = !self
+            .available_space
+            .unwrap()
+            .inline_size
+            .is_intrinsic_sizing_constraint()
             && self.is_single_line()
             && self.has_definite_main_size_used(self.container_used())
             && self
@@ -3956,9 +3959,6 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     pub(super) fn parent_did_dimension(&self) {
-        if self.run.layout_mode != LayoutMode::Normal {
-            return;
-        }
         for child in self.run.callbacks.children(self.run.box_) {
             let facts = self.facts(child);
             if facts.is_box() && facts.is_absolutely_positioned() {
