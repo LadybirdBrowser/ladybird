@@ -19,6 +19,7 @@
 #include <LibWebCommon/HTML/POSTResource.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/UpgradeInsecureRequests/InsecureRequestsPolicy.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/SessionHistory.h>
 
@@ -70,6 +71,9 @@ WEBVIEW_API ErrorOr<Web::Bindings::SecurityPolicyViolationEventDisposition> deco
 WEBVIEW_API i64 encode_csp_source(Web::ContentSecurityPolicy::PolicySource);
 WEBVIEW_API ErrorOr<Web::ContentSecurityPolicy::PolicySource> decode_csp_source(i64 tag);
 
+WEBVIEW_API i64 encode_insecure_requests_policy(Web::UpgradeInsecureRequests::InsecureRequestsPolicy);
+WEBVIEW_API ErrorOr<Web::UpgradeInsecureRequests::InsecureRequestsPolicy> decode_insecure_requests_policy(i64 tag);
+
 struct SessionHistorySnapshotStatements {
     Database::StatementID insert_history;
     Database::StatementID insert_nested_history_link;
@@ -79,6 +83,7 @@ struct SessionHistorySnapshotStatements {
     Database::StatementID insert_csp_policy;
     Database::StatementID insert_csp_directive;
     Database::StatementID insert_csp_directive_value;
+    Database::StatementID insert_upgrade_insecure_navigation;
     Database::StatementID select_histories;
     Database::StatementID select_nested_history_links;
     Database::StatementID select_entries;
@@ -87,6 +92,7 @@ struct SessionHistorySnapshotStatements {
     Database::StatementID select_csp_policies;
     Database::StatementID select_csp_directives;
     Database::StatementID select_csp_directive_values;
+    Database::StatementID select_upgrade_insecure_navigations;
     Database::StatementID delete_histories;
     Database::StatementID delete_used_steps;
 };
