@@ -913,12 +913,18 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     //         and failure, and specs like HTML's preload algorithm expect to be able to call reportTiming from
     //         within processResponseConsumeBody. So we ensure report_timing_steps is set on error too, which allows
     //         reportTiming to work without asserting, and still produces useful timing data for failed fetches.
-    auto setup_report_timing_steps = [&response, &fetch_params, timing_info] {
+    auto timing_reported = RefCountedFlag::create(false);
+    auto setup_report_timing_steps = [&response, &fetch_params, timing_info, timing_reported] {
         // 1. Let unsafeEndTime be the unsafe shared current time.
         auto unsafe_end_time = HighResolutionTime::unsafe_shared_current_time();
 
         // 2. Set fetchParams’s controller’s report timing steps to the following steps given a global object global:
-        fetch_params.controller()->set_report_timing_steps([&response, &fetch_params, timing_info, unsafe_end_time](JS::Object& global) mutable {
+        fetch_params.controller()->set_report_timing_steps([&response, &fetch_params, timing_info, unsafe_end_time, timing_reported](JS::Object& global) mutable {
+            // NB: Network completion and consuming the response body can both request a timing report.
+            if (timing_reported->value())
+                return;
+            timing_reported->set_value(true);
+
             // 1. If fetchParams’s request’s URL’s scheme is not an HTTP(S) scheme, then return.
             if (!Infrastructure::is_http_or_https_scheme(fetch_params.request()->url().scheme()))
                 return;
@@ -971,13 +977,28 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         });
     };
 
-    // 3. Let processResponseEndOfBody be the following steps:
-    auto process_response_end_of_body = [&fetch_params, &response, setup_report_timing_steps] {
+    // NB: Share step 3 of processResponseEndOfBodyTask with the network-completion timing path.
+    auto report_timing_if_appropriate = [&fetch_params] {
+        // 3. If fetchParams’s request’s initiator type is non-null and fetchParams’s request’s client’s global
+        //    object is fetchParams’s task destination, then run fetchParams’s controller’s report timing steps
+        //    given fetchParams’s request’s client’s global object.
+        // AD-HOC: Not when this fetch consumed a preload that reports its own timing. Other engines report a single
+        //         entry for a preloaded resource and its consumer.
+        auto client = fetch_params.request()->client();
+        auto const* task_destination_global_object = fetch_params.task_destination().get_pointer<GC::Ref<JS::Object>>();
+        if (client != nullptr && task_destination_global_object != nullptr && !fetch_params.preload_reports_timing()) {
+            if (fetch_params.request()->initiator_type().has_value() && &client->global_object() == task_destination_global_object->ptr())
+                fetch_params.controller()->report_timing(client->global_object());
+        }
+    };
+
+    // 4. Let processResponseEndOfBody be the following steps:
+    auto process_response_end_of_body = [&fetch_params, &response, setup_report_timing_steps, report_timing_if_appropriate] {
         // 1-2. (See setup_report_timing_steps above)
         setup_report_timing_steps();
 
-        // 4. Let processResponseEndOfBodyTask be the following steps:
-        auto process_response_end_of_body_task = GC::create_function(GC::Heap::the(), [&fetch_params, &response] {
+        // 3. Let processResponseEndOfBodyTask be the following steps:
+        auto process_response_end_of_body_task = GC::create_function(GC::Heap::the(), [&fetch_params, &response, report_timing_if_appropriate] {
             // 1. Set fetchParams’s request’s done flag.
             fetch_params.request()->set_done(true);
             end_rendering_pending_operation(fetch_params.controller().ptr());
@@ -987,24 +1008,14 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             if (fetch_params.algorithms()->process_response_end_of_body())
                 (fetch_params.algorithms()->process_response_end_of_body())(response);
 
-            // 3. If fetchParams’s request’s initiator type is non-null and fetchParams’s request’s client’s global
-            //    object is fetchParams’s task destination, then run fetchParams’s controller’s report timing steps
-            //    given fetchParams’s request’s client’s global object.
-            // AD-HOC: Not when this fetch consumed a preload that reports its own timing. Other engines report a single
-            //         entry for a preloaded resource and its consumer.
-            auto client = fetch_params.request()->client();
-            auto const* task_destination_global_object = fetch_params.task_destination().get_pointer<GC::Ref<JS::Object>>();
-            if (client != nullptr && task_destination_global_object != nullptr && !fetch_params.preload_reports_timing()) {
-                if (fetch_params.request()->initiator_type().has_value() && &client->global_object() == task_destination_global_object->ptr())
-                    fetch_params.controller()->report_timing(client->global_object());
-            }
+            report_timing_if_appropriate();
         });
 
-        // 5. Queue a fetch task to run processResponseEndOfBodyTask with fetchParams’s task destination.
+        // 4. Queue a fetch task to run processResponseEndOfBodyTask with fetchParams’s task destination.
         Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), move(process_response_end_of_body_task));
     };
 
-    // 4. If fetchParams’s process response is non-null, then queue a fetch task to run fetchParams’s process response
+    // 5. If fetchParams’s process response is non-null, then queue a fetch task to run fetchParams’s process response
     //    given response, with fetchParams’s task destination.
     if (fetch_params.algorithms()->process_response()) {
         Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(GC::Heap::the(), [&fetch_params, &response]() {
@@ -1012,8 +1023,17 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         }));
     }
 
-    // 5. Let internalResponse be response, if response is a network error; otherwise response’s internal response.
+    // 6. Let internalResponse be response, if response is a network error; otherwise response’s internal response.
     auto internal_response = response.is_network_error() ? GC::Ref { response } : response.unsafe_response();
+
+    // NB: The network can finish while an unread response body still has buffered bytes. Its timing must not
+    //     wait for the consumer to drain the stream.
+    if (internal_response->body() && fetch_params.request()->initiator_type().has_value()) {
+        internal_response->body()->when_network_complete(GC::create_function(GC::Heap::the(), [setup_report_timing_steps, report_timing_if_appropriate] {
+            setup_report_timing_steps();
+            report_timing_if_appropriate();
+        }));
+    }
 
     if (Core::StatsLog::the() && internal_response->body())
         track_rendering_pending_stream(fetch_params.controller().ptr(), *internal_response->body()->stream());
@@ -1046,11 +1066,11 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         VERIFY(!algorithms->process_response_end_of_body());
     }
 
-    // 6. If internalResponse’s body is null, then run processResponseEndOfBody.
+    // 7. If internalResponse’s body is null, then run processResponseEndOfBody.
     if (!internal_response->body()) {
         process_response_end_of_body();
     }
-    // 7. Otherwise:
+    // 8. Otherwise:
     else {
         switch (body_intent) {
         case Engine::BodyIntent::DeliverStreamToConsumerAgent:
@@ -1125,7 +1145,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         }
     }
 
-    // 8. If fetchParams’s process response consume body is non-null, then:
+    // 9. If fetchParams’s process response consume body is non-null, then:
     if (algorithms->process_response_consume_body()) {
         // 1. Let processBody given nullOrBytes be this step: run fetchParams’s process response consume body given
         //    response and nullOrBytes.
@@ -1172,7 +1192,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             auto success_steps = GC::create_function(GC::Heap::the(), [process_body, process_response_end_of_body](ByteBuffer bytes) {
-                // NB: processResponseEndOfBody runs first, as step 7's flush algorithm would have: It sets up the fetch
+                // NB: processResponseEndOfBody runs first, as step 8's flush algorithm would have: It sets up the fetch
                 //     controller's report timing steps, which the caller may invoke as soon as processBody has run.
                 process_response_end_of_body();
                 process_body->function()(move(bytes));

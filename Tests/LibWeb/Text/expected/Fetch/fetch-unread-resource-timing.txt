@@ -1,0 +1,16 @@
+body used before timing: false
+timing duration is nonnegative: true
+server timing entries: 1
+metric name: db
+metric duration: 12.5
+metric description: cache
+body content retained: true
+resource entries: true
+body used before timing: false
+timing duration is nonnegative: true
+server timing entries: 1
+metric name: db
+metric duration: 12.5
+metric description: cache
+body content retained: true
+resource entries: true

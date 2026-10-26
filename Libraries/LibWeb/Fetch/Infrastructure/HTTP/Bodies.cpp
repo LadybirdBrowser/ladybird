@@ -113,9 +113,11 @@ GC::Ref<Body> Body::create_from_source(JS::Realm& realm, FetchBody fetch_body)
     return create(stream, move(fetch_body));
 }
 
+// NB: Source-backed bodies are complete even when their streams still have queued bytes.
 Body::Body(GC::Ref<Streams::ReadableStream> stream, FetchBody fetch_body)
     : m_stream(stream)
     , m_fetch_body(move(fetch_body))
+    , m_network_complete(m_fetch_body.source().has_value() || stream->is_closed())
 {
 }
 
@@ -124,6 +126,7 @@ void Body::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_stream);
     visitor.visit(m_sniff_bytes_callback);
+    visitor.visit(m_network_complete_callback);
 }
 
 void Body::set_source(Core::ImmutableBytes source, Optional<u64> length)
@@ -170,6 +173,23 @@ void Body::notify_sniff_bytes_waiter()
         return;
     auto callback = exchange(m_sniff_bytes_callback, nullptr);
     callback->function()(sniff_bytes.value());
+}
+
+void Body::when_network_complete(ProcessEndOfBodyCallback callback)
+{
+    if (m_network_complete) {
+        callback->function()();
+        return;
+    }
+    VERIFY(!m_network_complete_callback);
+    m_network_complete_callback = callback;
+}
+
+void Body::set_network_complete()
+{
+    m_network_complete = true;
+    if (auto callback = exchange(m_network_complete_callback, nullptr))
+        callback->function()();
 }
 
 // https://fetch.spec.whatwg.org/#concept-body-clone
