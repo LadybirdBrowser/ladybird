@@ -1959,7 +1959,7 @@ impl RetainedState {
     /// against the animated values. Answers each such declaration whose value moved from the one
     /// it holds in `base`, the element's environment beneath its animations. `inheritance` is the
     /// environment the element inherits, and `finalization` computes registered values against the
-    /// element's lengths.
+    /// element's lengths. Returns an error when the declarations or their functions cannot be prepared.
     pub(crate) fn resolve_custom_properties_reading_animated_values(
         &mut self,
         node: StyleNodeID,
@@ -1971,15 +1971,18 @@ impl RetainedState {
             RetainedStyleValueData,
         )],
         finalization: CustomPropertyFinalization<'_>,
-    ) -> Vec<(
-        crate::css::retained_fly_string::RetainedUtf16FlyString,
-        RetainedStyleValueData,
-    )> {
+    ) -> Result<
+        Vec<(
+            crate::css::retained_fly_string::RetainedUtf16FlyString,
+            RetainedStyleValueData,
+        )>,
+        (),
+    > {
         if animated.is_empty() || !self.any_custom_property_is_declared() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
         let Some(cascaded) = self.cascaded_custom_declarations_of(node, pseudo) else {
-            return Vec::new();
+            return Err(());
         };
         let mut moved: HashSet<Arc<[u16]>> = animated
             .iter()
@@ -2011,7 +2014,7 @@ impl RetainedState {
             readers.push((name.clone(), declared, value));
         }
         if readers.is_empty() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
         let functions = if readers
@@ -2020,7 +2023,7 @@ impl RetainedState {
         {
             // A container condition the engine cannot decide leaves the declarations as they resolved.
             let Some(functions) = self.prepare_custom_functions(&self.document_functions, node, pseudo) else {
-                return Vec::new();
+                return Err(());
             };
             Some(functions)
         } else {
@@ -2100,9 +2103,9 @@ impl RetainedState {
             finalization,
         );
         let Some(resolved) = resolved else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
-        readers
+        let readers = readers
             .iter()
             .filter_map(|(name, _, _)| {
                 let name_raw = name.raw.raw();
@@ -2116,7 +2119,8 @@ impl RetainedState {
                     value,
                 ))
             })
-            .collect()
+            .collect();
+        Ok(readers)
     }
 
     /// What a keyframe's written value substitutes to on the element being sampled, against the
