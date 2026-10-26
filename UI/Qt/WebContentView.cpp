@@ -952,6 +952,37 @@ void WebContentView::wheelEvent(QWheelEvent* event)
     auto is_momentum_running_out = first_is_one_of(event->phase(), Qt::ScrollMomentum, Qt::ScrollEnd) && event->pixelDelta().manhattanLength() <= 1;
     if (m_screenshot_selection_overlay && !is_momentum_running_out)
         m_screenshot_selection_overlay->page_did_scroll();
+
+#ifdef AK_OS_MACOS
+    // Qt makes a second wheel event of some scroll events, with no delta and the phase and time of the first, whose
+    // phase would read as an end of the gesture, or a beginning of another, in its own right.
+    bool repeats_last_wheel_event = event->phase() == m_last_wheel_event_phase && event->timestamp() == m_last_wheel_event_timestamp;
+    m_last_wheel_event_phase = event->phase();
+    m_last_wheel_event_timestamp = event->timestamp();
+    if (repeats_last_wheel_event && event->pixelDelta().isNull() && event->angleDelta().isNull()) {
+        event->accept();
+        return;
+    }
+
+    // Qt ends a scroll if momentum hasn't already begun, and begins another with the momentum it did not see coming.
+    // Check what the underlying scroll event says: hold Qt's ScrollEnd back while momentum is about to follow it, and
+    // drop it for that momentum, labelled as such, or send it ahead of whatever else comes.
+    auto momentum_transition = take_appkit_scroll_momentum_transition_for(*event);
+    if (auto wheel_end = AK::exchange(m_wheel_end_awaiting_momentum, nullptr)) {
+        if (momentum_transition != AppKitScrollMomentumTransition::Began)
+            enqueue_native_event(Web::MouseEvent::Type::MouseWheel, *wheel_end);
+    }
+    if (momentum_transition == AppKitScrollMomentumTransition::WillBegin) {
+        m_wheel_end_awaiting_momentum.reset(event->clone());
+        event->accept();
+        return;
+    }
+    if (momentum_transition == AppKitScrollMomentumTransition::Began) {
+        enqueue_native_event(Web::MouseEvent::Type::MouseWheel, *event, Web::ScrollGesturePhase::Momentum);
+        return;
+    }
+#endif
+
     enqueue_native_event(Web::MouseEvent::Type::MouseWheel, *event);
 }
 
@@ -1857,6 +1888,12 @@ void WebContentView::hideEvent(QHideEvent* event)
     // page is visible again). So, the tab hides the link-preview label for a hidden view itself (Tab::hideEvent).
     handle_pointer_leave();
 
+#ifdef AK_OS_MACOS
+    // Qt begins the momentum after a held end as a scroll of its own, which goes to the view under the pointer.
+    if (auto wheel_end = AK::exchange(m_wheel_end_awaiting_momentum, nullptr))
+        enqueue_native_event(Web::MouseEvent::Type::MouseWheel, *wheel_end);
+#endif
+
 #if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
     // When this tab becomes inactive, deregister all its accessibility interfaces from Qt's global registry.
     deregister_accessibility_interfaces();
@@ -2298,7 +2335,7 @@ bool WebContentView::handle_vulkan_window_event(QEvent* event)
 }
 #endif
 
-void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePointEvent const& event)
+void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePointEvent const& event, Optional<Web::ScrollGesturePhase> scroll_gesture_phase_the_platform_reports)
 {
     Web::DevicePixelPoint position = { event.position().x() * m_device_pixel_ratio, event.position().y() * m_device_pixel_ratio };
     auto screen_position = Gfx::IntPoint { event.globalPosition().x() * m_device_pixel_ratio, event.globalPosition().y() * m_device_pixel_ratio };
@@ -2328,7 +2365,7 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
         wheel_tick_120ths_x = wheel_delta.tick_120ths.x();
         wheel_tick_120ths_y = wheel_delta.tick_120ths.y();
         wheel_delta_precision = wheel_delta.precision;
-        scroll_gesture_phase = scroll_gesture_phase_from_qt_event(wheel_event);
+        scroll_gesture_phase = scroll_gesture_phase_the_platform_reports.value_or(scroll_gesture_phase_from_qt_event(wheel_event));
     }
 
     enqueue_input_event(Web::MouseEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_tick_120ths_x, wheel_tick_120ths_y, wheel_delta_precision, scroll_gesture_phase, m_click_count, nullptr });

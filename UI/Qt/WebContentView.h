@@ -36,6 +36,7 @@
 #include <QTimer>
 #include <QUrl>
 #include <QVariant>
+#include <memory>
 
 #ifdef AK_OS_MACOS
 #    define LADYBIRD_QT_USE_IOSURFACE_LAYER 1
@@ -223,7 +224,8 @@ private:
 #endif
     Web::DevicePixelPoint node_picker_position_for(QSinglePointEvent const&) const;
 
-    void enqueue_native_event(Web::MouseEvent::Type, QSinglePointEvent const& event);
+    // The platform may report a phase of a wheel event's gesture that Qt does not pass on.
+    void enqueue_native_event(Web::MouseEvent::Type, QSinglePointEvent const& event, Optional<Web::ScrollGesturePhase> scroll_gesture_phase_the_platform_reports = {});
     void handle_pointer_leave();
 
     void enqueue_native_event(Web::DragEvent::Type, QDropEvent const& event);
@@ -303,6 +305,11 @@ private:
 
 #ifdef AK_OS_MACOS
     NativeTextEditingBindings m_native_text_editing_bindings;
+
+    // The end of a flick's fingers, held back while the momentum AppKit said would follow it has yet to begin.
+    std::unique_ptr<QWheelEvent> m_wheel_end_awaiting_momentum;
+    Qt::ScrollPhase m_last_wheel_event_phase { Qt::NoScrollPhase };
+    quint64 m_last_wheel_event_timestamp { 0 };
 #endif
 
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
