@@ -144,6 +144,12 @@ const MEMORY64_MAX_PAGES: u64 = 1 << 48;
 // The maximum depth of a defined subtype hierarchy is 63 (where a type defined with no supertype has depth 0).
 const MAX_SUBTYPING_DEPTH: u32 = 63;
 
+// The maximum number of parameters to any function or block is 1,000.
+const MAX_FUNCTION_PARAMS: usize = 1_000;
+
+// The maximum number of return values for any function or block is 1,000.
+const MAX_FUNCTION_RESULTS: usize = 1_000;
+
 // The maximum number of locals declared in a function, including implicitly declared as parameters, is 50,000.
 const MAX_FUNCTION_LOCALS: usize = 50_000;
 
@@ -2206,6 +2212,12 @@ fn validate_types(module: &Module, identities: &mut Vec<u32>) -> Result<()> {
             };
             match &sub_type.composite {
                 CompositeType::Func(function) => {
+                    if function.params.len() > MAX_FUNCTION_PARAMS {
+                        return invalid("too many parameters");
+                    }
+                    if function.results.len() > MAX_FUNCTION_RESULTS {
+                        return invalid("too many results");
+                    }
                     function
                         .params
                         .iter()
