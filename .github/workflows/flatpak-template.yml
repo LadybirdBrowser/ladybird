@@ -38,3 +38,4 @@ jobs:
           manifest-path: Meta/CMake/flatpak/org.ladybird.Ladybird.json
           arch: ${{ inputs.arch }}
           # Note: default cache key is 'flatpak-builder-${arch}-${sha256(manifestPath)}'
+          save-cache: ${{ github.event_name == 'push' }}
