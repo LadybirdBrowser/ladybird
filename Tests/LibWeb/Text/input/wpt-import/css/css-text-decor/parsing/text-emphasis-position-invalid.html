@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Emphasis Test: Parsing text-emphasis-position with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor/#propdef-text-emphasis-position">
+<meta name="assert" content="text-decoration-position supports only the grammar 'auto | ([over | under] || [left | right]?)'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+test_invalid_value("text-emphasis-position", "auto auto");
+test_invalid_value("text-emphasis-position", "auto left");
+test_invalid_value("text-emphasis-position", "over auto");
+test_invalid_value("text-emphasis-position", "left over right");
+test_invalid_value("text-emphasis-position", "under right over");
+</script>

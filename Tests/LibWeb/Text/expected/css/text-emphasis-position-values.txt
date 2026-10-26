@@ -1,0 +1,10 @@
+over right: specified=over right, computed=undefined, inherited=undefined
+right under: specified=right under, computed=undefined, inherited=undefined
+left over: specified=left over, computed=undefined, inherited=undefined
+under left: specified=under left, computed=undefined, inherited=undefined
+initial=undefined
+unset=undefined
+time=0: undefined
+time=499: undefined
+time=500: undefined
+time=1000: undefined
