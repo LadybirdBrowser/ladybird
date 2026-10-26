@@ -27,7 +27,9 @@ use libjs_abi::register;
 use libjs_jit::code::{CALLEE_SLOT, FrameState, Repr, ResumeMode, Site, SiteKind, ValueLocation};
 use libjs_runtime_macros::Trace;
 
-use super::code::{CompileState, EXIT_COUNT_BEFORE_DISCARD, InlinedFunction, JitCode};
+use super::code::{
+    CompileState, EXIT_COUNT_BEFORE_DISCARD, FRUITLESS_LOOP_CHECKS_AFTER_EXIT, InlinedFunction, JitCode,
+};
 use super::{executable_of, frame_of, frames_above};
 use crate::bytecode::executable::Executable;
 use crate::bytecode::instruction::{OpCode, instruction_length_from_bytes};
@@ -658,6 +660,19 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
     if is_stress_exit {
         vm.jit.count_coverage(format_args!("stress-exit.{kind:?}"));
         return;
+    }
+    // NB: Every frame materialized by an exit runs in the interpreter, including intermediate inlined callers whose
+    //     own code may continue them after their callees return.
+    let mut frame = innermost;
+    loop {
+        if let Some(frame_code) = executable_of(frame_of(frame)).jit_code(vm) {
+            frame_code.forget_inactive_interpreted_frames(vm);
+            frame_code.note_interpreted_frame(frame, FRUITLESS_LOOP_CHECKS_AFTER_EXIT);
+        }
+        if frame == root {
+            break;
+        }
+        frame = NonNull::new(frame_of(frame).caller_frame.get()).expect("materialized frames are linked to the root");
     }
     vm.jit.count_coverage(format_args!("exit.{kind:?}"));
     if site.frames.len() > 1 {

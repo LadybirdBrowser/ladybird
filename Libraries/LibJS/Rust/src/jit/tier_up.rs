@@ -6,15 +6,16 @@
 
 //! The tier-up policy, which runs when an executable has used up its tier-up budget.
 
+use core::ops::ControlFlow;
 use core::ptr::NonNull;
 
 use libjs_jit::code::CompiledCode;
 
-use super::code::{CompileState, JitCode, SnapshotExecutable};
+use super::code::{CompileState, FRUITLESS_LOOP_CHECKS_AFTER_INSTALL, JitCode, SnapshotExecutable};
 use super::compile_queue::CompileResult;
 use super::executable_memory::ExecutableMemory;
 use super::snapshot::{CapturedSnapshot, capture_snapshot};
-use super::{CompileJob, JitState};
+use super::{CompileJob, JitState, executable_of};
 use crate::bytecode::executable::Executable;
 use crate::bytecode::feedback::tier_up_costs;
 use crate::gc::defer_gc::DeferGc;
@@ -368,6 +369,14 @@ fn install(
     code.set_osr_outer_loop_back_edges(compiled.osr_outer_loop_back_edges);
     code.set_uncaught_handlers(compiled.uncaught_handlers);
     vm.jit.dependents.register(vm, executable, id, &compiled.dependencies);
+    // NB: A callee's tier-up check may install the code while its caller still runs in the interpreter, possibly
+    //     past the loop the code has an on-stack replacement entry at.
+    vm.for_each_live_execution_context(|frame| {
+        if !frame.runs_jit_code.get() && frame.executable.get().is_some() && executable_of(frame) == executable {
+            code.note_interpreted_frame(NonNull::from(frame), FRUITLESS_LOOP_CHECKS_AFTER_INSTALL);
+        }
+        ControlFlow::Continue(())
+    });
     // NB: Code may be installed while frames of the executable loop in the interpreter, because the compile was
     //     queued (from the tier-up check of another executable, like a callee's), or because they exited from the
     //     code before. Those frames keep counting, so that they continue in the code at its on-stack replacement
