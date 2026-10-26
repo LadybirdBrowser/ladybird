@@ -1,0 +1,13 @@
+Ladybird's DevTools names a page's storage by the Firefox protocol's
+host string and maps it to the bottle through the origin's storage key,
+so a “file:” page's edits land in the one “file:” bottle every “file:”
+document shares. Firefox's storage actor derives its hosts in its
+getHostName(): protocol and host for http, “file://” plus the pathname
+for “file:”, and “about:” plus the pathname for “about:”, so there each
+“file:” document is its own host. Chromium's InspectorDOMStorageAgent
+names an area by the frame's BlinkStorageKey, serialized, and finds the
+frame for an edit by comparing storage keys in FrameWithStorageKey().
+WebKit's InspectorDOMStorageAgent::storageId() names an area by the
+document's SecurityOrigin. Ladybird keeps the Firefox naming on the
+wire, since the client is Firefox's, and keys the bottle the way the
+other two do: by the origin's storage key.
