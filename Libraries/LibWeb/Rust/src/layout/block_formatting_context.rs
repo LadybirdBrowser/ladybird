@@ -182,10 +182,6 @@ enum InFlowReuse {
         validity: fc_run_cache::FcRunCacheValidity,
         flow_position: CssPixels,
         abspos_containing_block_info_contributions_received: u64,
-        verify: Option<(
-            std::sync::Arc<in_flow_block_cache::InFlowBlockEntry>,
-            std::sync::Arc<fragment_tree::Fragment>,
-        )>,
     },
 }
 
@@ -2603,17 +2599,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 Some((entry, fragment))
             });
         if let Some((entry, fragment)) = hit {
-            if !in_flow_block_cache::verification_is_enabled() {
-                return InFlowReuse::Hit { entry, fragment };
-            }
-            return InFlowReuse::Store {
-                key,
-                validity,
-                flow_position: self.flow_position(),
-                abspos_containing_block_info_contributions_received: self
-                    .abspos_containing_block_info_contributions_received(),
-                verify: Some((entry, fragment)),
-            };
+            return InFlowReuse::Hit { entry, fragment };
         }
         InFlowReuse::Store {
             key,
@@ -2621,7 +2607,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             flow_position: self.flow_position(),
             abspos_containing_block_info_contributions_received: self
                 .abspos_containing_block_info_contributions_received(),
-            verify: None,
         }
     }
 
@@ -2697,7 +2682,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             validity,
             flow_position,
             abspos_containing_block_info_contributions_received,
-            verify,
         } = attempt
         else {
             return;
@@ -2714,6 +2698,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             && self.abspos_containing_block_info_contributions_received()
                 == abspos_containing_block_info_contributions_received
             && used.border_box_block_size(false) != CssPixels::default();
+        if !reusable {
+            return;
+        }
         let mut cells = used_values::UsedValuesCellState::capture(used);
         cells.has_content_offset = false;
         cells.content_offset = FfiCssPixelPoint::default();
@@ -2735,25 +2722,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             depends_on_percentage_block_size,
             fragment_identity: placed.fragment.identity,
         };
-        if let Some((stored, committed)) = verify {
-            let fragments = self.run.fragments.as_deref();
-            let was_reused = |slot: u32| fragments.is_some_and(|fragments| fragments.subtree_was_reused(slot));
-            in_flow_block_cache::verify_reuse(
-                node,
-                &stored,
-                &committed,
-                &entry,
-                &placed.fragment,
-                reusable,
-                &was_reused,
-            );
-        }
-        if reusable {
-            let committed_identity = arena.with_current_committed_fragment(node, |fragment| fragment.identity);
-            arena
-                .in_flow_block_cache_store()
-                .store(node.slot_index(), entry, committed_identity);
-        }
+        let committed_identity = arena.with_current_committed_fragment(node, |fragment| fragment.identity);
+        arena
+            .in_flow_block_cache_store()
+            .store(node.slot_index(), entry, committed_identity);
     }
 
     fn layout_block_level_children(

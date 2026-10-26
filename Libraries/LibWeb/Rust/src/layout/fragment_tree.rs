@@ -182,47 +182,6 @@ impl Fragment {
             && self.continues_in_next_fragment == previous.continues_in_next_fragment
     }
 
-    /// Whether this fragment's subtree came out of layout like `previous`, ignoring which allocations hold the pieces.
-    /// A subtree this layout reused as a whole, as `was_reused` says by slot, carries no descendants, and compares
-    /// equal down to its root.
-    pub(crate) fn lays_out_like(&self, previous: &Fragment, was_reused: &impl Fn(u32) -> bool) -> bool {
-        let same_line_data = match (&self.line_data, &previous.line_data) {
-            (None, None) => true,
-            (Some(left), Some(right)) => left == right,
-            _ => false,
-        };
-        self.node == previous.node
-            && self.content_inline_size == previous.content_inline_size
-            && self.content_block_size == previous.content_block_size
-            && self.margin_left == previous.margin_left
-            && self.margin_right == previous.margin_right
-            && self.margin_top == previous.margin_top
-            && self.margin_bottom == previous.margin_bottom
-            && self.border_left == previous.border_left
-            && self.border_right == previous.border_right
-            && self.border_top == previous.border_top
-            && self.border_bottom == previous.border_bottom
-            && self.padding_left == previous.padding_left
-            && self.padding_right == previous.padding_right
-            && self.padding_top == previous.padding_top
-            && self.padding_bottom == previous.padding_bottom
-            && self.uses_collapsing_borders_model == previous.uses_collapsing_borders_model
-            && self.svg == previous.svg
-            && self.has_line_clamp_point == previous.has_line_clamp_point
-            && self.is_invisible_for_line_clamp == previous.is_invisible_for_line_clamp
-            && same_line_data
-            && ((self.children.is_empty() && was_reused(self.node.slot_index()))
-                || (self.children.len() == previous.children.len()
-                    && self
-                        .children
-                        .iter()
-                        .zip(&previous.children)
-                        .all(|(link, previous_link)| {
-                            link.has_same_placement(previous_link)
-                                && link.fragment.lays_out_like(&previous_link.fragment, was_reused)
-                        })))
-    }
-
     pub(crate) fn has_same_child_placements(&self, previous: &Fragment) -> bool {
         self.children.len() == previous.children.len()
             && self
@@ -1409,10 +1368,6 @@ impl RunFragmentBuilder {
     /// How many abspos containing block info contributions the run has received so far, which only grows.
     pub(crate) fn abspos_containing_block_info_contributions_received(&self) -> u64 {
         self.inner.borrow().abspos_containing_block_info_contributions_received
-    }
-
-    pub(crate) fn subtree_was_reused(&self, slot: u32) -> bool {
-        self.inner.borrow().reused_subtree_roots.contains(&slot)
     }
 
     fn attach(
