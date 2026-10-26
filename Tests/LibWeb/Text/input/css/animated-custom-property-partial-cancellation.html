@@ -1,0 +1,40 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @property --inherited {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: 10px;
+    }
+    @property --local {
+        syntax: "<number>";
+        inherits: false;
+        initial-value: 0;
+    }
+    .recompute {
+        opacity: var(--local);
+    }
+    .reader {
+        width: var(--inherited);
+    }
+</style>
+<div id="plain"><div class="reader"></div></div>
+<div id="recompute" class="recompute"><div class="reader"></div></div>
+<script>
+    test(() => {
+        for (const id of ["plain", "recompute"]) {
+            const target = document.getElementById(id);
+            const reader = target.firstElementChild;
+            const inherited = target.animate({ "--inherited": ["20px", "60px"] }, 1000);
+            const local = target.animate({ "--local": [0, 1] }, 1000);
+            for (const animation of [inherited, local]) {
+                animation.pause();
+                animation.currentTime = 500;
+            }
+            println(`${id} before cancellation: ${getComputedStyle(reader).width}`);
+            inherited.cancel();
+            println(`${id} after cancellation: ${getComputedStyle(reader).width}`);
+            println(`${id} remaining animation: ${getComputedStyle(target).getPropertyValue("--local")}`);
+        }
+    });
+</script>
