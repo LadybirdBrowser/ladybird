@@ -106,6 +106,7 @@ endif()
 target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegAudioConverter.cpp
         FFmpeg/FFmpegAudioDecoder.cpp
+        FFmpeg/FFmpegAudioEncoder.cpp
         FFmpeg/FFmpegChannelLayout.cpp
 )
 

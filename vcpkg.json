@@ -46,6 +46,7 @@
         "avcodec",
         "swresample",
         "dav1d",
+        "opus",
         "zlib",
         "ladybird-components",
         {
