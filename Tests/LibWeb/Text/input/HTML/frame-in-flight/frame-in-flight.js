@@ -7,7 +7,7 @@
 async function whileRecordingInFlight(mutate, during) {
     if (document.readyState !== "complete")
         await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
-    await twoFrames();
+    await twoFramesLanded();
     return new Promise((resolve, reject) => {
         requestAnimationFrame(() => {
             internals.holdNextFrame();
@@ -42,6 +42,14 @@ function nextFrame() {
 async function twoFrames() {
     await nextFrame();
     await nextFrame();
+}
+
+// Resolves in the first task after two rendering updates once nothing of theirs is in flight. A frame that is still in
+// flight spends a hold that a test arms next, which is then not the hold of the rendering update the test means.
+async function twoFramesLanded() {
+    await twoFrames();
+    do await nextTask();
+    while (internals.frameSchedulerState() !== "idle");
 }
 
 // Has the clock lane of the document's presented frame sample its animations beside a task.

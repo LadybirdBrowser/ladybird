@@ -11,7 +11,7 @@
     // loop has taken the style in: the tasks after that run while the layout does. Nothing here reads the style or the
     // layout until the layout is taken in, which a read would wait for, and no rendering update runs to take it in.
     asyncTest(async done => {
-        await twoFrames();
+        await twoFramesLanded();
         requestAnimationFrame(() => {
             internals.holdNextFrame("layout");
             internals.setManualRenderingOpportunities(true);

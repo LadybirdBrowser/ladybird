@@ -20,7 +20,7 @@
             };
             document.body.appendChild(frame);
         });
-        await twoFrames();
+        await twoFramesLanded();
         requestAnimationFrame(() => {
             internals.holdNextFrame("layout");
             internals.setManualRenderingOpportunities(true);
