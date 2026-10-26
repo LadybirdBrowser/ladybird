@@ -989,6 +989,9 @@ fn record_entered_inline_box<'context>(
     used
 }
 
+/// The inline items a block container generated, kept for the later runs of the container in the same pass. Their
+/// glyphs are shared, so that each run that reads them copies no glyphs.
+#[derive(Clone)]
 pub(crate) struct StashedInlineItems {
     items: Vec<Item>,
     entered_box_model_nodes: Vec<Node>,
@@ -1117,7 +1120,7 @@ impl InlineLevelIterator {
         atomic_sizing: AtomicInlineSizing,
     ) -> Option<Self> {
         let callbacks = context.callbacks;
-        match callbacks.scratch().take_inline_item_stash(context.containing_block) {
+        match callbacks.scratch().inline_item_stash(context.containing_block) {
             Some(stash) => Some(Self::from_stash(context, stash)),
             None => InlineLevelIteratorGenerator::generate(context, atomic_sizing),
         }
@@ -1155,10 +1158,16 @@ impl InlineLevelIterator {
         if !self.is_independent_of_available_space(context) {
             return;
         }
+        let mut items = self.items.into_vec();
+        for glyphs in items.iter_mut().filter_map(|item| item.glyphs.as_mut()) {
+            if let libgfx_rust::text_layout::GlyphBuffer::Owned(owned) = &mut glyphs.glyphs {
+                glyphs.glyphs = libgfx_rust::text_layout::GlyphBuffer::Shared(std::mem::take(owned).into());
+            }
+        }
         context.callbacks.scratch().store_inline_item_stash(
             context.containing_block,
             StashedInlineItems {
-                items: self.items.into_vec(),
+                items,
                 entered_box_model_nodes: self.entered_box_model_nodes,
             },
         );

@@ -19,7 +19,7 @@ pub(crate) struct LayoutScratch {
     run_record_stack: RunRecordStack,
     /// The intrinsic sizes passes measured, kept for the passes after them.
     pub(crate) intrinsic_size_caches: super::layout_node_arena::IntrinsicSizeCaches,
-    /// The inline items a block container generated, kept for its next run in the same pass. The
+    /// The inline items a block container generated, kept for its later runs in the same pass. The
     /// items borrow fonts for the current pass, so the stashes are cleared when the pass ends.
     inline_item_stashes: RefCell<HashMap<NodeSlotId, super::inline_level_iterator::StashedInlineItems>>,
     measurement_memo: RefCell<MeasurementMemo>,
@@ -188,11 +188,11 @@ impl LayoutScratch {
         self.inline_item_stashes.borrow_mut().insert(block_container, stash);
     }
 
-    pub(crate) fn take_inline_item_stash(
+    pub(crate) fn inline_item_stash(
         &self,
         block_container: NodeSlotId,
     ) -> Option<super::inline_level_iterator::StashedInlineItems> {
-        self.inline_item_stashes.borrow_mut().remove(&block_container)
+        self.inline_item_stashes.borrow().get(&block_container).cloned()
     }
 
     /// Notes what the innermost run in progress found out for the host, or the pass outside any run.
