@@ -491,3 +491,18 @@ describe("cache invalidation scenarios", () => {
         expect(obj[sym2]).toBe(3);
     });
 });
+
+describe("object literals that become dictionaries", () => {
+    test("do not get the dictionary shape of an earlier object", () => {
+        // NB: The spread makes the literal add its named properties with PutById.
+        const properties = Array.from({ length: 70 }, (_, i) => `p${i}: ${i}`);
+        const make = new Function(`return { ...null, ${properties.join(", ")} };`);
+        const first = make();
+        const second = make();
+        expect(haveSameShape(first, second)).toBeFalse();
+
+        first.extra = "extra";
+        expect(second.extra).toBeUndefined();
+        expect(Object.keys(second)).toHaveLength(70);
+    });
+});
