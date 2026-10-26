@@ -2,6 +2,7 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	Verify font-palette is animated when `from` keyframe is not specified
+1 Pass
+1 Fail
+Pass	Verify font-palette is animated when `from` keyframe is not specified
 Fail	Verify font-palette is animated when `to` keyframe is not specified
