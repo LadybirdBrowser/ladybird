@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <script src="../include.js"></script>
 <script>
     function nextRenderingUpdate() {
@@ -18,6 +18,8 @@
 
         document.body.appendChild(canvas);
         await nextRenderingUpdate();
+        if (!(await waitForCondition(() => !internals.canvasHasUnpresentedContent(canvas))))
+            throw new Error("Canvas content was not presented after insertion");
         println(`Inserted: ${internals.canvasHasUnpresentedContent(canvas)}`);
 
         canvas.style.display = "none";
@@ -28,6 +30,8 @@
 
         canvas.style.display = "";
         await nextRenderingUpdate();
+        if (!(await waitForCondition(() => !internals.canvasHasUnpresentedContent(canvas))))
+            throw new Error("Canvas content was not presented after redisplay");
         println(`Displayed again: ${internals.canvasHasUnpresentedContent(canvas)}`);
 
         done();
