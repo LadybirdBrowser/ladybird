@@ -304,6 +304,8 @@ def rust_default_value(
         return numeric_literal
     if member.type.nullable and default_value == "null":
         return "None"
+    if name == "any" and default_value in ("null", "undefined"):
+        return "Value::NULL" if default_value == "null" else "Value::UNDEFINED"
     if isinstance(member.type, IDLParameterizedType) and name == "sequence" and default_value == "[]":
         return "Vec::new()"
     dictionary = resolved_dictionary(member.type, context)

@@ -112,7 +112,14 @@ class DefinitionUsage:
             if interface is None or not is_implemented_in_rust(interface):
                 continue
             members = rust_members(interface)
+            parent = self.context.interfaces.get(interface.parent_name)
+            if parent is not None and not is_implemented_in_rust(parent):
+                # NB: The bindings of the interface name the interface implemented in C++ it inherits from, whose
+                #     interface prototype object and interface object are the prototypes of its own.
+                self.cpp_interfaces_named_by_rust[parent.name] = parent
             for attribute in members.attributes:
+                if attribute.event_type is not None:
+                    continue
                 has_setter = attribute.setter_method is not None
                 self._name_for_rust(attribute.attribute.type, from_js=has_setter, to_js=True)
             operations = [

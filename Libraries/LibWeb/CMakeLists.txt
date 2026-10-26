@@ -29,6 +29,7 @@ set(SOURCES
     Bindings/OptionConstructor.cpp
     Bindings/PlatformObject.cpp
     Bindings/RustBindingsServices.cpp
+    Bindings/RustEventTarget.cpp
     Bindings/StylePropertyMapReadOnlyIterator.cpp
     Bindings/PrincipalHostDefined.cpp
     Bindings/Wrappable.cpp

@@ -51,6 +51,11 @@ pub(crate) mod canvas_2d;
 pub(crate) mod compression;
 #[cfg_attr(
     not(web_idl_bindings),
+    allow(dead_code, reason = "only the generated bindings use the dictionaries")
+)]
+pub(crate) mod dom;
+#[cfg_attr(
+    not(web_idl_bindings),
     allow(dead_code, reason = "only the generated bindings use the interfaces")
 )]
 #[allow(
