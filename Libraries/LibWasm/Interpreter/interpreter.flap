@@ -292,14 +292,15 @@ inline fn call_host_function(function: u64, return_ip: u64, context_pointer: u64
     store64([context_pointer, CONTEXT_ARGUMENT_1], top);
     store64([context_pointer, CONTEXT_ARGUMENT_2], return_ip);
     store64([context_pointer, CONTEXT_ARGUMENT_3], fp);
-    # The helper may clobber every allocatable register, so nothing but its result is kept across it.
+    # The helper may clobber every allocatable register, so nothing but its result and the context is kept across it.
+    let saved_context = context();
     ip = return_ip;
     let new_top: u64 = call_helper(wasm_runtime_call_host, context_pointer);
     guard new_top != 0 else @cold {
         trap(TRAP_RUNTIME);
     };
     if new_top == 1 @cold {
-        resume_at_handler();
+        resume_at_handler(saved_context);
     }
     vsp = new_top;
     dispatch;
@@ -315,14 +316,15 @@ inline fn call_compiled_function(function: u64, return_ip: u64, context_pointer:
     store64([context_pointer, CONTEXT_ARGUMENT_1], top);
     store64([context_pointer, CONTEXT_ARGUMENT_2], return_ip);
     store64([context_pointer, CONTEXT_ARGUMENT_3], fp);
-    # The helper may clobber every allocatable register, so nothing but its result is kept across it.
+    # The helper may clobber every allocatable register, so nothing but its result and the context is kept across it.
+    let saved_context = context();
     ip = return_ip;
     let new_top: u64 = call_helper(wasm_runtime_call_compiled, context_pointer);
     guard new_top != 0 else @cold {
         trap(TRAP_RUNTIME);
     };
     if new_top == 1 @cold {
-        resume_at_handler();
+        resume_at_handler(saved_context);
     }
     if new_top == 2 @cold {
         let pending_context = context();
@@ -336,8 +338,7 @@ inline fn call_compiled_function(function: u64, return_ip: u64, context_pointer:
 }
 
 # Continue at the exception handler the runtime found, which it left in the context's arguments.
-inline fn resume_at_handler() {
-    let context_pointer = context();
+inline fn resume_at_handler(context_pointer: u64) {
     let mut handler_fp: u64;
     load64(handler_fp, [context_pointer, CONTEXT_ARGUMENTS]);
     let mut handler_ip: u64;
@@ -371,7 +372,7 @@ inline fn throw_exception(tag: u64, exception: u64) {
     guard caught != 0 else @cold {
         trap(TRAP_RUNTIME);
     };
-    resume_at_handler();
+    resume_at_handler(context_pointer);
 }
 
 handler Throw() @opcode(0x08) {
@@ -905,7 +906,7 @@ handler Loop() @opcode(0x03) {
         # stack, or a tail call it made pending.
         let results_top: u64 = call_helper(wasm_runtime_tier_up, context_pointer);
         if results_top == 1 {
-            resume_at_handler();
+            resume_at_handler(context_pointer);
         }
         if results_top == 2 {
             trap(TRAP_RUNTIME);
