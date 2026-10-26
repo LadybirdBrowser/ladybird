@@ -997,6 +997,18 @@ protected:
     };
     HashMap<u64, WebDriverCommandWaitingForADocument> m_webdriver_commands_waiting_for_a_document;
     void run_webdriver_content_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments, WebDriverProtocol = WebDriverProtocol::Classic);
+    struct QueuedWebDriverInputCommand {
+        u64 command_id;
+        WebDriverCommandWaitingForADocument command;
+    };
+    Vector<QueuedWebDriverInputCommand> m_webdriver_input_commands;
+    JsonValue m_webdriver_input_state;
+    bool m_webdriver_input_command_running { false };
+    bool m_webdriver_input_state_was_lost { false };
+    void discard_webdriver_input_commands(bool process_crashed = false);
+    void dispatch_webdriver_content_command(u64, Optional<Web::HTML::CrossProcessId>, String const&, JsonValue, Vector<String>, WebDriverProtocol);
+    void complete_webdriver_input_command(u64, Web::WebDriver::Response);
+    void dispatch_next_webdriver_input_command();
     static bool webdriver_content_command_outlives_its_page(StringView name);
     bool complete_webdriver_content_command_after_navigation(u64 command_id, PendingWebDriverCommand const&);
     void complete_webdriver_content_commands_after_process_replacement(HashMap<u64, PendingWebDriverCommand> const&);

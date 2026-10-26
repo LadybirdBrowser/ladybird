@@ -115,8 +115,11 @@ static Optional<ActionObject::Origin> determine_origin(ActionsOptions const& act
     }
 
     if (origin->is_object()) {
-        if (actions_options.is_element_origin(origin->as_object()))
+        if (actions_options.is_element_origin(origin->as_object())) {
+            if (actions_options.extract_element_origin)
+                return actions_options.extract_element_origin(origin->as_object());
             return extract_web_element_reference(origin->as_object());
+        }
     }
 
     return {};

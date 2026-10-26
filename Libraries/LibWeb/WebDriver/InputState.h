@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/JsonObject.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWeb/Export.h>
@@ -32,5 +33,9 @@ struct InputState {
 
 WEB_API InputState& get_input_state(HTML::Navigable& top_level_traversable);
 WEB_API void reset_input_state(HTML::Navigable& top_level_traversable);
+
+// Private command-boundary snapshots contain sources and cancellation records, never live action queue tokens.
+WEB_API JsonObject serialize_input_state(InputState const&);
+WEB_API ErrorOr<void, Error> restore_input_state(HTML::Navigable& top_level_traversable, JsonValue const&);
 
 }

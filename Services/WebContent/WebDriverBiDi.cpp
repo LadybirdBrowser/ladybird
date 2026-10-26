@@ -14,7 +14,9 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebDriver/BiDi/BrowsingContext.h>
+#include <LibWeb/WebDriver/BiDi/Input.h>
 #include <LibWeb/WebDriver/BiDi/Script.h>
+#include <LibWebCommon/WebDriver/Input.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/WebDriverBiDi.h>
@@ -78,6 +80,9 @@ static Web::WebDriver::Response create_a_new_top_level_traversable(Web::HTML::Na
 
 void run_webdriver_bidi_command(PageClient& page_client, u64 command_id, Web::HTML::CrossProcessId navigable_id, String const& method, JsonValue params_value)
 {
+    if (Web::WebDriver::is_input_state_command(method) && !page_client.prepare_webdriver_input_command(command_id, navigable_id, params_value))
+        return;
+
     auto on_complete = [page_client = GC::make_root(page_client), command_id](Web::WebDriver::Response response) {
         page_client->webdriver_command_complete(command_id, move(response));
     };
@@ -105,6 +110,10 @@ void run_webdriver_bidi_command(PageClient& page_client, u64 command_id, Web::HT
         return Web::WebDriver::BiDi::capture_screenshot(*navigable, params, move(on_complete));
     if (method == "browsingContext.locateNodes"sv)
         return on_complete(Web::WebDriver::BiDi::locate_nodes(*navigable, params));
+    if (method == "input.performActions"sv)
+        return Web::WebDriver::BiDi::perform_actions(*navigable, params, move(on_complete));
+    if (method == "input.releaseActions"sv)
+        return Web::WebDriver::BiDi::release_actions(*navigable, move(on_complete));
     if (method == "browsingContext.create"sv)
         return on_complete(create_a_new_top_level_traversable(*navigable));
 
