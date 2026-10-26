@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
+#include <LibWeb/WebDriver/BiDi/BrowsingContext.h>
 #include <LibWeb/WebDriver/BiDi/Script.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
@@ -100,6 +101,10 @@ void run_webdriver_bidi_command(PageClient& page_client, u64 command_id, Web::HT
         return on_complete(Web::WebDriver::BiDi::disown(*navigable, params));
     if (method == "script.getRealms"sv)
         return on_complete(Web::WebDriver::BiDi::get_realms(*navigable, params));
+    if (method == "browsingContext.captureScreenshot"sv)
+        return Web::WebDriver::BiDi::capture_screenshot(*navigable, params, move(on_complete));
+    if (method == "browsingContext.locateNodes"sv)
+        return on_complete(Web::WebDriver::BiDi::locate_nodes(*navigable, params));
     if (method == "browsingContext.create"sv)
         return on_complete(create_a_new_top_level_traversable(*navigable));
 

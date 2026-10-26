@@ -1036,6 +1036,7 @@ set(SOURCES
     WebAudio/WaveShaperNode.cpp
     WebDriver/Actions.cpp
     WebDriver/BiDi/BiDi.cpp
+    WebDriver/BiDi/BrowsingContext.cpp
     WebDriver/BiDi/RemoteValue.cpp
     WebDriver/BiDi/Script.cpp
     WebDriver/Contexts.cpp
