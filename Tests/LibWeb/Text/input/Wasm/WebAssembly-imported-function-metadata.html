@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const string = value => [value.length, ...Array.from(value, character => character.charCodeAt(0))];
+    const section = (id, bytes) => [id, bytes.length, ...bytes];
+    // (import "env" "memory" (memory 1))
+    // (import "env" "first" (func (param i32) (result i32)))
+    // (import "env" "second" (func (param i32) (result i32)))
+    // Export both functions, and put them in an exported table.
+    const bytes = new Uint8Array([
+        0, 97, 115, 109, 1, 0, 0, 0,
+        ...section(1, [1, 96, 1, 127, 1, 127]),
+        ...section(2, [3,
+            ...string("env"), ...string("memory"), 2, 0, 1,
+            ...string("env"), ...string("first"), 0, 0,
+            ...string("env"), ...string("second"), 0, 0]),
+        ...section(4, [1, 112, 0, 2]),
+        ...section(7, [3,
+            ...string("first"), 0, 0,
+            ...string("second"), 0, 1,
+            ...string("table"), 1, 0]),
+        ...section(9, [1, 0, 65, 0, 11, 2, 0, 1]),
+    ]);
+    const imports = { env: {
+        memory: new WebAssembly.Memory({ initial: 1 }),
+        first: value => value + 1,
+        second: value => value * 2,
+    }};
+    const module = new WebAssembly.Module(bytes);
+    for (const instance of [new WebAssembly.Instance(module, imports),
+        (await WebAssembly.instantiate(bytes, imports)).instance,
+        await WebAssembly.instantiate(module, imports)]) {
+        const { first, second, table } = instance.exports;
+        println(`names: ${first.name}, ${second.name}`);
+        println(`lengths: ${first.length}, ${second.length}`);
+        println(`calls: ${first(20)}, ${second(21)}`);
+        println(`table identity: ${table.get(0) === first}, ${table.get(1) === second}`);
+    }
+    done();
+});
+</script>
