@@ -8083,6 +8083,8 @@ pub(crate) struct AnimatedCustomProperties {
     stores: KeyframeStores,
     names: Vec<crate::css::retained_fly_string::RetainedUtf16FlyString>,
     units: Vec<Vec<u16>>,
+    /// Whether any interval values are resolved afresh rather than retained across samples.
+    pub(crate) has_uncached_interval_values: bool,
 }
 
 type Registry = crate::css::custom_properties::CustomPropertyRegistry;
@@ -8332,6 +8334,7 @@ pub(crate) fn resolve_published_animation_declarations(
         stores,
         names: Vec::new(),
         units: Vec::new(),
+        has_uncached_interval_values: false,
     };
     let substitution_marks = std::cell::Cell::new(0_u8);
     let style_query_references = std::cell::RefCell::new(None);
@@ -8506,7 +8509,7 @@ pub(crate) fn resolve_published_animation_declarations(
             }
             let name = custom_properties.units(name_id);
             let interval_span = select_custom_property_interval_span(effect, &keyframe_lookups, selection.current_key);
-            let interval_values = effect.resolve_custom_property_interval_values(
+            let (interval_values, values_are_retained) = effect.resolve_custom_property_interval_values(
                 interval_span.map(|lookup| lookup.declaration_index),
                 registry.name_has_interpolable_syntax(name),
                 || {
@@ -8538,6 +8541,7 @@ pub(crate) fn resolve_published_animation_declarations(
                     is_transition,
                 });
             }
+            custom_properties.has_uncached_interval_values |= !values_are_retained;
         }
         effects.push(FfiAnimationEffect {
             first_keyframe_index,

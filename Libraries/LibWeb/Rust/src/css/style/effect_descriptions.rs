@@ -273,29 +273,32 @@ impl PublishedEffect {
     }
 
     /// Resolve interval values afresh for interpolable syntaxes or neutral keyframes; retain them otherwise.
+    /// Also report whether the values are retained across samples.
     pub(crate) fn resolve_custom_property_interval_values(
         &self,
         declaration_indices: [usize; 2],
         has_interpolable_syntax: bool,
         resolve_values: impl FnOnce() -> [RetainedStyleValueData; 2],
-    ) -> [RetainedStyleValueData; 2] {
+    ) -> ([RetainedStyleValueData; 2], bool) {
         let has_neutral_endpoint = declaration_indices
             .iter()
             .any(|&index| matches!(self.custom_declarations[index].value, PublishedValue::ElementValue));
 
         if has_interpolable_syntax || has_neutral_endpoint {
-            return resolve_values();
+            return (resolve_values(), false);
         }
 
         // AD-HOC: Match Chromium's retention of substituted interval values for discrete interpolations
         // without checking substitution dependencies. Chromium also does this for some standard
         // properties via CSSDefaultInterpolationType; we currently limit it to custom properties.
-        self.custom_property_interval_values
+        let values = self
+            .custom_property_interval_values
             .lock()
             .unwrap()
             .entry(declaration_indices)
             .or_insert_with(resolve_values)
-            .clone()
+            .clone();
+        (values, true)
     }
 }
 
