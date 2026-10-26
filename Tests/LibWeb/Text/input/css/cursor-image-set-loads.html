@@ -14,14 +14,10 @@
 <script src="../include.js"></script>
 <script>
     promiseTest(async () => {
-        let cursor = "";
-        for (let i = 0; i < 60; ++i) {
+        await waitForCondition(() => {
             internals.mouseMove(50, 50);
-            cursor = internals.currentCursor();
-            if (cursor === "Image")
-                break;
-            await animationFrame();
-        }
-        println(cursor);
+            return internals.currentCursor() === "Image";
+        });
+        println(internals.currentCursor());
     });
 </script>
