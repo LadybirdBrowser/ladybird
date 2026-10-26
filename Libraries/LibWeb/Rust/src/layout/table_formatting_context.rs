@@ -623,6 +623,7 @@ pub(crate) struct TableCell {
     pub(crate) max_content_inline_size: Option<CssPixels>,
 }
 
+#[derive(Clone)]
 pub(crate) struct Row {
     pub(crate) box_: Node,
     pub(crate) base_block_size: CssPixels,
@@ -670,6 +671,7 @@ pub(crate) struct TableGrid {
     pub(crate) occupancy: HashSet<(usize, usize)>,
 }
 
+#[derive(Clone)]
 pub(crate) struct TableInlineLayout {
     table_box: Node,
     table_constraints: ContainingBlockConstraints,

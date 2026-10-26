@@ -146,6 +146,14 @@ impl LayoutTrace {
         Some(Scope { trace: self, line })
     }
 
+    /// Runs `untraced` with nothing it does traced.
+    pub(super) fn without_events<R>(&self, untraced: impl FnOnce() -> R) -> R {
+        let trace = self.0.take();
+        let result = untraced();
+        *self.0.borrow_mut() = trace;
+        result
+    }
+
     pub(super) fn pass(&self, partial_root: Option<NodeSlotId>) -> Option<Scope<'_>> {
         match partial_root {
             Some(root) => self.scope("layout PARTIAL ", Some(root), String::new),

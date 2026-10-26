@@ -46,6 +46,7 @@ pub(crate) mod rendered_text;
 mod replaced_with_children_formatting_context;
 pub(crate) mod row_reads;
 pub(crate) mod run_records;
+pub(crate) mod run_repeatability;
 pub(crate) mod script_entries;
 pub(crate) mod shell_reads;
 pub(crate) mod sizing_context;

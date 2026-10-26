@@ -1894,6 +1894,25 @@ pub(super) fn run_formatting_context(
         parent_fragments.clear_reused_subtree_root(box_, parent_used);
     }
     let root_cells = used_values::UsedValuesCellState::capture(parent_used);
+    if callbacks.scratch().reads_no_memoized_layout() {
+        let outputs = execute_formatting_context_run(
+            purpose,
+            root_cells,
+            box_,
+            root_containing_block,
+            parent_grid,
+            fc_type,
+            layout_mode,
+            should_collect_devtools_layout_data,
+            callbacks,
+            input,
+            parent_block,
+            None,
+            table_inline_layout,
+            None,
+        );
+        return absorb_run_outputs(&callbacks, parent_fragments, parent_used, box_, outputs, false);
+    }
     let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, input, root_cells);
     let memoizes_measurement = purpose.is_measurement()
         && callbacks.scratch().memoizes_measurements()
@@ -1963,6 +1982,24 @@ pub(super) fn run_formatting_context(
         .layout_trace
         .run(box_, fc_type, purpose, layout_mode, || cache_attempt.trace_action());
     let previous_line_data = cache_attempt.previous_line_data();
+    let discarded_outputs = run_repeatability::lay_out_discarded_run(&callbacks, || {
+        execute_formatting_context_run(
+            purpose,
+            root_cells,
+            box_,
+            root_containing_block,
+            parent_grid,
+            fc_type,
+            layout_mode,
+            should_collect_devtools_layout_data,
+            callbacks,
+            input,
+            parent_block,
+            None,
+            table_inline_layout.clone(),
+            None,
+        )
+    });
     let outputs = execute_formatting_context_run(
         purpose,
         root_cells,
@@ -1979,6 +2016,9 @@ pub(super) fn run_formatting_context(
         table_inline_layout,
         None,
     );
+    if let Some(discarded_outputs) = &discarded_outputs {
+        run_repeatability::verify_repeated_run(&callbacks, box_, discarded_outputs, &outputs);
+    }
     if memoizes_measurement {
         callbacks
             .scratch()
@@ -2768,6 +2808,37 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
     input.sizing.flex_self_block_size_resolution_space = None;
     let root_cells = used_values::UsedValuesCellState::capture(run.records.used_values(cell));
     let cache_key = fc_run_cache::FcRunCacheKey::new(FormattingContextType::Block, input, root_cells);
+    let execute = |previous_line_data| {
+        execute_formatting_context_run(
+            LayoutPurpose::Commit,
+            root_cells,
+            cell,
+            root_containing_block,
+            None,
+            FormattingContextType::Block,
+            LayoutMode::Normal,
+            run.should_collect_devtools_layout_data,
+            run.callbacks,
+            input,
+            None,
+            previous_line_data,
+            None,
+            None,
+        )
+    };
+    if run.callbacks.scratch().reads_no_memoized_layout() {
+        if !fc_run_cache::can_describe_run(
+            cell,
+            false,
+            LayoutMode::Normal,
+            run.should_collect_devtools_layout_data,
+            &run.callbacks,
+            &cache_key,
+        ) {
+            return None;
+        }
+        return Some(execute(None).result);
+    }
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
         LayoutPurpose::Commit,
         cell,
@@ -2798,22 +2869,11 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
         || "RUN AHEAD OF INTRINSIC BLOCK PADDING",
     );
     let previous_line_data = cache_attempt.previous_line_data();
-    let outputs = execute_formatting_context_run(
-        LayoutPurpose::Commit,
-        root_cells,
-        cell,
-        root_containing_block,
-        None,
-        FormattingContextType::Block,
-        LayoutMode::Normal,
-        run.should_collect_devtools_layout_data,
-        run.callbacks,
-        input,
-        None,
-        previous_line_data,
-        None,
-        None,
-    );
+    let discarded_outputs = run_repeatability::lay_out_discarded_run(&run.callbacks, || execute(None));
+    let outputs = execute(previous_line_data);
+    if let Some(discarded_outputs) = &discarded_outputs {
+        run_repeatability::verify_repeated_run(&run.callbacks, cell, discarded_outputs, &outputs);
+    }
     cache_attempt.conclude_uncommitted(&run.callbacks, cell, cache_key, &outputs);
     Some(outputs.result)
 }
