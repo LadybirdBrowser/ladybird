@@ -3918,19 +3918,17 @@ impl TreeBuilder {
         // 5. Push "in template" onto the stack of template insertion modes so that it is the new current template insertion mode.
         self.stack_of_template_insertion_modes.push(InsertionMode::InTemplate);
 
-        // FIXME: 6. Let declarativeShadowHostElement be the current node.
-        // FIXME: Use the current node for declarativeShadowHostElement, rather than the adjusted current node. A top-level
-        //        template in a fragment must not attach a shadow root to its fragment context element.
-        let adjusted_current_node = self.adjusted_current_node().map(|node| node.handle);
-        let declarative_shadow_host_element = adjusted_current_node.unwrap_or(0);
+        // 6. Let declarativeShadowHostElement be the current node.
+        // NOTE: This is not the adjusted current node, so that in the fragment case a top-level template element never
+        //       attaches a shadow root to the parser's fragment context element.
+        let declarative_shadow_host_element = self.current_node_handle();
 
         // 7. Let hostIsRoot be true if declarativeShadowHostElement is the topmost element in the stack of open elements;
         //    otherwise false.
-        let host_is_root = !adjusted_current_node.is_some_and(|adjusted_current_node| {
-            self.stack_of_open_elements
-                .first()
-                .is_none_or(|topmost_element| topmost_element.handle != adjusted_current_node)
-        });
+        let host_is_root = self
+            .stack_of_open_elements
+            .first()
+            .is_some_and(|topmost_element| topmost_element.handle == declarative_shadow_host_element);
 
         // 8. Let template be the result of creating an element for the token given templateStartTag, the HTML
         //    namespace, and the target parent of the appropriate place for inserting a node.

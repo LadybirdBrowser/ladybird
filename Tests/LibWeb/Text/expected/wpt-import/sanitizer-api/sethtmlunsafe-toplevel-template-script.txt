@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 10 tests
 
-9 Pass
-1 Fail
+10 Pass
 Pass	Top-level template and script testcases from sub.dat
 Pass	Top-level <script> parsed through setHTMLUnsafe() without runScripts does not execute
 Pass	Top-level <script> parsed through setHTMLUnsafe() with runScripts: true executes
 Pass	Testcase #0 [setHTMLUnsafe], "<template><b>Hello</b></template>", config: "{}"
-Fail	Testcase #1 [setHTMLUnsafe], "<template shadowrootmode="open"><span>Inside</span></template>", config: "{}"
+Pass	Testcase #1 [setHTMLUnsafe], "<template shadowrootmode="open"><span>Inside</span></template>", config: "{}"
 Pass	Testcase #2 [setHTMLUnsafe], "<template><b>Hello</b></template>", config: "{ "replaceWithChildrenElements": ["template"] }"
 Pass	Testcase #3 [setHTMLUnsafe], "<template><b>Hello</b></template>", config: "{ "removeElements": ["template"] }"
 Pass	Testcase #4 [setHTMLUnsafe], "<script>alert(1);</script>", config: "{}"
