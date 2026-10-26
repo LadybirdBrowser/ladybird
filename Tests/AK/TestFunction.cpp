@@ -94,53 +94,66 @@ TEST_CASE(outline_wrapper_respects_callable_alignment)
 
 // The GC scans a callable's bytes conservatively (raw_capture_range()), so the padding between captures, and storage
 // a callable doesn't use, must not keep whatever stale data the memory held before.
-static bool capture_range_holds(ReadonlyBytes range, u8 byte)
+static constexpr u8 stale_byte = 0xaa;
+
+// The captures in these tests put padding after a bool, before a member with a copy constructor of its own, so no copy
+// of the captures writes that padding: It keeps whatever the callable's storage held. A callable that's copied as one
+// block of bytes would instead bring along the padding of the callable it's copied from, which Function can't clear.
+// Check just the padding, since the reference's bytes are an address, and any of them could be the stale byte.
+template<typename Captures>
+static bool padding_holds_stale_byte(Captures const& captures)
 {
-    for (auto value : range) {
-        if (value == byte)
+    auto const* start = reinterpret_cast<u8 const*>(&captures);
+    auto padding_size = static_cast<size_t>(reinterpret_cast<u8 const*>(&captures.counted) - start) - sizeof(bool);
+    VERIFY(padding_size > 0);
+    for (auto value : ReadonlyBytes { start + sizeof(bool), padding_size }) {
+        if (value == stale_byte)
             return true;
     }
     return false;
 }
 
-static constexpr u8 stale_byte = 0xaa;
+struct InlineCaptures {
+    bool flag { true };
+    CopyOnly counted;
+};
+using InlineCapturesFunction = Function<InlineCaptures const*()>;
 
 TEST_CASE(inline_callable_padding_is_zeroed)
 {
-    alignas(Function<u64()>) u8 buffer[sizeof(Function<u64()>)];
+    int instance_count = 0;
+    alignas(InlineCapturesFunction) u8 buffer[sizeof(InlineCapturesFunction)];
     __builtin_memset(buffer, stale_byte, sizeof(buffer));
 
-    // A bool followed by a u64 leaves padding between them.
-    auto* function = new (buffer) Function<u64()>([flag = true, number = 0x1122334455667788ull]() {
-        return flag ? number : 0;
+    auto* function = new (buffer) InlineCapturesFunction([captures = InlineCaptures { true, CopyOnly(instance_count) }]() {
+        return &captures;
     });
-    EXPECT_EQ((*function)(), 0x1122334455667788ull);
-    EXPECT(!capture_range_holds(function->raw_capture_range(), stale_byte));
+    EXPECT(!padding_holds_stale_byte(*(*function)()));
     function->~Function();
+    EXPECT_EQ(instance_count, 0);
 }
 
 TEST_CASE(moved_inline_callable_padding_is_zeroed)
 {
-    alignas(Function<u64()>) u8 source_buffer[sizeof(Function<u64()>)];
+    int instance_count = 0;
+    alignas(InlineCapturesFunction) u8 source_buffer[sizeof(InlineCapturesFunction)];
     __builtin_memset(source_buffer, stale_byte, sizeof(source_buffer));
-    auto* source = new (source_buffer) Function<u64()>([flag = true, number = 0x1122334455667788ull]() {
-        return flag ? number : 0;
+    auto* source = new (source_buffer) InlineCapturesFunction([captures = InlineCaptures { true, CopyOnly(instance_count) }]() {
+        return &captures;
     });
 
-    alignas(Function<u64()>) u8 buffer[sizeof(Function<u64()>)];
+    alignas(InlineCapturesFunction) u8 buffer[sizeof(InlineCapturesFunction)];
     __builtin_memset(buffer, stale_byte, sizeof(buffer));
-    auto* destination = new (buffer) Function<u64()>(move(*source));
-    EXPECT_EQ((*destination)(), 0x1122334455667788ull);
-    EXPECT(!capture_range_holds(destination->raw_capture_range(), stale_byte));
+    auto* destination = new (buffer) InlineCapturesFunction(move(*source));
+    EXPECT(!padding_holds_stale_byte(*(*destination)()));
     destination->~Function();
     source->~Function();
+    EXPECT_EQ(instance_count, 0);
 }
 
 TEST_CASE(outline_callable_padding_is_zeroed)
 {
     int instance_count = 0;
-    // The padding after the bool sits before a member with a copy constructor of its own, so no copy of the captures
-    // writes it: It keeps whatever the wrapper's storage held.
     struct Captures {
         bool flag { true };
         CopyOnly counted;
@@ -164,10 +177,5 @@ TEST_CASE(outline_callable_padding_is_zeroed)
     };
     auto const* captures = function();
     EXPECT_EQ(captures->numbers[5], 6u);
-
-    // Check just the padding, since the reference's bytes are an address, and any of them could be the stale byte.
-    auto const* start = reinterpret_cast<u8 const*>(captures);
-    auto padding_size = static_cast<size_t>(reinterpret_cast<u8 const*>(&captures->counted) - start) - sizeof(bool);
-    EXPECT(padding_size > 0);
-    EXPECT(!capture_range_holds({ start + sizeof(bool), padding_size }, stale_byte));
+    EXPECT(!padding_holds_stale_byte(*captures));
 }
