@@ -25,9 +25,14 @@ static bool is_platform_object(JS::Value value)
 
 static bool platform_object_implements_interface(JS::Value value, StringView interface_name)
 {
+    // NB: The wrappers of a Rust object that inherits from a C++ interface hold the C++ object it owns as their
+    //     wrappable, which implements only the C++ interface.
+    if (Bindings::rust_interface_object_implements_interface(value.as_object(), interface_name))
+        return true;
+
     auto const* wrappable = Bindings::wrappable_impl_from(&value.as_object());
     if (!wrappable)
-        return Bindings::rust_interface_object_implements_interface(value.as_object(), interface_name);
+        return false;
 
     return wrappable->implements_interface(MUST(String::from_utf8(interface_name)));
 }

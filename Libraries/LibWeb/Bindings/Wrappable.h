@@ -116,6 +116,10 @@ public:
     [[nodiscard]] virtual bool implements_interface(Bindings::InterfaceName) const { return false; }
     [[nodiscard]] virtual bool implements_interface(String const&) const { return false; }
 
+    // Whether an object of an interface implemented in Rust owns this object, so that its wrappers are the Rust
+    // object's (Libraries/LibWeb/Bindings/Rust/src/bindings/event_target.rs).
+    [[nodiscard]] virtual bool is_owned_by_rust_interface_object() const { return false; }
+
     template<typename T>
     requires(IsBaseOf<Wrappable, T> && requires { T::s_interface_name; })
     bool fast_is() const

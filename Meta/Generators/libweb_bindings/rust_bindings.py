@@ -47,7 +47,9 @@ from Generators.libweb_bindings.rust_to_js_value import rust_to_js_value
 from Generators.libweb_bindings.rust_to_js_value import write_dictionary_to_js
 from Generators.libweb_bindings.rust_to_js_value import write_enumeration_to_js
 from Generators.libweb_bindings.rust_to_js_value import write_union_to_js
+from Generators.libweb_bindings.rust_types import CPP_PARENT_INTERFACES
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
+from Generators.libweb_bindings.rust_types import cpp_ancestor
 from Generators.libweb_bindings.rust_types import cpp_interface_name_constant
 from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import inheriting_interfaces
@@ -57,6 +59,7 @@ from Generators.libweb_bindings.rust_types import rust_interface_path
 from Generators.libweb_bindings.rust_types import rust_parameter_type
 from Generators.libweb_bindings.rust_types import rust_type
 from Generators.libweb_bindings.rust_usage import DefinitionUsage
+from Generators.libweb_bindings.wrappers import wrapper_host_class_name
 from Generators.libweb_bindings.wrappers import wrapper_name
 from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Interface
@@ -137,8 +140,15 @@ def check_interface_is_supported(interface: Interface, module: Module, context: 
         fail(f"the Rust bindings do not handle its extended attributes {sorted(unsupported_attributes)}")
     if interface.is_callback_interface:
         fail("it is a callback interface")
-    if interface.parent_name and not is_implemented_in_rust(context.interfaces.get(interface.parent_name)):
-        fail(f"it inherits from {interface.parent_name}, which is not implemented in Rust")
+    parent = context.interfaces.get(interface.parent_name)
+    if (
+        interface.parent_name
+        and not is_implemented_in_rust(parent)
+        and interface.parent_name not in CPP_PARENT_INTERFACES
+    ):
+        fail(
+            f"it inherits from {interface.parent_name}, which is neither implemented in Rust nor one of {CPP_PARENT_INTERFACES}"
+        )
     if module.callback_functions:
         fail("its module defines callback functions")
 
@@ -240,9 +250,14 @@ void {interface.namespace_class}::initialize(JS::Realm& realm, JS::Object& objec
     parent = context.interfaces.get(interface.parent_name)
     if parent is not None:
         includes.add_binding(parent.implemented_name)
-        parent_host_class = wrapper_host_class_symbol(parent)
+        parent_host_class = (
+            wrapper_host_class_symbol(parent) if is_implemented_in_rust(parent) else wrapper_host_class_name(parent)
+        )
     else:
         parent_host_class = "web_bindings_rust_interface_wrapper_host_class"
+    has_cpp_ancestor = cpp_ancestor(interface, context) is not None
+    if has_cpp_ancestor:
+        includes.add("LibWeb/Bindings/PlatformObject.h")
 
     initialize_prototype = rust_entry_point_name(interface, "initialize_prototype")
     initialize_constructor = rust_entry_point_name(interface, "initialize_constructor")
@@ -268,7 +283,23 @@ void {initialize_constructor}(JSVM*, void* realm, JSObject* constructor);
         )
     if interface.constructors:
         out.write(f"JSCompletion {construct}(JSVM*, JSObject* constructor, JSObject* new_target);\n")
-    if not supports_indexed_properties:
+    if has_cpp_ancestor:
+        if supports_indexed_properties:
+            raise UnsupportedByRustBindings(
+                f"{interface.path}: {interface.name} supports indexed properties and inherits from an interface "
+                "implemented in C++, which the Rust bindings do not handle yet"
+            )
+        out.write(
+            f"""
+}}
+
+// The wrappers hold the cell of their object as host data and, for an interface that inherits from one implemented in
+// C++, the C++ object it owns as their wrappable, which the hooks keep alive.
+constexpr JSHostClass {wrapper_host_class_symbol(interface)} = JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}"sv,
+    &{parent_host_class}, &platform_object_hooks, nullptr, platform_object_host_class_flags);
+"""
+        )
+    elif not supports_indexed_properties:
         out.write(
             f"""
 }}
@@ -382,6 +413,14 @@ def write_ensure_web_prototype_implementation(out: TextIO, intrinsics: List[Inte
     rust_interfaces = [
         interface for interface in intrinsics if is_implemented_in_rust(interface) and not interface.is_namespace
     ]
+    # NB: The interface prototype object and the interface object of an interface implemented in Rust have those of the
+    #     interface it inherits from as their prototype, which can be an interface implemented in C++.
+    cpp_parent_names = {
+        interface.parent_name for interface in rust_interfaces if interface.parent_name in CPP_PARENT_INTERFACES
+    }
+    prototype_interfaces = rust_interfaces + [
+        interface for interface in intrinsics if interface.name in cpp_parent_names
+    ]
 
     def write_switch(function: str, interfaces: List[Interface], object_of: Callable[[Interface], str]) -> None:
         out.write(
@@ -408,14 +447,14 @@ JSObject* {function}(void* realm, u16 interface_name)
 
     write_switch(
         "web_bindings_ensure_web_prototype",
-        rust_interfaces,
+        prototype_interfaces,
         lambda interface: (
             f'ensure_web_prototype<{interface.prototype_class}>(js_realm, "{interface.namespaced_name}"_utf16_fly_string)'
         ),
     )
     write_switch(
         "web_bindings_ensure_web_constructor",
-        rust_interfaces,
+        prototype_interfaces,
         lambda interface: (
             f'ensure_web_constructor<{interface.prototype_class}>(js_realm, "{interface.namespaced_name}"_utf16_fly_string)'
         ),
@@ -534,6 +573,8 @@ def implementation_method_signatures(
         )
     for attribute in members.attributes:
         what = f"{interface.name}.{attribute.attribute.name}"
+        if attribute.event_type is not None:
+            continue
         if not attribute.attribute.inherit:
             result_type = rust_type(attribute.attribute.type, context, what, is_result=True)
             signatures.append(
@@ -774,6 +815,7 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
         values,
     };
     use crate::bindings::callback::{CallbackFunction, PromiseCallbackFunction};
+    use crate::bindings::event_target::{event_handler_attribute, set_event_handler_attribute};
     use crate::bindings::promise::WebIdlPromise;
     use crate::bindings::structured_data;
     use crate::bindings::{CallContext, WebIdlResult};
@@ -826,7 +868,12 @@ def write_rust_interface(
     implementation = rust_interface_path(interface)
     members = rust_members(interface)
     parent = context.interfaces.get(interface.parent_name)
-    inherited_interface_name = "None" if parent is None else f"Some(super::{rust_module_name(parent)}::INTERFACE_NAME)"
+    if parent is None:
+        inherited_interface_name = "None"
+    elif is_implemented_in_rust(parent):
+        inherited_interface_name = f"Some(super::{rust_module_name(parent)}::INTERFACE_NAME)"
+    else:
+        inherited_interface_name = f"Some({cpp_interface_name_constant(parent)})"
     method_documentation = "".join(
         f"/// - `{signature}`\n" for signature in implementation_method_signatures(context, interface, members)
     )
@@ -877,6 +924,9 @@ def write_rust_interface(
 
     for attribute in members.attributes:
         name = attribute.attribute.name
+        if attribute.event_type is not None:
+            write_rust_event_handler_attribute(out, attribute)
+            continue
         conversion = rust_to_js_value(attribute.attribute.type, "result", "&cx", context, f"{interface.name}.{name}")
         call = f"Implementation::{attribute.getter_method}(&implementation, &mut cx)"
         if attribute.attribute.inherit:
@@ -1526,6 +1576,28 @@ def write_this_implementation(out: TextIO, context: GenerationContext, interface
     )
 
 
+def write_rust_event_handler_attribute(out: TextIO, attribute: RustAttribute) -> None:
+    """The getter and the setter of an event handler IDL attribute, which get and set the event handler of the C++
+    EventTarget that the object owns, https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-idl-attributes"""
+    out.write(
+        f"""
+    pub(super) fn {attribute.getter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
+        let (implementation, _) = this_implementation(vm)?;
+        let object: &Implementation = &implementation;
+        Ok(event_handler_attribute(object, "{attribute.event_type}"))
+    }}
+
+    fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
+        let value = vm.argument(0);
+        let (implementation, _) = this_implementation(vm)?;
+        let object: &Implementation = &implementation;
+        set_event_handler_attribute(object, "{attribute.event_type}", value);
+        Ok(Value::UNDEFINED)
+    }}
+"""
+    )
+
+
 def inherited_attribute_getter_call(context: GenerationContext, interface: Interface, attribute: RustAttribute) -> str:
     """The call of the getter of an attribute that the interface redeclares with inherit, whose getter is that of the
     interface it inherits the attribute from, https://webidl.spec.whatwg.org/#dfn-inherit-getter. The implementation
@@ -1788,7 +1860,13 @@ def write_rust_wrap_for_cpp(out: TextIO, context: GenerationContext, usage: Defi
 /// The pointers must be the VM, a live realm, and the live cell of an object of the interface.
 #[unsafe(no_mangle)]
 """
-    if not usage.rust_interfaces_named_by_cpp:
+    # NB: The C++ object that such an object owns is wrapped by the object's interface too.
+    wrapped_interfaces = dict(usage.rust_interfaces_named_by_cpp)
+    for interface in context.interfaces.values():
+        if is_implemented_in_rust(interface) and cpp_ancestor(interface, context) is not None:
+            wrapped_interfaces[interface.name] = interface
+
+    if not wrapped_interfaces:
         out.write(
             f"""{documentation}pub unsafe extern "C" fn web_rust_bindings_wrap(
     _vm: *mut core::ffi::c_void,
@@ -1825,7 +1903,7 @@ def write_rust_wrap_for_cpp(out: TextIO, context: GenerationContext, usage: Defi
         }}
 """
 
-    arms = "".join(arm(interface) for _, interface in sorted(usage.rust_interfaces_named_by_cpp.items()))
+    arms = "".join(arm(interface) for _, interface in sorted(wrapped_interfaces.items()))
     out.write(
         f"""{documentation}pub unsafe extern "C" fn web_rust_bindings_wrap(
     vm: *mut core::ffi::c_void,

@@ -1010,6 +1010,13 @@ impl ToJs for WebIdlPromise {
     }
 }
 
+/// https://webidl.spec.whatwg.org/#js-short
+impl ToJs for i16 {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(Value::from_i32(i32::from(self)))
+    }
+}
+
 /// https://webidl.spec.whatwg.org/#js-long
 impl ToJs for i32 {
     fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
@@ -1090,6 +1097,12 @@ impl<T: Interface> ToJs for Ref<T> {
     fn to_js(self, cx: &CallContext) -> ThrowCompletionOr<Value> {
         Ok(Value::from_object(wrap(cx, self)))
     }
+}
+
+/// (DOMString or sequence<DOMString>), which more than one interface's IDL names without a typedef.
+pub(crate) enum DOMStringOrDOMStringSequence {
+    DOMString(Utf16String),
+    Sequence(Vec<Utf16String>),
 }
 
 /// An object of an interface that LibWeb implements in C++, as its wrapper. Only the C++ code knows the object

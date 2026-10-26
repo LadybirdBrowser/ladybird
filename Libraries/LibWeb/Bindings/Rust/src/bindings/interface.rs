@@ -67,6 +67,12 @@ pub(crate) trait Wrappable {
         Self: Trace + Sized,
     {
     }
+
+    /// The C++ EventTarget or Event that the object owns, which its wrappers hold as their wrappable
+    /// (bindings::event_target).
+    fn cpp_parent(&self) -> Option<NonNull<c_void>> {
+        None
+    }
 }
 
 /// The value of the cell of an object of an interface: its implementation, and its wrapper in the main world.
@@ -315,16 +321,16 @@ fn register_wrapper_outside_main_world<T: Interface>(realm: Gc<Realm>, object: R
     }
 }
 
-/// A new wrapper of the object in the realm, whose host data is the cell of the object.
 fn create_wrapper<T: Interface>(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>, object: Ref<T>) -> Gc<HostObject> {
-    // SAFETY: The wrapper class's hooks expect no wrappable, and the host data is a live cell.
+    // SAFETY: The wrapper class's hooks expect a wrappable exactly for an interface that inherits from an interface
+    //         implemented in C++, whose objects own one, and the wrappable and the host data are live cells.
     unsafe {
         HostObject::create(
             vm,
             realm,
             T::wrapper_class(),
             Some(prototype),
-            None,
+            object.cpp_parent(),
             Some(object.as_non_null().cast()),
         )
     }

@@ -56,11 +56,12 @@ RustInterfaceCell* rust_interface_cell_of_wrapper(JS::Object& object, JSHostClas
 
 bool rust_interface_object_implements_interface(JS::Object const& object, StringView interface_name)
 {
-    if (!JS::is_host_instance_of(object, web_bindings_rust_interface_wrapper_host_class))
+    auto const* wrapper = as_if<JS::HostObject>(object);
+    if (!wrapper || !JS::host_data_of(object))
         return false;
-    // NB: The class of the wrappers of an interface has the name of the interface, and the class of the wrappers of
-    //     the interface that it inherits from as its parent.
-    for (auto const* host_class = &as<JS::HostObject>(object).host_class(); host_class != &web_bindings_rust_interface_wrapper_host_class; host_class = host_class->parent) {
+    // NB: The host class of an interface's wrappers is named after it, and chains through the parent interfaces'
+    //     classes up to the class of every Rust interface, or else to that of a C++ interface it inherits from.
+    for (auto const* host_class = &wrapper->host_class(); host_class && host_class != &web_bindings_rust_interface_wrapper_host_class; host_class = host_class->parent) {
         if (StringView { host_class->name, host_class->name_length } == interface_name)
             return true;
     }

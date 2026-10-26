@@ -242,6 +242,10 @@ JS::ThrowCompletionOr<void> set_prototype_of_cached_main_world_wrapper(Wrappable
 
 void preserve_wrapper(Wrappable& wrappable, JS::HostObject& wrapper)
 {
+    // An object of an interface implemented in Rust keeps its wrappers alive itself, as wrapper_is_preserved() says.
+    if (wrappable.is_owned_by_rust_interface_object())
+        return;
+
     auto& gc_allocated_wrappable = as<GCAllocatedWrappable>(wrappable);
     auto& world = host_defined_wrapper_world(wrapper.shape().realm());
 
@@ -278,6 +282,11 @@ bool wrapper_is_preserved(JS::HostObject const& wrapper)
     auto const* wrappable = wrappable_impl_from(&wrapper);
     if (!wrappable)
         return false;
+
+    // NB: The wrappers of a Rust object that inherits from a C++ interface hold the C++ object it owns as their
+    //     wrappable.
+    if (wrappable->is_owned_by_rust_interface_object())
+        return host_defined_wrapper_world(wrapper.shape().realm()).is_main_world();
     auto const& gc_allocated_wrappable = as<GCAllocatedWrappable>(*wrappable);
 
     auto& world = host_defined_wrapper_world(wrapper.shape().realm());
