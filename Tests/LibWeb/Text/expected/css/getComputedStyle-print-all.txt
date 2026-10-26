@@ -72,6 +72,7 @@ text-align: start
 text-align-last: auto
 text-anchor: start
 text-decoration-skip-ink: auto
+text-emphasis-position: over
 text-indent: 0px
 text-justify: auto
 text-orientation: mixed

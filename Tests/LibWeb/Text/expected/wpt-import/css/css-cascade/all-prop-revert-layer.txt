@@ -69,6 +69,7 @@ Pass	text-align
 Pass	text-align-last
 Pass	text-anchor
 Pass	text-decoration-skip-ink
+Pass	text-emphasis-position
 Pass	text-indent
 Pass	text-justify
 Pass	text-orientation

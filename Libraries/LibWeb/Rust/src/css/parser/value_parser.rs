@@ -273,6 +273,7 @@ fn property_uses_special_keyword_parser(property: u16) -> bool {
             | property_id::ROTATE
             | property_id::SCALE
             | property_id::TEXT_DECORATION_LINE
+            | property_id::TEXT_EMPHASIS_POSITION
             | property_id::TEXT_INDENT
             | property_id::TEXT_SHADOW
             | property_id::TEXT_UNDERLINE_POSITION
@@ -1928,6 +1929,37 @@ fn parse_text_indent_property(context: &ParseContext, property: u16, values: &[C
         hanging,
         each_line,
     }))
+}
+
+// https://drafts.csswg.org/css-text-decor-4/#text-emphasis-position-property
+// [ over | under ] && [ right | left ]?
+fn parse_text_emphasis_position_property(values: &[ComponentValue]) -> ParseOutcome {
+    let Some(keywords) = keyword_sequence(values) else {
+        return ParseOutcome::Invalid;
+    };
+    let mut horizontal = None;
+    let mut vertical = None;
+    for keyword in keywords {
+        match keyword {
+            keyword::OVER | keyword::UNDER if horizontal.is_none() => horizontal = Some(keyword),
+            keyword::LEFT | keyword::RIGHT if vertical.is_none() => vertical = Some(keyword),
+            _ => return ParseOutcome::Invalid,
+        }
+    }
+    let Some(horizontal) = horizontal else {
+        return ParseOutcome::Invalid;
+    };
+    // If [ right | left ] is omitted, it defaults to right.
+    let horizontal = StyleValueData::Keyword { keyword: horizontal };
+    let position = match vertical {
+        Some(vertical) => value_list(
+            vec![horizontal, StyleValueData::Keyword { keyword: vertical }],
+            0,
+            false,
+        ),
+        None => horizontal,
+    };
+    ParseOutcome::Parsed(shared_style_value(position))
 }
 
 fn parse_text_underline_position_property(values: &[ComponentValue]) -> ParseOutcome {
@@ -6083,6 +6115,9 @@ fn parse_css_value_after_substitution_scan(
     }
     if property_id == property_id::TEXT_INDENT {
         return parse_text_indent_property(context, property_id, values);
+    }
+    if property_id == property_id::TEXT_EMPHASIS_POSITION {
+        return parse_text_emphasis_position_property(values);
     }
     if property_id == property_id::TEXT_UNDERLINE_POSITION {
         return parse_text_underline_position_property(values);

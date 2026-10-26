@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 419 tests
+Found 423 tests
 
-406 Pass
+410 Pass
 13 Fail
 Pass	Setup
 Pass	isolation (type: discrete) has testInterpolation function
@@ -316,6 +316,10 @@ Pass	text-decoration-style (type: discrete) has testInterpolation function
 Pass	text-decoration-style uses discrete animation when animating between "solid" and "dotted" with linear easing
 Pass	text-decoration-style uses discrete animation when animating between "solid" and "dotted" with effect easing
 Pass	text-decoration-style uses discrete animation when animating between "solid" and "dotted" with keyframe easing
+Pass	text-emphasis-position (type: discrete) has testInterpolation function
+Pass	text-emphasis-position uses discrete animation when animating between "over" and "under left" with linear easing
+Pass	text-emphasis-position uses discrete animation when animating between "over" and "under left" with effect easing
+Pass	text-emphasis-position uses discrete animation when animating between "over" and "under left" with keyframe easing
 Pass	text-overflow (type: discrete) has testInterpolation function
 Pass	text-overflow uses discrete animation when animating between "clip" and "ellipsis" with linear easing
 Pass	text-overflow uses discrete animation when animating between "clip" and "ellipsis" with effect easing

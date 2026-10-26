@@ -2,16 +2,16 @@ Harness status: OK
 
 Found 38 tests
 
-26 Pass
-12 Fail
-Fail	Can set 'text-emphasis-position' to CSS-wide keywords: initial
-Fail	Can set 'text-emphasis-position' to CSS-wide keywords: inherit
-Fail	Can set 'text-emphasis-position' to CSS-wide keywords: unset
-Fail	Can set 'text-emphasis-position' to CSS-wide keywords: revert
-Fail	Can set 'text-emphasis-position' to var() references:  var(--A)
+37 Pass
+1 Fail
+Pass	Can set 'text-emphasis-position' to CSS-wide keywords: initial
+Pass	Can set 'text-emphasis-position' to CSS-wide keywords: inherit
+Pass	Can set 'text-emphasis-position' to CSS-wide keywords: unset
+Pass	Can set 'text-emphasis-position' to CSS-wide keywords: revert
+Pass	Can set 'text-emphasis-position' to var() references:  var(--A)
 Fail	Can set 'text-emphasis-position' to the 'auto' keyword: auto
-Fail	Can set 'text-emphasis-position' to the 'over' keyword: over
-Fail	Can set 'text-emphasis-position' to the 'under' keyword: under
+Pass	Can set 'text-emphasis-position' to the 'over' keyword: over
+Pass	Can set 'text-emphasis-position' to the 'under' keyword: under
 Pass	Setting 'text-emphasis-position' to a length: 0px throws TypeError
 Pass	Setting 'text-emphasis-position' to a length: -3.14em throws TypeError
 Pass	Setting 'text-emphasis-position' to a length: 3.14cm throws TypeError
@@ -38,7 +38,7 @@ Pass	Setting 'text-emphasis-position' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'text-emphasis-position' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'text-emphasis-position' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'text-emphasis-position' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	'text-emphasis-position' does not support setting 'under right'
-Fail	'text-emphasis-position' does not support setting 'over right'
-Fail	'text-emphasis-position' does not support 'over left'
-Fail	'text-emphasis-position' does not support 'under left'
+Pass	'text-emphasis-position' does not support setting 'under right'
+Pass	'text-emphasis-position' does not support setting 'over right'
+Pass	'text-emphasis-position' does not support 'over left'
+Pass	'text-emphasis-position' does not support 'under left'

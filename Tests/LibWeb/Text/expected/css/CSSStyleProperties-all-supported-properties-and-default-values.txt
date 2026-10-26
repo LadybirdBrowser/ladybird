@@ -975,6 +975,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'text-decoration-style': 'solid'
 'textDecorationThickness': 'auto'
 'text-decoration-thickness': 'auto'
+'textEmphasisPosition': 'over'
+'text-emphasis-position': 'over'
 'textIndent': '0px'
 'text-indent': '0px'
 'textJustify': 'auto'

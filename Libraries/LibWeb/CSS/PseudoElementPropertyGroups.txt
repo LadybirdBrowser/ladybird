@@ -176,6 +176,7 @@ text-decoration-line
 text-decoration-skip-ink
 text-decoration-style
 text-decoration-thickness
+text-emphasis-position
 text-shadow
 text-underline-offset
 text-underline-position
