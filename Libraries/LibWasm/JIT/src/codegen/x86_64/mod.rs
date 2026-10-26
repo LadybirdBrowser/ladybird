@@ -115,7 +115,7 @@ impl<'a> CodeGenerator<'a> {
             func,
             allocation,
             runtime,
-            asm: Assembler::new(),
+            asm: Assembler::for_host(),
             block_labels: Vec::new(),
             trap_labels: vec![None; 32],
             dynamic_trap: None,

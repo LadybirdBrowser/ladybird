@@ -8,6 +8,7 @@
 
 mod extended;
 mod macro_assembler;
+mod sse;
 #[cfg(test)]
 mod tests;
 
@@ -22,6 +23,7 @@ pub use extended::VexOpcode;
 pub use extended::VexOperand;
 pub use extended::VexPrefix;
 pub use macro_assembler::MacroAssembler;
+pub use sse::CpuFeatures;
 
 use super::Address;
 use super::Fpr;
@@ -164,6 +166,8 @@ enum Prefix {
 #[derive(Debug, Default)]
 pub struct Assembler {
     buffer: CodeBuffer,
+    /// None for a raw instruction encoder; host code generation selects the CPU's optional instructions.
+    cpu_features: Option<CpuFeatures>,
     /// Whether a group of instructions that ends in a branch is being emitted (see `BranchGroups::branch_group()`), whose
     /// branches leave keeping it within a branch window to the group.
     in_branch_group: bool,
@@ -214,6 +218,22 @@ impl BranchGroups for Assembler {
 impl Assembler {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Selects AVX, AVX2, BMI and LZCNT only where the executing CPU supports them.
+    pub fn for_host() -> Self {
+        Self::with_cpu_features(CpuFeatures::host())
+    }
+
+    pub fn with_cpu_features(cpu_features: CpuFeatures) -> Self {
+        Self {
+            cpu_features: Some(cpu_features),
+            ..Self::default()
+        }
+    }
+
+    pub fn cpu_features(&self) -> CpuFeatures {
+        self.cpu_features.unwrap_or(CpuFeatures::X86_64_V3)
     }
 
     pub fn offset(&self) -> usize {

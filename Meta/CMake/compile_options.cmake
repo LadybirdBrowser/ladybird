@@ -66,8 +66,9 @@ if (ENABLE_CI_BASELINE_CPU)
         add_cxx_compile_options(-march=armv8.2-a)
         set(RUSTC_TARGET_CPU_FLAGS -Ctarget-feature=+v8.2a)
     elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
-        add_cxx_compile_options(-march=x86-64-v3)
-        set(RUSTC_TARGET_CPU_FLAGS -Ctarget-cpu=x86-64-v3)
+        # Keep distributed binaries usable on SSE4.2/POPCNT machines without AVX or BMI.
+        add_cxx_compile_options(-march=x86-64-v2)
+        set(RUSTC_TARGET_CPU_FLAGS -Ctarget-cpu=x86-64-v2)
     endif()
 elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
     # On RISC-V the generic -march=native is not yet supported and both gcc and clang require an explicit

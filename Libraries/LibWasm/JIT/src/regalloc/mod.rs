@@ -213,6 +213,11 @@ pub fn fits_displacement(func: &Func, index: Value, offset: u32) -> bool {
 
 #[cfg(target_arch = "x86_64")]
 fn constraints(func: &Func, value: Value) -> Constraints {
+    constraints_for_cpu(func, value, crate::asm::x86_64::CpuFeatures::host())
+}
+
+#[cfg(target_arch = "x86_64")]
+fn constraints_for_cpu(func: &Func, value: Value, cpu_features: crate::asm::x86_64::CpuFeatures) -> Constraints {
     use convention::{RAX, RCX, RDX};
     let node = func.node(value);
     let output = if node.ty == Type::None {
@@ -235,9 +240,18 @@ fn constraints(func: &Func, value: Value) -> Constraints {
             constraints.reuse_first = true;
             constraints.slot_inputs = 0b010;
         }
-        Op::Shl | Op::ShrS | Op::ShrU => constraints.inputs[1] = Input::RegisterOrConstant,
+        Op::Shl | Op::ShrS | Op::ShrU => {
+            // RegisterOrConstant only uses an immediate when fits_immediate() accepts it. Otherwise a legacy
+            // shift needs CL even if its count is a constant.
+            if fits_immediate(func, node.args[1]) || cpu_features.bmi2 {
+                constraints.inputs[1] = Input::RegisterOrConstant;
+            } else {
+                constraints.inputs[1] = Input::Fixed(RCX);
+                constraints.reuse_first = true;
+            }
+        }
         Op::Rotl | Op::Rotr => {
-            if func.node(node.args[1]).op.is_constant() {
+            if fits_immediate(func, node.args[1]) {
                 constraints.inputs[1] = Input::RegisterOrConstant;
             } else {
                 constraints.inputs[1] = Input::Fixed(RCX);
@@ -348,7 +362,11 @@ fn constraints(func: &Func, value: Value) -> Constraints {
                     *input = Input::RegisterOrVectorConstant;
                 }
             }
-            constraints.slot_inputs = constants;
+            // Legacy packed SSE memory operands require alignment; spill slots need only be eight-byte aligned.
+            // Constants in the pool are aligned to sixteen bytes on both paths.
+            if cpu_features.avx2 {
+                constraints.slot_inputs = constants;
+            }
         }
         _ => {}
     }
@@ -1406,6 +1424,40 @@ pub fn edge_slot(func: &Func, from: BlockId, to: BlockId) -> u32 {
 mod tests {
     use super::{Allocation, Allocator, Location, Move, NO_SLOT};
     use std::collections::HashMap;
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn large_constant_shift_counts_require_rcx_without_bmi2() {
+        use super::{Input, constraints_for_cpu};
+        use crate::asm::x86_64::CpuFeatures;
+        use crate::convention::RCX;
+        use crate::ir::{Func, Node, Op, Type};
+
+        for op in [Op::Shl, Op::ShrS, Op::ShrU, Op::Rotl, Op::Rotr] {
+            for count in [0x8000_0000u64, 0xffff_ffff, 0x1_0000_0001, 0x8000_0000_0000_003f] {
+                let func = Func {
+                    nodes: vec![
+                        Node::new(Op::Param, Type::I64, 0, [0, 0, 0]),
+                        Node::new(Op::Const64, Type::I64, 0, [count as u32, (count >> 32) as u32, 0]),
+                        Node::new(op, Type::I64, 0, [0, 1, 0]),
+                    ],
+                    ..Default::default()
+                };
+                for features in [CpuFeatures::X86_64_V2, CpuFeatures::X86_64_V3] {
+                    let constraints = constraints_for_cpu(&func, 2, features);
+                    let expected = if features.bmi2 && matches!(op, Op::Shl | Op::ShrS | Op::ShrU) {
+                        Input::RegisterOrConstant
+                    } else {
+                        Input::Fixed(RCX)
+                    };
+                    assert_eq!(
+                        constraints.inputs[1], expected,
+                        "{op:?}, count={count:#x}, {features:?}"
+                    );
+                }
+            }
+        }
+    }
 
     /// Runs `moves` as `resolve()` orders them, and checks that every destination gets what its source had before.
     fn check(moves: &[(u8, u8)]) {
