@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        for (const allowTiming of [true, false]) {
+            const headers = {
+                "Content-Type": "text/plain",
+                "Access-Control-Allow-Origin": "*",
+                "Server-Timing": 'db;dur=12.5;desc="cache"',
+            };
+            if (allowTiming)
+                headers["Timing-Allow-Origin"] = "*";
+            const url = new URL(await server.createEcho("GET", `/cors-timing-${crypto.randomUUID()}`, {
+                status: 200,
+                headers,
+                body: "timing response",
+            }));
+            url.hostname = location.hostname === "localhost" ? "127.0.0.1" : "localhost";
+
+            const observed = new Promise(resolve => {
+                const observer = new PerformanceObserver(list => {
+                    const entry = list.getEntries().find(entry => entry.name === url.href);
+                    if (entry) {
+                        observer.disconnect();
+                        resolve(entry);
+                    }
+                });
+                observer.observe({ entryTypes: ["resource"] });
+            });
+            const response = await fetch(url);
+            println(`cross-origin response: ${response.type === "cors"}`);
+            println(`Server-Timing header visible: ${response.headers.has("server-timing")}`);
+            await response.text();
+            const entry = await observed;
+            println(`timing allowed: ${allowTiming}, metrics: ${entry.serverTiming.length}`);
+            println(`metrics: ${entry.serverTiming.map(metric => `${metric.name}/${metric.duration}/${metric.description}`).join(",")}`);
+        }
+        done();
+    });
+</script>
