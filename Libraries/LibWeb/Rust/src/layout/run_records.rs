@@ -28,6 +28,83 @@ pub(crate) struct LayoutScratch {
     /// https://drafts.csswg.org/css-anchor-position-1/#apply-a-position-option
     position_option_styles: RefCell<Vec<(NodeSlotId, super::node_data::StylePayloadsRef)>>,
     has_position_option_styles: Cell<bool>,
+    /// What each run in progress found out for the host so far, the innermost last, and what the pass found out
+    /// outside any run.
+    host_findings_of_runs_in_progress: RefCell<Vec<HostFindings>>,
+    host_findings_outside_runs: RefCell<HostFindings>,
+}
+
+/// What layout found out that the host hears of once the layout that found it is committed: the nodes whose SVG
+/// lengths it resolved without the container they are relative to, what the container-relative lengths it resolved
+/// depend on, and the natural size it negotiated for the box of an `<svg>` document element. A run hands them to its
+/// parent with its result, so a discarded result tells the host nothing.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct HostFindings {
+    pub(crate) nodes_with_unresolved_container_lengths: Vec<NodeSlotId>,
+    pub(crate) messages: Vec<super::commit::FfiCommitMessage>,
+    pub(crate) document_svg_root_natural_size: Option<(NodeSlotId, crate::css::style::NaturalSize)>,
+}
+
+impl HostFindings {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.nodes_with_unresolved_container_lengths.is_empty()
+            && self.messages.is_empty()
+            && self.document_svg_root_natural_size.is_none()
+    }
+
+    pub(crate) fn note_unresolved_container_lengths(&mut self, node: NodeSlotId) {
+        if !self.nodes_with_unresolved_container_lengths.contains(&node) {
+            self.nodes_with_unresolved_container_lengths.push(node);
+        }
+    }
+
+    pub(crate) fn note_container_length_dependencies(
+        &mut self,
+        element: crate::css::style::tree::StyleNodeID,
+        bases: &super::svg_formatting_context::FfiContainerLengthBases,
+    ) {
+        use super::commit::{FfiCommitMessage, FfiCommitMessageKind};
+        self.note_message(FfiCommitMessage::new(
+            element.raw(),
+            FfiCommitMessageKind::StyleDependsOnSizeContainerQuery,
+        ));
+        for (container, awaits_layout) in [
+            (bases.width_query_container, bases.width_query_container_awaits_layout),
+            (bases.height_query_container, bases.height_query_container_awaits_layout),
+        ] {
+            if container == 0 {
+                continue;
+            }
+            self.note_message(FfiCommitMessage::new(
+                container,
+                FfiCommitMessageKind::SizeQueryContainerResolvedAgainst,
+            ));
+            if awaits_layout {
+                self.note_message(FfiCommitMessage::new(
+                    container,
+                    FfiCommitMessageKind::ContainerQueryEvaluationNeededAfterLayout,
+                ));
+            }
+        }
+    }
+
+    fn note_message(&mut self, message: super::commit::FfiCommitMessage) {
+        if !self.messages.contains(&message) {
+            self.messages.push(message);
+        }
+    }
+
+    pub(crate) fn receive(&mut self, other: HostFindings) {
+        for node in other.nodes_with_unresolved_container_lengths {
+            self.note_unresolved_container_lengths(node);
+        }
+        for message in other.messages {
+            self.note_message(message);
+        }
+        if other.document_svg_root_natural_size.is_some() {
+            self.document_svg_root_natural_size = other.document_svg_root_natural_size;
+        }
+    }
 }
 
 #[derive(Default)]
@@ -69,6 +146,8 @@ impl Default for LayoutScratch {
             measurement_memo: RefCell::new(MeasurementMemo::default()),
             position_option_styles: RefCell::new(Vec::new()),
             has_position_option_styles: Cell::new(false),
+            host_findings_of_runs_in_progress: RefCell::new(Vec::new()),
+            host_findings_outside_runs: RefCell::new(HostFindings::default()),
         }
     }
 }
@@ -114,6 +193,27 @@ impl LayoutScratch {
         block_container: NodeSlotId,
     ) -> Option<super::inline_level_iterator::StashedInlineItems> {
         self.inline_item_stashes.borrow_mut().remove(&block_container)
+    }
+
+    /// Notes what the innermost run in progress found out for the host, or the pass outside any run.
+    pub(crate) fn note_host_findings(&self, note: impl FnOnce(&mut HostFindings)) {
+        let mut runs = self.host_findings_of_runs_in_progress.borrow_mut();
+        match runs.last_mut() {
+            Some(findings) => note(findings),
+            None => note(&mut self.host_findings_outside_runs.borrow_mut()),
+        }
+    }
+
+    /// Hands what a finished run found out to the run in progress that used its result.
+    pub(crate) fn receive_host_findings(&self, findings: Option<Box<HostFindings>>) {
+        if let Some(findings) = findings {
+            self.note_host_findings(|into| into.receive(*findings));
+        }
+    }
+
+    /// What the pass found out outside any run, which its driver reports itself.
+    pub(crate) fn take_host_findings_outside_runs(&self) -> HostFindings {
+        std::mem::take(&mut self.host_findings_outside_runs.borrow_mut())
     }
 
     pub(crate) fn begin_measurement_memo(&self) {
@@ -179,12 +279,16 @@ impl LayoutScratch {
         self.next_run_nonce
             .set(nonce.checked_add(1).expect("layout run nonce space exhausted"));
         self.live_run_nonces.borrow_mut().push(nonce);
+        self.host_findings_of_runs_in_progress
+            .borrow_mut()
+            .push(HostFindings::default());
         nonce
     }
 
     fn end_run(&self, nonce: u64) {
         let ended = self.live_run_nonces.borrow_mut().pop();
         assert_eq!(ended, Some(nonce), "layout runs ended out of order");
+        self.host_findings_of_runs_in_progress.borrow_mut().pop();
     }
 
     fn innermost_run_nonce(&self) -> Option<u64> {
@@ -306,6 +410,23 @@ impl<'arena> RunRecords<'arena> {
             omitted_line_layout: Cell::new(false),
         };
         run(&records)
+    }
+
+    /// What this run found out for the host, which its outputs carry to the run that uses its result.
+    pub(crate) fn take_host_findings(&self) -> Option<Box<HostFindings>> {
+        assert_eq!(
+            self.scratch.innermost_run_nonce(),
+            Some(self.nonce),
+            "only the innermost layout run may hand over what it found out"
+        );
+        let findings = std::mem::take(
+            self.scratch
+                .host_findings_of_runs_in_progress
+                .borrow_mut()
+                .last_mut()
+                .expect("a run in progress has a findings entry"),
+        );
+        (!findings.is_empty()).then(|| Box::new(findings))
     }
 
     pub(crate) fn note_omitted_line_layout(&self) {

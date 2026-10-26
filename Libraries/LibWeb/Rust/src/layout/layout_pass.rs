@@ -7,9 +7,10 @@
 use super::*;
 
 /// The one question a layout pass still asks the document while it runs: what the container-relative
-/// lengths on an element resolve against. Answering it notes in the document that the element depends
-/// on its query container's size, so the answer cannot be published ahead of the pass. A pass holds
-/// this and no other part of the host. Every other host call takes the main thread token, which a
+/// lengths on an element resolve against. The answer reads the committed size of the element's query
+/// container, so it cannot be published ahead of the pass, and it writes nothing in the document: the
+/// dependencies it finds reach the document as commit messages. A pass holds this and no other part
+/// of the host. Every other host call takes the main thread token, which a
 /// pass is not handed, so a pass has no way to make any other call into the document.
 #[derive(Clone, Copy)]
 pub(crate) struct ContainerLengthBasesQuery {

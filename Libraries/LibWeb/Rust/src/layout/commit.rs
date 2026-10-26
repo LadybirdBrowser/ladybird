@@ -8,7 +8,7 @@ use super::*;
 use crate::css::style::tree::StyleNodeID;
 
 /// What a commit message tells the document.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiCommitMessageKind {
     /// The node is a size query container whose content size changed.
@@ -32,11 +32,20 @@ pub enum FfiCommitMessageKind {
     /// settled. The tree build built no box for it: the document styles it and builds its box
     /// again.
     UnstyledElementReached,
+    /// The node is an element whose layout resolved a container-relative length, so that its
+    /// style depends on size container queries.
+    StyleDependsOnSizeContainerQuery,
+    /// The node is a size query container a container-relative length resolved against.
+    SizeQueryContainerResolvedAgainst,
+    /// The node is a size query container a container-relative length resolved against before
+    /// the container had a committed box, so the document evaluates container queries after
+    /// layout.
+    ContainerQueryEvaluationNeededAfterLayout,
 }
 
 /// One thing layout has to tell the document. The node it is about is named by the style node the
 /// style tree gave it, with 0 for the document; no pointer crosses the boundary.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiCommitMessage {
     pub style_node: u32,
@@ -63,6 +72,14 @@ pub(crate) struct CommitNotifications {
 }
 
 impl CommitNotifications {
+    /// Adds what the committed layout found out for the document ahead of what the commit itself found, which reads
+    /// it: a commit message about a resized container asks whether lengths resolved against it.
+    pub(crate) fn prepend_layout_messages(&mut self, messages: Vec<FfiCommitMessage>) {
+        if !messages.is_empty() {
+            self.messages.splice(0..0, messages);
+        }
+    }
+
     /// The size query containers whose content size the commit changed.
     pub(crate) fn resized_size_containers(&self) -> impl Iterator<Item = StyleNodeID> + '_ {
         self.messages

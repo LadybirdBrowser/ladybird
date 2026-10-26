@@ -1066,6 +1066,8 @@ pub(crate) struct RunOutputs {
     pub(crate) root: Option<fragment_tree::UnplacedRootFragment>,
     pub(crate) root_outcome: RunRootOutcome,
     pub(crate) atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: Option<CssPixels>,
+    /// Boxed, as most runs find out nothing for the host.
+    pub(crate) host_findings: Option<Box<super::run_records::HostFindings>>,
 }
 
 pub(crate) enum ChildLayoutOutcome {
@@ -1289,6 +1291,7 @@ impl<'pass> FormattingContextRun<'pass> {
             root,
             root_outcome,
             atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+            host_findings: self.records.take_host_findings(),
         }
     }
 }
@@ -1906,7 +1909,7 @@ pub(super) fn run_formatting_context(
             .scratch()
             .memoized_measurement(box_, purpose, layout_mode, &cache_key)
     {
-        return absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false);
+        return absorb_run_outputs(&callbacks, parent_fragments, parent_used, box_, outputs, false);
     }
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
         purpose,
@@ -1945,7 +1948,14 @@ pub(super) fn run_formatting_context(
             if entry.is_uncommitted() {
                 fc_run_cache::store_replayed_uncommitted_entry(&callbacks, box_, cache_key, &entry, &outputs);
             }
-            return absorb_run_outputs(parent_fragments, parent_used, box_, outputs, reuses_committed_subtree);
+            return absorb_run_outputs(
+                &callbacks,
+                parent_fragments,
+                parent_used,
+                box_,
+                outputs,
+                reuses_committed_subtree,
+            );
         }
     };
     let _trace = callbacks
@@ -1975,7 +1985,7 @@ pub(super) fn run_formatting_context(
             .memoize_measurement(box_, purpose, layout_mode, cache_key, &outputs);
     }
     cache_attempt.conclude(&callbacks, box_, cache_key, &outputs);
-    absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false)
+    absorb_run_outputs(&callbacks, parent_fragments, parent_used, box_, outputs, false)
 }
 
 /// Takes a committing run of `box_` from the cache entry `entry` with nothing replayed: its root record gets what the
@@ -2017,6 +2027,9 @@ fn reuse_committed_subtree_as_it_is(
         || "REUSE SUBTREE",
     );
     fragments.hold_reused_committed_fragment(box_, root_used, fragment);
+    callbacks
+        .scratch()
+        .receive_host_findings(entry.outputs.host_findings.clone());
     Some(entry.outputs.result)
 }
 
@@ -2846,6 +2859,7 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
 }
 
 fn absorb_run_outputs(
+    callbacks: &LayoutPass<'_>,
     parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
     parent_used: &UsedValues,
     child: Node,
@@ -2857,7 +2871,9 @@ fn absorb_run_outputs(
         root,
         root_outcome,
         atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: _,
+        host_findings,
     } = outputs;
+    callbacks.scratch().receive_host_findings(host_findings);
     root_outcome.apply_to_record(parent_used);
     if let (Some(fragments), Some(root)) = (parent_fragments, root) {
         debug_assert!(root.node == child, "a child run returned a root for a different box");
@@ -3001,8 +3017,11 @@ struct LayoutStageInput<'a> {
     document_in_quirks_mode: bool,
 }
 
-/// The fragments a layout stage computed, which its commit consumes.
-struct LayoutStageOutput(fragment_tree::CompletedPassFragments);
+/// The fragments a layout stage computed, which its commit consumes, and what the stage found out for the host.
+struct LayoutStageOutput {
+    fragments: fragment_tree::CompletedPassFragments,
+    host_findings: super::run_records::HostFindings,
+}
 
 /// One layout stage: computes the fragments of the whole document from its viewport, or of one
 /// partial relayout boundary in the containing block the planner found it still has.
@@ -3040,8 +3059,22 @@ impl LayoutStageJob {
             } => compute_root_layout(input, should_collect_devtools_layout_data),
             LayoutStageKind::Boundary { containing_block } => compute_subtree_layout_fragments(input, containing_block),
         };
-        let notifications = commit::commit_replacing(root, state.arena_mut(), &output.0);
+        let mut notifications = commit::commit_replacing(root, state.arena_mut(), &output.fragments);
+        let super::run_records::HostFindings {
+            nodes_with_unresolved_container_lengths,
+            messages,
+            document_svg_root_natural_size,
+        } = output.host_findings;
+        if let Some((root_box, natural_size)) = document_svg_root_natural_size {
+            state
+                .arena_mut()
+                .note_document_svg_root_natural_size(root_box, natural_size);
+        }
+        notifications.prepend_layout_messages(messages);
         let arena = state.arena();
+        for node in nodes_with_unresolved_container_lengths {
+            arena.note_unresolved_container_lengths(node);
+        }
         arena.end_layout_pass();
         state.layout_scratch().end_layout_pass();
         arena.reset_layout_update_flags_in_subtree(root);
@@ -3100,7 +3133,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         percentage_basis_block_size: Some(viewport_block_size),
         ..ContainingBlockConstraints::default()
     };
-    let pass_fragments = RunRecords::with_unrooted(scratch, arena, root, NodeSlotId::INVALID, |entry_records| {
+    RunRecords::with_unrooted(scratch, arena, root, NodeSlotId::INVALID, |entry_records| {
         let _trace = arena.layout_trace.pass(None);
         let viewport_used = entry_records.create_used_values(&callbacks, root, root_constraints);
         let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
@@ -3159,8 +3192,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             &callbacks,
             should_collect_devtools_layout_data,
         )
-    });
-    LayoutStageOutput(pass_fragments)
+    })
 }
 
 fn finish_entry_pass(
@@ -3168,7 +3200,7 @@ fn finish_entry_pass(
     entry_fragments: &std::rc::Rc<fragment_tree::RunFragmentBuilder>,
     callbacks: &LayoutPass<'_>,
     should_collect_devtools_layout_data: bool,
-) -> fragment_tree::CompletedPassFragments {
+) -> LayoutStageOutput {
     abspos_engine::drain_abspos_with_placed_containing_blocks(
         entry_records,
         *callbacks,
@@ -3180,7 +3212,14 @@ fn finish_entry_pass(
         !pass_fragments.roots.is_empty(),
         "an entry pass always produces the entry root's fragment"
     );
-    pass_fragments
+    let mut host_findings = callbacks.scratch().take_host_findings_outside_runs();
+    if let Some(found_by_entry_run) = entry_records.take_host_findings() {
+        host_findings.receive(*found_by_entry_run);
+    }
+    LayoutStageOutput {
+        fragments: pass_fragments,
+        host_findings,
+    }
 }
 
 /// The partial layout stage: computes the fragments of one partial relayout boundary in place,
@@ -3224,7 +3263,7 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
     } else {
         (root, containing_block)
     };
-    let pass_fragments = RunRecords::with_unrooted(
+    RunRecords::with_unrooted(
         scratch,
         arena,
         entry_root,
@@ -3252,8 +3291,7 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
             }
             finish_entry_pass(entry_records, &entry_fragments, &callbacks, false)
         },
-    );
-    LayoutStageOutput(pass_fragments)
+    )
 }
 
 fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {

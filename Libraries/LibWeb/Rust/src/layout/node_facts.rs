@@ -889,15 +889,15 @@ impl<'pass> NodeFacts<'pass> {
         // An <object> showing the document is sized from what its <svg> document element would be
         // without size containment.
         if is_document_element_box {
-            arena.note_document_svg_root_natural_size(
-                self.node,
-                NaturalSize {
-                    width: width.map(CssPixels::raw_value),
-                    height: height.map(CssPixels::raw_value),
-                    aspect_ratio: aspect_ratio
-                        .map(|(numerator, denominator)| (numerator.raw_value(), denominator.raw_value())),
-                },
-            );
+            let natural_size = NaturalSize {
+                width: width.map(CssPixels::raw_value),
+                height: height.map(CssPixels::raw_value),
+                aspect_ratio: aspect_ratio
+                    .map(|(numerator, denominator)| (numerator.raw_value(), denominator.raw_value())),
+            };
+            self.callbacks.scratch().note_host_findings(|findings| {
+                findings.document_svg_root_natural_size = Some((self.node, natural_size));
+            });
         }
         if !size_contained {
             set_auto_content_size(
