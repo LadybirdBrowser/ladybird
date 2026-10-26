@@ -756,22 +756,35 @@ struct UnicodeLayoutSegmenterHandle {
 
 extern "C" {
 void* unicode_layout_grapheme_segmenter_create(u16 const*, size_t);
-void* unicode_layout_line_segmenter_create(u16 const*, size_t);
+void* unicode_layout_line_segmenter_create(u16 const*, size_t, bool);
 void unicode_layout_word_boundaries(u16 const*, size_t, size_t, size_t*, size_t*);
 i64 unicode_layout_segmenter_next_boundary(void*, size_t, bool);
 void unicode_layout_segmenter_destroy(void*);
 }
 
-static Unicode::Segmenter& unicode_layout_segmenter_prototype(Unicode::SegmenterGranularity granularity)
+static Unicode::Segmenter& unicode_layout_segmenter_prototype(Unicode::SegmenterGranularity granularity, bool allow_conditional_japanese_starters = false)
 {
     static thread_local Unicode::Segmenter* grapheme_prototype = nullptr;
     static thread_local Unicode::Segmenter* line_prototype = nullptr;
+    static thread_local Unicode::Segmenter* normal_line_prototype = nullptr;
     static thread_local Unicode::Segmenter* word_prototype = nullptr;
     auto& prototype = granularity == Unicode::SegmenterGranularity::Grapheme ? grapheme_prototype
         : granularity == Unicode::SegmenterGranularity::Word                 ? word_prototype
+        : allow_conditional_japanese_starters                                ? normal_line_prototype
                                                                              : line_prototype;
-    if (!prototype)
-        prototype = Unicode::Segmenter::create(granularity).leak_ptr();
+    if (!prototype) {
+        // https://drafts.csswg.org/css-text-3/#line-break-property
+        // The following breaks are forbidden for normal and strict line breaking and allowed in loose:
+        // - breaks before Japanese small kana or the Katakana-Hiragana prolonged sound mark, i.e. characters from the
+        //   Unicode line breaking class CJ.
+        // INTEROP: Chrome and Firefox allow breaks before CJ characters for normal as well as loose, despite the
+        //          current specification forbidding them for normal. ICU's normal tailoring resolves CJ to ID.
+        // FIXME: Use ICU's loose tailoring for loose, which also allows the other loose-only breaks, such as before
+        //        iteration marks and between inseparable characters.
+        prototype = allow_conditional_japanese_starters
+            ? Unicode::Segmenter::create("en-u-lb-normal"_utf16, granularity).leak_ptr()
+            : Unicode::Segmenter::create(granularity).leak_ptr();
+    }
     return *prototype;
 }
 
@@ -789,7 +802,7 @@ extern "C" void* unicode_layout_grapheme_segmenter_create(u16 const* text, size_
     return new UnicodeLayoutSegmenterHandle { .segmenter = move(segmenter), .ascii_storage = {} };
 }
 
-extern "C" void* unicode_layout_line_segmenter_create(u16 const* text, size_t length_in_code_units)
+extern "C" void* unicode_layout_line_segmenter_create(u16 const* text, size_t length_in_code_units, bool allow_conditional_japanese_starters)
 {
     auto view = Utf16View { reinterpret_cast<char16_t const*>(text), length_in_code_units };
     if (view.is_ascii()) {
@@ -807,7 +820,7 @@ extern "C" void* unicode_layout_line_segmenter_create(u16 const* text, size_t le
             };
         }
     }
-    auto segmenter = unicode_layout_segmenter_prototype(Unicode::SegmenterGranularity::Line).clone();
+    auto segmenter = unicode_layout_segmenter_prototype(Unicode::SegmenterGranularity::Line, allow_conditional_japanese_starters).clone();
     segmenter->set_segmented_text(view);
     return new UnicodeLayoutSegmenterHandle { .segmenter = move(segmenter), .ascii_storage = {} };
 }

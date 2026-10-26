@@ -3229,6 +3229,19 @@
       "unitless-length"
     ]
   },
+  "line-break": {
+    "style-group": "InheritedTextValues",
+    "animation-type": "discrete",
+    "initial": "auto",
+    "inherited": true,
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "auto",
+      "loose",
+      "normal",
+      "strict"
+    ]
+  },
   "line-clamp": {
     "affects-layout": true,
     "initial": "none",

@@ -148,6 +148,7 @@ pub(crate) struct TextChunkCacheKey {
     pub(crate) unidirectional_ltr: bool,
     pub(crate) white_space_collapse: u8,
     pub(crate) word_break: u8,
+    pub(crate) line_break: u8,
     pub(crate) font_variant_emoji: u8,
     pub(crate) frozen_font_list: std::sync::Arc<libgfx_rust::font::FrozenFontList>,
     pub(crate) splits_at_orientation_changes: bool,
@@ -160,6 +161,7 @@ impl PartialEq for TextChunkCacheKey {
             && self.unidirectional_ltr == other.unidirectional_ltr
             && self.white_space_collapse == other.white_space_collapse
             && self.word_break == other.word_break
+            && self.line_break == other.line_break
             && self.font_variant_emoji == other.font_variant_emoji
             && self.splits_at_orientation_changes == other.splits_at_orientation_changes
             // A frozen cascade is immutable, so naming the same one is the whole of equality.
@@ -445,6 +447,7 @@ mod tests {
             unidirectional_ltr: true,
             white_space_collapse: 0,
             word_break: 0,
+            line_break: crate::css::css_enums::line_break::AUTO,
             font_variant_emoji: 0,
             frozen_font_list: std::sync::Arc::new(libgfx_rust::font::FrozenFontList::empty()),
             splits_at_orientation_changes: false,

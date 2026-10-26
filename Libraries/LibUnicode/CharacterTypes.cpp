@@ -503,7 +503,7 @@ BidiClass bidirectional_class(u32 code_point)
     return char_direction_to_bidi_class(direction);
 }
 
-LineBreakClass line_break_class(u32 code_point)
+static LineBreakClass resolved_line_break_class(u32 code_point, bool allow_conditional_japanese_starters)
 {
     auto icu_code_point = static_cast<UChar32>(code_point);
     auto icu_line_break = static_cast<ULineBreak>(u_getIntPropertyValue(icu_code_point, UCHAR_LINE_BREAK));
@@ -524,9 +524,16 @@ LineBreakClass line_break_class(u32 code_point)
         return LineBreakClass::ComplexContext;
     case U_LB_COMBINING_MARK:
         return LineBreakClass::CombiningMark;
+    case U_LB_CONDITIONAL_JAPANESE_STARTER:
+        return allow_conditional_japanese_starters ? LineBreakClass::Ideographic : LineBreakClass::Other;
     default:
         return LineBreakClass::Other;
     }
+}
+
+LineBreakClass line_break_class(u32 code_point)
+{
+    return resolved_line_break_class(code_point, false);
 }
 
 // 22.2.2.7.3 Canonicalize ( rer, ch ), https://tc39.es/ecma262/#sec-runtime-semantics-canonicalize-ch
@@ -754,7 +761,7 @@ bool unicode_code_point_matches_range_ignoring_case(u32, u32, u32, bool);
 u32 unicode_get_case_closure(u32, u32*, u32);
 
 u8 unicode_layout_bidirectional_class(u32);
-u8 unicode_layout_line_break_class(u32);
+u8 unicode_layout_line_break_class(u32, bool);
 bool unicode_layout_code_point_has_emoji_property(u32);
 }
 
@@ -956,9 +963,9 @@ extern "C" u8 unicode_layout_bidirectional_class(u32 code_point)
     return to_underlying(Unicode::bidirectional_class(code_point));
 }
 
-extern "C" u8 unicode_layout_line_break_class(u32 code_point)
+extern "C" u8 unicode_layout_line_break_class(u32 code_point, bool allow_conditional_japanese_starters)
 {
-    return to_underlying(Unicode::line_break_class(code_point));
+    return to_underlying(Unicode::resolved_line_break_class(code_point, allow_conditional_japanese_starters));
 }
 
 extern "C" bool unicode_layout_code_point_has_emoji_property(u32 code_point)

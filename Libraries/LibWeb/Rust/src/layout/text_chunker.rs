@@ -10,7 +10,11 @@ use libgfx_rust::font::{EmojiPresentation, FontHandle, FrozenFontList, emoji_pre
 
 unsafe extern "C" {
     fn unicode_layout_grapheme_segmenter_create(text: *const u16, length_in_code_units: usize) -> *mut c_void;
-    fn unicode_layout_line_segmenter_create(text: *const u16, length_in_code_units: usize) -> *mut c_void;
+    fn unicode_layout_line_segmenter_create(
+        text: *const u16,
+        length_in_code_units: usize,
+        allow_conditional_japanese_starters: bool,
+    ) -> *mut c_void;
     fn unicode_layout_segmenter_next_boundary(handle: *mut c_void, index: usize, inclusive: bool) -> i64;
     fn unicode_layout_segmenter_destroy(handle: *mut c_void);
     fn unicode_layout_word_boundaries(
@@ -21,7 +25,7 @@ unsafe extern "C" {
         end: *mut usize,
     );
     safe fn unicode_layout_bidirectional_class(code_point: u32) -> u8;
-    safe fn unicode_layout_line_break_class(code_point: u32) -> u8;
+    safe fn unicode_layout_line_break_class(code_point: u32, allow_conditional_japanese_starters: bool) -> u8;
     safe fn unicode_layout_code_point_has_emoji_property(code_point: u32) -> bool;
 }
 
@@ -35,8 +39,8 @@ mod line_break_class {
     pub(super) const COMBINING_MARK: u8 = 5;
 }
 
-fn line_break_class(code_point: u32) -> u8 {
-    unicode_layout_line_break_class(code_point)
+fn line_break_class(code_point: u32, allow_conditional_japanese_starters: bool) -> u8 {
+    unicode_layout_line_break_class(code_point, allow_conditional_japanese_starters)
 }
 
 // Classifies a code point for direction-run splitting: strong LTR/RTL, direction-neutral Common, or ContextDependent
@@ -99,7 +103,11 @@ mod unicode_test_stubs {
     }
 
     #[unsafe(no_mangle)]
-    extern "C" fn unicode_layout_line_segmenter_create(_text: *const u16, _length_in_code_units: usize) -> *mut c_void {
+    extern "C" fn unicode_layout_line_segmenter_create(
+        _text: *const u16,
+        _length_in_code_units: usize,
+        _allow_conditional_japanese_starters: bool,
+    ) -> *mut c_void {
         unreachable!("no unit test segments text");
     }
 
@@ -132,7 +140,7 @@ mod unicode_test_stubs {
     }
 
     #[unsafe(no_mangle)]
-    extern "C" fn unicode_layout_line_break_class(_code_point: u32) -> u8 {
+    extern "C" fn unicode_layout_line_break_class(_code_point: u32, _allow_conditional_japanese_starters: bool) -> u8 {
         unreachable!("no unit test segments text");
     }
 
@@ -159,6 +167,7 @@ pub(crate) struct TextChunkInputs<'text> {
     pub frozen_font_list: &'text FrozenFontList,
     pub white_space_collapse: u8,
     pub word_break: u8,
+    pub line_break: u8,
     pub font_variant_emoji: u8,
     pub should_wrap_lines: bool,
     pub should_respect_linebreaks: bool,
@@ -329,10 +338,12 @@ struct LineSegmenter<'text> {
 }
 
 impl<'text> LineSegmenter<'text> {
-    fn new(text: &'text [u16]) -> Self {
+    fn new(text: &'text [u16], allow_conditional_japanese_starters: bool) -> Self {
         // SAFETY: See GraphemeSegmenter::new; the same lifetime contract holds,
         // and the C++ side picks the ASCII line-breaking fast path internally.
-        let raw = unsafe { unicode_layout_line_segmenter_create(text.as_ptr(), text.len()) };
+        let raw = unsafe {
+            unicode_layout_line_segmenter_create(text.as_ptr(), text.len(), allow_conditional_japanese_starters)
+        };
         Self {
             handle: IcuSegmenterHandle { raw },
             text,
@@ -497,6 +508,7 @@ struct TextChunker<'text> {
     grapheme_segmenter: GraphemeSegmenter,
     line_segmenter: LineSegmenter<'text>,
     word_break: u8,
+    allow_conditional_japanese_starters: bool,
     font_variant_emoji: u8,
     should_collapse_whitespace: bool,
     should_wrap_lines: bool,
@@ -509,12 +521,15 @@ struct TextChunker<'text> {
 
 impl<'text> TextChunker<'text> {
     fn new(inputs: TextChunkInputs<'text>) -> Self {
+        // NB: Apply CJ tailoring to word-break classification as well as to ICU's line segmenter.
+        let allow_conditional_japanese_starters = matches!(inputs.line_break, line_break::NORMAL | line_break::LOOSE);
         Self {
             text: inputs.text,
             frozen_font_list: inputs.frozen_font_list,
             grapheme_segmenter: GraphemeSegmenter::new(inputs.text),
-            line_segmenter: LineSegmenter::new(inputs.text),
+            line_segmenter: LineSegmenter::new(inputs.text, allow_conditional_japanese_starters),
             word_break: inputs.word_break,
+            allow_conditional_japanese_starters,
             font_variant_emoji: inputs.font_variant_emoji,
             should_collapse_whitespace: matches!(
                 inputs.white_space_collapse,
@@ -565,7 +580,10 @@ impl<'text> TextChunker<'text> {
             }
             let mut index = self.current_index;
             let mut previous_code_point = previous_code_point_at(self.text, &mut index);
-            while line_break_class(previous_code_point) == line_break_class::COMBINING_MARK && index > 0 {
+            while line_break_class(previous_code_point, self.allow_conditional_japanese_starters)
+                == line_break_class::COMBINING_MARK
+                && index > 0
+            {
                 previous_code_point = previous_code_point_at(self.text, &mut index);
             }
             Some(previous_code_point)
@@ -589,7 +607,7 @@ impl<'text> TextChunker<'text> {
                 use line_break_class::*;
                 let breaks_anywhere = |code_point| {
                     matches!(
-                        line_break_class(code_point),
+                        line_break_class(code_point, self.allow_conditional_japanese_starters),
                         ALPHABETIC | NUMERIC | COMPLEX_CONTEXT | IDEOGRAPHIC
                     )
                 };
@@ -608,7 +626,7 @@ impl<'text> TextChunker<'text> {
                 use line_break_class::*;
                 let keeps_together = |code_point| {
                     matches!(
-                        line_break_class(code_point),
+                        line_break_class(code_point, self.allow_conditional_japanese_starters),
                         ALPHABETIC | NUMERIC | AMBIGUOUS | IDEOGRAPHIC
                     )
                 };
@@ -938,6 +956,7 @@ pub(crate) fn text_chunks(
         unidirectional_ltr,
         white_space_collapse: parent_style.white_space_collapse(),
         word_break: parent_style.word_break(),
+        line_break: parent_style.line_break(),
         font_variant_emoji: parent_style.font_variant_emoji(),
         frozen_font_list: parent_style.frozen_font_list_ref(),
         splits_at_orientation_changes: matches!(
@@ -952,6 +971,7 @@ pub(crate) fn text_chunks(
             frozen_font_list: &key.frozen_font_list,
             white_space_collapse: key.white_space_collapse,
             word_break: key.word_break,
+            line_break: key.line_break,
             font_variant_emoji: key.font_variant_emoji,
             should_wrap_lines,
             should_respect_linebreaks,

@@ -487,6 +487,7 @@ scalar_accessors! {
         white_space_collapse: u8 => white_space_collapse,
         text_wrap_mode: u8 => text_wrap_mode,
         word_break: u8 => word_break,
+        line_break: u8 => line_break,
         letter_spacing: CssPixels => letter_spacing,
         word_spacing: CssPixels => word_spacing,
         text_indent_each_line: bool => text_indent.each_line,
