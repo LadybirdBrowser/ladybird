@@ -1,0 +1,2 @@
+plain: scrollend events before the momentum ended: 0, in all: 1
+snapping: scrollend events before the momentum ended: 0, in all: 1
