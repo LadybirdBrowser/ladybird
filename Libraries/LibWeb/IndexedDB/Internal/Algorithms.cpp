@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Math.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
@@ -1054,7 +1055,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_multi_entry_key(JS::Realm
                 if (!completion_key.is_error()) {
                     auto key = completion_key.release_value();
 
-                    if (!key->is_invalid() && !keys->elements().contains_slow(key))
+                    if (!key->is_invalid() && !any_of(keys->elements(), [&](auto const& other) { return Key::equals(other, key); }))
                         keys->elements().append(key);
                 }
             }
