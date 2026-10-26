@@ -36,8 +36,10 @@ void NetworkBodyPump::set_body(GC::Ref<Fetch::Infrastructure::Body> body)
     }
     // If the stream already completed before the body was set,
     // we missed the terminal sniff call in handle_network_complete / handle_network_error.
-    if (m_network_complete)
+    if (m_network_complete) {
         m_body->set_sniff_bytes_complete();
+        m_body->set_network_complete();
+    }
     if (m_network_failed)
         m_body->set_sniff_bytes_failed();
 }
@@ -124,6 +126,8 @@ void NetworkBodyPump::handle_network_complete()
 
     finalize_cache_entry();
     m_channel->close();
+    if (m_body)
+        m_body->set_network_complete();
 }
 
 void NetworkBodyPump::handle_network_error(StringView error_message)

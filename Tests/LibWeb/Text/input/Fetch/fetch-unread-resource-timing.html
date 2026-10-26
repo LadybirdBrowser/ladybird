@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const body = "An unread response still has resource timing.";
+        const url = await server.createEcho("GET", `/unread-timing-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: {
+                "Content-Type": "text/plain",
+                "Cache-Control": "max-age=3600",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Expose-Headers": "Server-Timing",
+                "Timing-Allow-Origin": "*",
+                "Server-Timing": 'db;dur=12.5;desc="cache"',
+            },
+            body,
+        });
+        for (let attempt = 1; attempt <= 2; ++attempt) {
+            const observed = new Promise(resolve => {
+                const observer = new PerformanceObserver(list => {
+                    const entry = list.getEntries().find(entry => entry.name === url);
+                    if (entry) {
+                        observer.disconnect();
+                        resolve(entry);
+                    }
+                });
+                observer.observe({ entryTypes: ["resource"] });
+            });
+
+            const response = await fetch(url);
+            const entry = await observed;
+            println(`body used before timing: ${response.bodyUsed}`);
+            println(`timing duration is nonnegative: ${entry.duration >= 0}`);
+            println(`server timing entries: ${entry.serverTiming.length}`);
+            println(`metric name: ${entry.serverTiming[0].name}`);
+            println(`metric duration: ${entry.serverTiming[0].duration}`);
+            println(`metric description: ${entry.serverTiming[0].description}`);
+            println(`body content retained: ${await response.text() === body}`);
+            println(`resource entries: ${performance.getEntriesByName(url).length === attempt}`);
+        }
+        done();
+    });
+</script>

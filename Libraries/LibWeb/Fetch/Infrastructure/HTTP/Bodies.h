@@ -107,6 +107,9 @@ public:
     void set_sniff_bytes_complete();
     void set_sniff_bytes_failed();
 
+    void when_network_complete(ProcessEndOfBodyCallback);
+    void set_network_complete();
+
     [[nodiscard]] GC::Ref<Body> clone(JS::Realm&);
 
     void fully_read(JS::Realm&, ProcessBodyCallback process_body, ProcessBodyErrorCallback process_body_error, TaskDestination) const;
@@ -128,6 +131,8 @@ private:
     FetchBody m_fetch_body;
 
     GC::Ptr<GC::Function<void(FetchBody::SniffBytes)>> m_sniff_bytes_callback;
+    GC::Ptr<GC::Function<void()>> m_network_complete_callback;
+    bool m_network_complete { false };
 };
 
 // https://fetch.spec.whatwg.org/#body-with-type

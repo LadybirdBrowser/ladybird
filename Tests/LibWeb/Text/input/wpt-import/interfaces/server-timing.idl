@@ -1,0 +1,17 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Server Timing (https://w3c.github.io/server-timing/)
+
+[Exposed=(Window,Worker)]
+interface PerformanceServerTiming {
+  readonly attribute DOMString name;
+  readonly attribute DOMHighResTimeStamp duration;
+  readonly attribute DOMString description;
+  [Default] object toJSON();
+};
+
+[Exposed=(Window,Worker)]
+partial interface PerformanceResourceTiming {
+  readonly attribute FrozenArray<PerformanceServerTiming> serverTiming;
+};

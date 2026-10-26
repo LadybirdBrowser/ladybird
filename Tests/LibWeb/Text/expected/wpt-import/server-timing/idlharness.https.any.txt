@@ -1,0 +1,103 @@
+Harness status: OK
+
+Found 97 tests
+
+86 Pass
+11 Fail
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface Performance: original interface defined
+Pass	Partial interface Performance: member names are unique
+Pass	Partial interface PerformanceResourceTiming: original interface defined
+Pass	Partial interface PerformanceResourceTiming: valid exposure set
+Pass	Partial interface PerformanceResourceTiming: member names are unique
+Pass	Partial interface Performance[2]: member names are unique
+Pass	PerformanceResourceTiming interface: existence and properties of interface object
+Pass	PerformanceResourceTiming interface object length
+Pass	PerformanceResourceTiming interface object name
+Pass	PerformanceResourceTiming interface: existence and properties of interface prototype object
+Pass	PerformanceResourceTiming interface: existence and properties of interface prototype object's "constructor" property
+Pass	PerformanceResourceTiming interface: existence and properties of interface prototype object's @@unscopables property
+Pass	PerformanceResourceTiming interface: attribute initiatorType
+Pass	PerformanceResourceTiming interface: attribute deliveryType
+Pass	PerformanceResourceTiming interface: attribute nextHopProtocol
+Pass	PerformanceResourceTiming interface: attribute workerStart
+Pass	PerformanceResourceTiming interface: attribute redirectStart
+Pass	PerformanceResourceTiming interface: attribute redirectEnd
+Pass	PerformanceResourceTiming interface: attribute fetchStart
+Pass	PerformanceResourceTiming interface: attribute domainLookupStart
+Pass	PerformanceResourceTiming interface: attribute domainLookupEnd
+Pass	PerformanceResourceTiming interface: attribute connectStart
+Pass	PerformanceResourceTiming interface: attribute connectEnd
+Pass	PerformanceResourceTiming interface: attribute secureConnectionStart
+Pass	PerformanceResourceTiming interface: attribute requestStart
+Pass	PerformanceResourceTiming interface: attribute finalResponseHeadersStart
+Pass	PerformanceResourceTiming interface: attribute firstInterimResponseStart
+Pass	PerformanceResourceTiming interface: attribute responseStart
+Pass	PerformanceResourceTiming interface: attribute responseEnd
+Fail	PerformanceResourceTiming interface: attribute workerRouterEvaluationStart
+Fail	PerformanceResourceTiming interface: attribute workerCacheLookupStart
+Fail	PerformanceResourceTiming interface: attribute workerMatchedRouterSource
+Fail	PerformanceResourceTiming interface: attribute workerFinalRouterSource
+Pass	PerformanceResourceTiming interface: attribute transferSize
+Pass	PerformanceResourceTiming interface: attribute encodedBodySize
+Pass	PerformanceResourceTiming interface: attribute decodedBodySize
+Pass	PerformanceResourceTiming interface: attribute responseStatus
+Pass	PerformanceResourceTiming interface: attribute renderBlockingStatus
+Pass	PerformanceResourceTiming interface: attribute contentType
+Fail	PerformanceResourceTiming interface: attribute contentEncoding
+Pass	PerformanceResourceTiming interface: operation toJSON()
+Pass	PerformanceResourceTiming interface: attribute serverTiming
+Pass	PerformanceResourceTiming must be primary interface of resource
+Pass	Stringification of resource
+Pass	PerformanceResourceTiming interface: resource must inherit property "initiatorType" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "deliveryType" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "nextHopProtocol" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "workerStart" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "redirectStart" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "redirectEnd" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "fetchStart" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "domainLookupStart" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "domainLookupEnd" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "connectStart" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "connectEnd" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "secureConnectionStart" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "requestStart" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "finalResponseHeadersStart" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "firstInterimResponseStart" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "responseStart" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "responseEnd" with the proper type
+Fail	PerformanceResourceTiming interface: resource must inherit property "workerRouterEvaluationStart" with the proper type
+Fail	PerformanceResourceTiming interface: resource must inherit property "workerCacheLookupStart" with the proper type
+Fail	PerformanceResourceTiming interface: resource must inherit property "workerMatchedRouterSource" with the proper type
+Fail	PerformanceResourceTiming interface: resource must inherit property "workerFinalRouterSource" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "transferSize" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "encodedBodySize" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "decodedBodySize" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "responseStatus" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "renderBlockingStatus" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "contentType" with the proper type
+Fail	PerformanceResourceTiming interface: resource must inherit property "contentEncoding" with the proper type
+Pass	PerformanceResourceTiming interface: resource must inherit property "toJSON()" with the proper type
+Fail	PerformanceResourceTiming interface: default toJSON operation on resource
+Pass	PerformanceResourceTiming interface: resource must inherit property "serverTiming" with the proper type
+Pass	PerformanceServerTiming interface: existence and properties of interface object
+Pass	PerformanceServerTiming interface object length
+Pass	PerformanceServerTiming interface object name
+Pass	PerformanceServerTiming interface: existence and properties of interface prototype object
+Pass	PerformanceServerTiming interface: existence and properties of interface prototype object's "constructor" property
+Pass	PerformanceServerTiming interface: existence and properties of interface prototype object's @@unscopables property
+Pass	PerformanceServerTiming interface: attribute name
+Pass	PerformanceServerTiming interface: attribute duration
+Pass	PerformanceServerTiming interface: attribute description
+Pass	PerformanceServerTiming interface: operation toJSON()
+Pass	PerformanceServerTiming must be primary interface of server
+Pass	Stringification of server
+Pass	PerformanceServerTiming interface: server must inherit property "name" with the proper type
+Pass	PerformanceServerTiming interface: server must inherit property "duration" with the proper type
+Pass	PerformanceServerTiming interface: server must inherit property "description" with the proper type
+Pass	PerformanceServerTiming interface: server must inherit property "toJSON()" with the proper type
+Pass	PerformanceServerTiming interface: default toJSON operation on server
+Pass	Performance interface: operation clearResourceTimings()
+Pass	Performance interface: operation setResourceTimingBufferSize(unsigned long)
+Pass	Performance interface: attribute onresourcetimingbufferfull
