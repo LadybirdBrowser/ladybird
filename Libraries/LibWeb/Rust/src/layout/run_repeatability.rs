@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! With LIBWEB_VERIFY_RUN_REPEATABILITY=cold, every layout run that executes is laid out twice. The first layout
-//! reads and keeps no memoized layout and its result is discarded; the second is the run itself. Both have to agree on
-//! everything the run hands its parent, which shows that a run depends on nothing but its input and the state of the
-//! pass, and that what it reads from memoized layout is what it would have computed.
+//! With LIBWEB_VERIFY_RUN_REPEATABILITY=cold, every layout run that executes is laid out twice. The first layout reads
+//! no memoized layout from before it, keeps none after it, and its result is discarded; the second is the run itself.
+//! Both have to agree on everything the run hands its parent, which shows that a run depends on nothing but its input
+//! and the state of the pass, and that what it reads from memoized layout is what it would have computed.
 
 use super::*;
 

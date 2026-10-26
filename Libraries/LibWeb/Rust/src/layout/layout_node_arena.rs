@@ -409,15 +409,14 @@ pub(crate) struct IntrinsicSizeCacheStamp {
 #[derive(Default)]
 pub(crate) struct IntrinsicSizeCaches {
     slots: RefCell<Vec<IntrinsicSizeCacheSlot>>,
-    suspended: Cell<bool>,
 }
 
 impl IntrinsicSizeCaches {
-    /// Runs `measure` with the caches answering nothing and keeping nothing.
-    pub(crate) fn suspended_while<R>(&self, measure: impl FnOnce() -> R) -> R {
-        let was_suspended = self.suspended.replace(true);
+    /// Runs `measure` with caches of its own, which start empty and are dropped when it returns.
+    pub(crate) fn set_aside_while<R>(&self, measure: impl FnOnce() -> R) -> R {
+        let set_aside = self.slots.take();
         let result = measure();
-        self.suspended.set(was_suspended);
+        self.slots.replace(set_aside);
         result
     }
 
@@ -437,9 +436,6 @@ impl IntrinsicSizeCaches {
         stamp: IntrinsicSizeCacheStamp,
         answer: impl FnOnce(&IntrinsicSizeMaps) -> Option<R>,
     ) -> Option<R> {
-        if self.suspended.get() {
-            return None;
-        }
         let caches = self.slots.borrow();
         let slot = caches.get(stamp.index as usize)?;
         if slot.generation != stamp.generation || slot.epoch != stamp.epoch {
@@ -463,9 +459,6 @@ impl IntrinsicSizeCaches {
     }
 
     fn with_maps_mut(&self, stamp: IntrinsicSizeCacheStamp, callback: impl FnOnce(&mut IntrinsicSizeMaps)) {
-        if self.suspended.get() {
-            return;
-        }
         let IntrinsicSizeCacheStamp {
             index,
             generation,
