@@ -10,6 +10,8 @@
         let log = [];
         for (const type of ["beforeinput", "input"])
             area.addEventListener(type, e => log.push(`${type} ${e.inputType} ${e.data}`));
+        for (const type of ["keydown", "keypress"])
+            area.addEventListener(type, e => log.push(`${type} ${e.key} ${e.keyCode} ${e.which}`));
 
         const reset = async () => {
             area.value = "";
@@ -38,7 +40,29 @@
         area.addEventListener("keydown", cancelTab);
         internals.sendText(area, TAB);
         await show("Tab canceled by the page");
+
+        await reset();
+        internals.sendText(area, TAB, internals.MOD_SHIFT);
+        await show("Shift+Tab canceled by the page");
+
+        await reset();
+        internals.sendText(area, TAB, internals.MOD_ALT);
+        await show("Alt+Tab canceled by the page");
+
+        await reset();
+        internals.sendText(area, TAB, internals.MOD_SUPER);
+        await show("Super+Tab canceled by the page");
         area.removeEventListener("keydown", cancelTab);
+
+        await reset();
+        const moveCaret = e => {
+            if (e.key === "Tab")
+                area.setSelectionRange(0, 0);
+        };
+        area.addEventListener("keydown", moveCaret);
+        internals.sendText(area, TAB);
+        await show("Tab whose keydown moves the caret");
+        area.removeEventListener("keydown", moveCaret);
 
         area.value = "";
         log = [];

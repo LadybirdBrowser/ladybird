@@ -1,25 +1,45 @@
 Tab with a suggestion:
   value: prediction
   focus: area
-  events: beforeinput insertText ction, input insertText ction
+  events: keydown Tab 229 229, beforeinput insertText ction, input insertText ction
   suggestion: (none)
 Tab canceled by the page:
+  value: prediction
+  focus: area
+  events: keydown Tab 229 229, beforeinput insertText ction, input insertText ction
+  suggestion: (none)
+Shift+Tab canceled by the page:
   value: predi
   focus: area
-  events: (none)
+  events: keydown Tab 9 9
+  suggestion: (none)
+Alt+Tab canceled by the page:
+  value: predi
+  focus: area
+  events: keydown Tab 9 9
+  suggestion: (none)
+Super+Tab canceled by the page:
+  value: predi
+  focus: area
+  events: keydown Tab 9 9
+  suggestion: (none)
+Tab whose keydown moves the caret:
+  value: predi
+  focus: area
+  events: keydown Tab 229 229
   suggestion: (none)
 Tab without a suggestion:
   value: 
   focus: after
-  events: (none)
+  events: keydown Tab 9 9
   suggestion: (none)
 Shift+Tab with a suggestion:
   value: predi
   focus: before
-  events: (none)
+  events: keydown Tab 9 9
   suggestion: (none)
 Insertion canceled by the page:
   value: predi
   focus: area
-  events: beforeinput insertText ction
+  events: keydown Tab 229 229, beforeinput insertText ction
   suggestion: (none)
