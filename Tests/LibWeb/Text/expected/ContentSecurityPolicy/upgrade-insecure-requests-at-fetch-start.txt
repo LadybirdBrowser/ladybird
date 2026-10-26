@@ -1,0 +1,2 @@
+Redirect of a fetch started before the policy: failed
+Redirect of a fetch started after the policy: loaded

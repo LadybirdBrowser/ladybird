@@ -18,6 +18,7 @@
 #include <LibWeb/SRI/IntegrityPolicy.h>
 #include <LibWebCommon/HTML/EmbedderPolicy.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/UpgradeInsecureRequests/InsecureRequestsPolicy.h>
 
 namespace Web::HTML {
 
@@ -51,11 +52,29 @@ struct PolicyContainer final : public AtomicRefCounted<PolicyContainer> {
     // "force-load-at-top". Its type is boolean with default value false.
     bool force_load_at_top { false };
 
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#insecure-requests-policy
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-insecure-navigations-set
+    // AD-HOC: Upgrade Insecure Requests defines these on settings objects and browsing contexts. A policy container
+    //         holds them instead, so a request's clone of its client's policy container holds them for the whole fetch.
+    //         See https://github.com/w3c/webappsec-upgrade-insecure-requests/issues/5.
+    [[nodiscard]] UpgradeInsecureRequests::InsecureRequestsPolicy insecure_requests_policy() const;
+    [[nodiscard]] UpgradeInsecureRequests::UpgradeInsecureNavigationsSet upgrade_insecure_navigations_set() const;
+    void inherit_insecure_requests_policy(UpgradeInsecureRequests::InsecureRequestsPolicy, UpgradeInsecureRequests::UpgradeInsecureNavigationsSet const&);
+
     [[nodiscard]] NonnullRefPtr<PolicyContainer> clone() const;
     [[nodiscard]] SerializedPolicyContainer serialize() const;
 
 private:
     PolicyContainer() = default;
+
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#insecure-requests-policy
+    // It is set to Do Not Upgrade unless otherwise specified.
+    // NB: These hold what the policy container inherited. Its CSP list holds its own policies.
+    UpgradeInsecureRequests::InsecureRequestsPolicy m_insecure_requests_policy { UpgradeInsecureRequests::InsecureRequestsPolicy::DoNotUpgrade };
+
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-insecure-navigations-set
+    // Its value is the empty set unless otherwise specified.
+    UpgradeInsecureRequests::UpgradeInsecureNavigationsSet m_upgrade_insecure_navigations_set;
 };
 
 // https://html.spec.whatwg.org/multipage/browsers.html#requires-storing-the-policy-container-in-history

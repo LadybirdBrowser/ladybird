@@ -19,6 +19,8 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
+#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Page/Page.h>
@@ -34,6 +36,16 @@ HTMLMetaElement::HTMLMetaElement(DOM::Document& document, DOM::QualifiedName qua
 }
 
 HTMLMetaElement::~HTMLMetaElement() = default;
+
+static void report_container_state_of_child_navigables(DOM::Document& document)
+{
+    // NB: Navigable containers in shadow trees have child navigables too.
+    document.for_each_shadow_including_descendant([&](DOM::Node& node) {
+        if (auto* container = as_if<NavigableContainer>(node); container && container->content_navigable())
+            document.page().client().page_did_change_navigable_container_state(container->content_navigable()->id(), container->replicated_container_state());
+        return TraversalDecision::Continue;
+    });
+}
 
 Optional<HTMLMetaElement::HttpEquivAttributeState> HTMLMetaElement::http_equiv_state() const
 {
@@ -220,6 +232,11 @@ void HTMLMetaElement::inserted()
 
             // 5. Enforce the policy policy.
             document().relevant_settings_object().policy_container()->csp_list.enforce_policy(policy);
+
+            // NB: A document created in a child navigable inherits the insecure requests policy of its container's
+            //     node document, which a process hosting the child navigable reads from the container's state.
+            if (policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::UpgradeInsecureRequests))
+                report_container_state_of_child_navigables(document());
             break;
         }
         default:

@@ -269,7 +269,6 @@
 #include <LibWeb/UIEvents/PointerTypes.h>
 #include <LibWeb/UIEvents/TextEvent.h>
 #include <LibWeb/UIEvents/TouchEvent.h>
-#include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
 #include <LibWeb/ViewTransition/ViewTransition.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -543,8 +542,13 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     // 10. Set window's associated Document to document.
     window->set_associated_document(*document);
 
-    // NB: Upgrade Insecure Requests has a new Document inherit its browsing context's insecure requests policy.
-    UpgradeInsecureRequests::inherit_the_insecure_requests_policy_into_a_new_document(document->relevant_settings_object(), browsing_context);
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#nesting
+    // AD-HOC: A Document in a child navigable inherits the insecure requests policy of its container's node document
+    //         when it is created, as Chromium and WebKit do, instead of through its browsing context.
+    if (navigation_params.navigable->parent()) {
+        auto container_state = navigation_params.navigable->container_state();
+        document->policy_container()->inherit_insecure_requests_policy(container_state.document_insecure_requests_policy, container_state.document_upgrade_insecure_navigations_set);
+    }
 
     // 11. Set document's internal ancestor origin objects list to the result of running the internal ancestor origin
     //     objects list creation steps given document and navigationParams's iframe element referrer policy.

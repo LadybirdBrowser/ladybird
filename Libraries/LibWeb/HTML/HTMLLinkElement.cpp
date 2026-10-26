@@ -456,7 +456,9 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
     auto request = create_potential_CORS_request(*url, options.destination, options.crossorigin);
 
     // 6. Set request's policy container to options's policy container.
-    request->set_policy_container(options.policy_container);
+    // AD-HOC: A clone of it, so that the request and its redirects keep the policies its document had when the request
+    //         was created, its CSP list included, as a request whose policy container is "client" keeps its client's.
+    request->set_policy_container(options.policy_container->clone());
 
     // 7. Set request's integrity metadata to options's integrity.
     request->set_integrity_metadata(options.integrity);

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // This port serves HTTPS, so a fetch of an http: URL with it only succeeds if the request was upgraded to https:.
+    const httpsPort = internals.getHttpsEchoServerPort();
+    const resource = `http://127.0.0.1:${httpsPort}/common/blank.html`;
+    const redirect = `https://127.0.0.1:${httpsPort}/common/redirect.py?location=${encodeURIComponent(resource)}`;
+
+    async function tryFetch(url) {
+        try {
+            await fetch(url, { mode: "no-cors" });
+            return "loaded";
+        } catch {
+            return "failed";
+        }
+    }
+
+    // A fetch upgrades its redirects by the policies its client had when the fetch started.
+    asyncTest(async done => {
+        const fetchStartedBeforeThePolicy = tryFetch(redirect);
+
+        const meta = document.createElement("meta");
+        meta.httpEquiv = "Content-Security-Policy";
+        meta.content = "upgrade-insecure-requests";
+        document.head.appendChild(meta);
+
+        println(`Redirect of a fetch started before the policy: ${await fetchStartedBeforeThePolicy}`);
+        println(`Redirect of a fetch started after the policy: ${await tryFetch(redirect)}`);
+
+        done();
+    });
+</script>

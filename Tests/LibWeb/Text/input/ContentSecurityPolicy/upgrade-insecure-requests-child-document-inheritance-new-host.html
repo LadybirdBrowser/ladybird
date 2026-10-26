@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // This port serves HTTPS, so a fetch of an http: URL with it only succeeds if the request was upgraded to https:.
+    // The cross-site frame puts its site in another process. After we enforce a policy, the srcdoc frame, which is in
+    // ours, navigates to that site, so the other process creates its next document from its copy of the frame's
+    // container state.
+    const httpsPort = internals.getHttpsEchoServerPort();
+    const resource = `http://127.0.0.1:${httpsPort}/common/blank.html`;
+    const secureServer = new HTTPTestServer(`https://127.0.0.1:${httpsPort}`);
+
+    function loaded(frame) {
+        return new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+    }
+
+    asyncTest(async done => {
+        const otherSiteURL = await secureServer.createEcho("GET", "/upgrade-insecure-requests-child-document-inheritance-new-host/other.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!DOCTYPE html>other",
+        });
+        const nextDocumentURL = await secureServer.createEcho("GET", "/upgrade-insecure-requests-child-document-inheritance-new-host/next.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<script>
+                fetch("${resource}", { mode: "no-cors" }).then(() => "loaded", () => "failed").then(result => top.postMessage(result, "*"));
+            <\/script>`,
+        });
+
+        const otherSiteFrame = document.createElement("iframe");
+        const otherSiteLoaded = loaded(otherSiteFrame);
+        otherSiteFrame.src = otherSiteURL;
+        document.body.appendChild(otherSiteFrame);
+
+        const frame = document.createElement("iframe");
+        const frameLoaded = loaded(frame);
+        frame.srcdoc = "<!DOCTYPE html>first";
+        document.body.appendChild(frame);
+
+        await otherSiteLoaded;
+        await frameLoaded;
+        println(`Cross-site iframe is in another process: ${remoteFrameCount() > 0}`);
+
+        const meta = document.createElement("meta");
+        meta.httpEquiv = "Content-Security-Policy";
+        meta.content = "upgrade-insecure-requests";
+        document.head.appendChild(meta);
+
+        const nextMessage = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        frame.contentWindow.location.href = nextDocumentURL;
+        println(`Fetch from the frame's next document, in the other site's process: ${await nextMessage}`);
+
+        done();
+    });
+</script>

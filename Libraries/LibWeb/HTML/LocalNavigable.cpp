@@ -97,7 +97,6 @@
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/InputEvent.h>
 #include <LibWeb/UIEvents/InputTypes.h>
-#include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebDriver/BiDi/Network.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -4539,12 +4538,10 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
     auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, container ? GC::Ptr<DOM::Document> { container->document() } : nullptr, container, remote_navigable.window_proxy(), current_history_entry.document_state.origin);
 
     if (!local_parent) {
-        // NB: The browsing context of a navigable whose container is in another process inherits the insecure requests
-        //     policy that the container's process reports for its node document. So does the stand-in's document.
-        // https://w3c.github.io/webappsec-upgrade-insecure-requests/#nesting
+        // NB: Like a document created in a child navigable, the stand-in's document inherits the insecure requests
+        //     policy that the container's process reports for its node document.
         auto const& container_state = remote_navigable.replicated_state().container;
-        UpgradeInsecureRequests::inherit_the_insecure_requests_policy_into_a_nested_browsing_context(browsing_context, container_state.document_insecure_requests_policy, container_state.document_upgrade_insecure_navigations_set);
-        UpgradeInsecureRequests::inherit_the_insecure_requests_policy_into_a_new_document(document->relevant_settings_object(), browsing_context);
+        document->policy_container()->inherit_insecure_requests_policy(container_state.document_insecure_requests_policy, container_state.document_upgrade_insecure_navigations_set);
 
         page.ensure_compositor_host();
     }

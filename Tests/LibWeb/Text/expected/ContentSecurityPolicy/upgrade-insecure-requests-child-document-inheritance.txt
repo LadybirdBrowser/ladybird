@@ -1,0 +1,3 @@
+Frame document fetch before the policy: failed
+Frame document fetch after the policy: failed
+Fetch from the frame's next document: loaded

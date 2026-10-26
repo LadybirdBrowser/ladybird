@@ -1,0 +1,2 @@
+Redirect of a stylesheet load started before the policy: failed
+Redirect of a stylesheet load started after the policy: loaded

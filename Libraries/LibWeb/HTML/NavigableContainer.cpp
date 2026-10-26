@@ -623,9 +623,9 @@ ReplicatedContainerState NavigableContainer::replicated_container_state()
     state.local_name = local_name();
     state.iframe_referrer_policy = determine_iframe_element_referrer_policy(*this);
     state.container_policy = process_permissions_policy_attributes();
-    auto const& document_settings = document().relevant_settings_object();
-    state.document_insecure_requests_policy = document_settings.insecure_requests_policy();
-    state.document_upgrade_insecure_navigations_set = document_settings.upgrade_insecure_navigations_set();
+    auto document_policy_container = document().policy_container();
+    state.document_insecure_requests_policy = document_policy_container->insecure_requests_policy();
+    state.document_upgrade_insecure_navigations_set = document_policy_container->upgrade_insecure_navigations_set();
     return state;
 }
 
