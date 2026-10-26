@@ -33,6 +33,12 @@ public:
     Sample sample(AK::Duration elapsed) const;
 
     void retarget(Gfx::FloatPoint destination_offset, AK::Duration elapsed);
+    // Moves where the scroll comes from and goes to by the same distance, which keeps its pace.
+    void shift_by(Gfx::FloatPoint delta)
+    {
+        m_start_offset.translate_by(delta);
+        m_destination_offset.translate_by(delta);
+    }
 
 private:
     AK::Duration duration_for_distance(Gfx::FloatPoint distance) const;

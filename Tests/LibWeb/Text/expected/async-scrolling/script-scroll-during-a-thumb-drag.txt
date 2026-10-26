@@ -1,0 +1,3 @@
+dragged away from the top: true
+held where the drag left it: true
+still there once released: true

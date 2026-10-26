@@ -7074,7 +7074,7 @@ Compositing::ScrollRequest& LocalNavigable::unsent_scroll_request_for(Web::Async
     auto& state = m_scroll_request_states.ensure(stable_node_id);
     if (!state.unsent_request.has_value()) {
         state.last_request_id = ++m_last_scroll_request_id;
-        state.unsent_request = Compositing::ScrollRequest { .stable_node_id = stable_node_id, .request_id = state.last_request_id, .jump_offset = {}, .visual_viewport_scale = {}, .relative_scroll = {}, .smooth_scroll = {} };
+        state.unsent_request = Compositing::ScrollRequest { .stable_node_id = stable_node_id, .request_id = state.last_request_id, .jump_offset = {}, .visual_viewport_scale = {}, .relative_scroll = {}, .instant_scroll_is_for_user_input = false, .smooth_scroll = {} };
         // The request goes with the next frame, which it takes one being committed for.
         if (auto document = active_document())
             document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
@@ -7107,7 +7107,7 @@ void LocalNavigable::drop_unsent_smooth_scroll(Compositing::ScrollRequest& scrol
         queue_scrollend_event_and_promise_resolution_for_finished_scroll(finished->stable_node_id, finished->trigger, {}, finished->promises);
 }
 
-void LocalNavigable::request_scroll_jump(Web::AsyncScrollNodeStableID stable_node_id)
+void LocalNavigable::request_scroll_jump(Web::AsyncScrollNodeStableID stable_node_id, ScrollTrigger trigger)
 {
     auto scroll_offset = scroll_offset_for(stable_node_id);
     if (!scroll_offset.has_value())
@@ -7116,6 +7116,7 @@ void LocalNavigable::request_scroll_jump(Web::AsyncScrollNodeStableID stable_nod
     drop_unsent_smooth_scroll(scroll_request);
     scroll_request.jump_offset = device_scroll_offset(scroll_offset.value());
     scroll_request.relative_scroll.clear();
+    scroll_request.instant_scroll_is_for_user_input = trigger != ScrollTrigger::Programmatic;
     if (stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport)
         scroll_request.visual_viewport_scale = active_document()->visual_viewport()->scale();
 }
@@ -7137,13 +7138,13 @@ void LocalNavigable::request_abort_of_smooth_scroll(Web::AsyncScrollNodeStableID
     drop_unsent_smooth_scroll(unsent_scroll_request_for(stable_node_id));
 }
 
-void LocalNavigable::request_relative_scroll(Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint displacement)
+void LocalNavigable::request_relative_scroll(Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint displacement, ScrollTrigger trigger)
 {
     auto document = active_document();
     Layout::ForcedReadScope read { *document };
     auto const* scrolling_box = layout_node_for_async_scroll_node(read, *document, stable_node_id);
     if (!scrolling_box || !Painting::has_committed_box(*scrolling_box)) {
-        request_scroll_jump(stable_node_id);
+        request_scroll_jump(stable_node_id, trigger);
         return;
     }
     auto& scroll_request = unsent_scroll_request_for(stable_node_id);
@@ -7157,13 +7158,26 @@ void LocalNavigable::request_relative_scroll(Web::AsyncScrollNodeStableID stable
         scroll_request.relative_scroll->then(relative_scroll);
     else
         scroll_request.relative_scroll = relative_scroll;
+    scroll_request.instant_scroll_is_for_user_input = trigger != ScrollTrigger::Programmatic;
+}
+
+bool LocalNavigable::set_scroll_offset_for_user_input(Layout::Node& scrolling_box, Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset)
+{
+    bool did_scroll = false;
+    {
+        TemporaryChange requesting_scroll { m_scroll_offset_changes_need_no_request, true };
+        did_scroll = Painting::set_scroll_offset(scrolling_box, scroll_offset) == Painting::ScrollHandled::Yes;
+    }
+    if (did_scroll && has_compositor_context())
+        request_scroll_jump(stable_node_id, ScrollTrigger::UserInput);
+    return did_scroll;
 }
 
 void LocalNavigable::did_change_scroll_offset(Web::AsyncScrollNodeStableID stable_node_id)
 {
     if (m_scroll_offset_changes_need_no_request || !has_compositor_context())
         return;
-    request_scroll_jump(stable_node_id);
+    request_scroll_jump(stable_node_id, ScrollTrigger::Programmatic);
 }
 
 Vector<Compositing::ScrollRequest> LocalNavigable::take_unsent_scroll_requests()
@@ -7324,9 +7338,9 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Web
         // position even where its offset here is unchanged.
         if (has_compositor_context()) {
             if (relative_request_displacement.has_value())
-                request_relative_scroll(stable_node_id, relative_request_displacement.value());
+                request_relative_scroll(stable_node_id, relative_request_displacement.value(), trigger);
             else
-                request_scroll_jump(stable_node_id);
+                request_scroll_jump(stable_node_id, trigger);
         }
         if (did_scroll)
             queue_scrollend_event(stable_node_id, trigger, initial_scroll_offset);

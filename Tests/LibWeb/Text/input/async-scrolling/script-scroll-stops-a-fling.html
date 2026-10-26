@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        await internals.wheelThroughUIProcess(50, 50, 0, 50, true, "ongoing");
+        await internals.wheelThroughUIProcess(50, 50, 0, 40, true, "momentum");
+        await animationFrame();
+        await animationFrame();
+
+        // The script takes the page somewhere of its own, and the rest of the fling goes nowhere.
+        window.scrollTo(0, 500);
+        await animationFrame();
+        await animationFrame();
+        for (let step = 0; step < 3; step++)
+            await internals.wheelThroughUIProcess(50, 50, 0, 40, true, "momentum");
+        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
+        for (let frame = 0; frame < 4; frame++)
+            await animationFrame();
+        println(`scrollY after the fling: ${window.scrollY}`);
+
+        // The next gesture scrolls as usual.
+        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        await internals.wheelThroughUIProcess(50, 50, 0, 50, true, "ongoing");
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
+        for (let frame = 0; frame < 4; frame++)
+            await animationFrame();
+        println(`scrollY after the next gesture: ${window.scrollY}`);
+    });
+</script>

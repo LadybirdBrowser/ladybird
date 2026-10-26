@@ -259,6 +259,8 @@ private:
         Compositing::SmoothScrollAnimation animation;
         MonotonicTime started_at;
         bool is_user_scroll { false };
+        // Whether the scroll goes to an end of the scroll range, as the Home and End keys scroll.
+        bool heads_to_an_extent { false };
     };
 
     struct VisualViewportScrollDelta {
@@ -271,6 +273,9 @@ private:
     void adopt_keyboard_scroll_state(Compositing::KeyboardScrollState);
     Optional<VisualViewportScrollDelta> apply_visual_viewport_scroll_delta(Gfx::FloatPoint);
     void note_user_input_scrolled(Web::AsyncScrollNodeStableID);
+    Optional<Gfx::Orientation> axis_held_by_scrollbar_of(Compositing::AsyncScrollNodeID) const;
+    // A script that scrolls the box a gesture is latched to stops the momentum the gesture carries on with.
+    void stop_user_scroll_carried_on_by_momentum_of(Web::AsyncScrollNodeStableID);
     void apply_visual_viewport_scroll_request(Compositing::ScrollRequest const&, Vector<Compositing::AsyncScrollOffset>& answers);
     // Pans the visual viewport of a zoomed page by as much of a delta in screen pixels as it has room for, and returns
     // that part of the delta.
@@ -364,6 +369,9 @@ private:
     HashMap<Web::AsyncScrollNodeStableID, u64> m_applied_scroll_request_ids;
     // How many times this context scrolled each box for user input of its own, which the reports are marked with too.
     HashMap<Web::AsyncScrollNodeStableID, u64> m_user_input_scroll_counts;
+    // Whether the gesture the wheel is latched to carries on by momentum, and whether a script's scroll stopped that.
+    bool m_latched_gesture_carries_on_by_momentum { false };
+    bool m_momentum_of_latched_gesture_is_stopped { false };
     // The boxes the last frame brought, whose offsets came from that frame's snapshot.
     HashTable<Web::AsyncScrollNodeStableID> m_scroll_nodes_seeded_by_last_frame;
     // Whether this context has scrolled boxes to offsets that WebContent's last frame does not have them at.

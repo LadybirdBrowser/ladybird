@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    #scroller {
+        width: 150px;
+        height: 100px;
+        overflow-y: scroll;
+        overflow-x: hidden;
+    }
+    #content {
+        height: 1000px;
+    }
+</style>
+<div id="scroller">
+    <div id="content"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        await internals.mouseEventThroughUIProcess("mousemove", 147, 5);
+        await internals.mouseEventThroughUIProcess("mousedown", 147, 5);
+        await internals.mouseEventThroughUIProcess("mousemove", 147, 60, { buttons: 1 });
+        await animationFrame();
+        await animationFrame();
+        const draggedTo = scroller.scrollTop;
+        println(`dragged away from the top: ${draggedTo > 0}`);
+
+        // The thumb stays under the pointer that holds it, so the script's scroll does not move the box along its axis.
+        scroller.scrollTop = 0;
+        for (let frame = 0; frame < 4; frame++)
+            await animationFrame();
+        println(`held where the drag left it: ${scroller.scrollTop === draggedTo}`);
+
+        await internals.mouseEventThroughUIProcess("mouseup", 147, 60);
+        await animationFrame();
+        await animationFrame();
+        println(`still there once released: ${scroller.scrollTop === draggedTo}`);
+    });
+</script>

@@ -1,0 +1,2 @@
+step in flight when the script scrolled: true
+scrollY once the step ends: 1100

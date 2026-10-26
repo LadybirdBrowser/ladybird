@@ -1,0 +1,2 @@
+scrollY after the fling: 500
+scrollY after the next gesture: 550

@@ -109,6 +109,19 @@ void ElasticOverscrollController::release_held_by_fingers(MonotonicTime now)
         active.overscroll.release(velocity, now);
 }
 
+void ElasticOverscrollController::drop_stretch_moved_by(Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint scroll_delta)
+{
+    auto stretch = stretch_of(stable_node_id);
+    if ((stretch.x() != 0 && scroll_delta.x() != 0) || (stretch.y() != 0 && scroll_delta.y() != 0))
+        m_active_overscrolls.remove_all_matching([&](auto const& active) { return active.stable_node_id == stable_node_id; });
+}
+
+void ElasticOverscrollController::release_stretch_of(Web::AsyncScrollNodeStableID stable_node_id, MonotonicTime now)
+{
+    if (auto* active = active_overscroll_of(stable_node_id); active && !active->overscroll.is_rebounding())
+        active->overscroll.release({}, now);
+}
+
 void ElasticOverscrollController::end_gesture(MonotonicTime now)
 {
     release_held_by_fingers(now);
