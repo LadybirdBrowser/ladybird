@@ -1558,6 +1558,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.masm
                     .branch64(Condition::NotEqual, self.input(node_id, 0), scratch, exit);
             }
+            Op::CheckInitialized => {
+                let exit = self.exit_site(node_id);
+                self.masm
+                    .branch64_imm(Condition::Equal, self.input(node_id, 0), value::EMPTY as i64, exit);
+            }
             Op::Typeof => self.emit_typeof(node_id),
             Op::TypeofIs { kind, equal } => self.emit_typeof_is(node_id, *kind, *equal),
             Op::EmptyToUndefined => {

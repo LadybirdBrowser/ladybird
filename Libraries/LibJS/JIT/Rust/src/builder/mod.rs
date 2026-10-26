@@ -884,12 +884,18 @@ impl<'a> GraphBuilder<'a> {
                 merged.slots[slot] = SlotState::Value { node, in_sync: false };
                 continue;
             };
-            let first = values[0].0;
-            let needs_phi = values.iter().any(|(node, _)| *node != first) || assigned;
+            let shared = values
+                .iter()
+                .map(|(node, _)| *node)
+                .find(|candidate| values.iter().all(|(node, _)| self.graph.refines(*node, *candidate)));
             // NB: A loop header's phi gets the values its back edges bring,
             //     which frame memory need not hold.
             let in_sync = values.iter().all(|(_, in_sync)| *in_sync) && !(is_loop_header && assigned);
-            let node = if needs_phi {
+            let node = if let Some(node) = shared
+                && !assigned
+            {
+                node
+            } else {
                 // NB: Phis start out tagged; representation selection
                 //     unboxes them later.
                 let inputs = incoming
@@ -898,8 +904,6 @@ impl<'a> GraphBuilder<'a> {
                     .map(|((predecessor, _), (node, _))| self.tagged_at_end_of(*predecessor, *node))
                     .collect();
                 self.add_phi(inputs)
-            } else {
-                first
             };
             merged.slots[slot] = SlotState::Value { node, in_sync };
         }
@@ -1037,7 +1041,11 @@ impl<'a> GraphBuilder<'a> {
                     self.graph.nodes[node.index()].inputs.push(value);
                 }
                 SlotState::Value { node, .. } => {
-                    if !matches!(self.frame.slots[slot], SlotState::Value { node: current, .. } if current == node) {
+                    let unchanged = matches!(
+                        self.frame.slots[slot],
+                        SlotState::Value { node: current, .. } if self.graph.has_value_of(current, node)
+                    );
+                    if !unchanged {
                         // NB: Only slots assigned in the loop can change, and those have phis.
                         return Err(CompileFailure::InvalidBytecode {
                             pc: self.function.pc,

@@ -99,12 +99,12 @@ A node that relies on a check takes the check's value as its input, never the ch
 itself. Checks that exit (`CheckObject`, `CheckShape`, `CheckValue`, `CheckClosure`,
 `CheckAccessorFunction`, `CheckElements`, `CheckTypedArray`, `CheckArray`,
 `CheckNonNegativeInt32`, `CheckIdentityComparable`, `CheckAppendableArray`, `CheckBounds`,
-`CheckTypedArrayStorage`, `CheckNotHole`) have their input 0 as their value, refined: known to
-pass. `CheckInt32` refines and unboxes at once. A branch refines on its edges with `Refine`, the
-textbook pi node: it takes the branch's inputs and returns input 0, at the head of the block that
-only that edge reaches. So every check is a data dependency of what relies on it: passes move or
-share a load exactly when they can move or share its check, without control dependencies and
-without pinning loads by making them read everything.
+`CheckTypedArrayStorage`, `CheckNotHole`, `CheckInitialized`) have their input 0 as their value,
+refined: known to pass. `CheckInt32` refines and unboxes at once. A branch refines on its edges
+with `Refine`, the textbook pi node: it takes the branch's inputs and returns input 0, at the
+head of the block that only that edge reaches. So every check is a data dependency of what relies
+on it: passes move or share a load exactly when they can move or share its check, without control
+dependencies and without pinning loads by making them read everything.
 
 Passes see through refinements where that is sound: check elimination keeps its facts about the
 unrefined value, and leaves the uses of a check it removes on the value the check refined.
@@ -165,6 +165,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | CheckBounds | Exits unless the index (input 0) is below the count (input 1), unsigned. The value is the index, refined. | E | | | cse |
 | CheckTypedArrayStorage | Exits unless the storage offset of a typed array (input 0) is valid. Typed arrays whose length the snapshot knows to be fixed use it as a constant past this check, so accesses with a constant index rely on it alone. The value is the offset, refined. | E | | | cse |
 | CheckNotHole | Exits at holes (the empty value). The value is input 0, refined. | E | | | cse |
+| CheckInitialized | Exits unless the binding or local variable (input 0) is initialized (not the empty value). The value is input 0, refined. | E | | | cse |
 | AssumeValid | Exits if the code was invalidated; a patchable no-op (section 5). | E | Any | | |
 | AssumeLegacyArgumentsUnread | After an instruction whose calls may run code reading the legacy `arguments` of inlined frames; escape analysis makes it an `AssumeValid` or removes it (section 4, "Legacy arguments"). | E | Any | | |
 | **Object memory** | | | | | |

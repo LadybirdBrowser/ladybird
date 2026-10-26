@@ -421,8 +421,8 @@ impl Comparison {
 /// `CheckShape`, `CheckValue`, `CheckClosure`, `CheckAccessorFunction`,
 /// `CheckElements`, `CheckTypedArray`, `CheckArray`, `CheckNonNegativeInt32`,
 /// `CheckIdentityComparable`, `CheckAppendableArray`, `CheckBounds`,
-/// `CheckTypedArrayStorage`, `CheckNotHole`), and a `Refine` on the edge of a
-/// branch, has that input as its value, refined:
+/// `CheckTypedArrayStorage`, `CheckNotHole`, `CheckInitialized`), and a
+/// `Refine` on the edge of a branch, has that input as its value, refined:
 /// known to pass. Nodes that rely on the check take the refined value as their
 /// input instead of the input itself, so that the check is a data dependency
 /// of theirs: passes move or share them exactly when they can move or share
@@ -717,6 +717,10 @@ pub enum Op {
     /// `LoadElementAt` finds there) from here on. Exits with
     /// `ExitKind::OutOfBounds` where it is one.
     CheckNotHole,
+    /// The tagged input 0, the value of a binding or local variable, which
+    /// is known to be initialized (not the empty value) from here on. Exits
+    /// with `ExitKind::Uninitialized` where it is not.
+    CheckInitialized,
     /// The address of the cell in the tagged input 0, as a `Repr::Pointer`.
     /// Nodes accessing an object take it as an extra input, so that one
     /// decoding of the tagged value serves all of them.
@@ -1435,7 +1439,7 @@ impl Op {
                 writes: Locations::ELEMENTS,
                 ..P::PURE
             },
-            Op::CheckBounds | Op::CheckNotHole | Op::CheckTypedArrayStorage => P::PURE,
+            Op::CheckBounds | Op::CheckNotHole | Op::CheckInitialized | Op::CheckTypedArrayStorage => P::PURE,
             Op::AllocateObject { .. } => P {
                 allocates: true,
                 ..P::PURE
@@ -1723,6 +1727,7 @@ impl Op {
             Op::LoadElementAt { .. } => "LoadElementAt",
             Op::StoreElementAt { .. } => "StoreElementAt",
             Op::CheckNotHole => "CheckNotHole",
+            Op::CheckInitialized => "CheckInitialized",
             Op::CellAddress => "CellAddress",
             Op::AllocateObject { .. } => "AllocateObject",
             Op::InitializeNamed { .. } => "InitializeNamed",
@@ -1832,7 +1837,8 @@ impl Op {
             | Op::CheckAppendableArray
             | Op::CheckBounds
             | Op::CheckTypedArrayStorage
-            | Op::CheckNotHole => Some(0),
+            | Op::CheckNotHole
+            | Op::CheckInitialized => Some(0),
             _ => None,
         }
     }
@@ -1864,6 +1870,7 @@ impl Op {
             Op::CheckObject => Some(ExitKind::NotObject),
             Op::CheckElements { .. } | Op::CheckTypedArray => Some(ExitKind::BadElements),
             Op::CheckBounds | Op::CheckNotHole | Op::CheckTypedArrayStorage => Some(ExitKind::OutOfBounds),
+            Op::CheckInitialized => Some(ExitKind::Uninitialized),
             Op::CheckInt32 | Op::CheckFloat64Int32 => Some(ExitKind::NotInt32),
             Op::CheckArray => Some(ExitKind::BadType),
             Op::CheckNonNegativeInt32 => Some(ExitKind::Overflow),
@@ -2402,6 +2409,41 @@ impl Graph {
             id = self.node(id).inputs[index];
         }
         id
+    }
+
+    /// Whether `id` is `value`, or refines it through any number of
+    /// refinements.
+    pub fn refines(&self, mut id: NodeId, value: NodeId) -> bool {
+        while id != value {
+            let Some(index) = self.node(id).op.refined_input() else {
+                return false;
+            };
+            id = self.node(id).inputs[index];
+        }
+        true
+    }
+
+    /// Whether `id` always has the value of `value`, because it refines
+    /// `value` or a phi whose inputs all have that value.
+    pub fn has_value_of(&self, id: NodeId, value: NodeId) -> bool {
+        let mut pending = vec![id];
+        let mut seen = Vec::new();
+        while let Some(mut node) = pending.pop() {
+            while node != value
+                && let Some(index) = self.node(node).op.refined_input()
+            {
+                node = self.node(node).inputs[index];
+            }
+            if node == value || seen.contains(&node) {
+                continue;
+            }
+            seen.push(node);
+            if !matches!(self.node(node).op, Op::Phi) {
+                return false;
+            }
+            pending.extend(self.node(node).inputs.iter().copied());
+        }
+        true
     }
 }
 

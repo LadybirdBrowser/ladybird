@@ -169,14 +169,11 @@ impl GraphBuilder<'_> {
         // NB: Reading an uninitialized binding of a declarative environment
         //     throws a ReferenceError, so the instruction continues with the
         //     binding's value only.
-        if !initialized {
-            let empty = self.constant(value::EMPTY);
-            self.build_throwing_check(
-                BranchCondition::TaggedEquals { equal: true },
-                vec![binding, empty],
-                true,
-            )?;
-        }
+        let binding = if initialized {
+            binding
+        } else {
+            self.check_initialized(binding)?
+        };
         let binding = match self
             .function
             .executable

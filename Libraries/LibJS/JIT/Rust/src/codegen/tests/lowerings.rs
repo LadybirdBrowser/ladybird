@@ -1884,18 +1884,29 @@ impl FakeEnvironment {
 }
 
 /// Runs `instructions` with the lexical and variable environments set, and
-/// returns the result and how often a slow path that counts ran.
+/// returns the result and how often a slow path that counts ran. `exits` are
+/// the exits taken before, by the index of their instruction.
 fn run_with_environments(
     instructions: Vec<Instruction>,
     arguments: &[u64],
     lexical: &FakeEnvironment,
     variable: &FakeEnvironment,
+    exits: &[(usize, ExitKind)],
 ) -> (JitResult, u64) {
     let program = assemble(|_| instructions.clone());
-    let (result, machine) = run_program(&program, arguments, |machine| {
-        machine.frame[1] = lexical.address();
-        machine.frame[12] = variable.address();
-    });
+    let exit_sites = exits
+        .iter()
+        .map(|(index, kind)| (program.offsets[*index], *kind))
+        .collect();
+    let (result, machine) = run_program_with_snapshot(
+        &program,
+        arguments,
+        |snapshot| snapshot.executables[0].exit_sites = exit_sites,
+        |machine| {
+            machine.frame[1] = lexical.address();
+            machine.frame[12] = variable.address();
+        },
+    );
     (result, machine.vm[VM_SLOW_PUTS_WORD])
 }
 
@@ -1914,7 +1925,7 @@ fn bindings() {
     );
     let middle = FakeEnvironment::new(&[value::int32(5)], &[0], None, Some(&outer));
     let inner = FakeEnvironment::new(&[value::int32(9)], &[BINDING_MUTABLE], Some(1), Some(&middle));
-    let get = |hops, index, initialized| {
+    let get = |hops, index, initialized, exits: &[(usize, ExitKind)]| {
         let get = if initialized {
             Instruction::GetInitializedBinding {
                 value_feedback: 0,
@@ -1935,22 +1946,25 @@ fn bindings() {
             &[],
             &inner,
             &outer,
+            exits,
         );
         result
     };
-    assert_eq!(get(0, 0, false), returned(value::int32(9)));
-    assert_eq!(get(1, 0, true), returned(value::int32(5)));
-    assert_eq!(get(2, 3, false), returned(value::int32(4)));
+    let uninitialized_exit = [(1, ExitKind::Uninitialized)];
+    assert_eq!(get(0, 0, false, &[]), returned(value::int32(9)));
+    assert_eq!(get(1, 0, true, &[]), returned(value::int32(5)));
+    assert_eq!(get(2, 3, false, &[]), returned(value::int32(4)));
+    assert_eq!(get(2, 1, false, &[]).status, RESUME, "uninitialized bindings exit");
     assert_eq!(
-        get(2, 1, false).status,
+        get(2, 1, false, &uninitialized_exit).status,
         EXIT_INTERPRETER,
-        "uninitialized bindings throw"
+        "uninitialized bindings throw where they exited before"
     );
     // Initialized bindings are never checked; the returned empty value becomes undefined.
-    assert_eq!(get(2, 1, true), returned(value::UNDEFINED));
+    assert_eq!(get(2, 1, true, &[]), returned(value::UNDEFINED));
 
     // The callee and an undefined `this`.
-    let callee_and_this = |hops, index, returned_operand| {
+    let callee_and_this = |hops, index, returned_operand, exits: &[(usize, ExitKind)]| {
         run_with_environments(
             vec![
                 Instruction::Enter,
@@ -1968,12 +1982,17 @@ fn bindings() {
             &[],
             &inner,
             &outer,
+            exits,
         )
         .0
     };
-    assert_eq!(callee_and_this(2, 2, r(5)), returned(value::int32(3)));
-    assert_eq!(callee_and_this(2, 2, r(6)), returned(value::UNDEFINED));
-    assert_eq!(callee_and_this(2, 1, r(5)).status, EXIT_INTERPRETER);
+    assert_eq!(callee_and_this(2, 2, r(5), &[]), returned(value::int32(3)));
+    assert_eq!(callee_and_this(2, 2, r(6), &[]), returned(value::UNDEFINED));
+    assert_eq!(callee_and_this(2, 1, r(5), &[]).status, RESUME);
+    assert_eq!(
+        callee_and_this(2, 1, r(5), &uninitialized_exit).status,
+        EXIT_INTERPRETER
+    );
 
     // Sets of initialized mutable bindings, with their flags in the shape,
     // after the shape's in the rare data, or in rare data only.
@@ -1995,6 +2014,7 @@ fn bindings() {
             &[value::int32(77)],
             &inner,
             &outer,
+            &[],
         )
         .1
     };
@@ -2029,6 +2049,7 @@ fn bindings() {
         &[value::int32(8), value::TRUE],
         &inner,
         &outer,
+        &[],
     );
     assert_eq!(result, returned(value::int32(0)));
     assert_eq!(outer.values[1], value::int32(8));
@@ -2567,7 +2588,9 @@ fn checks_take_the_slow_path_only_when_they_fail() {
                 Instruction::Return { value: c(1) },
             ]
         });
-        let (result, machine) = run_program(&program, &[argument], |machine| {
+        let pc = program.offsets[1];
+        let exits = |snapshot: &mut Snapshot| snapshot.executables[0].exit_sites = vec![(pc, ExitKind::Uninitialized)];
+        let (result, machine) = run_program_with_snapshot(&program, &[argument], exits, |machine| {
             // The this value register.
             machine.frame[FRAME_HEADER_WORDS + 2] = argument;
         });
@@ -2610,6 +2633,17 @@ fn checks_take_the_slow_path_only_when_they_fail() {
             "{value:#x}"
         );
     }
+
+    let program = assemble(|_| {
+        vec![
+            Instruction::Enter,
+            Instruction::ThrowIfTDZ { src: argument(0) },
+            Instruction::Return { value: c(1) },
+        ]
+    });
+    let (result, machine) = run_program(&program, &[value::EMPTY], |_| {});
+    assert_eq!(result.status, RESUME);
+    assert_eq!(machine.vm[VM_SLOW_PUTS_WORD], 0);
 }
 
 #[test]
