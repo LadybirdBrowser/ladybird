@@ -21,7 +21,6 @@ public:
     CanonicalCode() = default;
 
     static ErrorOr<CanonicalCode> from_bytes(ReadonlyBytes);
-    ErrorOr<u32> read_symbol(LittleEndianInputBitStream&) const;
     ErrorOr<void> write_symbol(LittleEndianOutputBitStream&, u32) const;
 
 private:
