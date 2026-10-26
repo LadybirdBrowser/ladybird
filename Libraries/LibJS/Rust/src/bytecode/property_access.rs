@@ -333,6 +333,52 @@ pub fn get_by_id(
     get_with_property_lookup_cache(vm, base_obj, property_name, this_value, cache, 0)
 }
 
+/// The slot an entry of `cache` for the shape of `object` points to, which may hold an accessor, or undefined for a
+/// missing property.
+#[inline(always)]
+pub fn cached_property_slot(object: Gc<Object>, cache: &PropertyLookupCache, cache_key: u64) -> Option<Value> {
+    let shape = object.shape();
+    for entry in cache.entry_slots_for_shape(shape, cache_key) {
+        // NB: Only the caches of keyed accesses have keys, and named accesses pass a constant 0.
+        if cache_key != 0 && entry.key.get() != cache_key {
+            continue;
+        }
+        if Some(shape) != entry.shape.get()
+            || (shape.is_dictionary() && shape.dictionary_generation() != entry.shape_dictionary_generation.get())
+        {
+            continue;
+        }
+        let prototype_chain_is_valid = || {
+            entry
+                .prototype_chain_validity
+                .get()
+                .is_some_and(|validity| validity.is_valid())
+        };
+        match entry.entry_type.get() {
+            PropertyLookupCacheEntryType::GetMissingProperty => {
+                if !object.is_cacheable_for_property_absence()
+                    || (shape.prototype().is_some() && !prototype_chain_is_valid())
+                {
+                    continue;
+                }
+                return Some(Value::UNDEFINED);
+            }
+            PropertyLookupCacheEntryType::GetOwnProperty
+            | PropertyLookupCacheEntryType::GetPropertyInPrototypeChain => {
+                let Some(prototype) = entry.prototype.get() else {
+                    return Some(object.get_direct(entry.property_offset.get()));
+                };
+                if !prototype_chain_is_valid() {
+                    continue;
+                }
+                return Some(prototype.get_direct(entry.property_offset.get()));
+            }
+            _ => continue,
+        }
+    }
+    None
+}
+
 /// Gets the property from `base_obj` through `cache`, filling the cache on a miss. `cache_key` is the key the cache's
 /// entries are for (see PropertyLookupCacheEntry::key).
 #[inline(always)]
@@ -344,71 +390,10 @@ pub fn get_with_property_lookup_cache(
     cache: &PropertyLookupCache,
     cache_key: u64,
 ) -> ThrowCompletionOr<Value> {
-    let shape = base_obj.shape();
-
-    // NB: The entries are read in place, and a getter only runs once the loop is done with them, since it may update
-    //     the cache.
-    let mut cached_value = None;
-    for cache_entry in cache.entry_slots_for_shape(shape, cache_key) {
-        // NB: Only the caches of keyed accesses have keys, and named accesses pass a constant 0.
-        if cache_key != 0 && cache_entry.key.get() != cache_key {
-            continue;
-        }
-        let entry_type = cache_entry.entry_type.get();
-        if entry_type == PropertyLookupCacheEntryType::GetMissingProperty {
-            if !base_obj.is_cacheable_for_property_absence() {
-                continue;
-            }
-            if Some(shape) != cache_entry.shape.get() {
-                continue;
-            }
-            if shape.is_dictionary() && shape.dictionary_generation() != cache_entry.shape_dictionary_generation.get() {
-                continue;
-            }
-            if shape.prototype().is_some()
-                && !cache_entry
-                    .prototype_chain_validity
-                    .get()
-                    .is_some_and(|validity| validity.is_valid())
-            {
-                continue;
-            }
-            return Ok(Value::UNDEFINED);
-        }
-
-        if entry_type != PropertyLookupCacheEntryType::GetOwnProperty
-            && entry_type != PropertyLookupCacheEntryType::GetPropertyInPrototypeChain
-        {
-            continue;
-        }
-
-        if let Some(cached_prototype) = cache_entry.prototype.get() {
-            // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
-            let can_use_cache = Some(shape) == cache_entry.shape.get()
-                && (!shape.is_dictionary()
-                    || shape.dictionary_generation() == cache_entry.shape_dictionary_generation.get())
-                && cache_entry
-                    .prototype_chain_validity
-                    .get()
-                    .is_some_and(|validity| validity.is_valid());
-            if can_use_cache {
-                cached_value = Some(cached_prototype.get_direct(cache_entry.property_offset.get()));
-                break;
-            }
-        } else if Some(shape) == cache_entry.shape.get() {
-            // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
-            let can_use_cache = !shape.is_dictionary()
-                || shape.dictionary_generation() == cache_entry.shape_dictionary_generation.get();
-
-            if can_use_cache {
-                cached_value = Some(base_obj.get_direct(cache_entry.property_offset.get()));
-                break;
-            }
-        }
-    }
-    if let Some(value) = cached_value {
+    if let Some(value) = cached_property_slot(base_obj, cache, cache_key) {
         return get_cached_property_value(vm, value, this_value);
     }
+    let shape = base_obj.shape();
     let prototype_chain_validity = shape
         .prototype()
         .and_then(|prototype| prototype.shape().prototype_chain_validity());

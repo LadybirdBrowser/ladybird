@@ -1663,73 +1663,10 @@ fn try_get_by_property_lookup_cache_with(
     if !base.is_object() {
         return Value::EMPTY;
     }
-    let object = base.as_object();
-    let shape = object.shape();
-
-    for entry in cache.entry_slots_for_shape(shape, cache_key) {
-        // NB: Only the caches of keyed accesses have keys, and named accesses pass a constant 0.
-        if cache_key != 0 && entry.key.get() != cache_key {
-            continue;
-        }
-        let entry_type = entry.entry_type.get();
-        if entry_type == PropertyLookupCacheEntryType::GetMissingProperty {
-            if !object.is_cacheable_for_property_absence() {
-                continue;
-            }
-            if Some(shape) != entry.shape.get() {
-                continue;
-            }
-            if shape.is_dictionary() && shape.dictionary_generation() != entry.shape_dictionary_generation.get() {
-                continue;
-            }
-            if shape.prototype().is_some()
-                && !entry
-                    .prototype_chain_validity
-                    .get()
-                    .is_some_and(|validity| validity.is_valid())
-            {
-                continue;
-            }
-            return Value::UNDEFINED;
-        }
-
-        if entry_type != PropertyLookupCacheEntryType::GetOwnProperty
-            && entry_type != PropertyLookupCacheEntryType::GetPropertyInPrototypeChain
-        {
-            continue;
-        }
-
-        if let Some(cached_prototype) = entry.prototype.get() {
-            if Some(shape) != entry.shape.get() {
-                continue;
-            }
-            if shape.is_dictionary() && shape.dictionary_generation() != entry.shape_dictionary_generation.get() {
-                continue;
-            }
-            if !entry
-                .prototype_chain_validity
-                .get()
-                .is_some_and(|validity| validity.is_valid())
-            {
-                continue;
-            }
-            let value = cached_prototype.get_direct(entry.property_offset.get());
-            if value.is_accessor() && accessors == CachedAccessors::Skip {
-                return Value::EMPTY;
-            }
-            return value;
-        } else if Some(shape) == entry.shape.get() {
-            if shape.is_dictionary() && shape.dictionary_generation() != entry.shape_dictionary_generation.get() {
-                continue;
-            }
-            let value = object.get_direct(entry.property_offset.get());
-            if value.is_accessor() && accessors == CachedAccessors::Skip {
-                return Value::EMPTY;
-            }
-            return value;
-        }
+    match property_access::cached_property_slot(base.as_object(), cache, cache_key) {
+        Some(value) if !value.is_accessor() || accessors == CachedAccessors::Return => value,
+        _ => Value::EMPTY,
     }
-    Value::EMPTY
 }
 
 // Fast path for GetByValue on typed arrays.
