@@ -1,0 +1,11 @@
+Proxy with a throwing ownKeys trap: DataCloneError
+Proxy of a plain object: DataCloneError
+WeakMap: DataCloneError
+Promise: DataCloneError
+generator object: DataCloneError
+sloppy arguments object: DataCloneError
+strict arguments object: DataCloneError
+Object.prototype: 0 keys, prototype is Object.prototype: true
+Map.prototype: 0 keys, prototype is Object.prototype: true
+Math: 0 keys, prototype is Object.prototype: true
+null-prototype object: a=1

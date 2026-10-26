@@ -752,10 +752,13 @@ impl Serializer<'_> {
             else if value.is_function() {
                 return Err(data_clone_error("Cannot serialize functions"));
             }
-            // FIXME: 23. Otherwise, if value has any internal slot other than [[Prototype]], [[Extensible]], or [[PrivateElements]], then throw a "DataCloneError" DOMException.
-
-            // FIXME: 24. Otherwise, if value is an exotic object and value is not the %Object.prototype% intrinsic object associated with any realm, then throw a "DataCloneError" DOMException.
-
+            // 23. Otherwise, if value has any internal slot other than [[Prototype]], [[Extensible]], or [[PrivateElements]], then throw a "DataCloneError" DOMException.
+            else if object.has_internal_slots() {
+                return Err(data_clone_error("Cannot serialize an object with internal slots"));
+            }
+            // 24. Otherwise, if value is an exotic object and value is not the %Object.prototype% intrinsic object associated with any realm, then throw a "DataCloneError" DOMException.
+            // NB: Step 19 serializes an Array, and step 23 throws for every other exotic object but an immutable prototype
+            //     exotic object, of which LibJS has only %Object.prototype%, and LibWeb only platform objects.
             // 25. Otherwise:
             else {
                 // 1. Set serialized to { [[Type]]: "Object", [[Properties]]: a new empty List }.
