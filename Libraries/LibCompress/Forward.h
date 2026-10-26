@@ -8,12 +8,8 @@
 
 namespace Compress {
 
-class BrotliCompressor;
-class BrotliDecompressor;
 class DeflateCompressor;
 class DeflateDecompressor;
-class GzipCompressor;
-class GzipDecompressor;
 class ZlibCompressor;
 class ZlibDecompressor;
 
