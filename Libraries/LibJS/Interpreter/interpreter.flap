@@ -2284,6 +2284,12 @@ handler ResolveSuperBase(
     dst: out Operand
 ) @cold = call_slow_path(resolve_super_base);
 
+handler GetResolvedBinding(
+    dst: out Operand,
+    environment: Operand,
+    identifier: IdentifierTableIndex
+) @cold = call_slow_path(get_resolved_binding);
+
 handler SetResolvedBinding(
     environment: Operand,
     identifier: IdentifierTableIndex,

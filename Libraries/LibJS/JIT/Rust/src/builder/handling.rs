@@ -299,6 +299,7 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::ResolveBinding
         | O::ResolveGlobalBinding
         | O::ResolveSuperBase
+        | O::GetResolvedBinding
         | O::SetResolvedBinding
         | O::TypeofBinding
         | O::DynamicTypeofBinding

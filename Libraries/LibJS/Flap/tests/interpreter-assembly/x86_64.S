@@ -77,6 +77,7 @@ asm_dispatch_table:
     .quad asm_handler_DynamicSetVariableBinding
     .quad asm_handler_ResolveBinding
     .quad asm_handler_ResolveSuperBase
+    .quad asm_handler_GetResolvedBinding
     .quad asm_handler_SetResolvedBinding
     .quad asm_handler_TypeofBinding
     .quad asm_handler_DynamicTypeofBinding
@@ -237,7 +238,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -786,6 +786,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_ResolveSuperBase_hot_end
     .quad asm_handler_ResolveSuperBase_cold
     .quad asm_handler_ResolveSuperBase_cold_end
+    .quad asm_handler_GetResolvedBinding
+    .quad asm_handler_GetResolvedBinding_hot_end
+    .quad asm_handler_GetResolvedBinding_cold
+    .quad asm_handler_GetResolvedBinding_cold_end
     .quad asm_handler_SetResolvedBinding
     .quad asm_handler_SetResolvedBinding_hot_end
     .quad asm_handler_SetResolvedBinding_cold
@@ -1426,10 +1430,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -10699,6 +10699,49 @@ asm_handler_ResolveSuperBase:
 asm_handler_ResolveSuperBase_hot_end:
 asm_handler_ResolveSuperBase_cold:
 asm_handler_ResolveSuperBase_cold_end:
+
+.p2align 4
+asm_handler_GetResolvedBinding:
+    mov DWORD PTR [rbx + -64], r13d
+    lea r11, [r14 + r13]
+    mov r10d, DWORD PTR [r11 + 8]
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_GetResolvedBinding.scalar_value_ready_0:
+    mov rcx, rax
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    call CSYM(asm_slow_path_get_resolved_binding)
+    test rax, rax
+    js .Lasm_GetResolvedBinding.scalar_result_done_1
+    bt rax, 32
+    jnc .Lasm_GetResolvedBinding.scalar_result_done_1
+    lea rcx, [r14 + r13]
+    mov r10d, DWORD PTR [rcx + 4]
+    mov QWORD PTR [rbx + r10 * 8], rdx
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetResolvedBinding.scalar_result_done_1:
+    test rax, rax
+    js .Lexit
+    bt rax, 32
+    jnc .Lasm_GetResolvedBinding.slow_path_transfer_2
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetResolvedBinding.slow_path_transfer_2:
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rcx]
+    add rbx, 128
+    mov rcx, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [rcx + 40]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_GetResolvedBinding_hot_end:
+asm_handler_GetResolvedBinding_cold:
+asm_handler_GetResolvedBinding_cold_end:
 
 .p2align 4
 asm_handler_SetResolvedBinding:
