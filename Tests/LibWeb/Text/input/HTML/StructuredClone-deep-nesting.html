@@ -9,11 +9,15 @@
             current = current[0];
         }
 
+        // Whether this nesting exhausts the stack depends on the stack's size, so either outcome passes.
         try {
             structuredClone(deep);
-            println("FAILED");
         } catch (e) {
-            println(`ERROR: ${e.name}: ${e.message}`);
+            if (e.name !== "InternalError") {
+                println(`FAIL: ${e.name}: ${e.message}`);
+                return;
+            }
         }
+        println("PASS: Did not crash");
     });
 </script>

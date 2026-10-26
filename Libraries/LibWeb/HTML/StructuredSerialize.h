@@ -42,6 +42,8 @@ class StructuredSerializeDataDecoder;
 class StructuredSerializeDataEncoder;
 
 class WEB_API TransferDataDecoder {
+    AK_ALLOC_WITH_KMALLOC;
+
 public:
     explicit TransferDataDecoder(IPCSerializationRecord const&);
     explicit TransferDataDecoder(TransferDataEncoder&&);

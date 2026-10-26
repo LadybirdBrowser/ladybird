@@ -115,6 +115,8 @@ WEBCOMMON_API StorageSerializationRecord storage_serialization_record_for_undefi
 WEBCOMMON_API StorageSerializationRecord storage_serialization_record_for_null();
 
 class WEBCOMMON_API TransferDataEncoder {
+    AK_ALLOC_WITH_KMALLOC;
+
 public:
     explicit TransferDataEncoder();
     explicit TransferDataEncoder(IPC::MessageBuffer&&);
