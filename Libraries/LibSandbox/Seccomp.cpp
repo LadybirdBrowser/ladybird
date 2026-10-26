@@ -1493,6 +1493,15 @@ void SeccompPolicy::allow_ipc()
 #endif
 }
 
+// Event loops outside of LibCore, such as Rust's tokio, wait on their descriptors with epoll.
+void SeccompPolicy::allow_epoll()
+{
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_create1);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_ctl);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_wait);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_pwait);
+}
+
 // NB: A helper mints a socket pair to hand one end of a new IPC channel to another process. A helper that only ever
 //     uses the channels the Browser handed it does not need this.
 void SeccompPolicy::allow_socket_pairs()
