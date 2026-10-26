@@ -130,6 +130,10 @@ void HTMLVideoElement::adopted_from(DOM::Document& old_document)
         m_load_event_delayer.emplace(document());
 
     release_presented_video_frame_held_for_callbacks();
+
+    // NB: See determine_element_poster_frame().
+    if (old_document.is_temporary_document_for_fragment_parsing())
+        determine_element_poster_frame(attribute(HTML::AttributeNames::poster)).release_value_but_fixme_should_propagate_errors();
 }
 
 void HTMLVideoElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
@@ -253,6 +257,13 @@ Optional<CSSPixelSize> HTMLVideoElement::natural_element_size() const
 // https://html.spec.whatwg.org/multipage/media.html#attr-video-poster
 WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optional<Utf16String> const& poster)
 {
+    // AD-HOC: An element in a temporary document for fragment parsing does not fetch anything, so that markup parsed
+    //         into such a document, for example by the Sanitizer API, causes no network requests for elements that
+    //         are never inserted anywhere. The poster frame is determined once the element is adopted into another
+    //         document.
+    if (document().is_temporary_document_for_fragment_parsing())
+        return {};
+
     auto& realm = HTML::relevant_realm(*this);
     // 1. If there is an existing instance of this algorithm running for this video element, abort that instance of
     //    this algorithm without changing the poster frame.

@@ -271,6 +271,12 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element() const
 // https://svgwg.org/svg2-draft/linking.html#processingURL-fetch
 void SVGUseElement::fetch_the_document(URL::URL const& url)
 {
+    // AD-HOC: An element in a temporary document for fragment parsing does not fetch anything, so that markup parsed
+    //         into such a document, for example by the Sanitizer API, causes no network requests for elements that
+    //         are never inserted anywhere. The document is fetched once the element is adopted into another document.
+    if (document().is_temporary_document_for_fragment_parsing())
+        return;
+
     m_load_event_delayer.emplace(document());
     m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), url, HTML::CORSSettingAttribute::NoCORS);
     m_resource_request->add_callbacks(

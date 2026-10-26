@@ -62,6 +62,14 @@ void SVGImageElement::adopted_from(DOM::Document& old_document)
 
     if (m_load_event_delayer.has_value())
         m_load_event_delayer.emplace(document());
+
+    // NB: See process_the_url().
+    if (old_document.is_temporary_document_for_fragment_parsing()) {
+        auto href = get_attribute_ns(Optional<Utf16FlyString> {}, SVG::AttributeNames::href);
+        if (!href.has_value())
+            href = get_attribute_ns(Namespace::XLink, SVG::AttributeNames::href);
+        process_the_url(href);
+    }
 }
 
 void SVGImageElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
@@ -88,6 +96,12 @@ void SVGImageElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
 // https://www.w3.org/TR/SVG2/linking.html#processingURL
 void SVGImageElement::process_the_url(Optional<Utf16String> const& href)
 {
+    // AD-HOC: An element in a temporary document for fragment parsing does not fetch anything, so that markup parsed
+    //         into such a document, for example by the Sanitizer API, causes no network requests for elements that
+    //         are never inserted anywhere. The URL is processed once the element is adopted into another document.
+    if (document().is_temporary_document_for_fragment_parsing())
+        return;
+
     if (!href.has_value()) {
         m_href = {};
         abandon_the_current_fetch();

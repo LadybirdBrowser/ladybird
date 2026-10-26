@@ -34,6 +34,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
+    virtual void adopted_from(DOM::Document&) override;
 
     void process_href(Optional<Utf16String> const& href);
 

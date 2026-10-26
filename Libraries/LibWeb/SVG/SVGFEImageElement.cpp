@@ -54,8 +54,27 @@ void SVGFEImageElement::attribute_changed(Utf16FlyString const& name, Optional<U
     }
 }
 
+void SVGFEImageElement::adopted_from(DOM::Document& old_document)
+{
+    Base::adopted_from(old_document);
+
+    // NB: See process_href().
+    if (old_document.is_temporary_document_for_fragment_parsing()) {
+        auto href = get_attribute_ns(Optional<Utf16FlyString> {}, SVG::AttributeNames::href);
+        if (!href.has_value())
+            href = get_attribute_ns(Namespace::XLink, SVG::AttributeNames::href);
+        process_href(href);
+    }
+}
+
 void SVGFEImageElement::process_href(Optional<Utf16String> const& href)
 {
+    // AD-HOC: An element in a temporary document for fragment parsing does not fetch anything, so that markup parsed
+    //         into such a document, for example by the Sanitizer API, causes no network requests for elements that
+    //         are never inserted anywhere. The URL is processed once the element is adopted into another document.
+    if (document().is_temporary_document_for_fragment_parsing())
+        return;
+
     if (!href.has_value()) {
         m_href = {};
         return;
