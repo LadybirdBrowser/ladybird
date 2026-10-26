@@ -1,0 +1,6 @@
+plain before cancellation: 40px
+plain after cancellation: 10px
+plain remaining animation: 0.5
+recompute before cancellation: 40px
+recompute after cancellation: 10px
+recompute remaining animation: 0.5

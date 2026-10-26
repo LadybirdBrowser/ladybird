@@ -906,10 +906,11 @@ void StyleComputer::invalidate_animated_custom_property_readers(Layout::BegunRea
     auto& style_engine = element.document().style_computer().style_engine();
     style_engine.record_derived_element_style_input_change(element.style_node_id(), StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle);
 
-    auto any_animated_custom_property_inherits = [&] {
-        if (animated_values.is_empty())
-            return true;
-        for (auto const& [name, value] : animated_values) {
+    if (abstract_element.pseudo_element().has_value())
+        return;
+
+    auto any_custom_property_inherits = [&](auto const& values) {
+        for (auto const& [name, value] : values) {
             auto registration = m_document->get_registered_custom_property(name);
             if (!registration.has_value() || registration->inherit)
                 return true;
@@ -917,8 +918,12 @@ void StyleComputer::invalidate_animated_custom_property_readers(Layout::BegunRea
         return false;
     };
     // What the element hands down moved too. Its descendants take the moved environment as they take one a style
-    // reaction moved: only those that read a name whose value moved compute again.
-    if (!abstract_element.pseudo_element().has_value() && any_animated_custom_property_inherits())
+    // reaction moved: only those that read a name whose value moved compute again. Include names from the previous
+    // animation overlay, since an inheriting property may have stopped animating while non-inheriting ones remain.
+    bool const new_values_inherit = any_custom_property_inherits(animated_values);
+    bool const old_values_inherit = old_data && old_data->is_animation_overlay_for(abstract_element)
+        && any_custom_property_inherits(old_data->own_values());
+    if (new_values_inherit || old_values_inherit)
         move_custom_property_environment_below_animated_element(read, element, move(old_data));
 }
 
