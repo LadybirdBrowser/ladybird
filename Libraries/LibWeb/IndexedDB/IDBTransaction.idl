@@ -1,10 +1,10 @@
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface IDBTransaction : EventTarget {
     readonly attribute DOMStringList objectStoreNames;
     readonly attribute IDBTransactionMode mode;
     readonly attribute IDBTransactionDurability durability;
-    [DirectGetter=connection, SameObject, ImplementedAs=connection] readonly attribute IDBDatabase db;
-    [DirectGetter] readonly attribute DOMException? error;
+    [SameObject, ImplementedAs=connection] readonly attribute IDBDatabase db;
+    readonly attribute DOMException? error;
     IDBObjectStore objectStore(DOMString name);
     undefined commit();
     undefined abort();

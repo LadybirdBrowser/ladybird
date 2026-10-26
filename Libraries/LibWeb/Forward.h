@@ -858,25 +858,7 @@ class Performance;
 
 namespace Web::IndexedDB {
 
-class Database;
-class IDBCursor;
-class IDBCursorWithValue;
-class IDBDatabase;
 class IDBFactory;
-class IDBIndex;
-class IDBKeyRange;
-class IDBObjectStore;
-class IDBOpenDBRequest;
-class IDBRecord;
-class IDBRequest;
-class IDBTransaction;
-class IDBVersionChangeEvent;
-class Index;
-class Key;
-class ObjectStore;
-class RequestList;
-
-using CursorDirection = Bindings::IDBCursorDirection;
 
 }
 

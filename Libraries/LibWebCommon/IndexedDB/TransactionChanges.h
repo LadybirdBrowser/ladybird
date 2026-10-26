@@ -20,6 +20,8 @@ struct TransactionChange {
 };
 
 struct TransactionChanges {
+    AK_ALLOC_WITH_KMALLOC;
+
     Vector<TransactionChange> added;
     Vector<TransactionChange> changed;
     Vector<TransactionChange> deleted;

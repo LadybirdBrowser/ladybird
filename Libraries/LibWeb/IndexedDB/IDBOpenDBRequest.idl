@@ -1,5 +1,5 @@
 // https://w3c.github.io/IndexedDB/#idbopendbrequest
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface IDBOpenDBRequest : IDBRequest {
     // Event handlers:
     attribute EventHandler onblocked;

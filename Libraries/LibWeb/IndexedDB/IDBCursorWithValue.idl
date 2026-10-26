@@ -1,4 +1,4 @@
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface IDBCursorWithValue : IDBCursor {
     readonly attribute any value;
 };

@@ -62,7 +62,6 @@ struct InspectionPath {
     Optional<JsonValue> key;
 };
 
-WEB_API JsonValue serialize_key_for_inspection(Key&);
 WEB_API Vector<InspectionStorageHost> inspect_indexed_database_storage(DOM::Document&);
 WEB_API Vector<InspectionObject> inspect_indexed_database_objects(DOM::Document&, Function<bool(URL::URL const&)> const& document_matches, Optional<Vector<InspectionPath>> const& paths);
 WEB_API ErrorOr<bool> delete_indexed_database_for_inspection(DOM::Document&, Function<bool(URL::URL const&)> const& document_matches, String const& database_name);

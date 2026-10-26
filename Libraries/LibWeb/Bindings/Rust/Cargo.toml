@@ -26,6 +26,7 @@ libcompress_rust = { path = "../../../LibCompress/Rust" }
 libgfx_rust = { path = "../../../LibGfx/Rust", default-features = false }
 libjs_rust = { path = "../../../LibJS/Rust", default-features = false }
 libtextcodec_rust = { path = "../../../LibTextCodec/Rust" }
+libunicode_rust = { path = "../../../LibUnicode/Rust", default-features = false }
 liburl_rust = { path = "../../../LibURL/Rust", default-features = false }
 libwasm_engine = { path = "../../../LibWasm/Engine" }
 libweb_rust = { path = "../../Rust" }

@@ -1,4 +1,4 @@
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface IDBObjectStore {
     attribute DOMString name;
     [ImplementedAs=key_path_value, NeedsCallerRealm] readonly attribute any keyPath;

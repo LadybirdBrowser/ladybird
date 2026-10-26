@@ -922,6 +922,7 @@ dependencies = [
  "libgfx_rust",
  "libjs_rust",
  "libtextcodec_rust",
+ "libunicode_rust",
  "liburl_rust",
  "libwasm_engine",
  "libweb_rust",

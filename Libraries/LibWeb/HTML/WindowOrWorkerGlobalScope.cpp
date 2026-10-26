@@ -60,9 +60,7 @@
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
-#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/LargestContentfulPaint/LargestContentfulPaint.h>
 #include <LibWeb/Loader/LoaderConfig.h>
@@ -1349,14 +1347,7 @@ void WindowOrWorkerGlobalScopeMixin::remove_strong_reference_to_broadcast_channe
 
 void WindowOrWorkerGlobalScopeMixin::close_all_idb_connections()
 {
-    IndexedDB::Database::for_each_database([&](IndexedDB::Database& database) {
-        for (auto& connection : database.associated_connections_as_root_vector()) {
-            if (connection->close_pending())
-                continue;
-            if (&connection->relevant_global_scope() == this)
-                IndexedDB::close_a_database_connection(connection);
-        }
-    });
+    IndexedDB::close_all_database_connections(relevant_realm(*this));
 }
 
 void WindowOrWorkerGlobalScopeMixin::register_web_socket(Badge<WebSockets::WebSocket>, GC::Ref<WebSockets::WebSocket> web_socket)
@@ -1683,7 +1674,7 @@ GC::Ref<HighResolutionTime::Performance> WindowOrWorkerGlobalScopeMixin::perform
 GC::Ref<IndexedDB::IDBFactory> WindowOrWorkerGlobalScopeMixin::indexed_db()
 {
     if (!m_indexed_db)
-        m_indexed_db = GC::Heap::the().allocate<IndexedDB::IDBFactory>(*this);
+        m_indexed_db = IndexedDB::IDBFactory::create(relevant_realm(*this));
     return *m_indexed_db;
 }
 

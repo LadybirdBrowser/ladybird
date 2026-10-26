@@ -5,21 +5,43 @@
  */
 
 #include <AK/JsonArray.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibURL/RustIntegration.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/Inspection.h>
-#include <LibWeb/IndexedDB/Internal/Algorithms.h>
-#include <LibWeb/IndexedDB/Internal/Database.h>
-#include <LibWeb/IndexedDB/Internal/Index.h>
-#include <LibWeb/IndexedDB/Internal/Key.h>
-#include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 #include <LibWeb/Infra/JSON.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
+
+// The inspection entry points of the Rust implementation of IndexedDB, Libraries/LibWeb/Bindings/Rust/src/indexed_db/exports.rs.
+extern "C" {
+
+struct KeyPathAbi {
+    u8 kind;
+    FlatPtr const* strings;
+    size_t count;
+};
+
+enum class InspectionStatus : u8 {
+    Done = 0,
+    NoDatabase = 1,
+    NoObjectStore = 2,
+    NoRecord = 3,
+    Blocked = 4,
+};
+
+void web_rust_indexed_db_inspect_databases(JSVM*, URL::FFI::FfiOrigin const*, void* ctx, void (*on_database)(void*, FlatPtr name, u64 version, FlatPtr const* object_store_names, size_t count));
+bool web_rust_indexed_db_inspect_object_stores(JSVM*, URL::FFI::FfiOrigin const*, FlatPtr database_name, void* ctx, void (*on_object_store)(void*, FlatPtr name, KeyPathAbi const*, bool auto_increment), void (*on_index)(void*, FlatPtr name, KeyPathAbi const*, bool unique, bool multi_entry));
+void web_rust_indexed_db_inspect_records(JSVM*, URL::FFI::FfiOrigin const*, FlatPtr database_name, FlatPtr object_store_name, void* ctx, void (*on_record)(void*, JsonValue* key, ReadonlyBytes value));
+InspectionStatus web_rust_indexed_db_delete_database_for_inspection(JSVM*, URL::FFI::FfiOrigin const*, FlatPtr database_name);
+InspectionStatus web_rust_indexed_db_clear_object_store_for_inspection(JSVM*, URL::FFI::FfiOrigin const*, FlatPtr database_name, FlatPtr object_store_name);
+InspectionStatus web_rust_indexed_db_delete_record_for_inspection(JSVM*, URL::FFI::FfiOrigin const*, FlatPtr database_name, FlatPtr object_store_name, void* ctx, bool (*matches)(void*, JsonValue* key));
+}
 
 namespace Web::IndexedDB {
 
@@ -29,47 +51,27 @@ struct IndexedDatabaseDocument {
     StorageAPI::StorageKey storage_key;
 };
 
-JsonValue serialize_key_for_inspection(Key& key)
+static JSVM* vm()
 {
-    switch (key.type()) {
-    case Key::Invalid:
-        return {};
-    case Key::Number:
-    case Key::Date:
-        return key.value_as_double();
-    case Key::String:
-        return key.value_as_string().to_utf8();
-    case Key::Binary:
-        return key.dump();
-    case Key::Array: {
-        JsonArray keys;
-        for (auto const& subkey : key.subkeys())
-            keys.must_append(serialize_key_for_inspection(*subkey));
-        return keys;
-    }
-    }
-
-    VERIFY_NOT_REACHED();
+    return JS::HostABI::vm_to_abi(Bindings::main_thread_vm());
 }
 
-static String serialize_key_path(KeyPath const& key_path)
+static String serialize_key_path(KeyPathAbi const& key_path)
 {
-    return key_path.visit(
-        [](Utf16String const& value) {
-            return value.to_utf8();
-        },
-        [](Vector<Utf16String> const& values) {
-            JsonArray array;
-            for (auto const& value : values)
-                array.must_append(value.to_utf8());
-            return array.serialized();
-        });
+    if (key_path.kind == 1)
+        return Utf16String::from_raw(key_path.strings[0]).to_utf8();
+
+    JsonArray array;
+    for (size_t i = 0; i < key_path.count; ++i)
+        array.must_append(Utf16String::from_raw(key_path.strings[i]).to_utf8());
+    return array.serialized();
 }
 
-static String serialize_record_value(JS::Realm& realm, HTML::StorageSerializationRecord const& record)
+static String serialize_record_value(JS::Realm& realm, ReadonlyBytes bytes)
 {
     HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
+    HTML::StorageSerializationRecord record { MUST(ByteBuffer::copy(bytes)) };
     auto value = HTML::structured_deserialize(realm.vm(), record, realm);
     if (value.is_exception())
         return "<unserializable>"_string;
@@ -126,81 +128,106 @@ static Optional<IndexedDatabaseDocument> matching_document(DOM::Document& docume
     return {};
 }
 
+template<typename Callback>
+static auto with_origin(StorageAPI::StorageKey const& storage_key, Callback callback)
+{
+    using Result = decltype(callback(declval<URL::FFI::FfiOrigin const*>()));
+    if constexpr (IsSame<Result, void>) {
+        URL::RustIntegration::lend_origin_to_ffi(storage_key.origin, [&](URL::FFI::FfiOrigin const& origin) { callback(&origin); });
+    } else {
+        Optional<Result> result;
+        URL::RustIntegration::lend_origin_to_ffi(storage_key.origin, [&](URL::FFI::FfiOrigin const& origin) { result = callback(&origin); });
+        return result.release_value();
+    }
+}
+
+struct DatabaseVisitor {
+    Function<void(String, u64, Vector<String>)> on_database;
+};
+
+static void for_each_database(StorageAPI::StorageKey const& storage_key, Function<void(String, u64, Vector<String>)> on_database)
+{
+    DatabaseVisitor visitor { move(on_database) };
+    with_origin(storage_key, [&](URL::FFI::FfiOrigin const* origin) {
+        web_rust_indexed_db_inspect_databases(vm(), origin, &visitor, [](void* ctx, FlatPtr name, u64 version, FlatPtr const* object_store_names, size_t count) {
+            Vector<String> names;
+            for (size_t i = 0; i < count; ++i)
+                names.append(Utf16String::from_raw(object_store_names[i]).to_utf8());
+            static_cast<DatabaseVisitor*>(ctx)->on_database(Utf16String::from_raw(name).to_utf8(), version, move(names));
+        });
+    });
+}
+
 Vector<InspectionStorageHost> inspect_indexed_database_storage(DOM::Document& document)
 {
     Vector<InspectionStorageHost> hosts;
     for (auto const& entry : indexed_database_documents_for_inspection(document)) {
         Vector<InspectionDatabase> databases;
-        for (auto& database : Database::for_key(entry.storage_key)) {
-            if (!database || database->version() == 0)
-                continue;
+        for_each_database(entry.storage_key, [&](String name, u64 version, Vector<String> object_store_names) {
+            if (version == 0)
+                return;
 
-            Vector<String> object_store_names;
-            for (auto const& object_store : database->object_stores())
-                object_store_names.append(object_store->name().to_utf8());
-
-            databases.append({ database->name().to_utf8(), database->version(), move(object_store_names) });
-        }
+            databases.append({ move(name), version, move(object_store_names) });
+        });
 
         hosts.append({ entry.url, move(databases) });
     }
     return hosts;
 }
 
-static InspectionObjectStore inspect_object_store(ObjectStore& object_store)
-{
-    Vector<InspectionIndex> indexes;
-    for (auto const& entry : object_store.index_set()) {
-        auto const& index = *entry.value;
-        indexes.append({ index.name().to_utf8(), serialize_key_path(index.key_path()), index.unique(), index.multi_entry() });
-    }
-
-    Optional<String> key_path;
-    if (auto value = object_store.key_path(); value.has_value())
-        key_path = serialize_key_path(*value);
-
-    return { object_store.name().to_utf8(), move(key_path), object_store.uses_a_key_generator(), move(indexes) };
-}
-
 static void append_database_rows(Vector<InspectionObject>& rows, StorageAPI::StorageKey const& storage_key)
 {
-    for (auto& database : Database::for_key(storage_key)) {
-        if (!database || database->version() == 0)
-            continue;
+    for_each_database(storage_key, [&](String name, u64 version, Vector<String> object_store_names) {
+        if (version == 0)
+            return;
 
-        rows.append(InspectionDatabaseRow { database->name().to_utf8(), database->version(), database->object_stores().size() });
-    }
+        rows.append(InspectionDatabaseRow { move(name), version, object_store_names.size() });
+    });
 }
 
 static void append_object_store_rows(Vector<InspectionObject>& rows, StorageAPI::StorageKey const& storage_key, String const& database_name)
 {
-    auto database = Database::for_key_and_name(storage_key, Utf16String::from_utf8(database_name));
-    if (!database.has_value())
-        return;
-
-    for (auto const& object_store : database->object_stores())
-        rows.append(inspect_object_store(*object_store));
+    auto name = Utf16String::from_utf8(database_name);
+    with_origin(storage_key, [&](URL::FFI::FfiOrigin const* origin) {
+        web_rust_indexed_db_inspect_object_stores(
+            vm(), origin, name.raw_identity(), &rows,
+            [](void* ctx, FlatPtr name, KeyPathAbi const* key_path, bool auto_increment) {
+                Optional<String> serialized_key_path;
+                if (key_path->kind != 0)
+                    serialized_key_path = serialize_key_path(*key_path);
+                static_cast<Vector<InspectionObject>*>(ctx)->append(InspectionObjectStore { Utf16String::from_raw(name).to_utf8(), move(serialized_key_path), auto_increment, {} });
+            },
+            [](void* ctx, FlatPtr name, KeyPathAbi const* key_path, bool unique, bool multi_entry) {
+                auto& object_store = static_cast<Vector<InspectionObject>*>(ctx)->last().get<InspectionObjectStore>();
+                object_store.indexes.append({ Utf16String::from_raw(name).to_utf8(), serialize_key_path(*key_path), unique, multi_entry });
+            });
+    });
 }
+
+struct RecordVisitor {
+    Vector<InspectionObject>& rows;
+    GC::Ref<JS::Realm> realm;
+    InspectionPath const& path;
+};
 
 static void append_record_rows(Vector<InspectionObject>& rows, DOM::Document& document, StorageAPI::StorageKey const& storage_key, InspectionPath const& path)
 {
     if (!path.object_store_name.has_value())
         return;
 
-    auto database = Database::for_key_and_name(storage_key, Utf16String::from_utf8(path.database_name));
-    if (!database.has_value())
-        return;
-
-    auto object_store = database->object_store_with_name(Utf16String::from_utf8(*path.object_store_name));
-    if (!object_store)
-        return;
-
-    for (auto const& record : object_store->records()) {
-        auto serialized_record_key = serialize_key_for_inspection(*record.key);
-        if (path.key.has_value() && serialized_record_key.serialized() != path.key->serialized())
-            continue;
-        rows.append(InspectionRecord { serialized_record_key, serialize_record_value(HTML::relevant_realm(document), *record.value) });
-    }
+    auto database_name = Utf16String::from_utf8(path.database_name);
+    auto object_store_name = Utf16String::from_utf8(*path.object_store_name);
+    RecordVisitor visitor { rows, HTML::relevant_realm(document), path };
+    with_origin(storage_key, [&](URL::FFI::FfiOrigin const* origin) {
+        web_rust_indexed_db_inspect_records(vm(), origin, database_name.raw_identity(), object_store_name.raw_identity(), &visitor, [](void* ctx, JsonValue* key, ReadonlyBytes value) {
+            auto& visitor = *static_cast<RecordVisitor*>(ctx);
+            auto serialized_record_key = move(*key);
+            delete key;
+            if (visitor.path.key.has_value() && serialized_record_key.serialized() != visitor.path.key->serialized())
+                return;
+            visitor.rows.append(InspectionRecord { move(serialized_record_key), serialize_record_value(visitor.realm, value) });
+        });
+    });
 }
 
 Vector<InspectionObject> inspect_indexed_database_objects(DOM::Document& document, Function<bool(URL::URL const&)> const& document_matches, Optional<Vector<InspectionPath>> const& paths)
@@ -232,12 +259,28 @@ ErrorOr<bool> delete_indexed_database_for_inspection(DOM::Document& document, Fu
     if (!entry.has_value())
         return Error::from_string_literal("Unable to find IndexedDB host");
 
-    auto database = Database::for_key_and_name(entry->storage_key, Utf16String::from_utf8(database_name));
-    if (database.has_value() && !database->associated_connections_as_root_vector().is_empty())
-        return true;
+    auto name = Utf16String::from_utf8(database_name);
+    auto status = with_origin(entry->storage_key, [&](URL::FFI::FfiOrigin const* origin) {
+        return web_rust_indexed_db_delete_database_for_inspection(vm(), origin, name.raw_identity());
+    });
+    return status == InspectionStatus::Blocked;
+}
 
-    TRY(Database::delete_for_key_and_name(entry->storage_key, Utf16String::from_utf8(database_name)));
-    return false;
+static ErrorOr<void> error_for_status(InspectionStatus status)
+{
+    switch (status) {
+    case InspectionStatus::Done:
+        return {};
+    case InspectionStatus::NoDatabase:
+        return Error::from_string_literal("Unable to find IndexedDB database");
+    case InspectionStatus::NoObjectStore:
+        return Error::from_string_literal("Unable to find IndexedDB object store");
+    case InspectionStatus::NoRecord:
+        return Error::from_string_literal("Unable to find IndexedDB record");
+    case InspectionStatus::Blocked:
+        break;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 ErrorOr<void> clear_indexed_database_object_store_for_inspection(DOM::Document& document, Function<bool(URL::URL const&)> const& document_matches, String const& database_name, String const& object_store_name)
@@ -246,16 +289,12 @@ ErrorOr<void> clear_indexed_database_object_store_for_inspection(DOM::Document& 
     if (!entry.has_value())
         return Error::from_string_literal("Unable to find IndexedDB host");
 
-    auto database = Database::for_key_and_name(entry->storage_key, Utf16String::from_utf8(database_name));
-    if (!database.has_value())
-        return Error::from_string_literal("Unable to find IndexedDB database");
-
-    auto object_store = database->object_store_with_name(Utf16String::from_utf8(object_store_name));
-    if (!object_store)
-        return Error::from_string_literal("Unable to find IndexedDB object store");
-
-    clear_an_object_store(*object_store);
-    return {};
+    auto database = Utf16String::from_utf8(database_name);
+    auto object_store = Utf16String::from_utf8(object_store_name);
+    auto status = with_origin(entry->storage_key, [&](URL::FFI::FfiOrigin const* origin) {
+        return web_rust_indexed_db_clear_object_store_for_inspection(vm(), origin, database.raw_identity(), object_store.raw_identity());
+    });
+    return error_for_status(status);
 }
 
 ErrorOr<void> delete_indexed_database_record_for_inspection(DOM::Document& document, Function<bool(URL::URL const&)> const& document_matches, String const& database_name, String const& object_store_name, JsonValue const& key)
@@ -264,24 +303,17 @@ ErrorOr<void> delete_indexed_database_record_for_inspection(DOM::Document& docum
     if (!entry.has_value())
         return Error::from_string_literal("Unable to find IndexedDB host");
 
-    auto database = Database::for_key_and_name(entry->storage_key, Utf16String::from_utf8(database_name));
-    if (!database.has_value())
-        return Error::from_string_literal("Unable to find IndexedDB database");
-
-    auto object_store = database->object_store_with_name(Utf16String::from_utf8(object_store_name));
-    if (!object_store)
-        return Error::from_string_literal("Unable to find IndexedDB object store");
-
-    for (auto const& record : object_store->records()) {
-        if (serialize_key_for_inspection(*record.key).serialized() != key.serialized())
-            continue;
-
-        auto range = IDBKeyRange::create(record.key, record.key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
-        delete_records_from_an_object_store(*object_store, range);
-        return {};
-    }
-
-    return Error::from_string_literal("Unable to find IndexedDB record");
+    auto database = Utf16String::from_utf8(database_name);
+    auto object_store = Utf16String::from_utf8(object_store_name);
+    auto serialized_key = key.serialized();
+    auto status = with_origin(entry->storage_key, [&](URL::FFI::FfiOrigin const* origin) {
+        return web_rust_indexed_db_delete_record_for_inspection(vm(), origin, database.raw_identity(), object_store.raw_identity(), &serialized_key, [](void* ctx, JsonValue* record_key) {
+            auto serialized_record_key = move(*record_key);
+            delete record_key;
+            return serialized_record_key.serialized() == *static_cast<String*>(ctx);
+        });
+    });
+    return error_for_status(status);
 }
 
 }
