@@ -177,9 +177,11 @@ jobs:
 
       - name: Build
         working-directory: ${{ github.workspace }}/Build
-        run: |
-          cmake --build .
-          cmake --install . --strip --prefix "${GITHUB_WORKSPACE}/Install"
+        run: cmake --build .
+
+      - name: Install
+        working-directory: ${{ github.workspace }}/Build
+        run: cmake --install . --strip --prefix "${{ github.workspace }}/Install"
 
       # The macOS AX tests run against this bundle on another machine (see macos-accessibility-tests.yml). So the
       # bundle has to be self-contained. To make it self-contained, this script copies the libraries in, Qt included,
