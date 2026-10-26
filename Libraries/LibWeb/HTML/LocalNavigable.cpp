@@ -5284,7 +5284,8 @@ void LocalNavigable::note_user_scroll_gesture_phase(Web::ScrollGesturePhase phas
         if (!travels_under_momentum)
             reset_momentum_fling_state();
 
-        if (m_wheel_user_scroll_gesture_hold && m_user_scroll_gesture_travels_under_momentum != travels_under_momentum)
+        // Fingers that touch down during momentum start another gesture, which settles the flicked one.
+        if (m_wheel_user_scroll_gesture_hold && m_user_scroll_gesture_travels_under_momentum && !travels_under_momentum)
             release_wheel_user_scroll_gesture_hold();
         m_user_scroll_gesture_travels_under_momentum = travels_under_momentum;
 

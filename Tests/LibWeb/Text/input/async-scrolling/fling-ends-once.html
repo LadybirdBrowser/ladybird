@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+
+    .content {
+        height: 5000px;
+    }
+
+    #snapping {
+        scroll-snap-type: y mandatory;
+    }
+
+    #snapping .area {
+        height: 200px;
+        scroll-snap-align: start;
+    }
+</style>
+<div class="scroller" id="plain"><div class="content"></div></div>
+<div class="scroller" id="snapping"></div>
+<script>
+    promiseTest(async () => {
+        const snapping = document.getElementById("snapping");
+        for (let i = 0; i < 25; i++) {
+            const area = document.createElement("div");
+            area.className = "area";
+            snapping.appendChild(area);
+        }
+        await animationFrame();
+        await animationFrame();
+
+        // The fingers of a flick lift, and its momentum carries the scroll on. The scroll ends once, with the momentum.
+        const fling = async (scroller, y) => {
+            let scrollends = 0;
+            scroller.addEventListener("scrollend", () => scrollends++);
+            internals.wheelThroughUIProcess(50, y, 0, 0, true, "began");
+            for (let step = 0; step < 3; step++)
+                await internals.wheelThroughUIProcess(50, y, 0, 50, true, "ongoing");
+            for (let step = 0; step < 5; step++) {
+                await internals.wheelThroughUIProcess(50, y, 0, 30, true, "momentum");
+                await animationFrame();
+            }
+            const scrollendsBeforeMomentumEnded = scrollends;
+            await internals.wheelThroughUIProcess(50, y, 0, 0, true, "ended");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            println(`${scroller.id}: scrollend events before the momentum ended: ${scrollendsBeforeMomentumEnded}, in all: ${scrollends}`);
+        };
+
+        await fling(document.getElementById("plain"), 50);
+        await fling(snapping, 250);
+    });
+</script>
