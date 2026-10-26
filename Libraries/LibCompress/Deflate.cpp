@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/BinarySearch.h>
 #include <AK/NeverDestroyed.h>
 #include <LibCompress/Deflate.h>
 #include <LibCompress/DeflateTables.h>
@@ -27,10 +26,6 @@ ErrorOr<CanonicalCode> CanonicalCode::from_bytes(ReadonlyBytes bytes)
     }
 
     if (non_zero_symbols == 1) { // special case - only 1 symbol
-        code.m_prefix_table[0] = PrefixTableEntry { static_cast<u16>(last_non_zero), 1u };
-        code.m_prefix_table[1] = code.m_prefix_table[0];
-        code.m_max_prefixed_code_length = 1;
-
         if (code.m_bit_codes.size() < static_cast<size_t>(last_non_zero + 1)) {
             TRY(code.m_bit_codes.try_resize(last_non_zero + 1));
             TRY(code.m_bit_code_lengths.try_resize(last_non_zero + 1));
@@ -40,14 +35,6 @@ ErrorOr<CanonicalCode> CanonicalCode::from_bytes(ReadonlyBytes bytes)
 
         return code;
     }
-
-    struct PrefixCode {
-        u16 symbol_code { 0 };
-        u16 symbol_value { 0 };
-        u16 code_length { 0 };
-    };
-    Array<PrefixCode, 1 << CanonicalCode::max_allowed_prefixed_code_length> prefix_codes;
-    size_t number_of_prefix_codes = 0;
 
     auto next_code = 0;
     for (size_t code_length = 1; code_length <= 15; ++code_length) {
@@ -60,21 +47,6 @@ ErrorOr<CanonicalCode> CanonicalCode::from_bytes(ReadonlyBytes bytes)
 
             if (next_code > start_bit)
                 return Error::from_string_literal("Failed to decode code lengths");
-
-            if (code_length <= CanonicalCode::max_allowed_prefixed_code_length) {
-                if (number_of_prefix_codes >= prefix_codes.size())
-                    return Error::from_string_literal("Invalid canonical Huffman code");
-
-                auto& prefix_code = prefix_codes[number_of_prefix_codes++];
-                prefix_code.symbol_code = next_code;
-                prefix_code.symbol_value = symbol;
-                prefix_code.code_length = code_length;
-
-                code.m_max_prefixed_code_length = code_length;
-            } else {
-                code.m_symbol_codes.append(start_bit | next_code);
-                code.m_symbol_values.append(symbol);
-            }
 
             if (code.m_bit_codes.size() < symbol + 1) {
                 TRY(code.m_bit_codes.try_resize(symbol + 1));
@@ -90,44 +62,7 @@ ErrorOr<CanonicalCode> CanonicalCode::from_bytes(ReadonlyBytes bytes)
     if (next_code != (1 << 15))
         return Error::from_string_literal("Failed to decode code lengths");
 
-    for (auto [symbol_code, symbol_value, code_length] : prefix_codes) {
-        if (code_length == 0 || code_length > CanonicalCode::max_allowed_prefixed_code_length)
-            break;
-
-        auto shift = code.m_max_prefixed_code_length - code_length;
-        symbol_code <<= shift;
-
-        for (size_t j = 0; j < (1u << shift); ++j) {
-            auto index = fast_reverse16(symbol_code + j, code.m_max_prefixed_code_length);
-            code.m_prefix_table[index] = PrefixTableEntry { symbol_value, code_length };
-        }
-    }
-
     return code;
-}
-
-ErrorOr<u32> CanonicalCode::read_symbol(LittleEndianInputBitStream& stream) const
-{
-    auto prefix = TRY(stream.peek_bits<size_t>(m_max_prefixed_code_length));
-
-    if (auto [symbol_value, code_length] = m_prefix_table[prefix]; code_length != 0) {
-        stream.discard_previously_peeked_bits(code_length);
-        return symbol_value;
-    }
-
-    auto code_bits = TRY(stream.read_bits<u16>(m_max_prefixed_code_length));
-    code_bits = fast_reverse16(code_bits, m_max_prefixed_code_length);
-    code_bits |= 1 << m_max_prefixed_code_length;
-
-    for (size_t i = m_max_prefixed_code_length; i < 16; ++i) {
-        size_t index;
-        if (binary_search(m_symbol_codes.span(), code_bits, &index))
-            return m_symbol_values[index];
-
-        code_bits = code_bits << 1 | TRY(stream.read_bit());
-    }
-
-    return Error::from_string_literal("Symbol exceeds maximum symbol number");
 }
 
 }

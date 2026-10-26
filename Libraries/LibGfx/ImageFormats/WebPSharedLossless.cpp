@@ -25,11 +25,4 @@ ErrorOr<CanonicalCode> CanonicalCode::from_bytes(ReadonlyBytes bytes)
     return CanonicalCode(TRY(Compress::CanonicalCode::from_bytes(bytes)));
 }
 
-ErrorOr<u32> CanonicalCode::read_symbol(LittleEndianInputBitStream& bit_stream) const
-{
-    return TRY(m_code.visit(
-        [](u32 single_code) -> ErrorOr<u32> { return single_code; },
-        [&bit_stream](Compress::CanonicalCode const& code) { return code.read_symbol(bit_stream); }));
-}
-
 }
