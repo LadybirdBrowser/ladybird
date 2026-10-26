@@ -2591,19 +2591,17 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.margin_state.borrow().clone(),
         );
         let validity = fc_run_cache::run_root_validity(callbacks, node);
+        // NB: The committed subtree is reused only while it is the one the stored layout produced.
         let hit = callbacks
             .arena()
-            .in_flow_block_cache_store()
-            .matching(node.slot_index(), validity, &key)
-            .and_then(|entry| {
-                // NB: The committed subtree is reused only while it is the one the stored layout produced. A layout
-                //     whose fragments were superseded within its pass never committed them.
-                let fragment = callbacks
-                    .arena()
-                    .with_current_committed_fragment(node, |fragment| {
-                        (fragment.identity == entry.fragment_identity).then(|| fragment.clone())
-                    })
-                    .flatten()?;
+            .with_current_committed_fragment(node, |fragment| fragment.clone())
+            .and_then(|fragment| {
+                let entry = callbacks.arena().in_flow_block_cache_store().matching(
+                    node.slot_index(),
+                    validity,
+                    &key,
+                    fragment.identity,
+                )?;
                 Some((entry, fragment))
             });
         if let Some((entry, fragment)) = hit {
@@ -2706,9 +2704,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         else {
             return;
         };
-        let store = self.run.callbacks.arena().in_flow_block_cache_store();
+        let arena = self.run.callbacks.arena();
         let Some(placed) = placed else {
-            store.remove_entry(node.slot_index());
             return;
         };
         let used = self.used(node);
@@ -2754,9 +2751,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         }
         if reusable {
-            store.store(node.slot_index(), entry);
-        } else {
-            store.remove_entry(node.slot_index());
+            let committed_identity = arena.with_current_committed_fragment(node, |fragment| fragment.identity);
+            arena
+                .in_flow_block_cache_store()
+                .store(node.slot_index(), entry, committed_identity);
         }
     }
 
