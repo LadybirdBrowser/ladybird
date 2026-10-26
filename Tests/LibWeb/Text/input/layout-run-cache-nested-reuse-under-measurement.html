@@ -28,12 +28,12 @@
                               BlockContainer<TD>#cell MEASURE min-content inline (cache=hit)
                               BlockContainer<TD>#cell MEASURE max-content inline (cache=hit)
                               BlockContainer<TD>#cell MEASURE max-content block (cache=miss)
-                                BlockContainer<TD>#cell/block (measurement, intrinsic) RUN (cache=bypass)
-                                  BlockContainer<DIV>#nested/block (measurement, intrinsic) RUN (cache=miss)
+                                BlockContainer<TD>#cell/block (intrinsic) RUN (cache=bypass)
+                                  BlockContainer<DIV>#nested/block (intrinsic) RUN (cache=miss)
                               BlockContainer<TD>#cell MEASURE max-content block (cache=hit)
                               BlockContainer<TD>#cell MEASURE CELL (cache=miss)
-                                BlockContainer<TD>#cell/block (measurement) RUN (cache=miss)
-                                  BlockContainer<DIV>#nested/block (measurement) RUN (cache=miss)
+                                BlockContainer<TD>#cell/block RUN (cache=miss)
+                                  BlockContainer<DIV>#nested/block RUN (cache=miss)
                               BlockContainer<TD>#cell/block RUN (cache=miss)
                                 BlockContainer<DIV>#nested/block REPLAY FRAGMENTS
                 `,
@@ -57,12 +57,12 @@
                               BlockContainer<TD>#cell MEASURE min-content inline (cache=hit)
                               BlockContainer<TD>#cell MEASURE max-content inline (cache=hit)
                               BlockContainer<TD>#cell MEASURE max-content block (cache=miss)
-                                BlockContainer<TD>#cell/block (measurement, intrinsic) RUN (cache=bypass)
-                                  BlockContainer<DIV>#nested/block (measurement, intrinsic) READ RESULT
+                                BlockContainer<TD>#cell/block (intrinsic) RUN (cache=bypass)
+                                  BlockContainer<DIV>#nested/block (intrinsic) READ RESULT
                               BlockContainer<TD>#cell MEASURE max-content block (cache=hit)
                               BlockContainer<TD>#cell MEASURE CELL (cache=miss)
-                                BlockContainer<TD>#cell/block (measurement) RUN (cache=miss)
-                                  BlockContainer<DIV>#nested/block (measurement) REUSE SUBTREE
+                                BlockContainer<TD>#cell/block RUN (cache=miss)
+                                  BlockContainer<DIV>#nested/block REUSE SUBTREE
                               BlockContainer<TD>#cell/block RUN (cache=miss)
                                 BlockContainer<DIV>#nested/block REUSE SUBTREE
                 `,

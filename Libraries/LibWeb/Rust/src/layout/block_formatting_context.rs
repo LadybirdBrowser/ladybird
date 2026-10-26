@@ -513,7 +513,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     #[inline]
     pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'pass> {
-        sizing_context::SizingContext::new(self.run.purpose, self.run.records, self.run.callbacks)
+        sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
     }
 
     fn place_child(&self, node: Node, offset: FfiCssPixelPoint) {
@@ -3263,13 +3263,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             && self.is_multicol_container()
     }
 
-    fn layout_multicol_container(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
-        let scratch = self.run.callbacks.scratch();
-        scratch.begin_measurement_memo();
-        self.layout_multicol_container_rows(run, input);
-        scratch.end_measurement_memo();
-    }
-
     fn layout_multicol_container_rows(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         let root = self.run.box_;
         let root_used = self.used(root);
@@ -3668,9 +3661,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut tried_early_breaks: Vec<Node> = early_break_before.into_iter().collect();
         let mut minimal_space_shortage_of_discarded_attempts = None;
         let inline_items = self.column_inline_items.get_or_init(Default::default);
-        let (purpose, builds_fragments) = match column_layout_use {
-            ColumnLayoutUse::BalancingProbe => (formatting_context::LayoutPurpose::Measurement, false),
-            ColumnLayoutUse::ContainerContent => (self.run.purpose, self.run.fragments.is_some()),
+        let builds_fragments = match column_layout_use {
+            ColumnLayoutUse::BalancingProbe => false,
+            ColumnLayoutUse::ContainerContent => self.run.fragments.is_some(),
         };
         loop {
             let fragmentainer = std::rc::Rc::new(fragmentation::FragmentainerContext::new(
@@ -3681,13 +3674,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 early_break_before,
                 allows_early_break_requests,
             ));
-            let outputs = formatting_context::run_fragmentainer(
-                &self.run,
-                purpose,
-                builds_fragments,
-                input,
-                fragmentainer.clone(),
-            );
+            let outputs =
+                formatting_context::run_fragmentainer(&self.run, builds_fragments, input, fragmentainer.clone());
             if outputs.result.depends_on_percentage_block_size {
                 self.used(self.run.box_)
                     .has_descendant_that_depends_on_percentage_block_size
@@ -3892,7 +3880,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
         if self.lays_out_multicol_container(input) {
-            self.layout_multicol_container(run, input);
+            self.layout_multicol_container_rows(run, input);
             if self.facts(self.run.box_).is_list_item_box() {
                 self.layout_list_item_marker(
                     run,
@@ -4406,7 +4394,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             || style.display().is_table_inside()
         {
             return formatting_context::independent_root_automatic_block_size(
-                self.run.purpose,
                 self.run.records,
                 &self.run.callbacks,
                 node,

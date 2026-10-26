@@ -47,7 +47,6 @@ pub(super) fn layout_replaced_with_children(
     wrapper_state.set_content_inline_size(content_inline_size);
 
     let wrapper_result = formatting_context::run_formatting_context(
-        run.purpose,
         formatting_context::RootFragments::WhereTheRunInputAllows,
         run.fragments.as_deref(),
         wrapper_state,

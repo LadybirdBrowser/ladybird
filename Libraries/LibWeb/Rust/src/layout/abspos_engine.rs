@@ -128,7 +128,6 @@ impl ContainingBlockGeometry {
 }
 
 pub(crate) struct AbsposEngine<'pass> {
-    purpose: formatting_context::LayoutPurpose,
     records: &'pass RunRecords<'pass>,
     callbacks: LayoutPass<'pass>,
     fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
@@ -137,7 +136,6 @@ pub(crate) struct AbsposEngine<'pass> {
 impl<'pass> AbsposEngine<'pass> {
     pub(crate) fn for_run(run: &FormattingContextRun<'pass>) -> Self {
         Self {
-            purpose: run.purpose,
             records: run.records,
             callbacks: run.callbacks,
             fragments: run.fragments.clone(),
@@ -248,7 +246,7 @@ impl<'pass> AbsposEngine<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass> {
-        sizing_context::SizingContext::new(self.purpose, self.records, self.callbacks)
+        sizing_context::SizingContext::new(self.records, self.callbacks)
     }
 
     #[inline]
@@ -3794,7 +3792,6 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
 ) {
     let accumulator_root = entry_fragments.root_node();
     let run = FormattingContextRun {
-        purpose: formatting_context::LayoutPurpose::Commit,
         records,
         box_: accumulator_root,
         layout_mode: LayoutMode::Normal,

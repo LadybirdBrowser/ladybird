@@ -5,7 +5,7 @@
  */
 
 use super::LayoutNodeArena;
-use super::formatting_context::{FormattingContextType, LayoutMode, LayoutPurpose};
+use super::formatting_context::{FormattingContextType, LayoutMode};
 use super::layout_node_arena::IntrinsicSizeCacheKind;
 use super::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::render_state::DocumentHost;
@@ -195,7 +195,6 @@ impl LayoutTrace {
         &self,
         root: NodeSlotId,
         fc_type: FormattingContextType,
-        purpose: LayoutPurpose,
         mode: LayoutMode,
         action: impl FnOnce() -> &'static str,
     ) -> Option<Scope<'_>> {
@@ -211,13 +210,11 @@ impl LayoutTrace {
                 FormattingContextType::InternalReplaced => "internal-replaced",
                 FormattingContextType::InternalDummy => "internal-dummy",
             };
-            let measurement = match (purpose.is_measurement(), mode) {
-                (false, LayoutMode::Normal) => "",
-                (false, LayoutMode::IntrinsicSizing) => " (intrinsic)",
-                (true, LayoutMode::Normal) => " (measurement)",
-                (true, LayoutMode::IntrinsicSizing) => " (measurement, intrinsic)",
+            let intrinsic = match mode {
+                LayoutMode::Normal => "",
+                LayoutMode::IntrinsicSizing => " (intrinsic)",
             };
-            format!("/{context}{measurement} {}", action())
+            format!("/{context}{intrinsic} {}", action())
         })
     }
 }
@@ -425,13 +422,11 @@ mod tests {
 
         arena.layout_trace.begin();
         arena.begin_active_layout_pass();
-        drop(arena.layout_trace.run(
-            owner.slot,
-            FormattingContextType::Block,
-            LayoutPurpose::Commit,
-            LayoutMode::Normal,
-            || "RUN",
-        ));
+        drop(
+            arena
+                .layout_trace
+                .run(owner.slot, FormattingContextType::Block, LayoutMode::Normal, || "RUN"),
+        );
         assert!(arena.leave_active_layout_pass());
         let names = arena
             .layout_trace
