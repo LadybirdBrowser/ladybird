@@ -54,12 +54,11 @@ struct ReplicatedContainerState {
     PermissionsPolicy::PolicyDirective container_policy {};
 
     // https://w3c.github.io/webappsec-upgrade-insecure-requests/#insecure-requests-policy, of the container's node
-    // document's relevant settings object, which a browsing context created for the navigable in another process
-    // inherits.
+    // document's policy container, which a document created in the navigable inherits.
     UpgradeInsecureRequests::InsecureRequestsPolicy document_insecure_requests_policy { UpgradeInsecureRequests::InsecureRequestsPolicy::DoNotUpgrade };
 
     // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-insecure-navigations-set, of the container's
-    // node document's relevant settings object.
+    // node document's policy container.
     UpgradeInsecureRequests::UpgradeInsecureNavigationsSet document_upgrade_insecure_navigations_set {};
 };
 

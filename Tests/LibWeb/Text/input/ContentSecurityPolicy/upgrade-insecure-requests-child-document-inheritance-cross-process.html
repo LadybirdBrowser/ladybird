@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // This port serves HTTPS, so a fetch of an http: URL with it only succeeds if the request was upgraded to https:.
+    // The frame is cross-site with this document, so another process hosts it, and it enforces no policy of its own:
+    // its documents upgrade it only if they inherited ours, which that process learns from our reports.
+    const httpsPort = internals.getHttpsEchoServerPort();
+    const resource = `http://127.0.0.1:${httpsPort}/common/blank.html`;
+    const secureServer = new HTTPTestServer(`https://127.0.0.1:${httpsPort}`);
+
+    const fetchSource = `
+        async function tryFetch(url) {
+            try {
+                await fetch(url, { mode: "no-cors" });
+                return "loaded";
+            } catch {
+                return "failed";
+            }
+        }`;
+
+    function nextMessage() {
+        return new Promise(resolve => {
+            window.addEventListener("message", event => resolve(event.data), { once: true });
+        });
+    }
+
+    // A document created in a child navigable inherits the policy its container's document has at that point.
+    asyncTest(async done => {
+        const nextDocumentURL = await secureServer.createEcho("GET", "/upgrade-insecure-requests-child-document-inheritance/next.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<script>${fetchSource}; tryFetch("${resource}").then(result => parent.postMessage(result, "*"));<\/script>`,
+        });
+        const frameURL = await secureServer.createEcho("GET", "/upgrade-insecure-requests-child-document-inheritance/frame.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<script>
+                ${fetchSource}
+                onmessage = async event => {
+                    if (event.data === "fetch")
+                        parent.postMessage(await tryFetch("${resource}"), "*");
+                    else
+                        location.href = "${nextDocumentURL}";
+                };
+                parent.postMessage("ready", "*");
+            <\/script>`,
+        });
+
+        const frame = document.createElement("iframe");
+        const ready = nextMessage();
+        frame.src = frameURL;
+        document.body.appendChild(frame);
+        await ready;
+        println(`Cross-site iframe is in another process: ${remoteFrameCount() > 0}`);
+
+        frame.contentWindow.postMessage("fetch", "*");
+        println(`Frame document fetch before the policy: ${await nextMessage()}`);
+
+        const meta = document.createElement("meta");
+        meta.httpEquiv = "Content-Security-Policy";
+        meta.content = "upgrade-insecure-requests";
+        document.head.appendChild(meta);
+        frame.contentWindow.postMessage("fetch", "*");
+        println(`Frame document fetch after the policy: ${await nextMessage()}`);
+
+        // The frame's document navigates itself, without a change to the iframe that would report its state.
+        frame.contentWindow.postMessage("navigate", "*");
+        println(`Fetch from the frame's next document: ${await nextMessage()}`);
+
+        done();
+    });
+</script>

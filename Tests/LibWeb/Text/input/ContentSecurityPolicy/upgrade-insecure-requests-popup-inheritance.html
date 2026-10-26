@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- The policy comes after include.js, which it would otherwise upgrade. -->
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+<script>
+    // This port serves HTTPS, so a fetch of an http: URL with it only succeeds if the request was upgraded to https:.
+    // The frame enforces no policy of its own: it upgrades it only if it inherited ours. Its popup's initial
+    // about:blank document has a copy of the frame's policies, so it upgrades it if the frame does.
+    const insecureOrigin = `http://127.0.0.1:${internals.getHttpsEchoServerPort()}`;
+    const resource = `${insecureOrigin}/common/blank.html`;
+    const secureServer = new HTTPTestServer(`https://127.0.0.1:${internals.getHttpsEchoServerPort()}`);
+
+    const fetchSource = `
+        async function tryFetch(url) {
+            try {
+                await fetch(url, { mode: "no-cors" });
+                return "loaded";
+            } catch {
+                return "failed";
+            }
+        }`;
+
+    function nextMessage() {
+        return new Promise(resolve => {
+            window.addEventListener("message", event => resolve(event.data), { once: true });
+        });
+    }
+
+    asyncTest(async done => {
+        const frameURL = await secureServer.createEcho("GET", "/upgrade-insecure-requests-popup-inheritance/frame.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<script>
+                const fetchSource = ${JSON.stringify(fetchSource)};
+                eval(fetchSource);
+                (async () => {
+                    parent.postMessage(await tryFetch("${resource}"), "*");
+                    const popup = window.open();
+                    popup.eval(fetchSource);
+                    parent.postMessage(await popup.tryFetch("${resource}"), "*");
+                    popup.close();
+                })();
+            <\/script>`,
+        });
+
+        const frame = document.createElement("iframe");
+        frame.src = `${insecureOrigin}${new URL(frameURL).pathname}`;
+        document.body.appendChild(frame);
+
+        println(`iframe fetch: ${await nextMessage()}`);
+        println(`Fetch from the iframe's about:blank popup: ${await nextMessage()}`);
+
+        done();
+    });
+</script>

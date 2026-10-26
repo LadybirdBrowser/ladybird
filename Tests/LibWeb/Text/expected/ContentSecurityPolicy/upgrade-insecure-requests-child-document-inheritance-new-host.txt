@@ -1,0 +1,2 @@
+Cross-site iframe is in another process: true
+Fetch from the frame's next document, in the other site's process: loaded

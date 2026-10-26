@@ -1138,6 +1138,7 @@ void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerSt
     m_hosted_state->container = state;
     if (has_remote_host())
         remote_host().async_update_local_root_container_state(id(), move(state));
+    send_replicated_state();
 }
 
 void CanonicalNavigable::update_hosted_state(Web::HTML::HostedNavigableState state)

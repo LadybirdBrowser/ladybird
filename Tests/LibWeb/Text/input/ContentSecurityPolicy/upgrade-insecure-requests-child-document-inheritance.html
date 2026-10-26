@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // This port serves HTTPS, so a fetch of an http: URL with it only succeeds if the request was upgraded to https:.
+    // The frame enforces no policy of its own: its documents upgrade it only if they inherited ours.
+    const resource = `http://127.0.0.1:${internals.getHttpsEchoServerPort()}/common/blank.html`;
+
+    const fetchSource = `
+        async function tryFetch(url) {
+            try {
+                await fetch(url, { mode: "no-cors" });
+                return "loaded";
+            } catch {
+                return "failed";
+            }
+        }`;
+
+    function loadOf(frame) {
+        return new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+    }
+
+    // A document created in a child navigable inherits the policy its container's document has at that point.
+    asyncTest(async done => {
+        const frame = document.createElement("iframe");
+        frame.srcdoc = `<script>${fetchSource}; onmessage = () => { location.href = "about:blank"; };<\/script>`;
+        let loaded = loadOf(frame);
+        document.body.appendChild(frame);
+        await loaded;
+        println(`Frame document fetch before the policy: ${await frame.contentWindow.tryFetch(resource)}`);
+
+        const meta = document.createElement("meta");
+        meta.httpEquiv = "Content-Security-Policy";
+        meta.content = "upgrade-insecure-requests";
+        document.head.appendChild(meta);
+        println(`Frame document fetch after the policy: ${await frame.contentWindow.tryFetch(resource)}`);
+
+        // The frame's document navigates itself, so the navigation's initiator holds no policy.
+        loaded = loadOf(frame);
+        frame.contentWindow.postMessage("navigate", "*");
+        await loaded;
+        frame.contentWindow.eval(fetchSource);
+        println(`Fetch from the frame's next document: ${await frame.contentWindow.tryFetch(resource)}`);
+
+        done();
+    });
+</script>

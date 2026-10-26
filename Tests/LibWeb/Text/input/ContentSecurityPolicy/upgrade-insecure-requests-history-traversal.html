@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- The policy comes after include.js, which it would otherwise upgrade. -->
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+<script>
+    // This port serves HTTPS, so a fetch of an http: URL with it only succeeds if the request was upgraded to https:.
+    // The frame inherits our policy and enforces none of its own, so the about:blank document it navigates its popup to
+    // has the policy only as state it inherited, which the document's history entry keeps. Going back to that entry from
+    // a cross-site document rebuilds the about:blank document from the entry: a fetch it had in flight when the popup
+    // navigated away makes it unsalvageable, and the popup is top-level, with nothing else to inherit from.
+    const httpsPort = internals.getHttpsEchoServerPort();
+    const secureServer = new HTTPTestServer(`https://127.0.0.1:${httpsPort}`);
+    const resource = `http://127.0.0.1:${httpsPort}/common/blank.html`;
+    const token = uniqueID();
+
+    function echo(path, body, hostname = "127.0.0.1", extra = {}) {
+        return secureServer
+            .createEcho("GET", `/upgrade-insecure-requests-history-traversal/${path}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body,
+                ...extra,
+            })
+            .then(url => {
+                const result = new URL(url);
+                result.hostname = hostname;
+                return result.href;
+            });
+    }
+
+    asyncTest(async done => {
+        const heldURL = await echo(`held-${token}.html`, "", "127.0.0.1", { wait_for_unblock: token });
+        const startURL = await echo("start.html", `<script>opener.postMessage("started", "*");<\/script>`);
+        const nextURL = await echo("next.html", `<script>opener.postMessage("going back", "*"); history.back();<\/script>`, "localhost");
+        const frameURL = await echo(
+            "frame.html",
+            `<script>
+                const fetchSource = \`
+                    async function tryFetch(url) {
+                        try {
+                            await fetch(url, { mode: "no-cors" });
+                            return "loaded";
+                        } catch {
+                            return "failed";
+                        }
+                    }\`;
+                const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+                function showsAboutBlank(popup) {
+                    try {
+                        return popup.location.href === "about:blank" && popup.document.readyState === "complete";
+                    } catch {
+                        return false;
+                    }
+                }
+                async function whenShowsAboutBlank(popup) {
+                    const deadline = performance.now() + 10000;
+                    while (!showsAboutBlank(popup)) {
+                        if (performance.now() > deadline)
+                            throw new Error("The popup did not show about:blank");
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                    }
+                }
+
+                (async () => {
+                    const started = nextMessage();
+                    const popup = window.open(${JSON.stringify(startURL)});
+                    await started;
+
+                    popup.location.href = "about:blank";
+                    await whenShowsAboutBlank(popup);
+                    popup.eval(fetchSource);
+                    parent.postMessage(\`Fetch from the about:blank entry: \${await popup.tryFetch(${JSON.stringify(resource)})}\`, "*");
+
+                    popup.marker = "original";
+                    popup.fetch(${JSON.stringify(heldURL)}, { mode: "no-cors" }).catch(() => {});
+                    const goingBack = nextMessage();
+                    popup.location.href = ${JSON.stringify(nextURL)};
+                    await goingBack;
+                    await whenShowsAboutBlank(popup);
+
+                    parent.postMessage(\`Document after Back is rebuilt: \${popup.marker === undefined}\`, "*");
+                    popup.eval(fetchSource);
+                    parent.postMessage(\`Fetch from the rebuilt document: \${await popup.tryFetch(${JSON.stringify(resource)})}\`, "*");
+                    popup.close();
+                })().catch(error => parent.postMessage(\`Failed: \${error.message}\`, "*"));
+            <\/script>`
+        );
+
+        const messages = [];
+        const finished = new Promise(resolve => {
+            addEventListener("message", event => {
+                messages.push(event.data);
+                if (messages.length === 3 || event.data.startsWith("Failed:"))
+                    resolve();
+            });
+        });
+        const frame = document.createElement("iframe");
+        frame.src = frameURL;
+        document.body.appendChild(frame);
+        await finished;
+
+        for (const message of messages)
+            println(message);
+
+        await fetch(`https://127.0.0.1:${httpsPort}/unblock/${token}`);
+        done();
+    });
+</script>

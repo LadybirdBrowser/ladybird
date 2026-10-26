@@ -1,0 +1,3 @@
+Fetch from the about:blank entry: loaded
+Document after Back is rebuilt: true
+Fetch from the rebuilt document: loaded

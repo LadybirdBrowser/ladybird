@@ -1,0 +1,2 @@
+iframe fetch: loaded
+Fetch from the iframe's about:blank popup: loaded

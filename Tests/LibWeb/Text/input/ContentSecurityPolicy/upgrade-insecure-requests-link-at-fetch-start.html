@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // This port serves HTTPS, so a fetch of an http: URL with it only succeeds if the request was upgraded to https:.
+    const httpsPort = internals.getHttpsEchoServerPort();
+    const secureServer = new HTTPTestServer(`https://127.0.0.1:${httpsPort}`);
+
+    function loadStylesheet(url) {
+        return new Promise(resolve => {
+            const link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.onload = () => resolve("loaded");
+            link.onerror = () => resolve("failed");
+            link.href = url;
+            document.head.appendChild(link);
+        });
+    }
+
+    // A link element's fetch upgrades its redirects by the policies its document had when the fetch started.
+    asyncTest(async done => {
+        const stylesheetURL = await secureServer.createEcho("GET", "/upgrade-insecure-requests-link-at-fetch-start/style.css", {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: "",
+        });
+        const resource = stylesheetURL.replace("https:", "http:");
+        const redirect = `https://127.0.0.1:${httpsPort}/common/redirect.py?location=${encodeURIComponent(resource)}`;
+
+        const loadStartedBeforeThePolicy = loadStylesheet(redirect);
+
+        const meta = document.createElement("meta");
+        meta.httpEquiv = "Content-Security-Policy";
+        meta.content = "upgrade-insecure-requests";
+        document.head.appendChild(meta);
+
+        println(`Redirect of a stylesheet load started before the policy: ${await loadStartedBeforeThePolicy}`);
+        println(`Redirect of a stylesheet load started after the policy: ${await loadStylesheet(redirect)}`);
+
+        done();
+    });
+</script>

@@ -213,6 +213,15 @@ void WorkerGlobalScope::initialize_policy_container(GC::Ref<Fetch::Infrastructur
     // 2. Otherwise, set workerGlobalScope's policy container to the result of creating a policy container from a fetch
     //    response given response and environment.
     m_policy_container = create_a_policy_container_from_a_fetch_response(response, environment);
+
+    // https://w3c.github.io/webappsec-upgrade-insecure-requests/#nesting
+    // AD-HOC: Upgrade Insecure Requests has a worker inherit the insecure requests policy of its inherited responsible
+    //         browsing context, which HTML no longer has. It inherits that of owner set[0]'s relevant settings object,
+    //         which is outside settings, here instead. The clone in step 1 holds it already.
+    auto const& owner_serialized_policy_container = m_owner_set.first().visit([](auto const& owner) -> SerializedPolicyContainer const& {
+        return owner.relevant_settings_object_policy_container;
+    });
+    m_policy_container->inherit_insecure_requests_policy(owner_serialized_policy_container.insecure_requests_policy, owner_serialized_policy_container.upgrade_insecure_navigations_set);
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#check-a-global-object's-embedder-policy

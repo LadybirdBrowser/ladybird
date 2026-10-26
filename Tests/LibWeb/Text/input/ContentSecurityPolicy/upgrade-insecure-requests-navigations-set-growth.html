@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- The policy comes after include.js, which it would otherwise upgrade. -->
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+<script>
+    // This port serves HTTPS, so a navigation to an http: URL with it only succeeds if the request was upgraded to
+    // https:. A top-level navigation is upgraded only if its URL's host and port are in its source's upgrade insecure
+    // navigations set. The frame inherits our policy, then enforces one of its own, which adds its host and port to
+    // its set but leaves its policy as it was. Its child is cross-site with it, so another process hosts the child,
+    // whose next document inherits the frame's set as that process last learned it.
+    const httpsPort = internals.getHttpsEchoServerPort();
+    const secureServer = new HTTPTestServer(`https://127.0.0.1:${httpsPort}`);
+
+    function echo(path, body, hostname = "127.0.0.1") {
+        return secureServer
+            .createEcho("GET", `/upgrade-insecure-requests-navigations-set-growth/${path}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body,
+            })
+            .then(url => {
+                const result = new URL(url);
+                result.hostname = hostname;
+                return result.href;
+            });
+    }
+
+    asyncTest(async done => {
+        const popupURL = await echo("popup.html", `<script>opener.postMessage(location.protocol, "*"); close();<\/script>`);
+        const insecurePopupURL = popupURL.replace("https:", "http:");
+        const nextDocumentURL = await echo(
+            "next.html",
+            `<script>
+                addEventListener("message", event => top.postMessage(event.data, "*"));
+                window.open(${JSON.stringify(insecurePopupURL)});
+            <\/script>`,
+            "localhost"
+        );
+        const childURL = await echo(
+            "child.html",
+            `<script>
+                addEventListener("message", () => (location.href = ${JSON.stringify(nextDocumentURL)}));
+                parent.postMessage("ready", "*");
+            <\/script>`,
+            "localhost"
+        );
+        const frameURL = await echo(
+            "frame.html",
+            `<body><script>
+                addEventListener("message", event => {
+                    if (event.data !== "ready")
+                        return;
+                    const meta = document.createElement("meta");
+                    meta.httpEquiv = "Content-Security-Policy";
+                    meta.content = "upgrade-insecure-requests";
+                    document.head.appendChild(meta);
+                    event.source.postMessage("navigate", "*");
+                });
+                const child = document.createElement("iframe");
+                child.src = ${JSON.stringify(childURL)};
+                document.body.appendChild(child);
+            <\/script>`
+        );
+
+        const popupLoaded = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const frame = document.createElement("iframe");
+        frame.src = frameURL;
+        document.body.appendChild(frame);
+
+        println(`Popup of the child's next document loaded over: ${await popupLoaded}`);
+        done();
+    });
+</script>
