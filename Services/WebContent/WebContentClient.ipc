@@ -200,6 +200,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_lose_request_server_connection(Optional<Utf16String> top_level_site) => (Optional<IPC::TransportHandle> handle)
     request_media_server_connection() => (Optional<IPC::TransportHandle> handle)
     request_audio_server_connection() => (Optional<IPC::TransportHandle> handle)
+    request_webrtc_client_connection() => (Optional<IPC::TransportHandle> handle)
     request_video_presentation_channel() =|
 
     [NotRouted] did_request_storage_usage(Web::PageId page_id, Web::HTML::EnvironmentId environment_id) => (u64 usage)
@@ -306,4 +307,7 @@ endpoint WebContentClient routed by Web::PageId page_id
 
     [NotRouted] start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request) => (Web::HTML::WorkerAgentId agent_id)
     close_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) =|
+    rtc_transform_init(Web::PageId page_id, Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record) =|
+    rtc_transform_teardown(Web::PageId page_id, Web::HTML::WorkerAgentId agent_id, u64 transform_id) =|
+    rtc_transform_encoded_audio_frame(Web::PageId page_id, Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number) =|
 }

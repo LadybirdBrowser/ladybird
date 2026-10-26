@@ -1064,6 +1064,38 @@ set(SOURCES
     WebIDL/OverloadTypes.cpp
     WebIDL/Promise.cpp
     WebIDL/QuotaExceededError.cpp
+    WebRTC/RTCCertificate.cpp
+    WebRTC/RTCDataChannel.cpp
+    WebRTC/RTCDataChannelEvent.cpp
+    WebRTC/RTCDtlsTransport.cpp
+    WebRTC/RTCDTMFSender.cpp
+    WebRTC/RTCDTMFToneChangeEvent.cpp
+    WebRTC/RTCEncodedAudioFrame.cpp
+    WebRTC/RTCEncodedVideoFrame.cpp
+    WebRTC/RTCError.cpp
+    WebRTC/RTCErrorEvent.cpp
+    WebRTC/RTCIceCandidate.cpp
+    WebRTC/RTCIceTransport.cpp
+    WebRTC/RTCPeerConnection.cpp
+    WebRTC/RTCPeerConnectionIceErrorEvent.cpp
+    WebRTC/RTCPeerConnectionIceEvent.cpp
+    WebRTC/RTCRtpReceiver.cpp
+    WebRTC/RTCRtpScriptTransform.cpp
+    WebRTC/RTCRtpScriptTransformer.cpp
+    WebRTC/RTCRtpSender.cpp
+    WebRTC/RTCRtpTransceiver.cpp
+    WebRTC/RTCSctpTransport.cpp
+    WebRTC/RTCSessionDescription.cpp
+    WebRTC/RTCSFrameReceiverTransform.cpp
+    WebRTC/RTCSFrameSenderTransform.cpp
+    WebRTC/RTCStatsReport.cpp
+    WebRTC/RTCTrackEvent.cpp
+    WebRTC/RTCTransformEvent.cpp
+    WebRTC/SFrameDecrypterStream.cpp
+    WebRTC/SFrameEncrypterStream.cpp
+    WebRTC/SFrameTransformErrorEvent.cpp
+    WebRTC/KeyFrameRequestEvent.cpp
+    WebRTC/WebRTCAgent.cpp
     WebSockets/WebSocket.cpp
     WebVTT/Parser.cpp
     WebVTT/VTTCue.cpp
@@ -1129,7 +1161,7 @@ target_sources(LibWeb PRIVATE $<TARGET_OBJECTS:LibJSObjects>)
 target_compile_definitions(LibWeb PRIVATE LibJS_EXPORTS)
 target_link_libraries(LibWeb PUBLIC LibCompositing LibWebCommon LibJSHeaders)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibMediaClient LibXML LibURL LibTLS LibRequests LibGC LibImageDecoderClient LibThreading LibXml2::LibXml2)
+target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibMediaClient LibXML LibURL LibTLS LibRequests LibGC LibImageDecoderClient LibThreading LibWebRTCClient LibXml2::LibXml2)
 
 # LibWeb still includes ANGLE's GLES headers for WebGL constants and types, but
 # the actual GL entry points live in the Compositor. Copy only ANGLE's compile

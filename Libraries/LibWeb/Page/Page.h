@@ -53,6 +53,7 @@
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWeb/HTML/WebViewHints.h>
@@ -948,6 +949,9 @@ public:
 
     virtual HTML::WorkerAgentId start_worker_agent([[maybe_unused]] HTML::WorkerAgentStartRequest&& request) { return {}; }
     virtual void close_worker_agent([[maybe_unused]] HTML::WorkerAgentId agent_id, [[maybe_unused]] HTML::WorkerAgentOwnerToken owner_token) { }
+    virtual void rtc_transform_init([[maybe_unused]] HTML::WorkerAgentId agent_id, [[maybe_unused]] u64 transform_id, [[maybe_unused]] HTML::SerializedTransferRecord options_record) { }
+    virtual void rtc_transform_teardown([[maybe_unused]] HTML::WorkerAgentId agent_id, [[maybe_unused]] u64 transform_id) { }
+    virtual void rtc_transform_encoded_audio_frame([[maybe_unused]] HTML::WorkerAgentId agent_id, [[maybe_unused]] u64 transform_id, [[maybe_unused]] ByteBuffer payload, [[maybe_unused]] u32 ssrc, [[maybe_unused]] u8 payload_type, [[maybe_unused]] u32 rtp_timestamp, [[maybe_unused]] u16 sequence_number) { }
 
     virtual void page_did_mutate_dom([[maybe_unused]] Utf16FlyString const& type, [[maybe_unused]] DOM::Node const& target, [[maybe_unused]] DOM::NodeList& added_nodes, [[maybe_unused]] DOM::NodeList& removed_nodes, [[maybe_unused]] GC::Ptr<DOM::Node> previous_sibling, [[maybe_unused]] GC::Ptr<DOM::Node> next_sibling, [[maybe_unused]] Optional<Utf16FlyString> const& attribute_name) { }
     virtual void flush_pending_dom_mutations() { }

@@ -1,0 +1,17 @@
+// https://w3c.github.io/webrtc-encoded-transform/#rtcencodedaudioframe
+
+dictionary RTCEncodedAudioFrameMetadata : RTCEncodedFrameMetadata {
+    short sequenceNumber;
+    double audioLevel;
+};
+
+dictionary RTCEncodedAudioFrameOptions {
+    RTCEncodedAudioFrameMetadata metadata;
+};
+
+[Exposed=(Window,DedicatedWorker), Serializable]
+interface RTCEncodedAudioFrame {
+    constructor(RTCEncodedAudioFrame originalFrame, optional RTCEncodedAudioFrameOptions options = {});
+    attribute ArrayBuffer data;
+    RTCEncodedAudioFrameMetadata getMetadata();
+};

@@ -1,0 +1,78 @@
+
+// https://w3c.github.io/webrtc-pc/#rtcrtpsender-interface
+
+[Exposed=Window]
+interface RTCRtpSender {
+    readonly attribute MediaStreamTrack? track;
+    [FIXME] readonly attribute RTCDtlsTransport? transport;
+    [FIXME] static RTCRtpCapabilities? getCapabilities(DOMString kind);
+    Promise<undefined> setParameters(RTCRtpSendParameters parameters,
+            optional RTCSetParameterOptions setParameterOptions = {});
+    RTCRtpSendParameters getParameters();
+    Promise<undefined> replaceTrack(MediaStreamTrack? withTrack);
+    [FIXME] undefined setStreams(MediaStream... streams);
+    [FIXME] Promise<RTCStatsReport> getStats();
+};
+
+partial interface RTCRtpSender {
+    [FIXME] readonly attribute RTCDTMFSender? dtmf;
+};
+
+dictionary RTCRtpParameters {
+    required sequence<RTCRtpHeaderExtensionParameters> headerExtensions;
+    required RTCRtcpParameters rtcp;
+    required sequence<RTCRtpCodecParameters> codecs;
+};
+
+dictionary RTCRtpSendParameters : RTCRtpParameters {
+    required DOMString transactionId;
+    required sequence<RTCRtpEncodingParameters> encodings;
+};
+
+dictionary RTCRtpReceiveParameters : RTCRtpParameters { };
+
+dictionary RTCRtpCodingParameters {
+    DOMString rid;
+};
+
+dictionary RTCRtpEncodingParameters : RTCRtpCodingParameters {
+    boolean active = true;
+    RTCRtpCodec codec;
+    unsigned long maxBitrate;
+    double maxFramerate;
+    double scaleResolutionDownBy;
+    unsigned long ssrc;
+};
+
+dictionary RTCRtcpParameters {
+    DOMString cname;
+    boolean reducedSize;
+};
+
+dictionary RTCRtpHeaderExtensionParameters {
+    required DOMString uri;
+    required unsigned short id;
+    boolean encrypted = false;
+};
+
+dictionary RTCRtpCodec {
+    required DOMString mimeType;
+    required unsigned long clockRate;
+    unsigned short channels;
+    DOMString sdpFmtpLine;
+};
+
+dictionary RTCRtpCodecParameters : RTCRtpCodec {
+    required octet payloadType;
+};
+
+dictionary RTCRtpCapabilities {
+    required sequence<RTCRtpCodec> codecs;
+    required sequence<RTCRtpHeaderExtensionCapability> headerExtensions;
+};
+
+dictionary RTCRtpHeaderExtensionCapability {
+    required DOMString uri;
+};
+
+dictionary RTCSetParameterOptions { };

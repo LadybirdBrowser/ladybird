@@ -1,0 +1,4 @@
+attached: true
+same sender: InvalidStateError
+other sender: InvalidStateError
+after replacement: InvalidStateError

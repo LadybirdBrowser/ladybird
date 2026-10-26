@@ -1,0 +1,10 @@
+// https://w3c.github.io/webrtc-encoded-transform/#rtctransformevent
+
+[Exposed=DedicatedWorker]
+interface RTCTransformEvent : Event {
+    readonly attribute RTCRtpScriptTransformer transformer;
+};
+
+partial interface DedicatedWorkerGlobalScope {
+    attribute EventHandler onrtctransform;
+};

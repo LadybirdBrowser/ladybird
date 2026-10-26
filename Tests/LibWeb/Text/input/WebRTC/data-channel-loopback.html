@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const a = new RTCPeerConnection();
+    const b = new RTCPeerConnection();
+    const pendingA = [], pendingB = [];
+    let candidateCount = 0;
+    function forward(peer, queue, event) {
+        if (!event.candidate) return;
+        ++candidateCount;
+        if (peer.remoteDescription) peer.addIceCandidate(event.candidate).catch(error => println(`ICE error: ${error.name}`));
+        else queue.push(event.candidate);
+    }
+    a.onicecandidate = event => forward(b, pendingB, event);
+    b.onicecandidate = event => forward(a, pendingA, event);
+    const channel = a.createDataChannel("echo");
+    const opened = new Promise(resolve => channel.onopen = resolve);
+    const incoming = new Promise(resolve => b.ondatachannel = event => resolve(event.channel));
+    try {
+        const offer = await a.createOffer();
+        await a.setLocalDescription(offer);
+        println(`offer pending: ${a.currentLocalDescription === null && a.pendingLocalDescription.type === "offer"}`);
+        await b.setRemoteDescription(offer);
+        for (const candidate of pendingB) await b.addIceCandidate(candidate);
+        const answer = await b.createAnswer();
+        await b.setLocalDescription(answer);
+        await a.setRemoteDescription(answer);
+        for (const candidate of pendingA) await a.addIceCandidate(candidate);
+        await opened;
+        const remote = await incoming;
+        println(`negotiated: ${a.pendingLocalDescription === null && a.currentLocalDescription.type === "offer" && a.currentRemoteDescription.type === "answer"}`);
+        println(`trickle ICE: ${candidateCount > 0}`);
+        println(`remote label: ${remote.label}`);
+        let message = new Promise(resolve => remote.onmessage = resolve);
+        channel.send("hello 🐦");
+        println(`text payload: ${(await message).data}`);
+        message = new Promise(resolve => remote.onmessage = resolve);
+        channel.send(new Uint8Array([0, 1, 127, 255]));
+        println(`binary payload: ${Array.from(new Uint8Array((await message).data))}`);
+        remote.binaryType = "blob";
+        message = new Promise(resolve => remote.onmessage = resolve);
+        channel.send(new Uint8Array([42]));
+        const blob = (await message).data;
+        println(`blob payload: ${blob instanceof Blob && blob.size === 1}`);
+        const stats = await a.getStats();
+        println(`real stats report: ${stats instanceof RTCStatsReport && Array.from(stats.values()).some(entry => entry.type === "data-channel")}`);
+        const closed = new Promise(resolve => channel.onclose = resolve);
+        channel.close();
+        await closed;
+        println(`channel close: ${channel.readyState}`);
+    } catch (error) {
+        println(`FAIL: ${error.name}: ${error.message}`);
+    } finally {
+        a.close(); b.close(); done();
+    }
+});
+</script>

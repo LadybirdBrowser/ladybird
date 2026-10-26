@@ -86,6 +86,12 @@ ALLOWED_REALM_MENTIONS = {
     "WebDriver": (2, 7, "WebDriver execute/JSON conversion still materializes JS values for automation"),
     "WebGL": (4, 9, "WebGL contexts are created in the realm of their canvas, and their events and promises in it"),
     "WebLocks": (6, 7, "Web Locks queue/callback algorithms still use callback and promise realms"),
+    "WebRTC": (
+        13,
+        23,
+        "peer connections, data channels and senders resolve promises and fire events in their relevant realm, encoded "
+        "frames are constructed and deserialized in the worker's realm, and the stats report's maplike glue",
+    ),
     "XHR": (4, 7, "XHR/FormData/FileReader-style paths still materialize JS values and events"),
 }
 

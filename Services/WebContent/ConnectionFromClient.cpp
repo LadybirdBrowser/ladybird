@@ -508,6 +508,14 @@ ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_audio_serve
     return response->take_handle()->create_transport();
 }
 
+ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_webrtc_client_transport()
+{
+    auto response = send_sync_but_allow_failure<Messages::WebContentClient::RequestWebrtcClientConnection>();
+    if (!response || !response->handle().has_value())
+        return Error::from_string_literal("The Browser did not launch a WebRTCClient");
+    return response->take_handle()->create_transport();
+}
+
 TestConnection* ConnectionFromClient::test_connection()
 {
     if (m_test_connection)
@@ -3696,6 +3704,11 @@ void ConnectionFromClient::did_worker_agent_close(Web::HTML::WorkerAgentOwnerTok
 void ConnectionFromClient::did_worker_agent_die(Web::HTML::WorkerAgentOwnerToken owner_token)
 {
     Web::HTML::WorkerAgentParent::did_worker_agent_die(owner_token);
+}
+
+void ConnectionFromClient::did_worker_rtc_transform_encoded_audio_frame_written(Web::HTML::WorkerAgentOwnerToken owner_token, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
+{
+    Web::HTML::WorkerAgentParent::did_write_rtc_transform_encoded_audio_frame(owner_token, transform_id, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
 }
 
 // https://html.spec.whatwg.org/multipage/speculative-loading.html#nav-traversal-ui:close-a-top-level-traversable
