@@ -82,6 +82,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           cache_key_extra: 'LibJS and LibWasm Artifacts'
           ccache_path: ${{ steps.setup.outputs.ccache_path }}
+          sccache_path: ${{ steps.setup.outputs.sccache_path }}
           vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
 
       - name: Create build directory Ubuntu
@@ -136,6 +137,8 @@ jobs:
           arch: 'Lagom'
           ccache_path: ${{ steps.setup.outputs.ccache_path }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+          sccache_path: ${{ steps.setup.outputs.sccache_path }}
+          sccache_primary_key: ${{ steps.cache-restore.outputs.sccache_primary_key }}
           vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
 

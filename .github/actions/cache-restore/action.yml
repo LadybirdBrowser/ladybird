@@ -18,6 +18,9 @@ inputs:
   ccache_path:
     description: 'Path to the ccache directory'
     required: true
+  sccache_path:
+    description: 'Path to the sccache directory'
+    required: true
   vcpkg_cache_path:
     description: 'Path to vcpkg binary cache'
     required: true
@@ -26,6 +29,9 @@ outputs:
   ccache_primary_key:
     description: 'Primary ccache key'
     value: ${{ steps.ccache.outputs.cache-primary-key }}
+  sccache_primary_key:
+    description: 'Primary sccache key'
+    value: ${{ steps.sccache.outputs.cache-primary-key }}
   vcpkg_cache_primary_key:
     description: 'Primary vcpkg binary cache key, or empty if the cache was restored from an exact key match'
     value: ${{ steps.vcpkg.outputs.cache-hit != 'true' && steps.vcpkg.outputs.cache-primary-key || '' }}
@@ -78,6 +84,15 @@ runs:
 
         ccache -s
         ccache -z
+
+    - name: 'Rust Compiler Cache'
+      uses: actions/cache/restore@v6
+      id: 'sccache'
+      with:
+        path: ${{ inputs.sccache_path }}
+        key: sccache | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }} | ${{ steps.date-stamp.outputs.timestamp }}
+        restore-keys: |
+          sccache | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }}
 
     - name: 'Restore vcpkg cache'
       uses: actions/cache/restore@v6

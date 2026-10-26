@@ -12,6 +12,12 @@ inputs:
   ccache_primary_key:
     description: 'Primary ccache key'
     required: true
+  sccache_path:
+    description: 'Path to the sccache directory'
+    required: true
+  sccache_primary_key:
+    description: 'Primary sccache key'
+    required: true
   vcpkg_cache_path:
     description: 'Path to the vcpkg binary cache directory'
     required: true
@@ -41,6 +47,19 @@ runs:
         CCACHE_DIR: ${{ inputs.ccache_path }}
       run: |
         ccache -s
+
+    # Stopping the server gives its in-flight requests up to 10 seconds to finish, and prints the stats for the job's
+    # Rust compiles. It isn't running if nothing invoked it, or on Windows, where it doesn't outlive the build step.
+    - name: 'Stop the Rust compiler cache server'
+      shell: bash
+      run: |
+        sccache --stop-server || true
+
+    - name: 'Rust Compiler Cache'
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ inputs.sccache_path }}
+        key: ${{ inputs.sccache_primary_key }}
 
     - name: 'vcpkg binary cache'
       if: ${{ inputs.vcpkg_cache_primary_key != '' }}
