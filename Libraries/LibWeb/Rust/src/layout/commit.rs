@@ -148,11 +148,22 @@ fn commit_subtree(
     {
         return;
     }
+    if let Some(shift) = entry.and_then(|link| link.default_scroll_shift) {
+        paintables.arena_mut().set_default_scroll_shift(
+            node,
+            shift.anchor,
+            shift.compensates_for_horizontal_scroll,
+            shift.compensates_for_vertical_scroll,
+        );
+    }
     if !reuses_committed_subtree {
         paintables.arena().forget_committed_out_of_flow_facts(node);
     }
     if let Some(inputs) = entry.and_then(|link| link.abspos_layout_inputs.as_ref()) {
         paintables.arena().note_committed_out_of_flow_box(node, inputs);
+        paintables
+            .arena_mut()
+            .set_position_option_in_use(node, inputs.position_option);
     }
     let previous_fragmented_content = (paintables.arena().paintable_row_is_populated(node)
         && (has_more_fragments || !paintables.arena().committed_side_data(node).box_fragments().is_empty()))

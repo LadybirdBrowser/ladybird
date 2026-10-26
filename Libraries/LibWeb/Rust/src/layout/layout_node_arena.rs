@@ -4962,20 +4962,21 @@ impl LayoutNodeArena {
         self.node_pre_order_label(node) < self.node_pre_order_label(other)
     }
 
-    /// Notes that the box `node` was laid out with the position option `choice`.
-    pub(crate) fn note_position_option_in_use(
-        &self,
+    /// Notes the position option the committed layout of the box `node` uses, or that it uses none.
+    pub(crate) fn set_position_option_in_use(
+        &mut self,
         node: NodeSlotId,
-        choice: super::abspos_inputs::PositionOptionChoice,
+        choice: Option<super::abspos_inputs::PositionOptionChoice>,
     ) {
-        self.position_options_in_use.borrow_mut().insert(node, choice);
-    }
-
-    /// Notes that the box `node` was laid out with no position option.
-    pub(crate) fn forget_position_option_in_use(&self, node: NodeSlotId) {
-        let mut in_use = self.position_options_in_use.borrow_mut();
-        if !in_use.is_empty() {
-            in_use.remove(&node);
+        let in_use = self.position_options_in_use.get_mut();
+        match choice {
+            Some(choice) => {
+                in_use.insert(node, choice);
+            }
+            None if !in_use.is_empty() => {
+                in_use.remove(&node);
+            }
+            None => {}
         }
     }
 
@@ -5016,7 +5017,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn set_default_scroll_shift(
-        &self,
+        &mut self,
         id: NodeSlotId,
         anchor: NodeSlotId,
         compensates_for_horizontal_scroll: bool,

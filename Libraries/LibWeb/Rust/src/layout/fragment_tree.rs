@@ -60,6 +60,8 @@ pub(crate) struct FragmentLink {
     pub(crate) containing_line_box_index: Option<usize>,
     /// Boxed, as few links place an absolutely positioned box and the inputs are larger than the rest of the link.
     pub(crate) abspos_layout_inputs: Option<Box<abspos_inputs::AbsposLayoutInputs>>,
+    /// The default scroll shift of a box whose anchor insets its layout resolved, which commit records for the box.
+    pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
     pub(crate) containing_block: crate::layout::node_data::NodeSlotId,
     /// The frame the box was laid out in, in which the link and the fragment hold its geometry.
     pub(crate) frame: geometry::Frame,
@@ -264,6 +266,7 @@ impl FragmentLink {
             inset_bottom: CssPixels::default(),
             containing_line_box_index: None,
             abspos_layout_inputs: None,
+            default_scroll_shift: None,
             containing_block: crate::layout::node_data::NodeSlotId::INVALID,
             frame: geometry::Frame::PHYSICAL,
         }
@@ -282,6 +285,7 @@ impl FragmentLink {
             && self.inset_bottom == previous.inset_bottom
             && self.containing_line_box_index == previous.containing_line_box_index
             && self.abspos_layout_inputs == previous.abspos_layout_inputs
+            && self.default_scroll_shift == previous.default_scroll_shift
             && self.containing_block == previous.containing_block
             && self.frame == previous.frame
     }
@@ -549,6 +553,7 @@ pub(crate) struct PlacementData {
     pub(crate) inset_bottom: CssPixels,
     pub(crate) containing_line_box_index: Option<usize>,
     pub(crate) abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
+    pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
     pub(crate) containing_block: crate::layout::node_data::NodeSlotId,
     pub(crate) frame: geometry::Frame,
 }
@@ -560,6 +565,7 @@ impl PlacementData {
         committed_offset: FfiCssPixelPoint,
         frame: geometry::Frame,
     ) -> Self {
+        let rare = used.rare_data.get().map(|cell| cell.borrow());
         Self {
             frame,
             committed_offset,
@@ -568,7 +574,8 @@ impl PlacementData {
             inset_top: used.inset_top.get(),
             inset_bottom: used.inset_bottom.get(),
             containing_line_box_index,
-            abspos_layout_inputs: used.rare_data.get().and_then(|cell| cell.borrow().abspos_layout_inputs),
+            abspos_layout_inputs: rare.as_ref().and_then(|rare| rare.abspos_layout_inputs),
+            default_scroll_shift: rare.as_ref().and_then(|rare| rare.default_scroll_shift),
             containing_block: used.placed_in.get(),
         }
     }
@@ -584,6 +591,7 @@ fn link_fragment(fragment: std::sync::Arc<Fragment>, placement: PlacementData) -
         inset_bottom: placement.inset_bottom,
         containing_line_box_index: placement.containing_line_box_index,
         abspos_layout_inputs: placement.abspos_layout_inputs.map(Box::new),
+        default_scroll_shift: placement.default_scroll_shift,
         containing_block: placement.containing_block,
         frame: placement.frame,
     }

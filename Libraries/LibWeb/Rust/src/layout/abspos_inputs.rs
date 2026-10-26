@@ -144,6 +144,15 @@ impl AbsposContainingBlockInfo {
     }
 }
 
+/// The default anchor whose scroll a box compensates for, and in which physical axes.
+/// https://drafts.csswg.org/css-anchor-position-1/#scroll
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct DefaultScrollShift {
+    pub(crate) anchor: super::formatting_context::Node,
+    pub(crate) compensates_for_horizontal_scroll: bool,
+    pub(crate) compensates_for_vertical_scroll: bool,
+}
+
 /// The position option a box was laid out with: an entry of its position options list, which was made of the base
 /// styles of one style record.
 /// https://drafts.csswg.org/css-anchor-position-1/#last-successful-position-option
@@ -165,7 +174,8 @@ pub(crate) struct AbsposLayoutInputs {
     pub(crate) containing_block_info: AbsposContainingBlockInfo,
     pub(crate) resolved_anchor_insets: Option<super::formatting_context::ResolvedAnchorInsets>,
     pub(crate) resolved_anchor_sizes: super::style_values::ResolvedAnchorSizes,
-    pub(crate) position_option: PositionOptionChoice,
+    /// The position option the box is laid out with, or none for a box without position options.
+    pub(crate) position_option: Option<PositionOptionChoice>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
