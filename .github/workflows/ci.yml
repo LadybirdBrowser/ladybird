@@ -101,15 +101,16 @@ jobs:
       build_preset: 'Sanitizer'
       clang_plugins: false
 
-  # The macOS AX tests need an unlocked GUI session that Accessibility can be granted in. Blacksmith's macOS runners
-  # boot screen-locked — so we can't run the tests there. Thus, we instead run the tests on a GH-hosted runner.
+  # The macOS AX tests need an unlocked GUI session that Accessibility can be granted in. GH-hosted macOS runners always
+  # boot with one, and Blacksmith's macOS runners usually do — but a few of those still boot screen-locked. So, we run
+  # the tests on both, and a run that lands on a locked Blacksmith runner still gets results from the GH-hosted one.
   macOS-Accessibility:
     needs: macOS-Sanitizer
     name: macOS, arm64, AX testing, ${{ fromJSON(matrix.runner_labels)[0] }}
     strategy:
       fail-fast: false
       matrix:
-        runner_labels: ['["macos-26"]']
+        runner_labels: ['["macos-26"]', '["blacksmith-12vcpu-macos-26"]']
     uses: ./.github/workflows/macos-accessibility-tests.yml
     with:
       runner_labels: ${{ matrix.runner_labels }}
