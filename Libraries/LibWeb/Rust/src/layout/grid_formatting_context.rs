@@ -1764,10 +1764,10 @@ impl<'pass> GridFormattingContext<'pass> {
             if box_facts.is_box() && !box_facts.is_absolutely_positioned() {
                 let skip = self.run.callbacks.can_skip_is_anonymous_text_run(child);
                 if !skip {
-                    self.run
-                        .callbacks
-                        .arena()
-                        .set_node_flag(child, NodeFlag::IsGridItem, true);
+                    debug_assert!(
+                        node_facts::has_flag(box_facts.data(), NodeFlag::IsGridItem),
+                        "the facts of a grid item are derived before layout"
+                    );
                     let child_grid_style = self.grid_style(child);
                     let source = TrackListSource::from_grid_style(child_grid_style);
                     let child_columns = self.select_item_grid_axis(

@@ -3083,6 +3083,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         // NB: Top-layer updates can attach boxes without running the tree builder.
         arena.derive_facts_after_tree_update(&[]);
     }
+    arena.mark_flex_and_grid_items_of_nodes_marked_for_layout();
     let callbacks = LayoutPass::new(
         arena,
         scratch,
