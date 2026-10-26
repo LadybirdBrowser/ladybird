@@ -276,6 +276,7 @@ private:
     Optional<Gfx::Orientation> axis_held_by_scrollbar_of(Compositing::AsyncScrollNodeID) const;
     // A script that scrolls the box a gesture is latched to stops the momentum the gesture carries on with.
     void stop_user_scroll_carried_on_by_momentum_of(Web::AsyncScrollNodeStableID);
+    void scroll_visual_viewport_position_in_page(Compositing::AsyncScrollNodeID viewport_node_id, Compositing::RequestedRelativeScroll const&, Vector<Compositing::AsyncScrollOffset>& answers);
     void apply_visual_viewport_scroll_request(Compositing::ScrollRequest const&, Vector<Compositing::AsyncScrollOffset>& answers);
     // Pans the visual viewport of a zoomed page by as much of a delta in screen pixels as it has room for, and returns
     // that part of the delta.

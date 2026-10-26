@@ -189,8 +189,10 @@ struct ScrollRequest {
     Optional<Gfx::FloatPoint> jump_offset;
     // The scale the visual viewport jumps to along with its offset.
     Optional<float> visual_viewport_scale;
-    // A relative scroll after the jump.
+    // A relative scroll after the jump. For the viewport, it can move the visual viewport's position in the page, which
+    // the visual viewport takes as much of as it can before the layout viewport takes the rest.
     Optional<RequestedRelativeScroll> relative_scroll;
+    bool relative_scroll_moves_visual_viewport_first { false };
     // Whether the instant scroll is the main thread's response to user input, rather than a script's or its own.
     bool instant_scroll_is_for_user_input { false };
     Optional<RequestedSmoothScroll> smooth_scroll;
@@ -205,11 +207,16 @@ struct ScrollRequest {
             jump_offset = later.jump_offset;
             visual_viewport_scale = later.visual_viewport_scale;
             relative_scroll = later.relative_scroll;
+            relative_scroll_moves_visual_viewport_first = later.relative_scroll_moves_visual_viewport_first;
         } else if (later.relative_scroll.has_value()) {
-            if (relative_scroll.has_value())
+            // A box is scrolled by distances of one kind: the viewport by its position in the page, the rest by offset.
+            if (relative_scroll.has_value()) {
+                VERIFY(relative_scroll_moves_visual_viewport_first == later.relative_scroll_moves_visual_viewport_first);
                 relative_scroll->then(later.relative_scroll.value());
-            else
+            } else {
                 relative_scroll = later.relative_scroll;
+                relative_scroll_moves_visual_viewport_first = later.relative_scroll_moves_visual_viewport_first;
+            }
         }
         if (smooth_scroll.has_value() && later.smooth_scroll.has_value() && smooth_scroll->operation_id == later.smooth_scroll->operation_id)
             smooth_scroll->fold_later(later.smooth_scroll.value());
