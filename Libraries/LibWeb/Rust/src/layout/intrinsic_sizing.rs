@@ -50,7 +50,6 @@ impl ContentSizingScope {
             &self.root,
             |records, callbacks| {
                 size_content(&FormattingContextRun {
-                    purpose: formatting_context::LayoutPurpose::Measurement,
                     records,
                     box_: self.node,
                     layout_mode: LayoutMode::IntrinsicSizing,

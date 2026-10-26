@@ -228,7 +228,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass> {
-        sizing_context::SizingContext::new(self.run.purpose, self.run.records, self.run.callbacks)
+        sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
     }
 
     fn create_used_values(&self, node: Node) -> &'pass UsedValues {

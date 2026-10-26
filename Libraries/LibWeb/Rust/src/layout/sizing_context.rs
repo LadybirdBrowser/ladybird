@@ -111,7 +111,6 @@ pub(crate) struct TableWrapperBlockSizes {
 }
 
 pub(crate) struct SizingContext<'pass> {
-    purpose: formatting_context::LayoutPurpose,
     records: &'pass RunRecords<'pass>,
     callbacks: LayoutPass<'pass>,
     style_cache: Cell<Option<(Node, &'pass FfiStylePayloads)>>,
@@ -165,13 +164,8 @@ pub(crate) fn stretch_fit_block_margins(
 
 impl<'pass> SizingContext<'pass> {
     #[inline]
-    pub(crate) fn new(
-        purpose: formatting_context::LayoutPurpose,
-        records: &'pass RunRecords<'pass>,
-        callbacks: LayoutPass<'pass>,
-    ) -> Self {
+    pub(crate) fn new(records: &'pass RunRecords<'pass>, callbacks: LayoutPass<'pass>) -> Self {
         Self {
-            purpose,
             records,
             callbacks,
             style_cache: Cell::new(None),
@@ -2215,7 +2209,7 @@ impl<'pass> SizingContext<'pass> {
             self.callbacks.in_flow_containing_block(node),
             &root,
             |records, callbacks| {
-                let sizing = SizingContext::new(self.purpose, records, callbacks);
+                let sizing = SizingContext::new(records, callbacks);
                 let inline_size_under = |inline_size| {
                     sizing.atomic_root_content_inline_size(
                         node,
@@ -3140,11 +3134,7 @@ impl<'pass> SizingContext<'pass> {
         kind: IntrinsicSizeCacheKind,
     ) -> CssPixels {
         let own_frame = formatting_context::frame_established_by(&self.callbacks, node);
-        let sizing = SizingContext::new(
-            self.purpose,
-            self.records,
-            self.callbacks.in_frame_of(own_frame.writing_mode()),
-        );
+        let sizing = SizingContext::new(self.records, self.callbacks.in_frame_of(own_frame.writing_mode()));
         let constraints_in_own_frame = ContainingBlockConstraints {
             percentage_basis_inline_size: constraints.percentage_basis_block_size,
             percentage_basis_block_size: constraints.percentage_basis_inline_size,
@@ -3432,7 +3422,6 @@ impl<'pass> SizingContext<'pass> {
             &table_used,
             |records, callbacks| {
                 let table_run = FormattingContextRun {
-                    purpose: formatting_context::LayoutPurpose::Measurement,
                     records,
                     box_: table_box,
                     layout_mode: LayoutMode::IntrinsicSizing,

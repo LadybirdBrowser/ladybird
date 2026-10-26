@@ -20,7 +20,7 @@ test(() => {
         ["extra pass", expected, expected + expected, true],
         ["nested work", expected, expected.replace("    #sibling", "      #sibling"), true],
         ["repeated run", expected, expected + "    #sibling/block REUSE SUBTREE\n", true],
-        ["measurement purpose", expected, expected.replace("#target/block", "#target/block (measurement)"), true],
+        ["intrinsic sizing", expected, expected.replace("#target/block", "#target/block (intrinsic)"), true],
     ];
     for (const [name, expected, actual, differs] of cases) {
         const passed = (layoutTraceDifference(expected, actual) !== null) === differs;
@@ -72,7 +72,7 @@ test(() => {
         "      BlockContainer(anonymous) MEASURE min-content inline (cache=hit)",
         "      BlockContainer<DIV>#column MEASURE min-content inline (cache=miss) FROM CHILDREN",
         "      Box<DIV>#item MEASURE max-content block (cache=miss)",
-        "        Box<DIV>#item/flex (measurement, intrinsic) RUN (cache=bypass)",
+        "        Box<DIV>#item/flex (intrinsic) RUN (cache=bypass)",
         "      Box<TABLE>#table/table (intrinsic) RUN (cache=bypass)",
         "        BlockContainer<TD>.cell MEASURE CELL (cache=miss)",
         "          BlockContainer<TD>.cell/block RUN AHEAD OF INTRINSIC BLOCK PADDING",
@@ -84,20 +84,20 @@ test(() => {
     ].join("\n");
     const expectedEvents = [
         { depth: 0, event: "layout", partial: false },
-        { depth: 1, event: "run", box: "@viewport", formattingContext: "block", measurement: false, intrinsic: false, action: "RUN", cache: "bypass" },
-        { depth: 2, event: "run", box: "Box<DIV>#flex", formattingContext: "flex", measurement: false, intrinsic: false, action: "RUN", cache: "miss" },
+        { depth: 1, event: "run", box: "@viewport", formattingContext: "block", intrinsic: false, action: "RUN", cache: "bypass" },
+        { depth: 2, event: "run", box: "Box<DIV>#flex", formattingContext: "flex", intrinsic: false, action: "RUN", cache: "miss" },
         { depth: 3, event: "measure", box: "BlockContainer(anonymous)", size: "max-content inline", cache: "miss", from: "items" },
         { depth: 3, event: "measure", box: "BlockContainer(anonymous)", size: "min-content inline", cache: "hit" },
         { depth: 3, event: "measure", box: "BlockContainer<DIV>#column", size: "min-content inline", cache: "miss", from: "children" },
         { depth: 3, event: "measure", box: "Box<DIV>#item", size: "max-content block", cache: "miss" },
-        { depth: 4, event: "run", box: "Box<DIV>#item", formattingContext: "flex", measurement: true, intrinsic: true, action: "RUN", cache: "bypass" },
-        { depth: 3, event: "run", box: "Box<TABLE>#table", formattingContext: "table", measurement: false, intrinsic: true, action: "RUN", cache: "bypass" },
+        { depth: 4, event: "run", box: "Box<DIV>#item", formattingContext: "flex", intrinsic: true, action: "RUN", cache: "bypass" },
+        { depth: 3, event: "run", box: "Box<TABLE>#table", formattingContext: "table", intrinsic: true, action: "RUN", cache: "bypass" },
         { depth: 4, event: "measure cell", box: "BlockContainer<TD>.cell", cache: "miss" },
-        { depth: 5, event: "run", box: "BlockContainer<TD>.cell", formattingContext: "block", measurement: false, intrinsic: false, action: "RUN AHEAD OF INTRINSIC BLOCK PADDING" },
+        { depth: 5, event: "run", box: "BlockContainer<TD>.cell", formattingContext: "block", intrinsic: false, action: "RUN AHEAD OF INTRINSIC BLOCK PADDING" },
         { depth: 4, event: "measure cell", box: "BlockContainer<TD>.cell", cache: "hit" },
         { depth: 4, event: "reuse in-flow subtree", box: "BlockContainer<DIV>" },
         { depth: 0, event: "layout", partial: true, box: "Box<DIV>#flex" },
-        { depth: 1, event: "run", box: "Box<DIV>#flex", formattingContext: "flex", measurement: false, intrinsic: false, action: "REPLAY FRAGMENTS" },
+        { depth: 1, event: "run", box: "Box<DIV>#flex", formattingContext: "flex", intrinsic: false, action: "REPLAY FRAGMENTS" },
     ];
     // JSON leaves out the properties a line does not have.
     const parsedEvents = parseLayoutTrace(trace);

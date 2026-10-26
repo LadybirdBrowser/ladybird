@@ -1317,7 +1317,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass> {
-        sizing_context::SizingContext::new(self.run.purpose, self.run.records, self.run.callbacks)
+        sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
     }
 
     fn parent_grid(&self) -> Option<&ParentGridData<'pass>> {
@@ -2999,7 +2999,6 @@ impl<'pass> GridFormattingContext<'pass> {
             &scratch_root,
             |records, callbacks| {
                 let scratch_run = FormattingContextRun {
-                    purpose: formatting_context::LayoutPurpose::Measurement,
                     records,
                     box_: subgrid.box_,
                     layout_mode: LayoutMode::IntrinsicSizing,

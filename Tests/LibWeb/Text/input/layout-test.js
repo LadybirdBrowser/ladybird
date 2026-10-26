@@ -23,7 +23,7 @@ function layoutTraceDifference(expected, actual) {
 const layoutTraceLines = (() => {
     const box = String.raw`(\S+)`;
     const cache = String.raw`\(cache=(\w+)\)`;
-    const runFlags = String.raw`(?: \((measurement)?(?:, )?(intrinsic)?\))?`;
+    const runFlags = String.raw`(?: \((intrinsic)\))?`;
     return [
         ["layout FULL", () => ({ event: "layout", partial: false })],
         [`layout PARTIAL ${box}`, box => ({ event: "layout", partial: true, box })],
@@ -35,11 +35,10 @@ const layoutTraceLines = (() => {
         [`${box} REUSE IN-FLOW SUBTREE`, box => ({ event: "reuse in-flow subtree", box })],
         [
             `${box}/([a-z-]+)${runFlags} ([A-Z][A-Z -]*[A-Z])(?: ${cache})?`,
-            (box, formattingContext, measurement, intrinsic, action, cache) => ({
+            (box, formattingContext, intrinsic, action, cache) => ({
                 event: "run",
                 box,
                 formattingContext,
-                measurement: !!measurement,
                 intrinsic: !!intrinsic,
                 action,
                 cache,
@@ -51,7 +50,7 @@ const layoutTraceLines = (() => {
 // Parses a layout trace into one event per line. Each event has its depth, its kind in `event`, and the
 // name of the box it is about in `box`, except for a full layout pass:
 //   layout                  `partial`
-//   run                     `formattingContext`, `measurement`, `intrinsic`, `action`, `cache`
+//   run                     `formattingContext`, `intrinsic`, `action`, `cache`
 //   reuse in-flow subtree
 //   measure                 `size` ("min-content inline", ...), `cache`, `from` ("items", "flex items",
 //                           "grid tracks", "children", "columns", "replaced content")

@@ -1103,7 +1103,7 @@ impl<'pass> TableFormattingContext<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass> {
-        sizing_context::SizingContext::new(self.run.purpose, self.run.records, self.run.callbacks)
+        sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
     }
 
     fn parent(&self, node: Node) -> Node {
