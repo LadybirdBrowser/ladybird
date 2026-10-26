@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(async done => {
+    spoofCurrentURL("https://example.com/indexeddb-inject-key-into-typed-array.html");
+
+    const cases = [
+        ["typed array, key path Infinity", "Infinity", () => new Uint8Array(4)],
+        ["nested typed array, key path a.NaN", "a.NaN", () => ({ a: new Uint8Array(4) })],
+        ["nested typed array, key path a.NaN.x", "a.NaN.x", () => ({ a: new Uint8Array(4) })],
+        ["typed array, key path x", "x", () => new Uint8Array(4)],
+        ["plain object, key path Infinity", "Infinity", () => ({})],
+    ];
+    for (const [name, keyPath, value] of cases) {
+        const dbName = "test-inject-key-into-typed-array-" + Date.now() + Math.random();
+        await new Promise(resolve => {
+            const request = indexedDB.open(dbName, 1);
+            request.onupgradeneeded = event => {
+                const store = event.target.result.createObjectStore("store", { keyPath, autoIncrement: true });
+                let put;
+                try {
+                    put = store.put(value());
+                } catch (error) {
+                    println(`${name}: put threw ${error.name}`);
+                    return;
+                }
+                put.onsuccess = () => println(`${name}: key ${put.result}`);
+                put.onerror = () => println(`${name}: put failed with ${put.error.name}`);
+            };
+            request.onsuccess = () => {
+                request.result.close();
+                indexedDB.deleteDatabase(dbName);
+                resolve();
+            };
+            request.onerror = () => {
+                println(`${name}: open failed with ${request.error.name}`);
+                resolve();
+            };
+        });
+    }
+    done();
+});
+</script>
