@@ -7,6 +7,7 @@
 // Lossless format: https://developers.google.com/speed/webp/docs/webp_lossless_bitstream_specification
 
 #include <AK/BitStream.h>
+#include <AK/ByteBuffer.h>
 #include <AK/Debug.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>

@@ -26,16 +26,4 @@ private:
     }
 };
 
-class ZlibCompressor final : public GenericZlibCompressor {
-public:
-    static ErrorOr<NonnullOwnPtr<ZlibCompressor>> create(MaybeOwned<Stream>, GenericZlibCompressionLevel = GenericZlibCompressionLevel::Default);
-    static ErrorOr<ByteBuffer> compress_all(ReadonlyBytes, GenericZlibCompressionLevel = GenericZlibCompressionLevel::Default);
-
-private:
-    ZlibCompressor(AK::FixedArray<u8> buffer, MaybeOwned<Stream> stream, z_stream* zstream)
-        : GenericZlibCompressor(move(buffer), move(stream), zstream)
-    {
-    }
-};
-
 }

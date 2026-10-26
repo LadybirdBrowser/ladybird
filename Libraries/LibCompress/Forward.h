@@ -8,9 +8,6 @@
 
 namespace Compress {
 
-class DeflateCompressor;
-class DeflateDecompressor;
-class ZlibCompressor;
 class ZlibDecompressor;
 
 }
