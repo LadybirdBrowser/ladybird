@@ -1998,7 +1998,7 @@ int TabBar::tab_index_at(QPoint const& position) const
         if (pinned_y >= region.height - PINNED_TABS_SEPARATOR_HEIGHT)
             return -1;
         auto x = position.x() - vertical_tabs_left();
-        if (x < 0)
+        if (x < 0 || x >= region.columns * region.tile_width)
             return -1;
         auto row = pinned_y / VERTICAL_TAB_HEIGHT;
         auto column = min(x / region.tile_width, region.columns - 1);
