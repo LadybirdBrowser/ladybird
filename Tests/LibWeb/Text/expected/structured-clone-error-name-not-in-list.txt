@@ -1,0 +1,3 @@
+constructor is Error: true
+name: Error
+message: message
