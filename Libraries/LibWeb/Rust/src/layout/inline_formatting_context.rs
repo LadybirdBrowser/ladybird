@@ -1010,13 +1010,6 @@ impl<'context> InlineFormattingContext<'context> {
         self.block_axis_float_clearance.set(clearance);
     }
 
-    fn forget_cached_runs_of_subtree(&self, node: Node) {
-        let arena = self.callbacks.arena();
-        let mut slots = Vec::new();
-        arena.for_each_node_in_layout_subtree_in_pre_order(node, |node| slots.push(node.slot_index()));
-        arena.fc_run_cache_store().remove_entries_stored_in_open_journal(slots);
-    }
-
     fn hide_atomic_inline_for_line_clamp(&self, node: Node) {
         if let Some(fragments) = self.run.fragments.as_deref() {
             fragments.discard_unplaced_subtree(node, self.used(node));
@@ -2175,7 +2168,6 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 for node in dropped_atomic_inlines.into_iter().chain(unconsumed_atomic_inlines) {
                     fragments.discard_unplaced_subtree(node, self.used(node));
-                    self.forget_cached_runs_of_subtree(node);
                 }
             }
         }

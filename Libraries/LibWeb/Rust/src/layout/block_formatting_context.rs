@@ -3770,15 +3770,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 early_break_before,
                 allows_early_break_requests,
             ));
-            let journals_stored_entries = self.run.fragments.is_some();
-            let fc_run_cache_store = self.run.callbacks.arena().fc_run_cache_store();
-            if journals_stored_entries {
-                fc_run_cache_store.begin_store_journal();
-            }
             let outputs = formatting_context::run_fragmentainer(&self.run, purpose, input, fragmentainer.clone());
-            if journals_stored_entries {
-                fc_run_cache_store.end_store_journal(fragmentainer.outcome_mut().needs_early_break_before.is_none());
-            }
             if outputs.result.depends_on_percentage_block_size {
                 self.used(self.run.box_)
                     .has_descendant_that_depends_on_percentage_block_size
