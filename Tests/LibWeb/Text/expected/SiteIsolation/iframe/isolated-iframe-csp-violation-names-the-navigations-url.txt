@@ -1,0 +1,2 @@
+After a redirect, the violation names the navigation's first URL: true
+Under upgrade-insecure-requests, the violation names the https URL: true

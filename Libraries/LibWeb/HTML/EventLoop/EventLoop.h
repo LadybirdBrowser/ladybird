@@ -153,6 +153,7 @@ public:
     void register_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject&);
     void unregister_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject&);
     GC::Ptr<EnvironmentSettingsObject> environment_settings_object_at(EnvironmentSettingsObjectAddress) const;
+    GC::Ptr<EnvironmentSettingsObject> environment_settings_object_with_id(EnvironmentId const&) const;
 
     double compute_deadline() const;
 

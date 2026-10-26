@@ -1796,6 +1796,15 @@ GC::Ptr<EnvironmentSettingsObject> EventLoop::environment_settings_object_at(Env
     return m_related_environment_settings_objects.get(address).value_or(nullptr);
 }
 
+GC::Ptr<EnvironmentSettingsObject> EventLoop::environment_settings_object_with_id(EnvironmentId const& id) const
+{
+    for (auto const& entry : m_related_environment_settings_objects) {
+        if (entry.value->id == id)
+            return entry.value;
+    }
+    return nullptr;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#same-loop-windows
 Vector<GC::Root<HTML::Window>> EventLoop::same_loop_windows() const
 {

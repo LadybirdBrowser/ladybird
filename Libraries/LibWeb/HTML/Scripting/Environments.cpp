@@ -414,6 +414,11 @@ GC::Ptr<EnvironmentSettingsObject> environment_settings_object_at(EnvironmentSet
     return main_thread_event_loop().environment_settings_object_at(address);
 }
 
+GC::Ptr<EnvironmentSettingsObject> environment_settings_object_with_id(EnvironmentId const& id)
+{
+    return main_thread_event_loop().environment_settings_object_with_id(id);
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#incumbent-settings-object
 EnvironmentSettingsObject& incumbent_settings_object()
 {

@@ -184,7 +184,7 @@ Web::HTML::PreparedNavigationDescriptor CanonicalNavigable::prepare_navigation(U
 }
 
 // Continue the navigate algorithm at step 9 with the values prepared by steps 1-7.
-void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescriptor navigation)
+void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescriptor navigation, RefPtr<WebContentPage> source_page)
 {
     auto& traversable = top_level_traversable();
     auto const& url = navigation.url;
@@ -339,6 +339,7 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
         .sequence_number = traversable.next_sequence_number(),
         .state = CanonicalNavigation::CheckingIfUnloadingIsCanceled { move(start_request) },
         .page = worker,
+        .source_page = move(source_page),
     });
     worker->async_set_ongoing_navigation(id(), navigation_id);
     worker->begin_navigation_unload_check(*this, navigation_id);

@@ -120,7 +120,7 @@ public:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
     void navigate(URL::URL, Web::HTML::DocumentResource = {}, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
     Web::HTML::PreparedNavigationDescriptor prepare_navigation(URL::URL, Web::HTML::DocumentResource = {}, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
-    void begin_navigation(Web::HTML::PreparedNavigationDescriptor);
+    void begin_navigation(Web::HTML::PreparedNavigationDescriptor, RefPtr<WebContentPage> source_page = {});
 
     CanonicalBrowsingContext::BrowsingContextAndDocument obtain_a_browsing_context_to_use_for_a_navigation_response(NavigationLoader::ResponseDocument const&);
     NonnullRefPtr<CanonicalDocument> create_and_initialize_a_document(NavigationLoader::ResponseDocument const&);

@@ -1,0 +1,5 @@
+securitypolicyviolation in the source: form-action, disposition: enforce, blocked URL path matches: true, document URL matches: true
+sibling navigated
+WebContent#0
+  iframe#0: remote WebContent#1
+  iframe#1: remote WebContent#2
