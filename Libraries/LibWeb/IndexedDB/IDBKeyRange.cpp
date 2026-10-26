@@ -69,7 +69,7 @@ WebIDL::ExceptionOr<GC::Ref<IndexedDB::IDBKeyRange>> only(JS::Realm& realm, JS::
     // 1. Let key be the result of converting a value to a key with value. Rethrow any exceptions.
     auto key = TRY(IndexedDB::convert_a_value_to_a_key(realm, value));
 
-    // 2. If key is invalid, throw a "DataError" DOMException.
+    // 2. If key is "invalid value" or "invalid type", throw a "DataError" DOMException.
     if (key->is_invalid())
         return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
@@ -97,7 +97,7 @@ WebIDL::ExceptionOr<GC::Ref<IndexedDB::IDBKeyRange>> upper_bound(JS::Realm& real
     // 1. Let upperKey be the result of converting a value to a key with upper. Rethrow any exceptions.
     auto key = TRY(IndexedDB::convert_a_value_to_a_key(realm, upper));
 
-    // 2. If upperKey is invalid, throw a "DataError" DOMException.
+    // 2. If upperKey is "invalid value" or "invalid type", throw a "DataError" DOMException.
     if (key->is_invalid())
         return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
@@ -111,14 +111,14 @@ WebIDL::ExceptionOr<GC::Ref<IndexedDB::IDBKeyRange>> bound(JS::Realm& realm, JS:
     // 1. Let lowerKey be the result of converting a value to a key with lower. Rethrow any exceptions.
     auto lower_key = TRY(IndexedDB::convert_a_value_to_a_key(realm, lower));
 
-    // 2. If lowerKey is invalid, throw a "DataError" DOMException.
+    // 2. If lowerKey is "invalid value" or "invalid type", throw a "DataError" DOMException.
     if (lower_key->is_invalid())
         return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
     // 3. Let upperKey be the result of converting a value to a key with upper. Rethrow any exceptions.
     auto upper_key = TRY(IndexedDB::convert_a_value_to_a_key(realm, upper));
 
-    // 4. If upperKey is invalid, throw a "DataError" DOMException.
+    // 4. If upperKey is "invalid value" or "invalid type", throw a "DataError" DOMException.
     if (upper_key->is_invalid())
         return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
@@ -136,7 +136,7 @@ WebIDL::ExceptionOr<bool> includes(JS::Realm& realm, IndexedDB::IDBKeyRange& key
     // 1. Let k be the result of converting a value to a key with key. Rethrow any exceptions.
     auto converted_key = TRY(IndexedDB::convert_a_value_to_a_key(realm, key));
 
-    // 2. If k is invalid, throw a "DataError" DOMException.
+    // 2. If k is "invalid value" or "invalid type", throw a "DataError" DOMException.
     if (converted_key->is_invalid())
         return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 

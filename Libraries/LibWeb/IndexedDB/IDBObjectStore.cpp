@@ -317,7 +317,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add_or_put(GC::Ref<IDBO
         // 1. Let r be the result of converting a value to a key with key. Rethrow any exceptions.
         auto r = TRY(convert_a_value_to_a_key(realm, key.value()));
 
-        // 2. If r is invalid, throw a "DataError" DOMException.
+        // 2. If r is "invalid value" or "invalid type", throw a "DataError" DOMException.
         if (r->is_invalid())
             return WebIDL::DataError::create("Key is invalid"_utf16);
 
@@ -352,7 +352,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add_or_put(GC::Ref<IDBO
             if (!store.uses_a_key_generator())
                 return WebIDL::DataError::create("Store does not have a key generator"_utf16);
 
-            // 2. Otherwise, if check that a key could be injected into a value with clone and store’s key path return false, throw a "DataError" DOMException.
+            // 2. If check that a key could be injected into a value with clone and store’s key path return false, throw a "DataError" DOMException.
             if (!check_that_a_key_could_be_injected_into_a_value(realm, clone, store.key_path().value()))
                 return WebIDL::DataError::create("Key could not be injected into value"_utf16);
         }
@@ -660,7 +660,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all_keys(Optional<J
     return create_a_request_to_retrieve_multiple_items(HTML::relevant_realm(relevant_global_object()), GC::Ref(*this), RecordKind::Key, query_or_options.value_or(JS::js_undefined()), count);
 }
 
-// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#dom-idbobjectstore-getallrecords
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-getallrecords
 WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all_records(RetrieveMultipleItemsOptions const& options)
 {
     // 1. Return the result of creating a request to retrieve multiple items with the current Realm record, this,

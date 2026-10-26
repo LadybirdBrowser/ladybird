@@ -78,7 +78,8 @@ protected:
     explicit IDBCursor(CursorSourceHandle, GC::Ptr<Key>, CursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
-    // A cursor has a value which represent the value of the last iterated record.
+    // A cursor has a key and a value which represent the key and the value of the last iterated record.
+    GC::Ptr<Key> m_key;
     Optional<JS::Value> m_value;
 
 private:
@@ -93,9 +94,6 @@ private:
 
     // A cursor has a got value flag.
     bool m_got_value { false };
-
-    // A cursor has a key which represent the key the last iterated record.
-    GC::Ptr<Key> m_key;
 
     // A cursor has a source handle, which is the index handle or the object store handle that opened the cursor.
     CursorSourceHandle m_source_handle;

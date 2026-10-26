@@ -107,7 +107,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(Utf16String cons
                     HTML::EventNames::error,
                     { .bubbles = true, .cancelable = true },
                     current_high_resolution_time(request->relevant_global_scope())));
-            } else {
+            }
+            // 2. Otherwise:
+            else {
                 // 1. Set request’s result to result.
                 Bindings::set_idb_request_result(realm, request, result.release_value());
 
@@ -132,14 +134,14 @@ WebIDL::ExceptionOr<i8> IDBFactory::cmp(JS::Value first, JS::Value second)
     // 1. Let a be the result of converting a value to a key with first. Rethrow any exceptions.
     auto a = TRY(convert_a_value_to_a_key(HTML::relevant_realm(relevant_global_object()), first));
 
-    // 2. If a is invalid, throw a "DataError" DOMException.
+    // 2. If a is "invalid value" or "invalid type", throw a "DataError" DOMException.
     if (a->is_invalid())
         return WebIDL::DataError::create("Failed to convert a value to a key"_utf16);
 
     // 3. Let b be the result of converting a value to a key with second. Rethrow any exceptions.
     auto b = TRY(convert_a_value_to_a_key(HTML::relevant_realm(relevant_global_object()), second));
 
-    // 4. If b is invalid, throw a "DataError" DOMException.
+    // 4. If b is "invalid value" or "invalid type", throw a "DataError" DOMException.
     if (b->is_invalid())
         return WebIDL::DataError::create("Failed to convert a value to a key"_utf16);
 
@@ -175,25 +177,21 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(Utf16
 
         // 3. Queue a database task to run these steps:
         queue_a_database_task(GC::create_function(GC::Heap::the(), [&realm, request, result = move(result)]() mutable {
-            // 1.  If result is an error,
+            // 1. If result is an error, set request’s error to result, set request’s done flag to true, and fire an event
+            //    named error at request with its bubbles and cancelable attributes initialized to true.
             if (result.is_error()) {
-                // set request’s error to result,
                 request->set_error(result.exception().get<GC::Ref<WebIDL::DOMException>>());
-                // set request’s done flag to true,
                 request->set_done(true);
-                // and fire an event named error at request with its bubbles and cancelable attributes initialized to true.
                 request->dispatch_event(DOM::Event::create(
                     HTML::EventNames::error,
                     { .bubbles = true, .cancelable = true },
                     current_high_resolution_time(request->relevant_global_scope())));
             }
-            // 2. Otherwise,
+            // 2. Otherwise, set request’s result to undefined, set request’s done flag to true, and fire a version change
+            //    event named success at request with result and null.
             else {
-                // set request’s result to undefined,
                 request->set_result(JS::js_undefined());
-                // set request’s done flag to true,
                 request->set_done(true);
-                // and fire a version change event named success at request with result and null.
                 auto value = result.release_value();
                 fire_a_version_change_event(realm, HTML::EventNames::success, request, value, {});
             }
@@ -231,21 +229,30 @@ void IDBFactory::databases(GC::Ref<WebIDL::Promise> promise)
     auto storage_key = maybe_storage_key.release_value();
 
     // 3. Let p be a new promise.
+    // NB: p is the promise that databases() created.
 
     // 4. Run these steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, storage_key, promise]() {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 1. Let databases be the set of databases in storageKey.
-        //    If this cannot be determined for any reason, then reject p with an appropriate error (e.g. an "UnknownError" DOMException) and terminate these steps.
+        //    If this cannot be determined for any reason, then queue a database task to reject p with an appropriate error (e.g. an "UnknownError" DOMException) and terminate these steps.
         auto databases = Database::for_key(storage_key);
 
         // 2. Let result be a new list.
-        // 3. For each db of databases, append an IDBDatabaseInfo dictionary
-        //    if db's version is not 0.
-        // 4. Resolve p with result.
+        // 3. For each db of databases:
+        //     1. If db's version is 0, then continue.
+        //     2. Let info be a new IDBDatabaseInfo dictionary.
+        //     3. Set info's name dictionary member to db's name.
+        //     4. Set info's version dictionary member to db's version.
+        //     5. Append info to result.
+        // 4. Queue a database task to resolve p with result.
+        // AD-HOC: p is resolved directly in a deferred invocation, not in a database task.
         Bindings::resolve_database_info_list_promise(realm, promise, databases);
     }));
+
+    // 5. Return p.
+    // NB: databases() returns p.
 }
 
 }

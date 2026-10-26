@@ -9,6 +9,7 @@ interface IDBTransaction : EventTarget {
     undefined commit();
     undefined abort();
 
+    // Event handlers:
     attribute EventHandler onabort;
     attribute EventHandler oncomplete;
     attribute EventHandler onerror;

@@ -44,8 +44,8 @@ struct IndexRecord {
     GC::Ref<Key> value;
 };
 
-// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#record-snapshot
-// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/461/95f98c0...43e154b.html#record-interface
+// https://w3c.github.io/IndexedDB/#record-snapshot
+// https://w3c.github.io/IndexedDB/#record-interface
 class IDBRecord : public Bindings::GCAllocatedWrappable {
     WEB_WRAPPABLE(IDBRecord, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(IDBRecord);

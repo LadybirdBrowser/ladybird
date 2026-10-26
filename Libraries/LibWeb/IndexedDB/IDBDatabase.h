@@ -22,7 +22,7 @@ using ObjectStoreParameters = Bindings::IDBObjectStoreParameters;
 using TransactionOptions = Bindings::IDBTransactionOptions;
 
 // https://w3c.github.io/IndexedDB/#IDBDatabase-interface
-// https://www.w3.org/TR/IndexedDB/#database-connection
+// https://w3c.github.io/IndexedDB/#database-connection
 class IDBDatabase : public DOM::EventTarget {
     WEB_WRAPPABLE(IDBDatabase, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(IDBDatabase);

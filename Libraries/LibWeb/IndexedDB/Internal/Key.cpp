@@ -60,34 +60,34 @@ i8 Key::compare_two_keys(GC::Ref<Key> a, GC::Ref<Key> b)
         if (ta == KeyType::Array)
             return 1;
 
-        // 1. If tb is array, then return -1.
+        // 2. If tb is array, then return -1.
         if (tb == KeyType::Array)
             return -1;
 
-        // 1. If ta is binary, then return 1.
+        // 3. If ta is binary, then return 1.
         if (ta == KeyType::Binary)
             return 1;
 
-        // 1. If tb is binary, then return -1.
+        // 4. If tb is binary, then return -1.
         if (tb == KeyType::Binary)
             return -1;
 
-        // 1. If ta is string, then return 1.
+        // 5. If ta is string, then return 1.
         if (ta == KeyType::String)
             return 1;
 
-        // 1. If tb is string, then return -1.
+        // 6. If tb is string, then return -1.
         if (tb == KeyType::String)
             return -1;
 
-        // 1. If ta is date, then return 1.
+        // 7. If ta is date, then return 1.
         if (ta == KeyType::Date)
             return 1;
 
-        // 1. Assert: tb is date.
+        // 8. Assert: tb is date.
         VERIFY(tb == KeyType::Date);
 
-        // 1. Return -1.
+        // 9. Return -1.
         return -1;
     }
 
