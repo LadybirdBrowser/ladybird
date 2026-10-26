@@ -125,6 +125,23 @@ static bool flatpak_firefox_is_installed(LexicalPath const& flatpak)
     return !exit_code.is_error() && exit_code.value() == 0;
 }
 
+static bool is_snap_firefox_wrapper(StringView path)
+{
+    if (auto snap = FileSystem::real_path("/usr/bin/snap"sv); !snap.is_error() && snap.value() == path)
+        return true;
+
+    auto file = Core::File::open(path, Core::File::OpenMode::Read);
+    if (file.is_error())
+        return false;
+
+    Array<u8, 2> header;
+    if (file.value()->read_until_filled(header).is_error() || StringView { header.span() } != "#!"sv)
+        return false;
+
+    auto contents = file.value()->read_until_eof();
+    return !contents.is_error() && StringView { contents.value() }.contains("\nexec /snap/bin/firefox "sv);
+}
+
 static ErrorOr<Optional<LexicalPath>> find_firefox_profile(LexicalPath const& profiles_ini, StringView profile_name)
 {
     auto profiles = TRY(Core::ConfigFile::open(profiles_ini.string()));
@@ -208,7 +225,7 @@ static Optional<FirefoxInstallation> firefox_installation_from_binary(StringView
         };
     }
 
-    if (canonical_path.value() == "/usr/bin/snap"sv) {
+    if (is_snap_firefox_wrapper(canonical_path.value())) {
         return FirefoxInstallation {
             .executable = LexicalPath { candidate },
             .arguments = {},
