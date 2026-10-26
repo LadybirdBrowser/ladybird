@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#[cfg(unix)]
 use std::collections::VecDeque;
+#[cfg(unix)]
 use std::sync::{Condvar, Mutex, MutexGuard};
 
 use crate::attachment::Attachment;
@@ -29,18 +31,21 @@ impl ReceivedMessage {
     }
 }
 
+#[cfg(unix)]
 #[derive(Default)]
 pub(crate) struct Incoming {
     pub messages: VecDeque<ReceivedMessage>,
     pub peer_eof: bool,
 }
 
+#[cfg(unix)]
 #[derive(Default)]
 pub(crate) struct IncomingQueue {
     incoming: Mutex<Incoming>,
     changed: Condvar,
 }
 
+#[cfg(unix)]
 impl IncomingQueue {
     pub fn lock(&self) -> MutexGuard<'_, Incoming> {
         self.incoming.lock().unwrap_or_else(|error| error.into_inner())

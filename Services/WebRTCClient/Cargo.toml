@@ -1,0 +1,26 @@
+[package]
+name = "webrtcclient_service"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+ak = { path = "../../AK/Rust" }
+ladybird_webrtc = { path = "../../Libraries/LibWebRTC/Rust" }
+ladybird_allocator = { path = "../../Libraries/RustAllocator", optional = true }
+libipc_rust = { path = "../../Libraries/LibIPC/Rust" }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "io-util", "net"] }
+anyhow = "1"
+env_logger = "0.11"
+log = "0.4"
+rustc-demangle = "0.1"
+
+[features]
+default = []
+allocator = ["dep:ladybird_allocator"]
+
+[lints]
+workspace = true

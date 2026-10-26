@@ -10,8 +10,11 @@
 //! boolean followed by the value, and a sequence as its size followed by its elements. File descriptors and port rights
 //! go beside the bytes, as attachments, in the order they are encoded.
 
+#[cfg(windows)]
+use crate::transport_windows::OwnedDescriptor;
 use std::collections::VecDeque;
-use std::os::fd::OwnedFd;
+#[cfg(unix)]
+use std::os::fd::OwnedFd as OwnedDescriptor;
 
 use crate::attachment::Attachment;
 
@@ -574,17 +577,23 @@ impl<T: Decode> Decode for Option<T> {
 
 /// `IPC::File`: a file descriptor, which goes as an attachment.
 #[derive(Debug)]
-pub struct File(pub OwnedFd);
+pub struct File(pub OwnedDescriptor);
 
 impl Encode for File {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         let fd = self.0.try_clone().map_err(EncodeError::Attachment)?;
+        #[cfg(unix)]
         encoder.append_attachment(Attachment::from_fd(fd).map_err(EncodeError::Attachment)?);
+        #[cfg(windows)]
+        encoder.append_attachment(Attachment::from_descriptor(fd));
         Ok(())
     }
 
     fn encode_owned(self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        #[cfg(unix)]
         encoder.append_attachment(Attachment::from_fd(self.0).map_err(EncodeError::Attachment)?);
+        #[cfg(windows)]
+        encoder.append_attachment(Attachment::from_descriptor(self.0));
         Ok(())
     }
 }
@@ -592,6 +601,9 @@ impl Encode for File {
 impl Decode for File {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         let attachment = decoder.take_attachment()?;
+        #[cfg(windows)]
+        return Ok(Self(attachment.into_descriptor()));
+        #[cfg(unix)]
         Ok(Self(
             attachment
                 .into_fd()
@@ -622,9 +634,10 @@ pub fn decode_message_header(decoder: &mut Decoder<'_>) -> Result<(u32, i32), De
     Ok((decoder.decode()?, decoder.decode()?))
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
+    use std::os::fd::OwnedFd;
 
     fn round_trip<T: Encode + Decode>(value: &T) -> (T, Vec<u8>) {
         let mut encoder = Encoder::new();

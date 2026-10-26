@@ -23,7 +23,9 @@ members = [
     "Libraries/LibWeb/ContentBlocker/Rust",
     "Libraries/LibWeb/Rust",
     "Libraries/LibWeb/HTML/Parser/Rust",
+    "Libraries/LibWebRTC/Rust",
     "Libraries/RustAllocator",
+    "Services/WebRTCClient",
     "Tests/LibIPC/RustEchoServer",
 ]
 exclude = [
