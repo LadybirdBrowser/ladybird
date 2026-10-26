@@ -167,7 +167,8 @@ runs:
       if: ${{ inputs.type == 'build' && inputs.os != 'Linux' }}
       uses: actions/cache@v6
       with:
-        path: ${{ github.workspace }}/${{ steps.wasm-tools.outputs.name }}
+        # The post-job save evaluates `path` without the steps context, so it must not depend on step outputs.
+        path: ${{ github.workspace }}/wasm-tools
         key: ${{ steps.wasm-tools.outputs.name }}
 
     - name: 'Install wasm-tools'
@@ -195,11 +196,12 @@ runs:
           tar -xzf "${FILENAME}"
         fi
         rm "${FILENAME}"
+        mv "${{ steps.wasm-tools.outputs.name }}" wasm-tools
 
     - name: 'Add wasm-tools to PATH'
       if: ${{ inputs.type == 'build' && inputs.os != 'Linux' }}
       shell: bash
-      run: echo "${GITHUB_WORKSPACE}/${{ steps.wasm-tools.outputs.name }}" >> "$GITHUB_PATH"
+      run: echo "${GITHUB_WORKSPACE}/wasm-tools" >> "$GITHUB_PATH"
 
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
