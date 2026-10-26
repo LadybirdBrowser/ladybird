@@ -911,6 +911,7 @@ void EventLoop::update_the_rendering()
         if (auto navigable = document->navigable()) {
             navigable->process_main_thread_smooth_scrolls();
             navigable->adopt_pending_async_scroll_offsets();
+            navigable->end_scroll_sequences_that_completed_since_the_last_frame();
         }
         // AD-HOC: A text control that script edited reveals its cursor now, once for all of the edits. See the note
         //         at FormAssociatedTextControlElement::CursorRevealAfterEdit.

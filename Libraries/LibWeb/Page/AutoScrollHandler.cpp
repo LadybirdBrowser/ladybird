@@ -205,6 +205,8 @@ void AutoScrollHandler::perform_tick()
     int scroll_y = m_fractional_delta.y().to_int();
     m_fractional_delta -= CSSPixelPoint { scroll_x, scroll_y };
 
+    if (auto stable_node_id = Painting::async_scroll_node_stable_id(*layout_node); stable_node_id.has_value() && m_scroll_gesture_hold)
+        m_scroll_gesture_hold->hold(stable_node_id.value());
     m_navigable->note_user_scroll_input_intent(Compositing::SnapSelectionStrategy::Type::EndPosition);
     if (Painting::scroll_by(*layout_node, scroll_x, scroll_y) == Painting::ScrollHandled::No)
         return;

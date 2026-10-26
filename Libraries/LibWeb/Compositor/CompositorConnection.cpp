@@ -594,8 +594,9 @@ Compositing::PendingAsyncScrollUpdates CompositorConnection::take_pending_async_
     updates.started_user_scrolls = move(pending->started_user_scrolls);
     updates.applied_scroll_requests = move(pending->applied_scroll_requests);
     updates.document_id = pending->document_id;
-    updates.user_scroll_gesture_in_progress = pending->user_scroll_gesture_in_progress;
-    updates.user_scroll_gesture_ended = pending->user_scroll_gesture_ended;
+    updates.boxes_in_user_scroll_gesture = pending->boxes_in_user_scroll_gesture;
+    updates.boxes_whose_user_scroll_gesture_ended = move(pending->boxes_whose_user_scroll_gesture_ended);
+    updates.wheel_latched_scroller = pending->wheel_latched_scroller;
     // Whether a gesture is in progress is a state the compositor process keeps current; the rest
     // was consumed here.
     pending->scroll_offsets.clear();
@@ -603,7 +604,7 @@ Compositing::PendingAsyncScrollUpdates CompositorConnection::take_pending_async_
     pending->operation_ids_taken_over_by_user_input.clear();
     pending->started_user_scrolls.clear();
     pending->applied_scroll_requests.clear();
-    pending->user_scroll_gesture_ended = false;
+    pending->boxes_whose_user_scroll_gesture_ended.clear();
     return updates;
 }
 
@@ -632,9 +633,13 @@ void CompositorConnection::merge_async_scroll_updates(Web::CompositorContextId c
     pending.applied_scroll_requests.extend(move(updates.applied_scroll_requests));
     if (is_newest) {
         pending.document_id = updates.document_id;
-        pending.user_scroll_gesture_in_progress = updates.user_scroll_gesture_in_progress;
+        pending.boxes_in_user_scroll_gesture = move(updates.boxes_in_user_scroll_gesture);
+        pending.wheel_latched_scroller = updates.wheel_latched_scroller;
     }
-    pending.user_scroll_gesture_ended |= updates.user_scroll_gesture_ended;
+    for (auto box : updates.boxes_whose_user_scroll_gesture_ended) {
+        if (!pending.boxes_whose_user_scroll_gesture_ended.contains_slow(box))
+            pending.boxes_whose_user_scroll_gesture_ended.append(box);
+    }
 }
 
 void CompositorConnection::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)

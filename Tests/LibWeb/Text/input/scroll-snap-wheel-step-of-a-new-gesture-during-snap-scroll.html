@@ -56,11 +56,12 @@
             await settled;
         };
 
-        await wheelStepsWhileMovingThePointer(50, 50, [200, -40], [reversalScroller]);
+        // The second step turns the box back before it has moved, so the box gets no scrollend event.
+        await wheelStepsWhileMovingThePointer(50, 50, [200, -40], []);
         println(`Reversal in a nested scroller: ${reversalScroller.scrollTop}, window: ${window.scrollY}`);
 
         document.documentElement.style.scrollSnapType = "y mandatory";
-        await wheelStepsWhileMovingThePointer(300, 50, [200, -40], [document]);
+        await wheelStepsWhileMovingThePointer(300, 50, [200, -40], []);
         println(`Reversal on the root scroller: ${window.scrollY}`);
         document.documentElement.style.scrollSnapType = "";
 

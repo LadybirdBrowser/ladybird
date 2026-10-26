@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .scroller {
+        position: absolute;
+        top: 0;
+        width: 150px;
+        height: 100px;
+        overflow-x: hidden;
+        overflow-y: scroll;
+    }
+
+    #dragged {
+        left: 0;
+    }
+
+    #flung {
+        left: 200px;
+    }
+
+    .content {
+        height: 5000px;
+    }
+</style>
+<div class="scroller" id="dragged"><div class="content"></div></div>
+<div class="scroller" id="flung"><div class="content"></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const dragged = document.getElementById("dragged");
+        const flung = document.getElementById("flung");
+        const scrollends = new Map([[dragged, 0], [flung, 0]]);
+        for (const scroller of scrollends.keys())
+            scroller.addEventListener("scrollend", () => scrollends.set(scroller, scrollends.get(scroller) + 1));
+        const report = when => println(`${when}: dragged box ${scrollends.get(dragged)}, flung box ${scrollends.get(flung)}`);
+        const settle = async () => {
+            for (let frame = 0; frame < 4; frame++)
+                await animationFrame();
+            await new Promise(resolve => setTimeout(resolve, 700));
+        };
+        const flick = async () => {
+            internals.wheelThroughUIProcess(250, 50, 0, 0, true, "began");
+            for (let step = 0; step < 3; step++)
+                await internals.wheelThroughUIProcess(250, 50, 0, 50, true, "ongoing");
+        };
+        const momentumFor = async milliseconds => {
+            const end = performance.now() + milliseconds;
+            while (performance.now() < end) {
+                await internals.wheelThroughUIProcess(250, 50, 0, 2, true, "momentum");
+                await animationFrame();
+            }
+        };
+
+        // The flung box comes to rest while the thumb of the other is held, and its scroll ends then.
+        await internals.mouseEventThroughUIProcess("mousemove", 147, 5);
+        await internals.mouseEventThroughUIProcess("mousedown", 147, 5);
+        await internals.mouseEventThroughUIProcess("mousemove", 147, 40, { buttons: 1 });
+        await flick();
+        await momentumFor(100);
+        await internals.wheelThroughUIProcess(250, 50, 0, 0, true, "ended");
+        await settle();
+        report("flung box at rest while the thumb is held");
+        await internals.mouseEventThroughUIProcess("mouseup", 147, 40);
+        await settle();
+        report("thumb released");
+
+        // The thumb of the other box is let go of while the flung box is still under momentum, and its scroll ends
+        // then.
+        await flick();
+        await internals.mouseEventThroughUIProcess("mousemove", 147, 40);
+        await internals.mouseEventThroughUIProcess("mousedown", 147, 40);
+        await internals.mouseEventThroughUIProcess("mousemove", 147, 70, { buttons: 1 });
+        await internals.mouseEventThroughUIProcess("mouseup", 147, 70);
+        await momentumFor(1000);
+        report("thumb released while the other box is under momentum");
+        await internals.wheelThroughUIProcess(250, 50, 0, 0, true, "ended");
+        await settle();
+        report("momentum ended");
+    });
+</script>

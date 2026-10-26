@@ -28,18 +28,26 @@ void AsyncScrollUpdateOutbox::record_scroll_offsets(ReadonlySpan<Compositing::As
         set_or_append_pending_scroll_offset(m_pending_scroll_offsets, scroll_offset);
 }
 
-bool AsyncScrollUpdateOutbox::has_updates(bool user_scroll_gesture_in_progress) const
+void AsyncScrollUpdateOutbox::note_user_scroll_gesture_ended(ReadonlySpan<Web::AsyncScrollNodeStableID> stable_node_ids)
+{
+    for (auto stable_node_id : stable_node_ids) {
+        if (!m_boxes_whose_user_scroll_gesture_ended.contains_slow(stable_node_id))
+            m_boxes_whose_user_scroll_gesture_ended.append(stable_node_id);
+    }
+}
+
+bool AsyncScrollUpdateOutbox::has_updates(UserScrollGestureState const& user_scroll_gesture_state) const
 {
     return !m_pending_scroll_offsets.is_empty()
         || !m_completed_operation_ids.is_empty()
         || !m_operation_ids_taken_over_by_user_input.is_empty()
         || !m_started_user_scrolls.is_empty()
         || !m_applied_scroll_requests.is_empty()
-        || m_user_scroll_gesture_ended
-        || user_scroll_gesture_in_progress != m_published_user_scroll_gesture_in_progress;
+        || !m_boxes_whose_user_scroll_gesture_ended.is_empty()
+        || user_scroll_gesture_state != m_published_user_scroll_gesture_state;
 }
 
-Compositing::PendingAsyncScrollUpdates AsyncScrollUpdateOutbox::take_updates(bool user_scroll_gesture_in_progress)
+Compositing::PendingAsyncScrollUpdates AsyncScrollUpdateOutbox::take_updates(UserScrollGestureState user_scroll_gesture_state)
 {
     Compositing::PendingAsyncScrollUpdates updates;
     updates.sequence = ++m_last_publication_sequence;
@@ -48,10 +56,10 @@ Compositing::PendingAsyncScrollUpdates AsyncScrollUpdateOutbox::take_updates(boo
     AK::swap(updates.operation_ids_taken_over_by_user_input, m_operation_ids_taken_over_by_user_input);
     AK::swap(updates.started_user_scrolls, m_started_user_scrolls);
     AK::swap(updates.applied_scroll_requests, m_applied_scroll_requests);
-    updates.user_scroll_gesture_in_progress = user_scroll_gesture_in_progress;
-    updates.user_scroll_gesture_ended = m_user_scroll_gesture_ended;
-    m_user_scroll_gesture_ended = false;
-    m_published_user_scroll_gesture_in_progress = updates.user_scroll_gesture_in_progress;
+    AK::swap(updates.boxes_whose_user_scroll_gesture_ended, m_boxes_whose_user_scroll_gesture_ended);
+    updates.boxes_in_user_scroll_gesture = user_scroll_gesture_state.boxes_in_user_scroll_gesture;
+    updates.wheel_latched_scroller = user_scroll_gesture_state.wheel_latched_scroller;
+    m_published_user_scroll_gesture_state = move(user_scroll_gesture_state);
     return updates;
 }
 

@@ -25,14 +25,20 @@
         println(`window.scrollY: ${window.scrollY}`);
         println("visual viewport scroll and scrollend: received");
 
+        // The window's larger wheel step animates faster than the visual viewport's, so its scroll completes first.
         const scrollendOrder = [];
-        visualViewport.addEventListener("scrollend", () => scrollendOrder.push("visualViewport"), { once: true });
-        const documentScrollend = new Promise(resolve => document.addEventListener("scrollend", () => {
-            scrollendOrder.push("document");
-            resolve();
-        }, { once: true }));
+        const bothScrollends = Promise.all([
+            new Promise(resolve => visualViewport.addEventListener("scrollend", () => {
+                scrollendOrder.push("visualViewport");
+                resolve();
+            }, { once: true })),
+            new Promise(resolve => document.addEventListener("scrollend", () => {
+                scrollendOrder.push("document");
+                resolve();
+            }, { once: true })),
+        ]);
         await internals.wheel(100, 100, 0, 800);
-        await documentScrollend;
+        await bothScrollends;
         println(`window scrolled: ${window.scrollY > 0}`);
         println(`scrollend order: ${scrollendOrder.join(",")}`);
 

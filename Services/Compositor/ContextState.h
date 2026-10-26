@@ -277,7 +277,8 @@ private:
     // A script that scrolls the box a gesture is latched to stops the momentum the gesture carries on with.
     void stop_user_scroll_carried_on_by_momentum_of(Web::AsyncScrollNodeStableID);
     void scroll_visual_viewport_position_in_page(Compositing::AsyncScrollNodeID viewport_node_id, Compositing::RequestedRelativeScroll const&, Vector<Compositing::AsyncScrollOffset>& answers);
-    void apply_visual_viewport_scroll_request(Compositing::ScrollRequest const&, Vector<Compositing::AsyncScrollOffset>& answers);
+    // Returns whether the request moved the visual viewport.
+    bool apply_visual_viewport_scroll_request(Compositing::ScrollRequest const&, Vector<Compositing::AsyncScrollOffset>& answers);
     // Pans the visual viewport of a zoomed page by as much of a delta in screen pixels as it has room for, and returns
     // that part of the delta.
     Gfx::FloatPoint pan_visual_viewport_by(Gfx::FloatPoint delta_in_screen_pixels);
@@ -333,8 +334,10 @@ private:
     AsyncScrollResult smooth_wheel_scroll_by(Optional<Compositing::WheelScrollTarget> const&, Gfx::IntRect viewport_rect, MonotonicTime now);
     void retarget_user_scroll(ActiveSmoothScrollAnimation&, Gfx::FloatPoint destination_offset, MonotonicTime now);
     void report_started_user_scroll(Compositing::AsyncScrollOperationID, Web::AsyncScrollNodeStableID, Gfx::FloatPoint step_start_offset, Gfx::FloatPoint destination_offset, Compositing::ScrollAnimationKind, bool is_absolute_scroll = false);
-    void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_scrollbar);
-    bool user_scroll_gesture_in_progress() const;
+    Optional<Web::AsyncScrollNodeStableID> box_of_captured_scrollbar() const;
+    void note_user_scroll_gesture_end_if_drag_ended(Optional<Web::AsyncScrollNodeStableID> box_of_dragged_scrollbar);
+    void end_user_scroll_gesture_of_held_keys();
+    AsyncScrollUpdateOutbox::UserScrollGestureState user_scroll_gesture_state() const;
     void schedule_end_of_scroll_step_gestures(MonotonicTime now);
     // A gesture whose steps this context chains ends once they stop arriving, which is reported to WebContent so
     // that it settles the gesture then rather than on a clock of its own.
@@ -380,6 +383,8 @@ private:
     // The document whose visual viewport this context zoomed or panned, which it presents as it left it from then on.
     Optional<Web::UniqueNodeID> m_visual_viewport_document_id;
     KeyboardScrollController m_keyboard_scroll_controller;
+    // The boxes that the keys held since none was have scrolled, whose gesture lasts until the last of them is released.
+    Vector<Web::AsyncScrollNodeStableID> m_boxes_scrolled_by_held_keys;
     RefPtr<Core::Timer> m_scroll_step_gesture_input_timer;
     WheelGestureRouting m_wheel_gesture_routing;
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;

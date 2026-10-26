@@ -7,6 +7,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/JsonObject.h>
 #include <AK/Math.h>
+#include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
 #include <Compositor/CompositorState.h>
 #include <Compositor/ContextState.h>
@@ -164,11 +165,11 @@ void ContextState::install_display_list_update(
         m_visual_viewport_document_id.clear();
     }
 
-    auto was_dragging_scrollbar = m_scrollbar_controller.has_captured_scrollbar();
+    auto box_of_dragged_scrollbar = box_of_captured_scrollbar();
     m_scrollbar_controller.set_scrollbars(async_scrolling_state.scrollbars);
     if (!m_scrollbar_controller.has_captured_scrollbar())
         stop_scrollbar_paging();
-    note_user_scroll_gesture_end_if_drag_ended(was_dragging_scrollbar);
+    note_user_scroll_gesture_end_if_drag_ended(box_of_dragged_scrollbar);
     m_async_scroll_tree.set_state(move(async_scrolling_state));
     m_elastic_overscroll_controller.did_install_scrolling_state(m_async_scroll_tree);
     m_scroll_snap_controller.did_install_scrolling_state(m_async_scroll_tree);
@@ -259,7 +260,7 @@ void ContextState::end_keyboard_scroll_gesture()
 {
     if (!m_keyboard_scroll_controller.release_all_keys())
         return;
-    m_async_scroll_update_outbox.note_user_scroll_gesture_ended();
+    end_user_scroll_gesture_of_held_keys();
     request_rendering_update();
 }
 
@@ -275,7 +276,7 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
         if (release == KeyboardScrollController::KeyRelease::Ignored)
             return {};
         if (release == KeyboardScrollController::KeyRelease::ReleasedLastHeldKey)
-            m_async_scroll_update_outbox.note_user_scroll_gesture_ended();
+            end_user_scroll_gesture_of_held_keys();
         return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
     }
 
@@ -308,6 +309,8 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
     m_keyboard_scroll_controller.hold_key(event.key);
 
     auto stable_node_id = m_async_scroll_tree.scroll_node_for_id(*target)->stable_node_id;
+    if (!m_boxes_scrolled_by_held_keys.contains_slow(stable_node_id))
+        m_boxes_scrolled_by_held_keys.append(stable_node_id);
     Optional<Gfx::FloatPoint> scroll_in_flight_destination;
     for (auto const& running_animation : m_smooth_scroll_animations) {
         if (running_animation.stable_node_id == stable_node_id && running_animation.is_user_scroll && running_animation.animation.kind() == Compositing::ScrollAnimationKind::SmoothScroll)
@@ -518,7 +521,7 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEve
         if (event.button != Web::UIEvents::MouseButton::Primary)
             return ContextUpdateResult::declined(Web::InputRoutingDecision::NotPrimaryButton);
 
-        auto was_dragging_scrollbar = m_scrollbar_controller.has_captured_scrollbar();
+        auto box_of_dragged_scrollbar = box_of_captured_scrollbar();
         auto scrollbar_dragged_by_compositor = m_scrollbar_controller.captured_scrollbar_painted_by_display_list();
         auto drag = m_scrollbar_controller.release_captured_drag(m_scene.visual_context_tree_for_compositing(), m_scroll_state_snapshot, position);
         auto was_paging = m_scrollbar_paging.has_value();
@@ -526,7 +529,7 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEve
         if (!drag.has_value())
             return ContextUpdateResult::declined(Web::InputRoutingDecision::NoScrollbarDrag);
 
-        note_user_scroll_gesture_end_if_drag_ended(was_dragging_scrollbar);
+        note_user_scroll_gesture_end_if_drag_ended(box_of_dragged_scrollbar);
 
         ContextUpdateResult result;
         result.accepted = true;
@@ -568,10 +571,11 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEve
         // A cancel ends a drag where it last scrolled to, as a cancel has no position of its own, and the pointer then
         // counts as having left. The page still sees the cancel, so it is not accepted.
         auto was_dragging_scrollbar = m_scrollbar_controller.has_captured_scrollbar();
+        auto box_of_dragged_scrollbar = box_of_captured_scrollbar();
         auto scrollbar_dragged_by_compositor = m_scrollbar_controller.captured_scrollbar_painted_by_display_list();
         (void)m_scrollbar_controller.release_captured_drag(m_scene.visual_context_tree_for_compositing(), m_scroll_state_snapshot, position);
         stop_scrollbar_paging();
-        note_user_scroll_gesture_end_if_drag_ended(was_dragging_scrollbar);
+        note_user_scroll_gesture_end_if_drag_ended(box_of_dragged_scrollbar);
         auto hovered_scrollbar_changed = m_scrollbar_controller.set_hovered_scrollbar({});
 
         ContextUpdateResult result;
@@ -1008,9 +1012,12 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
     for (auto const& scroll_request : scroll_requests) {
         // The box's offsets are reported as of this request from here on, whether or not the box is here yet.
         m_applied_scroll_request_ids.set(scroll_request.stable_node_id, scroll_request.request_id);
-        m_async_scroll_update_outbox.note_scroll_request_applied({ scroll_request.stable_node_id, scroll_request.request_id });
+        bool moved_the_box = false;
+        ScopeGuard note_request_applied = [&] {
+            m_async_scroll_update_outbox.note_scroll_request_applied({ scroll_request.stable_node_id, scroll_request.request_id, moved_the_box });
+        };
         if (scroll_request.stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport) {
-            apply_visual_viewport_scroll_request(scroll_request, answers);
+            moved_the_box = apply_visual_viewport_scroll_request(scroll_request, answers);
             continue;
         }
 
@@ -1027,6 +1034,7 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
         // The answer tells the main thread where the box went for the request, even where it stayed where it was.
         auto answer_with_the_offset_of_the_box = [&] {
             auto new_offset = m_async_scroll_tree.scroll_offset_for_node(node_id.value(), m_scroll_state_snapshot).value();
+            moved_the_box = new_offset != old_offset.value();
             if (m_async_scroll_tree.scroll_node_is_viewport(node_id.value()))
                 m_async_scrolling_viewport_rect.set_location(new_offset.to_type<int>());
             answers.append({
@@ -1222,13 +1230,13 @@ void ContextState::scroll_visual_viewport_position_in_page(Compositing::AsyncScr
     });
 }
 
-void ContextState::apply_visual_viewport_scroll_request(Compositing::ScrollRequest const& scroll_request, Vector<Compositing::AsyncScrollOffset>& answers)
+bool ContextState::apply_visual_viewport_scroll_request(Compositing::ScrollRequest const& scroll_request, Vector<Compositing::AsyncScrollOffset>& answers)
 {
     // The main thread animates the visual viewport itself, one jump at a time.
     if (scroll_request.smooth_scroll.has_value())
         m_async_scroll_update_outbox.complete_operation(scroll_request.smooth_scroll->operation_id);
     if (!m_scene.visual_context_tree().has_value() || scroll_request.stable_node_id.node_id != m_async_scroll_tree.document_id())
-        return;
+        return false;
 
     auto transform = m_scene.visual_viewport_transform();
     auto old_scroll_offset = visual_viewport_scroll_offset(transform);
@@ -1254,6 +1262,7 @@ void ContextState::apply_visual_viewport_scroll_request(Compositing::ScrollReque
         .applied_scroll_request_id = 0,
         .user_input_scroll_count = 0,
     });
+    return new_scroll_offset != old_scroll_offset;
 }
 
 Optional<Gfx::FloatPoint> ContextState::in_flight_wheel_destination(Web::AsyncScrollNodeStableID stable_node_id) const
@@ -1791,14 +1800,14 @@ Optional<Compositing::ScrollStateSnapshot> ContextState::scroll_state_snapshot_s
 
 Compositing::PendingAsyncScrollUpdates ContextState::take_pending_async_scroll_updates()
 {
-    auto updates = m_async_scroll_update_outbox.take_updates(user_scroll_gesture_in_progress());
+    auto updates = m_async_scroll_update_outbox.take_updates(user_scroll_gesture_state());
     updates.document_id = m_async_scroll_tree.document_id();
     return updates;
 }
 
 bool ContextState::has_pending_async_scroll_updates() const
 {
-    return m_async_scroll_update_outbox.has_updates(user_scroll_gesture_in_progress());
+    return m_async_scroll_update_outbox.has_updates(user_scroll_gesture_state());
 }
 
 void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
@@ -2159,17 +2168,41 @@ void ContextState::cancel_smooth_scroll_taken_over_by_user_input(Compositing::As
     }
 }
 
-void ContextState::note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_scrollbar)
+Optional<Web::AsyncScrollNodeStableID> ContextState::box_of_captured_scrollbar() const
 {
-    if (was_dragging_scrollbar && !m_scrollbar_controller.has_captured_scrollbar())
-        m_async_scroll_update_outbox.note_user_scroll_gesture_ended();
+    auto scrollbar_index = m_scrollbar_controller.captured_scrollbar_index();
+    if (!scrollbar_index.has_value())
+        return {};
+    return m_scrollbar_controller.scrollbars()[scrollbar_index.value()].scroller_stable_node_id;
 }
 
-bool ContextState::user_scroll_gesture_in_progress() const
+void ContextState::note_user_scroll_gesture_end_if_drag_ended(Optional<Web::AsyncScrollNodeStableID> box_of_dragged_scrollbar)
 {
-    return m_scrollbar_controller.has_captured_scrollbar()
-        || m_keyboard_scroll_controller.has_held_keys()
-        || m_scroll_snap_controller.has_gesture_awaiting_input();
+    if (box_of_dragged_scrollbar.has_value() && !m_scrollbar_controller.has_captured_scrollbar())
+        m_async_scroll_update_outbox.note_user_scroll_gesture_ended({ &box_of_dragged_scrollbar.value(), 1 });
+}
+
+void ContextState::end_user_scroll_gesture_of_held_keys()
+{
+    m_async_scroll_update_outbox.note_user_scroll_gesture_ended(m_boxes_scrolled_by_held_keys);
+    m_boxes_scrolled_by_held_keys.clear();
+}
+
+AsyncScrollUpdateOutbox::UserScrollGestureState ContextState::user_scroll_gesture_state() const
+{
+    AsyncScrollUpdateOutbox::UserScrollGestureState state;
+    if (auto box = box_of_captured_scrollbar(); box.has_value())
+        state.boxes_in_user_scroll_gesture.append(box.value());
+    for (auto box : m_boxes_scrolled_by_held_keys) {
+        if (!state.boxes_in_user_scroll_gesture.contains_slow(box))
+            state.boxes_in_user_scroll_gesture.append(box);
+    }
+    for (auto box : m_scroll_snap_controller.boxes_with_gesture_awaiting_input()) {
+        if (!state.boxes_in_user_scroll_gesture.contains_slow(box))
+            state.boxes_in_user_scroll_gesture.append(box);
+    }
+    state.wheel_latched_scroller = m_wheel_gesture_routing.latched_scroller();
+    return state;
 }
 
 void ContextState::schedule_end_of_scroll_step_gestures(MonotonicTime now)
@@ -2190,8 +2223,8 @@ void ContextState::schedule_end_of_scroll_step_gestures(MonotonicTime now)
 
 void ContextState::end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now)
 {
-    if (m_scroll_snap_controller.end_gestures_whose_input_ran_out(now)) {
-        m_async_scroll_update_outbox.note_user_scroll_gesture_ended();
+    if (auto ended_boxes = m_scroll_snap_controller.end_gestures_whose_input_ran_out(now); !ended_boxes.is_empty()) {
+        m_async_scroll_update_outbox.note_user_scroll_gesture_ended(ended_boxes);
         request_rendering_update();
     }
     schedule_end_of_scroll_step_gestures(now);

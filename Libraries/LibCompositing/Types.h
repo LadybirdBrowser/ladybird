@@ -81,6 +81,7 @@ struct KeyboardScrollState {
 struct AppliedScrollRequest {
     Web::AsyncScrollNodeStableID stable_node_id;
     u64 request_id { 0 };
+    bool moved_the_box { false };
 };
 
 struct PendingAsyncScrollUpdates {
@@ -93,8 +94,11 @@ struct PendingAsyncScrollUpdates {
     Vector<AsyncScrollOperationID> operation_ids_taken_over_by_user_input;
     Vector<StartedUserScroll> started_user_scrolls;
     Vector<AppliedScrollRequest> applied_scroll_requests;
-    bool user_scroll_gesture_in_progress { false };
-    bool user_scroll_gesture_ended { false };
+    // The boxes whose gesture held input of the compositor's own keeps going, and those whose gesture ended since the
+    // previous updates, which may never have been published as going on.
+    Vector<Web::AsyncScrollNodeStableID> boxes_in_user_scroll_gesture;
+    Vector<Web::AsyncScrollNodeStableID> boxes_whose_user_scroll_gesture_ended;
+    Optional<Web::AsyncScrollNodeStableID> wheel_latched_scroller;
 };
 
 struct AsyncScrollEnqueueResult {

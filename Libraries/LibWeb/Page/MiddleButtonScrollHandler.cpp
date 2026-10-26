@@ -93,6 +93,8 @@ void MiddleButtonScrollHandler::perform_tick()
         // until it runs out of scrolls, so it is held open for as long as this handler lives.
         if (!m_scroll_gesture_hold)
             m_scroll_gesture_hold = make<HTML::UserScrollGestureHold>(*navigable);
+        if (auto stable_node_id = Painting::async_scroll_node_stable_id(*layout_node); stable_node_id.has_value())
+            m_scroll_gesture_hold->hold(stable_node_id.value());
         navigable->note_user_scroll_input_intent(Compositing::SnapSelectionStrategy::Type::EndPosition);
     }
     Painting::scroll_by(*layout_node, scroll_x, scroll_y);
