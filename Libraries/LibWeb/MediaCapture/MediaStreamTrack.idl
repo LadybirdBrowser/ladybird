@@ -11,6 +11,7 @@ interface MediaStreamTrack : EventTarget {
     attribute boolean enabled;
     readonly attribute boolean muted;
     [ImplementedAs=track_ready_state] readonly attribute MediaStreamTrackState readyState;
+    MediaStreamTrack clone();
     undefined stop();
     [ImplementedAs=get_capabilities] MediaTrackCapabilities getCapabilities();
     MediaTrackConstraints getConstraints();

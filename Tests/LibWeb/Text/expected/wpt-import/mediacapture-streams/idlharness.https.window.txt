@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 168 tests
 
-102 Pass
-66 Fail
+103 Pass
+65 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Navigator: original interface defined
@@ -83,7 +83,7 @@ Fail	MediaStreamTrack interface: attribute onmute
 Fail	MediaStreamTrack interface: attribute onunmute
 Pass	MediaStreamTrack interface: attribute readyState
 Fail	MediaStreamTrack interface: attribute onended
-Fail	MediaStreamTrack interface: operation clone()
+Pass	MediaStreamTrack interface: operation clone()
 Pass	MediaStreamTrack interface: operation stop()
 Pass	MediaStreamTrack interface: operation getCapabilities()
 Pass	MediaStreamTrack interface: operation getConstraints()
