@@ -22,7 +22,7 @@ jobs:
         include:
           - os_name: 'macOS'
             arch: 'arm64'
-            runner_labels: '{"group": "Distribution build runners", "labels": ["self-hosted", "macos-26", "arm64"]}'
+            runner_labels: '{"group": "Distribution build runners", "labels": ["self-hosted", "macos-27", "arm64"]}'
 
     permissions:
       contents: read
