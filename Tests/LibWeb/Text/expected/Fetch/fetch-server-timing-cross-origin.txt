@@ -1,7 +1,7 @@
 cross-origin response: true
 Server-Timing header visible: false
-timing allowed: true, metrics: 0
-metrics: 
+timing allowed: true, metrics: 1
+metrics: db/12.5/cache
 cross-origin response: true
 Server-Timing header visible: false
 timing allowed: false, metrics: 0
