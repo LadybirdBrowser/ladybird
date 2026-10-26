@@ -102,7 +102,7 @@ impl<'a> PaintableCommit<'a> {
         self.arena
     }
 
-    fn arena_mut(&mut self) -> &mut LayoutNodeArena {
+    pub(crate) fn arena_mut(&mut self) -> &mut LayoutNodeArena {
         self.arena
     }
 

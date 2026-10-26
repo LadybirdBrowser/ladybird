@@ -726,7 +726,10 @@ impl AbsposEngine<'_> {
         entry_containing_block_geometry: Option<&ContainingBlockGeometry>,
         entry_coordinate_space_box: Node,
         position_area_anchor_box: Option<Node>,
-    ) -> Option<formatting_context::ResolvedAnchorInsets> {
+    ) -> (
+        Option<formatting_context::ResolvedAnchorInsets>,
+        abspos_inputs::DefaultScrollShift,
+    ) {
         let (resolved, default_scroll_shift) = self.resolve_anchor_insets_and_default_scroll_shift(
             node,
             containing_block,
@@ -757,13 +760,14 @@ impl AbsposEngine<'_> {
                     default_scroll_shift.compensates_for_vertical_scroll,
                 )
             };
-        self.callbacks.arena().set_default_scroll_shift(
-            node,
-            default_scroll_shift.default_anchor_box,
-            compensates_for_horizontal_scroll,
-            compensates_for_vertical_scroll,
-        );
-        resolved
+        (
+            resolved,
+            abspos_inputs::DefaultScrollShift {
+                anchor: default_scroll_shift.default_anchor_box,
+                compensates_for_horizontal_scroll,
+                compensates_for_vertical_scroll,
+            },
+        )
     }
 
     fn resolve_anchor_insets_and_default_scroll_shift(
@@ -3202,8 +3206,9 @@ impl<'pass> AbsposEngine<'pass> {
         let position_option = self.determine_position_fallback_styles(&child);
         self.records
             .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
-        let mut inputs = self.pending_child_layout_inputs(&mut child);
+        let (mut inputs, default_scroll_shift) = self.pending_child_layout_inputs(&mut child);
         inputs.position_option = position_option.choice();
+        self.used(child_box).rare_data_mut().default_scroll_shift = Some(default_scroll_shift);
         self.install_resolved_anchor_sizes(child_box, &inputs);
         self.layout_element(run, child_box, inputs);
         drop(position_option);
@@ -3220,7 +3225,7 @@ impl<'pass> AbsposEngine<'pass> {
         let mut styles = PositionOptionStyles {
             callbacks: self.callbacks,
             node,
-            choice: abspos_inputs::PositionOptionChoice::default(),
+            choice: None,
             records: Vec::new(),
             installed: false,
         };
@@ -3228,15 +3233,12 @@ impl<'pass> AbsposEngine<'pass> {
         let anchor = style.anchor();
         let arena = self.callbacks.arena();
         if anchor.position_try_fallbacks.length == 0 || !style.is_absolutely_positioned() {
-            arena.forget_position_option_in_use(node);
             return styles;
         }
         let Some(style_node) = arena.node_style_node(node) else {
-            arena.forget_position_option_in_use(node);
             return styles;
         };
         let base_style_record = arena.node_style_record(node);
-        styles.choice.base_style_record = base_style_record;
         // Logical directions are resolved against the writing mode of the containing block.
         let containing_block = child.containing_block();
         let (writing_mode, direction) = if containing_block.is_invalid() {
@@ -3257,7 +3259,6 @@ impl<'pass> AbsposEngine<'pass> {
             engine.position_option_entries(style_node, base_style_record, POSITION_OPTIONS_LIST_LIMIT - 1)
         });
         if entries.is_empty() {
-            arena.forget_position_option_in_use(node);
             return styles;
         }
         let entry_of = |option: u32| {
@@ -3307,7 +3308,7 @@ impl<'pass> AbsposEngine<'pass> {
                     let style = option_style(option)?;
                     let size = self.with_position_option_style(node, style, || {
                         let mut child = *child;
-                        let inputs = self.pending_child_layout_inputs(&mut child);
+                        let (inputs, _) = self.pending_child_layout_inputs(&mut child);
                         let size = self.inset_modified_containing_block_size(node, &inputs);
                         let horizontal_is_frame_inline = !self.callbacks.frame.is_transposed();
                         let inline_axis_is_horizontal = writing_mode == writing_mode::HORIZONTAL_TB;
@@ -3383,9 +3384,8 @@ impl<'pass> AbsposEngine<'pass> {
         };
         let option = options[chosen];
         let style = option_style(option).flatten();
-        styles.choice = choice_of(option);
+        styles.choice = Some(choice_of(option));
         styles.records = records.into_inner();
-        arena.note_position_option_in_use(node, styles.choice);
         if let Some(style) = style {
             self.callbacks.scratch().push_position_option_style(node, style);
             styles.installed = true;
@@ -3447,8 +3447,8 @@ impl<'pass> AbsposEngine<'pass> {
     ) -> bool {
         let node = child.child_box;
         let mut child = *child;
-        let mut inputs = self.pending_child_layout_inputs(&mut child);
-        inputs.position_option = choice;
+        let (mut inputs, _) = self.pending_child_layout_inputs(&mut child);
+        inputs.position_option = Some(choice);
         // 3. Let el rect be the size and position of abspos's margin box, and cb rect be the size and position of
         //    abspos's inset-modified containing block, when laid out with adjusted styles.
         let used = used_values::create_used_values(&self.callbacks, node, ContainingBlockConstraints::default());
@@ -3536,7 +3536,7 @@ impl<'pass> AbsposEngine<'pass> {
     fn pending_child_layout_inputs(
         &self,
         child: &mut abspos_inputs::PendingAbsposChild,
-    ) -> abspos_inputs::AbsposLayoutInputs {
+    ) -> (abspos_inputs::AbsposLayoutInputs, abspos_inputs::DefaultScrollShift) {
         let child_box = child.child_box;
         let containing_block_geometry = self.containing_block_geometry_for_pending_child(child);
         let inline_containing_block_rect =
@@ -3569,13 +3569,14 @@ impl<'pass> AbsposEngine<'pass> {
             child.coordinate_space_box,
             unresolved_containing_block_info,
         );
-        let (containing_block_info, resolved, resolved_anchor_sizes) = if let Some((
+        let (containing_block_info, resolved, resolved_anchor_sizes, default_scroll_shift) = if let Some((
             static_position_rect,
             position_area_containing_block_info,
             position_area_geometry,
             anchor_box,
             (stretches_inline, stretches_block),
-        )) = position_area_inputs
+        )) =
+            position_area_inputs
         {
             child.static_position_rect = static_position_rect;
             let mut resolved_anchor_sizes = self.resolve_anchor_sizes(
@@ -3589,7 +3590,7 @@ impl<'pass> AbsposEngine<'pass> {
                 &mut resolved_anchor_sizes,
                 &position_area_containing_block_info,
             );
-            let resolved = self.resolve_anchor_insets(
+            let (resolved, default_scroll_shift) = self.resolve_anchor_insets(
                 child_box,
                 child.containing_block(),
                 Some(&position_area_geometry),
@@ -3597,7 +3598,12 @@ impl<'pass> AbsposEngine<'pass> {
                 Some(anchor_box),
             );
             let resolved = self.position_area_stretch_insets(child_box, resolved, stretches_inline, stretches_block);
-            (position_area_containing_block_info, resolved, resolved_anchor_sizes)
+            (
+                position_area_containing_block_info,
+                resolved,
+                resolved_anchor_sizes,
+                default_scroll_shift,
+            )
         } else {
             let mut resolved_anchor_sizes = self.resolve_anchor_sizes(
                 child_box,
@@ -3605,7 +3611,7 @@ impl<'pass> AbsposEngine<'pass> {
                 &containing_block_geometry,
                 child.coordinate_space_box,
             );
-            let resolved = self.resolve_anchor_insets(
+            let (resolved, default_scroll_shift) = self.resolve_anchor_insets(
                 child_box,
                 child.containing_block(),
                 Some(&containing_block_geometry),
@@ -3630,17 +3636,23 @@ impl<'pass> AbsposEngine<'pass> {
                 &mut containing_block_info,
             );
             self.zero_aligned_auto_margins(child_box, &mut resolved_anchor_sizes, &containing_block_info);
-            (containing_block_info, resolved, resolved_anchor_sizes)
+            (
+                containing_block_info,
+                resolved,
+                resolved_anchor_sizes,
+                default_scroll_shift,
+            )
         };
-        abspos_inputs::AbsposLayoutInputs {
+        let inputs = abspos_inputs::AbsposLayoutInputs {
             containing_block: child.containing_block(),
             inline_containing_block: child.inline_containing_block(),
             static_position_rect: child.static_position_rect,
             containing_block_info,
             resolved_anchor_insets: resolved,
             resolved_anchor_sizes,
-            position_option: abspos_inputs::PositionOptionChoice::default(),
-        }
+            position_option: None,
+        };
+        (inputs, default_scroll_shift)
     }
 
     /// Joins the entry against the inline containing block rect its IFC
@@ -3683,6 +3695,10 @@ impl<'pass> AbsposEngine<'pass> {
         // exactly once.
         self.records
             .create_used_values(&self.callbacks, node, ContainingBlockConstraints::default());
+        self.used(node).rare_data_mut().default_scroll_shift = self
+            .callbacks
+            .committed_fragment_link(node)
+            .and_then(|link| link.default_scroll_shift);
         self.layout_element(run, node, inputs);
     }
 
@@ -3707,13 +3723,15 @@ impl<'pass> AbsposEngine<'pass> {
         // an anchor-bearing box resolves its insets even when it turns out not
         // to be relatively positioned.
         let resolved = if has_anchor_insets {
-            self.resolve_anchor_insets(
+            let (resolved, default_scroll_shift) = self.resolve_anchor_insets(
                 node,
                 self.callbacks.in_flow_containing_block(node),
                 None,
                 NodeSlotId::INVALID,
                 None,
-            )
+            );
+            self.used(node).rare_data_mut().default_scroll_shift = Some(default_scroll_shift);
+            resolved
         } else {
             None
         };
@@ -3821,13 +3839,13 @@ pub(crate) fn compute_inset_native(
 struct PositionOptionStyles<'pass> {
     callbacks: LayoutPass<'pass>,
     node: Node,
-    choice: abspos_inputs::PositionOptionChoice,
+    choice: Option<abspos_inputs::PositionOptionChoice>,
     records: Vec<crate::css::style::layout_style::DerivedStyleRecord>,
     installed: bool,
 }
 
 impl PositionOptionStyles<'_> {
-    fn choice(&self) -> abspos_inputs::PositionOptionChoice {
+    fn choice(&self) -> Option<abspos_inputs::PositionOptionChoice> {
         self.choice
     }
 }
