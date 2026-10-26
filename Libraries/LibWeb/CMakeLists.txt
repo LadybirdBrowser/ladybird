@@ -840,6 +840,7 @@ set(SOURCES
     StorageAPI/StorageShelf.cpp
     Streams/ReadableStream.cpp
     Streams/TransformStream.cpp
+    Streams/WritableStream.cpp
     SVG/AttributeNames.cpp
     SVG/AttributeParsing.cpp
     SVG/Path.cpp

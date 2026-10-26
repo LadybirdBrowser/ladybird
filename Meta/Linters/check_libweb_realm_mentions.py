@@ -70,7 +70,7 @@ ALLOWED_REALM_MENTIONS = {
         41,
         "service worker jobs, caches, and container promises still materialize results in selected realms",
     ),
-    "Streams": (5, 14, "the C++ facade of the Rust streams creates streams and promises in caller-selected realms"),
+    "Streams": (7, 18, "the C++ facade of the Rust streams creates streams and promises in caller-selected realms"),
     "TrustedTypes": (2, 9, "Trusted Types policy factory operations still use selected realms"),
     "WebAssembly": (
         2,

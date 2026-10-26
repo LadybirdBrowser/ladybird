@@ -22,7 +22,7 @@ use crate::bindings::promise::{
     resolve_promise,
 };
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
-use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::streams::abstract_operations::is_non_negative_number;
 use crate::streams::algorithms::{AbortAlgorithm, CloseAlgorithm, SizeAlgorithm, StartAlgorithm, WriteAlgorithm};
 use crate::streams::cross_realm_transform::{
@@ -199,6 +199,44 @@ impl WritableStream {
             size_algorithm,
         )?;
         Ok(this)
+    }
+
+    // https://streams.spec.whatwg.org/#writablestream-set-up
+    pub(crate) fn set_up(this: Ref<Self>, cx: &CallContext, write_algorithm: WriteAlgorithm, high_water_mark: f64) {
+        // 1. Let startAlgorithm be an algorithm that returns undefined.
+        let start_algorithm = StartAlgorithm::ReturnsUndefined;
+
+        // 2. Let closeAlgorithmWrapper be an algorithm that runs these steps:
+        //    NB: No closeAlgorithm is given, so it returns a promise resolved with undefined.
+        let close_algorithm_wrapper = CloseAlgorithm::ReturnsResolvedUndefined;
+
+        // 3. Let abortAlgorithmWrapper be an algorithm that runs these steps given a value reason:
+        //    NB: No abortAlgorithm is given, so it returns a promise resolved with undefined.
+        let abort_algorithm_wrapper = AbortAlgorithm::ReturnsResolvedUndefined;
+
+        // 4. If sizeAlgorithm was not given, then set it to an algorithm that returns 1.
+        let size_algorithm = SizeAlgorithm::ReturnsOne;
+
+        // 5. Perform ! InitializeWritableStream(stream).
+        initialize_writable_stream(cx.vm(), this);
+
+        // 6. Let controller be a new WritableStreamDefaultController.
+        let controller = allocate(cx.vm(), WritableStreamDefaultController::new);
+
+        // 7. Perform ! SetUpWritableStreamDefaultController(stream, controller, startAlgorithm, writeAlgorithm,
+        //    closeAlgorithmWrapper, abortAlgorithmWrapper, highWaterMark, sizeAlgorithm).
+        set_up_writable_stream_default_controller(
+            cx,
+            this,
+            controller,
+            start_algorithm,
+            write_algorithm,
+            close_algorithm_wrapper,
+            abort_algorithm_wrapper,
+            high_water_mark,
+            size_algorithm,
+        )
+        .must();
     }
 
     // https://streams.spec.whatwg.org/#ws-locked
