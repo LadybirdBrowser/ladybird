@@ -17,7 +17,7 @@
 
 namespace Web::IndexedDB {
 
-// https://www.w3.org/TR/IndexedDB/#database-construct
+// https://w3c.github.io/IndexedDB/#database-construct
 class Database : public JS::Cell {
     GC_CELL(Database, JS::Cell);
     GC_DECLARE_ALLOCATOR(Database);

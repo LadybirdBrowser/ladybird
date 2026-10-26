@@ -121,7 +121,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
         auto version = maybe_version.value_or(maybe_db.has_value() ? maybe_db.value().version() : 1);
 
         // 6. If db is null, let db be a new database with name name, version 0 (zero), and with no object stores.
-        // If this fails for any reason, return an appropriate error (e.g. a "QuotaExceededError" or "UnknownError" DOMException).
+        //    If this fails for any reason, return an appropriate error (e.g. a QuotaExceededError, or an "UnknownError" DOMException).
         if (!maybe_db.has_value()) {
             auto maybe_database = Database::create_for_key_and_name(GC::Heap::the(), storage_key, name);
 
@@ -285,7 +285,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
     // 1. If seen was not given, then let seen be a new empty set.
     // NOTE: This is handled by the caller.
 
-    // 2. If seen contains input, then return invalid.
+    // 2. If seen contains input, then return "invalid value".
     if (seen.contains_slow(input))
         return Key::create_invalid("Already seen key"_utf16);
 
@@ -294,7 +294,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
     // - If Type(input) is Number
     if (input.is_number()) {
 
-        // 1. If input is NaN then return invalid.
+        // 1. If input is NaN then return "invalid value".
         if (input.is_nan())
             return Key::create_invalid("NaN key"_utf16);
 
@@ -309,7 +309,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
         auto& date = static_cast<JS::Date&>(input.as_object());
         auto ms = date.date_value();
 
-        // 2. If ms is NaN then return invalid.
+        // 2. If ms is NaN then return "invalid value".
         if (isnan(ms))
             return Key::create_invalid("NaN key"_utf16);
 
@@ -327,7 +327,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
     // - If input is a buffer source type
     if (input.is_object() && (is<JS::TypedArrayBase>(input.as_object()) || is<JS::ArrayBuffer>(input.as_object()) || is<JS::DataView>(input.as_object()))) {
 
-        // 1. If input is detached then return invalid.
+        // 1. If input is detached then return "invalid value".
         if (WebIDL::BufferSource::is_detached(input))
             return Key::create_invalid("Detached buffer is not supported as key"_utf16);
 
@@ -358,7 +358,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
             // 1. Let hop be ? HasOwnProperty(input, index).
             auto hop = TRY(input.as_object().has_own_property(index));
 
-            // 2. If hop is false, return invalid.
+            // 2. If hop is false, return "invalid value".
             if (!hop)
                 return Key::create_invalid("Array-like object has no property"_utf16);
 
@@ -369,7 +369,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
             // 5. ReturnIfAbrupt(key).
             auto key = TRY(convert_a_value_to_a_key(realm, entry, seen));
 
-            // 6. If key is invalid abort these steps and return invalid.
+            // 6. If key is "invalid value" or "invalid type" abort these steps and return "invalid value".
             if (key->is_invalid())
                 return key;
 
@@ -385,7 +385,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
     }
 
     // - Otherwise
-    // Return invalid.
+    // Return "invalid type".
     return Key::create_invalid("Unable to convert value to key. Its not of a known type"_utf16);
 }
 
@@ -586,7 +586,7 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Utf
                 // 10. Let version be db’s version.
                 auto version = db->version();
 
-                // 11. Delete db. If this fails for any reason, return an appropriate error (e.g. "QuotaExceededError" or "UnknownError" DOMException).
+                // 11. Delete db. If this fails for any reason, return an appropriate error (e.g. a QuotaExceededError, or an "UnknownError" DOMException).
                 auto maybe_deleted = Database::delete_for_key_and_name(storage_key, name);
                 if (maybe_deleted.is_error()) {
                     call_completion(queue, on_complete, WebIDL::OperationError::create("Unable to delete database"_utf16));
@@ -656,13 +656,13 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
     transaction->set_aborted(true);
     dbgln_if(IDB_DEBUG, "abort_a_transaction: transaction {} is aborting", transaction->uuid());
 
-    // 1. If transaction is finished, abort these steps.
+    // 1. If transaction’s state is finished, abort these steps.
     if (transaction->is_finished())
         return;
 
     // 2. All the changes made to the database by the transaction are reverted.
-    // For upgrade transactions this includes changes to the set of object stores and indexes, as well as the change to the version.
-    // Any object stores and indexes which were created during the transaction are now considered deleted for the purposes of other algorithms.
+    //    For upgrade transactions this includes changes to the set of object stores and indexes, as well as the change to the version.
+    //    Any object stores and indexes which were created during the transaction are now considered deleted for the purposes of other algorithms.
     transaction->revert_all_mutations();
     transaction->discard_mutation_logs();
 
@@ -681,15 +681,11 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
     // 5. Set transaction’s error to error.
     transaction->set_error(error);
 
-    // 6. For each request of transaction’s request list,
+    // 6. For each request of transaction’s request list, abort the steps to asynchronously execute a request for request,
+    //    set request’s processed flag to true, and queue a database task to run these steps:
     for (auto const& request : transaction->request_list()) {
-        // abort the steps to asynchronously execute a request for request,
         request->set_aborted(true);
-
-        // set request’s processed flag to true
         request->set_processed(true);
-
-        // and queue a database task to run these steps:
         queue_a_database_task(GC::create_function(GC::Heap::the(), [request]() {
             // 1. Set request’s done flag to true.
             request->set_done(true);
@@ -957,7 +953,7 @@ void commit_a_transaction(JS::Realm&, GC::Ref<IDBTransaction> transaction)
             return;
 
         // FIXME: 3. Attempt to write any outstanding changes made by transaction to the database, considering transaction’s durability hint.
-        // FIXME: 4. If an error occurs while writing the changes to the database, then run abort a transaction with transaction and an appropriate type for the error, for example "QuotaExceededError" or "UnknownError" DOMException, and terminate these steps.
+        // FIXME: 4. If an error occurs while writing the changes to the database, then run abort a transaction with transaction and an appropriate type for the error, for example a QuotaExceededError or an "UnknownError" DOMException, and terminate these steps.
 
         // 5. Queue a database task to run these steps:
         queue_a_database_task(GC::create_function(GC::Heap::the(), [transaction]() {
@@ -1054,7 +1050,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_multi_entry_key(JS::Realm
                 // 1. Let key be the result of converting a value to a key with arguments entry and seen.
                 auto completion_key = convert_a_value_to_a_key(realm, maybe_entry.release_value(), seen);
 
-                // 2. If key is not invalid or an abrupt completion, and there is no item in keys equal to key, then append key to keys.
+                // 2. If key is not "invalid value" or "invalid type" or an abrupt completion, and there is no item in keys equal to key, then append key to keys.
                 if (!completion_key.is_error()) {
                     auto key = completion_key.release_value();
 
@@ -1140,7 +1136,14 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
 
         // Otherwise
         else {
-            // If value is a Blob or File and identifier is one of their special key path properties.
+            // If value is a Blob and identifier is "size"
+            //     Let value be a Number equal to value’s size.
+            // If value is a Blob and identifier is "type"
+            //     Let value be a String equal to value’s type.
+            // If value is a File and identifier is "name"
+            //     Let value be a String equal to value’s name.
+            // If value is a File and identifier is "lastModified"
+            //     Let value be a Number equal to value’s lastModified.
             auto identifier_utf8 = MUST(identifier.to_utf8());
             if (auto key_path_value = Bindings::key_path_value_for_blob_or_file(realm, value, identifier_utf8.bytes_as_string_view()); key_path_value.has_value()) {
                 value = *key_path_value;
@@ -1195,7 +1198,7 @@ WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> extract_a_key_from_a_value_using_a_ke
 
     // 3. Let key be the result of converting a value to a key with r if the multiEntry flag is false,
     //    and the result of converting a value to a multiEntry key with r otherwise. Rethrow any exceptions.
-    // 4. If key is invalid, return invalid.
+    // 4. If key is "invalid value" or "invalid type", return invalid.
     // 5. Return key.
     return multi_entry ? TRY(convert_a_value_to_a_multi_entry_key(realm, r)) : TRY(convert_a_value_to_a_key(realm, r));
 }
@@ -1429,7 +1432,9 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
 
                 // 3. Fire an error event at request.
                 fire_an_error_event(realm, request);
-            } else {
+            }
+            // 4. Otherwise:
+            else {
                 // 1. Set request’s result to result.
                 request->set_result(result.release_value());
 
@@ -1584,6 +1589,8 @@ static WebIDL::ExceptionOr<void> store_a_record_into_an_index(JS::Object& global
 
     // 6. If index’s multiEntry flag is true and index key is an array key,
     //    then for each subkey of the subkeys of index key store a record in index containing subkey as its key and key as its value.
+    //    The records are stored in index’s list of records such that the list is sorted primarily on the records keys,
+    //    and secondarily on the records values, in ascending order.
     if (index_multi_entry && index_key_is_array) {
         for (auto const& subkey : index_key->subkeys()) {
             IndexRecord index_record = {
@@ -1736,7 +1743,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Rea
     // 3. Let key be the result of converting a value to a key with value. Rethrow any exceptions.
     auto key = TRY(convert_a_value_to_a_key(realm, *value));
 
-    // 4. If key is invalid, throw a "DataError" DOMException.
+    // 4. If key is "invalid value" or "invalid type", throw a "DataError" DOMException.
     if (key->is_invalid())
         return WebIDL::DataError::create("Value is invalid"_utf16);
 
@@ -1826,15 +1833,13 @@ WebIDL::ExceptionOr<GC::Ptr<IDBCursor>> iterate_a_cursor(JS::Realm& realm, GC::R
         if (primary_key) {
             auto const& inner_record = record.get<IndexRecord>();
 
-            // * If the record’s key is equal to key:
+            // * The record’s key is equal to key and the record’s value is greater than or equal to primaryKey
             if (Key::equals(inner_record.key, *key)) {
-                // * The record’s value is greater than or equal to primaryKey
                 if (!Key::greater_than_or_equal(inner_record.value, *primary_key))
                     return false;
             }
-            // * Else:
+            // * The record’s key is greater than key.
             else {
-                // * The record’s key is greater than key.
                 if (!Key::greater_than(inner_record.key, *key))
                     return false;
             }
@@ -1853,15 +1858,13 @@ WebIDL::ExceptionOr<GC::Ptr<IDBCursor>> iterate_a_cursor(JS::Realm& realm, GC::R
         if (position && source.has<GC::Ref<Index>>()) {
             auto const& inner_record = record.get<IndexRecord>();
 
-            // * If the record’s key is equal to position:
+            // * The record’s key is equal to position and the record’s value is greater than object store position
             if (Key::equals(inner_record.key, *position)) {
-                // * The record’s value is greater than object store position
                 if (!Key::greater_than(inner_record.value, *object_store_position))
                     return false;
             }
-            // * Else:
+            // * The record’s key is greater than position.
             else {
-                // * The record’s key is greater than position.
                 if (!Key::greater_than(inner_record.key, *position))
                     return false;
             }
@@ -1914,15 +1917,13 @@ WebIDL::ExceptionOr<GC::Ptr<IDBCursor>> iterate_a_cursor(JS::Realm& realm, GC::R
         if (primary_key) {
             auto const& inner_record = record.get<IndexRecord>();
 
-            // * If the record’s key is equal to key:
+            // * The record’s key is equal to key and the record’s value is less than or equal to primaryKey
             if (Key::equals(inner_record.key, *key)) {
-                // * The record’s value is less than or equal to primaryKey
                 if (!Key::less_than_or_equal(inner_record.value, *primary_key))
                     return false;
             }
-            // * Else:
+            // * The record’s key is less than key.
             else {
-                // * The record’s key is less than key.
                 if (!Key::less_than(inner_record.key, *key))
                     return false;
             }
@@ -1941,15 +1942,13 @@ WebIDL::ExceptionOr<GC::Ptr<IDBCursor>> iterate_a_cursor(JS::Realm& realm, GC::R
         if (position && source.has<GC::Ref<Index>>()) {
             auto const& inner_record = record.get<IndexRecord>();
 
-            // * If the record’s key is equal to position:
+            // * The record’s key is equal to position and the record’s value is less than object store position
             if (Key::equals(inner_record.key, *position)) {
-                // * The record’s value is less than object store position
                 if (!Key::less_than(inner_record.value, *object_store_position))
                     return false;
             }
-            // Else:
+            // * The record’s key is less than position.
             else {
-                // * The record’s key is less than position.
                 if (!Key::less_than(inner_record.key, *position))
                     return false;
             }
@@ -1972,7 +1971,7 @@ WebIDL::ExceptionOr<GC::Ptr<IDBCursor>> iterate_a_cursor(JS::Realm& realm, GC::R
                 return false;
         }
 
-        //* If position is defined:
+        // * If position is defined:
         if (position) {
             // * The record’s key is less than position.
             if (!record.visit([&](auto const& inner_record) {
@@ -2152,14 +2151,14 @@ JS::Value retrieve_a_key_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectSt
     return convert_a_key_to_a_value(realm, record.value().key);
 }
 
-// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#retrieve-multiple-items-from-an-object-store
+// https://w3c.github.io/IndexedDB/#retrieve-multiple-items-from-an-object-store
 WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, RecordKind kind, CursorDirection direction, Optional<WebIDL::UnsignedLong> count)
 {
     // 1. If count is not given or is 0 (zero), let count be infinity.
     if (count.has_value() && *count == 0)
         count = OptionalNone();
 
-    // 2. Let records an empty list.
+    // 2. Let records be an empty list of records.
     GC::ConservativeVector<ObjectStoreRecord> records;
 
     // 3. If direction is "next" or "nextunique", set records to the first count of store’s list of records whose key is in range.
@@ -2195,7 +2194,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_object_s
             // 2. Let value be ! StructuredDeserialize(serialized, targetRealm).
             auto entry = TRY(deserialize_a_stored_record(realm, serialized));
 
-            // 3. Append entry to list.
+            // 3. Append value to list.
             MUST(list->create_data_property_or_throw(i, entry));
             break;
         }
@@ -2209,17 +2208,17 @@ WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_object_s
             // 3. Let value be ! StructuredDeserialize(serialized, targetRealm).
             auto value = TRY(deserialize_a_stored_record(realm, serialized));
 
-            // 4. Let record snapshot be a new record snapshot with its key set to key, value set to value, and primary key set to key.
+            // 4. Let recordSnapshot be a new record snapshot with its key set to key, value set to value, and primary key set to key.
             auto record_snapshot = IDBRecord::create(key, value, key);
 
-            // 5. Append record snapshot to list.
+            // 5. Append recordSnapshot to list.
             Bindings::append_idb_record(realm, list, i, record_snapshot);
             break;
         }
         }
     }
 
-    // 5. Return list.
+    // 7. Return list.
     return list;
 }
 
@@ -2300,45 +2299,37 @@ bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
     return has_matching_event_loop;
 }
 
-// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#potentially-valid-key-range
+// https://w3c.github.io/IndexedDB/#is-a-potentially-valid-key-range
 bool is_a_potentially_valid_key_range(JS::Realm& realm, JS::Value value)
 {
     // 1. If value is a key range, return true.
     if (Bindings::idb_key_range_from_value(value))
         return true;
 
-    // 2. Else if Type(value) is Number, return true.
-    if (value.is_number())
+    // 2. Let key be the result of converting a value to a key with value.
+    // 3. If key is "invalid type" return false.
+    // 4. Else return true.
+    // AD-HOC: The type of value is checked instead, which is what decides whether the conversion returns
+    //         "invalid type", so that the getters of an array's elements do not run twice.
+    if (value.is_number() || value.is_string())
         return true;
-
-    // 3. Else if Type(value) is String, return true.
-    if (value.is_string())
-        return true;
-
-    // 4. Else if value is a Date (has a [[DateValue]] internal slot), return true.
     if (value.is_object() && value.as_object().is_date())
         return true;
-
-    // 5. Else if value is a buffer source type, return true.
     if (value.is_object() && (is<JS::TypedArrayBase>(value.as_object()) || is<JS::ArrayBuffer>(value.as_object()) || is<JS::DataView>(value.as_object())))
         return true;
-
-    // 6. Else if value is an Array exotic object, return true.
     if (value.is_object() && MUST(value.is_array(realm.vm())))
         return true;
-
-    // 7. Else return false.
     return false;
 }
 
-// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#retrieve-multiple-items-from-an-index
+// https://w3c.github.io/IndexedDB/#retrieve-multiple-items-from-an-index
 WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_index(JS::Realm& target_realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, RecordKind kind, CursorDirection direction, Optional<WebIDL::UnsignedLong> count)
 {
     // 1. If count is not given or is 0 (zero), let count be infinity.
     if (count.has_value() && *count == 0)
         count = OptionalNone();
 
-    // 2. Let records be a an empty list.
+    // 2. Let records be an empty list of records.
     GC::ConservativeVector<IndexRecord> records;
 
     // 3. Switching on direction:
@@ -2351,21 +2342,21 @@ WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_index(JS
     }
     // "nextunique"
     case CursorDirection::Nextunique: {
-        // 1. Let range records be a list containing the index’s list of records whose key is in range.
+        // 1. Let rangeRecords be a list containing the index’s list of records whose key is in range.
         auto range_records = index->first_n_in_range(range, OptionalNone());
 
-        // 2. Let range records length be range records’s size.
+        // 2. Let rangeRecordsLength be rangeRecords’s size.
         auto range_records_length = range_records.size();
 
         // 3. Let i be 0.
         size_t i = 0;
 
-        // x. Append |range records[0]| to records.
+        // x. Append |rangeRecords[0]| to records.
         // FIXME: https://github.com/w3c/IndexedDB/issues/480
         if (range_records_length > 0)
             records.append(range_records[0]);
 
-        // 4. While i is less than range records length, then:
+        // 4. While i is less than rangeRecordsLength, then:
         while (i < range_records_length - 1) {
             // 1. Increase i by 1.
             i++;
@@ -2374,11 +2365,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_index(JS
             if (records.size() == count)
                 break;
 
-            // 3. If the result of comparing two keys using the keys from |range records[i]| and |range records[i-1]| is equal, then continue.
+            // 3. If the result of comparing two keys using the keys from |rangeRecords[i]| and |rangeRecords[i-1]| is equal, then continue.
             if (Key::equals(range_records[i].key, range_records[i - 1].key))
                 continue;
 
-            // 4. Else append |range records[i]| to records.
+            // 4. Else append |rangeRecords[i]| to records.
             records.append(range_records[i]);
         }
 
@@ -2392,21 +2383,21 @@ WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_index(JS
     }
     // "prevunique"
     case CursorDirection::Prevunique: {
-        // 1. Let range records be a list containing the index’s list of records whose key is in range.
+        // 1. Let rangeRecords be a list containing the index’s list of records whose key is in range.
         auto range_records = index->first_n_in_range(range, OptionalNone());
 
-        // 2. Let range records length be range records’s size.
+        // 2. Let rangeRecordsLength be rangeRecords’s size.
         auto range_records_length = range_records.size();
 
         // 3. Let i be 0.
         size_t i = 0;
 
-        // x. Append |range records[0]| to records.
+        // x. Append |rangeRecords[0]| to records.
         // FIXME: https://github.com/w3c/IndexedDB/issues/480
         if (range_records_length > 0)
             records.append(range_records[0]);
 
-        // 4. While i is less than range records length, then:
+        // 4. While i is less than rangeRecordsLength, then:
         while (i < range_records_length - 1) {
             // 1. Increase i by 1.
             i++;
@@ -2415,11 +2406,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_index(JS
             if (records.size() == count)
                 break;
 
-            // 3. If the result of comparing two keys using the keys from |range records[i]| and |range records[i-1]| is equal, then continue.
+            // 3. If the result of comparing two keys using the keys from |rangeRecords[i]| and |rangeRecords[i-1]| is equal, then continue.
             if (Key::equals(range_records[i].key, range_records[i - 1].key))
                 continue;
 
-            // 4. Else prepend |range records[i]| to records.
+            // 4. Else prepend |rangeRecords[i]| to records.
             records.prepend(range_records[i]);
         }
 
@@ -2471,10 +2462,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_index(JS
             // 4. Let value be ! StructuredDeserialize(serialized, targetRealm).
             auto value = TRY(deserialize_a_stored_record(target_realm, serialized));
 
-            // 5. Let record snapshot be a new record snapshot with its key set to index key, value set to value, and primary key set to key.
+            // 5. Let recordSnapshot be a new record snapshot with its key set to index key, value set to value, and primary key set to key.
             auto record_snapshot = IDBRecord::create(index_key, value, key);
 
-            // 6. Append record snapshot to list.
+            // 6. Append recordSnapshot to list.
             Bindings::append_idb_record(target_realm, list, i, record_snapshot);
             break;
         }
@@ -2485,14 +2476,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_index(JS
     return list;
 }
 
-// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#create-a-request-to-retrieve-multiple-items
+// https://w3c.github.io/IndexedDB/#create-a-request-to-retrieve-multiple-items
 WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_items(JS::Realm& realm, IDBRequestSource source_handle, RecordKind kind, JS::Value query_or_options, Optional<WebIDL::UnsignedLong> count)
 {
     auto& vm = realm.vm();
 
     // 1. Let source be an index or an object store from sourceHandle.
-    // If sourceHandle is an index handle, then source is the index handle’s associated index.
-    // Otherwise, source is the object store handle’s associated object store.
+    //    If sourceHandle is an index handle, then source is the index handle’s associated index.
+    //    Otherwise, source is the object store handle’s associated object store.
     auto source = source_handle.visit(
         [](Empty) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { VERIFY_NOT_REACHED(); },
         [](GC::Ref<IDBCursor>) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { VERIFY_NOT_REACHED(); },
@@ -2521,8 +2512,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
     // 6. Let range be a key range.
     GC::Ptr<IDBKeyRange> range;
 
-    // 7. Let direction be "next".
-    // FIXME: Spec bug: https://github.com/w3c/IndexedDB/pull/478
+    // 7. Let direction be a cursor direction.
     CursorDirection direction = CursorDirection::Next;
 
     // 8. If running is a potentially valid key range with queryOrOptions is true, then:
@@ -2530,6 +2520,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
     if (query_or_options.is_nullish() || is_a_potentially_valid_key_range(realm, query_or_options)) {
         // 1. Set range to the result of converting a value to a key range with queryOrOptions. Rethrow any exceptions.
         range = TRY(convert_a_value_to_a_key_range(realm, query_or_options));
+
+        // 2. Set direction to "next".
+        direction = CursorDirection::Next;
     }
 
     // 9. Else:
@@ -2537,10 +2530,10 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
         // 1. Set range to the result of converting a value to a key range with queryOrOptions["query"]. Rethrow any exceptions.
         range = TRY(convert_a_value_to_a_key_range(realm, TRY(query_or_options.get(vm, "query"_utf16))));
 
-        // 2. Set count to query_or_options["count"].
+        // 2. Set count to queryOrOptions["count"].
         count = TRY(TRY(query_or_options.get(vm, "count"_utf16)).to_u32(vm));
 
-        // 3. Set direction to query_or_options["direction"].
+        // 3. Set direction to queryOrOptions["direction"].
         auto direction_value = TRY(TRY(query_or_options.get(vm, "direction"_utf16)).to_utf16_string(vm));
         if (direction_value == "next"_utf16)
             direction = CursorDirection::Next;
@@ -2578,8 +2571,8 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
 WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_items(JS::Realm& realm, IDBRequestSource source_handle, RecordKind kind, RetrieveMultipleItemsOptions const& options)
 {
     // 1. Let source be an index or an object store from sourceHandle.
-    // If sourceHandle is an index handle, then source is the index handle’s associated index.
-    // Otherwise, source is the object store handle’s associated object store.
+    //    If sourceHandle is an index handle, then source is the index handle’s associated index.
+    //    Otherwise, source is the object store handle’s associated object store.
     auto source = source_handle.visit(
         [](Empty) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { VERIFY_NOT_REACHED(); },
         [](GC::Ref<IDBCursor>) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { VERIFY_NOT_REACHED(); },

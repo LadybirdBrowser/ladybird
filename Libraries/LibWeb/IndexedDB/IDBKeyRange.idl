@@ -5,6 +5,7 @@ interface IDBKeyRange {
     readonly attribute boolean lowerOpen;
     readonly attribute boolean upperOpen;
 
+    // Static construction methods:
     [ImplementedInBindings, NeedsCallerRealm, NewObject] static IDBKeyRange only(any value);
     [ImplementedInBindings, NeedsCallerRealm, NewObject] static IDBKeyRange lowerBound(any lower, optional boolean open = false);
     [ImplementedInBindings, NeedsCallerRealm, NewObject] static IDBKeyRange upperBound(any upper, optional boolean open = false);

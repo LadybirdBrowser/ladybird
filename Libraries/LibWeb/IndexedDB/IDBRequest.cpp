@@ -44,7 +44,7 @@ WebIDL::ExceptionOr<JS::Value> IDBRequest::result() const
     if (!done())
         return WebIDL::InvalidStateError::create("The request is not done"_utf16);
 
-    // 2. Otherwise, return this's result, or undefined if the request resulted in an error.
+    // 2. Return this's result, or undefined if the request resulted in an error.
     if (has_error())
         return JS::js_undefined();
 
@@ -109,7 +109,7 @@ WebIDL::ExceptionOr<GC::Ptr<WebIDL::DOMException>> IDBRequest::error() const
     if (!m_done)
         return WebIDL::InvalidStateError::create("The request is not done"_utf16);
 
-    // 2. Otherwise, return this's error, or null if no error occurred.
+    // 2. Return this's error, or null if no error occurred.
     return m_error.value_or(nullptr);
 }
 
