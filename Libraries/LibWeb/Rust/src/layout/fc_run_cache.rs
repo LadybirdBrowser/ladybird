@@ -233,6 +233,9 @@ pub(super) struct FcRunCacheEntry {
     /// How many layouts the arena had committed when the run was stored. The subtrees the run took from the cache as
     /// they were committed are only known to be so while no layout was committed since.
     layout_commits_when_stored: u64,
+    /// The committed subtree token of the box when its committed fragments were found to be the stored ones, after
+    /// which the entry keeps no descendant fragments: they stay the stored ones while the token does.
+    committed_subtree_token_when_descendants_dropped: Option<u32>,
 }
 
 /// A stored run a probe may take in place of running, and whether it keeps the box's committed subtree.
@@ -246,14 +249,13 @@ impl FcRunCacheEntry {
     /// produced: the root's fragment shows the stored line data at the stored content size, and each fragment the run
     /// placed in its own scope is the box's committed fragment, placed as the run placed it. A fragment that was
     /// committed holds the fragments committed below it.
-    fn describes_committed_subtree(&self, callbacks: &LayoutPass<'_>, box_: Node) -> bool {
+    pub(super) fn describes_committed_subtree(&self, arena: &LayoutNodeArena, box_: Node) -> bool {
         let Some(root) = self.outputs.root.as_ref() else {
             return false;
         };
         if !root.propagated_pending_abspos.is_empty() {
             return false;
         }
-        let arena = callbacks.arena();
         if !arena.paintable_row_is_populated(box_) {
             return false;
         }
@@ -267,16 +269,34 @@ impl FcRunCacheEntry {
                     && fragment.content_block_size == cells.content_block_size
             })
             .unwrap_or(false);
-        root_fragment_is_the_stored_one && links_are_committed(callbacks, &root.scoped_descendants)
+        root_fragment_is_the_stored_one
+            && match self.committed_subtree_token_when_descendants_dropped {
+                Some(token) => arena.committed_subtree_token(box_) == token,
+                None => links_are_committed(arena, &root.scoped_descendants),
+            }
     }
 
     /// Whether the stored fragments can be replayed. Those of the subtrees the stored run took from the cache are the
     /// committed ones, so such a run is replayed only before anything else is committed.
     fn can_be_replayed(&self, callbacks: &LayoutPass<'_>) -> bool {
-        self.outputs.root.as_ref().is_none_or(|root| {
-            root.reused_subtree_roots.is_empty()
-                || callbacks.arena().layout_commit_count() == self.layout_commits_when_stored
-        })
+        self.committed_subtree_token_when_descendants_dropped.is_none()
+            && self.outputs.root.as_ref().is_none_or(|root| {
+                root.reused_subtree_roots.is_empty()
+                    || callbacks.arena().layout_commit_count() == self.layout_commits_when_stored
+            })
+    }
+
+    /// This entry without its descendant fragments, which are the box's committed ones while its committed subtree
+    /// token is `token`.
+    fn without_descendant_fragments(&self, token: u32) -> Self {
+        Self {
+            key: self.key,
+            validity: self.validity,
+            outputs: outputs_without_descendant_fragments(&self.outputs),
+            table_cell_intrinsic_block_padding_unobserved: self.table_cell_intrinsic_block_padding_unobserved,
+            layout_commits_when_stored: self.layout_commits_when_stored,
+            committed_subtree_token_when_descendants_dropped: Some(token),
+        }
     }
 
     /// The outputs a hit for `probe` absorbs: the stored ones, or only what escapes the stored run where the hit keeps
@@ -313,8 +333,7 @@ fn same_allocation<T>(left: Option<&std::sync::Arc<T>>, right: Option<&std::sync
 
 /// Whether each of `links` is the committed fragment of its box, or the later committed fragment of a box with
 /// several, placed as the link places it.
-fn links_are_committed(callbacks: &LayoutPass<'_>, links: &[fragment_tree::FragmentLink]) -> bool {
-    let arena = callbacks.arena();
+fn links_are_committed(arena: &LayoutNodeArena, links: &[fragment_tree::FragmentLink]) -> bool {
     let mut earlier_fragments_of_box: HashMap<Node, usize> = HashMap::default();
     links.iter().all(|link| {
         let node = link.fragment.node;
@@ -402,7 +421,7 @@ impl FcRunCacheArenaStore {
         }
     }
 
-    fn enqueue_for_sweep(&self, slot: u32) {
+    pub(super) fn enqueue_for_sweep(&self, slot: u32) {
         let mut enrolled = self.enrolled_for_sweep.borrow_mut();
         if enrolled.len() <= slot as usize {
             enrolled.resize(slot as usize + 1, false);
@@ -553,18 +572,34 @@ impl FcRunCacheArenaStore {
         self.enqueue_for_sweep(slot);
     }
 
-    /// Release stale entries after their last chance to supply reusable inline line data.
-    pub(crate) fn sweep_pending_entries(&self, mut keep: impl FnMut(u32, FcRunCacheValidity) -> bool) {
+    /// Releases stale entries after their last chance to supply reusable inline line data, and drops the descendant
+    /// fragments of entries whose fragments the box committed, for which `committed_subtree_token` gives the token.
+    pub(super) fn sweep_pending_entries(
+        &self,
+        mut keep: impl FnMut(u32, FcRunCacheValidity) -> bool,
+        mut committed_subtree_token: impl FnMut(Node, &FcRunCacheEntry) -> Option<u32>,
+    ) {
         let mut entries = self.entries.borrow_mut();
         let mut enrolled = self.enrolled_for_sweep.borrow_mut();
         for slot in self.pending_sweep_slots.borrow_mut().drain(..) {
             enrolled[slot as usize] = false;
-            if let Some(stored) = entries.get_mut(slot as usize)
-                && let Some(entry) = stored
-                && !keep(slot, entry.validity)
-            {
+            let Some(stored) = entries.get_mut(slot as usize) else {
+                continue;
+            };
+            let Some(entry) = stored else {
+                continue;
+            };
+            if !keep(slot, entry.validity) {
                 *stored = None;
                 self.forget_inline_layout_damage(slot);
+                continue;
+            }
+            if entry.committed_subtree_token_when_descendants_dropped.is_some() {
+                continue;
+            }
+            let box_ = Node::new(slot, entry.validity.slot_generation);
+            if let Some(token) = committed_subtree_token(box_, entry) {
+                *entry = std::sync::Arc::new(entry.without_descendant_fragments(token));
             }
         }
     }
@@ -638,7 +673,11 @@ impl FcRunCacheAttempt {
         let validity = run_root_validity(callbacks, box_);
         let structural_epoch_bumps = store.inline_layout_damage_since_stored(box_);
         if let Some(entry) = store.matching(box_.slot_index(), validity, key) {
-            let reuses_committed_subtree = entry.describes_committed_subtree(callbacks, box_);
+            let reuses_committed_subtree = entry.describes_committed_subtree(callbacks.arena(), box_);
+            if !reuses_committed_subtree && entry.can_be_replayed(callbacks) {
+                // NB: Once the replayed fragments are committed, the entry can drop them.
+                store.enqueue_for_sweep(box_.slot_index());
+            }
             if reuses_committed_subtree || entry.can_be_replayed(callbacks) {
                 return Err(FcRunCacheHit {
                     entry,
@@ -706,6 +745,7 @@ impl FcRunCacheAttempt {
                 .is_some()
                 && table_cell_contents_never_observe_intrinsic_block_padding(callbacks, box_),
             layout_commits_when_stored: callbacks.arena().layout_commit_count(),
+            committed_subtree_token_when_descendants_dropped: None,
         };
         store.store(box_.slot_index(), entry);
     }
@@ -849,33 +889,37 @@ mod tests {
             },
             table_cell_intrinsic_block_padding_unobserved: false,
             layout_commits_when_stored: 0,
+            committed_subtree_token_when_descendants_dropped: None,
         };
         store.store(0, entry(1));
         store.store(1, entry(1));
-        store.sweep_pending_entries(|_, _| true);
-        store.sweep_pending_entries(|_, _| panic!("unchanged entries must not be swept"));
+        store.sweep_pending_entries(|_, _| true, |_, _| None);
+        store.sweep_pending_entries(|_, _| panic!("unchanged entries must not be swept"), |_, _| None);
 
         store.note_invalidated_entry(Node::new(0, 1));
         store.note_invalidated_entry(Node::new(0, 1));
         assert!(store.entries.borrow()[0].is_some());
         let mut checked = 0;
-        store.sweep_pending_entries(|slot, _| {
-            assert_eq!(slot, 0);
-            checked += 1;
-            false
-        });
+        store.sweep_pending_entries(
+            |slot, _| {
+                assert_eq!(slot, 0);
+                checked += 1;
+                false
+            },
+            |_, _| None,
+        );
         assert_eq!(checked, 1);
         assert!(store.entries.borrow()[0].is_none());
         assert!(store.entries.borrow()[1].is_some());
 
         store.note_invalidated_entry(Node::new(1, 1));
         store.store(1, entry(2));
-        store.sweep_pending_entries(|_, validity| validity.fragment_cache_epoch == 2);
+        store.sweep_pending_entries(|_, validity| validity.fragment_cache_epoch == 2, |_, _| None);
         assert!(store.entries.borrow()[1].is_some());
 
         // A result stored after a mid-run invalidation still needs its validity checked.
         store.store(0, entry(1));
-        store.sweep_pending_entries(|_, validity| validity.fragment_cache_epoch == 2);
+        store.sweep_pending_entries(|_, validity| validity.fragment_cache_epoch == 2, |_, _| None);
         assert!(store.entries.borrow()[0].is_none());
     }
 
