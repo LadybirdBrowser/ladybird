@@ -6265,19 +6265,24 @@ void Element::set_last_relative_scroll_direction(u8 direction)
 // That is why the unchecked layout node accessor is the right one here.
 void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type, CSSPixelPoint offset)
 {
+    Web::AsyncScrollNodeStableID stable_node_id { .node_id = unique_id(), .kind = Web::AsyncScrollNodeKind::Element };
     if (pseudo_element_type.has_value()) {
         auto pseudo_element = get_synthetic_pseudo_element(*pseudo_element_type);
         if (!pseudo_element.has_value())
             return;
         pseudo_element->set_scroll_offset(offset);
-        return;
+        stable_node_id.kind = Web::AsyncScrollNodeKind::PseudoElement;
+        stable_node_id.pseudo_element_type = static_cast<u8>(to_underlying(pseudo_element_type.value()));
+    } else {
+        if (!offset.is_zero())
+            ensure_element_rare_data().scroll_offset = offset;
+        else if (auto* rare_data = element_rare_data())
+            rare_data->scroll_offset = {};
+        Layout::publish_element_scroll_offset(*this);
     }
 
-    if (!offset.is_zero())
-        ensure_element_rare_data().scroll_offset = offset;
-    else if (auto* rare_data = element_rare_data())
-        rare_data->scroll_offset = {};
-    Layout::publish_element_scroll_offset(*this);
+    if (auto navigable = document().navigable())
+        navigable->did_change_scroll_offset(stable_node_id);
 }
 
 Optional<Element::Dir> Element::dir() const

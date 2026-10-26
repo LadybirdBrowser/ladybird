@@ -229,6 +229,8 @@ Optional<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeI
                 .unadopted_scroll_delta = delta - remaining_delta,
                 .last_relative_scroll_delta = {},
                 .visual_viewport_scale = {},
+                .applied_scroll_request_id = 0,
+                .user_input_scroll_count = 0,
             };
         }
 

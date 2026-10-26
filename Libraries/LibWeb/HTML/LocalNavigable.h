@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/OwnPtr.h>
 #include <AK/Time.h>
@@ -246,6 +247,8 @@ public:
     Optional<CSSPixelRect> viewport_intersection() const;
     void set_viewport_intersection(CSSPixelRect);
     void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position);
+    // Every change of a scroll offset here, other than one the compositor made, goes to the compositor as a request.
+    void did_change_scroll_offset(Web::AsyncScrollNodeStableID);
     void adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness = Compositing::AsyncScrollUpdateFreshness::Pushed);
     void adopt_started_user_scroll(DOM::Document&, Compositing::StartedUserScroll const&);
     void process_main_thread_smooth_scrolls();
@@ -375,6 +378,8 @@ public:
     enum class ScrollTrigger {
         Programmatic,
         UserInput,
+        // The scroll to the snap position a user's gesture ends at, which goes on with the gesture as the user's own.
+        GestureEndSnap,
     };
 
     // Whether the snap position a gesture ends at is selected as each of its scrolls runs, or once from the offsets
@@ -451,7 +456,7 @@ private:
     Compositor::FlightPresentation take_presentation(Compositor::SealedPresentation);
     void commit_unrecorded_frame(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation);
     Compositor::SealedPresentation seal_presentation(DOM::Document&, PaintConfig const&, bool records_display_list);
-    void unseal_presentation(DOM::Document&, Compositor::SealedPresentation const&);
+    void unseal_presentation(DOM::Document&, Compositor::SealedPresentation&);
     void finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, Layout::RustFFI::FfiPresentation);
     Gfx::IntRect present_viewport_rect() const;
 
@@ -494,8 +499,8 @@ private:
     };
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Web::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement = {}, DestinationSnapping = DestinationSnapping::SelectSnapPosition, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll, Painting::ScrollKind = Painting::ScrollKind::Absolute);
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_layout_viewport(CSSPixelPoint delta, Bindings::ScrollBehavior, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement, Painting::ScrollKind, Compositing::ScrollAnimationKind);
-    bool adopt_async_viewport_scroll_delta(CSSPixelPoint);
-    bool adopt_async_visual_viewport_scroll(Optional<float> scale, CSSPixelPoint scroll_delta);
+    bool adopt_async_viewport_scroll_offset(CSSPixelPoint);
+    bool adopt_async_visual_viewport_scroll(Optional<float> scale, CSSPixelPoint scroll_offset);
     Gfx::FloatPoint device_scroll_offset(CSSPixelPoint) const;
     GC::Ptr<WebIDL::Promise> continue_in_flight_user_smooth_scroll(Web::AsyncScrollNodeStableID, CSSPixelPoint position, Compositing::ScrollAnimationKind);
     Optional<CSSPixelPoint> scroll_offset_for(Web::AsyncScrollNodeStableID) const;
@@ -660,8 +665,27 @@ private:
     // The registry entry of an operation, whether the scroll was registered when it was started or is first heard of
     // from the compositor's report of it.
     PendingAsyncScrollOperation& ensure_pending_async_scroll_operation(Compositing::AsyncScrollOperationID);
-    // The latest publication of the compositor's async scroll updates this navigable adopted.
-    u64 m_adopted_async_scroll_sequence { 0 };
+    // The scrolls this navigable asks the compositor for, per scrolling box: the request still to go with the next frame,
+    // and the id of the last request made, which the compositor's reports of the box are older than until it applies it.
+    struct ScrollRequestState {
+        u64 last_request_id { 0 };
+        Optional<Compositing::ScrollRequest> unsent_request;
+    };
+    HashMap<Web::AsyncScrollNodeStableID, ScrollRequestState> m_scroll_request_states;
+    u64 m_last_scroll_request_id { 0 };
+    Compositing::AsyncScrollOperationID m_last_requested_operation_id { Compositing::first_operation_id_the_main_thread_requests };
+    // How many times the compositor reported having scrolled each box for its own user input.
+    HashMap<Web::AsyncScrollNodeStableID, u64> m_compositor_user_input_scroll_counts;
+    // Set while this navigable takes the compositor's offsets, which it asks for nothing about.
+    bool m_is_adopting_compositor_scroll_offsets { false };
+    Compositing::ScrollRequest& unsent_scroll_request_for(Web::AsyncScrollNodeStableID);
+    u64 last_scroll_request_id_for(Web::AsyncScrollNodeStableID) const;
+    void request_scroll_jump(Web::AsyncScrollNodeStableID);
+    void request_smooth_scroll(Web::AsyncScrollNodeStableID, Compositing::RequestedSmoothScroll);
+    void request_abort_of_smooth_scroll(Web::AsyncScrollNodeStableID);
+    void drop_unsent_smooth_scroll(Compositing::ScrollRequest&);
+    Vector<Compositing::ScrollRequest> take_unsent_scroll_requests();
+    void give_back_unsent_scroll_requests(Vector<Compositing::ScrollRequest>);
 
     struct MainThreadSmoothScroll {
         Web::AsyncScrollNodeStableID stable_node_id;

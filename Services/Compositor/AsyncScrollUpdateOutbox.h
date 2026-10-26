@@ -15,20 +15,6 @@ namespace Compositor {
 
 class AsyncScrollUpdateOutbox {
 public:
-    // Offsets handed to WebContent that no snapshot of its has incorporated yet; the compositor keeps
-    // reapplying them over the main-thread state that arrives in the meantime.
-    struct UnreconciledScrollOffset {
-        u64 sequence { 0 };
-        Web::AsyncScrollNodeStableID stable_node_id;
-        Gfx::FloatPoint compositor_scroll_offset;
-        Optional<float> visual_viewport_scale;
-    };
-
-    struct VisualViewportState {
-        Gfx::FloatPoint scroll_offset;
-        float scale { 1 };
-    };
-
     Compositing::AsyncScrollOperationID allocate_operation_id() { return ++m_last_allocated_operation_id; }
     void complete_operation(Compositing::AsyncScrollOperationID operation_id) { m_completed_operation_ids.append(operation_id); }
     void note_operation_taken_over_by_user_input(Compositing::AsyncScrollOperationID operation_id) { m_operation_ids_taken_over_by_user_input.append(operation_id); }
@@ -39,14 +25,8 @@ public:
     bool has_updates(bool user_scroll_gesture_in_progress) const;
     Compositing::PendingAsyncScrollUpdates take_updates(bool user_scroll_gesture_in_progress);
 
-    ReadonlySpan<UnreconciledScrollOffset> unreconciled_scroll_offsets() const { return m_unreconciled_scroll_offsets; }
-    // Where the compositor zoomed and panned the document's visual viewport to, until WebContent has adopted it.
-    Optional<VisualViewportState> unadopted_visual_viewport_state(Web::UniqueNodeID document_id) const;
-    void retire_scroll_offsets_adopted_by(u64 adopted_sequence);
-
 private:
     Vector<Compositing::AsyncScrollOffset> m_pending_scroll_offsets;
-    Vector<UnreconciledScrollOffset> m_unreconciled_scroll_offsets;
     u64 m_last_publication_sequence { 0 };
     Compositing::AsyncScrollOperationID m_last_allocated_operation_id { 0 };
     Vector<Compositing::AsyncScrollOperationID> m_completed_operation_ids;

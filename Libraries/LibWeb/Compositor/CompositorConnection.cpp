@@ -225,6 +225,11 @@ bool CompositorConnectionFrameSink::submit(CompositorFrame&& frame)
         if (!post(encoded_message))
             return false;
     }
+    if (!frame.scroll_requests.is_empty()) {
+        auto encoded_message = MUST(Messages::CompositorWebContentServer::ApplyScrollRequests::static_encode(context_id, frame.scroll_requests));
+        if (!post(encoded_message))
+            return false;
+    }
     if (frame.present_viewport_rect.has_value()) {
         auto encoded_message = MUST(Messages::CompositorWebContentServer::PresentFrame::static_encode(context_id, *frame.present_viewport_rect));
         if (!post(encoded_message))
@@ -494,19 +499,6 @@ Compositing::AsyncScrollEnqueueResult CompositorConnection::async_scroll_by(Web:
     return response->take_result();
 }
 
-Compositing::AsyncScrollEnqueueResult CompositorConnection::smooth_scroll_to(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue)
-{
-    if (!can_send_message_to_compositor())
-        return {};
-
-    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::SmoothScrollTo>(context_id, stable_node_id, offset, main_thread_offset, viewport_rect, animation_kind, initiator, operation_to_continue);
-    if (!response) {
-        did_lose_compositor();
-        return {};
-    }
-    return response->take_result();
-}
-
 String CompositorConnection::scroll_state_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stretched_scroller)
 {
     if (!can_send_message_to_compositor())
@@ -560,13 +552,6 @@ Vector<Web::InputTraceRecord> CompositorConnection::take_input_trace_for_testing
         return {};
     }
     return response->take_records();
-}
-
-void CompositorConnection::cancel_smooth_scroll(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id)
-{
-    if (!can_send_message_to_compositor())
-        return;
-    async_cancel_smooth_scroll(context_id, stable_node_id);
 }
 
 Compositing::PendingAsyncScrollUpdates CompositorConnection::take_pending_async_scroll_updates(Web::CompositorContextId context_id, Compositing::AsyncScrollUpdateFreshness freshness)
@@ -634,8 +619,7 @@ void CompositorConnection::merge_async_scroll_updates(Web::CompositorContextId c
     for (auto const& scroll_offset : updates.scroll_offsets) {
         auto existing = pending.scroll_offsets.find_if([&](auto const& existing) { return existing.stable_node_id == scroll_offset.stable_node_id; });
         if (existing != pending.scroll_offsets.end()) {
-            existing->compositor_scroll_offset = scroll_offset.compositor_scroll_offset;
-            existing->unadopted_scroll_delta.translate_by(scroll_offset.unadopted_scroll_delta);
+            existing->merge_later_scroll(scroll_offset);
         } else {
             pending.scroll_offsets.append(scroll_offset);
         }

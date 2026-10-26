@@ -156,8 +156,16 @@ void VisualViewport::scroll_by(CSSPixelPoint delta)
         return;
     m_offset += delta;
     did_scroll();
+    did_change_offset_or_scale();
+}
+
+// The compositor zooms and pans the visual viewport too, and hears of every change made to it here.
+void VisualViewport::did_change_offset_or_scale()
+{
     update_accumulated_visual_context();
     m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
+    if (auto navigable = m_document->navigable())
+        navigable->did_change_scroll_offset({ .node_id = m_document->unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport });
 }
 
 // https://drafts.csswg.org/cssom-view-1/#scrolling-events
@@ -204,8 +212,7 @@ void VisualViewport::zoom(CSSPixelPoint position, double scale_delta)
     m_offset = (new_offset / m_scale).to_type<CSSPixels>();
     if (m_offset != old_offset)
         did_scroll();
-    update_accumulated_visual_context();
-    m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
+    did_change_offset_or_scale();
 }
 
 void VisualViewport::set_scale_zoomed_by_compositor(double scale)
@@ -213,8 +220,7 @@ void VisualViewport::set_scale_zoomed_by_compositor(double scale)
     if (scale == m_scale)
         return;
     m_scale = scale;
-    update_accumulated_visual_context();
-    m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
+    did_change_offset_or_scale();
 }
 
 CSSPixelPoint VisualViewport::map_to_layout_viewport(CSSPixelPoint position) const
@@ -243,8 +249,7 @@ void VisualViewport::reset()
         // Resetting performs an instant scroll, so its scrollend event is queued immediately.
         m_document->append_pending_scroll_event({ *this, HTML::EventNames::scrollend });
     }
-    update_accumulated_visual_context();
-    m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
+    did_change_offset_or_scale();
 }
 
 void VisualViewport::update_accumulated_visual_context()

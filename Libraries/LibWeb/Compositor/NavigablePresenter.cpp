@@ -35,6 +35,7 @@ struct PresenterFFI {
         if (is_stale(presenter, sealed))
             return;
         auto frame = presenter.build_frame_beside_event_loop(sealed, move(display_list));
+        frame.scroll_requests = move(sealed.scroll_requests);
         note_presented(presenter, sealed);
         if (sink)
             sink->submit(move(frame));
@@ -46,6 +47,7 @@ struct PresenterFFI {
         if (is_stale(presenter, sealed))
             return;
         auto frame = presenter.build_frame(sealed, {});
+        frame.scroll_requests = move(sealed.scroll_requests);
         note_presented(presenter, sealed);
         if (sink)
             sink->submit(move(frame));

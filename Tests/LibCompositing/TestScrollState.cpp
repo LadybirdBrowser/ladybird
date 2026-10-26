@@ -38,7 +38,6 @@ static ScrollStateSnapshot decode_snapshot(Vector<WirePair> const& pairs)
         MUST(encoder.encode(pair.index));
         MUST(encoder.encode(pair.offset));
     }
-    MUST(encoder.encode(u64 { 0 })); // adopted_async_scroll_sequence
 
     auto data = message_buffer.take_data();
     FixedMemoryStream stream { data.span() };
@@ -140,11 +139,10 @@ TEST_CASE(async_scroll_tree_ignores_out_of_range_scroll_node_index)
     EXPECT_EQ(snapshot.device_offset_for_index(out_of_range_index), Gfx::FloatPoint {});
 }
 
-TEST_CASE(ipc_round_trip_preserves_scroll_offsets_and_adopted_sequence)
+TEST_CASE(ipc_round_trip_preserves_scroll_offsets)
 {
     ScrollStateSnapshot snapshot;
     snapshot.set_device_offset_for_index(SpatialNodeIndex { 3 }, Gfx::FloatPoint { 10, 20 });
-    snapshot.set_adopted_async_scroll_sequence(0x1'0000'0001);
 
     IPC::MessageBuffer message_buffer;
     IPC::Encoder encoder { message_buffer };
@@ -156,7 +154,6 @@ TEST_CASE(ipc_round_trip_preserves_scroll_offsets_and_adopted_sequence)
     IPC::Decoder decoder { stream, attachments };
 
     auto decoded = MUST(IPC::decode<ScrollStateSnapshot>(decoder));
-    EXPECT_EQ(decoded.adopted_async_scroll_sequence(), snapshot.adopted_async_scroll_sequence());
     decoded.set_node_count(8);
     EXPECT_EQ(decoded.device_offset_for_index(SpatialNodeIndex { 3 }), (Gfx::FloatPoint { 10, 20 }));
     // Indices that were never set are holes that decode back to zero offsets.

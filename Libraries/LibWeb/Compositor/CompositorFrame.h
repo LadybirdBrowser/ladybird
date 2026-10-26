@@ -51,6 +51,8 @@ struct CompositorFrame {
     Optional<DisplayListUpdate> display_list_update;
     Optional<VisualContextTreeUpdate> visual_context_tree_update;
     Optional<ScrollStateUpdate> scroll_state_update;
+    // The scrolls the main thread asked for, which go after the frame's boxes.
+    Vector<Compositing::ScrollRequest> scroll_requests;
     // Set when the frame is presented once the compositor has applied it.
     Optional<Gfx::IntRect> present_viewport_rect;
 
