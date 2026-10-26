@@ -2304,17 +2304,13 @@ impl<'pass> SizingContext<'pass> {
             );
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn cache_intrinsic_inline_measurement(
         &self,
         node: Node,
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
-        measurement_root_used: &UsedValues,
         result: formatting_context::ChildLayoutResult,
-        available_block_size: AvailableSize,
     ) {
-        let used = measurement_root_used;
         self.intrinsic_inline_measurement_cache_put(
             node,
             kind,
@@ -2322,69 +2318,10 @@ impl<'pass> SizingContext<'pass> {
             IntrinsicInlineSizeMeasurement {
                 automatic_content_inline_size: result.automatic_content_inline_size,
                 min_content_inline_size_from_max_content_layout: result.min_content_inline_size_from_max_content_layout,
-                layout: (!result.omitted_line_layout).then(|| layout_node_arena::IntrinsicInlineMeasurementLayout {
-                    available_block_size,
-                    content_inline_size: used.content_inline_size.get(),
-                    content_block_size: used.content_block_size.get(),
-                    automatic_content_block_size: result.automatic_content_block_size,
-                    uses_collapsing_borders_model: used.uses_collapsing_borders_model.get(),
-                    is_collapsed_borders_table_box: used.is_collapsed_borders_table_box.get(),
-                    has_first_baseline: used.has_first_baseline.get(),
-                    first_baseline: used.first_baseline.get(),
-                    has_last_baseline: used.has_last_baseline.get(),
-                    last_baseline: used.last_baseline.get(),
-                    inline_alignment_baseline: used.inline_alignment_baseline.get(),
-                }),
                 depends_on_percentage_block_size: result.depends_on_percentage_block_size,
                 depends_on_percentage_inline_basis: self.measurement_root_observes_percentage_inline_basis(node),
             },
         );
-    }
-
-    pub(crate) fn apply_cached_intrinsic_inline_measurement(
-        &self,
-        node: Node,
-        available_inline_size: AvailableSize,
-        available_block_size: AvailableSize,
-        constraints: ContainingBlockConstraints,
-    ) -> Option<(CssPixels, DerivedBaselines)> {
-        // OPTIMIZATION: When intrinsic sizing needs measurement layout, a later equivalent intrinsic line
-        // build can reuse its dimensions and baselines. A width-only query has no layout summary to reuse,
-        // and commit layout must still create all descendant geometry.
-        if !self.purpose.is_measurement() {
-            return None;
-        }
-        let kind = match available_inline_size {
-            AvailableSize::MinContent => IntrinsicSizeCacheKind::MinContentInline,
-            AvailableSize::MaxContent => IntrinsicSizeCacheKind::MaxContentInline,
-            AvailableSize::Definite(_) | AvailableSize::Indefinite => return None,
-        };
-        let measurement = self.intrinsic_inline_measurement_cache_get(
-            node,
-            kind,
-            formatting_context::cache_key(None, None, constraints),
-        )?;
-        let measurement = measurement.layout?;
-        if measurement.available_block_size != available_block_size {
-            return None;
-        }
-        let used = self.used(node);
-        if used.content_inline_size.get() != measurement.content_inline_size {
-            return None;
-        }
-
-        used.set_content_block_size(measurement.content_block_size);
-        used.uses_collapsing_borders_model
-            .set(measurement.uses_collapsing_borders_model);
-        used.is_collapsed_borders_table_box
-            .set(measurement.is_collapsed_borders_table_box);
-        let baselines = DerivedBaselines {
-            inline_alignment: measurement.inline_alignment_baseline,
-            first: measurement.has_first_baseline.then_some(measurement.first_baseline),
-            last: measurement.has_last_baseline.then_some(measurement.last_baseline),
-        };
-        formatting_context::store_derived_baselines(used, baselines);
-        Some((measurement.automatic_content_block_size, baselines))
     }
 
     fn transferred_intrinsic_inline_sizing_space(&self, node: Node) -> AvailableSpace {
@@ -2894,7 +2831,7 @@ impl<'pass> SizingContext<'pass> {
             node,
             result.depends_on_percentage_block_size,
         );
-        self.cache_intrinsic_inline_measurement(node, kind, key, &root, result, block_size);
+        self.cache_intrinsic_inline_measurement(node, kind, key, result);
         value
     }
 
