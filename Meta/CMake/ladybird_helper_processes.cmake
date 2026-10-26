@@ -14,6 +14,11 @@ if (APPLE)
     list(APPEND ladybird_helper_processes ProcessReaper)
 endif()
 
+# FIXME: The WebRTC helper speaks IPC through LibIPC's Rust crate, which has no Windows transport yet.
+if (NOT WIN32)
+    list(APPEND ladybird_helper_processes WebRTCClient)
+endif()
+
 function(ladybird_write_entitlements path)
     set(plist "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n")
     foreach (entitlement IN LISTS ARGN)
