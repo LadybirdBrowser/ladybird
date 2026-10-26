@@ -1282,6 +1282,8 @@ pub(crate) struct LayoutNodeArena {
     unresolved_container_lengths: RefCell<Vec<NodeSlotId>>,
     partial_layout_count: Cell<u64>,
     full_layout_count: Cell<u64>,
+    /// How many layouts were committed, full and partial.
+    layout_commit_count: u64,
     layout_tree_build_stats: Cell<FfiLayoutTreeBuildStats>,
     pre_order_labels: Vec<Cell<u64>>,
     pre_order_relabel_count: Cell<u64>,
@@ -1403,6 +1405,7 @@ impl LayoutNodeArena {
             unresolved_container_lengths: RefCell::new(Vec::new()),
             partial_layout_count: Cell::new(0),
             full_layout_count: Cell::new(0),
+            layout_commit_count: 0,
             layout_tree_build_stats: Cell::new(FfiLayoutTreeBuildStats::default()),
             pre_order_labels: Vec::new(),
             pre_order_relabel_count: Cell::new(0),
@@ -1468,6 +1471,14 @@ impl LayoutNodeArena {
     /// its next run reads any.
     pub(crate) fn take_intrinsic_size_cache_drops(&self) -> Vec<u32> {
         self.intrinsic_size_cache_drops.take()
+    }
+
+    pub(crate) fn layout_commit_count(&self) -> u64 {
+        self.layout_commit_count
+    }
+
+    pub(crate) fn note_layout_commit(&mut self) {
+        self.layout_commit_count += 1;
     }
 
     pub(crate) fn has_intrinsic_size_cache_drops(&self) -> bool {
@@ -7361,7 +7372,7 @@ mod tests {
         let allocation = arena.allocate_for_test();
         let inputs = test_abspos_layout_inputs();
         let mut link = fragment_tree::FragmentLink::for_test(allocation.slot);
-        link.abspos_layout_inputs = Some(Box::new(inputs));
+        link.abspos_layout_inputs = Some(std::sync::Arc::new(inputs));
         arena.set_committed_fragment_link(allocation.slot, link, None);
         assert!(arena.committed_fragment_link(arena.data(allocation.slot)).is_some());
         assert_eq!(
@@ -7390,7 +7401,7 @@ mod tests {
         let new = arena.allocate_for_test();
         let inputs = test_abspos_layout_inputs();
         let mut link = fragment_tree::FragmentLink::for_test(old.slot);
-        link.abspos_layout_inputs = Some(Box::new(inputs));
+        link.abspos_layout_inputs = Some(std::sync::Arc::new(inputs));
         let retained_fragment = link.fragment.clone();
         arena.set_committed_fragment_link(old.slot, link, None);
 

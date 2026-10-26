@@ -1940,7 +1940,7 @@ pub(super) fn run_formatting_context(
         &cache_key,
     ) {
         Ok(attempt) => attempt,
-        Err(entry) => {
+        Err(hit) => {
             if let Some(result) = reuse_committed_subtree_as_it_is(
                 purpose,
                 parent_fragments,
@@ -1948,11 +1948,11 @@ pub(super) fn run_formatting_context(
                 box_,
                 &callbacks,
                 &cache_key,
-                &entry,
+                &hit,
             ) {
                 return result;
             }
-            let reuses_committed_subtree = entry.can_reuse_committed_subtree();
+            let reuses_committed_subtree = hit.reuses_committed_subtree;
             let _trace = callbacks
                 .arena()
                 .layout_trace
@@ -1963,10 +1963,7 @@ pub(super) fn run_formatting_context(
                         "REPLAY FRAGMENTS"
                     }
                 });
-            let outputs = entry.outputs_to_replay(&cache_key);
-            if entry.is_uncommitted() {
-                fc_run_cache::store_replayed_uncommitted_entry(&callbacks, box_, cache_key, &entry, &outputs);
-            }
+            let outputs = hit.entry.outputs_to_replay(&cache_key, reuses_committed_subtree);
             return absorb_run_outputs(
                 &callbacks,
                 parent_fragments,
@@ -2028,10 +2025,10 @@ pub(super) fn run_formatting_context(
     absorb_run_outputs(&callbacks, parent_fragments, parent_used, box_, outputs, false)
 }
 
-/// Takes a committing run of `box_` from the cache entry `entry` with nothing replayed: its root record gets what the
+/// Takes a committing run of `box_` from the cache hit `hit` with nothing replayed: its root record gets what the
 /// stored run left, and the run's placement attaches the box's committed fragment as it is. That is exact where the
-/// committed fragment is the one the stored run produced, which a plain box shows by holding the record's metrics and
-/// the very line data the run left, and where nothing from the stored run reaches past its root.
+/// committed subtree is the one the stored run produced, the box is plain, and nothing from the stored run reaches
+/// past its root.
 fn reuse_committed_subtree_as_it_is(
     purpose: LayoutPurpose,
     parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
@@ -2039,14 +2036,18 @@ fn reuse_committed_subtree_as_it_is(
     box_: Node,
     callbacks: &LayoutPass<'_>,
     cache_key: &fc_run_cache::FcRunCacheKey,
-    entry: &fc_run_cache::FcRunCacheEntry,
+    hit: &fc_run_cache::FcRunCacheHit,
 ) -> Option<ChildLayoutResult> {
     let fragments = parent_fragments?;
+    let entry = &*hit.entry;
     if purpose != LayoutPurpose::Commit
-        || !entry.can_reuse_committed_subtree()
-        || entry.is_uncommitted()
+        || !hit.reuses_committed_subtree
         || !cache_key.has_no_table_cell_intrinsic_block_padding()
-        || entry.outputs.root.as_ref().is_some_and(|root| !root.carries_nothing())
+        || entry
+            .outputs
+            .root
+            .as_ref()
+            .is_some_and(|root| !root.propagates_nothing())
         || NodeFacts::new(callbacks, box_).has_anchor_names()
     {
         return None;
@@ -2850,7 +2851,7 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
     ) {
         Ok(fc_run_cache::FcRunCacheAttempt::Bypass) => return None,
         Ok(attempt) => attempt,
-        Err(entry) => {
+        Err(hit) => {
             let _trace = run.callbacks.arena().layout_trace.run(
                 cell,
                 FormattingContextType::Block,
@@ -2858,7 +2859,7 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
                 LayoutMode::Normal,
                 || "READ RESULT AHEAD OF INTRINSIC BLOCK PADDING",
             );
-            return Some(entry.outputs.result);
+            return Some(hit.entry.outputs.result);
         }
     };
     let _trace = run.callbacks.arena().layout_trace.run(
@@ -2874,7 +2875,7 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
     if let Some(discarded_outputs) = &discarded_outputs {
         run_repeatability::verify_repeated_run(&run.callbacks, cell, discarded_outputs, &outputs);
     }
-    cache_attempt.conclude_uncommitted(&run.callbacks, cell, cache_key, &outputs);
+    cache_attempt.conclude(&run.callbacks, cell, cache_key, &outputs);
     Some(outputs.result)
 }
 

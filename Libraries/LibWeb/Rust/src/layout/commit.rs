@@ -306,6 +306,7 @@ pub(crate) fn commit_replacing(
     arena: &mut LayoutNodeArena,
     pass_fragments: &fragment_tree::CompletedPassFragments,
 ) -> CommitNotifications {
+    arena.note_layout_commit();
     let links_by_slot = pass_fragments.links_by_slot();
     let mut paintables = crate::painting::paintable_build::PaintableCommit::new(arena, root);
     paintables.begin_commit();
