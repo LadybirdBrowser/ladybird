@@ -618,9 +618,6 @@ impl FcRunCacheAttempt {
         callbacks: &LayoutPass<'_>,
         key: &FcRunCacheKey,
     ) -> Result<Self, FcRunCacheHit> {
-        // A run this cache cannot describe still commits its subtree, so a stored entry would go on
-        // describing paintables that run has replaced. Measurement runs commit nothing and leave it alone.
-        let run_supersedes_stored_entry = layout_mode == LayoutMode::Normal && !purpose.is_measurement();
         if purpose.is_measurement()
             || !can_describe_run(
                 box_,
@@ -631,9 +628,6 @@ impl FcRunCacheAttempt {
                 key,
             )
         {
-            if run_supersedes_stored_entry {
-                callbacks.arena().fc_run_cache_store().remove_entry(box_.slot_index());
-            }
             return Ok(Self::Bypass);
         }
         let store = callbacks.arena().fc_run_cache_store();
@@ -687,18 +681,14 @@ impl FcRunCacheAttempt {
         };
         // Release the probed entry so that store() can replace it in place.
         drop(structurally_damaged_entry);
-        // Every path out of here belongs to a run that has committed its subtree, so an entry left
-        // behind without being replaced would describe paintables that no longer exist.
         let store = callbacks.arena().fc_run_cache_store();
         let Some(root) = &outputs.root else {
-            store.remove_entry(box_.slot_index());
             return;
         };
         // A committed-subtree hit omits that subtree's descendant fragments. Do not embed such a
         // skeletal result in an entry that exports an out-of-flow descendant: replaying the parent
         // has to rebuild its paintable subtree so the freshly laid-out descendant can commit.
         if !root.propagated_pending_abspos.is_empty() && !root.reused_subtree_roots.is_empty() {
-            store.remove_entry(box_.slot_index());
             return;
         }
         let entry = FcRunCacheEntry {
