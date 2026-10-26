@@ -2345,18 +2345,18 @@ static bool is_eof(StringType string, size_t position)
     return position >= code_unit_length(string);
 }
 
-static RefPtr<CSS::StyleValue const> parse_current_dimension_value(float value, Utf16View input, size_t position)
+static RefPtr<CSS::StyleValue const> parse_current_dimension_value(double value, Utf16View input, size_t position)
 {
     // 1. If position is past the end of input, then return value as a length.
     if (is_eof(input, position))
-        return CSS::LengthStyleValue::create(CSS::Length::make_px(CSSPixels::nearest_value_for(value)));
+        return CSS::LengthStyleValue::create(CSS::Length::make_px(value));
 
     // 2. If the code point at position within input is U+0025 (%), then return value as a percentage.
     if (code_unit_at(input, position) == '%')
         return CSS::PercentageStyleValue::create(CSS::Percentage(value));
 
     // 3. Return value as a length.
-    return CSS::LengthStyleValue::create(CSS::Length::make_px(CSSPixels::nearest_value_for(value)));
+    return CSS::LengthStyleValue::create(CSS::Length::make_px(value));
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-dimension-values
@@ -2383,11 +2383,11 @@ RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View input)
         ++position;
     }
 
-    float value = min(integer_value, CSSPixels::max_dimension_value);
+    double value = min(integer_value, CSSPixels::max_dimension_value);
 
     // 6. If position is past the end of input, then return value as a length.
     if (is_eof(input, position))
-        return CSS::LengthStyleValue::create(CSS::Length::make_px(CSSPixels(value)));
+        return CSS::LengthStyleValue::create(CSS::Length::make_px(value));
 
     // 7. If the code point at position within input is U+002E (.), then:
     if (code_unit_at(input, position) == '.') {
@@ -2400,7 +2400,7 @@ RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View input)
             return parse_current_dimension_value(value, input, position);
 
         // 3. Let divisor have the value 1.
-        float divisor = 1;
+        double divisor = 1;
 
         // 4. While true:
         while (true) {
@@ -2416,7 +2416,7 @@ RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View input)
 
             // 4. If position is past the end of input, then return value as a length.
             if (is_eof(input, position))
-                return CSS::LengthStyleValue::create(CSS::Length::make_px(CSSPixels::nearest_value_for(value)));
+                return CSS::LengthStyleValue::create(CSS::Length::make_px(value));
 
             // 5. If the code point at position within input is not an ASCII digit, then break.
             if (!is_ascii_digit(code_unit_at(input, position)))
