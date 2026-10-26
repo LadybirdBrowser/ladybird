@@ -14,6 +14,8 @@ use super::*;
 #[derive(Clone, Copy, PartialEq)]
 pub(super) struct FcRunCacheKey {
     fc_type: formatting_context::FormattingContextType,
+    purpose: formatting_context::LayoutPurpose,
+    layout_mode: LayoutMode,
     input: LayoutInput,
     root_cells: used_values::UsedValuesCellState,
 }
@@ -62,11 +64,15 @@ impl RunInputsTheStoredRunNeverObserved {
 impl FcRunCacheKey {
     pub(super) fn new(
         fc_type: formatting_context::FormattingContextType,
+        purpose: formatting_context::LayoutPurpose,
+        layout_mode: LayoutMode,
         input: LayoutInput,
         root_cells: used_values::UsedValuesCellState,
     ) -> Self {
         Self {
             fc_type,
+            purpose,
+            layout_mode,
             input,
             root_cells,
         }
@@ -74,6 +80,11 @@ impl FcRunCacheKey {
 
     pub(super) fn fc_type(&self) -> formatting_context::FormattingContextType {
         self.fc_type
+    }
+
+    /// Whether the run lays out fragments, which an entry can then also stand for.
+    fn builds_fragments(&self) -> bool {
+        self.layout_mode == LayoutMode::Normal && !self.purpose.is_measurement()
     }
 
     pub(super) fn has_no_table_cell_intrinsic_block_padding(&self) -> bool {
@@ -99,6 +110,8 @@ impl FcRunCacheKey {
             return false;
         }
         self.fc_type == probe.fc_type
+            && self.purpose == probe.purpose
+            && self.layout_mode == probe.layout_mode
             && self.root_cells == probe.root_cells
             && layout_inputs_match_ignoring_unobserved(&self.input, &probe.input, unobserved)
     }
@@ -380,11 +393,15 @@ struct InlineLayoutDamage {
     structural_epoch_bumps: u32,
 }
 
-/// Per-document store of completed run results, one entry per slot,
-/// surviving across layout passes on the node arena.
+/// How many results of runs that build no fragments a box keeps, the latest first.
+const RESULT_ONLY_ENTRIES_PER_BOX: usize = 4;
+
+/// Per-document store of completed run results, surviving across layout passes on the node arena: one entry per slot
+/// for the runs that lay out fragments, and a few for the runs that only measure.
 #[derive(Clone, Default)]
 pub(crate) struct FcRunCacheArenaStore {
     entries: RefCell<Vec<Option<std::sync::Arc<FcRunCacheEntry>>>>,
+    result_only_entries: RefCell<HashMap<u32, Vec<std::sync::Arc<FcRunCacheEntry>>>>,
     inline_layout_damage: RefCell<Vec<InlineLayoutDamage>>,
     pending_sweep_slots: RefCell<Vec<u32>>,
     enrolled_for_sweep: RefCell<Vec<bool>>,
@@ -408,15 +425,42 @@ impl FcRunCacheArenaStore {
             .borrow()
             .get(node.slot_index() as usize)
             .is_some_and(Option::is_some)
+            || self.result_only_entries.borrow().contains_key(&node.slot_index())
         {
             self.enqueue_for_sweep(node.slot_index());
         }
+    }
+
+    /// The stored result of a run that builds no fragments, for exactly `key`.
+    fn matching_result_only(
+        &self,
+        slot: u32,
+        validity: FcRunCacheValidity,
+        key: &FcRunCacheKey,
+    ) -> Option<std::sync::Arc<FcRunCacheEntry>> {
+        self.result_only_entries
+            .borrow()
+            .get(&slot)?
+            .iter()
+            .find(|entry| entry.validity == validity && entry.key == *key)
+            .cloned()
+    }
+
+    fn store_result_only(&self, slot: u32, entry: FcRunCacheEntry) {
+        let mut entries = self.result_only_entries.borrow_mut();
+        let stored = entries.entry(slot).or_default();
+        stored.retain(|stored| stored.key != entry.key);
+        stored.insert(0, std::sync::Arc::new(entry));
+        stored.truncate(RESULT_ONLY_ENTRIES_PER_BOX);
+        drop(entries);
+        self.enqueue_for_sweep(slot);
     }
 
     pub(crate) fn remove_entry(&self, slot: u32) {
         if let Some(entry) = self.entries.borrow_mut().get_mut(slot as usize) {
             *entry = None;
         }
+        self.result_only_entries.borrow_mut().remove(&slot);
         self.forget_inline_layout_damage(slot);
     }
 
@@ -547,9 +591,16 @@ impl FcRunCacheArenaStore {
         mut committed_subtree_token: impl FnMut(Node, &FcRunCacheEntry) -> Option<u32>,
     ) {
         let mut entries = self.entries.borrow_mut();
+        let mut result_only_entries = self.result_only_entries.borrow_mut();
         let mut enrolled = self.enrolled_for_sweep.borrow_mut();
         for slot in self.pending_sweep_slots.borrow_mut().drain(..) {
             enrolled[slot as usize] = false;
+            if let Some(stored) = result_only_entries.get_mut(&slot) {
+                stored.retain(|entry| keep(slot, entry.validity));
+                if stored.is_empty() {
+                    result_only_entries.remove(&slot);
+                }
+            }
             let Some(stored) = entries.get_mut(slot as usize) else {
                 continue;
             };
@@ -598,19 +649,22 @@ pub(super) enum FcRunCacheAttempt {
         validity: FcRunCacheValidity,
         structurally_damaged_entry: Option<std::sync::Arc<FcRunCacheEntry>>,
     },
+    /// A run that builds no fragments, whose result is kept for its exact key.
+    StoreResultOnly {
+        validity: FcRunCacheValidity,
+    },
 }
 
 impl FcRunCacheAttempt {
     pub(super) fn trace_action(&self) -> &'static str {
         match self {
             Self::Bypass => "RUN (cache=bypass)",
-            Self::Store { .. } => "RUN (cache=miss)",
+            Self::Store { .. } | Self::StoreResultOnly { .. } => "RUN (cache=miss)",
         }
     }
 
     /// Err carries the entry the caller must replay instead of running.
     pub(super) fn probe(
-        purpose: formatting_context::LayoutPurpose,
         box_: Node,
         parent_grid_is_present: bool,
         layout_mode: LayoutMode,
@@ -618,16 +672,38 @@ impl FcRunCacheAttempt {
         callbacks: &LayoutPass<'_>,
         key: &FcRunCacheKey,
     ) -> Result<Self, FcRunCacheHit> {
-        if purpose.is_measurement()
-            || !can_describe_run(
+        if !key.builds_fragments() {
+            if !can_describe_run_in_any_layout_mode(
                 box_,
                 parent_grid_is_present,
-                layout_mode,
                 should_collect_devtools_layout_data,
                 callbacks,
                 key,
-            )
-        {
+            ) {
+                return Ok(Self::Bypass);
+            }
+            let validity = run_root_validity(callbacks, box_);
+            if let Some(entry) =
+                callbacks
+                    .arena()
+                    .fc_run_cache_store()
+                    .matching_result_only(box_.slot_index(), validity, key)
+            {
+                return Err(FcRunCacheHit {
+                    entry,
+                    reuses_committed_subtree: false,
+                });
+            }
+            return Ok(Self::StoreResultOnly { validity });
+        }
+        if !can_describe_run(
+            box_,
+            parent_grid_is_present,
+            layout_mode,
+            should_collect_devtools_layout_data,
+            callbacks,
+            key,
+        ) {
             return Ok(Self::Bypass);
         }
         let store = callbacks.arena().fc_run_cache_store();
@@ -672,16 +748,31 @@ impl FcRunCacheAttempt {
         key: FcRunCacheKey,
         outputs: &formatting_context::RunOutputs,
     ) {
-        let Self::Store {
-            validity,
-            structurally_damaged_entry,
-        } = self
-        else {
-            return;
+        let store = callbacks.arena().fc_run_cache_store();
+        let (validity, structurally_damaged_entry) = match self {
+            Self::Bypass => return,
+            Self::StoreResultOnly { validity } => {
+                debug_assert!(outputs.root.is_none(), "a run that builds no fragments returned a root");
+                store.store_result_only(
+                    box_.slot_index(),
+                    FcRunCacheEntry {
+                        key,
+                        validity,
+                        outputs: outputs.clone(),
+                        table_cell_intrinsic_block_padding_unobserved: false,
+                        layout_commits_when_stored: callbacks.arena().layout_commit_count(),
+                        committed_subtree_token_when_descendants_dropped: None,
+                    },
+                );
+                return;
+            }
+            Self::Store {
+                validity,
+                structurally_damaged_entry,
+            } => (validity, structurally_damaged_entry),
         };
         // Release the probed entry so that store() can replace it in place.
         drop(structurally_damaged_entry);
-        let store = callbacks.arena().fc_run_cache_store();
         let Some(root) = &outputs.root else {
             return;
         };
@@ -796,6 +887,8 @@ mod tests {
     fn key(available_inline: AvailableSize, percentage_basis_inline_size: Option<CssPixels>) -> FcRunCacheKey {
         FcRunCacheKey {
             fc_type: formatting_context::FormattingContextType::Block,
+            purpose: formatting_context::LayoutPurpose::Commit,
+            layout_mode: LayoutMode::Normal,
             input: LayoutInput::new(
                 AvailableSpace {
                     inline_size: available_inline,
