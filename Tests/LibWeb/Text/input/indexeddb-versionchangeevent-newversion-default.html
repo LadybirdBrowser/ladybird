@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const event = new IDBVersionChangeEvent("versionchange");
+        println(`oldVersion: ${event.oldVersion}`);
+        println(`newVersion: ${event.newVersion}`);
+
+        const explicit = new IDBVersionChangeEvent("versionchange", { oldVersion: 1, newVersion: 2 });
+        println(`explicit newVersion: ${explicit.newVersion}`);
+
+        const nulled = new IDBVersionChangeEvent("versionchange", { newVersion: null });
+        println(`null newVersion: ${nulled.newVersion}`);
+    });
+</script>

@@ -1,0 +1,4 @@
+oldVersion: 0
+newVersion: null
+explicit newVersion: 2
+null newVersion: null

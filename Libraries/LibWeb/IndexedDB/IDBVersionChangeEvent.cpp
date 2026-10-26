@@ -24,7 +24,7 @@ GC::Ref<IDBVersionChangeEvent> IDBVersionChangeEvent::create(Utf16FlyString cons
     init.cancelable = event_init.cancelable;
     init.composed = event_init.composed;
     init.old_version = event_init.old_version;
-    init.new_version = event_init.new_version.value_or({});
+    init.new_version = event_init.new_version;
     return create(event_name, init, time_stamp);
 }
 
