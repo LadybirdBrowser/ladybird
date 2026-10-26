@@ -92,7 +92,6 @@ fn compute_from_items(run: &FormattingContextRun<'_>, input: LayoutInput) -> Opt
     Some(IntrinsicInlineSizeMeasurement {
         automatic_content_inline_size: clamp_to_max_dimension_value(maximum),
         min_content_inline_size_from_max_content_layout: minimum.map(clamp_to_max_dimension_value),
-        layout: None,
         depends_on_percentage_block_size: sizing.resolve_percentage_block_size_dependency(run.box_),
         depends_on_percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(run.box_),
     })
@@ -143,7 +142,6 @@ fn compute_from_atomic_children(
         automatic_content_inline_size: clamp_to_max_dimension_value(max_content_lines.finish_measurement()),
         min_content_inline_size_from_max_content_layout: min_content_lines
             .map(|lines| clamp_to_max_dimension_value(lines.finish_measurement())),
-        layout: None,
         depends_on_percentage_block_size: sizing.resolve_percentage_block_size_dependency(run.box_),
         depends_on_percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(run.box_),
     })
