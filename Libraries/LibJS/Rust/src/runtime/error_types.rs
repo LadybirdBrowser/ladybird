@@ -146,6 +146,7 @@ define_error_types! {
     NumberIsNaN => "{} must not be NaN",
     NumberIsNaNOrInfinity => "Number must not be NaN or Infinity",
     NumberIsNegative => "{} must not be negative",
+    NumberIsOutOfRange => "{} must be between {} and {} inclusive",
     ObjectDefineOwnPropertyReturnedFalse => "Object's [[DefineOwnProperty]] method returned false",
     ObjectDeleteReturnedFalse => "Object's [[Delete]] method returned false",
     ObjectFreezeFailed => "Could not freeze object",
