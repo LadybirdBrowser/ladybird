@@ -1301,20 +1301,30 @@ impl RetainedState {
                 })
     }
 
-    /// What a registered custom property computes against in a record's element: the record's
-    /// lengths, and the color scheme its table settled. `None` for a record without a font.
+    /// Construct a registered value context with the subject's query containers' sizes.
+    pub(super) fn registered_value_context(
+        &self,
+        node: StyleNodeID,
+        mut length: crate::css::style_compute::FfiLengthResolutionContext,
+        color_scheme: u8,
+    ) -> RegisteredValueContext {
+        self.container_unit_bases(node).apply_to(&mut length);
+        RegisteredValueContext { length, color_scheme }
+    }
+
+    /// What a registered custom property computes against: the record's lengths, the subject's
+    /// query container sizes, and the color scheme its table settled. `None` for a record without a font.
     pub(super) fn record_registered_value_context(
         &self,
+        node: StyleNodeID,
         record: computed::FinalStyleRecordID,
     ) -> Option<RegisteredValueContext> {
         let view = self.computed_group_sets.style_record_view(record.raw())?;
         let length = self.record_length_resolution_context(&view)?;
         let table = view.longhand_table?;
-        Some(RegisteredValueContext {
-            length,
-            color_scheme: u8::try_from(table.effective_color_scheme())
-                .unwrap_or(self.document_style_computation_inputs.preferred_color_scheme),
-        })
+        let color_scheme = u8::try_from(table.effective_color_scheme())
+            .unwrap_or(self.document_style_computation_inputs.preferred_color_scheme);
+        Some(self.registered_value_context(node, length, color_scheme))
     }
 
     /// What a registered custom property computes against where the caller brings nothing
@@ -1336,7 +1346,7 @@ impl RetainedState {
                     .and_then(|parent| self.computed_group_sets.assigned_style_record(parent))
             }),
         };
-        if let Some(context) = record.and_then(|record| self.record_registered_value_context(record)) {
+        if let Some(context) = record.and_then(|record| self.record_registered_value_context(node, record)) {
             return context;
         }
         use crate::css::style_compute::{FfiFontMetrics, FfiLengthResolutionContext};
@@ -1348,8 +1358,9 @@ impl RetainedState {
             zero_advance: inputs.initial_font_zero_advance,
             line_height: 0.0,
         };
-        RegisteredValueContext {
-            length: FfiLengthResolutionContext {
+        self.registered_value_context(
+            node,
+            FfiLengthResolutionContext {
                 viewport_width: inputs.viewport_width,
                 viewport_height: inputs.viewport_height,
                 font_metrics: initial,
@@ -1365,8 +1376,8 @@ impl RetainedState {
                 subject_inline_axis_is_horizontal: true,
                 resolved_viewport_relative_length: std::ptr::null_mut(),
             },
-            color_scheme: inputs.preferred_color_scheme,
-        }
+            inputs.preferred_color_scheme,
+        )
     }
 
     /// What the custom function calls in the values of a node, or of one of its pseudo-elements,
@@ -1684,7 +1695,8 @@ impl RetainedState {
             .declarations_name_a_registered_custom_property(&cascaded, inputs)
             .then(|| {
                 registered
-                    .copied()
+                    // A backing element supplies its font; query containers belong to its originating element.
+                    .map(|registered| self.registered_value_context(node, registered.length, registered.color_scheme))
                     .unwrap_or_else(|| self.standing_registered_value_context(node, pseudo))
             });
         // A custom function call reads the definitions its scope sees, with the blocks of
@@ -1799,11 +1811,7 @@ impl RetainedState {
         // A registered value computes as the host computes one: against the element's lengths with
         // its query containers' sizes, its place among its siblings, and the random base values
         // drawn for the element, which the engine keeps. A pseudo-element's are its element's.
-        let length = registered.as_ref().map(|registered| {
-            let mut length = registered.length;
-            self.container_unit_bases(node).apply_to(&mut length);
-            length
-        });
+        let length = registered.as_ref().map(|registered| &registered.length);
         let tree_counting = registered
             .is_some()
             .then(|| self.sibling_position(node))
@@ -1814,7 +1822,7 @@ impl RetainedState {
             random_base_values.borrow_mut().ensure(Some(node), name, element_shared)
         };
         let finalization = CustomPropertyFinalization {
-            length: length.as_ref(),
+            length,
             tree_counting,
             random_base_values: &[],
             color_scheme: registered.as_ref().map_or(0, |registered| registered.color_scheme),

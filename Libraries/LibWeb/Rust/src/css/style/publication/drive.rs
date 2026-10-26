@@ -1123,13 +1123,14 @@ impl RetainedState {
         // the host finalizes one after the line-height phase; the winners the remaining phase reads
         // substitute what it computes to.
         if awaits_registered_context {
-            let context = custom_property_cascade::RegisteredValueContext {
-                length: FfiLengthResolutionContext {
+            let context = self.registered_value_context(
+                target.node(),
+                FfiLengthResolutionContext {
                     resolved_viewport_relative_length: std::ptr::null_mut(),
                     ..remaining_length
                 },
-                color_scheme: u8::try_from(effective_color_scheme).unwrap_or(inputs.preferred_color_scheme),
-            };
+                u8::try_from(effective_color_scheme).unwrap_or(inputs.preferred_color_scheme),
+            );
             font_scratch.pending = Some(PendingFontDrive {
                 target,
                 progress: Some(DriveProgress {
