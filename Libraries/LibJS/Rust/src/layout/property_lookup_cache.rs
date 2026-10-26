@@ -38,7 +38,7 @@ pub struct PropertyLookupCacheEntry {
     pub property_offset: Cell<u32>,
     pub shape_dictionary_generation: Cell<u32>,
     pub writes_data_property: Cell<bool>,
-    pub from_shape: Cell<Option<Gc<Shape>>>,
+    pub new_shape: Cell<Option<Gc<Shape>>>,
     pub shape: Cell<Option<Gc<Shape>>>,
     pub prototype: Cell<Option<Gc<Object>>>,
     pub prototype_chain_validity: Cell<Option<Gc<WatchpointSet>>>,

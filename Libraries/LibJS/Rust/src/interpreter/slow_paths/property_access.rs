@@ -595,11 +595,11 @@ fn put_by_value_with_keyed_store_cache(
             lookup.entry_type = PropertyLookupCacheEntryType::ChangeOwnProperty;
             lookup.property_offset = entry.property_offset;
         }
-        PropertyLookupCacheEntryType::AddOwnProperty if entry.from_shape == Some(shape) && entry.shape.is_some() => {
+        PropertyLookupCacheEntryType::AddOwnProperty if entry.shape == Some(shape) && entry.new_shape.is_some() => {
             lookup.entry_type = PropertyLookupCacheEntryType::AddOwnProperty;
             lookup.property_offset = entry.property_offset;
             lookup.prototype_chain_validity = entry.prototype_chain_validity;
-            lookup.new_shape = entry.shape;
+            lookup.new_shape = entry.new_shape;
         }
         _ => {}
     }
@@ -1554,7 +1554,7 @@ fn try_put_by_property_lookup_cache(
                 return true;
             }
             PropertyLookupCacheEntryType::AddOwnProperty => {
-                if entry.from_shape.get() != Some(object.shape()) {
+                if entry.shape.get() != Some(object.shape()) {
                     continue;
                 }
                 if !object_can_cache_property_additions(&object) {
@@ -1566,7 +1566,7 @@ fn try_put_by_property_lookup_cache(
                 {
                     continue;
                 }
-                let Some(cached_shape) = entry.shape.get() else {
+                let Some(new_shape) = entry.new_shape.get() else {
                     continue;
                 };
                 if !object.extensible() {
@@ -1579,7 +1579,7 @@ fn try_put_by_property_lookup_cache(
                 {
                     continue;
                 }
-                object.unsafe_set_shape(cached_shape);
+                object.unsafe_set_shape(new_shape);
                 object.initialize_direct(entry.property_offset.get(), value);
                 return true;
             }

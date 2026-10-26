@@ -660,7 +660,7 @@ pub struct PropertyCacheEntrySnapshot {
     /// Whether `shape` was stable (see `Dependency::StableShape`).
     pub shape_is_stable: bool,
     pub writes_data_property: bool,
-    pub from_shape: Option<CellId>,
+    pub new_shape: Option<CellId>,
     pub shape: Option<CellId>,
     pub prototype: Option<CellId>,
     pub prototype_chain_validity: Option<CellId>,
@@ -1951,9 +1951,9 @@ pub struct RuntimeLayout {
     pub property_lookup_cache_entry_key: u32,
     /// `PropertyLookupCache::data` of a keyed access that saw too many keys to cache.
     pub property_lookup_cache_keyed_generic: u64,
-    /// `PropertyLookupCache::Entry::from_shape` (cell pointer): the shape an
-    /// `AddOwnProperty` entry transitions from.
-    pub property_lookup_cache_entry_from_shape: u32,
+    /// `PropertyLookupCache::Entry::new_shape` (cell pointer): the shape an
+    /// `AddOwnProperty` entry transitions to.
+    pub property_lookup_cache_entry_new_shape: u32,
     /// The tag of `PropertyLookupCache::data` for `MegamorphicData`.
     pub property_lookup_cache_megamorphic_tag: u64,
     /// `PropertyLookupCache::MegamorphicData::primary_entries` (entries).

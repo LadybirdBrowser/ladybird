@@ -353,7 +353,7 @@ fn runtime_layout() -> RuntimeLayout {
         property_lookup_cache_entry_size: offset(size_of::<PropertyLookupCacheEntry>()),
         property_lookup_cache_entry_key: offset(offset_of!(PropertyLookupCacheEntry, key)),
         property_lookup_cache_keyed_generic: PROPERTY_LOOKUP_CACHE_KEYED_GENERIC_DATA as u64,
-        property_lookup_cache_entry_from_shape: offset(offset_of!(PropertyLookupCacheEntry, from_shape)),
+        property_lookup_cache_entry_new_shape: offset(offset_of!(PropertyLookupCacheEntry, new_shape)),
         property_lookup_cache_megamorphic_tag: MEGAMORPHIC_DATA_TAG as u64,
         property_lookup_cache_megamorphic_primary_entries: offset(MEGAMORPHIC_PRIMARY_ENTRIES_OFFSET),
         property_lookup_cache_megamorphic_secondary_entries: offset(MEGAMORPHIC_SECONDARY_ENTRIES_OFFSET),

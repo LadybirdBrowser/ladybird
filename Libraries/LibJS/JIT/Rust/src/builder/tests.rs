@@ -829,7 +829,7 @@ pub(crate) mod property_access {
             shape_is_dictionary: false,
             shape_is_stable: false,
             writes_data_property: entry_type == PropertyCacheEntryType::ChangeOwnProperty,
-            from_shape: None,
+            new_shape: None,
             shape: Some(CellId(shape)),
             prototype: None,
             prototype_chain_validity: None,
