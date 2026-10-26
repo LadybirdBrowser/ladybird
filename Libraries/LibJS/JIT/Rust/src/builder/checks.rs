@@ -51,8 +51,17 @@ impl GraphBuilder<'_> {
             },
             Instruction::ThrowIfTDZ { src } => {
                 let value = self.read(src)?;
-                let empty = self.constant(value::EMPTY);
-                self.build_throwing_check(BranchCondition::TaggedEquals { equal: true }, vec![value, empty], true)
+                let initialized = self.check_initialized(value)?;
+                if let Some(slot) = self.function.layout.tracked_index(src)
+                    && let SlotState::Value { node, in_sync } = self.frame.slots[slot]
+                    && node == value
+                {
+                    self.frame.slots[slot] = SlotState::Value {
+                        node: initialized,
+                        in_sync,
+                    };
+                }
+                Ok(Flow::Continue)
             }
             Instruction::ThrowIfNotObject { src } => {
                 let value = self.read(src)?;
@@ -147,6 +156,20 @@ impl GraphBuilder<'_> {
         self.set_control(Op::Unreachable, Vec::new());
         self.block = next;
         Ok(Flow::Continue)
+    }
+
+    /// `value`, the value of a binding or local variable, refined to be
+    /// initialized. Where it is not, the code exits for the interpreter to
+    /// throw, or the instruction's slow path throws if such an exit was taken
+    /// there before, or if the value is known to be uninitialized.
+    pub(super) fn check_initialized(&mut self, value: NodeId) -> Result<NodeId, CompileFailure> {
+        if self.graph.constant_value(value) != Some(value::EMPTY) && self.may_speculate(ExitKind::Uninitialized) {
+            return Ok(self.emit_checked(Op::CheckInitialized, vec![value], None));
+        }
+        let empty = self.constant(value::EMPTY);
+        let condition = BranchCondition::TaggedEquals { equal: true };
+        self.build_throwing_check(condition, vec![value, empty], true)?;
+        Ok(self.refine(condition, false, vec![value, empty]))
     }
 
     /// Writes `src` to `dst` where `condition` holds of it, and the result

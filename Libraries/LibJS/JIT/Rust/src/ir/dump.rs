@@ -336,6 +336,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         | Op::LoadPropertyIteratorKey => with_inputs(op.name()),
         Op::CheckBounds
         | Op::CheckNotHole
+        | Op::CheckInitialized
         | Op::CheckTypedArray
         | Op::CheckArray
         | Op::CheckNonNegativeInt32
