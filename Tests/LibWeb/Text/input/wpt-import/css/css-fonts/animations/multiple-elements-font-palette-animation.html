@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>Font-palette animation of multiple elements</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#propdef-font-palette">
+<meta name="assert" content="Animating font-palette CSS property of multiple elements.">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  @font-face {
+    font-family: "COLR-test-font";
+    src: url("../resources/COLR-palettes-test-font.ttf") format("truetype");
+  }
+  @font-palette-values --custom {
+    font-family: "COLR-test-font";
+    base-palette: 3;
+  }
+  @keyframes anim {
+    from {
+      font-palette: normal;
+    }
+    to {
+      font-palette: --custom;
+    }
+  }
+  .demo {
+    font-family: "COLR-test-font";
+    font-size: 130px;
+  }
+  .anim {
+    animation: anim 0.1s forwards;
+  }
+</style>
+
+<body>
+  <div class="demo">
+    <div id="a" class="anim">A</div><div id="b" class="anim">A</div>
+  </div>
+</body>
+
+<script>
+  var afterPaletteAnimationTest1 = async_test(
+    "Verify font-palette value of the first element after animation"
+  );
+  document.getElementById("a").addEventListener("animationend",
+    afterPaletteAnimationTest1.step_func_done(function() {
+        assert_equals(window.getComputedStyle(
+                document.getElementById("a"))
+            .getPropertyValue('font-palette'), "--custom");
+    }));
+
+  var afterPaletteAnimationTest2 = async_test(
+    "Verify font-palette value of the second element after animation"
+  );
+  document.getElementById("b").addEventListener("animationend",
+    afterPaletteAnimationTest2.step_func_done(function() {
+        assert_equals(window.getComputedStyle(
+                document.getElementById("b"))
+            .getPropertyValue('font-palette'), "--custom");
+    }));
+</script>

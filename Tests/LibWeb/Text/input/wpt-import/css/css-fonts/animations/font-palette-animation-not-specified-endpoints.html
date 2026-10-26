@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>Font-palette animation with unspecified endpoints keyframes</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#propdef-font-palette">
+<meta name="assert" content="Font-palette should be animated if `from` and `to` keyframes are not specified.">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  @font-face {
+    font-family: "COLR-test-font";
+    src: url("../resources/COLR-palettes-test-font.ttf") format("truetype");
+  }
+  @font-palette-values --custom {
+    font-family: "COLR-test-font";
+    base-palette: 3;
+  }
+  @keyframes animFrom {
+    from {
+      font-palette: --custom;
+    }
+  }
+  @keyframes animTo {
+    to {
+      font-palette: --custom;
+    }
+  }
+  .demo {
+    font-family: "COLR-test-font";
+    font-size: 130px;
+  }
+  .animFrom {
+    animation: animFrom 0.1s forwards;
+  }
+  .animTo {
+    animation: animTo 0.1s forwards;
+  }
+</style>
+
+<body>
+  <div class="demo">
+    <div id="a" class="animTo">A</div>
+    <div id="b" class="animFrom" style="font-palette: --custom;">A</div>
+  </div>
+</body>
+
+<script>
+  var afterPaletteAnimationTest1 = async_test(
+    "Verify font-palette is animated when `from` keyframe is not specified"
+  );
+  document.getElementById("a").addEventListener("animationend",
+    afterPaletteAnimationTest1.step_func_done(function() {
+        assert_equals(window.getComputedStyle(
+                document.getElementById("a"))
+            .getPropertyValue('font-palette'), "--custom");
+    }));
+
+  var afterPaletteAnimationTest2 = async_test(
+    "Verify font-palette is animated when `to` keyframe is not specified"
+  );
+  document.getElementById("b").addEventListener("animationend",
+    afterPaletteAnimationTest2.step_func_done(function() {
+        assert_equals(window.getComputedStyle(
+                document.getElementById("b"))
+            .getPropertyValue('font-palette'), "normal");
+    }));
+</script>

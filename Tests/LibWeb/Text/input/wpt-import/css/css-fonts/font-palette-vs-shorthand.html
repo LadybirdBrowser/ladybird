@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: interaction of font-palette and font shorthand</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-prop">
+<meta name="assert" content="font-palette is NOT reset to normal by font shorthand.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style id="style">
+@font-face {
+    font-family: colr;
+    src: url("resources/COLR-palettes-test-font.ttf") format("truetype");
+}
+div {
+    margin: 10px;
+}
+#a {
+    font: 50px colr;
+    font-palette: dark;  /* should NOT cause the shorthand to be empty */
+}
+#b {
+    font-palette: dark;
+    font: 50px colr;  /* should NOT reset font-palette to normal */
+}
+#c {
+    font-palette: dark;
+    font-size: 50px;
+    font-family: colr;
+}
+#d {
+    font-palette: dark;
+    font-size: 50px;
+    font-family: colr;
+    font-palette: normal;
+}
+</style>
+</head>
+<body>
+<p>The first three examples should use the 'dark' palette; the fourth, 'normal'.</p>
+<div id=a>A</div>
+<div id=b>A</div>
+<div id=c>A</div>
+<div id=d>A</div>
+<script>
+test(function() {
+    let testElem = document.getElementById("a");
+    let computed = window.getComputedStyle(testElem);
+    assert_equals(computed.fontPalette, "dark");
+    assert_not_equals(computed.font, "");
+    /* The exact form of the font shorthand varies, but should include these pieces: */
+    assert_not_equals(computed.font.indexOf("50px"), -1);
+    assert_not_equals(computed.font.indexOf("colr"), -1);
+    assert_equals(computed.fontFamily, "colr");
+    assert_equals(computed.fontSize, "50px");
+});
+
+test(function() {
+    let testElem = document.getElementById("b");
+    let computed = window.getComputedStyle(testElem);
+    assert_equals(computed.fontPalette, "dark");
+    assert_not_equals(computed.font, "");
+    assert_not_equals(computed.font.indexOf("50px"), -1);
+    assert_not_equals(computed.font.indexOf("colr"), -1);
+    assert_equals(computed.fontFamily, "colr");
+    assert_equals(computed.fontSize, "50px");
+});
+
+test(function() {
+    let testElem = document.getElementById("c");
+    let computed = window.getComputedStyle(testElem);
+    assert_equals(computed.fontPalette, "dark");
+    assert_not_equals(computed.font.indexOf("50px"), -1);
+    assert_not_equals(computed.font.indexOf("colr"), -1);
+    assert_equals(computed.fontFamily, "colr");
+    assert_equals(computed.fontSize, "50px");
+});
+
+test(function() {
+    let testElem = document.getElementById("d");
+    let computed = window.getComputedStyle(testElem);
+    assert_equals(computed.fontPalette, "normal");
+    assert_not_equals(computed.font.indexOf("50px"), -1);
+    assert_not_equals(computed.font.indexOf("colr"), -1);
+    assert_equals(computed.fontFamily, "colr");
+    assert_equals(computed.fontSize, "50px");
+});
+</script>
+</body>
+</html>
