@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	CSS Fonts Module Level 4: interaction of font-palette and font shorthand
+Fail	CSS Fonts Module Level 4: interaction of font-palette and font shorthand 1
+Fail	CSS Fonts Module Level 4: interaction of font-palette and font shorthand 2
+Fail	CSS Fonts Module Level 4: interaction of font-palette and font shorthand 3

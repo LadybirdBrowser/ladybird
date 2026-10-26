@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Verify font-palette value of the first element after animation
+Fail	Verify font-palette value of the second element after animation

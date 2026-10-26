@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>font-palette interpolation</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#propdef-font-palette">
+<meta name="assert" content="Font-palette should be animated smoothly.">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<style>
+@font-palette-values --custom-palette {
+  font-family: "Color font";
+  base-palette: 0;
+  override-colors: 1 #000000;
+}
+
+.container {
+  font-palette: light;
+}
+.container2 {
+  font-palette: dark;
+}
+.target {
+  display: inline-block;
+  font: 100px sans-serif;
+  font-palette: normal;
+}
+.expected {
+  color: green;
+  margin-right: 30px;
+}
+</style>
+
+<body>
+<template id="target-template">
+  <span class="container">
+    <div class="target">TT</div>
+  </span>
+</template>
+
+<span id="inv-container" class="container">
+  <div id="inv-target" class="target">TT</div>
+</span>
+</body>
+
+<script>
+
+test_interpolation({
+  property: 'font-palette',
+  from: 'light',
+  to: 'dark'
+}, [
+  {at: -2, expect: 'light'},
+  {at: -0.25, expect: 'light'},
+  {at: 0, expect: 'light'},
+  {at: 0.3, expect: 'palette-mix(in oklab, light, dark 30%)'},
+  {at: 0.6, expect: 'palette-mix(in oklab, light, dark 60%)'},
+  {at: 1, expect: 'dark'},
+  {at: 1.5, expect: 'dark'},
+]);
+
+test_interpolation({
+  property: 'font-palette',
+  from: 'initial',
+  to: 'inherit'
+}, [
+  {at: -2, expect: 'normal'},
+  {at: -0.25, expect: 'normal'},
+  {at: 0, expect: 'normal'},
+  {at: 0.3, expect: 'palette-mix(in oklab, normal, light 30%)'},
+  {at: 0.6, expect: 'palette-mix(in oklab, normal, light 60%)'},
+  {at: 1, expect: 'light'},
+  {at: 1.5, expect: 'light'},
+]);
+
+test_interpolation({
+  property: 'font-palette',
+  from: '--custom-palette',
+  to: 'normal'
+}, [
+  {at: -2, expect: '--custom-palette'},
+  {at: -0.25, expect: '--custom-palette'},
+  {at: 0, expect: '--custom-palette'},
+  {at: 0.3, expect: 'palette-mix(in oklab, --custom-palette, normal 30%)'},
+  {at: 0.6, expect: 'palette-mix(in oklab, --custom-palette, normal 60%)'},
+  {at: 1, expect: 'normal'},
+  {at: 1.5, expect: 'normal'},
+]);
+
+/* palette-mix function for the equal endpoints should be simplified. */
+test_interpolation({
+  property: 'font-palette',
+  from: 'initial',
+  to: 'normal'
+}, [
+  {at: -2, expect: 'normal'},
+  {at: -0.25, expect: 'normal'},
+  {at: 0, expect: 'normal'},
+  {at: 0.3, expect: 'normal'},
+  {at: 0.6, expect: 'normal'},
+  {at: 1, expect: 'normal'},
+  {at: 1.5, expect: 'normal'},
+]);
+
+test(t => {
+  var container = document.getElementById('inv-container');
+  var target = document.getElementById('inv-target');
+  var anim = target.animate({ fontPalette: ['normal', 'inherit'] }, 1000);
+  anim.pause();
+  anim.currentTime = 500;
+  assert_equals(getComputedStyle(target).fontPalette, 'palette-mix(in oklab, normal, light)');
+
+  container.setAttribute('class', 'container2');
+  assert_equals(getComputedStyle(target).fontPalette, 'palette-mix(in oklab, normal, dark)');
+}, "An interpolation to inherit updates correctly on a parent style change.");
+
+test(t => {
+  var target = document.getElementById('inv-target');
+  target.animate(
+    { fontPalette: ['light', 'normal'] },
+    {
+      duration: 1000
+    }
+  );
+  target.animate(
+    { fontPalette: ['normal', 'dark'] },
+    {
+      duration: 1000,
+      /* Should work like 'replace', since <Color> type is not additive,
+         compare: https://drafts.csswg.org/css-values-4/#combine-colors. */
+      composite: "add"
+    }
+  );
+  document.getAnimations().forEach((animation) => {
+    animation.pause();
+    animation.currentTime = 500;
+  });
+  assert_equals(getComputedStyle(target).fontPalette,
+                "palette-mix(in oklab, normal, dark)");
+}, "Test additive animations");
+
+</script>
