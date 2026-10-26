@@ -307,6 +307,12 @@ void ConnectionFromClient::deliver_posted_message(Web::PageId page_id, Web::HTML
         page->deliver_posted_message(navigable_id, move(message));
 }
 
+void ConnectionFromClient::report_violation_of_environment(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, u64 policy_index, Web::ContentSecurityPolicy::RemoteViolationDirective directive, URL::URL resource)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->report_violation_of_environment(environment_id, policy_index, directive, move(resource));
+}
+
 void ConnectionFromClient::close_traversable_from_script(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     auto page = this->page(page_id);

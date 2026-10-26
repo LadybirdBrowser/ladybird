@@ -63,6 +63,7 @@
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/CSS/PreferredContrast.h>
 #include <LibWebCommon/CSS/PreferredMotion.h>
+#include <LibWebCommon/ContentSecurityPolicy/RemoteViolationDirective.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWebCommon/Fullscreen/FullscreenRequestType.h>
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
@@ -921,6 +922,8 @@ public:
     virtual void page_did_report_worker_exception([[maybe_unused]] Utf16String const& message, [[maybe_unused]] Utf16String const& filename, [[maybe_unused]] u32 lineno, [[maybe_unused]] u32 colno) { }
     // A fetch whose client another process hosts violated the policy at policy_index in that client's CSP list.
     virtual void page_did_report_violation_of_remote_client([[maybe_unused]] u64 policy_index, [[maybe_unused]] String effective_directive, [[maybe_unused]] URL::URL resource) { }
+    // A navigation whose source another process hosts violated the policy at policy_index in the source's CSP list.
+    virtual void page_did_report_navigation_violation_of_remote_client([[maybe_unused]] HTML::RemoteClientNavigation const& navigation, [[maybe_unused]] u64 policy_index, [[maybe_unused]] ContentSecurityPolicy::RemoteViolationDirective directive, [[maybe_unused]] bool url_is_https) { }
     virtual void page_did_register_javascript_source([[maybe_unused]] DOM::Document&, [[maybe_unused]] HTML::ScriptRegistry::Description const&) { }
     virtual void page_did_post_broadcast_channel_message([[maybe_unused]] HTML::PostedBroadcastChannelMessage const& message) { }
 

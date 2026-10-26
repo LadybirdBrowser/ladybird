@@ -232,6 +232,7 @@ WEB_API bool module_type_allowed(EnvironmentSettingsObject const&, Utf16View mod
 WEB_API void add_module_to_resolved_module_set(EnvironmentSettingsObject&, Utf16View serialized_base_url, Utf16View normalized_specifier, Optional<URL::URL> const& as_url);
 
 WEB_API GC::Ptr<EnvironmentSettingsObject> environment_settings_object_at(EnvironmentSettingsObjectAddress);
+WEB_API GC::Ptr<EnvironmentSettingsObject> environment_settings_object_with_id(EnvironmentId const&);
 
 WEB_API EnvironmentSettingsObject& incumbent_settings_object();
 WEB_API JS::Realm& incumbent_realm();

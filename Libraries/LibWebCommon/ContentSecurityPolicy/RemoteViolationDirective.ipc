@@ -1,0 +1,10 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+#include <LibWebCommon/ContentSecurityPolicy/RemoteViolationDirective.h>
+
+[ExistingCpp]
+enum Web::ContentSecurityPolicy::RemoteViolationDirective : u8 {
+    FrameSrc,
+    ObjectSrc,
+    FormAction,
+}

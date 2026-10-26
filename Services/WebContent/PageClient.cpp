@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/StyleSheetImport.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/Compositor/CompositorHost.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -49,6 +50,8 @@
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/RemoteEnvironmentSettings.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/TextDirectiveGenerator.h>
@@ -314,6 +317,14 @@ void PageClient::deliver_posted_message(Web::HTML::CrossProcessId navigable_id, 
 {
     if (auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr()))
         navigable->deliver_posted_message_from_another_process(move(message));
+}
+
+void PageClient::report_violation_of_environment(Web::HTML::EnvironmentId const& environment_id, u64 policy_index, Web::ContentSecurityPolicy::RemoteViolationDirective directive, URL::URL resource)
+{
+    auto settings = Web::HTML::environment_settings_object_with_id(environment_id);
+    if (!settings)
+        return;
+    Web::ContentSecurityPolicy::report_a_violation_found_in_another_process(*settings, policy_index, directive, move(resource));
 }
 
 void PageClient::navigation_params_creation_finished(Web::HTML::LocalNavigable& navigable, Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
@@ -1591,6 +1602,12 @@ void PageClient::page_did_update_indexed_database(String const& url, Web::Indexe
 void PageClient::page_did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage const& message)
 {
     client().async_did_post_broadcast_channel_message(m_id, message);
+}
+
+// The UI process passes the violation on to the process hosting the navigation's source, while it still hosts it.
+void PageClient::page_did_report_navigation_violation_of_remote_client(Web::HTML::RemoteClientNavigation const& navigation, u64 policy_index, Web::ContentSecurityPolicy::RemoteViolationDirective directive, bool url_is_https)
+{
+    client().async_did_report_navigation_violation(m_id, navigation.navigable_id, navigation.navigation_id, policy_index, directive, url_is_https);
 }
 
 void PageClient::page_did_update_resource_count(i32 count_waiting)

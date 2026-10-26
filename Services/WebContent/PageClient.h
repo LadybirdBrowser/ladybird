@@ -151,6 +151,7 @@ public:
     void did_receive_unload_check_result(Web::HTML::CrossProcessId check_id, Web::HTML::CheckIfUnloadingIsCanceledResult);
     void create_navigation_params(Web::HTML::NavigationPopulationRequest);
     void deliver_posted_message(Web::HTML::CrossProcessId navigable_id, Web::HTML::MessageDescriptor);
+    void report_violation_of_environment(Web::HTML::EnvironmentId const&, u64 policy_index, Web::ContentSecurityPolicy::RemoteViolationDirective, URL::URL resource);
     void cancel_navigation_params_creation(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id);
     void populate_navigation(Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult);
     void cancel_download(u64 download_id);
@@ -390,6 +391,7 @@ private:
     virtual void page_did_finish_network_request(u64 request_id, u64 body_size, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const&) override;
     virtual void page_did_register_javascript_source(Web::DOM::Document&, Web::HTML::ScriptRegistry::Description const&) override;
     virtual void page_did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage const&) override;
+    virtual void page_did_report_navigation_violation_of_remote_client(Web::HTML::RemoteClientNavigation const&, u64 policy_index, Web::ContentSecurityPolicy::RemoteViolationDirective, bool url_is_https) override;
 
     void setup_palette();
     ConnectionFromClient& client() const;

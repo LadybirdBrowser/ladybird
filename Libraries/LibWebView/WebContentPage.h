@@ -185,6 +185,7 @@ private:
 
     virtual void did_request_navigation_of_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id, Web::HTML::CrossProcessId source_document_id, Web::HTML::PreparedNavigationDescriptor navigation) override;
     virtual void did_post_message_to_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor posted_message) override;
+    virtual void did_report_navigation_violation(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, u64 policy_index, Web::ContentSecurityPolicy::RemoteViolationDirective, bool url_is_https) override;
     virtual void did_request_focusing_steps_for_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::FocusTrigger focus_trigger) override;
     virtual void did_request_window_focus_of_navigable(Web::HTML::CrossProcessId navigable_id) override;
     virtual void did_request_set_opener_of_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId opener_navigable_id) override;

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // An isolated iframe's frame-src blocks its navigation of a sibling that another process hosts. The process
+    // fetching for the sibling finds the violation, and the source iframe sees it as a securitypolicyviolation event.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = uniqueID();
+        const targetHostname = uniqueLocalhostHostname("reported-violation-target");
+
+        const echo = async (path, headers, body, hostname) => {
+            const url = new URL(
+                await httpServer.createEcho("GET", path, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html", ...headers },
+                    body,
+                })
+            );
+            url.hostname = hostname;
+            return url;
+        };
+
+        const targetFirstUrl = await echo(`/reported-violation-target-first-${runId}`, {}, "<!DOCTYPE html>first", targetHostname);
+        const targetSecondUrl = await echo(
+            `/reported-violation-target-second-${runId}`,
+            {},
+            `<!DOCTYPE html><script>top.postMessage("sibling navigated", "*");<\/script>`,
+            targetHostname
+        );
+        const blockedUrl = await echo(
+            `/reported-violation-blocked-${runId}`,
+            {},
+            `<!DOCTYPE html><script>top.postMessage("blocked navigation went through", "*");<\/script>`,
+            uniqueLocalhostHostname("reported-violation-blocked")
+        );
+        const sourceUrl = await echo(
+            `/reported-violation-source-${runId}`,
+            { "Content-Security-Policy": `frame-src ${targetSecondUrl.origin}` },
+            `<!DOCTYPE html>
+            <a id="blocked" target="target" href="${blockedUrl.href}">blocked</a>
+            <a id="allowed" target="target" href="${targetSecondUrl.href}">allowed</a>
+            <script>
+                document.addEventListener("securitypolicyviolation", event => {
+                    top.postMessage([
+                        "securitypolicyviolation in the source: " + event.effectiveDirective,
+                        "disposition: " + event.disposition,
+                        "blocked URL matches: " + (event.blockedURI === "${blockedUrl.href}"),
+                        "document URL matches: " + (event.documentURI === location.href),
+                    ].join(", "), "*");
+                });
+                addEventListener("message", () => document.getElementById("allowed").click());
+                document.getElementById("blocked").click();
+            <\/script>`,
+            uniqueLocalhostHostname("reported-violation-source")
+        );
+
+        const target = document.createElement("iframe");
+        target.name = "target";
+        target.src = targetFirstUrl;
+        document.body.appendChild(target);
+        await new Promise(resolve => (target.onload = resolve));
+
+        const messages = [];
+        let violationReported;
+        const reported = new Promise(resolve => (violationReported = resolve));
+        const navigated = new Promise(resolve => {
+            addEventListener("message", event => {
+                messages.push(event.data);
+                if (event.data.startsWith("securitypolicyviolation"))
+                    violationReported();
+                if (event.data === "sibling navigated")
+                    resolve();
+            });
+        });
+        const blockedNavigationLoaded = new Promise(resolve => target.addEventListener("load", resolve, { once: true }));
+
+        const source = document.createElement("iframe");
+        source.src = sourceUrl;
+        document.body.appendChild(source);
+
+        // The source navigates the sibling again only once its blocked navigation has finished.
+        await reported;
+        await blockedNavigationLoaded;
+        source.contentWindow.postMessage("navigate the sibling", "*");
+        await navigated;
+
+        for (const message of messages)
+            println(message);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

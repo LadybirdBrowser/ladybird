@@ -76,6 +76,7 @@ public:
         State state;
         RefPtr<WebContentPage> page {};
         RefPtr<CanonicalSessionHistoryEntry> history_entry {};
+        RefPtr<WebContentPage> source_page {};
     };
     static NonnullRefPtr<CanonicalNavigation> create(Start start)
     {
@@ -95,6 +96,8 @@ public:
     RefPtr<CanonicalSessionHistoryEntry> history_entry {};
     // Held so that revoking the blob URL the navigation is to cannot take the entry away from it.
     BlobURLHandle blob_url;
+    // The page hosting the source document, as checked when another page requested the navigation.
+    RefPtr<WebContentPage> source_page {};
 
     RefPtr<WebContentPage> worker() const;
     RefPtr<WebContentPage> host() const;
@@ -112,6 +115,7 @@ private:
         , state(move(start.state))
         , page(move(start.page))
         , history_entry(move(start.history_entry))
+        , source_page(move(start.source_page))
     {
     }
 };

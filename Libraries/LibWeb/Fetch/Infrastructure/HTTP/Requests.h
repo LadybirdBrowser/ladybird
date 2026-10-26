@@ -201,6 +201,9 @@ public:
     [[nodiscard]] RefPtr<ClientContextSnapshot const> const& client_snapshot() const { return m_client_snapshot; }
     void set_client_snapshot(RefPtr<ClientContextSnapshot const> client_snapshot) { m_client_snapshot = move(client_snapshot); }
 
+    [[nodiscard]] Optional<HTML::RemoteClientNavigation> const& remote_client_navigation() const { return m_remote_client_navigation; }
+    void set_remote_client_navigation(Optional<HTML::RemoteClientNavigation> remote_client_navigation) { m_remote_client_navigation = move(remote_client_navigation); }
+
     [[nodiscard]] RefPtr<ReservedClientContextSnapshot const> const& reserved_client_snapshot() const { return m_reserved_client_snapshot; }
     void set_reserved_client_snapshot(RefPtr<ReservedClientContextSnapshot const> reserved_client_snapshot) { m_reserved_client_snapshot = move(reserved_client_snapshot); }
 
@@ -381,6 +384,10 @@ private:
 
     // What fetching reads from the client, null when the client is.
     RefPtr<ClientContextSnapshot const> m_client_snapshot;
+
+    // The navigation of a navigation request whose client another process hosts, through which the UI process finds that
+    // client.
+    Optional<HTML::RemoteClientNavigation> m_remote_client_navigation;
 
     // https://fetch.spec.whatwg.org/#concept-request-reserved-client
     // A request has an associated reserved client (null, an environment, or an environment settings object). Unless

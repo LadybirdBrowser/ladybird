@@ -2284,7 +2284,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
     }
 
     // 3. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then set response to a network error and break. [CSP]
-    if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(state_holder->request, state_holder->csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+    if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(state_holder->request, state_holder->csp_navigation_type, state_holder->navigable->page()) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         state_holder->response = Fetch::Infrastructure::ResponseView::network_error("Blocked by Content Security Policy"_string);
         fetch_completion_steps->function()();
         return;
@@ -2536,8 +2536,12 @@ static void create_navigation_params_by_fetching(
     //    traversable for user prompts: navigable's top-level traversable
     auto request = Fetch::Infrastructure::Request::create();
     request->set_url(entry.url);
-    if (source_snapshot_params->fetch_client.has_value())
-        request->set_client(Fetch::Fetching::request_client(*source_snapshot_params->fetch_client));
+    if (source_snapshot_params->fetch_client.has_value()) {
+        auto const& fetch_client = *source_snapshot_params->fetch_client;
+        request->set_client(Fetch::Fetching::request_client(fetch_client));
+        if (fetch_client.has<NonnullRefPtr<RemoteEnvironmentSettings const>>() && navigation_id.has_value())
+            request->set_remote_client_navigation(RemoteClientNavigation { navigable->id(), *navigation_id });
+    }
     request->set_destination(Fetch::Infrastructure::Request::Destination::Document);
     request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
     request->set_use_url_credentials(true);
@@ -4158,7 +4162,7 @@ void LocalNavigable::navigate_to_a_javascript_url(NonnullRefPtr<Fetch::Infrastru
     // 5. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then return.
     // NB: This can change request's URL, as the require-trusted-types-for pre-navigation check passes the script source
     //     through the default policy.
-    if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(request, csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+    if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(request, csp_navigation_type, page()) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         finish_loading_without_navigation();
         return;
     }

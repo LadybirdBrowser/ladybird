@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A violation that the process fetching for an isolated sibling finds names the URL the navigation started with:
+    // not a later redirect's, and upgraded to https when the source's upgrade-insecure-requests upgrades it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = uniqueID();
+        const targetHostname = uniqueLocalhostHostname("named-violation-target");
+
+        const echo = async (path, options, hostname) => {
+            const url = new URL(await httpServer.createEcho("GET", path, options));
+            url.hostname = hostname;
+            return url;
+        };
+        const html = body => ({ status: 200, headers: { "Content-Type": "text/html" }, body });
+
+        const targetUrl = await echo(`/named-violation-target-${runId}`, html("<!DOCTYPE html>target"), targetHostname);
+        const blockedUrl = await echo(
+            `/named-violation-blocked-${runId}`,
+            html(`<!DOCTYPE html><script>top.postMessage("blocked navigation went through", "*");<\/script>`),
+            uniqueLocalhostHostname("named-violation-blocked")
+        );
+        const redirectUrl = await echo(
+            `/named-violation-redirect-${runId}`,
+            { status: 302, headers: { Location: blockedUrl.href }, body: "" },
+            targetHostname
+        );
+
+        const target = document.createElement("iframe");
+        target.name = "target";
+        target.src = targetUrl;
+        document.body.appendChild(target);
+        await new Promise(resolve => (target.onload = resolve));
+
+        const messages = [];
+        addEventListener("message", event => messages.push(event.data));
+
+        // The source navigates the sibling once, and posts the blocked URL of each violation it sees.
+        const blockedURIOfNavigation = async (name, policy, href) => {
+            const sourceUrl = await echo(
+                `/named-violation-source-${name}-${runId}`,
+                {
+                    status: 200,
+                    headers: { "Content-Type": "text/html", "Content-Security-Policy": policy },
+                    body: `<!DOCTYPE html>
+                    <a id="navigate" target="target" href="${href}">navigate</a>
+                    <script>
+                        document.addEventListener("securitypolicyviolation", event => {
+                            top.postMessage({ name: "${name}", blockedURI: event.blockedURI }, "*");
+                        });
+                        document.getElementById("navigate").click();
+                    <\/script>`,
+                },
+                uniqueLocalhostHostname(`named-violation-source-${name}`)
+            );
+
+            const reported = new Promise(resolve => {
+                addEventListener("message", function receive(event) {
+                    if (event.data?.name !== name)
+                        return;
+                    removeEventListener("message", receive);
+                    resolve(event.data.blockedURI);
+                });
+            });
+            const source = document.createElement("iframe");
+            source.src = sourceUrl;
+            document.body.appendChild(source);
+            const blockedURI = await reported;
+            source.remove();
+            return blockedURI;
+        };
+
+        const afterRedirect = await blockedURIOfNavigation("redirect", `frame-src ${targetUrl.origin}`, redirectUrl.href);
+        println(`After a redirect, the violation names the navigation's first URL: ${afterRedirect === redirectUrl.href}`);
+
+        const upgradedUrl = new URL(blockedUrl);
+        upgradedUrl.protocol = "https:";
+        const upgraded = await blockedURIOfNavigation(
+            "upgraded",
+            `upgrade-insecure-requests; frame-src ${targetUrl.origin}`,
+            blockedUrl.href
+        );
+        println(`Under upgrade-insecure-requests, the violation names the https URL: ${upgraded === upgradedUrl.href}`);
+
+        for (const message of messages) {
+            if (typeof message === "string")
+                println(message);
+        }
+    });
+</script>

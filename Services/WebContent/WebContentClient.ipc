@@ -20,6 +20,7 @@
 #include <LibWebCommon/CSS/StyleSheetIdentifier.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/ContentSecurityPolicy/Directives/NavigationType.h>
+#include <LibWebCommon/ContentSecurityPolicy/RemoteViolationDirective.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWebCommon/Fullscreen/FullscreenRequestType.h>
@@ -90,6 +91,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_complete_navigation_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
     did_request_navigation_of_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id, Web::HTML::CrossProcessId source_document_id, Web::HTML::PreparedNavigationDescriptor navigation) =|
     did_post_message_to_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message) =|
+    did_report_navigation_violation(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, u64 policy_index, Web::ContentSecurityPolicy::RemoteViolationDirective directive, bool url_is_https) =|
     did_request_close_of_traversable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id, Web::HTML::NavigationSourceSnapshot source_snapshot) =|
     did_request_focusing_steps_for_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::FocusTrigger focus_trigger) =|
     did_request_window_focus_of_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
