@@ -4033,6 +4033,23 @@ impl LayoutNodeArena {
         }
     }
 
+    /// Marks the flex and grid items among the nodes marked for layout and their children, ahead of the layout that
+    /// lays them out: a style change can make a box, or the children of a box, items without rebuilding them.
+    pub(crate) fn mark_flex_and_grid_items_of_nodes_marked_for_layout(&self) {
+        let nodes = self.nodes_with_layout_update_flags.borrow().clone();
+        for node in nodes {
+            if !self.slot_is_live(node) {
+                continue;
+            }
+            self.mark_flex_or_grid_item(node);
+            let mut child = self.data(node).first_child.get();
+            while !child.is_invalid() {
+                self.mark_flex_or_grid_item(child);
+                child = self.data(child).next_sibling.get();
+            }
+        }
+    }
+
     pub(crate) fn enroll_text_node_for_content_sync(&self, node: NodeSlotId) {
         self.text_nodes_enrolled_for_content_sync.borrow_mut().insert(node);
     }
@@ -4762,6 +4779,11 @@ impl LayoutNodeArena {
             }
             if ancestor.is_invalid() {
                 self.derive_facts_in_subtree(root);
+                // NB: Whether an anonymous box is a flex or grid item depends on its children.
+                let parent = self.data(root).parent.get();
+                if !parent.is_invalid() {
+                    self.mark_flex_or_grid_item(parent);
+                }
             }
         }
         roots
@@ -4775,7 +4797,65 @@ impl LayoutNodeArena {
             self.derive_containing_block_establishment_flags(node);
             self.mark_nodes_escaped_by_attached_out_of_flow_box(node);
             self.derive_ancestor_facts_for_node(node);
+            self.mark_flex_or_grid_item(node);
         });
+    }
+
+    /// Marks `node` as a flex or grid item once its parent lays it out as one, as its parent's run would: an in-flow
+    /// box that is not an anonymous run of collapsible whitespace. The mark is never taken back.
+    pub(crate) fn mark_flex_or_grid_item(&self, node: NodeSlotId) {
+        let data = self.data(node);
+        let parent = data.parent.get();
+        if parent.is_invalid() || !super::node_facts::kind_is_box(data.kind.get()) {
+            return;
+        }
+        let parent_data = self.data(parent);
+        let parents_formatting_context = super::formatting_context::formatting_context_type_created_by_node_data(
+            parent_data,
+            super::node_facts::node_style_view(parent_data),
+            super::node_facts::has_ancestor_fact(parent_data, AncestorFact::ParentIsFlexOrGridContainer),
+            || {
+                let grandparent = parent_data.parent.get();
+                (!grandparent.is_invalid())
+                    .then(|| super::node_facts::node_style_view(self.data(grandparent)))
+                    .flatten()
+                    .map(|style| style.writing_mode())
+            },
+        );
+        let flag = match parents_formatting_context {
+            Some(super::formatting_context::FormattingContextType::Flex) => NodeFlag::IsFlexItem,
+            Some(super::formatting_context::FormattingContextType::Grid) => NodeFlag::IsGridItem,
+            _ => return,
+        };
+        if super::node_facts::has_flag(data, flag)
+            || super::node_facts::node_style_view(data).is_some_and(|style| style.is_absolutely_positioned())
+            || self.may_be_anonymous_run_of_collapsible_whitespace(node)
+        {
+            return;
+        }
+        self.set_node_flag(node, flag, true);
+    }
+
+    /// Whether `node` is an anonymous box holding only text that is ASCII whitespace, which flex and grid containers
+    /// do not lay out as an item. A child whose text is not synced yet counts too: the sync marks its parent again.
+    fn may_be_anonymous_run_of_collapsible_whitespace(&self, node: NodeSlotId) -> bool {
+        let data = self.data(node);
+        if !super::node_facts::has_flag(data, NodeFlag::Anonymous) || data.generated_for.get() != 0 {
+            return false;
+        }
+        let mut child = data.first_child.get();
+        while !child.is_invalid() {
+            let child_data = self.data(child);
+            if !super::node_facts::kind_is_text(child_data.kind.get())
+                || self
+                    .text_content(child)
+                    .is_some_and(|content| !content.untransformed_text_is_ascii_whitespace)
+            {
+                return false;
+            }
+            child = child_data.next_sibling.get();
+        }
+        true
     }
 
     fn slot_for_data(&self, data: &NodeData) -> (u32, SlotMetadata) {
@@ -6210,6 +6290,8 @@ pub(crate) fn sync_enrolled_content_for_layout(arena: &mut LayoutNodeArena) {
             continue;
         }
         super::rendered_text::ensure_text_content(arena, node);
+        // NB: Whether an anonymous box is a flex or grid item depends on whether its text is all whitespace.
+        arena.mark_flex_or_grid_item(arena.data(node).parent.get());
     }
     arena.sync_enrolled_replaced_content_facts();
 }

@@ -845,10 +845,10 @@ impl<'pass> FlexFormattingContext<'pass> {
                 // Skip any "out-of-flow" children
                 if !skip && !facts.is_absolutely_positioned() {
                     // Flex inhibits floating, so only absolute positioning is out of flow here.
-                    self.run
-                        .callbacks
-                        .arena()
-                        .set_node_flag(child, NodeFlag::IsFlexItem, true);
+                    debug_assert!(
+                        node_facts::has_flag(facts.data(), NodeFlag::IsFlexItem),
+                        "the facts of a flex item are derived before layout"
+                    );
                     self.create_used_values(child);
                     buckets.entry(self.style(child).order()).or_default().push(child);
                 }
