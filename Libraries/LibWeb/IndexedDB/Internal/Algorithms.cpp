@@ -2359,7 +2359,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_index(JS
             records.append(range_records[0]);
 
         // 4. While i is less than rangeRecordsLength, then:
-        while (i < range_records_length - 1) {
+        while (i + 1 < range_records_length) {
             // 1. Increase i by 1.
             i++;
 
@@ -2400,7 +2400,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_items_from_an_index(JS
             records.append(range_records[0]);
 
         // 4. While i is less than rangeRecordsLength, then:
-        while (i < range_records_length - 1) {
+        while (i + 1 < range_records_length) {
             // 1. Increase i by 1.
             i++;
 
