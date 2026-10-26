@@ -639,23 +639,18 @@ void FFmpegVulkanVideoDecoder::complete_frames_until_exit()
         if (decoding_frame.frame != nullptr)
             output = complete_frame(decoding_frame);
 
-        auto caller_needs_waking = false;
-        {
-            MutexLocker locker { m_mutex };
-            if (decoding_frame.generation == m_generation) {
-                if (!output.has_value())
-                    m_completed_end_of_stream = true;
-                else if (output->is_error())
-                    m_decode_failure = output->release_error();
-                else
-                    m_outputs.append(output->release_value());
-                caller_needs_waking = !m_caller_is_waiting_for_output;
-            }
-            m_condition.broadcast();
+        MutexLocker locker { m_mutex };
+        if (decoding_frame.generation == m_generation) {
+            if (!output.has_value())
+                m_completed_end_of_stream = true;
+            else if (output->is_error())
+                m_decode_failure = output->release_error();
+            else
+                m_outputs.append(output->release_value());
+            if (!m_caller_is_waiting_for_output && m_output_arrived_callback)
+                m_output_arrived_callback();
         }
-
-        if (caller_needs_waking && m_output_arrived_callback)
-            m_output_arrived_callback();
+        m_condition.broadcast();
     }
 }
 
