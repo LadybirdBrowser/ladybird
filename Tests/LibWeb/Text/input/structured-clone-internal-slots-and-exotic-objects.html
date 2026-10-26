@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const cases = [
+            ["Proxy with a throwing ownKeys trap", () => new Proxy({}, { ownKeys() { throw new Error("trap"); } })],
+            ["Proxy of a plain object", () => new Proxy({ a: 1 }, {})],
+            ["WeakMap", () => new WeakMap()],
+            ["Promise", () => Promise.resolve()],
+            ["generator object", () => (function* () {})()],
+            ["sloppy arguments object", function () { return arguments; }],
+            ["strict arguments object", function () { "use strict"; return arguments; }],
+        ];
+        for (const [name, value] of cases) {
+            try {
+                structuredClone(value());
+                println(`${name}: no exception`);
+            } catch (error) {
+                println(`${name}: ${error.name}`);
+            }
+        }
+
+        for (const [name, value] of [["Object.prototype", Object.prototype], ["Map.prototype", Map.prototype], ["Math", Math]]) {
+            const clone = structuredClone(value);
+            println(`${name}: ${Object.keys(clone).length} keys, prototype is Object.prototype: ${Object.getPrototypeOf(clone) === Object.prototype}`);
+        }
+
+        const nullPrototypeClone = structuredClone(Object.assign(Object.create(null), { a: 1 }));
+        println(`null-prototype object: a=${nullPrototypeClone.a}`);
+    });
+</script>
