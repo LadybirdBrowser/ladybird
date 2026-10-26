@@ -15,6 +15,7 @@ bool is_bad_port(u16 port)
 {
     // A port is a bad port if it is listed in the first column of the following table.
     static constexpr auto bad_ports = Array {
+        0,
         1,     // tcpmux
         7,     // echo
         9,     // discard
