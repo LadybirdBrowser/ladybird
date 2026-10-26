@@ -3402,6 +3402,28 @@ fn emit_resolve_binding_for_identifier_assignment(
     })
 }
 
+fn generate_identifier_with_resolved_binding(
+    generator: &mut Generator,
+    id: crate::ast::IdentifierId,
+    resolved_binding: Option<&ResolvedBinding>,
+) -> ScopedOperand {
+    if let Some(ResolvedBinding::Environment {
+        environment,
+        identifier,
+    }) = resolved_binding
+    {
+        let value = generator.allocate_register();
+        generator.emit(Instruction::GetResolvedBinding {
+            dst: value.operand(),
+            environment: environment.operand(),
+            identifier: *identifier,
+        });
+        value
+    } else {
+        generate_identifier(id, generator, None)
+    }
+}
+
 fn emit_set_resolved_binding(generator: &mut Generator, resolved_binding: &ResolvedBinding, value: &ScopedOperand) {
     match resolved_binding {
         ResolvedBinding::Environment {
@@ -4225,9 +4247,10 @@ fn generate_update_expression(
     // so we can store back without re-evaluating.
     match &argument.inner {
         ExpressionKind::Identifier(ident) => {
-            let value = generate_identifier(*ident, generator, None);
+            let resolved_binding = emit_resolve_binding_for_identifier_assignment(generator, *ident);
+            let value = generate_identifier_with_resolved_binding(generator, *ident, resolved_binding.as_ref());
             let result = emit_update_op(generator, op, prefixed, &value);
-            emit_set_variable(generator, *ident, &value);
+            emit_set_variable_or_resolved_binding(generator, *ident, &value, resolved_binding.as_ref());
             Some(result)
         }
         ExpressionKind::Member(data) => {
@@ -4376,7 +4399,8 @@ fn generate_assignment_expression(
                 }
 
                 // Load LHS value first (needed for both compound and logical assignments).
-                let lhs_val = generate_identifier(id, generator, None);
+                let resolved_binding = emit_resolve_binding_for_identifier_assignment(generator, id);
+                let lhs_val = generate_identifier_with_resolved_binding(generator, id, resolved_binding.as_ref());
                 let lhs_val = generator.copy_if_needed_to_preserve_evaluation_order(&lhs_val);
 
                 let is_logical = matches!(
@@ -4420,7 +4444,7 @@ fn generate_assignment_expression(
                         choose_dst(generator, preferred_dst)
                     };
                     generator.emit_mov(&dst, &rhs_val);
-                    emit_set_variable(generator, id, &dst);
+                    emit_set_variable_or_resolved_binding(generator, id, &dst, resolved_binding.as_ref());
                     generator.emit(Instruction::Jump { target: end_block });
                     // LHS block: keep original value.
                     generator.switch_to_basic_block(lhs_block);
@@ -4439,7 +4463,7 @@ fn generate_assignment_expression(
                     choose_dst(generator, preferred_dst)
                 };
                 emit_compound_assignment(generator, op, &dst, &lhs_val, &rhs_val);
-                emit_set_variable(generator, id, &dst);
+                emit_set_variable_or_resolved_binding(generator, id, &dst, resolved_binding.as_ref());
                 return Some(dst);
             }
             // Member expression LHS (e.g., obj.foo = x, obj[key] = x)

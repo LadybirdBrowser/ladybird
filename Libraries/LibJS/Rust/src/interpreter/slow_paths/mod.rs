@@ -1067,6 +1067,15 @@ impl RuntimeFunctions for Runtime {
         bindings::set_variable_binding(vm, pc, instruction, values)
     }
 
+    fn get_resolved_binding(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetResolvedBinding,
+        values: &mut op::GetResolvedBindingValues,
+    ) -> SlowPathControl {
+        bindings::get_resolved_binding(vm, pc, instruction, values)
+    }
+
     fn set_resolved_binding(
         vm: &Vm,
         pc: u32,

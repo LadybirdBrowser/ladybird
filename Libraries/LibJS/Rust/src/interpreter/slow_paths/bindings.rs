@@ -1274,6 +1274,23 @@ pub fn resolve_super_base(
     SlowPathControl::continue_at(pc + op::ResolveSuperBase::LENGTH)
 }
 
+pub fn get_resolved_binding(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::GetResolvedBinding,
+    values: &mut op::GetResolvedBindingValues,
+) -> SlowPathControl {
+    let identifier = get_identifier(vm, instruction.identifier);
+    let strict = strict_of(&instruction.header);
+    let reference = if values.environment.is_null() {
+        Reference::with_base_type(BaseType::Unresolvable, PropertyKey::from(identifier), strict)
+    } else {
+        Reference::with_base_environment(values.environment.as_environment(), identifier, strict, None)
+    };
+    values.dst = asm_try!(vm, pc, reference.get_value(vm));
+    SlowPathControl::continue_at(pc + op::GetResolvedBinding::LENGTH)
+}
+
 pub fn set_resolved_binding(
     vm: &Vm,
     pc: u32,
