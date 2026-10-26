@@ -139,13 +139,13 @@ impl FunctionInfo {
 const MEMORY32_MAX_PAGES: u64 = 1 << 16;
 const MEMORY64_MAX_PAGES: u64 = 1 << 48;
 
-/// The most locals a function may have, its parameters included, as the JS API's implementation limits say. Every
-/// local takes a slot of the function's machine stack frame, so this bounds the frame size a module can ask for.
-const MAX_FUNCTION_LOCALS: usize = 50_000;
+// https://webassembly.github.io/spec/js-api/#limits
 
-/// The most supertypes a type may have above it, as the JS API's implementation limits say. Runtime types hold all of
-/// their supertypes, and subtype checks walk them.
+// The maximum depth of a defined subtype hierarchy is 63 (where a type defined with no supertype has depth 0).
 const MAX_SUBTYPING_DEPTH: u32 = 63;
+
+// The maximum number of locals declared in a function, including implicitly declared as parameters, is 50,000.
+const MAX_FUNCTION_LOCALS: usize = 50_000;
 
 fn invalid<T>(message: impl Into<String>) -> Result<T> {
     Err(Error::invalid(message))

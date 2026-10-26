@@ -20,8 +20,8 @@ use crate::types::{
     SubType, TableType, TagType, ValType,
 };
 
-/// The largest a function body may be, its local declarations included, as the JS API's implementation limits say.
-/// This bounds how many values the function's operand stack can hold, and so its frame size.
+// https://webassembly.github.io/spec/js-api/#limits
+// The maximum size of a function body, including locals declarations, is 7,654,321 bytes.
 const MAX_FUNCTION_SIZE: u32 = 7_654_321;
 
 const SECTION_CUSTOM: u8 = 0;
