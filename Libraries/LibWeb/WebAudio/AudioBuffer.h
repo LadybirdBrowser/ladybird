@@ -44,7 +44,7 @@ public:
 
     // https://webaudio.github.io/web-audio-api/#acquire-the-content
     RefPtr<Rendering::AudioBufferContents> acquire_contents();
-    WebIDL::ExceptionOr<void> attach_acquired_channels();
+    void attach_acquired_channels();
 
 private:
     // The sample data lives in the primitive storage cage, so an out-of-bounds access through a channel's Float32Array

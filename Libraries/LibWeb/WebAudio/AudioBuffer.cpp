@@ -158,34 +158,29 @@ RefPtr<Rendering::AudioBufferContents> AudioBuffer::acquire_contents()
 }
 
 // https://webaudio.github.io/web-audio-api/#audio-buffer-copying
-WebIDL::ExceptionOr<void> AudioBuffer::attach_acquired_channels()
+void AudioBuffer::attach_acquired_channels()
 {
     // The pending final step of acquiring this buffer's content: fresh arrays holding a copy of the acquired sample
     // data are attached the first time script reaches for the channel data again. Whoever acquired the content keeps
     // using the snapshot, so writes through the new arrays cannot change what is already playing.
     if (!m_contents)
-        return {};
+        return;
 
-    Vector<Channel> channels;
-    TRY_OR_THROW_OOM(JS::VM::the(), channels.try_ensure_capacity(m_channels.size()));
-    for (auto const& samples : m_contents->channels) {
-        auto byte_length = samples.size() * sizeof(float);
-        auto data = TRY_OR_THROW_OOM(JS::VM::the(), JS::DataBlock::OwnedBackingStore::create_zeroed(byte_length));
-        ReadonlyBytes { reinterpret_cast<u8 const*>(samples.data()), byte_length }.copy_to({ data.data(), byte_length });
-        channels.unchecked_append({ move(data) });
+    VERIFY(m_contents->channels.size() == m_channels.size());
+    for (size_t i = 0; i < m_channels.size(); ++i) {
+        auto const& samples = m_contents->channels[i];
+        auto& data = m_channels[i].data;
+        ReadonlyBytes { reinterpret_cast<u8 const*>(samples.data()), samples.size() * sizeof(float) }.copy_to({ data.data(), data.size() });
     }
 
-    m_channels = move(channels);
     m_contents = nullptr;
 
-    // Every view of the old storage was detached when the content was acquired, and the fresh storage needs fresh
-    // views over it. So, drop the cached ones instead of handing a detached array back to the next caller.
+    // Every view of the storage was detached when the content was acquired, and the storage needs fresh views over it.
+    // So, drop the cached ones instead of handing a detached array back to the next caller.
     for (auto& cache : audio_buffer_channel_data_caches()) {
         if (cache.buffer.ptr() == GC::Ref { *this })
             cache.views.clear();
     }
-
-    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-samplerate
@@ -234,7 +229,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> AudioBuffer::get_channel_data(JS:
 
     // This is where the deferred final step of acquiring the content runs: script is reaching for the channel data
     // again, so the copies of the acquired samples become this buffer's internal data before anything reads them.
-    TRY(attach_acquired_channels());
+    attach_acquired_channels();
 
     auto& relevant_global_realm = HTML::relevant_realm(relevant_global_object);
     auto& cache = cache_for(*this, channel);
@@ -308,7 +303,7 @@ WebIDL::ExceptionOr<void> AudioBuffer::copy_to_channel(GC::Root<JS::Float32Array
     if (channel_number >= m_channels.size())
         return WebIDL::IndexSizeError::create("Channel index is out of range"_utf16);
 
-    TRY(attach_acquired_channels());
+    attach_acquired_channels();
 
     auto& channel = m_channels[channel_number];
     Span<float> channel_data { reinterpret_cast<float*>(channel.data.data()), m_length };
