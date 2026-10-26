@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! What a message carries besides its bytes: a Mach port right on Apple platforms, and a file descriptor elsewhere.
+//! What a message carries besides its bytes: Mach port rights, Unix file descriptors or Windows handles.
 
+#[cfg(unix)]
 use std::os::fd::OwnedFd;
 
 #[cfg(target_vendor = "apple")]
@@ -41,13 +42,13 @@ impl Attachment {
     }
 }
 
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 #[derive(Debug)]
 pub struct Attachment {
     fd: OwnedFd,
 }
 
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 impl Attachment {
     pub fn from_fd(fd: OwnedFd) -> std::io::Result<Self> {
         Ok(Self { fd })
@@ -62,9 +63,30 @@ impl Attachment {
     }
 }
 
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 impl From<OwnedFd> for Attachment {
     fn from(fd: OwnedFd) -> Self {
         Self { fd }
+    }
+}
+
+#[cfg(windows)]
+#[derive(Debug)]
+pub struct Attachment {
+    descriptor: crate::transport_windows::OwnedDescriptor,
+}
+
+#[cfg(windows)]
+impl Attachment {
+    pub fn from_descriptor(descriptor: crate::transport_windows::OwnedDescriptor) -> Self {
+        Self { descriptor }
+    }
+
+    pub fn into_descriptor(self) -> crate::transport_windows::OwnedDescriptor {
+        self.descriptor
+    }
+
+    pub(crate) fn into_raw(self) -> i32 {
+        self.descriptor.into_raw()
     }
 }

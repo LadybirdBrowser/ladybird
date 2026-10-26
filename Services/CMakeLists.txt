@@ -9,6 +9,7 @@ add_subdirectory(RequestServer)
 add_subdirectory(VideoDecoderServer)
 add_subdirectory(WebContent)
 add_subdirectory(WebDriver)
+add_subdirectory(WebRTCClient)
 add_subdirectory(WebWorker)
 
 if (LINUX)
