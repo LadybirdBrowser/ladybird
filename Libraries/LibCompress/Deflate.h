@@ -8,9 +8,10 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/BitStream.h>
 #include <AK/Stream.h>
-#include <LibCompress/GenericZlib.h>
+#include <AK/Vector.h>
 
 namespace Compress {
 
@@ -51,29 +52,5 @@ ALWAYS_INLINE ErrorOr<void> CanonicalCode::write_symbol(LittleEndianOutputBitStr
     TRY(stream.write_bits(code, length));
     return {};
 }
-
-class DeflateDecompressor final : public GenericZlibDecompressor {
-public:
-    static ErrorOr<NonnullOwnPtr<DeflateDecompressor>> create(MaybeOwned<Stream>);
-    static ErrorOr<ByteBuffer> decompress_all(ReadonlyBytes);
-
-private:
-    DeflateDecompressor(AK::FixedArray<u8> buffer, MaybeOwned<Stream> stream, z_stream* zstream)
-        : GenericZlibDecompressor(move(buffer), move(stream), zstream)
-    {
-    }
-};
-
-class DeflateCompressor final : public GenericZlibCompressor {
-public:
-    static ErrorOr<NonnullOwnPtr<DeflateCompressor>> create(MaybeOwned<Stream>, GenericZlibCompressionLevel = GenericZlibCompressionLevel::Default);
-    static ErrorOr<ByteBuffer> compress_all(ReadonlyBytes, GenericZlibCompressionLevel = GenericZlibCompressionLevel::Default);
-
-private:
-    DeflateCompressor(AK::FixedArray<u8> buffer, MaybeOwned<Stream> stream, z_stream* zstream)
-        : GenericZlibCompressor(move(buffer), move(stream), zstream)
-    {
-    }
-};
 
 }

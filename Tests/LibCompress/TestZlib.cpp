@@ -44,39 +44,6 @@ TEST_CASE(zlib_decompress_stream)
     EXPECT(decompressed.bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
 }
 
-TEST_CASE(zlib_round_trip_simple_default)
-{
-    u8 const uncompressed[] = "This is a simple text file :)";
-
-    auto const freshly_pressed = TRY_OR_FAIL(Compress::ZlibCompressor::compress_all({ uncompressed, sizeof(uncompressed) - 1 }, Compress::GenericZlibCompressionLevel::Default));
-    EXPECT(freshly_pressed.span().slice(0, 2) == ReadonlyBytes { { 0x78, 0x9C } });
-
-    auto const decompressed = TRY_OR_FAIL(Compress::ZlibDecompressor::decompress_all(freshly_pressed));
-    EXPECT(decompressed.bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
-}
-
-TEST_CASE(zlib_round_trip_simple_best)
-{
-    u8 const uncompressed[] = "This is a simple text file :)";
-
-    auto const freshly_pressed = TRY_OR_FAIL(Compress::ZlibCompressor::compress_all({ uncompressed, sizeof(uncompressed) - 1 }, Compress::GenericZlibCompressionLevel::Best));
-    EXPECT(freshly_pressed.span().slice(0, 2) == ReadonlyBytes { { 0x78, 0xDA } });
-
-    auto const decompressed = TRY_OR_FAIL(Compress::ZlibDecompressor::decompress_all(freshly_pressed));
-    EXPECT(decompressed.bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
-}
-
-TEST_CASE(zlib_round_trip_simple_fastest)
-{
-    u8 const uncompressed[] = "This is a simple text file :)";
-
-    auto const freshly_pressed = TRY_OR_FAIL(Compress::ZlibCompressor::compress_all({ uncompressed, sizeof(uncompressed) - 1 }, Compress::GenericZlibCompressionLevel::Fastest));
-    EXPECT(freshly_pressed.span().slice(0, 2) == ReadonlyBytes { { 0x78, 0x01 } });
-
-    auto const decompressed = TRY_OR_FAIL(Compress::ZlibDecompressor::decompress_all(freshly_pressed));
-    EXPECT(decompressed.bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
-}
-
 TEST_CASE(zlib_decompress_with_missing_end_bits)
 {
     // This test case has been extracted from compressed PNG data of `/res/icons/16x16/app-masterword.png`.

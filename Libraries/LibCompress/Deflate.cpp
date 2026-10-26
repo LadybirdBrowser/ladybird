@@ -11,8 +11,6 @@
 #include <LibCompress/Deflate.h>
 #include <LibCompress/DeflateTables.h>
 
-#include <zlib.h>
-
 namespace Compress {
 
 ErrorOr<CanonicalCode> CanonicalCode::from_bytes(ReadonlyBytes bytes)
@@ -130,30 +128,6 @@ ErrorOr<u32> CanonicalCode::read_symbol(LittleEndianInputBitStream& stream) cons
     }
 
     return Error::from_string_literal("Symbol exceeds maximum symbol number");
-}
-
-ErrorOr<NonnullOwnPtr<DeflateDecompressor>> DeflateDecompressor::create(MaybeOwned<Stream> stream)
-{
-    auto buffer = TRY(AK::FixedArray<u8>::create(16 * 1024));
-    auto zstream = TRY(GenericZlibDecompressor::new_z_stream(-MAX_WBITS));
-    return adopt_nonnull_own_or_enomem(new (nothrow) DeflateDecompressor(move(buffer), move(stream), zstream));
-}
-
-ErrorOr<ByteBuffer> DeflateDecompressor::decompress_all(ReadonlyBytes bytes)
-{
-    return ::Compress::decompress_all<DeflateDecompressor>(bytes);
-}
-
-ErrorOr<NonnullOwnPtr<DeflateCompressor>> DeflateCompressor::create(MaybeOwned<Stream> stream, GenericZlibCompressionLevel compression_level)
-{
-    auto buffer = TRY(AK::FixedArray<u8>::create(16 * 1024));
-    auto zstream = TRY(GenericZlibCompressor::new_z_stream(-MAX_WBITS, compression_level));
-    return adopt_nonnull_own_or_enomem(new (nothrow) DeflateCompressor(move(buffer), move(stream), zstream));
-}
-
-ErrorOr<ByteBuffer> DeflateCompressor::compress_all(ReadonlyBytes bytes, GenericZlibCompressionLevel compression_level)
-{
-    return ::Compress::compress_all<DeflateCompressor>(bytes, compression_level);
 }
 
 }
