@@ -58,6 +58,9 @@ public:
     // Whether the stream's controller has been asked to close.
     bool close_requested() const;
 
+    // https://streams.spec.whatwg.org/#readablestream-get-the-desired-size
+    Optional<double> desired_size() const;
+
     // https://streams.spec.whatwg.org/#readablestream-enqueue
     WebIDL::ExceptionOr<void> enqueue(JS::Value chunk);
 

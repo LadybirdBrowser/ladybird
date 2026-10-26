@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The C ABI through which the C++ classes of Streams/ReadableStream.h and Streams/TransformStream.h set streams up
-//! and read them, for the specifications that LibWeb implements in C++.
+//! The C ABI through which the C++ classes of Streams/ReadableStream.h, Streams/TransformStream.h and
+//! Streams/WritableStream.h set streams up and read them, for the specifications that LibWeb implements in C++.
 
 use core::ffi::c_void;
 use core::ptr::NonNull;
@@ -17,7 +17,7 @@ use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_into_abi, realm_arguments};
 use crate::bindings::promise::WebIdlPromise;
 use crate::bindings::{CallContext, MustNotThrow, WebIdlResult};
-use crate::streams::algorithms::{CancelAlgorithm, FlushAlgorithm, TransformAlgorithm};
+use crate::streams::algorithms::{CancelAlgorithm, FlushAlgorithm, TransformAlgorithm, WriteAlgorithm};
 use crate::streams::cpp::{
     CppBytesSteps, CppPromiseAlgorithm, CppPromiseAlgorithmWithArgument, CppReadRequest, CppValueSteps,
 };
@@ -26,12 +26,14 @@ use crate::streams::readable_stream::ReadableStreamReader;
 use crate::streams::readable_stream::{
     ReadableStream, ReadableStreamState, is_readable_stream_locked, readable_stream_cancel,
 };
+use crate::streams::readable_stream_default_controller::readable_stream_default_controller_get_desired_size;
 use crate::streams::readable_stream_default_reader::ReadableStreamDefaultReader;
 use crate::streams::readable_stream_generic_reader::ReadableStreamGenericReader;
 use crate::streams::readable_stream_tee::readable_stream_tee;
 use crate::streams::transform_stream::TransformStream;
 use crate::streams::transform_stream_default_controller::transform_stream_default_controller_enqueue;
 use crate::streams::underlying_source::ReadableStreamController;
+use crate::streams::writable_stream::WritableStream;
 
 /// # Safety
 ///
@@ -172,6 +174,27 @@ pub unsafe extern "C" fn web_rust_readable_stream_is_readable_byte_stream(stream
         stream.controller(),
         Some(ReadableStreamController::ReadableByteStreamController(_))
     )
+}
+
+/// The desired size to fill the stream's internal queue, written to `desired_size`, or false if it is null because the
+/// stream is errored, https://streams.spec.whatwg.org/#readablestream-get-the-desired-size
+///
+/// # Safety
+///
+/// `stream` must be a live ReadableStream with a ReadableStreamDefaultController, and `desired_size` must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_readable_stream_desired_size(stream: *mut c_void, desired_size: *mut f64) -> bool {
+    // SAFETY: The caller passes a live ReadableStream.
+    let stream = unsafe { cell_from_abi::<ReadableStream>(stream) };
+    let Some(ReadableStreamController::ReadableStreamDefaultController(controller)) = stream.controller() else {
+        panic!("only a ReadableStream with a ReadableStreamDefaultController has a desired size to read");
+    };
+    let Some(size) = readable_stream_default_controller_get_desired_size(controller) else {
+        return false;
+    };
+    // SAFETY: The caller passes a writable f64.
+    unsafe { desired_size.write(size) };
+    true
 }
 
 /// https://streams.spec.whatwg.org/#readablestream-enqueue
@@ -494,6 +517,48 @@ pub unsafe extern "C" fn web_rust_readable_stream_default_reader_closed_promise_
     let reader = unsafe { cell_from_abi::<ReadableStreamDefaultReader>(reader) };
     let realm: libjs_rust::api::Gc<Realm> = reader.generic().closed_promise_realm();
     realm.as_ptr().cast()
+}
+
+/// A new WritableStream in the realm.
+///
+/// # Safety
+///
+/// The pointers must be the VM and a live realm.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_writable_stream_create(vm: *mut c_void, realm: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes the VM and a live realm.
+    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+    cell_into_abi(allocate(vm, |defer_gc| WritableStream::new(defer_gc, realm)))
+}
+
+/// Sets the stream up with the writeAlgorithm that C++ gives, https://streams.spec.whatwg.org/#writablestream-set-up
+///
+/// # Safety
+///
+/// The pointers must be the VM, a live realm, a live WritableStream and the live GC::Function of the writeAlgorithm.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_writable_stream_set_up(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    stream: *mut c_void,
+    write_algorithm: *mut c_void,
+    high_water_mark: f64,
+) {
+    // SAFETY: The caller passes the VM, a live realm, a live stream and a live writeAlgorithm.
+    let ((vm, realm), stream, write_algorithm) = unsafe {
+        (
+            realm_arguments(vm, realm),
+            cell_from_abi::<WritableStream>(stream),
+            CppPromiseAlgorithmWithArgument(CppCell::from_raw(write_algorithm)),
+        )
+    };
+    let cx = CallContext::new(vm, realm);
+    WritableStream::set_up(
+        stream,
+        &cx,
+        WriteAlgorithm::CppWrapper(write_algorithm),
+        high_water_mark,
+    );
 }
 
 /// A new TransformStream in the realm.

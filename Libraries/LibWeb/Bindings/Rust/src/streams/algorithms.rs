@@ -257,6 +257,8 @@ pub(crate) enum WriteAlgorithm {
     TransformStream(Ref<TransformStream>),
     /// The writeAlgorithm of SetUpCrossRealmTransformWritable.
     CrossRealm(Gc<EmbedderCell<CrossRealmWritableState>>),
+    /// The writeAlgorithm of setting up a WritableStream, given by C++.
+    CppWrapper(CppPromiseAlgorithmWithArgument),
 }
 
 impl WriteAlgorithm {
@@ -274,6 +276,7 @@ impl WriteAlgorithm {
             }
             Self::TransformStream(stream) => transform_stream_default_sink_write_algorithm(cx, *stream, chunk),
             Self::CrossRealm(state) => CrossRealmWritableState::write_algorithm(*state, cx, chunk),
+            Self::CppWrapper(write_algorithm) => write_algorithm.call(chunk),
         }
     }
 }
