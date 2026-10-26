@@ -2055,8 +2055,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             |view_box| CssPixels::nearest_value_for(view_box.height),
         );
         self.viewport_is_committed_viewport = kind == NodeKind::SVGSVGBox
-            && self.run.purpose == formatting_context::LayoutPurpose::Commit
-            && self.run.layout_mode == LayoutMode::Normal
+            && self.run.fragments.is_some()
             && crate::painting::paint_read::GeometryRead::with_committed_fragment_link(
                 self.run.callbacks.arena(),
                 self.run.box_,
