@@ -1128,7 +1128,7 @@ impl ArrayBuffer {
     }
 
     // Detaches this ArrayBuffer and returns its underlying DataBlock for use in a TransferArrayBuffer-like operation.
-    // If detach fails, the underlying storage is left untouched.
+    // If detach fails, the underlying storage is left untouched. External storage is returned as a copy.
     pub fn detach_and_take_data_block(&self, vm: &Vm) -> ThrowCompletionOr<DataBlock> {
         assert!(!self.is_shared_array_buffer());
 
@@ -1140,12 +1140,30 @@ impl ArrayBuffer {
             );
         }
 
+        let copy_of_external_storage = if self.is_external() {
+            let byte_length = self.byte_length();
+            let Ok(storage) =
+                allocate_or_retry_after_gc(vm.heap(), || OwnedBackingStore::create_uninitialized(byte_length))
+            else {
+                return vm.throw_completion(
+                    ErrorKind::RangeError,
+                    ErrorType::NotEnoughMemoryToAllocate,
+                    &[&byte_length],
+                );
+            };
+            let copy = DataBlock::new(storage, Shared::No);
+            self.copy_data_to_block(&copy, 0, 0, byte_length);
+            Some(copy)
+        } else {
+            None
+        };
+
         let old_external_memory_size = self.external_memory_size();
         let is_shared = self.data_block.borrow().is_shared;
         let block = self.data_block.replace(DataBlock::empty(is_shared));
         self.invalidate_cached_typed_array_view_offsets();
         self.account_external_memory_change(vm, old_external_memory_size, 0);
-        Ok(block)
+        Ok(copy_of_external_storage.unwrap_or(block))
     }
 
     // [[ArrayBufferMaxByteLength]]

@@ -1,0 +1,2 @@
+chunk holds the samples it was given: true
+AudioBuffer unchanged by writes through the chunk: true
