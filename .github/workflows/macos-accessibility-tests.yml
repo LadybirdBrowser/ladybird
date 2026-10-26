@@ -2,9 +2,10 @@ name: macOS accessibility tests
 
 # The macOS AX tests need an unlocked GUI (Aqua) login session, and an Accessibility grant for the process tree the
 # runner starts. GH-hosted machines have all that, but take a very long time to build Ladybird. Blacksmith's machines
-# boot screen-locked — so don't have all that — but build Ladybird quickly. So, we re-use the Ladybird we already built
-# on Blacksmith: packing it with Meta/package-macos-test-bundle.py, and uploading that to a (GH-hosted) screen-unlocked
-# machine that doesn't build but instead just runs the tests (which just takes literally 2 minutes or less).
+# build Ladybird quickly, and most of them now boot screen-unlocked too — but a few still boot screen-locked. So, we
+# re-use the Ladybird we already built on Blacksmith: packing it with Meta/package-macos-test-bundle.py, and uploading
+# that to both a GH-hosted machine and a Blacksmith machine. Neither builds; each just runs the tests, which takes a few
+# minutes — and a run that lands on a locked Blacksmith machine still gets results from the GH-hosted one.
 on:
   workflow_call:
     inputs:
@@ -66,11 +67,11 @@ jobs:
           echo "LADYBIRD_BINARY=${PWD}/Ladybird.app/Contents/MacOS/Ladybird" >> "$GITHUB_ENV"
 
       # Try to wake a display and clear the lock UI. And print the session state before and after — so a remedy that
-      # doesn't work is visible, rather than inferred. (Blacksmith's macOS runners boot with the session screen-locked
-      # and no active displays, which is what breaks the accessibility tests: macOS withholds a window's accessibility
-      # representation while the session is locked — so AXFocusedWindow answers with the application element itself and
-      # no AXWebArea is reachable under it. The window is real — the window server reports one on-screen — and the
-      # engine renders the page fine headlessly. So, the lock is the only thing in the way.)
+      # doesn't work is visible, rather than inferred. (A few of Blacksmith's macOS runners still boot with the session
+      # screen-locked and no active displays, which is what breaks the accessibility tests: macOS withholds a window's
+      # accessibility representation while the session is locked — so AXFocusedWindow answers with the application
+      # element itself and no AXWebArea is reachable under it. The window is real — the window server reports one
+      # on-screen — and the engine renders the page fine headlessly. So, the lock is the only thing in the way.)
       - name: Wake the macOS session for the accessibility tests
         continue-on-error: true
         run: |
