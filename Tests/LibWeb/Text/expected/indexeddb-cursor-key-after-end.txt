@@ -1,0 +1,2 @@
+index cursor after the end: key=undefined primaryKey=undefined
+object store cursor after the end: key=undefined primaryKey=undefined
