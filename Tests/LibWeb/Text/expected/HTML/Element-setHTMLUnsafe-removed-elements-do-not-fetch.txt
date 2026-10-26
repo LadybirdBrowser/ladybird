@@ -1,0 +1,10 @@
+video-poster: kept element fetched: true
+video-poster: removed element fetched: true
+input-image: kept element fetched: true
+input-image: removed element fetched: true
+svg-image: kept element fetched: true
+svg-image: removed element fetched: true
+svg-feimage: kept element fetched: true
+svg-feimage: removed element fetched: true
+svg-use: kept element fetched: true
+svg-use: removed element fetched: true
