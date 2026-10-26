@@ -723,6 +723,25 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 )~~~"sv));
     }
 
+    if (options.network_access == NetworkAccess::Datagrams) {
+        TRY(profile.try_append(R"~~~(
+; Exchange datagrams with peers from UDP sockets that the helper binds itself, at the addresses of the local interfaces
+; that getifaddrs() lists. The mDNS responder shares its port with the system's.
+(allow network-outbound
+    (remote udp))
+(allow network-bind
+    (local udp))
+(allow network-inbound
+    (local udp))
+(allow syscall-unix
+    (syscall-number SYS_bind))
+(allow system-info
+    (info-type "net.link.addr"))
+(allow sysctl-read
+    (sysctl-name-prefix "net.routetable."))
+)~~~"sv));
+    }
+
     TRY(append_allowed_paths(profile, "file-read* file-test-existence"sv, options.paths, SeatbeltPath::Access::ReadOnly));
     TRY(append_allowed_ancestor_directories(profile, options.paths));
     TRY(append_allowed_paths(profile, "file-map-executable"sv, options.paths, SeatbeltPath::Access::ReadAndExecute));
