@@ -561,6 +561,7 @@ pub struct Vm {
     job_queues: OnceCell<Gc<JobQueues>>,
     /// How many run_executable() calls are running: the outermost one runs the promise jobs its code queued.
     run_executable_depth: Cell<u32>,
+    running_promise_jobs: Cell<bool>,
     /// The cells that hold others weakly, LibGC's list of weak containers. The list is weak: the sweep callback drops
     /// the containers that die, and has the others forget the cells that died.
     weak_containers: RefCell<Vec<WeakContainer>>,
@@ -711,6 +712,7 @@ impl Vm {
             on_promise_rejection_handled: Cell::new(None),
             job_queues: OnceCell::new(),
             run_executable_depth: Cell::new(0),
+            running_promise_jobs: Cell::new(false),
             weak_containers: RefCell::new(Vec::new()),
             finalization_registries_with_dead_cells: GcRefCell::new(Vec::new()),
             host_resize_array_buffer: Cell::new(default_host_resize_array_buffer),
@@ -1543,20 +1545,30 @@ impl Vm {
     }
 
     pub fn run_queued_promise_jobs(&self) {
-        if self.job_queues().promise_jobs.borrow().is_empty() {
+        // A reaction must finish settling its result promise before another job starts, even if its callback runs
+        // bytecode that would otherwise trigger another checkpoint.
+        if self.running_promise_jobs.get() || self.job_queues().promise_jobs.borrow().is_empty() {
             return;
         }
-        self.run_queued_promise_jobs_impl();
+        self.run_queued_promise_jobs_impl(|| false);
     }
 
-    fn run_queued_promise_jobs_impl(&self) {
+    /// The native Await shim cannot suspend its Rust stack, so it must be able to drive an already-running queue
+    /// while waiting for its promise to settle. Leave later jobs queued once the await can resume.
+    pub(crate) fn run_queued_promise_jobs_for_await(&self, is_settled: impl Fn() -> bool) {
+        self.run_queued_promise_jobs_impl(is_settled);
+    }
+
+    fn run_queued_promise_jobs_impl(&self, should_stop: impl Fn() -> bool) {
+        let was_running_promise_jobs = self.running_promise_jobs.replace(true);
         let job_queues = self.job_queues();
-        loop {
+        while !should_stop() {
             let Some(job) = job_queues.promise_jobs.borrow_mut(self).pop_front() else {
                 break;
             };
             let _ = HeapFunction::call(job, self);
         }
+        self.running_promise_jobs.set(was_running_promise_jobs);
     }
 
     // 9.5.4 HostEnqueuePromiseJob ( job, realm ), https://tc39.es/ecma262/#sec-hostenqueuepromisejob
