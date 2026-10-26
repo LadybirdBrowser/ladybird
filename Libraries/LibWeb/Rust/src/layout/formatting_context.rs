@@ -1580,7 +1580,7 @@ fn apply_root_sizing_directives(
         ParticipationInParentFormattingContext::BlockLevel => dimension_block_level_root(run, input, fc_type),
         ParticipationInParentFormattingContext::Float => body_input_with_inner_available_space(run, input),
         ParticipationInParentFormattingContext::AtomicInline => {
-            let run_cache_may_store_this_block_formatting_context_run = fc_type == FormattingContextType::Block
+            let run_cache_may_reuse_this_run_at_other_available_inline_sizes = fc_type == FormattingContextType::Block
                 && run.layout_mode == LayoutMode::Normal
                 && !run.purpose.is_measurement();
             atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = run.sizing().dimension_atomic_root(
@@ -1588,7 +1588,7 @@ fn apply_root_sizing_directives(
                 input.available_space,
                 input.containing_block_constraints,
                 run.layout_mode,
-                run_cache_may_store_this_block_formatting_context_run,
+                run_cache_may_reuse_this_run_at_other_available_inline_sizes,
             );
             let mut body_input = body_input_with_inner_available_space(run, input);
             let inline_definite_space = AvailableSpace {
@@ -1913,7 +1913,7 @@ pub(super) fn run_formatting_context(
         );
         return absorb_run_outputs(&callbacks, parent_fragments, parent_used, box_, outputs, false);
     }
-    let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, input, root_cells);
+    let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, purpose, layout_mode, input, root_cells);
     let memoizes_measurement = purpose.is_measurement()
         && callbacks.scratch().memoizes_measurements()
         && fc_run_cache::can_describe_run_in_any_layout_mode(
@@ -1931,7 +1931,6 @@ pub(super) fn run_formatting_context(
         return absorb_run_outputs(&callbacks, parent_fragments, parent_used, box_, outputs, false);
     }
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
-        purpose,
         box_,
         parent_grid.is_some(),
         layout_mode,
@@ -1953,12 +1952,15 @@ pub(super) fn run_formatting_context(
                 return result;
             }
             let reuses_committed_subtree = hit.reuses_committed_subtree;
+            let builds_no_fragments = hit.entry.outputs.root.is_none();
             let _trace = callbacks
                 .arena()
                 .layout_trace
                 .run(box_, fc_type, purpose, layout_mode, || {
                     if reuses_committed_subtree {
                         "REUSE SUBTREE"
+                    } else if builds_no_fragments {
+                        "READ RESULT"
                     } else {
                         "REPLAY FRAGMENTS"
                     }
@@ -2808,7 +2810,13 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
         );
     input.sizing.flex_self_block_size_resolution_space = None;
     let root_cells = used_values::UsedValuesCellState::capture(run.records.used_values(cell));
-    let cache_key = fc_run_cache::FcRunCacheKey::new(FormattingContextType::Block, input, root_cells);
+    let cache_key = fc_run_cache::FcRunCacheKey::new(
+        FormattingContextType::Block,
+        LayoutPurpose::Commit,
+        LayoutMode::Normal,
+        input,
+        root_cells,
+    );
     let execute = |previous_line_data| {
         execute_formatting_context_run(
             LayoutPurpose::Commit,
@@ -2841,7 +2849,6 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
         return Some(execute(None).result);
     }
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
-        LayoutPurpose::Commit,
         cell,
         false,
         LayoutMode::Normal,
