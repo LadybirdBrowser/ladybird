@@ -136,7 +136,7 @@ void Database::associate(GC::Ref<IDBDatabase> connection)
 
 void Database::dissociate(IDBDatabase& connection)
 {
-    m_associated_connections.remove_first_matching([&](auto& entry) { return entry == &connection; });
+    m_associated_connections.remove_all_matching([&](auto& entry) { return !entry || entry == &connection; });
 }
 
 GC::Ref<Database::AssociatedConnections> Database::associated_connections_as_heap_vector(GC::Heap& heap)
