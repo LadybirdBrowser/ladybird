@@ -620,6 +620,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'gridTemplateRows': 'none'
 'grid-template-rows': 'none'
 'height': '134px'
+'hyphenateCharacter': 'auto'
+'hyphenate-character': 'auto'
 'imageRendering': 'auto'
 'image-rendering': 'auto'
 'inlineSize': '284px'

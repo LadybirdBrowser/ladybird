@@ -3004,6 +3004,19 @@
     ],
     "needs-layout-for-getcomputedstyle": true
   },
+  "hyphenate-character": {
+    "__comment": "FIXME: Use this string when hyphenation is implemented.",
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-types": [
+      "string"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  },
   "image-rendering": {
     "style-group": "InheritedBoxValues",
     "animation-type": "discrete",

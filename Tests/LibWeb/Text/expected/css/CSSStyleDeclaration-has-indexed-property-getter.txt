@@ -43,6 +43,7 @@ All properties associated with getComputedStyle(document.body):
     "font-weight",
     "font-width",
     "forced-color-adjust",
+    "hyphenate-character",
     "image-rendering",
     "interpolate-size",
     "letter-spacing",
