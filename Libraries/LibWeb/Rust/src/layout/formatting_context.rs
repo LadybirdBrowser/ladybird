@@ -3117,6 +3117,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         arena.derive_facts_after_tree_update(&[]);
     }
     arena.mark_flex_and_grid_items_of_nodes_marked_for_layout();
+    drop_intrinsic_size_cache_entries_of_released_slots(arena, scratch);
     let callbacks = LayoutPass::new(
         arena,
         scratch,
@@ -3195,6 +3196,18 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
     })
 }
 
+/// Drops the intrinsic size cache entries of the slots the arena let go of, or whose cache epoch wrapped, since the
+/// last stage, before any run of this one reads a cache.
+fn drop_intrinsic_size_cache_entries_of_released_slots(
+    arena: &LayoutNodeArena,
+    scratch: &super::run_records::LayoutScratch,
+) {
+    let drops = arena.take_intrinsic_size_cache_drops();
+    if !drops.is_empty() {
+        scratch.intrinsic_size_caches.drop_slots(drops);
+    }
+}
+
 fn finish_entry_pass(
     entry_records: &RunRecords<'_>,
     entry_fragments: &std::rc::Rc<fragment_tree::RunFragmentBuilder>,
@@ -3247,6 +3260,7 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
     // re-enter intrinsic sizing for descendants outside those roots, including anonymous boxes
     // the incremental tree build created; derive the facts of the whole subtree.
     arena.derive_facts_in_subtree(root);
+    drop_intrinsic_size_cache_entries_of_released_slots(arena, scratch);
 
     // NB: Either way, the boundary root's own geometry lies in the frame of its containing block.
     let callbacks = if containing_block.is_invalid() {
