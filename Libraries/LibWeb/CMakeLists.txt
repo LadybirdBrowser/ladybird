@@ -694,25 +694,9 @@ set(SOURCES
     HTML/Worklet.cpp
     HTML/WorkletGlobalScope.cpp
     HTML/XMLSerializer.cpp
-    IndexedDB/Inspection.cpp
-    IndexedDB/IDBCursor.cpp
-    IndexedDB/IDBDatabase.cpp
     IndexedDB/IDBFactory.cpp
-    IndexedDB/IDBIndex.cpp
-    IndexedDB/IDBKeyRange.cpp
-    IndexedDB/IDBObjectStore.cpp
-    IndexedDB/IDBOpenDBRequest.cpp
-    IndexedDB/IDBRecord.cpp
-    IndexedDB/IDBRequest.cpp
-    IndexedDB/IDBTransaction.cpp
-    IndexedDB/IDBVersionChangeEvent.cpp
-    IndexedDB/Internal/Algorithms.cpp
-    IndexedDB/Internal/Database.cpp
-    IndexedDB/Internal/Index.cpp
-    IndexedDB/Internal/Key.cpp
-    IndexedDB/Internal/MutationLog.cpp
-    IndexedDB/Internal/ObjectStore.cpp
-    IndexedDB/Internal/RequestList.cpp
+    IndexedDB/Inspection.cpp
+    IndexedDB/RustIntegration.cpp
     Infra/ByteSequences.cpp
     Infra/JSON.cpp
     Internals/FakeXRDevice.cpp

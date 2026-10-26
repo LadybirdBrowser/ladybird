@@ -1,7 +1,7 @@
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface IDBIndex {
     attribute DOMString name;
-    [DirectGetter=object_store_handle, SameObject] readonly attribute IDBObjectStore objectStore;
+    [SameObject] readonly attribute IDBObjectStore objectStore;
     [ImplementedAs=key_path_value, NeedsCallerRealm] readonly attribute any keyPath;
     readonly attribute boolean multiEntry;
     readonly attribute boolean unique;

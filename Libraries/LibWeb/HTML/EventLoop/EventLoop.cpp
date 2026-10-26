@@ -41,7 +41,7 @@
 #include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/IndexedDB/Internal/Algorithms.h>
+#include <LibWeb/IndexedDB/IDBFactory.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>

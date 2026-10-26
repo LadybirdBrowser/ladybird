@@ -56,9 +56,10 @@ ALLOWED_REALM_MENTIONS = {
         "HTML algorithms still contain structured serialization, including posted-message preparation, canvas, navigation transfer/reconstruction, worker/worklet, and event realm use, and cross-origin Window/Location property functions are created in the current realm; RemoteWindow mirrors Window's postMessage",
     ),
     "IndexedDB": (
+        4,
         14,
-        92,
-        "IndexedDB requests/cursors/records still materialize structured-clone values in selected realms",
+        "the C++ glue of the Rust IndexedDB creates the factory in a global's realm and serializes, deserializes, "
+        "and wraps values in a given realm",
     ),
     "Infra": (2, 13, "JSON parse/serialization helpers still expose JS values in selected realms"),
     "Internals": (3, 3, "test-only internals still expose JS-facing helper objects and promises"),

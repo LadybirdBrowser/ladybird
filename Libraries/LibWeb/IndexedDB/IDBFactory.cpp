@@ -1,258 +1,37 @@
 /*
- * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2024-2025, stelar7 <dudedbz@gmail.com>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Vector.h>
-#include <LibGC/Heap.h>
-#include <LibJS/Runtime/Value.h>
-#include <LibWeb/DOM/Event.h>
-#include <LibWeb/DOM/EventTarget.h>
-#include <LibWeb/HTML/EventNames.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/IndexedDB/IDBDatabase.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
-#include <LibWeb/IndexedDB/Internal/Algorithms.h>
-#include <LibWeb/IndexedDB/Internal/Key.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWeb/StorageAPI/StorageKey.h>
+
+// The C ABI of the Rust implementation of IndexedDB, Libraries/LibWeb/Bindings/Rust/src/indexed_db/exports.rs.
+extern "C" {
+void* web_rust_indexed_db_create_factory(JSVM*, void* realm);
+bool web_rust_indexed_db_cleanup_indexed_database_transactions(JSVM*, void* event_loop);
+void web_rust_indexed_db_close_all_connections(JSVM*, void* realm);
+}
 
 namespace Web::IndexedDB {
 
-GC_DEFINE_ALLOCATOR(IDBFactory);
-
-static auto current_high_resolution_time(HTML::WindowOrWorkerGlobalScopeMixin& global_scope)
+GC::Ref<IDBFactory> IDBFactory::create(JS::Realm& realm)
 {
-    return HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(global_scope));
+    return *static_cast<IDBFactory*>(web_rust_indexed_db_create_factory(JS::HostABI::vm_to_abi(realm.vm()), &realm));
 }
 
-IDBFactory::IDBFactory(HTML::WindowOrWorkerGlobalScopeMixin& global)
-    : m_global(global.this_impl())
+bool cleanup_indexed_database_transactions(HTML::EventLoop& event_loop)
 {
+    return web_rust_indexed_db_cleanup_indexed_database_transactions(JS::HostABI::vm_to_abi(Bindings::main_thread_vm()), &event_loop);
 }
 
-IDBFactory::~IDBFactory() = default;
-
-void IDBFactory::visit_edges(GC::Cell::Visitor& visitor)
+void close_all_database_connections(JS::Realm& realm)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_global);
-}
-
-HTML::WindowOrWorkerGlobalScopeMixin& IDBFactory::relevant_global_scope() const
-{
-    return HTML::relevant_window_or_worker_global_scope(*m_global);
-}
-
-JS::Object& IDBFactory::relevant_global_object() const
-{
-    return HTML::relevant_global_object(relevant_global_scope());
-}
-
-HTML::EnvironmentSettingsObject& IDBFactory::relevant_settings_object() const
-{
-    return HTML::relevant_settings_object(relevant_global_scope());
-}
-
-// https://w3c.github.io/IndexedDB/#dom-idbfactory-open
-WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(Utf16String const& name, Optional<u64> version)
-{
-    auto& realm = HTML::relevant_realm(relevant_global_object());
-
-    // 1. If version is 0 (zero), throw a TypeError.
-    if (version.has_value() && version.value() == 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The version provided must not be 0"_utf16 };
-
-    // 2. Let environment be this's relevant settings object.
-    auto& environment = relevant_settings_object();
-
-    // 3. Let storageKey be the result of running obtain a storage key given environment.
-    //    If failure is returned, then throw a "SecurityError" DOMException and abort these steps.
-    auto storage_key = StorageAPI::obtain_a_storage_key(environment);
-    if (!storage_key.has_value())
-        return WebIDL::SecurityError::create("Failed to obtain a storage key"_utf16);
-
-    // 4. Let request be a new open request.
-    auto request = IDBOpenDBRequest::create(m_global);
-
-    // 5. Run these steps in parallel:
-    // NB: We could defer these steps, but it wouldn't be observable anyway, since open_a_database_connection() will
-    //     put this work into a queue and then process it later in the event loop regardless.
-
-    // 1. Let result be the result of opening a database connection, with storageKey, name, version if given and undefined otherwise, and request.
-    open_a_database_connection(realm, storage_key.value(), name, version, request, GC::create_function(GC::Heap::the(), [&realm, request](WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> result) {
-        // 2. Set request’s processed flag to true.
-        request->set_processed(true);
-
-        // 3. Queue a database task to run these steps:
-        queue_a_database_task(GC::create_function(GC::Heap::the(), [&realm, request, result = move(result)]() mutable {
-            // 1. If result is an error, then:
-            if (result.is_error()) {
-                // 1. Set request’s result to undefined.
-                request->set_result(JS::js_undefined());
-
-                // 2. Set request’s error to result.
-                request->set_error(result.exception().get<GC::Ref<WebIDL::DOMException>>());
-
-                // 3. Set request’s done flag to true.
-                request->set_done(true);
-
-                // 4. Fire an event named error at request with its bubbles and cancelable attributes initialized to true.
-                request->dispatch_event(DOM::Event::create(
-                    HTML::EventNames::error,
-                    { .bubbles = true, .cancelable = true },
-                    current_high_resolution_time(request->relevant_global_scope())));
-            }
-            // 2. Otherwise:
-            else {
-                // 1. Set request’s result to result.
-                Bindings::set_idb_request_result(realm, request, result.release_value());
-
-                // 2. Set request’s done flag to true.
-                request->set_done(true);
-
-                // 3. Fire an event named success at request.
-                request->dispatch_event(DOM::Event::create(
-                    HTML::EventNames::success,
-                    current_high_resolution_time(request->relevant_global_scope())));
-            }
-        }));
-    }));
-
-    // 6. Return a new IDBOpenDBRequest object for request.
-    return request;
-}
-
-// https://w3c.github.io/IndexedDB/#dom-idbfactory-cmp
-WebIDL::ExceptionOr<i8> IDBFactory::cmp(JS::Value first, JS::Value second)
-{
-    // 1. Let a be the result of converting a value to a key with first. Rethrow any exceptions.
-    auto a = TRY(convert_a_value_to_a_key(HTML::relevant_realm(relevant_global_object()), first));
-
-    // 2. If a is "invalid value" or "invalid type", throw a "DataError" DOMException.
-    if (a->is_invalid())
-        return WebIDL::DataError::create("Failed to convert a value to a key"_utf16);
-
-    // 3. Let b be the result of converting a value to a key with second. Rethrow any exceptions.
-    auto b = TRY(convert_a_value_to_a_key(HTML::relevant_realm(relevant_global_object()), second));
-
-    // 4. If b is "invalid value" or "invalid type", throw a "DataError" DOMException.
-    if (b->is_invalid())
-        return WebIDL::DataError::create("Failed to convert a value to a key"_utf16);
-
-    // 5. Return the results of comparing two keys with a and b.
-    return Key::compare_two_keys(a, b);
-}
-
-// https://w3c.github.io/IndexedDB/#dom-idbfactory-deletedatabase
-WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(Utf16String const& name)
-{
-    auto& realm = HTML::relevant_realm(relevant_global_object());
-
-    // 1. Let environment be this's relevant settings object.
-    auto& environment = relevant_settings_object();
-
-    // 2. Let storageKey be the result of running obtain a storage key given environment.
-    //    If failure is returned, then throw a "SecurityError" DOMException and abort these steps.
-    auto storage_key = StorageAPI::obtain_a_storage_key(environment);
-    if (!storage_key.has_value())
-        return WebIDL::SecurityError::create("Failed to obtain a storage key"_utf16);
-
-    // 3. Let request be a new open request.
-    auto request = IDBOpenDBRequest::create(m_global);
-
-    // 4. Run these steps in parallel:
-    // NB: We could defer these steps, but it wouldn't be observable anyway, since delete_a_database() will
-    //     put this work into a queue and then process it later in the event loop regardless.
-
-    // 1. Let result be the result of deleting a database, with storageKey, name, and request.
-    delete_a_database(realm, storage_key.value(), name, request, GC::create_function(GC::Heap::the(), [&realm, request](WebIDL::ExceptionOr<u64> result) {
-        // 2. Set request’s processed flag to true.
-        request->set_processed(true);
-
-        // 3. Queue a database task to run these steps:
-        queue_a_database_task(GC::create_function(GC::Heap::the(), [&realm, request, result = move(result)]() mutable {
-            // 1. If result is an error, set request’s error to result, set request’s done flag to true, and fire an event
-            //    named error at request with its bubbles and cancelable attributes initialized to true.
-            if (result.is_error()) {
-                request->set_error(result.exception().get<GC::Ref<WebIDL::DOMException>>());
-                request->set_done(true);
-                request->dispatch_event(DOM::Event::create(
-                    HTML::EventNames::error,
-                    { .bubbles = true, .cancelable = true },
-                    current_high_resolution_time(request->relevant_global_scope())));
-            }
-            // 2. Otherwise, set request’s result to undefined, set request’s done flag to true, and fire a version change
-            //    event named success at request with result and null.
-            else {
-                request->set_result(JS::js_undefined());
-                request->set_done(true);
-                auto value = result.release_value();
-                fire_a_version_change_event(realm, HTML::EventNames::success, request, value, {});
-            }
-        }));
-    }));
-
-    // 5. Return a new IDBOpenDBRequest object for request.
-    return request;
-}
-
-// https://w3c.github.io/IndexedDB/#dom-idbfactory-databases
-GC::Ref<WebIDL::Promise> IDBFactory::databases()
-{
-    auto promise = WebIDL::create_promise_for(relevant_settings_object());
-    databases(promise);
-    return promise;
-}
-
-// https://w3c.github.io/IndexedDB/#dom-idbfactory-databases
-void IDBFactory::databases(GC::Ref<WebIDL::Promise> promise)
-{
-    auto& realm = HTML::relevant_realm(relevant_global_object());
-
-    // 1. Let environment be this's relevant settings object.
-    auto& environment = relevant_settings_object();
-
-    // 2. Let storageKey be the result of running obtain a storage key given environment.
-    //    If failure is returned, then return a promise rejected with a "SecurityError" DOMException
-    auto maybe_storage_key = StorageAPI::obtain_a_storage_key(environment);
-    if (!maybe_storage_key.has_value()) {
-        WebIDL::reject_promise(promise, WebIDL::SecurityError::create("Failed to obtain a storage key"_utf16));
-        return;
-    }
-
-    auto storage_key = maybe_storage_key.release_value();
-
-    // 3. Let p be a new promise.
-    // NB: p is the promise that databases() created.
-
-    // 4. Run these steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, storage_key, promise]() {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
-        // 1. Let databases be the set of databases in storageKey.
-        //    If this cannot be determined for any reason, then queue a database task to reject p with an appropriate error (e.g. an "UnknownError" DOMException) and terminate these steps.
-        auto databases = Database::for_key(storage_key);
-
-        // 2. Let result be a new list.
-        // 3. For each db of databases:
-        //     1. If db's version is 0, then continue.
-        //     2. Let info be a new IDBDatabaseInfo dictionary.
-        //     3. Set info's name dictionary member to db's name.
-        //     4. Set info's version dictionary member to db's version.
-        //     5. Append info to result.
-        // 4. Queue a database task to resolve p with result.
-        // AD-HOC: p is resolved directly in a deferred invocation, not in a database task.
-        Bindings::resolve_database_info_list_promise(realm, promise, databases);
-    }));
-
-    // 5. Return p.
-    // NB: databases() returns p.
+    web_rust_indexed_db_close_all_connections(JS::HostABI::vm_to_abi(realm.vm()), &realm);
 }
 
 }

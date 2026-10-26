@@ -1,4 +1,4 @@
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface IDBVersionChangeEvent : Event {
     constructor(DOMString type, optional IDBVersionChangeEventInit eventInitDict = {});
     readonly attribute unsigned long long oldVersion;

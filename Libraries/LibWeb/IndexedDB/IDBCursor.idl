@@ -1,10 +1,10 @@
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface IDBCursor {
-    [ImplementedAs=source_handle] readonly attribute (IDBObjectStore or IDBIndex) source;
+    readonly attribute (IDBObjectStore or IDBIndex) source;
     readonly attribute IDBCursorDirection direction;
     [NeedsCallerRealm] readonly attribute any key;
     [NeedsCallerRealm] readonly attribute any primaryKey;
-    [DirectGetter, SameObject] readonly attribute IDBRequest request;
+    [SameObject] readonly attribute IDBRequest request;
     undefined advance([EnforceRange] unsigned long count);
     undefined continue(optional any key);
     undefined continuePrimaryKey(any key, any primaryKey);

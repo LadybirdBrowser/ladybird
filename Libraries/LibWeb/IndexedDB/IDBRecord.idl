@@ -1,5 +1,5 @@
 // https://w3c.github.io/IndexedDB/#record-interface
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface IDBRecord {
     [NeedsCallerRealm] readonly attribute any key;
     [NeedsCallerRealm] readonly attribute any primaryKey;

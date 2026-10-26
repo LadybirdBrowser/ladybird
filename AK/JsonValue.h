@@ -15,6 +15,8 @@
 namespace AK {
 
 class JsonValue {
+    AK_ALLOC_WITH_KMALLOC;
+
 public:
     enum class Type {
         Null,

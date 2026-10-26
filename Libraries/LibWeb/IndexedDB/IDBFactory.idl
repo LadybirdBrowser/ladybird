@@ -4,7 +4,7 @@ partial interface mixin WindowOrWorkerGlobalScope {
 };
 
 // https://w3c.github.io/IndexedDB/#idbfactory
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface IDBFactory {
     [NewObject] IDBOpenDBRequest open(DOMString name, optional [EnforceRange] unsigned long long version);
     [NewObject] IDBOpenDBRequest deleteDatabase(DOMString name);
