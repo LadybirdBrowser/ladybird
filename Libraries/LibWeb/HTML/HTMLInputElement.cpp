@@ -151,6 +151,12 @@ void HTMLInputElement::adopted_from(DOM::Document& old_document)
 
     if (m_load_event_delayer.has_value())
         m_load_event_delayer.emplace(document());
+
+    // NB: See handle_src_attribute().
+    if (old_document.is_temporary_document_for_fragment_parsing()) {
+        if (auto src = attribute(AttributeNames::src); src.has_value())
+            handle_src_attribute(*src).release_value_but_fixme_should_propagate_errors();
+    }
 }
 
 void HTMLInputElement::set_being_activated(bool activated)
@@ -1833,6 +1839,12 @@ void HTMLInputElement::signal_a_type_change()
 WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16View value)
 {
     if (type_state() != TypeAttributeState::ImageButton)
+        return {};
+
+    // AD-HOC: An element in a temporary document for fragment parsing does not fetch anything, so that markup parsed
+    //         into such a document, for example by the Sanitizer API, causes no network requests for elements that
+    //         are never inserted anywhere. The image is fetched once the element is adopted into another document.
+    if (document().is_temporary_document_for_fragment_parsing())
         return {};
 
     m_last_src_value = Utf16String::from_utf16(value);
