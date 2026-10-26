@@ -27,8 +27,8 @@ outputs:
     description: 'Primary ccache key'
     value: ${{ steps.ccache.outputs.cache-primary-key }}
   vcpkg_cache_primary_key:
-    description: 'Primary vcpkg binary cache key'
-    value: ${{ steps.vcpkg.outputs.cache-primary-key }}
+    description: 'Primary vcpkg binary cache key, or empty if the cache was restored from an exact key match'
+    value: ${{ steps.vcpkg.outputs.cache-hit != 'true' && steps.vcpkg.outputs.cache-primary-key || '' }}
 
 runs:
   using: "composite"
