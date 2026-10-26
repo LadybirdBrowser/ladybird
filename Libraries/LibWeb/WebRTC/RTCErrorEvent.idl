@@ -1,0 +1,13 @@
+
+// https://w3c.github.io/webrtc-pc/#rtcerrorevent-interface
+
+[Exposed=Window]
+interface RTCErrorEvent : Event {
+    [FIXME] constructor(DOMString type, RTCErrorEventInit eventInitDict);
+    [FIXME, SameObject] readonly attribute RTCError error;
+};
+
+dictionary RTCErrorEventInit : EventInit {
+    // FIXME: spec has `required RTCError error`.
+    required object error;
+};

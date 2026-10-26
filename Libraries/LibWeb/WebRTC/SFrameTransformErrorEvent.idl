@@ -1,0 +1,22 @@
+// https://w3c.github.io/webrtc-encoded-transform/#sframetransformerrorevent
+
+enum SFrameTransformErrorEventType {
+    "authentication",
+    "keyID",
+    "syntax"
+};
+
+dictionary SFrameTransformErrorEventInit : EventInit {
+    required SFrameTransformErrorEventType errorType;
+    required any frame;
+    CryptoKeyID? keyID;
+};
+
+[Exposed=(Window,DedicatedWorker)]
+interface SFrameTransformErrorEvent : Event {
+    [FIXME] constructor(DOMString type, SFrameTransformErrorEventInit eventInitDict);
+
+    [FIXME] readonly attribute SFrameTransformErrorEventType errorType;
+    [FIXME] readonly attribute CryptoKeyID? keyID;
+    [FIXME] readonly attribute any frame;
+};

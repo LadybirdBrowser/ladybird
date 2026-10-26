@@ -21,6 +21,7 @@ HELPERS = (
     "VideoDecoderServer",
     "WebContent",
     "WebWorker",
+    "WebRTCClient",
 )
 
 

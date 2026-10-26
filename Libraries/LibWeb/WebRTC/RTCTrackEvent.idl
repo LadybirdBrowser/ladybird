@@ -1,0 +1,20 @@
+
+// https://w3c.github.io/webrtc-pc/#rtctrackevent
+
+[Exposed=Window]
+interface RTCTrackEvent : Event {
+    [FIXME] constructor(DOMString type, RTCTrackEventInit eventInitDict);
+    readonly attribute RTCRtpReceiver receiver;
+    readonly attribute MediaStreamTrack track;
+    [SameObject] readonly attribute FrozenArray<MediaStream> streams;
+    readonly attribute RTCRtpTransceiver transceiver;
+};
+
+dictionary RTCTrackEventInit : EventInit {
+    // FIXME: spec types are RTCRtpReceiver / MediaStreamTrack /
+    //        sequence<MediaStream> / RTCRtpTransceiver respectively.
+    required object receiver;
+    required object track;
+    sequence<object> streams = [];
+    required object transceiver;
+};

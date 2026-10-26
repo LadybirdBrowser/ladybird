@@ -1887,8 +1887,8 @@ void HTMLMediaElement::load_local_resource(MediaProvider const& media_provider, 
             }
         },
         [&](GC::Ref<MediaCapture::MediaStream>) {
-            // FIXME: Support MediaStream objects.
-            failure_callback("MediaStream objects are not supported"_utf16);
+            // FIXME: Route MediaStream tracks into media-element playback.
+            // Accept srcObject assignments while RTC audio uses direct playback.
         },
         [&](GC::Ref<FileAPI::Blob>) {
             // FIXME: Support File objects.

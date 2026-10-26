@@ -1,0 +1,3 @@
+gathered host candidates: true
+every host candidate is an mDNS name: true
+the description has no IPv4 host candidates: true

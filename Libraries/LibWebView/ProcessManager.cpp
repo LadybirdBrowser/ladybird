@@ -33,6 +33,8 @@ ProcessType process_type_from_name(StringView name)
         return ProcessType::AudioServer;
     if (name == "VideoDecoderServer"sv)
         return ProcessType::VideoDecoderServer;
+    if (name == "WebRTCClient"sv)
+        return ProcessType::WebRTCClient;
 
     dbgln("Unknown process type: '{}'", name);
     VERIFY_NOT_REACHED();
@@ -59,6 +61,8 @@ StringView process_name_from_type(ProcessType type)
         return "AudioServer"sv;
     case ProcessType::VideoDecoderServer:
         return "VideoDecoderServer"sv;
+    case ProcessType::WebRTCClient:
+        return "WebRTCClient"sv;
     }
     VERIFY_NOT_REACHED();
 }

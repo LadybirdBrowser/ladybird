@@ -1,0 +1,16 @@
+// https://w3c.github.io/webrtc-pc/#rtccertificate-interface
+
+[Exposed=Window, Serializable]
+interface RTCCertificate {
+    [FIXME] readonly attribute EpochTimeStamp expires;
+    [FIXME] sequence<RTCDtlsFingerprint> getFingerprints();
+};
+
+dictionary RTCCertificateExpiration {
+    [EnforceRange] unsigned long long expires;
+};
+
+dictionary RTCDtlsFingerprint {
+    DOMString algorithm;
+    DOMString value;
+};

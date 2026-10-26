@@ -1,0 +1,38 @@
+
+// https://w3c.github.io/webrtc-pc/#rtcdatachannel
+
+[Exposed=(Window,DedicatedWorker), Transferable]
+interface RTCDataChannel : EventTarget {
+    readonly attribute USVString label;
+    readonly attribute boolean ordered;
+    readonly attribute unsigned short? maxPacketLifeTime;
+    readonly attribute unsigned short? maxRetransmits;
+    readonly attribute USVString protocol;
+    readonly attribute boolean negotiated;
+    readonly attribute unsigned short? id;
+    readonly attribute RTCDataChannelState readyState;
+    readonly attribute unsigned long bufferedAmount;
+    [EnforceRange] attribute unsigned long bufferedAmountLowThreshold;
+    attribute EventHandler onopen;
+    attribute EventHandler onbufferedamountlow;
+    attribute EventHandler onerror;
+    attribute EventHandler onclosing;
+    attribute EventHandler onclose;
+    undefined close();
+    attribute EventHandler onmessage;
+    attribute BinaryType binaryType;
+    // FIXME: spec is 4 overloads (USVString / Blob / ArrayBuffer / ArrayBufferView). Codegen
+    //        for typed overloads is fiddly; use the same union-arg shape as WebSocket.send.
+    undefined send((USVString or Blob or BufferSource) data);
+};
+
+dictionary RTCDataChannelInit {
+    boolean ordered = true;
+    [EnforceRange] unsigned short maxPacketLifeTime;
+    [EnforceRange] unsigned short maxRetransmits;
+    USVString protocol = "";
+    boolean negotiated = false;
+    [EnforceRange] unsigned short id;
+};
+
+enum RTCDataChannelState { "connecting", "open", "closing", "closed" };

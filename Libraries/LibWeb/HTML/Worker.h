@@ -55,6 +55,7 @@ public:
     GC::Ptr<MessagePort> outside_message_port() { return m_outside_port; }
 
     void set_agent(WorkerAgentParent& agent) { m_agent = agent; }
+    GC::Ptr<WorkerAgentParent> agent() { return m_agent; }
 
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \

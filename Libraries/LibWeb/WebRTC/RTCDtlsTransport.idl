@@ -1,0 +1,19 @@
+
+// https://w3c.github.io/webrtc-pc/#rtcdtlstransport-interface
+
+[Exposed=Window]
+interface RTCDtlsTransport : EventTarget {
+    [FIXME, SameObject] readonly attribute RTCIceTransport iceTransport;
+    [FIXME] readonly attribute RTCDtlsTransportState state;
+    [FIXME] sequence<ArrayBuffer> getRemoteCertificates();
+    attribute EventHandler onstatechange;
+    attribute EventHandler onerror;
+};
+
+enum RTCDtlsTransportState {
+    "new",
+    "connecting",
+    "connected",
+    "closed",
+    "failed"
+};

@@ -1,0 +1,8 @@
+candidate roundtrip: true
+candidate identity: true
+end of candidates: true
+configuration retained: true
+channel attributes: test, false, 2, echo, true, 0, arraybuffer
+channel event identity: true
+closed: closed, closed, closed, closed
+all transceivers stopped: true

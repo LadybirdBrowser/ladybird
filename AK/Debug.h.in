@@ -274,6 +274,10 @@
 #    cmakedefine01 WEB_WORKER_DEBUG
 #endif
 
+#ifndef WEBRTC_DEBUG
+#    cmakedefine01 WEBRTC_DEBUG
+#endif
+
 #ifndef XML_PARSER_DEBUG
 #    cmakedefine01 XML_PARSER_DEBUG
 #endif

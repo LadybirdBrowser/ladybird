@@ -1,0 +1,13 @@
+
+// https://w3c.github.io/webrtc-pc/#rtcsctptransport-interface
+
+[Exposed=Window]
+interface RTCSctpTransport : EventTarget {
+    [FIXME] readonly attribute RTCDtlsTransport transport;
+    [FIXME] readonly attribute RTCSctpTransportState state;
+    [FIXME] readonly attribute unrestricted double maxMessageSize;
+    [FIXME] readonly attribute unsigned short? maxChannels;
+    attribute EventHandler onstatechange;
+};
+
+enum RTCSctpTransportState { "connecting", "connected", "closed" };

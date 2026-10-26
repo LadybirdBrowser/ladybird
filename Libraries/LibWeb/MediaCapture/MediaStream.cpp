@@ -29,6 +29,15 @@ GC::Ref<MediaStream> MediaStream::create()
     return stream;
 }
 
+// Used when wrapping a remote stream-id from the WebRTC client (e.g. SFU-assigned msid)
+// so JS-side bookkeeping that maps stream.id -> user lines up with what the peer sent.
+GC::Ref<MediaStream> MediaStream::create_with_id(Utf16String id)
+{
+    auto stream = GC::Heap::the().allocate<MediaStream>();
+    stream->m_id = move(id);
+    return stream;
+}
+
 // https://w3c.github.io/mediacapture-main/#mediastream
 GC::Ref<MediaStream> MediaStream::create(ReadonlySpan<GC::Ref<MediaStreamTrack>> const& tracks)
 {

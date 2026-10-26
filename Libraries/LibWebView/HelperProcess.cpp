@@ -440,6 +440,46 @@ static void connect_client_to_image_decoder(ClientType& client, ImageDecoderConn
     });
 }
 
+ErrorOr<IPC::TransportHandle> launch_webrtc_client_process(WebContentClient& client)
+{
+    // A renderer only asks again once it has lost its helper, so one that is still around is on its way out. Never let
+    // a renderer hold more than one.
+    Vector<u64> previous_helpers;
+    Application::process_manager().for_each_process([&](Process& process) {
+        if (process.type() == ProcessType::WebRTCClient && process.owner_child_id() == client.child_id())
+            previous_helpers.append(process.child_id());
+    });
+    for (auto child_id : previous_helpers)
+        (void)Application::process_manager().terminate_child(child_id, Core::Process::TerminationMode::Forceful);
+
+    Vector<ByteString> arguments;
+    if (WebView::Application::browser_options().disable_sandbox == DisableSandbox::Yes)
+        arguments.append("--disable-sandbox"sv);
+    // None of WebRTC's traffic could go through a proxy, so with one configured the helper gets no network access at
+    // all rather than reveal the user's address.
+    if (!Application::request_server_options().proxy_configuration.is_empty() || Application::web_content_options().proxy_autoconfig_url.has_value())
+        arguments.append("--disable-network"sv);
+    if (auto server = mach_server_name(); server.has_value()) {
+        arguments.append("--mach-server-name"sv);
+        arguments.append(server.value());
+    }
+
+    // NB: The renderer's sandbox does not let it spawn processes, so the Browser launches the helper and hands its end
+    //     of the transport over, as it does for the ImageDecoder.
+    OwnPtr<IPC::Transport> transport;
+    auto identity = TRY(launch_helper_process("WebRTCClient"sv, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
+        auto [process, new_transport] = TRY(WebView::Process::spawn_with_transport(ProcessType::WebRTCClient, options, capture_output));
+        transport = move(new_transport);
+        return move(process);
+    }));
+
+    auto process = Application::process_manager().find_child(identity.child_id);
+    VERIFY(process.has_value());
+    process->set_owner_child_id(client.child_id());
+
+    return transport->release_for_transfer();
+}
+
 void connect_to_image_decoder(WebContentClient& client, ImageDecoderConnection decoder)
 {
     connect_client_to_image_decoder(client, move(decoder));
