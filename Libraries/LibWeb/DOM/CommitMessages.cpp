@@ -69,6 +69,15 @@ void CommitMessages::append(Layout::BegunRead const& read, Layout::RustFFI::FfiC
     case Layout::RustFFI::FfiCommitMessageKind::UnstyledElementReached:
         m_messages.append({ .identity = identity, .kind = Kind::UnstyledElementReached });
         return;
+    case Layout::RustFFI::FfiCommitMessageKind::StyleDependsOnSizeContainerQuery:
+        m_messages.append({ .identity = identity, .kind = Kind::StyleDependsOnSizeContainerQuery });
+        return;
+    case Layout::RustFFI::FfiCommitMessageKind::SizeQueryContainerResolvedAgainst:
+        m_messages.append({ .identity = identity, .kind = Kind::SizeQueryContainerResolvedAgainst });
+        return;
+    case Layout::RustFFI::FfiCommitMessageKind::ContainerQueryEvaluationNeededAfterLayout:
+        m_messages.append({ .identity = identity, .kind = Kind::ContainerQueryEvaluationNeededAfterLayout });
+        return;
     case Layout::RustFFI::FfiCommitMessageKind::SvgResourceReferenced:
         m_messages.append({
             .identity = identity,
@@ -144,6 +153,18 @@ void CommitMessages::apply(Layout::BegunRead const& read, Message const& message
                 m_document->update_style_for_element({ *element });
             element->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::StyleChange);
         }
+        return;
+    case Kind::StyleDependsOnSizeContainerQuery:
+        if (auto* element = as_if<Element>(message.identity.resolve(m_document).ptr()))
+            element->set_style_depends_on_size_container_query();
+        return;
+    case Kind::SizeQueryContainerResolvedAgainst:
+        if (auto* element = as_if<Element>(message.identity.resolve(m_document).ptr()))
+            element->set_is_size_query_container();
+        return;
+    case Kind::ContainerQueryEvaluationNeededAfterLayout:
+        if (auto* element = as_if<Element>(message.identity.resolve(m_document).ptr()))
+            m_document->set_needs_container_query_evaluation_after_layout(*element);
         return;
     }
     VERIFY_NOT_REACHED();

@@ -292,6 +292,7 @@ fn outputs_without_descendant_fragments(outputs: &formatting_context::RunOutputs
         root_outcome: outputs.root_outcome.clone(),
         atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: outputs
             .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+        host_findings: outputs.host_findings.clone(),
     }
 }
 
@@ -828,6 +829,7 @@ mod tests {
                     rare: None,
                 },
                 atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: None,
+                host_findings: None,
             },
             uncommitted: false,
             table_cell_intrinsic_block_padding_unobserved: false,

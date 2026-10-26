@@ -47,6 +47,9 @@ private:
         ListItemCounterValueRendered,
         SvgResourceReferenced,
         UnstyledElementReached,
+        StyleDependsOnSizeContainerQuery,
+        SizeQueryContainerResolvedAgainst,
+        ContainerQueryEvaluationNeededAfterLayout,
     };
 
     struct Message {

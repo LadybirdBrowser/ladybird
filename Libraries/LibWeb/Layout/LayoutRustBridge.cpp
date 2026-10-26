@@ -542,9 +542,22 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
             auto element = document.style_computer().element_for_style_node(style_node);
             VERIFY(element);
             auto context = CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { *element });
+            // Layout writes nothing on the DOM side: the marks these lengths make reach the document as commit
+            // messages, once the layout that resolved them is committed.
+            CSS::Length::DeferredContainerQueryMarks marks;
+            context.defer_container_query_marks(marks);
+            auto width = CSS::Length(100, CSS::LengthUnit::Cqw).to_px_without_rounding(context);
+            auto height = CSS::Length(100, CSS::LengthUnit::Cqh).to_px_without_rounding(context);
+            auto style_node_of = [](GC::Ptr<DOM::Element const> container) -> u32 {
+                return container ? container->style_node_id().value() : 0;
+            };
             return {
-                .width = CSS::Length(100, CSS::LengthUnit::Cqw).to_px_without_rounding(context),
-                .height = CSS::Length(100, CSS::LengthUnit::Cqh).to_px_without_rounding(context),
+                .width = width,
+                .height = height,
+                .width_query_container = style_node_of(marks.width_query_container),
+                .height_query_container = style_node_of(marks.height_query_container),
+                .width_query_container_awaits_layout = marks.width_query_container_awaits_layout,
+                .height_query_container_awaits_layout = marks.height_query_container_awaits_layout,
             }; },
         .take_built_scroll_containers = [](void* context, BegunRead const* read, RustFFI::FfiBuiltScrollContainer const* built, size_t count) {
             auto& document = *static_cast<DOM::Document*>(context);

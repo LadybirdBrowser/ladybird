@@ -168,12 +168,18 @@ pub struct FfiSvgLengthValue {
 
 /// The sizes a container-relative length on an element resolves against, as style answers them
 /// for that element: per axis, the committed content box of its nearest size query container, or
-/// the small viewport size.
+/// the small viewport size. Style writes nothing while it answers: it says which containers the
+/// lengths depend on, by style node or 0 for the viewport, and whether a container has no committed
+/// box yet, so the document must evaluate its container queries after layout.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiContainerLengthBases {
     pub width: f64,
     pub height: f64,
+    pub width_query_container: u32,
+    pub height_query_container: u32,
+    pub width_query_container_awaits_layout: bool,
+    pub height_query_container_awaits_layout: bool,
 }
 
 pub const SVG_LENGTH_KIND_NONE: u8 = 0;
@@ -2547,9 +2553,10 @@ fn length_resolution_context(
             .dom_node_style_node(node)
             .expect("an SVG element's attribute length is resolved for the element's own box");
         let bases = callbacks.container_length_bases.bases(element);
-        if bases.is_none() {
-            callbacks.arena().note_unresolved_container_lengths(node);
-        }
+        callbacks.scratch().note_host_findings(|findings| match &bases {
+            Some(bases) => findings.note_container_length_dependencies(element, bases),
+            None => findings.note_unresolved_container_lengths(node),
+        });
         bases
     } else {
         None

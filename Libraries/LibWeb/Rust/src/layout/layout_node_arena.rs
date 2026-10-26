@@ -3104,7 +3104,7 @@ impl LayoutNodeArena {
 
     /// Note the natural size layout negotiated for the box of an `<svg>` document element.
     pub(crate) fn note_document_svg_root_natural_size(
-        &self,
+        &mut self,
         root_box: NodeSlotId,
         natural_size: crate::css::style::NaturalSize,
     ) {
