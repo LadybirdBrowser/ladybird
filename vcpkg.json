@@ -190,6 +190,7 @@
         "png",
         "thread",
         "widgets",
+        "windeployqt",
         "zstd"
       ]
     },
