@@ -91,6 +91,7 @@ const MAX_RETAINED_RECEIVE_BUFFER_SIZE: usize = 1024 * 1024;
 
 unsafe extern "C" {
     static mach_task_self_: PortName;
+    static bootstrap_port: PortName;
 
     fn mach_msg(
         message: *mut c_void,
@@ -122,6 +123,8 @@ unsafe extern "C" {
     fn mach_error_string(error: KernReturn) -> *const c_char;
     fn fileport_makeport(fd: c_int, port: *mut PortName) -> c_int;
     fn fileport_makefd(port: PortName) -> c_int;
+    fn task_get_special_port(task: PortName, which_port: c_int, special_port: *mut PortName) -> KernReturn;
+    fn bootstrap_look_up(bootstrap: PortName, service_name: *const c_char, service_port: *mut PortName) -> KernReturn;
 }
 
 fn task_self() -> PortName {
@@ -837,6 +840,147 @@ impl Drop for VmRegion {
 
 // NB: A VmRegion is plain memory that this task owns; nothing ties it to the thread that received it.
 unsafe impl Send for VmRegion {}
+
+// NB: As <mach/task_special_ports.h> numbers it. 1 would be TASK_KERNEL_PORT, the task control port.
+const TASK_NAME_PORT: c_int = 3;
+const SELF_TASK_NAME_PORT_MESSAGE_ID: i32 = 0x1234_CAFE;
+// NB: The same number as IPC_INLINE_DATA_MESSAGE_ID, but this reply only ever arrives on the bootstrap reply port.
+const IPC_CHANNEL_PORTS_MESSAGE_ID: i32 = 0x4950_C002;
+const BOOTSTRAP_SEND_TIMEOUT_MS: u32 = 100;
+const BOOTSTRAP_REPLY_TIMEOUT_MS: u32 = 5000;
+
+/// Looks up a service that a process registered with the bootstrap server, as `Core::MachPort::look_up_from_bootstrap_server()`.
+pub fn look_up_from_bootstrap_server(service_name: &str) -> Result<MachPort, std::io::Error> {
+    let name = std::ffi::CString::new(service_name).map_err(|_| std::io::ErrorKind::InvalidInput)?;
+    let mut port = MACH_PORT_NULL;
+    // NB: The name is NUL-terminated and port points to a local that the call writes to.
+    let result = unsafe { bootstrap_look_up(bootstrap_port, name.as_ptr(), &raw mut port) };
+    if result != KERN_SUCCESS {
+        return Err(KernelError(result).into());
+    }
+    Ok(MachPort::adopt(port, PortRight::Send))
+}
+
+fn bootstrap_error(step: &str, result: KernReturn) -> std::io::Error {
+    std::io::Error::other(format!("{step}: {}", KernelError(result)))
+}
+
+/// Asks a `TransportBootstrapMachServer` for the ports of this process's transport, as
+/// `IPC::bootstrap_transport_from_server_port()` does.
+///
+/// Returns the receive right and the send right of this end, in that order.
+pub fn bootstrap_transport_from_server_port(server_port: &MachPort) -> Result<(MachPort, MachPort), std::io::Error> {
+    let reply_port = MachPort::allocate_receive_right().map_err(KernelError)?;
+
+    // NB: Send only the task name port. It is enough for task_info() statistics, while the task control port would
+    //     give the server full control over this process.
+    let mut raw_task_name_port = MACH_PORT_NULL;
+    // NB: raw_task_name_port points to a local that the call writes to.
+    let result = unsafe { task_get_special_port(task_self(), TASK_NAME_PORT, &raw mut raw_task_name_port) };
+    if result != KERN_SUCCESS {
+        return Err(bootstrap_error("getting the task name port", result));
+    }
+    let task_name_port = MachPort::adopt(raw_task_name_port, PortRight::Send);
+
+    let request_size = HEADER_SIZE + BODY_SIZE + PORT_DESCRIPTOR_SIZE;
+    let mut request = [0u32; (HEADER_SIZE + BODY_SIZE + PORT_DESCRIPTOR_SIZE) / size_of::<u32>()];
+    {
+        // NB: All words are initialized and u8 alignment covers the entire slice.
+        let bytes = unsafe { request.align_to_mut::<u8>().1 };
+        write_header(
+            bytes,
+            msgh_bits(MACH_MSG_TYPE_COPY_SEND, MACH_MSG_TYPE_MAKE_SEND_ONCE) | MACH_MSGH_BITS_COMPLEX,
+            request_size,
+            server_port.name(),
+            SELF_TASK_NAME_PORT_MESSAGE_ID,
+        );
+        write_u32(bytes, 12, reply_port.name());
+        write_u32(bytes, HEADER_SIZE, 1);
+        write_u32(bytes, HEADER_SIZE + BODY_SIZE, task_name_port.name());
+        write_u32(
+            bytes,
+            HEADER_SIZE + BODY_SIZE + 8,
+            (MACH_MSG_TYPE_COPY_SEND << 16) | (u32::from(MACH_MSG_PORT_DESCRIPTOR) << 24),
+        );
+    }
+    // NB: The request only copies send rights that this task keeps, and outlives the call.
+    let result = unsafe {
+        mach_msg(
+            request.as_mut_ptr().cast(),
+            MACH_SEND_MSG | MACH_SEND_TIMEOUT,
+            request_size as u32,
+            0,
+            MACH_PORT_NULL,
+            BOOTSTRAP_SEND_TIMEOUT_MS,
+            MACH_PORT_NULL,
+        )
+    };
+    if result != KERN_SUCCESS {
+        if result & !MACH_MSG_MASK == MACH_SEND_TIMED_OUT {
+            // NB: A timeout returns the copied rights and the made send-once right in this header.
+            unsafe { mach_msg_destroy(request.as_mut_ptr().cast()) };
+        }
+        return Err(bootstrap_error("sending the bootstrap request", result));
+    }
+    drop(task_name_port);
+
+    let mut reply = MessageBuffer::new(HEADER_SIZE + BODY_SIZE + 2 * PORT_DESCRIPTOR_SIZE + TRAILER_SIZE);
+    let reply_capacity = reply.bytes().len() as u32;
+    // NB: The buffer is large enough for the reply and its trailer, and outlives the call.
+    let result = unsafe {
+        mach_msg(
+            reply.header_pointer(),
+            MACH_RCV_MSG | MACH_RCV_TIMEOUT,
+            0,
+            reply_capacity,
+            reply_port.name(),
+            BOOTSTRAP_REPLY_TIMEOUT_MS,
+            MACH_PORT_NULL,
+        )
+    };
+    if result != KERN_SUCCESS {
+        return Err(bootstrap_error("receiving the bootstrap reply", result));
+    }
+
+    // NB: Whatever this function does not adopt goes back to the kernel with the message. Adopted names are cleared
+    //     from it first.
+    let resources = MessageResources(&mut reply);
+    let bytes = resources.0.bytes_mut();
+    let bits = read_u32(bytes, 0).unwrap_or(0);
+    let id = read_u32(bytes, 20).unwrap_or(0) as i32;
+    if id == MACH_NOTIFY_SEND_ONCE {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "Mach bootstrap server closed before replying",
+        ));
+    }
+    let malformed = || std::io::Error::new(std::io::ErrorKind::InvalidData, "malformed Mach bootstrap reply");
+    if id != IPC_CHANNEL_PORTS_MESSAGE_ID
+        || bits & MACH_MSGH_BITS_COMPLEX == 0
+        || read_u32(bytes, HEADER_SIZE) != Some(2)
+    {
+        return Err(malformed());
+    }
+    let receive_offset = HEADER_SIZE + BODY_SIZE;
+    let send_offset = receive_offset + PORT_DESCRIPTOR_SIZE;
+    let descriptor = |offset: usize| {
+        let name = read_u32(bytes, offset)?;
+        let descriptor_bits = read_u32(bytes, offset + 8)?;
+        ((descriptor_bits >> 24) as u8 == MACH_MSG_PORT_DESCRIPTOR).then_some((name, (descriptor_bits >> 16) & 0xff))
+    };
+    let (Some((receive_name, MACH_MSG_TYPE_MOVE_RECEIVE)), Some((send_name, MACH_MSG_TYPE_MOVE_SEND))) =
+        (descriptor(receive_offset), descriptor(send_offset))
+    else {
+        return Err(malformed());
+    };
+    write_u32(bytes, receive_offset, MACH_PORT_NULL);
+    write_u32(bytes, send_offset, MACH_PORT_NULL);
+    drop(resources);
+    Ok((
+        MachPort::adopt(receive_name, PortRight::Receive),
+        MachPort::adopt(send_name, PortRight::Send),
+    ))
+}
 
 #[cfg(test)]
 mod tests {
