@@ -21,7 +21,7 @@ use crate::runtime::function_object::FunctionObject;
 use crate::runtime::generator_object::{GeneratorObject, GeneratorState, IterationResult};
 use crate::runtime::iterator::{IteratorRecord, iterator_close_all};
 use crate::runtime::iterator_constructor::{ConcatIterator, ZipIterator};
-use crate::runtime::iterator_prototype::{self, FlatMapIterator};
+use crate::runtime::iterator_prototype::{self, FlatMapIterator, WindowsIterator};
 use crate::runtime::realm::Realm;
 
 pub const ITERATOR_HELPER_BRAND: &str = "Iterator Helper";
@@ -59,6 +59,12 @@ pub enum IteratorHelperClosure {
         iterated: Gc<IteratorRecord>,
         integer_limit: f64,
     },
+    Windows {
+        iterated: Gc<IteratorRecord>,
+        windows_iterator: Gc<WindowsIterator>,
+        window_size: u32,
+        allow_partial: bool,
+    },
     Zip {
         zip_iterator: Gc<ZipIterator>,
     },
@@ -86,6 +92,12 @@ impl IteratorHelperClosure {
                 iterated,
                 integer_limit,
             } => iterator_prototype::take_closure(vm, iterator, iterated, integer_limit),
+            Self::Windows {
+                iterated,
+                windows_iterator,
+                window_size,
+                allow_partial,
+            } => windows_iterator.next(vm, iterated, window_size, allow_partial),
             Self::Zip { zip_iterator } => zip_iterator.next(vm),
         }
     }
@@ -93,7 +105,9 @@ impl IteratorHelperClosure {
     /// The abrupt closure, for the helpers that have one.
     fn abrupt_closure(self, vm: &Vm, completion: Completion) -> Option<ThrowCompletionOr<Value>> {
         match self {
-            Self::Chunks { iterated, .. } if iterated.done() => Some(completion.into_throw_completion_or()),
+            Self::Chunks { iterated, .. } | Self::Windows { iterated, .. } if iterated.done() => {
+                Some(completion.into_throw_completion_or())
+            }
             Self::Concat { iterables } => Some(iterables.on_abrupt_completion(vm, completion)),
             Self::FlatMap {
                 iterated,
@@ -101,9 +115,12 @@ impl IteratorHelperClosure {
                 ..
             } => Some(flat_map_iterator.on_abrupt_completion(vm, iterated, completion)),
             Self::Zip { zip_iterator } => Some(zip_iterator.on_abrupt_completion(vm, completion)),
-            Self::Chunks { .. } | Self::Drop { .. } | Self::Filter { .. } | Self::Map { .. } | Self::Take { .. } => {
-                None
-            }
+            Self::Chunks { .. }
+            | Self::Drop { .. }
+            | Self::Filter { .. }
+            | Self::Map { .. }
+            | Self::Take { .. }
+            | Self::Windows { .. } => None,
         }
     }
 }

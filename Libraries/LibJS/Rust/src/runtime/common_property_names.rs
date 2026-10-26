@@ -651,6 +651,7 @@ define_common_property_names! {
     week,
     weeks,
     weeksDisplay,
+    windows,
     with,
     withCalendar,
     withPlainTime,

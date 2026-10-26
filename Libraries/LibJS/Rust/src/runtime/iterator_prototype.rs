@@ -5,11 +5,13 @@
  */
 
 use core::cell::Cell;
+use std::collections::VecDeque;
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{Finalize, GcCell, define_cell};
+use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -110,6 +112,7 @@ impl IteratorPrototype {
         define(&names.some, raw_native!(IteratorPrototype::some), 1);
         define(&names.take, raw_native!(IteratorPrototype::take), 1);
         define(&names.toArray, raw_native!(IteratorPrototype::to_array), 0);
+        define(&names.windows, raw_native!(IteratorPrototype::windows), 1);
         define(
             &PropertyKey::from(vm.well_known_symbols().dispose),
             raw_native!(IteratorPrototype::symbol_dispose),
@@ -982,6 +985,85 @@ impl IteratorPrototype {
         }
     }
 
+    // 27.1.3.3.15 Iterator.prototype.windows ( windowSize [ , undersized ] ), https://tc39.es/ecma262/#sec-iterator.prototype.windows
+    fn windows(vm: &Vm) -> ThrowCompletionOr<Value> {
+        let realm = current_realm(vm);
+        let window_size = vm.argument(0);
+        let undersized = vm.argument(1);
+
+        // 1. Let obj be the this value.
+        // 2. If obj is not an Object, throw a TypeError exception.
+        let object = this_object(vm)?;
+
+        // 3. Let iterated be the Iterator Record { [[Iterator]]: obj, [[NextMethod]]: undefined, [[Done]]: false }.
+        let mut iterated = IteratorRecord::create(vm, Some(object), Value::UNDEFINED, false);
+
+        // 4. If windowSize is not an integral Number, then
+        if !window_size.is_integral_number() {
+            // a. Let error be ThrowCompletion(a newly created TypeError object).
+            let error = vm.throw_completion::<Value>(
+                ErrorKind::TypeError,
+                ErrorType::IsNotAn,
+                &[&"windowSize", &"integral Number"],
+            );
+
+            // b. Return ? IteratorClose(iterated, error).
+            return iterator_close(vm, &iterated, Completion::from(error)).into_throw_completion_or();
+        }
+
+        // 5. If windowSize is not in the inclusive interval from 1𝔽 to 𝔽(2**32 - 1), then
+        if !(1.0..=f64::from(u32::MAX)).contains(&window_size.as_f64()) {
+            // a. Let error be ThrowCompletion(a newly created RangeError object).
+            let error = vm.throw_completion::<Value>(
+                ErrorKind::RangeError,
+                ErrorType::NumberIsOutOfRange,
+                &[&"windowSize", &"1", &"2^32-1"],
+            );
+
+            // b. Return ? IteratorClose(iterated, error).
+            return iterator_close(vm, &iterated, Completion::from(error)).into_throw_completion_or();
+        }
+
+        // 6. If undersized is undefined, set undersized to "only-full".
+        // 7. If undersized is neither "only-full" nor "allow-partial", then
+        let allow_partial = if undersized.is_undefined()
+            || (undersized.is_string() && undersized.as_string().utf16_string_view() == "only-full")
+        {
+            false
+        } else if undersized.is_string() && undersized.as_string().utf16_string_view() == "allow-partial" {
+            true
+        } else {
+            // a. Let error be ThrowCompletion(a newly created TypeError object).
+            let error = vm.throw_completion::<Value>(
+                ErrorKind::TypeError,
+                ErrorType::OptionIsNotValidValue,
+                &[&undersized, &"undersized"],
+            );
+
+            // b. Return ? IteratorClose(iterated, error).
+            return iterator_close(vm, &iterated, Completion::from(error)).into_throw_completion_or();
+        };
+
+        // 8. Set iterated to ? GetIteratorDirect(obj).
+        iterated = get_iterator_direct(vm, object)?;
+
+        // 9. Let closure be a new Abstract Closure with no parameters that captures iterated, windowSize, and
+        //    undersized and performs the following steps when called:
+        let closure = IteratorHelperClosure::Windows {
+            iterated,
+            windows_iterator: WindowsIterator::create(vm),
+            window_size: window_size.as_f64() as u32,
+            allow_partial,
+        };
+
+        // 10. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
+        // 11. Set result.[[UnderlyingIterators]] to « iterated ».
+        let result = IteratorHelper::create(vm, realm, &underlying_iterators_of_one(vm, iterated), closure);
+
+        // 12. Return result.
+        Ok(Value::from_object(result))
+    }
+
     // 27.1.3.3.16 Iterator.prototype [ %Symbol.dispose% ] ( ), https://tc39.es/ecma262/#sec-iterator.prototype-%symbol.dispose%
     fn symbol_dispose(vm: &Vm) -> ThrowCompletionOr<Value> {
         // 1. Let obj be the this value.
@@ -1243,6 +1325,94 @@ pub fn take_closure(
     // v. Let completion be Completion(Yield(value)).
     // vi. IfAbruptCloseIterator(completion, iterated).
     Ok(yield_value(value))
+}
+
+#[repr(C)]
+#[derive(Trace)]
+pub struct WindowsIterator {
+    header: CellHeader,
+    buffer: GcRefCell<VecDeque<Value>>,
+}
+
+define_cell!(WindowsIterator, Other, finalize: finalize);
+
+impl Finalize for WindowsIterator {
+    fn finalize(&self) {
+        drop(self.buffer.replace(VecDeque::new()));
+    }
+}
+
+/// The closure of Iterator.prototype.windows, step 9.
+impl WindowsIterator {
+    fn create(vm: &Vm) -> Gc<WindowsIterator> {
+        vm.heap().allocate(|_| WindowsIterator {
+            header: CellHeader::for_class(Self::CLASS),
+            // a. Let buffer be a new empty List.
+            buffer: GcRefCell::new(VecDeque::new()),
+        })
+    }
+
+    pub fn next(
+        &self,
+        vm: &Vm,
+        iterated: Gc<IteratorRecord>,
+        window_size: u32,
+        allow_partial: bool,
+    ) -> ThrowCompletionOr<HelperIterationResult> {
+        // NB: Resuming after the final partial window returns without advancing the underlying iterator.
+        if iterated.done() {
+            return Ok(return_undefined());
+        }
+
+        // b. Repeat,
+        loop {
+            // i. Let value be ? IteratorStepValue(iterated).
+            let value = iterator_step_value(vm, &iterated)?;
+
+            // ii. If value is DONE, then
+            let Some(value) = value else {
+                // 1. If undersized is "allow-partial", buffer is not empty, and the number of elements in buffer < ℝ(windowSize), then
+                if allow_partial
+                    && !self.buffer.borrow().is_empty()
+                    && self.buffer.borrow().len() < window_size as usize
+                {
+                    // a. Perform Completion(Yield(CreateArrayFromList(buffer))).
+                    let array = self.create_array(vm);
+                    self.buffer.borrow_mut(vm).clear();
+                    return Ok(yield_value(array));
+                }
+
+                // 2. Return ReturnCompletion(undefined).
+                self.buffer.borrow_mut(vm).clear();
+                return Ok(return_undefined());
+            };
+
+            // iii. If the number of elements in buffer is ℝ(windowSize), then
+            if self.buffer.borrow().len() == window_size as usize {
+                // 1. Remove the first element from buffer.
+                self.buffer.borrow_mut(vm).pop_front();
+            }
+
+            // iv. Append value to buffer.
+            self.buffer.borrow_mut(vm).push_back(value);
+
+            // v. If the number of elements in buffer is ℝ(windowSize), then
+            if self.buffer.borrow().len() == window_size as usize {
+                // 1. Let completion be Completion(Yield(CreateArrayFromList(buffer))).
+                // 2. IfAbruptCloseIterator(completion, iterated).
+                // NB: IteratorHelper handles abrupt completion.
+                return Ok(yield_value(self.create_array(vm)));
+            }
+        }
+    }
+
+    fn create_array(&self, vm: &Vm) -> Value {
+        let values = MarkedVec::new(vm);
+        for value in &*self.buffer.borrow() {
+            values.push(*value);
+        }
+        Value::from_object(Array::create_from_list(vm, current_realm(vm), &values))
+    }
 }
 
 /// The state of the closure of Iterator.prototype.flatMap: the inner iterator it is flattening.
