@@ -1,0 +1,5 @@
+scale: 2
+visual viewport offset right after the call: 0
+visual viewport offset once the scroll resolved: 100
+layout viewport offset: 0
+scrollend events: visual viewport

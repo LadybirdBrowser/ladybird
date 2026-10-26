@@ -24,7 +24,7 @@
     asyncTest(done => {
         const vv = window.visualViewport;
 
-        vv.addEventListener("resize", function onResize() {
+        vv.addEventListener("resize", async function onResize() {
             vv.removeEventListener("resize", onResize);
 
             const results = [];
@@ -38,6 +38,7 @@
 
             // Scroll right by 400 to pan the visual viewport to the right half
             internals.wheel(200, 150, 400, 0);
+            await scrollOffsetStopsChanging(() => vv.offsetLeft);
 
             // Do not call println() here — DOM mutation triggers layout which
             // rebuilds AccumulatedVisualContext, masking bugs in scroll invalidation.
