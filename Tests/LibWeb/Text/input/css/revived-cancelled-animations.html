@@ -80,7 +80,9 @@
             animation.startTime = document.timeline.currentTime - 50000;
             await frames(2);
             const before = getComputedStyle(element).marginLeft;
-            await frames(10);
+            const timeBefore = document.timeline.currentTime;
+            while (document.timeline.currentTime - timeBefore < 100)
+                await frames(1);
             println(`setting the start time of a cancelled animation makes it run again: ${element.getAnimations().length === 1 && getComputedStyle(element).marginLeft !== before}`);
             animation.cancel();
             element.remove();
