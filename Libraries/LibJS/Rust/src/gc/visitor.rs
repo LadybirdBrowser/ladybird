@@ -179,6 +179,16 @@ unsafe impl<T: Trace> Trace for Option<T> {
     }
 }
 
+// SAFETY: Forwards to the contained value or error.
+unsafe impl<T: Trace, E: Trace> Trace for Result<T, E> {
+    fn trace(&self, visitor: &mut Visitor) {
+        match self {
+            Ok(value) => value.trace(visitor),
+            Err(error) => error.trace(visitor),
+        }
+    }
+}
+
 // SAFETY: LibGC decodes the value and visits its cell, if it has one.
 unsafe impl Trace for Value {
     fn trace(&self, visitor: &mut Visitor) {
