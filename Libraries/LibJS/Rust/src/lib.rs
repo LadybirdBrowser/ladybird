@@ -117,7 +117,7 @@ pub mod embedding;
 pub mod fast_hash;
 #[cfg(not(test))]
 pub mod frontend_host;
-#[cfg(not(test))]
+#[cfg(any(not(test), target_os = "linux"))]
 pub mod futex;
 #[cfg(not(test))]
 pub mod gc;

@@ -368,6 +368,11 @@ pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Dur
 
 #[cfg(target_os = "linux")]
 pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
+    // FUTEX_WAKE wakes a waiter even when the requested count is zero.
+    if max_count == 0 {
+        return 0;
+    }
+
     // FUTEX_WAKE wakes waiters keyed on the low 32-bit half at the word's address. That covers both 4-byte and 8-byte waiters
     // (8-byte waits key on the low half too), and returns the exact number of waiters woken.
     let count = i32::try_from(max_count).unwrap_or(i32::MAX);
@@ -395,6 +400,29 @@ pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Dur
 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
 pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
     waiter_list::notify(word.as_ptr(), max_count)
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod linux_tests {
+    use super::*;
+
+    #[test]
+    fn zero_count_does_not_wake_waiters() {
+        let word = AtomicU64::new(0);
+        // SAFETY: The storage is aligned for AtomicU32, and neither view writes to it. Both wait widths use this
+        // address as their futex key.
+        let notify_word = unsafe { &*word.as_ptr().cast::<AtomicU32>() };
+        for wait_word in [WaitWord::Word32(notify_word), WaitWord::Word64(&word)] {
+            std::thread::scope(|scope| {
+                let waiter = scope.spawn(|| atomic_wait(wait_word, 0, Some(Duration::from_millis(100))));
+                while !waiter.is_finished() {
+                    assert_eq!(atomic_notify(notify_word, 0), 0);
+                    std::thread::yield_now();
+                }
+                assert_eq!(waiter.join().unwrap(), AtomicWaitResult::TimedOut);
+            });
+        }
+    }
 }
 
 #[cfg(all(test, not(target_os = "linux")))]
