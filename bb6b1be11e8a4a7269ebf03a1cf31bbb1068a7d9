@@ -1,0 +1,31 @@
+When a writing suggestion shows, Ladybird splits the box of the caret’s
+text node at the caret, around an anonymous inline box that holds the
+suggestion, drawn in the text color at half alpha. WebKit does the same:
+RenderTreeUpdater::GeneratedContent::updateWritingSuggestionsRenderer()
+splits the caret’s text renderer into a prefix, a suffix, and between
+them an ::-internal-writing-suggestions inline box, whose UA style is
+color-mix(currentColor 50%, transparent).
+
+In WebKit, WebViewImpl::requestCandidatesForSelectionIfNeeded() asks
+NSSpellChecker for candidates, and showInlinePredictionsForCandidates()
+picks one. WebViewImpl::setMarkedText() then hands completion-tagged
+text to WebPageProxy::setWritingSuggestion(), and WebCore’s Editor::
+setWritingSuggestion() shows it without touching the DOM. Accepting it
+is AppKit inserting the text, so the page sees an insertText input
+event, just as it does in Ladybird.
+
+WebKit offers a suggestion only where both VisibleSelection::
+canEnableWritingSuggestions() and Element::isWritingSuggestionsEnabled()
+allow one. Ladybird’s WritingSuggestionController::is_eligible() follows
+the latter, including its autocomplete=off check. But it also allows
+the Telephone input type, which the spec now lists and WebKit’s
+HTMLInputElement::supportsWritingSuggestions() doesn’t.
+
+WebKit keeps the suggestion out of its accessibility text runs, in
+AccessibilityRenderObject’s shouldExcludeTextRunsForPseudoElement().
+Ladybird’s accessibility tree is built from the DOM, so the suggestion
+never reaches that tree at all.
+
+Neither Blink nor Gecko shows macOS inline predictions in web content.
+The names NSTextCompletionAttributeName, showCompletionForCandidate, and
+isAutomaticInlineCompletionEnabled appear nowhere in their sources.
