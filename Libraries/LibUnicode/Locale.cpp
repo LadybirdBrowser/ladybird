@@ -571,17 +571,21 @@ Optional<Utf16String> canonicalize_unicode_locale_id(Utf16View locale)
 Utf16String canonicalize_unicode_extension_values(StringView key, Utf16View value)
 {
     VERIFY(value.has_ascii_storage());
+    auto lowercase_value = value.to_ascii_lowercase();
 
     UErrorCode status = U_ZERO_ERROR;
 
     icu::LocaleBuilder builder;
-    builder.setUnicodeLocaleKeyword(icu_string_piece(key), icu_string_piece(value.bytes()));
+    builder.setUnicodeLocaleKeyword(icu_string_piece(key), icu_string_piece(lowercase_value.ascii_view()));
 
     auto locale = builder.build(status);
     verify_icu_success(status);
 
     auto result = locale.getUnicodeKeywordValue<StringBuilder>(icu_string_piece(key), status);
     verify_icu_success(status);
+
+    if (result.string_view() == "true"sv)
+        return {};
 
     return Utf16String::from_ascii_without_validation(result.string_view().bytes());
 }

@@ -30,8 +30,31 @@ describe("normal behavior", () => {
     });
 
     test("non-standard options", () => {
-        [100, Infinity, NaN, "hello", 152n, true].forEach(value => {
-            expect(new Intl.Locale("en", { firstDayOfWeek: value }).firstDayOfWeek).toBe(value.toString());
+        [100, Infinity, NaN, "hello", 152n].forEach(value => {
+            expect(new Intl.Locale("en", { firstDayOfWeek: value }).firstDayOfWeek).toBe(
+                value.toString().toLowerCase()
+            );
         });
+    });
+
+    test("option values are canonicalized without regard to case", () => {
+        for (const tag of ["en", "en-u-fw-tue"]) {
+            for (const value of ["MON", "Unknown", NaN, Infinity]) {
+                const expected = String(value).toLowerCase();
+                const locale = new Intl.Locale(tag, { firstDayOfWeek: value });
+                expect(locale.firstDayOfWeek).toBe(expected);
+                expect(locale.toString()).toBe(`en-u-fw-${expected}`);
+            }
+        }
+    });
+
+    test("true is canonicalized to an empty extension value", () => {
+        for (const tag of ["en", "en-u-fw-tue"]) {
+            for (const value of [true, "true", "TRUE"]) {
+                const locale = new Intl.Locale(tag, { firstDayOfWeek: value });
+                expect(locale.firstDayOfWeek).toBe("");
+                expect(locale.toString()).toBe("en-u-fw");
+            }
+        }
     });
 });
