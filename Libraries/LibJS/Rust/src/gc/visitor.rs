@@ -161,7 +161,15 @@ macro_rules! impl_trace_for_tuples {
     };
 }
 
-impl_trace_for_tuples!((A, B), (A, B, C), (A, B, C, D), (A, B, C, D, E));
+impl_trace_for_tuples!(
+    (A, B),
+    (A, B, C),
+    (A, B, C, D),
+    (A, B, C, D, E),
+    (A, B, C, D, E, F),
+    (A, B, C, D, E, F, G),
+    (A, B, C, D, E, F, G, H),
+);
 
 // SAFETY: A Gc reaches exactly its cell.
 unsafe impl<T> Trace for Gc<T> {
