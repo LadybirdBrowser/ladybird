@@ -1,0 +1,233 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Test handling of attributes that map to dimension properties</title>
+<meta name="timeout" content="long">
+<link rel="help"
+      href="https://html.spec.whatwg.org/multipage/rendering.html#maps-to-the-dimension-property">
+<link rel="help"
+      href="https://html.spec.whatwg.org/multipage/rendering.html#maps-to-the-dimension-property-(ignoring-zero)">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<body>
+<!-- We need a place to put our elements so they're bound to a document and
+     have computed style, but we don't want percentages resolved to lengths,
+     so need to make sure they have no CSS boxes -->
+<div id="container" style="display: none"></div>
+<script>
+ /*
+  * This test tests
+  *
+  * https://html.spec.whatwg.org/multipage/rendering.html#maps-to-the-dimension-property
+  * and
+  * https://html.spec.whatwg.org/multipage/rendering.html#maps-to-the-dimension-property-(ignoring-zero)
+  * for various elements and various values.
+  */
+
+ /*
+  * Array of input/output pairs.  The input is the string to use as the
+  * attribute value.  The output is the string expected as the computed style
+  * for the relevant CSS property.
+  */
+const valid_values = [
+  // Valid values
+  [ "200", "200px" ],
+  [ "1007", "1007px" ],
+  [ "   00523   ", "523px" ],
+  [ "200.25", "200.25px" ],
+  [ "200.7", "200.7px" ],
+  [ "200.", "200px" ],
+  [ "200in", "200px" ],
+  [ "200.25in", "200.25px" ],
+  [ "200 %", "200px" ],
+  [ "200 abc", "200px" ],
+  [ "200%", "200%" ],
+  [ "200%abc", "200%" ],
+  [ "200.25%", "200.25%" ],
+  [ "200.%", "200%" ],
+  [ "20.25e2", "20.25px" ],
+  [ "20.25E2", "20.25px" ],
+];
+
+ /*
+  * Values that are only valid for the not-ignoring-zero case.
+  */
+const zero_values = [
+  [ "0", "0px" ],
+  [ "0%", "0%" ],
+  [ "0px", "0px" ],
+];
+
+ /*
+  * Array of invalid values.  These should lead to the default value of the
+  * relevant CSS property.
+  */
+const invalid_values = [
+  "-0",
+  "-0%",
+  "-200",
+  "-200px",
+  "   -200",
+  "+-200",
+  "-+200",
+  "-200%",
+  "+200",
+  "   +200in    ",
+  "   +200.25in    ",
+  "+200%",
+  "   +200.25%    ",
+  "   +200.25%abc",
+  "+0",
+  "+0%",
+  ".",
+  ".%",
+  ".x",
+  ".5",
+  ".5%"
+];
+
+const valid_values_with_0 =
+      valid_values.concat(zero_values);
+const invalid_values_with_0 =
+      invalid_values.concat(zero_values.map((v) => v[0]));
+
+function newElem(name) {
+  return () => document.createElement(name);
+}
+
+function newImageInput() {
+  return () => {
+    var elem = newElem("input")();
+    elem.type = "image";
+    return elem;
+  }
+}
+
+function newImgSource() {
+  return () => {
+    var elem = newElem("source")();
+    elem.setAttribute("srcset", "/images/green-100x50.png");
+    return elem;
+  }
+}
+
+/*
+ * Array of tests.  Each test consists of the following information:
+ *
+ * 1) An element creation function.
+ * 2) The name of the attribute to set
+ * 3) The name of the CSS property to get.
+ * 4) A boolean indicating whether 0 is a valid value for the dimension
+ *    attribute.
+ */
+const tests = [
+  [ newElem("hr"), "width", "width", true ],
+  [ newElem("iframe"), "width", "width", true ],
+  [ newElem("iframe"), "height", "height", true ],
+  [ newImageInput(), "width", "width", true ],
+  [ newImageInput(), "height", "height", true ],
+  [ newElem("marquee"), "width", "width", true ],
+  [ newElem("marquee"), "height", "height", true ],
+  [ newElem("video"), "width", "width", true ],
+  [ newElem("video"), "height", "height", true ],
+  [ newElem("object"), "width", "width", true ],
+  [ newElem("object"), "height", "height", true ],
+  [ newElem("embed"), "width", "width", true ],
+  [ newElem("embed"), "height", "height", true ],
+  [ newElem("img"), "width", "width", true ],
+  [ newElem("img"), "height", "height", true ],
+  [ newElem("td"), "width", "width", false ],
+  [ newElem("td"), "height", "height", false ],
+  [ newElem("table"), "width", "width", false ],
+  [ newElem("table"), "height", "height", true ],
+  [ newElem("tr"), "height", "height", true ],
+  [ newElem("col"), "width", "width", true ],
+  [ newElem("embed"), "hspace", "marginLeft", true ],
+  [ newElem("embed"), "hspace", "marginRight", true ],
+  [ newElem("embed"), "vspace", "marginTop", true ],
+  [ newElem("embed"), "vspace", "marginBottom", true ],
+  [ newElem("img"), "hspace", "marginLeft", true ],
+  [ newElem("img"), "hspace", "marginRight", true ],
+  [ newElem("img"), "vspace", "marginTop", true ],
+  [ newElem("img"), "vspace", "marginBottom", true ],
+  [ newElem("object"), "hspace", "marginLeft", true ],
+  [ newElem("object"), "hspace", "marginRight", true ],
+  [ newElem("object"), "vspace", "marginTop", true ],
+  [ newElem("object"), "vspace", "marginBottom", true ],
+  [ newImageInput(), "hspace", "marginLeft", true ],
+  [ newImageInput(), "hspace", "marginRight", true ],
+  [ newImageInput(), "vspace", "marginTop", true ],
+  [ newImageInput(), "vspace", "marginBottom", true ],
+  [ newElem("marquee"), "hspace", "marginLeft", true ],
+  [ newElem("marquee"), "hspace", "marginRight", true ],
+  [ newElem("marquee"), "vspace", "marginTop", true ],
+  [ newElem("marquee"), "vspace", "marginBottom", true ],
+  // <source width> is mapped to <img> width if both are in <picture>.
+  [ newImgSource(), "width", "width", true, newElem("img"), newElem("picture") ],
+  // <source height> is mapped to <img> height if both are in <picture>.
+  [ newImgSource(), "height", "height", true, newElem("img"), newElem("picture") ],
+];
+
+function style(element) {
+  return element.ownerDocument.defaultView.getComputedStyle(element);
+}
+
+const container = document.getElementById("container");
+
+for (let [ctor, attr, prop, zero_allowed, mappedElemCtor, containerCtor] of tests) {
+  let valid, invalid;
+  if (zero_allowed) {
+    valid = valid_values_with_0;
+    invalid = invalid_values;
+  } else {
+    valid = valid_values;
+    invalid = invalid_values_with_0;
+  }
+
+  let elemContainer = null;
+  if (!!containerCtor) {
+    elemContainer = containerCtor();
+    container.appendChild(elemContainer);
+  } else {
+    elemContainer = container;
+  }
+
+  let runTest = (value, expected) => {
+    let elem = ctor();
+    let mappedElem = !!mappedElemCtor ? mappedElemCtor() : elem;
+    test(function() {
+      this.add_cleanup(() => {
+        elem.remove();
+        if (!!mappedElemCtor) {
+          mappedElem.remove();
+        }
+      });
+      elem.setAttribute(attr, value);
+      assert_equals(elem.getAttribute(attr), value);
+      elemContainer.appendChild(elem);
+      if (!!mappedElemCtor) {
+        elemContainer.appendChild(mappedElem);
+      }
+      assert_equals(style(mappedElem)[prop], expected);
+      }, `<${elem.localName} ${attr}="${value}"> mapping to ` +
+         `<${mappedElem.localName}> ${prop} property`);
+  }
+
+  for (let [value, result] of valid) {
+    runTest(value, result);
+  }
+
+  let default_elem = !!mappedElemCtor ? mappedElemCtor() : ctor();
+  elemContainer.appendChild(default_elem);
+  let defaultVal = style(default_elem)[prop];
+  default_elem.remove();
+  for (let value of invalid) {
+    runTest(value, defaultVal);
+  }
+
+  if (!!containerCtor) {
+    elemContainer.remove();
+  }
+}
+
+</script>
+</body>
