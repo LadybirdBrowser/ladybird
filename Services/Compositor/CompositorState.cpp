@@ -884,24 +884,15 @@ Compositing::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::Comp
     return result.enqueue_result;
 }
 
-Compositing::AsyncScrollEnqueueResult CompositorState::smooth_scroll_to(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue)
-{
-    auto* context = context_if_present(context_id);
-    VERIFY(context);
-
-    auto result = context->smooth_scroll_to(stable_node_id, offset, main_thread_offset, viewport_rect, animation_kind, initiator, operation_to_continue);
-    if (result.frame_to_present.has_value())
-        schedule_present_frame(context_id, *context, *result.frame_to_present);
-    publish_pending_async_scroll_updates(context_id, *context);
-    return result.enqueue_result;
-}
-
-void CompositorState::cancel_smooth_scroll(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id)
+void CompositorState::apply_scroll_requests(Web::CompositorContextId context_id, ReadonlySpan<Compositing::ScrollRequest> scroll_requests)
 {
     auto* context = context_if_present(context_id);
     if (!context)
         return;
-    context->cancel_smooth_scroll(stable_node_id);
+
+    if (auto frame_to_present = context->apply_scroll_requests(scroll_requests); frame_to_present.has_value())
+        schedule_present_frame(context_id, *context, frame_to_present.value());
+    schedule_animation_frames_if_needed(*context);
     publish_pending_async_scroll_updates(context_id, *context);
 }
 

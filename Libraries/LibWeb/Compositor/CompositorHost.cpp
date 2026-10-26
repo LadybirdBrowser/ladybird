@@ -67,16 +67,6 @@ Compositing::AsyncScrollEnqueueResult CompositorContextHandle::async_scroll_by(U
     return m_host.async_scroll_by(m_context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking, wheel_step_dispatch, input_event_id);
 }
 
-Compositing::AsyncScrollEnqueueResult CompositorContextHandle::smooth_scroll_to(Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue)
-{
-    return m_host.smooth_scroll_to(m_context_id, stable_node_id, offset_in_device_pixels, main_thread_offset_in_device_pixels, viewport_rect, animation_kind, initiator, operation_to_continue);
-}
-
-void CompositorContextHandle::cancel_smooth_scroll(Web::AsyncScrollNodeStableID stable_node_id)
-{
-    m_host.cancel_smooth_scroll(m_context_id, stable_node_id);
-}
-
 String CompositorContextHandle::scroll_state_for_testing(Web::AsyncScrollNodeStableID stretched_scroller)
 {
     return m_host.scroll_state_for_testing(m_context_id, stretched_scroller);
@@ -473,19 +463,6 @@ Compositing::AsyncScrollEnqueueResult CompositorHost::async_scroll_by(Web::Compo
     if (auto* connection = compositor_connection())
         return connection->async_scroll_by(context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking, wheel_step_dispatch, input_event_id);
     return {};
-}
-
-Compositing::AsyncScrollEnqueueResult CompositorHost::smooth_scroll_to(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue)
-{
-    if (auto* connection = compositor_connection())
-        return connection->smooth_scroll_to(context_id, stable_node_id, offset_in_device_pixels, main_thread_offset_in_device_pixels, viewport_rect, animation_kind, initiator, operation_to_continue);
-    return {};
-}
-
-void CompositorHost::cancel_smooth_scroll(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id)
-{
-    if (auto* connection = compositor_connection())
-        connection->cancel_smooth_scroll(context_id, stable_node_id);
 }
 
 String CompositorHost::scroll_state_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stretched_scroller)

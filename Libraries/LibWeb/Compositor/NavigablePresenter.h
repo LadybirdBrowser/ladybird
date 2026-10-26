@@ -59,8 +59,11 @@ struct SealedPresentation {
     Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
     // Whether the document's tree changed since the compositor took one.
     bool sends_visual_context_tree { false };
-    // The scroll state, with the async scroll sequence the navigable adopted.
+    // The scroll state, which seeds the offsets of the boxes new to the compositor.
     Compositing::ScrollStateSnapshot scroll_state_snapshot;
+    // The scrolls the navigable asked for since the frame before, which the compositor applies once it has the frame's
+    // boxes. Only the frame a rendering update commits carries them.
+    Vector<Compositing::ScrollRequest> scroll_requests;
     // What keyboard scrolling targets, for a top-level traversable.
     Optional<Compositing::KeyboardScrollState> keyboard_scroll_state;
     // The display list a recording copies paint commands from, and the resources it references, which stay live while

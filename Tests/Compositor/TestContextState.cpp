@@ -30,15 +30,13 @@ public:
 static Web::UniqueNodeID const document_id { 7 };
 
 // A display list of a page whose viewport cannot be scrolled, so it records no scroll node.
-static void install_display_list_without_scroll_nodes(Compositor::ContextState& context, u64 adopted_async_scroll_sequence = 0)
+static void install_display_list_without_scroll_nodes(Compositor::ContextState& context)
 {
     Compositing::VisualContextTreeTestBuilder builder;
     auto visual_context_tree = builder.finish();
     auto display_list = Compositing::DisplayList::create(visual_context_tree);
     display_list->set_async_scrolling_metadata({ .document_id = document_id, .viewport_rect = { 0, 0, 800, 600 } });
-    Compositing::ScrollStateSnapshot scroll_state_snapshot;
-    scroll_state_snapshot.set_adopted_async_scroll_sequence(adopted_async_scroll_sequence);
-    context.install_display_list_update(display_list, move(visual_context_tree), move(scroll_state_snapshot));
+    context.install_display_list_update(display_list, move(visual_context_tree), {});
 }
 
 static Web::PinchEvent pinch_event(double scale_delta)
@@ -95,22 +93,27 @@ TEST_CASE(pinch_zoom_is_reported_on_the_visual_viewport)
     EXPECT_EQ(scroll_offset.unadopted_scroll_delta, Gfx::FloatPoint(200, 150));
 }
 
-TEST_CASE(pinch_zoom_is_presented_until_the_main_thread_adopts_it)
+TEST_CASE(pinch_zoom_is_presented_until_the_main_thread_asks_for_another)
 {
     NullWebContentClient client;
     Compositor::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { Web::CompositorContextId { 1 }, 1, client, Compositor::OwnedCanvasSurfaces { canvas_surface_registry, client.canvas_surface_owner_id() } };
     install_display_list_without_scroll_nodes(context);
 
+    // A display list the main thread recorded without the zoom keeps it at its maximum.
     EXPECT(context.handle_pinch_event(pinch_event(4.0)).accepted);
-    auto updates = context.take_pending_async_scroll_updates();
-
-    // A display list recorded before the main thread adopted the zoom keeps it at its maximum.
-    install_display_list_without_scroll_nodes(context, updates.sequence - 1);
+    install_display_list_without_scroll_nodes(context);
     EXPECT(!context.handle_pinch_event(pinch_event(1.0)).accepted);
 
-    // Once the main thread has adopted the zoom, its display list says where the visual viewport is, here reset since.
-    install_display_list_without_scroll_nodes(context, updates.sequence);
+    // A request of the main thread's own, such as resetting the zoom, is what moves the visual viewport from there.
+    Compositing::ScrollRequest reset_zoom {
+        .stable_node_id = { .node_id = document_id, .kind = Web::AsyncScrollNodeKind::VisualViewport },
+        .request_id = 1,
+        .jump_offset = Gfx::FloatPoint {},
+        .visual_viewport_scale = 1.0f,
+        .smooth_scroll = {},
+    };
+    (void)context.apply_scroll_requests({ &reset_zoom, 1 });
     EXPECT(context.handle_pinch_event(pinch_event(1.0)).accepted);
 }
 

@@ -63,6 +63,7 @@ private:
     virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
     void did_scroll();
+    void did_change_offset_or_scale();
     void update_accumulated_visual_context();
 
     GC::Ref<DOM::Document> m_document;

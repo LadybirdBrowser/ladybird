@@ -191,7 +191,7 @@ public:
         // The id the UI gave the wheel event, or 0 for a step that did not come from the UI.
         u64 input_event_id,
         Optional<MonotonicTime> now_for_testing = {});
-    AsyncScrollResult smooth_scroll_to(Web::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue);
+    Optional<PendingFrame> apply_scroll_requests(ReadonlySpan<Compositing::ScrollRequest>);
     void cancel_smooth_scroll(Web::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
     bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || m_elastic_overscroll_controller.has_rebound() || visual_animations_need_frame() || m_presenter.ui_overlay_fades_need_frame() || m_scrollbar_controller.fades_need_frame(MonotonicTime::now()); }
@@ -270,11 +270,13 @@ private:
     Compositing::ScrollStateSnapshot scroll_state_snapshot_at_keyboard_step_starts() const;
     void adopt_keyboard_scroll_state(Compositing::KeyboardScrollState);
     Optional<VisualViewportScrollDelta> apply_visual_viewport_scroll_delta(Gfx::FloatPoint);
-    void reapply_unadopted_visual_viewport_state();
+    void note_user_input_scrolled(Web::AsyncScrollNodeStableID);
+    void apply_visual_viewport_scroll_request(Compositing::ScrollRequest const&, Vector<Compositing::AsyncScrollOffset>& answers);
     // Pans the visual viewport of a zoomed page by as much of a delta in screen pixels as it has room for, and returns
     // that part of the delta.
     Gfx::FloatPoint pan_visual_viewport_by(Gfx::FloatPoint delta_in_screen_pixels);
-    Optional<Gfx::FloatPoint> reapply_unreconciled_async_scroll_offsets();
+    HashMap<Web::AsyncScrollNodeStableID, Gfx::FloatPoint> scroll_offsets_by_stable_id() const;
+    Optional<Gfx::FloatPoint> keep_scroll_offsets_of_known_nodes(HashMap<Web::AsyncScrollNodeStableID, Gfx::FloatPoint> const&);
     void store_pending_async_scroll_offsets(ReadonlySpan<Compositing::AsyncScrollOffset>, Optional<Compositing::AsyncScrollOperationID> = {});
     enum class VisualViewportPanning : u8 {
         // The step is in the pixels of the scroller, and only scrolls it.
@@ -358,6 +360,14 @@ private:
     ScrollSnapController m_scroll_snap_controller;
 
     AsyncScrollUpdateOutbox m_async_scroll_update_outbox;
+    // The last of the main thread's scroll requests applied to each box, which the box's reported offsets are marked with.
+    HashMap<Web::AsyncScrollNodeStableID, u64> m_applied_scroll_request_ids;
+    // How many times this context scrolled each box for user input of its own, which the reports are marked with too.
+    HashMap<Web::AsyncScrollNodeStableID, u64> m_user_input_scroll_counts;
+    // Whether this context has scrolled boxes to offsets that WebContent's last frame does not have them at.
+    bool m_scroll_offsets_differ_from_last_frame { false };
+    // The document whose visual viewport this context zoomed or panned, which it presents as it left it from then on.
+    Optional<Web::UniqueNodeID> m_visual_viewport_document_id;
     KeyboardScrollController m_keyboard_scroll_controller;
     RefPtr<Core::Timer> m_scroll_step_gesture_input_timer;
     WheelGestureRouting m_wheel_gesture_routing;

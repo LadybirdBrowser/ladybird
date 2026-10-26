@@ -493,14 +493,35 @@ Messages::CompositorWebContentServer::AsyncScrollByResponse ConnectionFromWebCon
     return result;
 }
 
-Messages::CompositorWebContentServer::SmoothScrollToResponse ConnectionFromWebContent::smooth_scroll_to(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue)
+static bool is_valid_scroll_request(Compositing::ScrollRequest const& scroll_request)
+{
+    auto is_finite = [](Gfx::FloatPoint point) { return isfinite(point.x()) && isfinite(point.y()); };
+    if (scroll_request.jump_offset.has_value() && !is_finite(scroll_request.jump_offset.value()))
+        return false;
+    if (scroll_request.visual_viewport_scale.has_value()) {
+        auto scale = scroll_request.visual_viewport_scale.value();
+        if (!isfinite(scale) || scale <= 0)
+            return false;
+    }
+    if (auto const& smooth_scroll = scroll_request.smooth_scroll; smooth_scroll.has_value()) {
+        if (!is_finite(smooth_scroll->destination_offset))
+            return false;
+        // WebContent names the compositor's own scrolls only to head them somewhere else.
+        if (smooth_scroll->operation_id < Compositing::first_operation_id_the_main_thread_requests && !smooth_scroll->retargets_operation)
+            return false;
+    }
+    return true;
+}
+
+void ConnectionFromWebContent::apply_scroll_requests(Web::CompositorContextId context_id, Vector<Compositing::ScrollRequest> scroll_requests)
 {
     if (!context_is_owned_by_this_connection(context_id))
-        return Compositing::AsyncScrollEnqueueResult {};
-    auto result = m_compositor_state->smooth_scroll_to(context_id, stable_node_id, offset, main_thread_offset, viewport_rect, animation_kind, initiator, operation_to_continue);
-    if (result.accepted)
-        async_request_rendering_update();
-    return result;
+        return;
+    if (!all_of(scroll_requests, is_valid_scroll_request)) {
+        did_misbehave("Invalid scroll request");
+        return;
+    }
+    m_compositor_state->apply_scroll_requests(context_id, scroll_requests);
 }
 
 Messages::CompositorWebContentServer::ScrollStateForTestingResponse ConnectionFromWebContent::scroll_state_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stretched_scroller)
@@ -532,13 +553,6 @@ Messages::CompositorWebContentServer::TakeInputTraceForTestingResponse Connectio
     if (!context_is_owned_by_this_connection(context_id))
         return Vector<Web::InputTraceRecord> {};
     return m_compositor_state->take_input_trace_for_testing(context_id);
-}
-
-void ConnectionFromWebContent::cancel_smooth_scroll(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id)
-{
-    if (!context_is_owned_by_this_connection(context_id))
-        return;
-    m_compositor_state->cancel_smooth_scroll(context_id, stable_node_id);
 }
 
 Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse ConnectionFromWebContent::take_pending_async_scroll_updates(Web::CompositorContextId context_id)

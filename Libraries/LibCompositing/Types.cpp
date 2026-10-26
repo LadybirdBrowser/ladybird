@@ -41,6 +41,8 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::AsyncScrollOffset const& off
     TRY(encoder.encode(offset.unadopted_scroll_delta));
     TRY(encoder.encode(offset.last_relative_scroll_delta));
     TRY(encoder.encode(offset.visual_viewport_scale));
+    TRY(encoder.encode(offset.applied_scroll_request_id));
+    TRY(encoder.encode(offset.user_input_scroll_count));
     return {};
 }
 
@@ -53,6 +55,8 @@ ErrorOr<Compositing::AsyncScrollOffset> decode(Decoder& decoder)
         .unadopted_scroll_delta = TRY(decoder.decode<Gfx::FloatPoint>()),
         .last_relative_scroll_delta = TRY(decoder.decode<Gfx::FloatPoint>()),
         .visual_viewport_scale = TRY(decoder.decode<Optional<float>>()),
+        .applied_scroll_request_id = TRY(decoder.decode<u64>()),
+        .user_input_scroll_count = TRY(decoder.decode<u64>()),
     };
 }
 
@@ -160,6 +164,54 @@ ErrorOr<Compositing::PendingAsyncScrollUpdates> decode(Decoder& decoder)
         .started_user_scrolls = TRY(decoder.decode<Vector<Compositing::StartedUserScroll>>()),
         .user_scroll_gesture_in_progress = TRY(decoder.decode<bool>()),
         .user_scroll_gesture_ended = TRY(decoder.decode<bool>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Compositing::RequestedSmoothScroll const& smooth_scroll)
+{
+    TRY(encoder.encode(smooth_scroll.operation_id));
+    TRY(encoder.encode(smooth_scroll.destination_offset));
+    TRY(encoder.encode(smooth_scroll.animation_kind));
+    TRY(encoder.encode(smooth_scroll.initiator));
+    TRY(encoder.encode(smooth_scroll.retargets_operation));
+    TRY(encoder.encode(smooth_scroll.settled_user_input_scroll_count));
+    return {};
+}
+
+template<>
+ErrorOr<Compositing::RequestedSmoothScroll> decode(Decoder& decoder)
+{
+    return Compositing::RequestedSmoothScroll {
+        .operation_id = TRY(decoder.decode<Compositing::AsyncScrollOperationID>()),
+        .destination_offset = TRY(decoder.decode<Gfx::FloatPoint>()),
+        .animation_kind = TRY(decoder.decode<Compositing::ScrollAnimationKind>()),
+        .initiator = TRY(decoder.decode<Compositing::SmoothScrollInitiator>()),
+        .retargets_operation = TRY(decoder.decode<bool>()),
+        .settled_user_input_scroll_count = TRY(decoder.decode<Optional<u64>>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Compositing::ScrollRequest const& request)
+{
+    TRY(encoder.encode(request.stable_node_id));
+    TRY(encoder.encode(request.request_id));
+    TRY(encoder.encode(request.jump_offset));
+    TRY(encoder.encode(request.visual_viewport_scale));
+    TRY(encoder.encode(request.smooth_scroll));
+    return {};
+}
+
+template<>
+ErrorOr<Compositing::ScrollRequest> decode(Decoder& decoder)
+{
+    return Compositing::ScrollRequest {
+        .stable_node_id = TRY(decoder.decode<Web::AsyncScrollNodeStableID>()),
+        .request_id = TRY(decoder.decode<u64>()),
+        .jump_offset = TRY(decoder.decode<Optional<Gfx::FloatPoint>>()),
+        .visual_viewport_scale = TRY(decoder.decode<Optional<float>>()),
+        .smooth_scroll = TRY(decoder.decode<Optional<Compositing::RequestedSmoothScroll>>()),
     };
 }
 
