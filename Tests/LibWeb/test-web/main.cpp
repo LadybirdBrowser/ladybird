@@ -60,6 +60,7 @@ static HashMap<WebView::ViewImplementation const*, size_t> s_view_index_by_view;
 static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
 static Vector<ByteString> s_loaded_from_http_server;
+static Vector<ByteString> s_frame_rate_capped;
 static HashMap<WebView::ViewImplementation const*, size_t> s_current_test_index_by_view;
 
 struct TestRunContext {
@@ -141,6 +142,8 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
             TRY(add_config_paths(test_root_path, config->keys(group), s_skipped_tests));
         } else if (group == "LoadFromHttpServer"sv) {
             TRY(add_config_paths(test_root_path, config->keys(group), s_loaded_from_http_server));
+        } else if (group == "CapFrameRate"sv) {
+            TRY(add_config_paths(test_root_path, config->keys(group), s_frame_rate_capped));
         } else {
             warnln("Unknown group '{}' in config {}", group, config_path);
         }
@@ -951,6 +954,8 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
         view.reset_session_history()->when_resolved([&view, test_index, &app, &context](auto) {
             auto& test = context.tests[test_index];
             test.did_start_test = true;
+
+            view.set_frame_rate_capped(s_frame_rate_capped.contains_slow(test.input_path));
 
             auto real_path = MUST(FileSystem::real_path(test.input_path));
             auto headers_path = ByteString::formatted("{}.headers", real_path);

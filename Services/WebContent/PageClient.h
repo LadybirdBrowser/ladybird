@@ -87,6 +87,7 @@ public:
     }
     void set_zoom_level(double zoom_level);
     void set_maximum_frames_per_second(double maximum_frames_per_second);
+    void set_frame_rate_capped(bool capped) { m_frame_rate_capped = capped; }
     void set_viewport_corner_radius(double radius);
     virtual double viewport_corner_radius() const override { return m_viewport_corner_radius; }
     virtual double maximum_frames_per_second() const override { return m_maximum_frames_per_second; }
@@ -405,6 +406,7 @@ private:
     Optional<double> m_pending_browser_zoom;
     double m_zoom_level { 1.0 };
     double m_maximum_frames_per_second { 60.0 };
+    bool m_frame_rate_capped { false };
     double m_viewport_corner_radius { 0 };
     Web::PageId m_id { 0 };
     u64 m_next_delete_all_cookies_request_id { 1 };

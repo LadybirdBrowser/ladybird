@@ -3251,6 +3251,12 @@ void ConnectionFromClient::set_maximum_frames_per_second(Web::PageId page_id, do
         page->set_maximum_frames_per_second(maximum_frames_per_second);
 }
 
+void ConnectionFromClient::set_frame_rate_capped(Web::PageId page_id, bool capped)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->set_frame_rate_capped(capped);
+}
+
 void ConnectionFromClient::set_viewport_corner_radius(Web::PageId page_id, double radius)
 {
     if (auto page = this->page(page_id); page.has_value())
