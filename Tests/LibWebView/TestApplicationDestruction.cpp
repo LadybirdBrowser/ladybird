@@ -110,6 +110,22 @@ TEST_CASE(hsts_store_synchronized_on_destruction)
     VERIFY(hsts_store->is_known_hsts_host("example.test"_string));
 }
 
+TEST_CASE(closing_a_page_drops_its_web_ui)
+{
+    TestEnvironment environment;
+    auto app = TRY_OR_FAIL(environment.create_application());
+    auto theme = TRY_OR_FAIL(load_test_theme());
+    auto view = WebView::HeadlessWebView::create(theme, { 1000, 700 });
+    auto& page = view->page();
+    auto web_ui = TRY_OR_FAIL(WebView::WebUI::create(page.client(), page.id(), "settings"_string));
+    VERIFY(web_ui);
+    page.set_web_ui(move(web_ui));
+    EXPECT(page.web_ui());
+
+    page.close();
+    EXPECT(!page.web_ui());
+}
+
 TEST_CASE(application_destruction_with_pending_web_ui_callbacks)
 {
     TestEnvironment environment;
@@ -130,12 +146,12 @@ TEST_CASE(application_destruction_with_pending_web_ui_callbacks)
                 auto web_ui = TRY_OR_FAIL(WebView::WebUI::create(page.client(), page.id(), MUST(String::from_utf8(host))));
                 VERIFY(web_ui);
                 web_ui_lifetimes.append({ page.client(), web_ui, retained_by_callback });
-                page.client().set_web_ui(move(web_ui));
+                page.set_web_ui(move(web_ui));
 
                 if (retained_by_callback) {
                     // EventReceiver::deferred_invoke() retains its receiver until the callback is run or discarded.
                     page.client().deferred_invoke([] { });
-                    page.client().web_ui()->deferred_invoke([] { });
+                    page.web_ui()->deferred_invoke([] { });
                 }
             }
         }

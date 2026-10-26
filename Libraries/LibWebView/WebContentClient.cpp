@@ -454,16 +454,6 @@ void WebContentClient::close_server_if_unused()
         m_detached_page_close_timer->start();
 }
 
-void WebContentClient::set_web_ui(RefPtr<WebUI> web_ui)
-{
-    m_web_ui = move(web_ui);
-}
-
-void WebContentClient::web_ui_disconnected(Badge<WebUI>)
-{
-    m_web_ui.clear();
-}
-
 void WebContentClient::destroy_all_compositor_contexts()
 {
     m_compositor_contexts.clear();

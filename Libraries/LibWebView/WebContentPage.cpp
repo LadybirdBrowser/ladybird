@@ -644,9 +644,22 @@ void WebContentPage::close()
     m_history_recorded_url_for_current_load.clear();
     if (m_client)
         m_client->update_audio_capture_permission();
+    m_web_ui = nullptr;
     auto owed_replies = move(m_owed_replies);
     for (auto owed : owed_replies)
         owe_reply(owed);
+}
+
+void WebContentPage::set_web_ui(RefPtr<WebUI> web_ui)
+{
+    m_web_ui = move(web_ui);
+}
+
+// A WebUI whose connection closed is dropped, unless the page has another by then.
+void WebContentPage::web_ui_disconnected(Badge<WebUI>, WebUI& web_ui)
+{
+    if (m_web_ui == &web_ui)
+        m_web_ui = nullptr;
 }
 
 void WebContentPage::owe_reply(OwedReply owed)
@@ -2361,12 +2374,14 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
         // The WebUI channel goes to the process the UI process gave the WebUI's document to, never by a URL a process
         // reports. A page that loads anything else loses its channel.
         if (auto const& web_ui_host = navigable->active_document().web_ui_host(); web_ui_host.has_value() && client().hosted_web_ui() == web_ui_host) {
-            if (auto web_ui = WebUI::create(client(), m_id, *web_ui_host); web_ui.is_error())
+            if (auto web_ui = WebUI::create(client(), m_id, *web_ui_host); web_ui.is_error()) {
                 warnln("Could not create WebUI for {}: {}", committed_url, web_ui.error());
-            else
-                client().set_web_ui(web_ui.release_value());
-        } else if (auto const& web_ui = client().web_ui(); web_ui && web_ui->page_id() == m_id) {
-            client().set_web_ui(nullptr);
+                m_web_ui = nullptr;
+            } else {
+                m_web_ui = web_ui.release_value();
+            }
+        } else {
+            m_web_ui = nullptr;
         }
 
         auto title = history_title(view().title(), committed_url);

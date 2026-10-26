@@ -113,9 +113,6 @@ public:
     void set_compositor_connection_id(Badge<Application>, i32);
     Optional<i32> compositor_connection_id(Badge<Application>) const { return m_compositor_connection_id; }
 
-    void web_ui_disconnected(Badge<WebUI>);
-    void set_web_ui(RefPtr<WebUI>);
-    RefPtr<WebUI> const& web_ui() const { return m_web_ui; }
     virtual void did_misbehave(StringView message_name, StringView reason) override;
     static bool renderers_may_access_cookies_like_http();
     static bool renderers_may_synthesize_input();
@@ -263,8 +260,6 @@ private:
     HashTable<String> m_audio_capture_grants;
     bool m_audio_capture_permitted { false };
     RefPtr<Core::Timer> m_detached_page_close_timer;
-
-    RefPtr<WebUI> m_web_ui;
 
     static HashTable<WebContentClient*>& clients();
 };
