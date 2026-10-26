@@ -147,11 +147,11 @@ TEST_CASE(token_validation)
 
 TEST_CASE(bad_port)
 {
+    EXPECT(HTTP::is_bad_port(0));
     EXPECT(HTTP::is_bad_port(1));
     EXPECT(HTTP::is_bad_port(25));
     EXPECT(HTTP::is_bad_port(6667));
     EXPECT(HTTP::is_bad_port(10080));
-    EXPECT(!HTTP::is_bad_port(0));
     EXPECT(!HTTP::is_bad_port(80));
     EXPECT(!HTTP::is_bad_port(443));
     EXPECT(!HTTP::is_bad_port(8080));
