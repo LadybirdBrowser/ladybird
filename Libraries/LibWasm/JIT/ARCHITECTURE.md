@@ -284,8 +284,9 @@ unshared memory traps, and notifying one wakes nobody, without a call.
 **GC** (`builder/gc.rs`). Objects are cells of the runtime's heap: the Rtt first, the address of the
 data, an array's length, then the data inline if it has at most 4096 bytes. A struct's fields are at
 constant offsets (8 bytes each, 16 for v128, packed and 32-bit values zero-extended in their word), so
-`struct.get` is a null check and a load at the object plus the field's offset; a large struct's data
-is reached through its address first. `array.get` and `array.set` access the element at its
+`struct.get` is a null check and a load at the object plus the field's offset; a large struct's data,
+or the data of any struct accessed through a type that is not final, is reached through its address
+first. `array.get` and `array.set` access the element at its
 `ElementAddress`. Allocation, filling, copying and initializing from segments call the runtime
 (`Helper`); the allocation traps with `TRAP_RUNTIME` where the runtime returns null. `ref.test`,
 `ref.cast`, `br_on_cast` and `br_on_cast_fail` are a `RefTest`: abstract heap types test the

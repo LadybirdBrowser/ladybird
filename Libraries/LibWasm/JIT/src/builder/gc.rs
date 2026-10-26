@@ -9,8 +9,8 @@
 //! Objects are cells of the runtime's heap (see `abi::Rtt`): the Rtt first, the data's address at OBJECT_DATA_OFFSET
 //! and an array's length at OBJECT_LENGTH_OFFSET. Data of up to `MAX_INLINE_DATA_SIZE` bytes is inline at
 //! OBJECT_INLINE_DATA_OFFSET, so a struct's fields are at constant offsets from the object where the struct is small
-//! enough. Fields take `StorageType::object_field_size()` bytes, with packed and 32-bit values zero-extended in them:
-//! the runtime's layout, which `abi` and `types` define for both.
+//! enough and its type is final. Fields take `StorageType::object_field_size()` bytes, with packed and 32-bit values
+//! zero-extended in them: the runtime's layout, which `abi` and `types` define for both.
 //!
 //! GC references in compiled frames need nothing special: the collector scans the stack conservatively and recognizes
 //! pointers into cells, and every allocation is a call of the runtime, around which values live in stack slots or in
@@ -103,10 +103,19 @@ impl Builder {
         )
     }
 
+    /// The size of the data of every struct that a reference to the module's struct type `type_index` can refer to.
+    fn struct_data_size(&mut self, module: &Module, type_index: u32) -> Option<u32> {
+        if !module.types[type_index as usize].is_final {
+            return None;
+        }
+        let count = struct_fields(module, type_index).len() as u32;
+        Some(self.field_offset(module, type_index, count))
+    }
+
     /// Where the data of an object with `size` bytes of it is: the object and the offset of its inline data, or the
-    /// address of data outside the heap.
-    fn object_data(func: &mut Func, object: Value, size: u32) -> (Value, u32) {
-        if size as usize <= MAX_INLINE_DATA_SIZE {
+    /// address of its data.
+    fn object_data(func: &mut Func, object: Value, size: Option<u32>) -> (Value, u32) {
+        if size.is_some_and(|size| size as usize <= MAX_INLINE_DATA_SIZE) {
             return (object, OBJECT_INLINE_DATA_OFFSET as u32);
         }
         let data = Self::append(
@@ -260,7 +269,7 @@ impl Builder {
                 let zero = self.constant(func, Type::I64, 0);
                 let object = self.allocate(func, first, size_value, zero);
                 if !values.is_empty() {
-                    let (base, data_offset) = Self::object_data(func, object, size);
+                    let (base, data_offset) = Self::object_data(func, object, Some(size));
                     for (index, &value) in values.iter().enumerate() {
                         if self.is_zero(func, value) {
                             continue;
@@ -275,8 +284,7 @@ impl Builder {
             STRUCT_GET | STRUCT_GET_S | STRUCT_GET_U => {
                 let object = func.resolve(self.pop());
                 Self::check_null(func, object);
-                let count = struct_fields(module, first).len() as u32;
-                let size = self.field_offset(module, first, count);
+                let size = self.struct_data_size(module, first);
                 let (base, data_offset) = Self::object_data(func, object, size);
                 let offset = data_offset + self.field_offset(module, first, second);
                 let storage = struct_fields(module, first)[second as usize].storage;
@@ -287,8 +295,7 @@ impl Builder {
                 let value = self.pop();
                 let object = func.resolve(self.pop());
                 Self::check_null(func, object);
-                let count = struct_fields(module, first).len() as u32;
-                let size = self.field_offset(module, first, count);
+                let size = self.struct_data_size(module, first);
                 let (base, data_offset) = Self::object_data(func, object, size);
                 let offset = data_offset + self.field_offset(module, first, second);
                 let storage = struct_fields(module, first)[second as usize].storage;
@@ -322,7 +329,7 @@ impl Builder {
                 let size = self.constant(func, Type::I64, u64::from(data_size));
                 let length = self.constant(func, Type::I64, u64::from(second));
                 let array = self.allocate(func, first, size, length);
-                let (base, data_offset) = Self::object_data(func, array, data_size);
+                let (base, data_offset) = Self::object_data(func, array, Some(data_size));
                 for (index, &value) in values.iter().enumerate() {
                     if self.is_zero(func, value) {
                         continue;
