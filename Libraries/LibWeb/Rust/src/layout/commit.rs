@@ -174,6 +174,7 @@ fn commit_subtree(
         );
     }
     if !reuses_committed_subtree {
+        paintables.arena().note_subtree_committed_anew(node);
         paintables.arena().forget_committed_out_of_flow_facts(node);
     }
     if let Some(inputs) = entry.and_then(|link| link.abspos_layout_inputs.as_ref()) {
@@ -307,6 +308,8 @@ pub(crate) fn commit_replacing(
     pass_fragments: &fragment_tree::CompletedPassFragments,
 ) -> CommitNotifications {
     arena.note_layout_commit();
+    // NB: A partial relayout commits a subtree its ancestors' committed subtrees hold.
+    arena.note_subtrees_of_self_and_ancestors_committed_anew(root);
     let links_by_slot = pass_fragments.links_by_slot();
     let mut paintables = crate::painting::paintable_build::PaintableCommit::new(arena, root);
     paintables.begin_commit();

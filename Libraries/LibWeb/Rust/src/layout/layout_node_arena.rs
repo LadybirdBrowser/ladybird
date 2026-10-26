@@ -1284,6 +1284,7 @@ pub(crate) struct LayoutNodeArena {
     full_layout_count: Cell<u64>,
     /// How many layouts were committed, full and partial.
     layout_commit_count: u64,
+    committed_subtree_tokens: RefCell<Vec<u32>>,
     layout_tree_build_stats: Cell<FfiLayoutTreeBuildStats>,
     pre_order_labels: Vec<Cell<u64>>,
     pre_order_relabel_count: Cell<u64>,
@@ -1406,6 +1407,7 @@ impl LayoutNodeArena {
             partial_layout_count: Cell::new(0),
             full_layout_count: Cell::new(0),
             layout_commit_count: 0,
+            committed_subtree_tokens: RefCell::new(Vec::new()),
             layout_tree_build_stats: Cell::new(FfiLayoutTreeBuildStats::default()),
             pre_order_labels: Vec::new(),
             pre_order_relabel_count: Cell::new(0),
@@ -1519,16 +1521,51 @@ impl LayoutNodeArena {
     /// Checks only entries invalidated or stored since the previous sweep. Stale entries
     /// survive until commit so inline layout can reuse their undamaged line prefixes.
     fn sweep_stale_fc_run_cache_entries(&self) {
-        self.fc_run_cache_store.sweep_pending_entries(|slot, validity| {
-            let Some(metadata) = self.slot_metadata.get(slot as usize) else {
-                return false;
-            };
-            if !metadata.occupied || metadata.generation != validity.slot_generation {
-                return false;
-            }
-            let id = NodeSlotId::new(slot, metadata.generation);
-            self.data(id).fragment_cache_epoch.get() == validity.fragment_cache_epoch
-        });
+        self.fc_run_cache_store.sweep_pending_entries(
+            |slot, validity| {
+                let Some(metadata) = self.slot_metadata.get(slot as usize) else {
+                    return false;
+                };
+                if !metadata.occupied || metadata.generation != validity.slot_generation {
+                    return false;
+                }
+                let id = NodeSlotId::new(slot, metadata.generation);
+                self.data(id).fragment_cache_epoch.get() == validity.fragment_cache_epoch
+            },
+            |box_, entry| {
+                entry
+                    .describes_committed_subtree(self, box_)
+                    .then(|| self.committed_subtree_token(box_))
+            },
+        );
+    }
+
+    /// Moves on whenever a commit lays the subtree of `id` out anew or clears it, which tells a layout run cache
+    /// entry that found its fragments committed whether they still are.
+    pub(crate) fn committed_subtree_token(&self, id: NodeSlotId) -> u32 {
+        self.committed_subtree_tokens
+            .borrow()
+            .get(id.slot_index() as usize)
+            .copied()
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn note_subtree_committed_anew(&self, id: NodeSlotId) {
+        let mut tokens = self.committed_subtree_tokens.borrow_mut();
+        let index = id.slot_index() as usize;
+        if tokens.len() <= index {
+            tokens.resize(index + 1, 0);
+        }
+        tokens[index] = tokens[index].wrapping_add(1);
+    }
+
+    /// Notes that the subtrees of `id` and its ancestors were committed anew.
+    pub(crate) fn note_subtrees_of_self_and_ancestors_committed_anew(&self, id: NodeSlotId) {
+        let mut node = id;
+        while !node.is_invalid() && self.slot_is_live(node) {
+            self.note_subtree_committed_anew(node);
+            node = self.data(node).parent.get();
+        }
     }
 
     /// Checks that the calling thread may reach the arena: the StyleLayout thread, which the arena's render state lives
@@ -5272,6 +5309,7 @@ impl LayoutNodeArena {
         // Cached runs may reuse the committed paintable subtree without replaying its fragments.
         // Once that subtree is cleared, a later layout must rebuild it instead.
         self.fc_run_cache_store.remove_entry(id.slot_index());
+        self.note_subtrees_of_self_and_ancestors_committed_anew(id);
         drop(self.take_committed_fragment_link(self.data(id)));
     }
 
