@@ -58,8 +58,9 @@ pub(crate) struct FragmentLink {
     pub(crate) inset_top: CssPixels,
     pub(crate) inset_bottom: CssPixels,
     pub(crate) containing_line_box_index: Option<usize>,
-    /// Boxed, as few links place an absolutely positioned box and the inputs are larger than the rest of the link.
-    pub(crate) abspos_layout_inputs: Option<Box<abspos_inputs::AbsposLayoutInputs>>,
+    /// Shared, as few links place an absolutely positioned box, the inputs are larger than the rest of the link, and
+    /// layout run cache entries keep copies of links.
+    pub(crate) abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
     /// The default scroll shift of a box whose anchor insets its layout resolved, which commit records for the box.
     pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
     pub(crate) containing_block: crate::layout::node_data::NodeSlotId,
@@ -616,7 +617,7 @@ fn link_fragment(fragment: std::sync::Arc<Fragment>, placement: PlacementData) -
         inset_top: placement.inset_top,
         inset_bottom: placement.inset_bottom,
         containing_line_box_index: placement.containing_line_box_index,
-        abspos_layout_inputs: placement.abspos_layout_inputs.map(Box::new),
+        abspos_layout_inputs: placement.abspos_layout_inputs.map(std::sync::Arc::new),
         default_scroll_shift: placement.default_scroll_shift,
         containing_block: placement.containing_block,
         frame: placement.frame,
@@ -635,11 +636,9 @@ pub(crate) struct UnplacedRootFragment {
 }
 
 impl UnplacedRootFragment {
-    /// Whether the root holds nothing past its box: no descendant fragment, reuse marker or payload for an ancestor.
-    pub(crate) fn carries_nothing(&self) -> bool {
-        self.scoped_descendants.is_empty()
-            && self.reused_subtree_roots.is_empty()
-            && self.propagated_pending_abspos.is_empty()
+    /// Whether the root hands its ancestors no payload.
+    pub(crate) fn propagates_nothing(&self) -> bool {
+        self.propagated_pending_abspos.is_empty()
             && self.propagated_anchor_candidates.is_empty()
             && self.propagated_inline_containing_block_rects.is_empty()
             && self.propagated_abspos_containing_block_info.is_empty()
