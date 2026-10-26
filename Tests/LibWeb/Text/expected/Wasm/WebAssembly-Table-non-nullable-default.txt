@@ -1,0 +1,7 @@
+(ref func) set(0): TypeError
+(ref func) grow(1): TypeError
+(ref func) length: 1, get(0) is f: true
+(ref extern) set(0): TypeError
+(ref extern) grow(1): TypeError
+(ref extern) length: 1
+externref grow(1): returned 0, get(0): undefined

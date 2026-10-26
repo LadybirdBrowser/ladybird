@@ -107,7 +107,13 @@ impl Table {
             ));
         }
 
-        let reference = reference_of(Self::value_or_default(vm, ValType::Ref(element), value)?);
+        // 8. If value is missing,
+        //     1. Let ref be DefaultValue(elementtype).
+        //     2. Assert: ref is not error.
+        // 9. Otherwise,
+        //     1. Let ref be ? ToWebAssemblyValue(value, elementtype).
+        let reference = Self::value_or_default(vm, ValType::Ref(element), value)?
+            .expect("ToValueType gives types with a default value");
 
         // 11. Let (store, tableaddr) be table_alloc(store, type, ref). If allocation fails, throw a RangeError exception.
         // 12. Set the surrounding agent's associated store to store.
@@ -135,10 +141,11 @@ impl Table {
         Ok(Self::initialize(vm, table))
     }
 
-    fn value_or_default(vm: &Vm, ty: ValType, value: Option<Value>) -> WebIdlResult<WasmValue> {
+    /// Returns `None` where DefaultValue(ty) is an error.
+    fn value_or_default(vm: &Vm, ty: ValType, value: Option<Value>) -> WebIdlResult<Option<u64>> {
         Ok(match value {
-            None => default_webassembly_value(vm, ty),
-            Some(value) => to_webassembly_value(vm, value, ty)?,
+            None => default_webassembly_value(vm, ty).map(reference_of),
+            Some(value) => Some(reference_of(to_webassembly_value(vm, value, ty)?)),
         })
     }
 
@@ -192,8 +199,13 @@ impl Table {
 
         let delta = address_value_to_u64(vm, delta, address64)?;
 
+        // 6. If value is missing,
+        //     1. Let ref be DefaultValue(elementtype).
+        //     2. If ref is error, throw a TypeError exception.
         // 7. Otherwise,
-        let reference = reference_of(Self::value_or_default(vm, ValType::Ref(ty.element), value)?);
+        //     1. Let ref be ? ToWebAssemblyValue(value, elementtype).
+        let reference = Self::value_or_default(vm, ValType::Ref(ty.element), value)?
+            .ok_or_else(|| Exception::type_error("The table's element type has no default value"))?;
 
         // 10. Set the surrounding agent's associated store to result.
         let initial_size = Agent::the(vm)
@@ -257,8 +269,13 @@ impl Table {
 
         let index = address_value_to_u64(vm, index, ty.limits.address_type == CoreAddressType::I64)?;
 
+        // 6. If value is missing,
+        //     1. Let ref be DefaultValue(elementtype).
+        //     2. If ref is error, throw a TypeError exception.
         // 7. Otherwise,
-        let reference = reference_of(Self::value_or_default(vm, ValType::Ref(ty.element), value)?);
+        //     1. Let ref be ? ToWebAssemblyValue(value, elementtype).
+        let reference = Self::value_or_default(vm, ValType::Ref(ty.element), value)?
+            .ok_or_else(|| Exception::type_error("The table's element type has no default value"))?;
 
         // 8. Let store be table_write(store, tableaddr, index64, ref).
         // 9. If store is error, throw a RangeError exception.
