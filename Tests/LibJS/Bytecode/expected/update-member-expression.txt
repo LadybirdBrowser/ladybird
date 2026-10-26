@@ -15,7 +15,22 @@ block0:
   [  98] End value:reg6
 
 
-postfix_increment$cadb66f4 update-member-expression.js:6:14
+postfix_increment$c28f93c4 update-member-expression.js:6:14
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] Enter
+  [   8] Mov dst:reg5, src:arg0
+  [  18] GetById value_feedback:0, dst:reg6, base:reg5, `count` (obj.count)
+  [  30] PostfixIncrement arith_feedback:0, dst:reg7, src:reg6
+  [  40] PutById base:reg5, `count`, src:reg6, kind:Normal
+  [  60] End value:Undefined
+
+
+prefix_decrement$73c0e37a update-member-expression.js:10:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -23,21 +38,8 @@ postfix_increment$cadb66f4 update-member-expression.js:6:14
 
 block0:
   [   0] Enter
-  [   8] GetById value_feedback:0, dst:reg5, base:arg0, `count` (obj.count)
-  [  20] PostfixIncrement arith_feedback:0, dst:reg6, src:reg5
-  [  30] PutById base:arg0, `count`, src:reg5, kind:Normal
-  [  50] End value:Undefined
-
-
-prefix_decrement$7684d48a update-member-expression.js:10:5
-  Registers: 6
-  Blocks:    1
-  Constants:
-    [0] = Undefined
-
-block0:
-  [   0] Enter
-  [   8] GetById value_feedback:0, dst:reg5, base:arg0, `count` (obj.count)
-  [  20] Decrement arith_feedback:0, dst:reg5
-  [  28] PutById base:arg0, `count`, src:reg5, kind:Normal
-  [  48] End value:Undefined
+  [   8] Mov dst:reg5, src:arg0
+  [  18] GetById value_feedback:0, dst:reg6, base:reg5, `count` (obj.count)
+  [  30] Decrement arith_feedback:0, dst:reg6
+  [  38] PutById base:reg5, `count`, src:reg6, kind:Normal
+  [  58] End value:Undefined

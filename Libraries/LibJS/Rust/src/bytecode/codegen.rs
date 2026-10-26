@@ -4237,6 +4237,25 @@ fn emit_update_op(generator: &mut Generator, op: UpdateOp, prefixed: bool, value
     }
 }
 
+/// Preserve the primitive key produced by GetValue so PutValue does not convert it again.
+fn emit_read_modify_write_property_key(
+    generator: &mut Generator,
+    property: &ScopedOperand,
+    base: &ScopedOperand,
+) -> ScopedOperand {
+    if property.operand().is_constant() {
+        return property.clone();
+    }
+    // GetValue converts the base to an object before converting the property key.
+    generator.emit(Instruction::ThrowIfNullish { src: base.operand() });
+    let key = generator.allocate_register();
+    generator.emit(Instruction::ToPrimitiveWithStringHint {
+        dst: key.operand(),
+        value: property.operand(),
+    });
+    key
+}
+
 fn generate_update_expression(
     generator: &mut Generator,
     op: UpdateOp,
@@ -4270,6 +4289,7 @@ fn generate_update_expression(
                 };
                 let base = generator.allocate_register();
                 generator.emit(Instruction::ResolveSuperBase { dst: base.operand() });
+                let computed_key = computed_key.map(|key| emit_read_modify_write_property_key(generator, &key, &base));
                 let value = generator.allocate_register();
                 if let Some(ref key) = computed_key {
                     emit_get_by_value_with_this(generator, &value, &base, key, &this_value);
@@ -4291,9 +4311,11 @@ fn generate_update_expression(
             } else {
                 // Non-super member update expression.
                 let base = generate_expression(&data.object, generator, None)?;
+                let base = generator.copy_if_needed_to_preserve_evaluation_order(&base);
                 let base_id = intern_base_identifier(generator, &data.object);
                 if data.computed {
                     let property = generate_expression(&data.property, generator, None)?;
+                    let property = emit_read_modify_write_property_key(generator, &property, &base);
                     let value = generator.allocate_register();
                     emit_get_by_value(generator, &value, &base, &property, base_id);
                     let result = emit_update_op(generator, op, prefixed, &value);
@@ -4507,6 +4529,8 @@ fn generate_assignment_expression(
                     };
                     let base = generator.allocate_register();
                     generator.emit(Instruction::ResolveSuperBase { dst: base.operand() });
+                    let computed_key =
+                        computed_key.map(|key| emit_read_modify_write_property_key(generator, &key, &base));
                     let old_val = generator.allocate_register();
                     if let Some(ref key) = computed_key {
                         emit_get_by_value_with_this(generator, &old_val, &base, key, &super_this);
@@ -4587,7 +4611,7 @@ fn generate_assignment_expression(
                 }
 
                 // Compound/logical member assignment.
-                let base = base_raw;
+                let base = generator.copy_if_needed_to_preserve_evaluation_order(&base_raw);
                 let base_id = intern_base_identifier(generator, &member_data.object);
                 let is_logical = matches!(
                     op,
@@ -4596,13 +4620,9 @@ fn generate_assignment_expression(
 
                 if member_data.computed {
                     let property = generate_expression(&member_data.property, generator, None)?;
+                    let property = emit_read_modify_write_property_key(generator, &property, &base);
                     let old_val = generator.allocate_register();
                     emit_get_by_value(generator, &old_val, &base, &property, base_id);
-                    // Copy property to a fresh register so RHS evaluation
-                    // (which may mutate the variable backing property) doesn't
-                    // affect the store-back index.
-                    let saved_property = generator.allocate_register();
-                    generator.emit_mov(&saved_property, &property);
                     if is_logical {
                         let rhs_block = generator.make_block();
                         let lhs_block = generator.make_block();
@@ -4612,7 +4632,7 @@ fn generate_assignment_expression(
                         let rhs_val = generate_expression(rhs, generator, None)?;
                         let dst = choose_dst(generator, preferred_dst);
                         generator.emit_mov(&dst, &rhs_val);
-                        emit_put_normal_by_value(generator, &base, &saved_property, &dst, None);
+                        emit_put_normal_by_value(generator, &base, &property, &dst, None);
                         generator.emit(Instruction::Jump { target: end_block });
                         generator.switch_to_basic_block(lhs_block);
                         generator.emit_mov(&dst, &old_val);
@@ -4623,7 +4643,7 @@ fn generate_assignment_expression(
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     let dst = choose_dst(generator, preferred_dst);
                     emit_compound_assignment(generator, op, &dst, &old_val, &rhs_val);
-                    emit_put_normal_by_value(generator, &base, &saved_property, &dst, None);
+                    emit_put_normal_by_value(generator, &base, &property, &dst, None);
                     return Some(dst);
                 } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
                     let old_val = generator.allocate_register();
