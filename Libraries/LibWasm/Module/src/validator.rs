@@ -2461,7 +2461,7 @@ pub fn validate(module: &mut Module) -> Result<()> {
             catch_clauses: validator.catch_clauses.into_boxed_slice(),
             local_count: validator.locals.len() as u32 + validator.exception_local_count,
             exception_local_count: validator.exception_local_count,
-            max_stack_slots: validator.max_slot_height,
+            max_stack_slots: validator.max_slot_height.max(slots_of(&function.results)),
         });
     }
     module.function_infos = infos;

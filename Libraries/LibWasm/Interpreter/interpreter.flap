@@ -788,10 +788,21 @@ handler Enter() @opcode(0xf0) {
     load64(function, [record, ENTRY_FUNCTION]);
     let mut param_slots: u64;
     load32(param_slots, [function, FUNCTION_PARAM_SLOTS]);
+    let mut result_slots: u64;
+    load32(result_slots, [function, FUNCTION_RESULT_SLOTS]);
+    let mut operand_slots: u64 = param_slots;
+    if result_slots > param_slots {
+        operand_slots = result_slots;
+    }
     let entry_sp: u64 = sp;
     let runtime_fp = align_down_16(entry_sp - FRAME_HEADER_SIZE - SPILL_AREA_SIZE);
     let arguments_top = runtime_fp - FRAME_HEADER_SIZE - (param_slots << 3);
-    let new_sp = align_down_16(arguments_top - SPILL_AREA_SIZE);
+    let new_sp = align_down_16(runtime_fp - FRAME_HEADER_SIZE - (operand_slots << 3) - SPILL_AREA_SIZE);
+    let mut limit: u64;
+    load64(limit, [context_pointer, CONTEXT_STACK_LIMIT]);
+    guard new_sp >= limit else @cold {
+        trap_with(TRAP_STACK_EXHAUSTED, context_pointer);
+    };
     # The native code that entered the interpreter touched the stack above its frame, but maybe not the page of the
     # entry frame's stack pointer.
     let _ = atomic_load8([entry_sp, 0]);
