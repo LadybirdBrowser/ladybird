@@ -209,6 +209,7 @@ public:
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
     // Sends the display metadata to every page hosting documents of the tab.
     void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second);
+    void set_frame_rate_capped(bool);
     double viewport_corner_radius() const { return m_viewport_corner_radius; }
     void set_viewport_corner_radius(double);
 
@@ -801,6 +802,7 @@ protected:
     double m_device_pixel_ratio { 1.0 };
     Optional<u64> m_display_id;
     double m_maximum_frames_per_second { 60.0 };
+    bool m_frame_rate_capped { false };
     double m_viewport_corner_radius { 0 };
     bool m_scales_frames_to_fit { false };
 

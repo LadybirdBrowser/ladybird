@@ -687,10 +687,16 @@ void PageClient::request_rendering_opportunity_if_needed()
     if (Web::HTML::main_thread_event_loop().rendering_task_queued_or_running())
         return;
 
-    // NB: Headless tests have no display clock to follow. Schedule their frames locally so
-    //     compositor IPC latency cannot let document timers overtake a requested frame.
+    // NB: Headless tests have no display clock to follow. Schedule their frames locally so compositor IPC latency cannot
+    //     let document timers overtake a requested frame. Unless the frame rate is capped, there is no frame rate to
+    //     wait for: the frame comes as soon as the event loop has handled what is already pending.
     if (is_headless() && Web::HTML::Window::in_test_mode()) {
-        schedule_local_rendering_opportunity();
+        if (m_frame_rate_capped) {
+            schedule_local_rendering_opportunity();
+            return;
+        }
+        m_frame_timer_purpose = FrameTimerPurpose::LocalFallback;
+        m_frame_timer->restart(AK::Duration::zero());
         return;
     }
 
