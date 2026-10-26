@@ -26,6 +26,9 @@ outputs:
   ccache_path:
     description: 'Path to the ccache directory'
     value: ${{ steps.workspace.outputs.ccache_path }}
+  sccache_path:
+    description: 'Path to the sccache directory'
+    value: ${{ steps.workspace.outputs.sccache_path }}
   vcpkg_cache_path:
     description: 'Path to the vcpkg binary cache'
     value: ${{ steps.workspace.outputs.vcpkg_cache_path }}
@@ -40,6 +43,10 @@ runs:
         echo "LADYBIRD_SOURCE_DIR=${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
         echo "CCACHE_DIR=${GITHUB_WORKSPACE}/.ccache" >> "$GITHUB_ENV"
         echo "ccache_path=${GITHUB_WORKSPACE}/.ccache" >> "$GITHUB_OUTPUT"
+        echo "SCCACHE_DIR=${GITHUB_WORKSPACE}/.sccache" >> "$GITHUB_ENV"
+        echo "SCCACHE_CACHE_SIZE=2G" >> "$GITHUB_ENV"
+        echo "SCCACHE_IDLE_TIMEOUT=0" >> "$GITHUB_ENV"
+        echo "sccache_path=${GITHUB_WORKSPACE}/.sccache" >> "$GITHUB_OUTPUT"
         echo "vcpkg_cache_path=${GITHUB_WORKSPACE}/Build/caches/vcpkg-binary-cache" >> "$GITHUB_OUTPUT"
         echo "GIT_CONFIG_GLOBAL=${RUNNER_TEMP}/gitconfig" >> "$GITHUB_ENV"
         git config --file "${RUNNER_TEMP}/gitconfig" --add safe.directory "${GITHUB_WORKSPACE}"
@@ -210,6 +217,73 @@ runs:
       if: ${{ inputs.type == 'build' && inputs.os != 'Linux' }}
       shell: bash
       run: echo "${GITHUB_WORKSPACE}/wasm-tools" >> "$GITHUB_PATH"
+
+    # The build uses sccache as the rustc wrapper whenever it finds sccache on the PATH, so that our Rust code gets the
+    # same compile caching as ccache gives our C++ code.
+    - name: 'Resolve sccache release'
+      id: 'sccache'
+      if: ${{ inputs.type == 'build' }}
+      shell: bash
+      run: |
+        VERSION=0.18.0
+        if ${{ runner.arch == 'ARM64' }} ; then
+          ARCH=aarch64
+        else
+          ARCH=x86_64
+        fi
+        case "${{ runner.os }}" in
+          Linux) TRIPLE="${ARCH}-unknown-linux-musl" ;;
+          macOS) TRIPLE="${ARCH}-apple-darwin" ;;
+          Windows) TRIPLE="${ARCH}-pc-windows-msvc" ;;
+        esac
+        NAME="sccache-v${VERSION}-${TRIPLE}"
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+        echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+
+    - name: 'Restore sccache'
+      id: 'sccache-cache'
+      if: ${{ inputs.type == 'build' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ github.workspace }}/sccache
+        key: ${{ steps.sccache.outputs.name }}
+
+    - name: 'Install sccache'
+      if: ${{ inputs.type == 'build' && steps.sccache-cache.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        FILENAME="${{ steps.sccache.outputs.name }}.tar.gz"
+        URL="https://github.com/mozilla/sccache/releases/download/v${{ steps.sccache.outputs.version }}/${FILENAME}"
+
+        delays=(5 15 45)
+        attempt=1
+        until curl --fail --location --output "${FILENAME}" "${URL}"; do
+          if (( attempt > ${#delays[@]} )); then
+            echo "sccache download failed after $(( ${#delays[@]} + 1 )) attempts" >&2
+            exit 1
+          fi
+          echo "sccache download failed; retrying in ${delays[attempt-1]}s" >&2
+          sleep "${delays[attempt-1]}"
+          attempt=$(( attempt + 1 ))
+        done
+
+        tar -xzf "${FILENAME}"
+        rm "${FILENAME}"
+        mv "${{ steps.sccache.outputs.name }}" sccache
+
+    # Saved right after the install rather than by actions/cache's post-job step, which runs only if the whole job
+    # succeeds — so a flaky test would keep the cache from ever being saved.
+    - name: 'Save sccache'
+      if: ${{ inputs.type == 'build' && steps.sccache-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ github.workspace }}/sccache
+        key: ${{ steps.sccache-cache.outputs.cache-primary-key }}
+
+    - name: 'Add sccache to PATH'
+      if: ${{ inputs.type == 'build' }}
+      shell: bash
+      run: echo "${GITHUB_WORKSPACE}/sccache" >> "$GITHUB_PATH"
 
     - name: 'Restore cargo registry'
       id: 'cargo-registry'

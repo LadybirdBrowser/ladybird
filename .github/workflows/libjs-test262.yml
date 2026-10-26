@@ -72,6 +72,7 @@ jobs:
           toolchain: 'Clang'
           cache_key_extra: 'test262'
           ccache_path: ${{ steps.setup.outputs.ccache_path }}
+          sccache_path: ${{ steps.setup.outputs.sccache_path }}
           vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
 
       - name: Get previous results
@@ -98,6 +99,8 @@ jobs:
           arch: 'x86_64'
           ccache_path: ${{ steps.setup.outputs.ccache_path }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+          sccache_path: ${{ steps.setup.outputs.sccache_path }}
+          sccache_primary_key: ${{ steps.cache-restore.outputs.sccache_primary_key }}
           vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
 
