@@ -894,7 +894,9 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     //    The user agent may decide to expose `Server-Timing` headers to non-secure contexts requests as well.
     // NOTE: Using response’s internal response is safe as exposing `Server-Timing` header data is guarded through the
     //       `Timing-Allow-Origin` header.
-    auto client = fetch_params.request()->client();
+    // INTEROP: A navigation's reserved client describes its destination context. Use it so entry-point navigations
+    //          collect timing headers even without an initiating client.
+    auto client = determine_the_environment(fetch_params.request());
     if (!response.is_network_error() && client != nullptr && HTML::is_secure_context(*client)) {
         if (auto server_timing_headers = response.unsafe_response()->header_list()->get_decode_and_split("Server-Timing"sv); server_timing_headers.has_value())
             timing_info->set_server_timing_headers(server_timing_headers.release_value());
