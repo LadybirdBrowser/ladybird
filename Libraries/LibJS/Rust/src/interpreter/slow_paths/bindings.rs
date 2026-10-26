@@ -41,6 +41,7 @@ use crate::runtime::object::{
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::reference::{BaseType, Reference};
+use crate::runtime::shape::ShapeKey;
 use crate::runtime::source_text_module::SourceTextModule;
 use crate::utf16::{Utf16Display, Utf16View, utf16_formatted};
 
@@ -901,8 +902,7 @@ fn global_variable_value(
     let shape = binding_object.shape();
     if cache.environment_serial_number.get() == declarative_record.environment_serial_number() {
         if let Some(entry) = cache.first_entry()
-            && entry.shape == Some(shape)
-            && (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)
+            && entry.shape == Some(ShapeKey::of(shape))
         {
             let value = binding_object.get_direct(entry.property_offset);
             return get_cached_property_value(vm, value, Value::from_object(binding_object)).map(Some);
@@ -934,7 +934,7 @@ fn global_variable_value(
 
     let identifier_key = PropertyKey::from(identifier);
     if binding_object.has_property(vm, &identifier_key)? {
-        let dictionary_generation = shape.dictionary_generation();
+        let shape_key = ShapeKey::of(shape);
         let mut cacheable_metadata = CacheableGetPropertyMetadata::default();
         let value = binding_object.internal_get(
             vm,
@@ -944,18 +944,13 @@ fn global_variable_value(
             PropertyLookupPhase::OwnProperty,
         )?;
         if cacheable_metadata.r#type == CacheableGetPropertyMetadataType::GetOwnProperty
-            && shape == binding_object.shape()
-            && shape.dictionary_generation() == dictionary_generation
+            && ShapeKey::of(binding_object.shape()) == shape_key
         {
             cache.update(PropertyLookupCacheEntryType::GetOwnProperty, |entry| {
-                entry.shape = Some(shape);
+                entry.shape = Some(shape_key);
                 entry.property_offset = cacheable_metadata
                     .property_offset
                     .expect("an own property get reports its offset");
-
-                if shape.is_dictionary() {
-                    entry.shape_dictionary_generation = shape.dictionary_generation();
-                }
             });
         }
         return Ok(Some(value));
@@ -975,8 +970,7 @@ pub fn set_global(vm: &Vm, pc: u32, instruction: &op::SetGlobal, values: &mut op
 
     if cache().environment_serial_number.get() == declarative_record.environment_serial_number() {
         if let Some(entry) = cache().first_entry()
-            && entry.shape == Some(shape)
-            && (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)
+            && entry.shape == Some(ShapeKey::of(shape))
         {
             let value = binding_object.get_direct(entry.property_offset);
             if value.is_accessor() {
@@ -1029,7 +1023,7 @@ pub fn set_global(vm: &Vm, pc: u32, instruction: &op::SetGlobal, values: &mut op
 
     let identifier_key = PropertyKey::from(identifier.clone());
     if asm_try!(vm, pc, binding_object.has_property(vm, &identifier_key)) {
-        let dictionary_generation = shape.dictionary_generation();
+        let shape_key = ShapeKey::of(shape);
         let mut cacheable_metadata = CacheableSetPropertyMetadata::default();
         let success = asm_try!(
             vm,
@@ -1060,19 +1054,14 @@ pub fn set_global(vm: &Vm, pc: u32, instruction: &op::SetGlobal, values: &mut op
             return throw_error(vm, pc, ErrorKind::TypeError, ErrorType::ObjectSetReturnedFalse, &[]);
         }
         if cacheable_metadata.r#type == CacheableSetPropertyMetadataType::ChangeOwnProperty
-            && shape == binding_object.shape()
-            && shape.dictionary_generation() == dictionary_generation
+            && ShapeKey::of(binding_object.shape()) == shape_key
         {
             cache().update(PropertyLookupCacheEntryType::ChangeOwnProperty, |entry| {
-                entry.shape = Some(shape);
+                entry.shape = Some(shape_key);
                 entry.property_offset = cacheable_metadata
                     .property_offset
                     .expect("an own property change reports its offset");
                 entry.writes_data_property = cacheable_metadata.writes_data_property;
-
-                if shape.is_dictionary() {
-                    entry.shape_dictionary_generation = shape.dictionary_generation();
-                }
             });
         }
         return SlowPathControl::continue_at(pc + op::SetGlobal::LENGTH);

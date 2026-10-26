@@ -59,7 +59,7 @@ use crate::runtime::object_prototype;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::realm_watchpoints;
-use crate::runtime::shape::Shape;
+use crate::runtime::shape::{Shape, ShapeKey};
 use crate::runtime::shared_function_instance_data::ClosureCount;
 use crate::runtime::shared_function_instance_data::ConstructorKind;
 use crate::runtime::shared_function_instance_data::FunctionKind;
@@ -267,7 +267,7 @@ fn property_holds_data(entry: &PropertyLookupCacheEntryData) -> bool {
     ) {
         return false;
     }
-    let Some(shape) = entry.shape else {
+    let Some(ShapeKey { shape, .. }) = entry.shape else {
         return false;
     };
     let mut writable = false;
@@ -430,10 +430,8 @@ impl SnapshotBuilder<'_> {
         };
         for slot in slots {
             let entry = slot.get();
-            if entry
-                .shape
-                .is_some_and(|shape| primitive_prototype_shapes.contains(&shape))
-            {
+            let shape = entry.shape.map(|key| key.shape);
+            if shape.is_some_and(|shape| primitive_prototype_shapes.contains(&shape)) {
                 sees_primitives = true;
                 continue;
             }
@@ -455,7 +453,7 @@ impl SnapshotBuilder<'_> {
             let cached_value_offset = prototype_property_value(&entry)
                 .filter(|value| value.is_accessor() && value.as_accessor().cache_on_receiver())
                 .and_then(|value| value.as_accessor().cached_value_key())
-                .and_then(|key| entry.shape?.lookup(&PropertyKey::from_symbol(key)))
+                .and_then(|key| shape?.lookup(&PropertyKey::from_symbol(key)))
                 .map(|metadata| metadata.offset);
             let accessor_function = entry_accessor_function(&entry).map(|function| {
                 let cell = self.cell(function);
@@ -473,12 +471,12 @@ impl SnapshotBuilder<'_> {
             entries.push(PropertyCacheEntrySnapshot {
                 entry_type,
                 property_offset: entry.property_offset,
-                shape_dictionary_generation: entry.shape_dictionary_generation,
-                shape_is_dictionary: entry.shape.is_some_and(|shape| shape.is_dictionary()),
-                shape_is_stable: entry.shape.is_some_and(|shape| shape.is_stable()),
+                shape_dictionary_generation: entry.shape.map_or(0, |key| key.dictionary_generation),
+                shape_is_dictionary: shape.is_some_and(|shape| shape.is_dictionary()),
+                shape_is_stable: shape.is_some_and(|shape| shape.is_stable()),
                 writes_data_property: entry.writes_data_property,
                 new_shape: self.optional_cell(entry.new_shape),
-                shape: self.optional_cell(entry.shape),
+                shape: self.optional_cell(shape),
                 prototype: self.optional_cell(entry.prototype),
                 prototype_chain_validity: self.optional_cell(entry.prototype_chain_validity),
                 prototype_chain_valid: entry
@@ -552,8 +550,7 @@ impl SnapshotBuilder<'_> {
             return None;
         }
         if let Some(entry) = cache.first_entry()
-            && entry.shape == Some(shape)
-            && (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)
+            && entry.shape == Some(ShapeKey::of(shape))
         {
             let value = object.get_direct(entry.property_offset);
             if value.is_accessor() {
