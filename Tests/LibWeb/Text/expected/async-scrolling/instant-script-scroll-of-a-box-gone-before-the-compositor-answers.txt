@@ -1,0 +1,2 @@
+The scroll of a removed scroller finished
+The scroll of a scroller that stopped being rendered finished

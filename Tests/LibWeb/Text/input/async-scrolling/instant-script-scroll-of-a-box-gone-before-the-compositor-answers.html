@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    .scroller {
+        width: 100px;
+        height: 100px;
+        overflow: auto;
+    }
+
+    .content {
+        height: 400px;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="removedScroller" class="scroller"><div class="content"></div></div>
+<div id="hiddenScroller" class="scroller"><div class="content"></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        // The compositor has no scroller left to scroll once the box is gone, and answers the scroll without an offset.
+        // That answer still finishes the scroll.
+        const scrollOfRemovedScroller = removedScroller.scrollTo(0, 50);
+        removedScroller.remove();
+        await scrollOfRemovedScroller;
+        println("The scroll of a removed scroller finished");
+
+        const scrollOfHiddenScroller = hiddenScroller.scrollTo(0, 50);
+        hiddenScroller.style.display = "none";
+        await scrollOfHiddenScroller;
+        println("The scroll of a scroller that stopped being rendered finished");
+    });
+</script>

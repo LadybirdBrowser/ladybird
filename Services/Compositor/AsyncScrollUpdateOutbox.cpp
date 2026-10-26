@@ -34,6 +34,7 @@ bool AsyncScrollUpdateOutbox::has_updates(bool user_scroll_gesture_in_progress) 
         || !m_completed_operation_ids.is_empty()
         || !m_operation_ids_taken_over_by_user_input.is_empty()
         || !m_started_user_scrolls.is_empty()
+        || !m_applied_scroll_requests.is_empty()
         || m_user_scroll_gesture_ended
         || user_scroll_gesture_in_progress != m_published_user_scroll_gesture_in_progress;
 }
@@ -46,6 +47,7 @@ Compositing::PendingAsyncScrollUpdates AsyncScrollUpdateOutbox::take_updates(boo
     AK::swap(updates.completed_operation_ids, m_completed_operation_ids);
     AK::swap(updates.operation_ids_taken_over_by_user_input, m_operation_ids_taken_over_by_user_input);
     AK::swap(updates.started_user_scrolls, m_started_user_scrolls);
+    AK::swap(updates.applied_scroll_requests, m_applied_scroll_requests);
     updates.user_scroll_gesture_in_progress = user_scroll_gesture_in_progress;
     updates.user_scroll_gesture_ended = m_user_scroll_gesture_ended;
     m_user_scroll_gesture_ended = false;

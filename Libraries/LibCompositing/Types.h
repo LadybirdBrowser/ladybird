@@ -77,6 +77,12 @@ struct KeyboardScrollState {
     float arrow_scroll_distance { 0 };
 };
 
+// A scroll request the compositor applied, which it tells the main thread of whether or not the box is there.
+struct AppliedScrollRequest {
+    Web::AsyncScrollNodeStableID stable_node_id;
+    u64 request_id { 0 };
+};
+
 struct PendingAsyncScrollUpdates {
     Optional<Web::UniqueNodeID> document_id;
     // The publication these updates were handed out in, per context and increasing. A scroll state
@@ -86,6 +92,7 @@ struct PendingAsyncScrollUpdates {
     Vector<AsyncScrollOperationID> completed_operation_ids;
     Vector<AsyncScrollOperationID> operation_ids_taken_over_by_user_input;
     Vector<StartedUserScroll> started_user_scrolls;
+    Vector<AppliedScrollRequest> applied_scroll_requests;
     bool user_scroll_gesture_in_progress { false };
     bool user_scroll_gesture_ended { false };
 };
@@ -259,6 +266,11 @@ template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::StartedUserScroll const&);
 template<>
 COMPOSITING_API ErrorOr<Compositing::StartedUserScroll> decode(Decoder&);
+
+template<>
+COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::AppliedScrollRequest const&);
+template<>
+COMPOSITING_API ErrorOr<Compositing::AppliedScrollRequest> decode(Decoder&);
 
 template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::PendingAsyncScrollUpdates const&);

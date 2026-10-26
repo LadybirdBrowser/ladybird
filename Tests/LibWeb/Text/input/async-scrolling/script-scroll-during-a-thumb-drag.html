@@ -24,17 +24,23 @@
 
         await internals.mouseEventThroughUIProcess("mousemove", 147, 5);
         await internals.mouseEventThroughUIProcess("mousedown", 147, 5);
+        const nextScroll = () => new Promise(resolve => scroller.addEventListener("scroll", resolve, { once: true }));
         await internals.mouseEventThroughUIProcess("mousemove", 147, 60, { buttons: 1 });
-        await animationFrame();
-        await animationFrame();
+        while (scroller.scrollTop === 0)
+            await nextScroll();
         const draggedTo = scroller.scrollTop;
         println(`dragged away from the top: ${draggedTo > 0}`);
 
-        // The thumb stays under the pointer that holds it, so the script's scroll does not move the box along its axis.
+        // The thumb stays under the pointer that holds it, so the script's scroll does not move the box along its axis,
+        // and the box has not come to rest while the drag goes on.
+        let scrollendCount = 0;
+        scroller.addEventListener("scrollend", () => ++scrollendCount);
         scroller.scrollTop = 0;
-        for (let frame = 0; frame < 4; frame++)
-            await animationFrame();
+        // The compositor's answer to the script's scroll puts the box back where the thumb holds it.
+        while (scroller.scrollTop === 0)
+            await nextScroll();
         println(`held where the drag left it: ${scroller.scrollTop === draggedTo}`);
+        println(`scrollend events during the drag: ${scrollendCount}`);
 
         await internals.mouseEventThroughUIProcess("mouseup", 147, 60);
         await animationFrame();

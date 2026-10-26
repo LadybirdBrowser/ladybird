@@ -37,9 +37,7 @@
             printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
             println(`frame scrolled: ${frame.contentWindow.scrollY !== frameScrollY}`);
             println(`window.scrollY: ${window.scrollY}`);
-            window.scrollTo(0, 0);
-            await animationFrame();
-            await animationFrame();
+            await scrollSettled(document, () => window.scrollTo(0, 0));
         }
     });
 </script>
