@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A module worker's imports are fetched by the worker's process, whose client is the worker's owner. The owner's
+    // connect-src blocks the worker's json import, and the owner sees the violation as a securitypolicyviolation event.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const importUrl = await httpServer.createEcho("GET", `/module-import-violation-data-${runId}.json`, {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+            body: `{ "imported": true }`,
+        });
+        const workerUrl = await httpServer.createEcho("GET", `/module-import-violation-worker-${runId}.mjs`, {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: `import data from ${JSON.stringify(importUrl)} with { type: "json" }; postMessage(data);`,
+        });
+        const ownerUrl = await httpServer.createEcho("GET", `/module-import-violation-owner-${runId}.html`, {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Content-Security-Policy": "connect-src 'none'" },
+            body: `<!DOCTYPE html><script>
+                document.addEventListener("securitypolicyviolation", event => parent.postMessage([
+                    "effective directive: " + event.effectiveDirective,
+                    "disposition: " + event.disposition,
+                    "blocked URL matches: " + (event.blockedURI === ${JSON.stringify(importUrl)}),
+                    "document URL matches: " + (event.documentURI === location.href),
+                ].join("\\n"), "*"));
+                const worker = new Worker(${JSON.stringify(workerUrl)}, { type: "module" });
+                worker.onerror = () => parent.postMessage("worker failed to load", "*");
+            <\/script>`,
+        });
+
+        const messages = [];
+        const received = new Promise(resolve => {
+            addEventListener("message", event => {
+                messages.push(event.data);
+                if (messages.length === 2)
+                    resolve();
+            });
+        });
+        const iframe = document.createElement("iframe");
+        iframe.src = ownerUrl;
+        document.body.appendChild(iframe);
+        await received;
+
+        // The two messages print in one order, whichever arrives first.
+        messages.sort((a, b) => (a === "worker failed to load") - (b === "worker failed to load"));
+        for (const message of messages)
+            println(message);
+    });
+</script>

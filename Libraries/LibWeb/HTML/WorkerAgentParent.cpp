@@ -9,9 +9,8 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
-#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
-#include <LibWeb/ContentSecurityPolicy/Violation.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -236,17 +235,12 @@ void WorkerAgentParent::dispatch_worker_exception(Utf16String message, Utf16Stri
 //     worker's process. The violations of its policies are reported here, where outside settings' global object is.
 void WorkerAgentParent::report_content_security_policy_violation(u64 policy_index, String effective_directive, URL::URL resource)
 {
-    // NB: The worker's snapshot of outside settings' CSP list lists its policies in the same order, and a CSP list
-    //     only grows, so policy_index names the policy that was violated. The worker's process is less trusted than
-    //     this one, so we only report violations of policies in outside settings' CSP list, and of worker-src, which
-    //     is the effective directive of every worker script request.
-    auto const& policies = m_outside_settings->policy_container()->csp_list.policies();
-    if (policy_index >= policies.size() || ContentSecurityPolicy::Directives::Names::WorkerSrc != effective_directive.bytes_as_string_view())
+    // NB: A worker's script requests can violate only worker-src, and a module worker's json and text imports
+    //     connect-src.
+    auto directive = Utf16FlyString::from_utf8(effective_directive);
+    if (directive != ContentSecurityPolicy::Directives::Names::WorkerSrc && directive != ContentSecurityPolicy::Directives::Names::ConnectSrc)
         return;
-
-    auto violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(&m_outside_settings->global_object(), policies[policy_index], move(effective_directive));
-    violation->set_resource(move(resource));
-    violation->report_a_violation(m_outside_settings->realm());
+    ContentSecurityPolicy::report_a_violation_found_in_another_process(*m_outside_settings, policy_index, directive, move(resource));
 }
 
 WorkerAgentOwnerToken WorkerAgentParent::next_owner_token()
