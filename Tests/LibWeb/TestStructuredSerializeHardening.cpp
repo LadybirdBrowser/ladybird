@@ -172,6 +172,23 @@ TEST_CASE(storage_reader_rejects_invalid_value_tags)
     EXPECT(storage_deserialize(with_tag(99)).is_error());                             // Beyond the last defined tag.
 }
 
+TEST_CASE(storage_reader_rejects_an_object_reference_past_the_memory)
+{
+    // Nothing has been deserialized yet, so there is no object for index 0 to name.
+    Vector<u8> value { to_underlying(ValueTag::ObjectReference) };
+    append_storage_leb128(value, 0);
+    EXPECT(storage_deserialize(storage_record_with_value(value)).is_error());
+}
+
+TEST_CASE(transfer_receiver_rejects_an_unknown_transfer_type)
+{
+    auto& realm = test_realm();
+    Web::HTML::TransferDataEncoder holder;
+    MUST(holder.encode(static_cast<u8>(0xEE)));
+    Web::HTML::TransferDataDecoder decoder { move(holder) };
+    EXPECT(Web::HTML::structured_deserialize_with_transfer_internal(decoder, realm).is_error());
+}
+
 TEST_CASE(storage_reader_rejects_a_truncated_or_overlong_int32)
 {
     auto int32_record = [](Vector<u8> const& body) {

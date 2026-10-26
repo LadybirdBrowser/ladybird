@@ -612,7 +612,7 @@ bool web_structured_serialize_is_transferable_interface_exposed(u8 type, void* r
         dbgln("Unknown interface type for transfer: {}", to_underlying(name));
         break;
     default:
-        VERIFY_NOT_REACHED();
+        break;
     }
     return false;
 }

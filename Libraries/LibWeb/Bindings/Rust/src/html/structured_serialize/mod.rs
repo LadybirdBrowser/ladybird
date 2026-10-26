@@ -959,6 +959,12 @@ impl Deserializer<'_, '_> {
             if index == u32::MAX {
                 return Ok(Value::from_object(Object::create(vm, realm, None)));
             }
+            if index as usize >= self.memory.size() {
+                return Err(data_clone_error_from_serialization_error(
+                    realm,
+                    "ObjectReference index out of range",
+                ));
+            }
             return Ok(self.memory.get(index as usize));
         }
 
