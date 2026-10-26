@@ -552,14 +552,16 @@ EventResult Page::handle_drag_and_drop_event(DragEvent::Type type, DevicePixelPo
     return handle_drag_and_drop_event(local_traversable(), type, position, screen_position, button, buttons, modifiers, move(files));
 }
 
-EventResult Page::handle_pinch_event(HTML::LocalNavigable& root, DevicePixelPoint position, unsigned modifiers, double scale)
+EventResult Page::handle_pinch_event(HTML::LocalNavigable& root, DevicePixelPoint position, unsigned modifiers, double scale, bool async_zoom_performed_default_action)
 {
-    return root.event_handler().handle_pinch_event(device_to_css_point(position), modifiers, scale);
+    if (async_zoom_performed_default_action)
+        root.adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::Pushed);
+    return root.event_handler().handle_pinch_event(device_to_css_point(position), modifiers, scale, async_zoom_performed_default_action);
 }
 
 EventResult Page::handle_pinch_event(DevicePixelPoint position, unsigned modifiers, double scale)
 {
-    return handle_pinch_event(local_traversable(), position, modifiers, scale);
+    return handle_pinch_event(local_traversable(), position, modifiers, scale, false);
 }
 
 EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action, ReadonlySpan<TextEditingCommand> editing_commands, bool native_editing_binding_resolved)

@@ -4,28 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Math.h>
 #include <Compositor/ContextScene.h>
 #include <LibCompositing/DisplayList/DisplayListDamage.h>
 
 namespace Compositor {
-
-static bool visual_viewport_transforms_match(Compositing::TransformWithOrigin const& a, Compositing::TransformWithOrigin const& b)
-{
-    static constexpr float transform_epsilon = 0.01f;
-    static constexpr float translation_epsilon = 0.5f;
-
-    for (size_t row = 0; row < 4; ++row) {
-        for (size_t column = 0; column < 4; ++column) {
-            auto epsilon = (column == 3 && (row == 0 || row == 1)) ? translation_epsilon : transform_epsilon;
-            if (AK::fabs(a.matrix[row, column] - b.matrix[row, column]) > epsilon)
-                return false;
-        }
-    }
-
-    return AK::fabs(a.origin.x() - b.origin.x()) <= translation_epsilon
-        && AK::fabs(a.origin.y() - b.origin.y()) <= translation_epsilon;
-}
 
 static void update_visual_animation_sampling_state(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Optional<i64>& sample_time_ns, bool& has_active_animations)
 {
@@ -45,7 +27,6 @@ void ContextScene::install(NonnullRefPtr<Compositing::DisplayList> display_list,
     m_display_list = move(display_list);
     m_visual_context_tree = move(visual_context_tree);
     update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations);
-    drop_async_visual_viewport_transform_the_visual_context_tree_caught_up_with();
 }
 
 bool ContextScene::replace_visual_context_tree(Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction)
@@ -60,7 +41,6 @@ bool ContextScene::replace_visual_context_tree(Compositing::AccumulatedVisualCon
     apply_resource_transaction(move(resource_transaction));
     m_visual_context_tree = move(visual_context_tree);
     update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations);
-    drop_async_visual_viewport_transform_the_visual_context_tree_caught_up_with();
     return true;
 }
 
@@ -129,12 +109,6 @@ void ContextScene::drop_async_visual_viewport_transform()
 {
     invalidate_visual_context_tree_for_compositing();
     m_async_visual_viewport_transform.clear();
-}
-
-void ContextScene::drop_async_visual_viewport_transform_the_visual_context_tree_caught_up_with()
-{
-    if (m_async_visual_viewport_transform.has_value() && visual_viewport_transforms_match(m_visual_context_tree->visual_viewport_transform(), *m_async_visual_viewport_transform))
-        m_async_visual_viewport_transform.clear();
 }
 
 bool ContextScene::advance_visual_animations(MonotonicTime now)

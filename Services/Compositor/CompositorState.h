@@ -59,6 +59,7 @@ public:
 
     virtual void dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const&) = 0;
     virtual void dispatch_key_event_to_web_content(u64 page_id, Web::KeyEvent const&) = 0;
+    virtual void dispatch_pinch_event_to_web_content(u64 page_id, Web::PinchEvent const&) = 0;
     virtual void request_rendering_update() = 0;
     virtual void rendering_opportunity(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) = 0;
     virtual void clock_tick(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds, Vector<Web::CompositorScrollOffset> const& scroll_offsets) = 0;
@@ -126,7 +127,7 @@ public:
     void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation);
     void handle_and_dispatch_key_event(Web::CompositorContextId, Web::KeyEvent, bool allow_keyboard_scroll);
     void handle_and_dispatch_mouse_event(Web::CompositorContextId, Web::MouseEvent);
-    void handle_pinch_event(Web::CompositorContextId, Web::PinchEvent const&);
+    void handle_and_dispatch_pinch_event(Web::CompositorContextId, Web::PinchEvent);
     Compositing::AsyncScrollEnqueueResult async_scroll_by(Web::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking, Compositing::WheelStepDispatch, u64 input_event_id);
     Compositing::AsyncScrollEnqueueResult smooth_scroll_to(Web::CompositorContextId, Web::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue);
     void cancel_smooth_scroll(Web::CompositorContextId, Web::AsyncScrollNodeStableID);

@@ -1036,6 +1036,16 @@ void Internals::pinch(double x, double y, double scale_delta, WebIDL::UnsignedSh
     page.handle_pinch_event(position, modifiers, scale_delta);
 }
 
+void Internals::pinch_through_ui_process(double x, double y, double scale_delta)
+{
+    let_compositor_take_in_every_rendered_frame(window());
+
+    Web::PinchEvent event;
+    event.position = page().css_to_device_point(window().navigable()->to_page_position({ x, y }));
+    event.scale_delta = scale_delta;
+    page().client().page_did_request_pinch_event_for_testing(window().navigable()->local_root()->id(), event);
+}
+
 void Internals::reset_zoom()
 {
     if (auto local_root = local_root_of(window()))

@@ -131,6 +131,7 @@ public:
     void request_rendering_update();
     void dispatch_mouse_event_to_web_content(Web::MouseEvent const&, bool nested_context_scrolled_since_last_frame = false);
     void dispatch_key_event_to_web_content(Web::KeyEvent const&);
+    void dispatch_pinch_event_to_web_content(Web::PinchEvent const&);
     // Whether the scroll offsets here moved past those of the last frame WebContent presented.
     bool scrolled_since_last_frame() const;
     bool can_dispatch_input_to_web_content() const { return m_page_id.has_value(); }
@@ -269,6 +270,7 @@ private:
     Compositing::ScrollStateSnapshot scroll_state_snapshot_at_keyboard_step_starts() const;
     void adopt_keyboard_scroll_state(Compositing::KeyboardScrollState);
     Optional<VisualViewportScrollDelta> apply_visual_viewport_scroll_delta(Gfx::FloatPoint);
+    void reapply_unadopted_visual_viewport_state();
     // Pans the visual viewport of a zoomed page by as much of a delta in screen pixels as it has room for, and returns
     // that part of the delta.
     Gfx::FloatPoint pan_visual_viewport_by(Gfx::FloatPoint delta_in_screen_pixels);

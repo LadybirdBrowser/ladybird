@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const vv = window.visualViewport;
+        const state = label => {
+            println(`${label}: scale=${vv.scale} offset=${vv.offsetLeft},${vv.offsetTop} compositor scale=${internals.compositorScrollState().visualViewportScale}`);
+        };
+
+        // The compositor zooms for the pinch, and the main thread takes its zoom rather than zooming a second time.
+        internals.pinchThroughUIProcess(400, 300, 1.0);
+        while (vv.scale === 1)
+            await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        state("after the pinch");
+
+        // Once the main thread has adopted the zoom, the compositor presents whatever the main thread sets it to.
+        internals.resetZoom();
+        await animationFrame();
+        await animationFrame();
+        state("after resetting the zoom");
+    });
+</script>

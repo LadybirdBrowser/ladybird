@@ -97,6 +97,7 @@ public:
     void attach_render_clock(IPC::TransportHandle);
     Function<void(Web::PageId page_id, Web::MouseEvent)> on_mouse_event;
     Function<void(Web::PageId page_id, Web::KeyEvent)> on_key_event;
+    Function<void(Web::PageId page_id, Web::PinchEvent)> on_pinch_event;
     Function<void()> on_compositor_lost;
     // Asks the Browser to connect this process's media server to the Compositor.
     Function<void()> on_request_video_presentation_channel;
@@ -112,6 +113,7 @@ private:
 
     virtual void mouse_event(u64 page_id, Web::MouseEvent) override;
     virtual void key_event(u64 page_id, Web::KeyEvent) override;
+    virtual void pinch_event(u64 page_id, Web::PinchEvent) override;
     virtual void request_rendering_update() override;
     virtual void rendering_opportunity(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates) override;

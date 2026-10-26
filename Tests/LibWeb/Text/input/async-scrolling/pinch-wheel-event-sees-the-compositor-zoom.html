@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const vv = window.visualViewport;
+        let seenByListener;
+        const wheelEvent = new Promise(resolve => {
+            window.addEventListener("wheel", event => {
+                seenByListener = `scale=${vv.scale} offset=${vv.offsetLeft},${vv.offsetTop}`;
+                resolve(event);
+            }, { passive: true, once: true });
+        });
+
+        // The compositor zooms before the page sees the event of a pinch no listener can cancel, so the page sees the
+        // zoom it was already shown.
+        internals.pinchThroughUIProcess(400, 300, 1.0);
+        await wheelEvent;
+        println(`listener: ${seenByListener}`);
+    });
+</script>

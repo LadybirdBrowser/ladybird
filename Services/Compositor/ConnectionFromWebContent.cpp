@@ -167,6 +167,11 @@ void ConnectionFromWebContent::dispatch_key_event_to_web_content(u64 page_id, We
     async_key_event(page_id, event);
 }
 
+void ConnectionFromWebContent::dispatch_pinch_event_to_web_content(u64 page_id, Web::PinchEvent const& event)
+{
+    async_pinch_event(page_id, event);
+}
+
 bool ConnectionFromWebContent::context_is_owned_by_this_connection(Web::CompositorContextId context_id)
 {
     switch (m_compositor_state->check_context_owner(context_id, *this)) {

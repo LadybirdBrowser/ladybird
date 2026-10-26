@@ -61,7 +61,6 @@ public:
 
 private:
     void invalidate_visual_context_tree_for_compositing();
-    void drop_async_visual_viewport_transform_the_visual_context_tree_caught_up_with();
 
     RefPtr<Compositing::DisplayList const> m_display_list;
     Optional<Compositing::AccumulatedVisualContextTree> m_visual_context_tree;

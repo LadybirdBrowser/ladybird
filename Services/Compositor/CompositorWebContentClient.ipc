@@ -7,6 +7,7 @@ endpoint CompositorWebContentClient
 {
     mouse_event(u64 page_id, Web::MouseEvent event) =|
     key_event(u64 page_id, Web::KeyEvent event) =|
+    pinch_event(u64 page_id, Web::PinchEvent event) =|
     request_rendering_update() =|
     rendering_opportunity(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds) =|
     async_scroll_updates(Web::CompositorContextId context_id, Compositing::PendingAsyncScrollUpdates updates) =|

@@ -1692,6 +1692,11 @@ void PageClient::page_did_request_webdriver_mouse_event(Web::HTML::CrossProcessI
     client().async_did_request_webdriver_mouse_event(m_id, request_id, local_root_id, move(event));
 }
 
+void PageClient::page_did_request_pinch_event_for_testing(Web::HTML::CrossProcessId local_root_id, Web::PinchEvent const& event)
+{
+    client().async_did_request_pinch_event_for_testing(m_id, local_root_id, event);
+}
+
 void PageClient::did_handle_webdriver_mouse_event(u64 request_id)
 {
     if (auto on_handled = m_pending_webdriver_mouse_events.take(request_id); on_handled.has_value())

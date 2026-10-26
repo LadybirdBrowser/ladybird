@@ -1531,12 +1531,14 @@ bool Application::handle_and_dispatch_key_event_in_compositor(Web::CompositorCon
     return true;
 }
 
-void Application::handle_pinch_event_in_compositor(Web::CompositorContextId context_id, Web::PinchEvent const& event)
+bool Application::handle_and_dispatch_pinch_event_in_compositor(Web::CompositorContextId context_id, Web::PinchEvent const& event)
 {
     if (!can_send_compositor_process_ipc(m_compositor_presentation_client))
-        return;
+        return false;
+    VERIFY(m_compositor_presentation_client);
 
-    m_compositor_presentation_client->async_handle_pinch_event(context_id, event);
+    m_compositor_presentation_client->async_handle_and_dispatch_pinch_event(context_id, event);
+    return true;
 }
 
 bool Application::handle_and_dispatch_mouse_event_in_compositor(Web::CompositorContextId context_id, Web::MouseEvent const& event)

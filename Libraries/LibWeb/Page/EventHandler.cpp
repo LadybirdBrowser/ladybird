@@ -1321,7 +1321,7 @@ EventResult EventHandler::dispatch_wheel_event(Layout::BegunRead const& read, La
     return node->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
 }
 
-EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 modifiers, double wheel_delta_y)
+EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 modifiers, double wheel_delta_y, bool is_cancelable)
 {
     auto document = m_navigable->active_document();
     if (!document || !document->is_fully_active())
@@ -1342,8 +1342,8 @@ EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint vis
     if (!target_layout_node || !target_dom_node)
         return EventResult::Dropped;
 
-    if (auto result = dispatch_event_to_nested_navigable(*this, *target_layout_node, target_dom_node, visual_viewport_position, nullptr, [screen_position, modifiers, wheel_delta_y](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
-            return event_handler.dispatch_synthetic_pinch_wheel_event(position, screen_position, modifiers, wheel_delta_y);
+    if (auto result = dispatch_event_to_nested_navigable(*this, *target_layout_node, target_dom_node, visual_viewport_position, nullptr, [screen_position, modifiers, wheel_delta_y, is_cancelable](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+            return event_handler.dispatch_synthetic_pinch_wheel_event(position, screen_position, modifiers, wheel_delta_y, is_cancelable);
         });
         result.has_value()) {
         if (result.value() == EventResult::Handled || result.value() == EventResult::Cancelled)
@@ -1354,7 +1354,7 @@ EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint vis
     }
 
     modifiers |= UIEvents::KeyModifier::Mod_Ctrl;
-    return dispatch_wheel_event(read, *target_layout_node, visual_viewport_position, screen_position, UIEvents::MouseButton::None, UIEvents::MouseButton::None, modifiers, 0, wheel_delta_y, 0, Web::wheel_tick_120ths_from_pixel_delta(wheel_delta_y, Web::WheelDeltaPrecision::Precise), true);
+    return dispatch_wheel_event(read, *target_layout_node, visual_viewport_position, screen_position, UIEvents::MouseButton::None, UIEvents::MouseButton::None, modifiers, 0, wheel_delta_y, 0, Web::wheel_tick_120ths_from_pixel_delta(wheel_delta_y, Web::WheelDeltaPrecision::Precise), is_cancelable);
 }
 
 EventResult EventHandler::handle_mouseleave()
@@ -2457,7 +2457,7 @@ bool EventHandler::should_ignore_device_input_event() const
     return m_drag_and_drop_event_handler->has_ongoing_drag_and_drop_operation();
 }
 
-EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers, double scale_delta)
+EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers, double scale_delta, bool async_zoom_performed_default_action)
 {
     auto document = m_navigable->active_document();
     if (!document)
@@ -2472,9 +2472,13 @@ EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers,
     if (scale == 1.0)
         return EventResult::Handled;
 
+    // The compositor process zoomed without waiting to see whether the page cancels the event, and reported the zoom in
+    // the scroll updates it sent ahead of the event.
     auto wheel_delta_y = -100.0 * AK::log(scale);
-    if (dispatch_synthetic_pinch_wheel_event(point, point, modifiers, wheel_delta_y) == EventResult::Cancelled)
+    if (dispatch_synthetic_pinch_wheel_event(point, point, modifiers, wheel_delta_y, !async_zoom_performed_default_action) == EventResult::Cancelled)
         return EventResult::Cancelled;
+    if (async_zoom_performed_default_action)
+        return EventResult::Handled;
 
     document = m_navigable->active_document();
     if (!document || !document->is_fully_active())

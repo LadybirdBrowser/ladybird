@@ -317,6 +317,7 @@ private:
     virtual void page_did_change_focused_navigable(Web::HTML::CrossProcessId) override;
     virtual void page_did_request_key_event_for_testing(Web::KeyEvent) override;
     virtual void page_did_request_webdriver_mouse_event(Web::HTML::CrossProcessId local_root_id, Web::MouseEvent, GC::Ref<GC::Function<void()>> on_handled) override;
+    virtual void page_did_request_pinch_event_for_testing(Web::HTML::CrossProcessId local_root_id, Web::PinchEvent const&) override;
     virtual void page_did_request_set_system_visibility_state(Web::HTML::VisibilityState) override;
     virtual void page_did_request_history_operation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters) override;
     virtual void page_did_revoke_history_operation(Web::HTML::CrossProcessId operation_id) override;

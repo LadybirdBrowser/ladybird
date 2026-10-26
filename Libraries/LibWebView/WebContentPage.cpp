@@ -494,10 +494,11 @@ bool WebContentPage::handle_and_dispatch_key_event_in_compositor(Web::KeyEvent c
     return posted;
 }
 
-void WebContentPage::handle_pinch_event_in_compositor(Web::PinchEvent const& event)
+bool WebContentPage::handle_and_dispatch_pinch_event_in_compositor(Web::PinchEvent const& event)
 {
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI posted pinch event {} for page {} to the compositor", event.id, m_id);
-    Application::the().handle_pinch_event_in_compositor(compositor_context_id(), event);
+    auto posted = Application::the().handle_and_dispatch_pinch_event_in_compositor(compositor_context_id(), event);
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI posted pinch event {} for page {} to the compositor: {}", event.id, m_id, posted);
+    return posted;
 }
 
 bool WebContentPage::handle_and_dispatch_mouse_event_in_compositor(Web::MouseEvent const& event)
@@ -2779,6 +2780,22 @@ void WebContentPage::did_update_session_history_entry_scroll_restoration_mode(We
         return;
     }
     navigable->top_level_traversable().update_session_history_entry_scroll_restoration_mode(*navigable, entry_identity, scroll_restoration_mode);
+}
+
+void WebContentPage::did_request_pinch_event_for_testing(Web::HTML::CrossProcessId local_root_id, Web::PinchEvent event)
+{
+    // NB: As for a key event for testing, the event is dispatched as the user's own.
+    if (!WebContentClient::renderers_may_synthesize_input()) {
+        client().did_misbehave("did_request_pinch_event_for_testing"sv, "not driven by WebDriver or a test"sv);
+        return;
+    }
+
+    // The event is relative to the viewport of the local root its page dispatches input to.
+    if (auto root = view().traversable().find(local_root_id); root.has_value())
+        event.position.translate_by(view().traversable().local_root_offset(*root));
+    // Only the compositor sets this, on its way to WebContent.
+    event.async_zoom_performed_default_action = false;
+    view().enqueue_pinch_event_for_testing({}, event);
 }
 
 void WebContentPage::did_request_webdriver_mouse_event(u64 request_id, Web::HTML::CrossProcessId local_root_id, Web::MouseEvent event)

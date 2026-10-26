@@ -208,6 +208,15 @@ void VisualViewport::zoom(CSSPixelPoint position, double scale_delta)
     m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
 }
 
+void VisualViewport::set_scale_zoomed_by_compositor(double scale)
+{
+    if (scale == m_scale)
+        return;
+    m_scale = scale;
+    update_accumulated_visual_context();
+    m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
+}
+
 CSSPixelPoint VisualViewport::map_to_layout_viewport(CSSPixelPoint position) const
 {
     auto inverse = transform().inverse().value_or({});

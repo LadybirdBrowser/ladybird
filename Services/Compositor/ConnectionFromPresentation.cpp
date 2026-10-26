@@ -62,7 +62,9 @@ static bool is_valid_mouse_event(Web::MouseEvent const& event)
 
 static bool is_valid_pinch_event(Web::PinchEvent const& event)
 {
-    return is_valid_modifiers(event.modifiers);
+    return is_valid_modifiers(event.modifiers)
+        // Only the compositor sets this, on its way to WebContent.
+        && !event.async_zoom_performed_default_action;
 }
 
 ConnectionFromPresentation::ConnectionFromPresentation(NonnullOwnPtr<IPC::Transport> transport, NonnullRefPtr<CompositorState> compositor_state, CompositorState::PresentationCapabilities capabilities)
@@ -138,15 +140,17 @@ void ConnectionFromPresentation::handle_and_dispatch_key_event(Web::CompositorCo
     m_compositor_state->handle_and_dispatch_key_event(context_id, move(event), allow_keyboard_scroll);
 }
 
-void ConnectionFromPresentation::handle_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event)
+void ConnectionFromPresentation::handle_and_dispatch_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event)
 {
     if (!is_valid_pinch_event(event)) {
         did_misbehave("Invalid pinch event");
         return;
     }
-    if (!is_bound_to(context_id))
+    if (!is_bound_to(context_id)) {
+        did_not_dispatch_input_event(context_id, event.id);
         return;
-    m_compositor_state->handle_pinch_event(context_id, event);
+    }
+    m_compositor_state->handle_and_dispatch_pinch_event(context_id, event);
 }
 
 void ConnectionFromPresentation::handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event)

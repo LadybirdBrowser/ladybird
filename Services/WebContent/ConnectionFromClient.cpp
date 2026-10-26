@@ -460,6 +460,9 @@ void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle ha
     m_compositor_connection->on_key_event = [this](Web::PageId page_id, Web::KeyEvent event) {
         key_event(page_id, move(event));
     };
+    m_compositor_connection->on_pinch_event = [this](Web::PageId page_id, Web::PinchEvent event) {
+        pinch_event(page_id, event);
+    };
     m_compositor_connection->on_compositor_lost = [this] {
         m_page_host->compositor_process_lost();
     };
@@ -952,7 +955,8 @@ void ConnectionFromClient::pinch_event(Web::PageId page_id, Web::PinchEvent even
     //               to applying each zoom in sequence.
     if (!m_input_event_queue.is_empty() && m_input_event_queue.tail().page_id == page_id) {
         if (auto const* pinch_event = m_input_event_queue.tail().event.get_pointer<Web::PinchEvent>()) {
-            if (pinch_event->position != event.position || pinch_event->modifiers != event.modifiers)
+            if (pinch_event->position != event.position || pinch_event->modifiers != event.modifiers
+                || pinch_event->async_zoom_performed_default_action != event.async_zoom_performed_default_action)
                 return enqueue_input_event({ page_id, move(event), {}, {} });
 
             event.scale_delta = (1.0 + pinch_event->scale_delta) * (1.0 + event.scale_delta) - 1.0;

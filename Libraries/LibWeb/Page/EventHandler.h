@@ -111,7 +111,7 @@ public:
     EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
     EventResult handle_drag_and_drop_event(DragEvent::Type, CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
-    EventResult handle_pinch_event(CSSPixelPoint, unsigned modifiers, double scale_delta);
+    EventResult handle_pinch_event(CSSPixelPoint, unsigned modifiers, double scale_delta, bool async_zoom_performed_default_action);
     [[nodiscard]] EventResult perform_paste_action();
     EventResult perform_paste_action(NonnullRefPtr<HTML::DragDataStore> const&);
 
@@ -266,7 +266,7 @@ private:
     // Both drop the latch when what it refers to is gone from the document, so that the event is targeted afresh.
     Layout::Node* validated_wheel_scroll_latch_target_layout_node(Layout::BegunRead const& read, DOM::Document&);
     Layout::Node* validated_latched_wheel_scrolling_box();
-    EventResult dispatch_synthetic_pinch_wheel_event(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned modifiers, double wheel_delta_y);
+    EventResult dispatch_synthetic_pinch_wheel_event(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned modifiers, double wheel_delta_y, bool is_cancelable);
 
     enum class PointerEventType : u8 {
         PointerDown,

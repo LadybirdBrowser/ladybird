@@ -848,13 +848,22 @@ void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId contex
     context.dispatch_mouse_event_to_web_content(*event);
 }
 
-void CompositorState::handle_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent const& event)
+void CompositorState::handle_and_dispatch_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event)
 {
+    // NB: The presentation connection only passes on input for the contexts bound to it.
+    auto* presentation = presentation_for_context(context_id);
+    VERIFY(presentation);
     auto* context = context_if_present(context_id);
-    if (!context)
+    if (!context || !context->can_dispatch_input_to_web_content()) {
+        presentation->did_not_dispatch_input_event(context_id, event.id);
         return;
+    }
 
-    apply_context_update_result(context_id, *context, context->handle_pinch_event(event));
+    event.async_zoom_performed_default_action = apply_context_update_result(context_id, *context, context->handle_pinch_event(event));
+
+    // The scroll updates the event produced reach WebContent ahead of the event itself on the same connection.
+    publish_pending_async_scroll_updates(context_id, *context);
+    context->dispatch_pinch_event_to_web_content(event);
 }
 
 Compositing::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::CompositorContextId context_id, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelStepDispatch wheel_step_dispatch, u64 input_event_id)

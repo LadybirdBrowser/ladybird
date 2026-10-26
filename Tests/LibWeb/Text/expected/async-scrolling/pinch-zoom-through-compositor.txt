@@ -1,0 +1,2 @@
+after the pinch: scale=2 offset=200,150 compositor scale=2
+after resetting the zoom: scale=1 offset=0,0 compositor scale=1
