@@ -1,0 +1,3 @@
+nextunique, empty range: 0 records
+prevunique, empty range: 0 records
+nextunique, all: 2 records

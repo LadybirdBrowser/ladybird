@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    spoofCurrentURL("https://example.com/indexeddb-index-getall-unique-empty-range.html");
+
+    const dbName = "test-getall-unique-empty-range-" + Date.now() + Math.random();
+    const request = indexedDB.open(dbName, 1);
+
+    request.onupgradeneeded = event => {
+        const store = event.target.result.createObjectStore("store");
+        store.createIndex("byTag", "tag");
+        store.put({ tag: "a" }, 1);
+        store.put({ tag: "a" }, 2);
+        store.put({ tag: "b" }, 3);
+    };
+
+    request.onsuccess = event => {
+        const db = event.target.result;
+        const index = db.transaction("store", "readonly").objectStore("store").index("byTag");
+        const queries = [
+            ["nextunique, empty range", { query: IDBKeyRange.only("z"), direction: "nextunique" }],
+            ["prevunique, empty range", { query: IDBKeyRange.only("z"), direction: "prevunique" }],
+            ["nextunique, all", { direction: "nextunique" }],
+        ];
+        let remaining = queries.length;
+        for (const [name, options] of queries) {
+            const getAll = index.getAll(options);
+            getAll.onsuccess = () => {
+                println(`${name}: ${getAll.result.length} records`);
+                if (--remaining === 0) {
+                    db.close();
+                    indexedDB.deleteDatabase(dbName);
+                    done();
+                }
+            };
+        }
+    };
+});
+</script>
