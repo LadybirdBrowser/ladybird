@@ -604,13 +604,13 @@ pub fn put_by_property_key(
                         PropertyLookupCacheEntryType::AddOwnProperty => {
                             // OPTIMIZATION: If the object's shape is the same as the one cached before adding the new property, we can
                             //               reuse the resulting shape from the cache.
-                            if cache.from_shape != Some(object.shape()) {
+                            if cache.shape != Some(object.shape()) {
                                 continue;
                             }
                             if !property_addition_is_cacheable(vm, &object, name) {
                                 continue;
                             }
-                            let Some(cached_shape) = cache.shape else {
+                            let Some(new_shape) = cache.new_shape else {
                                 continue;
                             };
 
@@ -626,7 +626,7 @@ pub fn put_by_property_key(
                             {
                                 continue;
                             }
-                            object.unsafe_set_shape(cached_shape);
+                            object.unsafe_set_shape(new_shape);
                             object.initialize_direct(cache.property_offset, value);
                             return Ok(());
                         }
@@ -659,11 +659,11 @@ pub fn put_by_property_key(
             {
                 caches.update(PropertyLookupCacheEntryType::AddOwnProperty, |cache| {
                     cache.key = cache_key;
-                    cache.from_shape = Some(from_shape);
+                    cache.shape = Some(from_shape);
                     cache.property_offset = cacheable_metadata
                         .property_offset
                         .expect("cacheable metadata has an offset");
-                    cache.shape = Some(object.shape());
+                    cache.new_shape = Some(object.shape());
                     if let Some(prototype) = cacheable_metadata.prototype {
                         cache.prototype_chain_validity = prototype.shape().prototype_chain_validity();
                     }
@@ -743,16 +743,16 @@ pub fn put_by_property_key(
                         // objects, but keep this aligned with the normal PutById
                         // AddOwnProperty cache hit so a future bytecode path cannot
                         // bypass subclass hooks for objects that require them.
-                        if cache.from_shape != Some(object.shape()) {
+                        if cache.shape != Some(object.shape()) {
                             continue;
                         }
                         if !property_addition_is_cacheable(vm, &object, name) {
                             continue;
                         }
-                        let Some(cached_shape) = cache.shape else {
+                        let Some(new_shape) = cache.new_shape else {
                             continue;
                         };
-                        object.unsafe_set_shape(cached_shape);
+                        object.unsafe_set_shape(new_shape);
                         object.initialize_direct(cache.property_offset, value);
                         return Ok(());
                     }
@@ -773,8 +773,8 @@ pub fn put_by_property_key(
             {
                 caches.update(PropertyLookupCacheEntryType::AddOwnProperty, |cache| {
                     cache.key = cache_key;
-                    cache.from_shape = Some(from_shape);
-                    cache.shape = Some(object.shape());
+                    cache.shape = Some(from_shape);
+                    cache.new_shape = Some(object.shape());
                     cache.property_offset = object.shape().lookup(name).expect("the property was just added").offset;
                 });
             }

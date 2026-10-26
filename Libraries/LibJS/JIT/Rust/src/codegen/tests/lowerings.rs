@@ -1326,7 +1326,7 @@ fn fake_object_layout() -> RuntimeLayout {
         property_lookup_cache_entry_size: 64,
         property_lookup_cache_entry_key: 48,
         property_lookup_cache_keyed_generic: 3,
-        property_lookup_cache_entry_from_shape: 16,
+        property_lookup_cache_entry_new_shape: 16,
         property_lookup_cache_megamorphic_tag: 2,
         property_lookup_cache_megamorphic_primary_entries: 64,
         property_lookup_cache_megamorphic_secondary_entries: 64 + 64 * 64,
@@ -2868,8 +2868,7 @@ impl FakeCachedObject {
     /// `new_shape`, for property `offset`.
     fn set_add_entry(&mut self, new_shape: &[u64], offset: u32) {
         self.set_entry(1, offset, false);
-        self.entry[2] = self.shape.as_ptr() as u64;
-        self.entry[3] = new_shape.as_ptr() as u64;
+        self.entry[2] = new_shape.as_ptr() as u64;
     }
 
     fn run(&self, instruction: Instruction, arguments: &[u64]) -> (JitResult, u64) {
@@ -3217,7 +3216,7 @@ fn put_by_id_adds_properties_through_property_caches() {
     }
     // So are other shapes, generations, invalid prototype chains, missing
     // new shapes, and objects whose storage would have to grow.
-    fake.entry[2] = 8;
+    fake.entry[3] = 8;
     assert_eq!(add(&mut fake, FLAG_IS_EXTENSIBLE), 1);
     fake.set_add_entry(&new_shape, 2);
     fake.entry[1] = 6;
@@ -3230,7 +3229,7 @@ fn put_by_id_adds_properties_through_property_caches() {
     std::hint::black_box(&validity);
     assert_eq!(add(&mut fake, FLAG_IS_EXTENSIBLE), 0);
     fake.entry[5] = 0;
-    fake.entry[3] = 0;
+    fake.entry[2] = 0;
     assert_eq!(add(&mut fake, FLAG_IS_EXTENSIBLE), 1);
     fake.set_add_entry(&new_shape, 2);
     fake.properties[0] = 2;
@@ -4264,11 +4263,11 @@ fn keyed_accesses_of_missing_and_added_properties_through_property_caches() {
     // A megamorphic cache whose most recently used entry is the one tested.
     let mut data = vec![0u64; ENTRY_WORDS * (1 + 2 * 64)];
     fake.caches[1] = data.as_ptr() as u64 | 2;
-    let set_entry = |data: &mut Vec<u64>, entry_type: u64, offset: u64, from_shape: u64, shape: u64| {
+    let set_entry = |data: &mut Vec<u64>, entry_type: u64, offset: u64, new_shape: u64, shape: u64| {
         data[..ENTRY_WORDS].fill(0);
         data[0] = entry_type | offset << 32;
         data[1] = 5 | 1 << 40;
-        data[2] = from_shape;
+        data[2] = new_shape;
         data[3] = shape;
         data[6] = key;
     };
@@ -4322,7 +4321,7 @@ fn keyed_accesses_of_missing_and_added_properties_through_property_caches() {
     let mut new_shape = vec![0u64; 12];
     new_shape[10] = 3 | 5 << 32;
     let new_shape_address = new_shape.as_ptr() as u64;
-    set_entry(&mut data, 1, 2, shape, new_shape_address);
+    set_entry(&mut data, 1, 2, new_shape_address, shape);
     assert_eq!(put(&fake, other_key, value::TRUE), 1);
     assert_eq!(put(&fake, key, value::TRUE), 0);
     assert_eq!(fake.object[6], new_shape_address);

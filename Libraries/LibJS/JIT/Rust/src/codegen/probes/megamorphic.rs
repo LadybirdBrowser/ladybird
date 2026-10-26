@@ -28,65 +28,24 @@ pub(super) enum MegamorphicKey {
     Keyed { key: Gpr },
 }
 
-/// Which shape of a cache entry an object's shape must be for the entry to
-/// apply to it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum EntryShape {
-    /// The entry's shape, for reads and changes of properties.
-    Shape,
-    /// The entry's shape or the shape it adds a property to (the
-    /// `from_shape` of `AddOwnProperty` entries, which other entries do not
-    /// have), for stores, like `PropertyLookupCache::entry_lookup_shape()`.
-    ShapeOrFromShape,
-}
-
 impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// Branches to `found` if cache entry `candidate` applies to objects of
     /// the shape in `shape`.
-    pub(super) fn branch_if_entry_shape(&mut self, candidate: Gpr, shape: Gpr, entry_shape: EntryShape, found: Label) {
-        let layout = self.runtime.layout;
-        let candidate_shape = Address::new(candidate, layout.property_lookup_cache_entry_shape as i32);
+    pub(super) fn branch_if_entry_shape(&mut self, candidate: Gpr, shape: Gpr, found: Label) {
+        let candidate_shape = Address::new(candidate, self.runtime.layout.property_lookup_cache_entry_shape as i32);
         self.masm
             .branch64_memory(Condition::Equal, &candidate_shape, shape, found);
-        if entry_shape == EntryShape::ShapeOrFromShape {
-            let from_shape = Address::new(candidate, layout.property_lookup_cache_entry_from_shape as i32);
-            self.masm.branch64_memory(Condition::Equal, &from_shape, shape, found);
-        }
-    }
-
-    /// Branches to `miss` unless the cache entry at `candidate` applies to
-    /// objects of the shape in `shape`.
-    fn branch_unless_entry_shape(&mut self, candidate: Address, shape: Gpr, entry_shape: EntryShape, miss: Label) {
-        let layout = self.runtime.layout;
-        let field = |offset: u32| Address {
-            displacement: candidate.displacement + offset as i32,
-            ..candidate
-        };
-        let candidate_shape = field(layout.property_lookup_cache_entry_shape);
-        if entry_shape == EntryShape::Shape {
-            self.masm
-                .branch64_memory(Condition::NotEqual, &candidate_shape, shape, miss);
-            return;
-        }
-        let matched = self.masm.new_label();
-        self.masm
-            .branch64_memory(Condition::Equal, &candidate_shape, shape, matched);
-        let from_shape = field(layout.property_lookup_cache_entry_from_shape);
-        self.masm.branch64_memory(Condition::NotEqual, &from_shape, shape, miss);
-        self.masm.bind(matched);
     }
 
     /// Looks up the entry for the shape in `shape` (and the key, if keyed)
-    /// in the megamorphic cache data that `entry` points to, matching
-    /// `entry_shape` of its entries, and branches to `found` with the entry
-    /// in `entry`, or to `miss`. Clobbers the scratch register.
-    #[allow(clippy::too_many_arguments)]
+    /// in the megamorphic cache data that `entry` points to, and branches to
+    /// `found` with the entry in `entry`, or to `miss`. Clobbers the scratch
+    /// register.
     pub(super) fn emit_megamorphic_cache_lookup(
         &mut self,
         shape: Gpr,
         entry: Gpr,
         key: MegamorphicKey,
-        entry_shape: EntryShape,
         found: Label,
         miss: Label,
     ) {
@@ -126,7 +85,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.masm
                     .branch64_memory(Condition::NotEqual, &candidate_key, key, next);
             }
-            self.branch_unless_entry_shape(candidate, shape, entry_shape, next);
+            let candidate_shape = Address {
+                displacement: candidate.displacement + layout.property_lookup_cache_entry_shape as i32,
+                ..candidate
+            };
+            self.masm
+                .branch64_memory(Condition::NotEqual, &candidate_shape, shape, next);
             self.masm.load_effective_address(entry, &candidate);
             self.masm.jump(found);
             self.masm.bind(next);

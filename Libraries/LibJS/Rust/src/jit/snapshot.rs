@@ -477,7 +477,7 @@ impl SnapshotBuilder<'_> {
                 shape_is_dictionary: entry.shape.is_some_and(|shape| shape.is_dictionary()),
                 shape_is_stable: entry.shape.is_some_and(|shape| shape.is_stable()),
                 writes_data_property: entry.writes_data_property,
-                from_shape: self.optional_cell(entry.from_shape),
+                new_shape: self.optional_cell(entry.new_shape),
                 shape: self.optional_cell(entry.shape),
                 prototype: self.optional_cell(entry.prototype),
                 prototype_chain_validity: self.optional_cell(entry.prototype_chain_validity),

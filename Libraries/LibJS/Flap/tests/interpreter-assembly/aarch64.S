@@ -5109,38 +5109,38 @@ asm_handler_PutByValue:
     b.eq .Lasm_PutByValue.ssa_block_2
     and x0, x0, #0xfffffffffffffffc
     ldr w2, [x21, #4]
-    ldr x3, [x27, x2, lsl #3]
-    lsr x9, x3, #48
+    ldr x2, [x27, x2, lsl #3]
+    lsr x9, x2, #48
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_PutByValue.ssa_block_1
     ldr x9, [x0, #48]
     cmp x9, x1
     b.ne .Lasm_PutByValue.ssa_block_3
-    and x3, x3, #0x3ffffffffff
-    add x3, x3, x24
-    ldr x1, [x3, #24]
+    and x2, x2, #0x3ffffffffff
+    add x2, x2, x24
+    ldr x1, [x2, #24]
     cbz x1, .Lasm_PutByValue.assert_failure_2
-    ldp x4, x2, [x0, #24]
+    ldp x4, x3, [x0, #24]
     cmp x4, x1
     b.ne .Lasm_PutByValue.ssa_block_3
-    cbnz x2, .Lasm_PutByValue.ssa_block_3
-    ldp w2, w4, [x0, #4]
+    cbnz x3, .Lasm_PutByValue.ssa_block_3
+    ldp w3, w4, [x0, #4]
     ldr w9, [x1, #52]
     cmp w9, w4
     b.ne .Lasm_PutByValue.ssa_block_3
-    ldr x1, [x3, #32]
-    cbz x1, .Lasm_PutByValue.assert_failure_3
-    ldr x3, [x1, x2, lsl #3]
-    lsr x9, x3, #48
+    ldrb w9, [x0, #12]
+    cbz w9, .Lasm_PutByValue.ssa_block_3
+    ldr x0, [x2, #32]
+    cbz x0, .Lasm_PutByValue.assert_failure_3
+    ldr x1, [x0, x3, lsl #3]
+    lsr x9, x1, #48
     mov w10, #65532
     cmp x9, x10
     b.eq .Lasm_PutByValue.ssa_block_3
-    ldrb w9, [x0, #12]
-    cbz w9, .Lasm_PutByValue.ssa_block_3
-    ldr w0, [x21, #12]
-    ldr x0, [x27, x0, lsl #3]
-    str x0, [x1, x2, lsl #3]
+    ldr w1, [x21, #12]
+    ldr x1, [x27, x1, lsl #3]
+    str x1, [x0, x3, lsl #3]
     ldrb w9, [x21, #32]
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
@@ -5273,18 +5273,18 @@ asm_handler_PutById:
     ldr w9, [x1, #52]
     cmp w9, w4
     b.ne .Lasm_PutById.ssa_block_2
-    ldr x1, [x2, #32]
-    cbz x1, .Lasm_PutById.assert_failure_2
-    ldr x2, [x1, x3, lsl #3]
-    lsr x9, x2, #48
+    ldrb w9, [x0, #12]
+    cbz w9, .Lasm_PutById.ssa_block_2
+    ldr x0, [x2, #32]
+    cbz x0, .Lasm_PutById.assert_failure_2
+    ldr x1, [x0, x3, lsl #3]
+    lsr x9, x1, #48
     mov w10, #65532
     cmp x9, x10
     b.eq .Lasm_PutById.ssa_block_2
-    ldrb w9, [x0, #12]
-    cbz w9, .Lasm_PutById.ssa_block_2
-    ldr w0, [x21, #12]
-    ldr x0, [x27, x0, lsl #3]
-    str x0, [x1, x3, lsl #3]
+    ldr w1, [x21, #12]
+    ldr x1, [x27, x1, lsl #3]
+    str x1, [x0, x3, lsl #3]
     ldrb w9, [x21, #32]
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]

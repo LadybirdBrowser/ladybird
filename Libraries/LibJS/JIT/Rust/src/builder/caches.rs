@@ -144,13 +144,11 @@ impl CacheEntry {
                     offset: entry.property_offset,
                 },
             ),
-            // NB: Additions are only speculated for shapes that are no
-            //     dictionaries.
-            PropertyCacheEntryType::AddOwnProperty if !entry.shape_is_dictionary => (
-                entry.from_shape?,
+            PropertyCacheEntryType::AddOwnProperty => (
+                entry.shape?,
                 Action::Add {
                     offset: entry.property_offset,
-                    shape: entry.shape?,
+                    shape: entry.new_shape?,
                     prototype_chain: entry
                         .prototype_chain_validity
                         .map(|validity| (validity, entry.prototype_chain_valid)),
@@ -163,7 +161,7 @@ impl CacheEntry {
                 shape,
                 dictionary_generation: entry.shape_is_dictionary.then_some(entry.shape_dictionary_generation),
             },
-            // NB: For additions, the stable shape would be the new one.
+            // NB: Additions take objects off the shape.
             stable: entry.shape_is_stable && !matches!(action, Action::Add { .. }),
             key: entry.key.map(|cell| (entry.key_value, cell)),
             action,

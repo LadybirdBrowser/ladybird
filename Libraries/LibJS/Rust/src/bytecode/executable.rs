@@ -68,7 +68,7 @@ pub struct PropertyLookupCacheEntryData {
     pub property_offset: u32,
     pub shape_dictionary_generation: u32,
     pub writes_data_property: bool,
-    pub from_shape: Option<Gc<Shape>>,
+    pub new_shape: Option<Gc<Shape>>,
     pub shape: Option<Gc<Shape>>,
     pub prototype: Option<Gc<Object>>,
     pub prototype_chain_validity: Option<Gc<WatchpointSet>>,
@@ -84,7 +84,7 @@ impl Default for PropertyLookupCacheEntryData {
             property_offset: 0,
             shape_dictionary_generation: 0,
             writes_data_property: false,
-            from_shape: None,
+            new_shape: None,
             shape: None,
             prototype: None,
             prototype_chain_validity: None,
@@ -95,15 +95,6 @@ impl Default for PropertyLookupCacheEntryData {
 }
 
 impl PropertyLookupCacheEntryData {
-    /// The shape an entry is looked up by: the shape before the addition for AddOwnProperty, the receiver's shape
-    /// otherwise.
-    pub fn lookup_shape(&self) -> Option<Gc<Shape>> {
-        if self.entry_type == PropertyLookupCacheEntryType::AddOwnProperty {
-            return self.from_shape;
-        }
-        self.shape
-    }
-
     fn has_same_cache_key_as(&self, other: &Self) -> bool {
         if self.entry_type == PropertyLookupCacheEntryType::Empty
             || other.entry_type == PropertyLookupCacheEntryType::Empty
@@ -116,7 +107,7 @@ impl PropertyLookupCacheEntryData {
 
         match self.entry_type {
             PropertyLookupCacheEntryType::AddOwnProperty => {
-                self.from_shape == other.from_shape && self.shape == other.shape
+                self.shape == other.shape && self.new_shape == other.new_shape
             }
             PropertyLookupCacheEntryType::ChangeOwnProperty
             | PropertyLookupCacheEntryType::GetOwnProperty
@@ -132,7 +123,7 @@ impl PropertyLookupCacheEntryData {
 
     fn has_dead_cell(&self, sweep: &Sweep<'_>) -> bool {
         (self.key != 0 && sweep.is_dead(Value::from_bits(self.key).as_cell()))
-            || self.from_shape.is_some_and(|shape| sweep.is_dead(shape))
+            || self.new_shape.is_some_and(|shape| sweep.is_dead(shape))
             || self.shape.is_some_and(|shape| sweep.is_dead(shape))
             || self.prototype.is_some_and(|prototype| sweep.is_dead(prototype))
             || self
@@ -156,7 +147,7 @@ impl PropertyLookupCacheEntry {
             property_offset: Cell::new(data.property_offset),
             shape_dictionary_generation: Cell::new(data.shape_dictionary_generation),
             writes_data_property: Cell::new(data.writes_data_property),
-            from_shape: Cell::new(data.from_shape),
+            new_shape: Cell::new(data.new_shape),
             shape: Cell::new(data.shape),
             prototype: Cell::new(data.prototype),
             prototype_chain_validity: Cell::new(data.prototype_chain_validity),
@@ -171,7 +162,7 @@ impl PropertyLookupCacheEntry {
             property_offset: self.property_offset.get(),
             shape_dictionary_generation: self.shape_dictionary_generation.get(),
             writes_data_property: self.writes_data_property.get(),
-            from_shape: self.from_shape.get(),
+            new_shape: self.new_shape.get(),
             shape: self.shape.get(),
             prototype: self.prototype.get(),
             prototype_chain_validity: self.prototype_chain_validity.get(),
@@ -185,7 +176,7 @@ impl PropertyLookupCacheEntry {
         self.property_offset.set(data.property_offset);
         self.shape_dictionary_generation.set(data.shape_dictionary_generation);
         self.writes_data_property.set(data.writes_data_property);
-        self.from_shape.set(data.from_shape);
+        self.new_shape.set(data.new_shape);
         self.shape.set(data.shape);
         self.prototype.set(data.prototype);
         self.prototype_chain_validity.set(data.prototype_chain_validity);
@@ -288,7 +279,7 @@ fn megamorphic_secondary_index(shape: Gc<Shape>, key: u64) -> usize {
 fn megamorphic_slot_for_shape(data: &MegamorphicData, shape: Gc<Shape>, key: u64) -> Option<&PropertyLookupCacheEntry> {
     let is_for_shape = |slot: &&PropertyLookupCacheEntry| {
         let entry = slot.get();
-        entry.lookup_shape() == Some(shape) && entry.key == key
+        entry.shape == Some(shape) && entry.key == key
     };
     Some(&data.primary_entries[megamorphic_primary_index(shape, key)])
         .filter(is_for_shape)
@@ -296,11 +287,11 @@ fn megamorphic_slot_for_shape(data: &MegamorphicData, shape: Gc<Shape>, key: u64
 }
 
 fn insert_megamorphic_entry(data: &MegamorphicData, entry: &PropertyLookupCacheEntryData) {
-    let lookup_shape = entry.lookup_shape().expect("a megamorphic entry has a lookup shape");
+    let lookup_shape = entry.shape.expect("a megamorphic entry has a shape");
 
     let primary_entry = &data.primary_entries[megamorphic_primary_index(lookup_shape, entry.key)];
     let primary = primary_entry.get();
-    if let Some(displaced_shape) = primary.lookup_shape()
+    if let Some(displaced_shape) = primary.shape
         && (displaced_shape != lookup_shape || primary.key != entry.key)
     {
         data.secondary_entries[megamorphic_secondary_index(displaced_shape, primary.key)].set(primary);
@@ -471,12 +462,10 @@ impl PropertyLookupCache {
             // NB: A keyed access that keeps missing cycles through more keys than the cache can hold, and filling it
             //     would cost more than it saves.
             if new_entry.key != 0 {
-                let lookup_shape = new_entry
-                    .lookup_shape()
-                    .expect("a megamorphic entry has a lookup shape");
+                let lookup_shape = new_entry.shape.expect("a megamorphic entry has a shape");
                 let is_known = |entry: &PropertyLookupCacheEntry| {
                     let entry = entry.get();
-                    entry.lookup_shape() == Some(lookup_shape) && entry.key == new_entry.key
+                    entry.shape == Some(lookup_shape) && entry.key == new_entry.key
                 };
                 let known = is_known(&data.primary_entries[megamorphic_primary_index(lookup_shape, new_entry.key)])
                     || is_known(&data.secondary_entries[megamorphic_secondary_index(lookup_shape, new_entry.key)]);
@@ -566,7 +555,7 @@ impl PropertyLookupCache {
         });
         for entry in entries.iter().rev() {
             let entry = entry.get();
-            if entry.lookup_shape().is_some() {
+            if entry.shape.is_some() {
                 insert_megamorphic_entry(&new_data, &entry);
             }
         }

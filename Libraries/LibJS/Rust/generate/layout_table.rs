@@ -217,7 +217,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_PROPERTY_OFFSET", "PropertyLookupCache.property_offset", "u32", PropertyLookupCacheEntry, property_offset, 4, "nullable", "scalar", "cache_details");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_DICTIONARY_GENERATION", "PropertyLookupCache.shape_dictionary_generation", "u32", PropertyLookupCacheEntry, shape_dictionary_generation, 4, "nullable", "scalar", "cache_details");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_WRITES_DATA_PROPERTY", "PropertyLookupCache.writes_data_property", "bool", PropertyLookupCacheEntry, writes_data_property, 1, "nullable", "scalar");
-    offset!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_FROM_SHAPE", PropertyLookupCacheEntry, from_shape);
+    offset!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_NEW_SHAPE", PropertyLookupCacheEntry, new_shape);
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_SHAPE", "PropertyLookupCache.shape", "Shape", PropertyLookupCacheEntry, shape, 8, "nullable", "cell", "cache_target");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE", "PropertyLookupCache.prototype", "Object", PropertyLookupCacheEntry, prototype, 8, "nullable", "cell", "cache_target");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE_CHAIN_VALIDITY", "PropertyLookupCache.prototype_chain_validity", "WatchpointSet", PropertyLookupCacheEntry, prototype_chain_validity, 8, "nullable", "cell");
