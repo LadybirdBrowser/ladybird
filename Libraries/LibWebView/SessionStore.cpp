@@ -26,6 +26,7 @@ static constexpr u32 SESSIONS_SCHEMA_PINNED_TABS_VERSION = 5u;
 static constexpr u32 SESSIONS_SCHEMA_SESSION_LIFECYCLE_VERSION = 6u;
 static constexpr u32 SESSIONS_SCHEMA_LAUNCH_RESTORE_VERSION = 7u;
 static constexpr u32 SESSIONS_SCHEMA_WINDOW_GEOMETRY_VERSION = 8u;
+static constexpr u32 SESSIONS_SCHEMA_UPGRADE_INSECURE_REQUESTS_VERSION = 9u;
 
 // After this many unclean exits in a row, launch restore stops, so a session that crashes the browser doesn't restore
 // into the same crash every time.
@@ -272,6 +273,22 @@ ErrorOr<Database::MigrationOutcome> SessionStore::PersistedStorage::migrate_sche
                 ALTER TABLE Sessions ADD COLUMN width INTEGER;
                 ALTER TABLE Sessions ADD COLUMN height INTEGER;
                 ALTER TABLE Sessions ADD COLUMN maximized INTEGER NOT NULL DEFAULT 0;
+            )#"sv,
+        },
+        {
+            .version = SESSIONS_SCHEMA_UPGRADE_INSECURE_REQUESTS_VERSION,
+            .sql = R"#(
+                ALTER TABLE SessionPolicyContainers ADD COLUMN insecure_requests_policy INTEGER NOT NULL DEFAULT 0;
+
+                CREATE TABLE IF NOT EXISTS SessionUpgradeInsecureNavigations (
+                    container_id INTEGER NOT NULL REFERENCES SessionPolicyContainers(id) ON DELETE CASCADE,
+                    tuple_ordinal INTEGER NOT NULL,
+                    host TEXT NOT NULL,
+                    port INTEGER
+                );
+
+                CREATE UNIQUE INDEX IF NOT EXISTS SessionUpgradeInsecureNavigationsByContainerIndex
+                ON SessionUpgradeInsecureNavigations(container_id, tuple_ordinal);
             )#"sv,
         },
     });
@@ -1388,7 +1405,9 @@ static bool serialized_policy_containers_match(Web::HTML::SerializedPolicyContai
     return serialized_policies_match(a.csp_list, b.csp_list)
         && embedder_policies_match(a.embedder_policy, b.embedder_policy)
         && a.referrer_policy == b.referrer_policy
-        && a.force_load_at_top == b.force_load_at_top;
+        && a.force_load_at_top == b.force_load_at_top
+        && a.insecure_requests_policy == b.insecure_requests_policy
+        && a.upgrade_insecure_navigations_set.tuples() == b.upgrade_insecure_navigations_set.tuples();
 }
 
 static bool history_policy_containers_match(Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentStateClient> const& a, Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentStateClient> const& b)
