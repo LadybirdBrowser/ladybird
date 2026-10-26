@@ -31,7 +31,7 @@ jobs:
 
     secrets:
       VCPKG_CACHE_SAS: ${{ secrets.VCPKG_CACHE_SAS }}
-    uses: ./.github/workflows/lagom-template.yml
+    uses: ./.github/workflows/build-and-test.yml
     with:
       toolchain: 'Clang'
       os_name: ${{ matrix.os_name }}

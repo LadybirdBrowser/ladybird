@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # CI matrix - runs the job in lagom-template.yml with different configurations.
+  # CI matrix - runs the job in build-and-test.yml with different configurations.
   Lagom:
     if: github.repository == 'LadybirdBrowser/ladybird'
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}, ${{ matrix.build_preset }}, ${{ matrix.toolchain }}
@@ -60,7 +60,7 @@ jobs:
             container: 'null'
 
     secrets: inherit
-    uses: ./.github/workflows/lagom-template.yml
+    uses: ./.github/workflows/build-and-test.yml
     with:
       toolchain: ${{ matrix.toolchain }}
       os_name: ${{ matrix.os_name }}
