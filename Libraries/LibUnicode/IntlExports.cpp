@@ -174,9 +174,13 @@ extern "C" bool unicode_remove_likely_subtags(UnicodeIntlText locale, UnicodeTex
     return true;
 }
 
-extern "C" bool unicode_is_locale_character_ordering_right_to_left(UnicodeIntlText locale)
+extern "C" bool unicode_is_script_right_to_left(UnicodeIntlText script, bool* right_to_left)
 {
-    return Unicode::is_locale_character_ordering_right_to_left(text_view(locale));
+    auto result = Unicode::is_script_right_to_left(text_view(script));
+    if (!result.has_value())
+        return false;
+    *right_to_left = *result;
+    return true;
 }
 
 extern "C" void unicode_available_keyword_values(UnicodeIntlText locale, UnicodeIntlText key, void* context, UnicodeAppendString append)

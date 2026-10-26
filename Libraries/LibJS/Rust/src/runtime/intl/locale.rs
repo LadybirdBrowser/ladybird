@@ -449,26 +449,34 @@ pub fn time_zones_of_locale(vm: &Vm, locale_object: &Locale) -> Value {
 }
 
 // 15.5.14 TextDirectionOfLocale ( loc ), https://tc39.es/ecma402/#sec-textdirectionoflocale
-pub fn text_direction_of_locale(locale_object: &Locale) -> &'static str {
+pub fn text_direction_of_locale(locale_object: &Locale) -> Option<&'static str> {
     // 1. Let locale be loc.[[Locale]].
     let locale = locale_object.locale();
 
     // 2. Let script be GetLocaleScript(locale).
+    let locale_id = locale_object.locale_id();
+
     // 3. If script is undefined, then
-    //     a. Let maximal be the result of the Add Likely Subtags algorithm applied to locale. If an error is signaled, return undefined.
-    //     b. Set script to GetLocaleScript(maximal).
-    //     c. If script is undefined, return undefined.
-    // NB: ICU handles maximizing the locale if there is no script.
+    let script = if let Some(script) = locale_id.language_id.script {
+        script
+    } else {
+        // a. Let maximal be the result of the Add Likely Subtags algorithm applied to locale. If an error is signaled, return undefined.
+        let maximal = unicode::add_likely_subtags(Utf16View::of_string(&locale))?;
+
+        // b. Set script to GetLocaleScript(maximal).
+        let script = unicode::parse_unicode_locale_id(Utf16View::of_string(&maximal))?
+            .language_id
+            .script;
+
+        // c. If script is undefined, return undefined.
+        script?
+    };
 
     // 4. If the default general ordering of characters within a line in script is right-to-left, return "rtl".
     // 5. If the default general ordering of characters within a line in script is left-to-right, return "ltr".
     // 6. Return undefined.
-    // FIXME: ICU does not provide a method to determine if a locale is neither rtl nor ltr.
-    if unicode::is_locale_character_ordering_right_to_left(Utf16View::of_string(&locale)) {
-        "rtl"
-    } else {
-        "ltr"
-    }
+    unicode::is_script_right_to_left(Utf16View::of_string(&script))
+        .map(|right_to_left| if right_to_left { "rtl" } else { "ltr" })
 }
 
 struct FirstDayStringAndValue {

@@ -51,7 +51,7 @@ void unicode_canonicalize_unicode_extension_values(UnicodeIntlText key, UnicodeI
 bool unicode_is_locale_available(UnicodeIntlText locale);
 bool unicode_add_likely_subtags(UnicodeIntlText locale, UnicodeTextMappingOutput);
 bool unicode_remove_likely_subtags(UnicodeIntlText locale, UnicodeTextMappingOutput);
-bool unicode_is_locale_character_ordering_right_to_left(UnicodeIntlText locale);
+bool unicode_is_script_right_to_left(UnicodeIntlText script, bool* right_to_left);
 
 void unicode_available_keyword_values(UnicodeIntlText locale, UnicodeIntlText key, void* context, UnicodeAppendString);
 void unicode_available_calendars(void* context, UnicodeAppendString);

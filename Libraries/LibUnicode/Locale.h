@@ -196,6 +196,6 @@ Utf16String style_to_string(Style style);
 Optional<Utf16String> add_likely_subtags(Utf16View);
 Optional<Utf16String> remove_likely_subtags(Utf16View);
 
-bool is_locale_character_ordering_right_to_left(Utf16View locale);
+Optional<bool> is_script_right_to_left(Utf16View script);
 
 }

@@ -296,15 +296,13 @@ impl LocalePrototype {
         let info = Object::create(vm, realm, Some(realm.object_prototype()));
 
         // 4. Let dir be TextDirectionOfLocale(loc).
-        let direction = text_direction_of_locale(&locale_object);
+        let direction = text_direction_of_locale(&locale_object)
+            .map(|direction| Value::from_string(PrimitiveString::create_from_utf8(vm, direction)))
+            .unwrap_or(Value::UNDEFINED);
 
         // 5. Perform ! CreateDataPropertyOrThrow(info, "direction", dir).
-        info.create_data_property_or_throw(
-            vm,
-            &vm.names.direction,
-            Value::from_string(PrimitiveString::create_from_utf8(vm, direction)),
-        )
-        .must();
+        info.create_data_property_or_throw(vm, &vm.names.direction, direction)
+            .must();
 
         // 6. Return info.
         Ok(Value::from_object(info))
