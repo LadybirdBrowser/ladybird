@@ -2,6 +2,7 @@ set(TEST_SOURCES
     TestCSSPixels.cpp
     TestGamepadSharedState.cpp
     TestGamepadStateBuffer.cpp
+    TestInsecureRequestsPolicy.cpp
     TestKeyEvent.cpp
     TestPermissionsPolicy.cpp
     TestSiteCompatibility.cpp
@@ -17,6 +18,7 @@ endforeach()
 
 target_link_libraries(TestSiteCompatibility PRIVATE LibURL)
 target_link_libraries(TestGamepadStateBuffer PRIVATE LibCore LibIPC)
+target_link_libraries(TestInsecureRequestsPolicy PRIVATE LibIPC)
 target_link_libraries(TestKeyEvent PRIVATE LibIPC)
 target_link_libraries(TestPermissionsPolicy PRIVATE LibHTTP LibIPC LibURL)
 target_link_libraries(TestStorageEndpoint PRIVATE LibIPC)

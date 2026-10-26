@@ -52,3 +52,5 @@ template<>
 WEBCOMMON_API ErrorOr<Web::UpgradeInsecureRequests::UpgradeInsecureNavigationsSet> decode(Decoder&);
 
 }
+
+#include <LibWebCommon/UpgradeInsecureRequests/InsecureRequestsPolicyCodecs.h>
