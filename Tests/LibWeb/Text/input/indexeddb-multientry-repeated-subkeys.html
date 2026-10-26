@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    spoofCurrentURL("https://example.com/indexeddb-multientry-repeated-subkeys.html");
+
+    const dbName = "test-multientry-repeated-subkeys-" + Date.now() + Math.random();
+    const request = indexedDB.open(dbName, 1);
+
+    request.onupgradeneeded = event => {
+        const store = event.target.result.createObjectStore("store");
+        store.createIndex("byTag", "tags", { multiEntry: true });
+        store.put({ tags: ["a", "a", "b", ["c"], ["c"]] }, 1);
+    };
+
+    request.onsuccess = event => {
+        const db = event.target.result;
+        const index = db.transaction("store", "readonly").objectStore("store").index("byTag");
+        index.getAllKeys().onsuccess = event => {
+            println(`index records: ${event.target.result.length}`);
+            db.close();
+            indexedDB.deleteDatabase(dbName);
+            done();
+        };
+    };
+});
+</script>
