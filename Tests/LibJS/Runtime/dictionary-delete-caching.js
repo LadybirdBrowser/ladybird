@@ -163,4 +163,23 @@ describe("dictionary mode objects remain cacheable after property deletion", () 
         expect(Object.getOwnPropertyDescriptor(obj, "prop24").value).toBe(24);
         expect(Object.getOwnPropertyDescriptor(obj, "prop26").value).toBe(26);
     });
+
+    test("delete after the dictionary generation reaches its limit", () => {
+        let obj = makeDictionaryObject();
+        obj.last = "value";
+        setDictionaryGeneration(obj, 1000);
+
+        function readLast(object) {
+            return object.last;
+        }
+        expect(readLast(obj)).toBe("value");
+
+        setDictionaryGeneration(obj, 2 ** 32 - 1);
+        delete obj.last;
+        for (let i = 0; i < 999; i++) {
+            Object.defineProperty(obj, "prop0", { enumerable: i % 2 === 1 });
+        }
+        obj.other = "other";
+        expect(readLast(obj)).toBeUndefined();
+    });
 });

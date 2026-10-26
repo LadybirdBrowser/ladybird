@@ -784,6 +784,13 @@ impl Object {
         self.shape.set(self.shape().create_dictionary_transition(vm));
     }
 
+    fn dictionary_shape_to_change_in_place(&self, vm: &Vm) -> Gc<Shape> {
+        if self.shape().dictionary_generation() == u32::MAX {
+            self.invalidate_property_lookup_caches(vm);
+        }
+        self.shape()
+    }
+
     // 7.2 Testing and Comparison Operations, https://tc39.es/ecma262/#sec-testing-and-comparison-operations
 
     // 7.2.5 IsExtensible ( O ), https://tc39.es/ecma262/#sec-isextensible-o
@@ -2868,7 +2875,8 @@ impl Object {
         if attributes != metadata.attributes {
             let shape = self.shape();
             if shape.is_dictionary() {
-                shape.set_property_attributes_without_transition(vm, property_key, attributes);
+                self.dictionary_shape_to_change_in_place(vm)
+                    .set_property_attributes_without_transition(vm, property_key, attributes);
             } else {
                 self.shape
                     .set(shape.create_configure_transition(vm, property_key, attributes));
@@ -2902,7 +2910,8 @@ impl Object {
 
         let shape = self.shape();
         if shape.is_dictionary() {
-            shape.add_property_without_transition(vm, property_key, attributes);
+            self.dictionary_shape_to_change_in_place(vm)
+                .add_property_without_transition(vm, property_key, attributes);
         } else {
             self.shape
                 .set(shape.create_put_transition(vm, property_key, attributes));
@@ -2938,7 +2947,8 @@ impl Object {
 
         let shape = self.shape();
         if shape.is_dictionary() {
-            shape.remove_property_without_transition(vm, property_key, metadata.offset);
+            self.dictionary_shape_to_change_in_place(vm)
+                .remove_property_without_transition(vm, property_key, metadata.offset);
         } else {
             self.shape.set(shape.create_delete_transition(vm, property_key));
         }

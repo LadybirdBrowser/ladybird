@@ -907,8 +907,9 @@ impl Shape {
     }
 
     fn increment_dictionary_generation(&self) {
-        self.dictionary_generation
-            .set(self.dictionary_generation.get().wrapping_add(1));
+        let generation = self.dictionary_generation.get();
+        assert!(generation < u32::MAX);
+        self.dictionary_generation.set(generation + 1);
     }
 
     pub fn clone_for_prototype(&self, vm: &Vm) -> Gc<Shape> {
