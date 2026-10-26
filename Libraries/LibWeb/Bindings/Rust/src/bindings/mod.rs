@@ -21,6 +21,7 @@
 pub(crate) mod async_iterable;
 pub(crate) mod callback;
 pub(crate) mod conversions;
+pub(crate) mod cpp_cell;
 #[cfg(web_idl_bindings)]
 pub(crate) mod generated;
 pub(crate) mod interface;
