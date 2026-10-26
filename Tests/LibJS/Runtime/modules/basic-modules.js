@@ -344,6 +344,24 @@ describe("scoping in modules", () => {
 });
 
 describe("top-level await", () => {
+    test("await continuations interleave with chained promise reactions", () => {
+        const result = expectModulePassed("./top-level-await-job-order.mjs");
+        const ticksFirst = ["tick 1", "await 1", "tick 2", "await 2", "tick 3", "await 3", "tick 4", "await 4"];
+        for (const order of result.ordersAfterAwait) {
+            expect(order).toEqual(ticksFirst);
+        }
+        expect(result.orderBeforeAwait).toEqual([
+            "await 1",
+            "tick 1",
+            "await 2",
+            "tick 2",
+            "await 3",
+            "tick 3",
+            "await 4",
+            "tick 4",
+        ]);
+    });
+
     test("for await at the top level", () => {
         const result = expectModulePassed("./top-level-for-await.mjs");
         expect(result.result).toEqual([1, 2, "a", "b", "closed", "first", "iterator failed", "1x", "2x"]);

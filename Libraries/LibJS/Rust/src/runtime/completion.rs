@@ -209,7 +209,7 @@ pub fn r#await(vm: &Vm, value: Value) -> ThrowCompletionOr<Value> {
         );
 
     // FIXME: Since we don't support context suspension, we attempt to "wait" for the promise to resolve
-    //        by synchronously running all queued promise jobs.
+    //        by synchronously running queued promise jobs until it settles.
     if let Some(agent) = vm.agent().embedder_agent {
         // Embedder case (i.e. LibWeb). Runs all promise jobs by performing a microtask checkpoint.
         // NB: The goal condition reads the outcome itself, as a copy taken before the promise settles would never
@@ -217,7 +217,7 @@ pub fn r#await(vm: &Vm, value: Value) -> ThrowCompletionOr<Value> {
         agent.spin_event_loop_until(vm, &|| awaited_completion.success.get().is_some());
     } else {
         // No embedder, standalone LibJS implementation
-        vm.run_queued_promise_jobs();
+        vm.run_queued_promise_jobs_for_await(|| awaited_completion.success.get().is_some());
     }
 
     // 8. Remove asyncContext from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
