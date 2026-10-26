@@ -16,3 +16,10 @@ Invalid stronger digest: PASS
 Invalid strongest digest: PASS
 Valid strongest digest: PASS
 Matching digest at same strength: PASS
+Uppercase SHA-256: PASS
+Mixed-case SHA-512: PASS
+Mismatching uppercase SHA-256: PASS
+Mismatching mixed-case SHA-384: PASS
+Invalid uppercase stronger digest: PASS
+Valid mixed-case strongest digest: PASS
+Matching mixed-case digest at same strength: PASS

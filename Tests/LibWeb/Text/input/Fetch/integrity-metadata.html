@@ -16,6 +16,8 @@
             "sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==";
         const base64url = metadata => metadata.replaceAll("+", "-").replaceAll("/", "_");
         const unpadded = metadata => metadata.replace(/=+$/, "");
+        const uppercase = metadata => metadata.replace(/^sha/, "SHA");
+        const mixedCase = metadata => metadata.replace(/^sha/, "ShA");
         // NB: A different first base64 character keeps the encoding valid but changes the digest.
         const wrong = metadata => metadata.replace(/-./, "-A");
         const cases = [
@@ -37,6 +39,13 @@
             ["Invalid strongest digest", `${sha384} ${unpadded(base64url(wrong(sha512)))}`, false],
             ["Valid strongest digest", `${wrong(sha384)} ${unpadded(base64url(sha512))}`, true],
             ["Matching digest at same strength", `${wrong(sha512)} ${base64url(sha512)}`, true],
+            ["Uppercase SHA-256", uppercase(sha256), true],
+            ["Mixed-case SHA-512", mixedCase(sha512), true],
+            ["Mismatching uppercase SHA-256", uppercase(wrong(sha256)), false],
+            ["Mismatching mixed-case SHA-384", mixedCase(wrong(sha384)), false],
+            ["Invalid uppercase stronger digest", `${sha256} ${uppercase(wrong(sha384))}`, false],
+            ["Valid mixed-case strongest digest", `${uppercase(wrong(sha384))} ${mixedCase(sha512)}`, true],
+            ["Matching mixed-case digest at same strength", `${wrong(sha256)} ${mixedCase(sha256)}`, true],
         ];
         for (const [label, integrity, shouldPass] of cases) {
             let response;

@@ -22,10 +22,13 @@ constexpr Array supported_hash_functions {
     "sha512"sv,
 };
 
-static bool is_supported_hash_function(Utf16View algorithm)
+// https://w3c.github.io/webappsec-subresource-integrity/#valid-sri-hash-algorithm-token
+static bool is_valid_sri_hash_algorithm_token(Utf16View string)
 {
+    // A string is a valid SRI hash algorithm token if its ASCII lowercase is contained in the valid SRI hash algorithm
+    // token set.
     for (auto supported_hash_function : supported_hash_functions) {
-        if (algorithm == supported_hash_function)
+        if (string.equals_ignoring_ascii_case(supported_hash_function))
             return true;
     }
     return false;
@@ -99,21 +102,23 @@ ErrorOr<Vector<Metadata>> parse_metadata(Utf16View metadata)
         // 5. Let algorithm be hash-expr-token-list[0].
         auto algorithm = hash_expr_token_list[0];
 
-        // 6. If hash-expr-token-list[1] exists, set base64-value to hash-expr-token-list[1].
+        // 6. If algorithm is not a valid SRI hash algorithm token, then continue.
+        if (!is_valid_sri_hash_algorithm_token(algorithm))
+            continue;
+
+        // 7. If hash-expr-token-list[1] exists, set base64-value to hash-expr-token-list[1].
         // INTEROP: A base64url-encoded value contains "-" itself, so like other engines, take everything after the
         //          first "-" as the value.
         if (hash_expr_token_list.size() > 1)
             base64_value = hash_expression.substring_view(algorithm.length_in_code_units() + 1);
 
-        // 7. If algorithm is not a hash function recognized by the user agent, continue.
-        if (!is_supported_hash_function(algorithm))
-            continue;
-
         // 8. Let metadata be the ordered map «["alg" → algorithm, "val" → base64-value]».
         //    Note: Since no options are defined (see the §3.1 Integrity metadata), a corresponding entry is not set in metadata.
         //    If options are defined in a future version, hash-with-opt-token-list[1] can be utilized as options.
+        // AD-HOC: Store algorithm in ASCII lowercase, since later steps look it up in the valid SRI hash algorithm token
+        //         set, which only contains lowercase tokens.
         auto metadata = Metadata {
-            .algorithm = TRY(algorithm.to_utf8()),
+            .algorithm = algorithm.to_ascii_lowercase().to_utf8(),
             .base64_value = TRY(base64_value.to_utf8()),
             .options = {},
         };
