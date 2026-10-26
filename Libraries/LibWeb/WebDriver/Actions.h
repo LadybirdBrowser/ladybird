@@ -120,9 +120,14 @@ struct WEB_API ActionObject {
 struct ActionsOptions {
     using IsElementOrigin = bool (*)(JsonValue const&);
     using GetElementOrigin = ErrorOr<GC::Ref<DOM::Element>, WebDriver::Error> (*)(HTML::BrowsingContext const&, StringView);
+    using ExtractElementOrigin = String (*)(JsonObject const&);
 
     IsElementOrigin is_element_origin { nullptr };
     GetElementOrigin get_element_origin { nullptr };
+
+    // NB: Extract the reference passed to the get element origin steps. By default, use a WebDriver classic web
+    //     element reference.
+    ExtractElementOrigin extract_element_origin { nullptr };
 };
 
 using OnActionsComplete = GC::Ref<GC::Function<void(Web::WebDriver::Response)>>;

@@ -59,9 +59,11 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
+#include <LibWeb/WebDriver/InputState.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
+#include <LibWebCommon/WebDriver/Input.h>
 #include <LibWebCommon/WebView/Debugger.h>
 #include <LibWebCommon/WebView/ZoomLevel.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -165,6 +167,8 @@ void PageClient::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_page);
+    for (auto& command : m_webdriver_input_commands)
+        visitor.visit(command.value);
     visitor.visit(m_top_level_document_console_client);
     for (auto& range : m_pending_text_fragment_generation_ranges)
         visitor.visit(range.value);
@@ -2133,6 +2137,8 @@ WebDriverConnection& PageClient::ensure_webdriver_session()
 
 void PageClient::run_webdriver_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments)
 {
+    if (Web::WebDriver::is_input_state_command(name) && !prepare_webdriver_input_command(command_id, navigable_id, payload))
+        return;
     ensure_webdriver_session().run_command(command_id, navigable_id, name, move(payload), move(arguments));
 }
 
@@ -2141,8 +2147,44 @@ void PageClient::webdriver_did_set_current_browsing_context(u64 command_id, Web:
     client().async_webdriver_did_set_current_browsing_context(m_id, command_id, navigable_id);
 }
 
+bool PageClient::prepare_webdriver_input_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, JsonValue& payload)
+{
+    auto navigable = navigable_id.has_value() ? page().navigable_with_id(*navigable_id) : GC::Ptr { page().top_level_traversable() };
+    if (!navigable) {
+        webdriver_command_complete(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchFrame, "Browsing context not found"sv));
+        return false;
+    }
+    auto envelope = move(payload).as_object();
+    auto top = navigable->top_level_traversable();
+    auto result = Web::WebDriver::restore_input_state(*top, *envelope.get("__webdriver_input_state"sv));
+    if (result.is_error()) {
+        webdriver_command_complete(command_id, result.release_error());
+        return false;
+    }
+    m_webdriver_input_commands.set(command_id, *top);
+    payload = *envelope.get("__webdriver_input_payload"sv);
+    return true;
+}
+
 void PageClient::webdriver_command_complete(u64 command_id, Web::WebDriver::Response response)
 {
+    if (auto top = m_webdriver_input_commands.take(command_id); top.has_value()) {
+        JsonObject envelope;
+        envelope.set("__webdriver_input_state"sv, Web::WebDriver::serialize_input_state(Web::WebDriver::get_input_state(**top)));
+        if (response.is_error()) {
+            auto error = response.release_error();
+            JsonObject serialized_error;
+            serialized_error.set("httpStatus"sv, error.http_status);
+            serialized_error.set("error"sv, error.error);
+            serialized_error.set("message"sv, error.message);
+            if (error.data.has_value())
+                serialized_error.set("data"sv, error.data.release_value());
+            envelope.set("error"sv, move(serialized_error));
+        } else {
+            envelope.set("value"sv, response.release_value());
+        }
+        response = JsonValue { move(envelope) };
+    }
     client().async_webdriver_command_complete(m_id, command_id, move(response));
 }
 

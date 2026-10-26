@@ -130,7 +130,18 @@ class ReloadHandler(http.server.BaseHTTPRequestHandler):
             server.request_received.set()
             if not server.release_response.wait(30):
                 raise TimeoutError("The test did not release the reload response")
-        body = b"<!doctype html><title>Reload target</title>"
+        if self.path == "/input-parent":
+            body = (
+                '<!doctype html><title>Input parent</title><input id="target">'
+                f'<iframe id="input-child" src="http://localhost:{server.server_port}/input-child"></iframe>'
+            ).encode()
+        elif self.path == "/input-child":
+            body = (
+                '<!doctype html><title>Input child</title><input id="target">'
+                f'<a id="navigate-top" target="_top" href="http://localhost:{server.server_port}/input-child">Navigate top</a>'
+            ).encode()
+        else:
+            body = b"<!doctype html><title>Reload target</title>"
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
         self.send_header("Content-Length", str(len(body)))
@@ -160,6 +171,359 @@ def check_screenshot_handles(bidi, context):
         params["clip"]["element"] = reference
         result = bidi.command("browsingContext.captureScreenshot", params)
         assert base64.b64decode(result["data"]).startswith(b"\x89PNG\r\n\x1a\n"), result
+
+
+def check_input_handles(bidi, context):
+    element = bidi.evaluate(context, "document.body")["result"]
+    for source_type, action in [
+        ("pointer", {"type": "pointerMove", "x": 0, "y": 0}),
+        ("wheel", {"type": "scroll", "x": 0, "y": 0, "deltaX": 0, "deltaY": 0}),
+    ]:
+        origin = {"type": "element", "element": {"sharedId": element["sharedId"]}}
+        params = {
+            "context": context,
+            "actions": [{"type": source_type, "id": source_type, "actions": [{**action, "origin": origin}]}],
+        }
+        try:
+            for handle in [42, None, {}]:
+                origin["element"]["handle"] = handle
+                result = bidi.response(bidi.send("input.performActions", params))
+                assert result["type"] == "error" and result["error"] == "invalid argument", result
+            for reference in [
+                {"sharedId": element["sharedId"]},
+                {"sharedId": element["sharedId"], "handle": "ignored"},
+            ]:
+                origin["element"] = reference
+                bidi.command("input.performActions", params)
+        finally:
+            bidi.command("input.releaseActions", {"context": context})
+
+
+def check_input_queue(bidi, context):
+    bidi.evaluate(
+        context,
+        "window.inputEvents = []; document.onkeydown = event => inputEvents.push(event.type); document.onkeyup = event => inputEvents.push(event.type)",
+    )
+    try:
+        commands = [
+            bidi.send(
+                "input.performActions",
+                {
+                    "context": context,
+                    "actions": [{"type": "key", "id": "keyboard", "actions": [{"type": "keyDown", "value": "a"}]}],
+                },
+            ),
+            bidi.send("input.performActions", {"context": context, "actions": []}),
+            bidi.send("input.releaseActions", {"context": context}),
+        ]
+        for command in commands:
+            result = bidi.response(command)
+            assert result["type"] == "success", result
+        assert bidi.evaluate(context, "inputEvents.join(',')")["result"]["value"] == "keydown,keyup"
+    finally:
+        bidi.evaluate(context, "document.onkeydown = document.onkeyup = null; delete window.inputEvents")
+        bidi.command("input.releaseActions", {"context": context})
+
+
+def check_input_cross_context(bidi, connection, session_id, parent, server):
+    parent_url = f"http://127.0.0.1:{server.server_port}/input-parent"
+    child_url = f"http://localhost:{server.server_port}/input-child"
+    bidi.command("browsingContext.navigate", {"context": parent, "url": parent_url, "wait": "complete"})
+    tree = bidi.command("browsingContext.getTree", {"root": parent})["contexts"][0]
+    assert len(tree["children"]) == 1, tree
+    child = tree["children"][0]["context"]
+    assert tree["children"][0]["url"] == child_url, tree
+    other = bidi.command("browsingContext.create", {"type": "tab", "background": True})["context"]
+    bidi.command(
+        "browsingContext.navigate",
+        {"context": other, "url": f"http://127.0.0.1:{server.server_port}/input-child", "wait": "complete"},
+    )
+
+    def focus(target):
+        bidi.command("browsingContext.activate", {"context": parent if target == child else target})
+        if target == child:
+            bidi.evaluate(parent, "document.getElementById('input-child').focus(); 0")
+        result = bidi.evaluate(target, "document.getElementById('target').focus(); document.hasFocus()")
+        assert result["result"]["value"] is True, result
+
+    def events(target):
+        return json.loads(bidi.evaluate(target, "JSON.stringify(inputEvents)")["result"]["value"])
+
+    def clear_events():
+        for target in [parent, child, other]:
+            bidi.evaluate(target, "inputEvents = []; 0")
+
+    def key_sequence(*actions, source_id="shared-keyboard"):
+        return [
+            {"type": "key", "id": source_id, "actions": [{"type": kind, "value": value} for kind, value in actions]}
+        ]
+
+    def keys(target, *actions, source_id="shared-keyboard"):
+        bidi.command(
+            "input.performActions", {"context": target, "actions": key_sequence(*actions, source_id=source_id)}
+        )
+
+    def release(target):
+        bidi.command("input.releaseActions", {"context": target})
+
+    def classic(method, suffix, payload=None):
+        status, result, _ = helpers.request(connection, method, f"/session/{session_id}/{suffix}", payload)
+        assert status == 200, result
+        return result["value"]
+
+    for target in [parent, child, other]:
+        bidi.evaluate(
+            target,
+            """window.inputEvents = [];
+            for (const type of ['keydown', 'keyup']) {
+                document.addEventListener(type, event => inputEvents.push([
+                    event.type, event.key, event.shiftKey, event.repeat
+                ]));
+            }""",
+        )
+
+    try:
+        # Releasing from an OOP child must release keys pressed in its parent and reset the shared source.
+        focus(parent)
+        keys(parent, ("keyDown", "a"))
+        assert events(parent) == [["keydown", "a", False, False]], events(parent)
+        focus(child)
+        release(child)
+        assert events(child) == [["keyup", "a", False, False]], (events(parent), events(child))
+        focus(parent)
+        keys(parent, ("keyDown", "a"))
+        assert events(parent) == [["keydown", "a", False, False], ["keydown", "a", False, False]], events(parent)
+        release(parent)
+
+        # Updates from both processes accumulate, including the reverse-order cancel list.
+        clear_events()
+        keys(parent, ("keyDown", "a"))
+        focus(child)
+        keys(child, ("keyDown", "b"))
+        focus(parent)
+        release(parent)
+        assert events(parent) == [
+            ["keydown", "a", False, False],
+            ["keyup", "b", False, False],
+            ["keyup", "a", False, False],
+        ], events(parent)
+        focus(child)
+        keys(child, ("keyDown", "b"))
+        assert events(child) == [["keydown", "b", False, False], ["keydown", "b", False, False]], events(child)
+        release(child)
+
+        # Modifiers cross frame processes, but another top-level tab has an independent input state.
+        clear_events()
+        focus(parent)
+        keys(parent, ("keyDown", "\ue008"))
+        focus(other)
+        keys(other, ("keyDown", "a"))
+        assert events(other) == [["keydown", "a", False, False]], events(other)
+        release(other)
+        focus(child)
+        keys(child, ("keyDown", "a"))
+        assert events(child) == [["keydown", "A", True, False]], events(child)
+        release(child)
+        assert events(child) == [
+            ["keydown", "A", True, False],
+            ["keyup", "A", True, False],
+            ["keyup", "Shift", False, False],
+        ], events(child)
+        focus(parent)
+        keys(parent, ("keyDown", "a"))
+        assert events(parent)[-1] == ["keydown", "a", False, False], events(parent)
+        release(parent)
+
+        # A source ID has one type throughout a tab, including when a different process parses the next command.
+        clear_events()
+        keys(parent, ("keyDown", "c"), source_id="cross-context-source")
+        conflicting = [{"type": "pointer", "id": "cross-context-source", "actions": [{"type": "pause"}]}]
+        result = bidi.response(bidi.send("input.performActions", {"context": child, "actions": conflicting}))
+        assert result["type"] == "error" and result["error"] == "invalid argument", result
+        bidi.command("input.performActions", {"context": other, "actions": conflicting})
+        release(other)
+        focus(child)
+        release(child)
+        assert events(child) == [["keyup", "c", False, False]], events(child)
+
+        # Mutations before a dispatch error must still reach the shared state and its cancel list.
+        clear_events()
+        focus(parent)
+        result = bidi.response(
+            bidi.send(
+                "input.performActions",
+                {
+                    "context": parent,
+                    "actions": [
+                        {
+                            "type": "key",
+                            "id": "partial-keyboard",
+                            "actions": [{"type": "keyDown", "value": "d"}, {"type": "pause"}],
+                        },
+                        {
+                            "type": "pointer",
+                            "id": "partial-pointer",
+                            "actions": [{"type": "pause"}, {"type": "pointerMove", "x": -1, "y": 0}],
+                        },
+                    ],
+                },
+            )
+        )
+        assert result["type"] == "error" and result["error"] == "move target out of bounds", result
+        assert events(parent) == [["keydown", "d", False, False]], events(parent)
+        focus(child)
+        release(child)
+        assert events(child) == [["keyup", "d", False, False]], events(child)
+        focus(parent)
+        keys(parent, ("keyDown", "d"), source_id="partial-keyboard")
+        assert events(parent)[-1] == ["keydown", "d", False, False], events(parent)
+        release(parent)
+
+        # Classic actions in the child and BiDi actions in the parent use the same state in both directions.
+        classic("POST", "window", {"handle": parent})
+        classic("POST", "frame", {"id": None})
+        frame = classic("POST", "element", {"using": "css selector", "value": "#input-child"})
+        classic("POST", "frame", {"id": frame})
+        clear_events()
+        focus(parent)
+        keys(parent, ("keyDown", "e"))
+        focus(child)
+        classic("DELETE", "actions")
+        assert events(child) == [["keyup", "e", False, False]], events(child)
+        focus(parent)
+        keys(parent, ("keyDown", "e"), ("keyUp", "e"))
+        assert events(parent)[-2:] == [["keydown", "e", False, False], ["keyup", "e", False, False]], events(parent)
+        clear_events()
+        focus(child)
+        classic("POST", "actions", {"actions": key_sequence(("keyDown", "f"))})
+        focus(parent)
+        release(parent)
+        assert events(parent) == [["keyup", "f", False, False]], events(parent)
+        focus(child)
+        classic("POST", "actions", {"actions": key_sequence(("keyDown", "f"), ("keyUp", "f"))})
+        assert events(child)[-2:] == [["keydown", "f", False, False], ["keyup", "f", False, False]], events(child)
+        release(child)
+        classic("POST", "frame", {"id": None})
+
+        # Wait for a DOM event before submitting the child command during the parent's protocol pause.
+        # The assertions concern event/state order, not how long the pause or the IPC takes.
+        clear_events()
+        focus(parent)
+        bidi.evaluate(
+            parent,
+            "window.inputKeydown = new Promise(resolve => document.addEventListener('keydown', event => resolve(event.key), {once: true})); 0",
+        )
+        barrier = bidi.send(
+            "script.evaluate",
+            {"target": {"context": parent}, "expression": "inputKeydown", "awaitPromise": True},
+        )
+        first = bidi.send(
+            "input.performActions",
+            {
+                "context": parent,
+                "actions": [
+                    {
+                        "type": "key",
+                        "id": "queued-keyboard",
+                        "actions": [{"type": "keyDown", "value": "q"}, {"type": "pause", "duration": 1000}],
+                    }
+                ],
+            },
+        )
+        result = bidi.response(barrier)
+        assert result["type"] == "success" and result["result"]["result"]["value"] == "q", result
+        focus(child)
+        queued_release = bidi.send("input.releaseActions", {"context": child})
+        for command in [first, queued_release]:
+            result = bidi.response(command)
+            assert result["type"] == "success", result
+        assert events(child) == [["keyup", "q", False, False]], events(child)
+        focus(parent)
+        keys(parent, ("keyDown", "q"), source_id="queued-keyboard")
+        assert events(parent)[-1] == ["keydown", "q", False, False], events(parent)
+        release(parent)
+    finally:
+        classic("POST", "window", {"handle": parent})
+        classic("POST", "frame", {"id": None})
+        for target in [child, parent, other]:
+            release(target)
+        bidi.command("browsingContext.close", {"context": other})
+        bidi.command("browsingContext.activate", {"context": parent})
+        bidi.command("browsingContext.navigate", {"context": parent, "url": "about:blank", "wait": "complete"})
+
+
+def check_input_click_navigation(bidi, connection, session_id, parent, server):
+    parent_url = f"http://127.0.0.1:{server.server_port}/input-parent"
+    child_url = f"http://localhost:{server.server_port}/input-child"
+    replacement_url = f"http://localhost:{server.server_port}/input-child"
+    bidi.command("browsingContext.navigate", {"context": parent, "url": parent_url, "wait": "complete"})
+    tree = bidi.command("browsingContext.getTree", {"root": parent})["contexts"][0]
+    assert len(tree["children"]) == 1, tree
+    child = tree["children"][0]["context"]
+    assert tree["children"][0]["url"] == child_url, tree
+
+    def classic(method, suffix, payload=None):
+        status, result, _ = helpers.request(connection, method, f"/session/{session_id}/{suffix}", payload)
+        assert status == 200, result
+        return result["value"]
+
+    def record_keys():
+        bidi.evaluate(
+            parent,
+            """window.navigationInputEvents = [];
+            for (const type of ['keydown', 'keyup']) {
+                document.addEventListener(type, event => navigationInputEvents.push([
+                    event.type, event.key, event.shiftKey, event.repeat
+                ]));
+            }
+            document.getElementById('target').focus();""",
+        )
+
+    def events():
+        return json.loads(bidi.evaluate(parent, "JSON.stringify(navigationInputEvents)")["result"]["value"])
+
+    actions = [{"type": "key", "id": "navigation-keyboard", "actions": [{"type": "keyDown", "value": "g"}]}]
+    bidi.command("browsingContext.activate", {"context": parent})
+    record_keys()
+    bidi.command("input.performActions", {"context": parent, "actions": actions})
+    assert events() == [["keydown", "g", False, False]], events()
+
+    # The localhost OOP child navigates the 127.0.0.1 top-level context to its own site.
+    classic("POST", "window", {"handle": parent})
+    classic("POST", "frame", {"id": None})
+    frame = classic("POST", "element", {"using": "css selector", "value": "#input-child"})
+    classic("POST", "frame", {"id": frame})
+    bidi.evaluate(parent, "document.getElementById('input-child').focus(); 0")
+    bidi.evaluate(child, "document.getElementById('target').focus(); 0")
+    link = classic("POST", "element", {"using": "css selector", "value": "#navigate-top"})
+    subscription = bidi.command("session.subscribe", {"events": ["browsingContext.load"], "contexts": [parent]})[
+        "subscription"
+    ]
+    classic("POST", f"element/{link['element-6066-11e4-a52e-4f735466cecf']}/click", {})
+    # The click succeeds and its actual cross-site navigation completes before checking the retained input state.
+    while True:
+        loaded = bidi.event("browsingContext.load")
+        if loaded["context"] == parent and loaded["url"] == replacement_url:
+            break
+    assert isinstance(loaded["navigation"], str), loaded
+    bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+    result = bidi.evaluate(parent, "document.URL")
+    assert result["result"]["value"] == replacement_url, result
+    tree = bidi.command("browsingContext.getTree", {"root": parent})["contexts"][0]
+    assert tree["context"] == parent and tree["children"] == [], tree
+
+    record_keys()
+    bidi.command("input.releaseActions", {"context": parent})
+    assert events() == [["keyup", "g", False, False]], events()
+    bidi.command("input.performActions", {"context": parent, "actions": actions})
+    assert events()[-1] == ["keydown", "g", False, False], events()
+
+    # The old child no longer exists. Only the stable top-level ID participates in success cleanup;
+    # failures use the enclosing session cleanup, which preserves the original error.
+    classic("POST", "window", {"handle": parent})
+    classic("POST", "frame", {"id": None})
+    bidi.command("input.releaseActions", {"context": parent})
+    bidi.command("browsingContext.navigate", {"context": parent, "url": "about:blank", "wait": "complete"})
 
 
 def check_screenshot_lifecycle(bidi, context, cases=("hidden", "hide", "navigate")):
@@ -390,7 +754,7 @@ def cleanup_resources(server, webdriver, connection, bidi, session_id, *, primar
         raise errors[0]
 
 
-def run_test(webdriver_binary):
+def run_test(webdriver_binary, *, input_cross_context_only=False):
     with tempfile.TemporaryDirectory(prefix="ladybird-webdriver-bidi-") as profile:
         server = ReloadServer()
         threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -405,6 +769,7 @@ def run_test(webdriver_binary):
                     webdriver_binary,
                     "--headless",
                     "--expose-internals-object",
+                    "--site-isolation=iframe",
                     f"--profile-path={profile}",
                     "-l",
                     "127.0.0.1",
@@ -435,7 +800,18 @@ def run_test(webdriver_binary):
             rejected.close()
             bidi = BiDiConnection(websocket_url)
             context = bidi.command("browsingContext.getTree", {})["contexts"][0]["context"]
+            if input_cross_context_only:
+                check_input_cross_context(bidi, connection, session_id, context, server)
+                check_input_click_navigation(bidi, connection, session_id, context, server)
+                status, payload, _ = helpers.request(connection, "DELETE", f"/session/{session_id}")
+                assert status == 200, payload
+                session_id = None
+                return
             check_screenshot_handles(bidi, context)
+            check_input_handles(bidi, context)
+            check_input_queue(bidi, context)
+            check_input_cross_context(bidi, connection, session_id, context, server)
+            check_input_click_navigation(bidi, connection, session_id, context, server)
             check_screenshot_lifecycle(bidi, context)
             check_screenshot_frame_order(bidi, context)
 
@@ -619,4 +995,6 @@ def run_test(webdriver_binary):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("webdriver_binary")
-    run_test(parser.parse_args().webdriver_binary)
+    parser.add_argument("--input-cross-context-only", action="store_true")
+    args = parser.parse_args()
+    run_test(args.webdriver_binary, input_cross_context_only=args.input_cross_context_only)

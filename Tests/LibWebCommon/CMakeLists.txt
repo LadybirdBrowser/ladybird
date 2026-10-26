@@ -7,6 +7,7 @@ set(TEST_SOURCES
     TestSiteCompatibility.cpp
     TestStorageEndpoint.cpp
     TestStrings.cpp
+    TestWebDriverInputResponse.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)

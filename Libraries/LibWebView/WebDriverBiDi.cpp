@@ -941,7 +941,7 @@ void WebDriverBiDi::run_command(u64 command_id, String const& method, JsonValue 
         return browsing_context_set_viewport(params, move(on_complete));
     if (method == "browsingContext.traverseHistory"sv)
         return browsing_context_traverse_history(params, move(on_complete));
-    if (method.is_one_of("browsingContext.captureScreenshot"sv, "browsingContext.locateNodes"sv))
+    if (method.is_one_of("browsingContext.captureScreenshot"sv, "browsingContext.locateNodes"sv, "input.performActions"sv, "input.releaseActions"sv))
         return route_to_navigable(method, params, move(on_complete));
 
     if (method == "script.addPreloadScript"sv)
