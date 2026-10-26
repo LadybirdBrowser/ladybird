@@ -2333,6 +2333,9 @@ void Application::process_did_exit(Process&& process, Optional<int>)
     case ProcessType::VideoDecoderServer:
         // The MediaServer it served asks for a new one once its decoders notice the loss.
         break;
+    case ProcessType::WebRTCClient:
+        // The WebContent process it served asks for a new one the next time it needs one.
+        break;
     case ProcessType::RequestServer:
         if (auto client = process.client<Requests::RequestControlClient>()) {
             dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart request server");

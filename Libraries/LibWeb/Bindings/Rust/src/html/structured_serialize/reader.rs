@@ -19,8 +19,8 @@ use libwebcommon_rust::html::serialization_records::{DecodeError, DecodedString,
 
 use crate::bindings::WebIdlResult;
 use crate::html::structured_serialize::cpp::{
-    ReceivedIPCSerializationRecord, SharedBuffers, data_clone_error_from_serialization_error,
-    serializable_interface_name_from_storage_identifier, serializable_interface_storage_identifier,
+    ReceivedIPCSerializationRecord, SharedBuffers, data_clone_error_from_serialization_error, is_ipc_interface,
+    serializable_interface_name_from_storage_identifier,
 };
 
 pub(crate) struct StructuredSerializeReader<'a> {
@@ -152,7 +152,7 @@ impl<'a> StructuredSerializeReader<'a> {
         let interface_name = match self.serialization_type() {
             SerializationType::Ipc => {
                 let interface_name = self.decode_u16()?;
-                serializable_interface_storage_identifier(interface_name).map(|_| interface_name)
+                is_ipc_interface(interface_name).then_some(interface_name)
             }
             SerializationType::Storage => match self.decode_utf16_string()?.as_units() {
                 ak::Utf16StringUnits::Ascii(identifier) => {

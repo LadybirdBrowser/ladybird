@@ -41,6 +41,7 @@ enum class SerializableSteps : u8 {
     DOMException,
     QuotaExceededError,
     CryptoKey,
+    RTCEncodedAudioFrame,
 };
 
 extern "C" {
@@ -48,6 +49,7 @@ extern "C" {
 void web_structured_serialize_set_ipc_record(IPCSerializationRecord*, ReadonlyBytes data, JSObject* const* shared_array_buffers, size_t count);
 void web_structured_serialize_set_storage_record(StorageSerializationRecord*, ReadonlyBytes data);
 bool web_structured_serialize_interface_storage_identifier(u16 interface_name, ReadonlyBytes* identifier);
+bool web_structured_serialize_is_ipc_interface(u16 interface_name);
 bool web_structured_serialize_interface_name_from_storage_identifier(ReadonlyBytes identifier, u16* interface_name);
 bool web_structured_serialize_shared_buffers_append_shared_memory(Vector<Core::AnonymousBuffer>*, JSObject* array_buffer, u32* index);
 
@@ -158,6 +160,15 @@ bool web_structured_serialize_interface_storage_identifier(u16 interface_name, R
         }
     }
     return false;
+}
+
+bool web_structured_serialize_is_ipc_interface(u16 interface_name)
+{
+    // Encoded audio frames can be cloned between agents, but cannot be stored.
+    if (static_cast<Bindings::InterfaceName>(interface_name) == Bindings::InterfaceName::RTCEncodedAudioFrame)
+        return true;
+    ReadonlyBytes identifier;
+    return web_structured_serialize_interface_storage_identifier(interface_name, &identifier);
 }
 
 bool web_structured_serialize_interface_name_from_storage_identifier(ReadonlyBytes identifier, u16* interface_name)
@@ -330,6 +341,8 @@ u8 web_structured_serialize_serializable_steps(u16 interface_name)
         return to_underlying(SerializableSteps::QuotaExceededError);
     case Bindings::InterfaceName::CryptoKey:
         return to_underlying(SerializableSteps::CryptoKey);
+    case Bindings::InterfaceName::RTCEncodedAudioFrame:
+        return to_underlying(SerializableSteps::RTCEncodedAudioFrame);
     default:
         VERIFY(Bindings::serializable_interface_is_implemented_in_rust(static_cast<Bindings::InterfaceName>(interface_name)));
         return to_underlying(SerializableSteps::Rust);

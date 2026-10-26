@@ -40,6 +40,7 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/RemoteImageCodecPlugin.h>
+#include <LibWeb/WebRTC/WebRTCAgent.h>
 #include <LibWebCommon/WebView/Utilities.h>
 #include <Services/RendererSandbox.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -310,6 +311,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // WebAudio's output plays through the AudioServer; this process never reaches a device itself.
     Audio::ClientConnection::set_transport_factory([webcontent_client] {
         return webcontent_client->request_audio_server_transport();
+    });
+    // The sandbox keeps this process from spawning the WebRTC helper, so the Browser launches one for it.
+    Web::WebRTC::WebRTCAgent::set_transport_factory([webcontent_client] {
+        return webcontent_client->request_webrtc_client_transport();
     });
 
     if (stats_log) {

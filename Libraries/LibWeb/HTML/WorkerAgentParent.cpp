@@ -268,4 +268,45 @@ void WorkerAgentParent::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_worker_event_target);
 }
 
+void WorkerAgentParent::rtc_transform_init(u64 transform_id, SerializedTransferRecord options_record)
+{
+    if (m_agent_id == 0)
+        return;
+    Bindings::principal_host_defined_page(m_outside_settings->realm()).client().rtc_transform_init(m_agent_id, transform_id, move(options_record));
+}
+
+void WorkerAgentParent::rtc_transform_teardown(u64 transform_id)
+{
+    m_transform_frame_callbacks.remove(transform_id);
+    if (m_agent_id == 0)
+        return;
+    Bindings::principal_host_defined_page(m_outside_settings->realm()).client().rtc_transform_teardown(m_agent_id, transform_id);
+}
+
+void WorkerAgentParent::rtc_transform_encoded_audio_frame(u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
+{
+    if (m_agent_id == 0)
+        return;
+    Bindings::principal_host_defined_page(m_outside_settings->realm()).client().rtc_transform_encoded_audio_frame(m_agent_id, transform_id, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
+}
+
+void WorkerAgentParent::register_transform_frame_callback(u64 transform_id, TransformFrameWrittenCallback callback)
+{
+    m_transform_frame_callbacks.set(transform_id, move(callback));
+}
+
+void WorkerAgentParent::unregister_transform_frame_callback(u64 transform_id)
+{
+    m_transform_frame_callbacks.remove(transform_id);
+}
+
+void WorkerAgentParent::did_write_rtc_transform_encoded_audio_frame(WorkerAgentOwnerToken owner_token, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
+{
+    auto parent = worker_agent_parents().find(owner_token);
+    if (parent == worker_agent_parents().end())
+        return;
+    if (auto it = parent->value->m_transform_frame_callbacks.find(transform_id); it != parent->value->m_transform_frame_callbacks.end())
+        it->value(move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
+}
+
 }

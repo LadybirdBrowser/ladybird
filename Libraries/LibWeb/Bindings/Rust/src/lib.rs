@@ -151,6 +151,8 @@ pub(crate) mod web_assembly;
 pub(crate) mod web_gl;
 #[cfg(not(test))]
 pub(crate) mod webidl;
+#[cfg(not(test))]
+pub(crate) mod webrtc;
 
 // The generators of the build script, whose tests run with those of the crate.
 #[cfg(test)]

@@ -2164,6 +2164,21 @@ void PageClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML
     client().async_close_worker_agent(m_id, agent_id, owner_token);
 }
 
+void PageClient::rtc_transform_init(Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record)
+{
+    client().async_rtc_transform_init(m_id, agent_id, transform_id, move(options_record));
+}
+
+void PageClient::rtc_transform_teardown(Web::HTML::WorkerAgentId agent_id, u64 transform_id)
+{
+    client().async_rtc_transform_teardown(m_id, agent_id, transform_id);
+}
+
+void PageClient::rtc_transform_encoded_audio_frame(Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
+{
+    client().async_rtc_transform_encoded_audio_frame(m_id, agent_id, transform_id, payload.bytes(), ssrc, payload_type, rtp_timestamp, sequence_number);
+}
+
 void PageClient::page_did_mutate_dom(Utf16FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node>, GC::Ptr<Web::DOM::Node>, Optional<Utf16FlyString> const& attribute_name)
 {
     Optional<WebView::Mutation::Type> mutation;

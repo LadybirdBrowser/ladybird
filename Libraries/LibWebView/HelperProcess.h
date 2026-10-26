@@ -48,6 +48,10 @@ WEBVIEW_API ErrorOr<ImageDecoderConnection> launch_image_decoder_process();
 WEBVIEW_API void connect_to_image_decoder(WebContentClient&, ImageDecoderConnection);
 WEBVIEW_API void connect_to_image_decoder(WebWorkerClient&, ImageDecoderConnection);
 
+// Launches a WebRTCClient that serves the given renderer alone, which talks to it over the returned handle, and ends any
+// helper the renderer had before. The helper exits once that renderer's end of the transport is gone.
+WEBVIEW_API ErrorOr<IPC::TransportHandle> launch_webrtc_client_process(WebContentClient&);
+
 struct RequestServerClientConnection {
     IPC::TransportHandle handle;
     int client_id { -1 };

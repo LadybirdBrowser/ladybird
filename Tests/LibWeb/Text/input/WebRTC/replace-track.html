@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const context = new AudioContext({ sampleRate: 44100 });
+    const first = context.createMediaStreamDestination();
+    const second = context.createMediaStreamDestination();
+    const pc = new RTCPeerConnection();
+    try {
+        const sender = pc.addTrack(first.stream.getAudioTracks()[0], first.stream);
+        const ssrc = sender.getParameters().encodings[0].ssrc;
+        await pc.createOffer();
+        println(`SSRC available immediately: ${ssrc === sender.getParameters().encodings[0].ssrc}`);
+        await sender.replaceTrack(second.stream.getAudioTracks()[0]);
+        await pc.createOffer();
+        println(`replacement selected: ${sender.track === second.stream.getAudioTracks()[0]}`);
+        println(`sender identity retained: ${pc.getSenders()[0] === sender && sender.getParameters().encodings[0].ssrc === ssrc}`);
+        await sender.replaceTrack(null);
+        println(`detached: ${sender.track === null}`);
+        pc.getTransceivers()[0].stop();
+        try { await sender.replaceTrack(first.stream.getAudioTracks()[0]); }
+        catch (error) { println(`replace after stop: ${error.name}`); }
+        pc.close();
+        try { await sender.replaceTrack(first.stream.getAudioTracks()[0]); }
+        catch (error) { println(`replace after close: ${error.name}`); }
+    } catch (error) {
+        println(`FAIL: ${error.name}: ${error.message}`);
+    } finally {
+        pc.close(); await context.close(); done();
+    }
+});
+</script>

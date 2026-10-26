@@ -377,6 +377,9 @@ private:
     Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(Web::HTML::EnvironmentId environment_id);
     virtual void did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) override;
+    virtual void rtc_transform_init(Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record) override;
+    virtual void rtc_transform_teardown(Web::HTML::WorkerAgentId agent_id, u64 transform_id) override;
+    virtual void rtc_transform_encoded_audio_frame(Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number) override;
     Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(Optional<Web::HTML::EnvironmentId> const&, URL::URL, HTTP::Cookie::Source);
     Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse did_request_all_cookies_cookiestore(Web::HTML::EnvironmentId const&, URL::URL);
     Messages::WebContentClient::DidAddBlobUrlEntryResponse did_add_blob_url_entry(Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry);

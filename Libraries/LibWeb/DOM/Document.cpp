@@ -278,6 +278,7 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWeb/WebRTC/WebRTCAgent.h>
 #include <LibWeb/XHR/XMLHttpRequest.h>
 #include <LibWeb/XPath/XPath.h>
 #include <LibWebCommon/CSS/SystemColor.h>
@@ -6546,6 +6547,7 @@ void Document::run_unloading_cleanup_steps()
     //         opt not to follow the spec exactly in regards to this, instead letting the connection stay open until
     //         GC collects it. However, we need to be proactive about this when navigating for the sake of test-web.
     window.close_all_idb_connections();
+    WebRTC::WebRTCAgent::the().close_connections_for_global(window.this_impl());
     XHR::XMLHttpRequest::release_activity_roots_for_relevant_global_object(window.this_impl());
 
     FileAPI::run_unloading_cleanup_steps(*this);

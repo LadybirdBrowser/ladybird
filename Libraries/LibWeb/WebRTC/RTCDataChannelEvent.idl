@@ -1,0 +1,12 @@
+
+// https://w3c.github.io/webrtc-pc/#rtcdatachannelevent
+
+[Exposed=Window]
+interface RTCDataChannelEvent : Event {
+    constructor(DOMString type, RTCDataChannelEventInit eventInitDict);
+    readonly attribute RTCDataChannel channel;
+};
+
+dictionary RTCDataChannelEventInit : EventInit {
+    required RTCDataChannel channel;
+};
