@@ -1,0 +1,5 @@
+typed array, key path Infinity: put threw DataError
+nested typed array, key path a.NaN: put threw DataError
+nested typed array, key path a.NaN.x: put threw DataError
+typed array, key path x: key 1
+plain object, key path Infinity: key 1

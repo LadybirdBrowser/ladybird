@@ -1204,6 +1204,19 @@ WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> extract_a_key_from_a_value_using_a_ke
     return multi_entry ? TRY(convert_a_value_to_a_multi_entry_key(realm, r)) : TRY(convert_a_value_to_a_key(realm, r));
 }
 
+// AD-HOC: Whether CreateDataProperty(value, identifier, key) would succeed, which inject a key into a value using a
+//         key path asserts: a TypedArray refuses a canonical numeric string, such as "Infinity", that is not an
+//         index of it.
+static bool can_create_data_property(JS::VM& vm, JS::Object const& value, Utf16String const& identifier)
+{
+    if (!is<JS::TypedArrayBase>(value))
+        return true;
+    if (identifier == u"-0"sv)
+        return false;
+    auto number = MUST(JS::Value { JS::PrimitiveString::create(vm, identifier) }.to_double(vm));
+    return JS::number_to_utf16_string(number) != identifier;
+}
+
 // https://w3c.github.io/IndexedDB/#check-that-a-key-could-be-injected-into-a-value
 bool check_that_a_key_could_be_injected_into_a_value(JS::Realm& realm, JS::Value value, KeyPath const& key_path)
 {
@@ -1216,7 +1229,7 @@ bool check_that_a_key_could_be_injected_into_a_value(JS::Realm& realm, JS::Value
     VERIFY(!identifiers.is_empty());
 
     // 3. Remove the last item of identifiers.
-    (void)identifiers.take_last();
+    auto last = identifiers.take_last();
 
     // 4. For each remaining identifier of identifiers, if any:
     for (auto const& identifier : identifiers) {
@@ -1231,14 +1244,14 @@ bool check_that_a_key_could_be_injected_into_a_value(JS::Realm& realm, JS::Value
 
         // 3. If hop is false, return true.
         if (!hop)
-            return true;
+            return can_create_data_property(realm.vm(), value.as_object(), identifier);
 
         // 4. Let value be ! Get(value, identifier).
         value = MUST(value.as_object().get(identifier_property));
     }
 
     // 5. Return true if value is an Object or an Array, or false otherwise.
-    return value.is_object() || MUST(value.is_array(realm.vm()));
+    return (value.is_object() || MUST(value.is_array(realm.vm()))) && can_create_data_property(realm.vm(), value.as_object(), last);
 }
 
 // https://w3c.github.io/IndexedDB/#fire-an-error-event
