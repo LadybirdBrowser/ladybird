@@ -1,0 +1,9 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+#include <LibWebCommon/UpgradeInsecureRequests/InsecureRequestsPolicy.h>
+
+[ExistingCpp]
+enum Web::UpgradeInsecureRequests::InsecureRequestsPolicy : u8 {
+    DoNotUpgrade,
+    Upgrade,
+}
