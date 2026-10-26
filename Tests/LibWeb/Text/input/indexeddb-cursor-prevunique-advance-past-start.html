@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    spoofCurrentURL("https://example.com/indexeddb-cursor-prevunique-advance-past-start.html");
+
+    const dbName = "test-prevunique-advance-past-start-" + Date.now() + Math.random();
+    const request = indexedDB.open(dbName, 1);
+
+    request.onupgradeneeded = event => {
+        const store = event.target.result.createObjectStore("store");
+        store.createIndex("byTag", "tag");
+        store.put({ tag: "a" }, 1);
+        store.put({ tag: "a" }, 2);
+        store.put({ tag: "b" }, 3);
+        store.put({ tag: "c" }, 4);
+    };
+
+    request.onsuccess = event => {
+        const db = event.target.result;
+        const index = db.transaction("store", "readonly").objectStore("store").index("byTag");
+        const cursorRequest = index.openCursor(null, "prevunique");
+        let step = 0;
+        cursorRequest.onsuccess = () => {
+            const cursor = cursorRequest.result;
+            if (++step === 1) {
+                println(`first key: ${cursor.key}`);
+                cursor.advance(3);
+                return;
+            }
+            println(`after advance(3): ${cursor === null ? "null" : "key " + cursor.key}`);
+            db.close();
+            indexedDB.deleteDatabase(dbName);
+            done();
+        };
+    };
+});
+</script>

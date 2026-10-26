@@ -2038,6 +2038,7 @@ WebIDL::ExceptionOr<GC::Ptr<IDBCursor>> iterate_a_cursor(JS::Realm& realm, GC::R
             });
 
             // If temp record is defined, let found record be the first record in records whose key is equal to temp record’s key.
+            found_record = Empty {};
             if (!temp_record.has<Empty>()) {
                 auto temp_record_key = temp_record.visit(
                     [](Empty) -> GC::Ref<Key> { VERIFY_NOT_REACHED(); },

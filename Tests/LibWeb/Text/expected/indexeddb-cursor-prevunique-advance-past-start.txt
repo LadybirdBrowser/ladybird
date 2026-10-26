@@ -1,0 +1,2 @@
+first key: c
+after advance(3): null
