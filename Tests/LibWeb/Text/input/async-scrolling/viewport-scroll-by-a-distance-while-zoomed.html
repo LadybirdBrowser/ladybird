@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const vv = window.visualViewport;
+        internals.pinchThroughUIProcess(0, 0, 1.0);
+        while (vv.scale === 1)
+            await animationFrame();
+        await animationFrame();
+        await animationFrame();
+
+        const busyWait = milliseconds => {
+            const end = performance.now() + milliseconds;
+            while (performance.now() < end) {}
+        };
+
+        // The compositor pans the zoomed visual viewport by 50 while the main thread is busy, so the main thread has not
+        // heard of it when the page scrolls itself by 30. The visual viewport takes that from where the pan left it.
+        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        await animationFrame();
+        await animationFrame();
+        internals.wheelThroughUIProcess(50, 50, 0, 100, true, "ongoing");
+        busyWait(200);
+        window.scrollBy(0, 30);
+        for (let frame = 0; frame < 4; frame++)
+            await animationFrame();
+        println(`visual viewport offset: ${vv.offsetTop}`);
+        println(`layout viewport offset: ${window.scrollY}`);
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
+    });
+</script>

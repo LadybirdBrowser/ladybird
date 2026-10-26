@@ -500,8 +500,30 @@ private:
         SelectSnapPosition,
         DestinationIsSnapPosition,
     };
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Web::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement = {}, DestinationSnapping = DestinationSnapping::SelectSnapPosition, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll, Painting::ScrollKind = Painting::ScrollKind::Absolute);
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_layout_viewport(CSSPixelPoint delta, Bindings::ScrollBehavior, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement, Painting::ScrollKind, Compositing::ScrollAnimationKind);
+    // Who asks the compositor for the instant part of a scroll: the scroll itself, or a caller that asks for several
+    // scrolls as one.
+    enum class InstantScrollRequester {
+        ThisScroll,
+        Caller,
+    };
+    struct ScrollOfScrollingBox {
+        CSSPixelPoint position;
+        Bindings::ScrollBehavior behavior;
+        ScrollTrigger trigger;
+        GC::Ptr<DOM::Element> associated_element {};
+        Optional<CSSPixelPoint> relative_displacement {};
+        DestinationSnapping destination_snapping { DestinationSnapping::SelectSnapPosition };
+        Compositing::ScrollAnimationKind animation_kind { Compositing::ScrollAnimationKind::SmoothScroll };
+        Painting::ScrollKind scroll_kind { Painting::ScrollKind::Absolute };
+        InstantScrollRequester instant_scroll_requester { InstantScrollRequester::ThisScroll };
+    };
+    struct PerformedScroll {
+        GC::Ref<WebIDL::Promise> promise;
+        // Whether the scroll went to a snap position, which a scroll by a distance then goes to as an offset.
+        bool destination_is_a_snap_position { false };
+    };
+    PerformedScroll perform_a_scroll_of_a_scrolling_box(Web::AsyncScrollNodeStableID, ScrollOfScrollingBox const&);
+    PerformedScroll perform_a_scroll_of_the_layout_viewport(CSSPixelPoint delta, Bindings::ScrollBehavior, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement, Painting::ScrollKind, Compositing::ScrollAnimationKind, InstantScrollRequester);
     bool adopt_async_viewport_scroll_offset(CSSPixelPoint);
     bool adopt_async_visual_viewport_scroll(Optional<float> scale, CSSPixelPoint scroll_offset);
     Gfx::FloatPoint device_scroll_offset(CSSPixelPoint) const;
@@ -686,6 +708,7 @@ private:
     u64 last_scroll_request_id_for(Web::AsyncScrollNodeStableID) const;
     void request_scroll_jump(Web::AsyncScrollNodeStableID, ScrollTrigger);
     void request_relative_scroll(Web::AsyncScrollNodeStableID, CSSPixelPoint displacement, ScrollTrigger);
+    void request_viewport_scroll_by_a_distance(CSSPixelPoint displacement, double visual_viewport_max_x, double visual_viewport_max_y, ScrollTrigger);
     void request_smooth_scroll(Web::AsyncScrollNodeStableID, Compositing::RequestedSmoothScroll);
     void request_abort_of_smooth_scroll(Web::AsyncScrollNodeStableID);
     void drop_unsent_smooth_scroll(Compositing::ScrollRequest&);

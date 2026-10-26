@@ -221,6 +221,7 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::ScrollRequest const& request
     TRY(encoder.encode(request.jump_offset));
     TRY(encoder.encode(request.visual_viewport_scale));
     TRY(encoder.encode(request.relative_scroll));
+    TRY(encoder.encode(request.relative_scroll_moves_visual_viewport_first));
     TRY(encoder.encode(request.instant_scroll_is_for_user_input));
     TRY(encoder.encode(request.smooth_scroll));
     return {};
@@ -235,6 +236,7 @@ ErrorOr<Compositing::ScrollRequest> decode(Decoder& decoder)
         .jump_offset = TRY(decoder.decode<Optional<Gfx::FloatPoint>>()),
         .visual_viewport_scale = TRY(decoder.decode<Optional<float>>()),
         .relative_scroll = TRY(decoder.decode<Optional<Compositing::RequestedRelativeScroll>>()),
+        .relative_scroll_moves_visual_viewport_first = TRY(decoder.decode<bool>()),
         .instant_scroll_is_for_user_input = TRY(decoder.decode<bool>()),
         .smooth_scroll = TRY(decoder.decode<Optional<Compositing::RequestedSmoothScroll>>()),
     };

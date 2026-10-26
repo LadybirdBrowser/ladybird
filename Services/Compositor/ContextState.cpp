@@ -1106,8 +1106,12 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
         // A box new to this context took its offset from the frame's snapshot, which has the frame's scrolls in it.
         bool offset_has_the_request_in_it = m_scroll_nodes_seeded_by_last_frame.contains(scroll_request.stable_node_id);
         if (auto const& relative_scroll = scroll_request.relative_scroll; relative_scroll.has_value() && !offset_has_the_request_in_it) {
-            auto offset = m_async_scroll_tree.scroll_offset_for_node(node_id.value(), m_scroll_state_snapshot).value();
-            (void)m_async_scroll_tree.set_scroll_offset(node_id.value(), relative_scroll->applied_to(offset), m_scene.current_visual_context_tree(), m_scroll_state_snapshot);
+            if (scroll_request.relative_scroll_moves_visual_viewport_first && m_async_scroll_tree.scroll_node_is_viewport(node_id.value())) {
+                scroll_visual_viewport_position_in_page(node_id.value(), relative_scroll.value(), answers);
+            } else {
+                auto offset = m_async_scroll_tree.scroll_offset_for_node(node_id.value(), m_scroll_state_snapshot).value();
+                (void)m_async_scroll_tree.set_scroll_offset(node_id.value(), relative_scroll->applied_to(offset), m_scene.current_visual_context_tree(), m_scroll_state_snapshot);
+            }
         }
         if (axis_held_by_scrollbar.has_value() && instant_scroll_is_for_script) {
             auto offset = m_async_scroll_tree.scroll_offset_for_node(node_id.value(), m_scroll_state_snapshot).value();
@@ -1173,6 +1177,46 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
         rebuild_wheel_hit_test_targets();
     request_rendering_update();
     return PendingFrame::repainting_changes(m_async_scrolling_viewport_rect);
+}
+
+// https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
+// The visual viewport takes as much of the scroll as it can before the layout viewport takes the rest.
+void ContextState::scroll_visual_viewport_position_in_page(Compositing::AsyncScrollNodeID viewport_node_id, Compositing::RequestedRelativeScroll const& relative_scroll, Vector<Compositing::AsyncScrollOffset>& answers)
+{
+    auto layout_viewport_offset = m_async_scroll_tree.scroll_offset_for_node(viewport_node_id, m_scroll_state_snapshot).value();
+    auto transform = m_scene.visual_viewport_transform();
+    auto scale = transform.matrix[0, 0];
+    auto old_visual_viewport_offset = visual_viewport_scroll_offset(transform);
+    auto page_position = layout_viewport_offset.translated(old_visual_viewport_offset);
+    auto delta = relative_scroll.applied_to(page_position) - page_position;
+
+    auto share_of_viewport_the_visual_viewport_moves_over = scale <= 1.0f ? 0.0f : (scale - 1.0f) / scale;
+    Gfx::FloatPoint maximum_visual_viewport_offset {
+        static_cast<float>(m_async_scrolling_viewport_rect.width()) * share_of_viewport_the_visual_viewport_moves_over,
+        static_cast<float>(m_async_scrolling_viewport_rect.height()) * share_of_viewport_the_visual_viewport_moves_over,
+    };
+    Gfx::FloatPoint new_visual_viewport_offset {
+        AK::clamp(old_visual_viewport_offset.x() + delta.x(), 0.0f, maximum_visual_viewport_offset.x()),
+        AK::clamp(old_visual_viewport_offset.y() + delta.y(), 0.0f, maximum_visual_viewport_offset.y()),
+    };
+    auto visual_delta = new_visual_viewport_offset - old_visual_viewport_offset;
+    (void)m_async_scroll_tree.set_scroll_offset(viewport_node_id, layout_viewport_offset.translated(delta - visual_delta), m_scene.current_visual_context_tree(), m_scroll_state_snapshot);
+    if (visual_delta.is_zero())
+        return;
+
+    transform.matrix[0, 3] = -new_visual_viewport_offset.x() * scale;
+    transform.matrix[1, 3] = -new_visual_viewport_offset.y() * scale;
+    m_scene.set_async_visual_viewport_transform(transform);
+    m_visual_viewport_document_id = m_async_scroll_tree.document_id();
+    answers.append({
+        .stable_node_id = { .node_id = m_async_scroll_tree.document_id().value(), .kind = Web::AsyncScrollNodeKind::VisualViewport },
+        .compositor_scroll_offset = new_visual_viewport_offset,
+        .unadopted_scroll_delta = visual_delta,
+        .last_relative_scroll_delta = {},
+        .visual_viewport_scale = scale,
+        .applied_scroll_request_id = 0,
+        .user_input_scroll_count = 0,
+    });
 }
 
 void ContextState::apply_visual_viewport_scroll_request(Compositing::ScrollRequest const& scroll_request, Vector<Compositing::AsyncScrollOffset>& answers)

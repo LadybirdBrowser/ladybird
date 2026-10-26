@@ -43,8 +43,8 @@ TEST_CASE(folded_relative_scrolls_clamp_where_each_did)
 
 TEST_CASE(relative_scroll_after_a_jump_replaces_the_one_before)
 {
-    ScrollRequest request { .stable_node_id = {}, .request_id = 1, .jump_offset = {}, .visual_viewport_scale = {}, .relative_scroll = scroll_by(100, 0, 500), .instant_scroll_is_for_user_input = false, .smooth_scroll = {} };
-    ScrollRequest jump { .stable_node_id = {}, .request_id = 2, .jump_offset = Gfx::FloatPoint { 0, 40 }, .visual_viewport_scale = {}, .relative_scroll = scroll_by(10, 0, 500), .instant_scroll_is_for_user_input = false, .smooth_scroll = {} };
+    ScrollRequest request { .stable_node_id = {}, .request_id = 1, .jump_offset = {}, .visual_viewport_scale = {}, .relative_scroll = scroll_by(100, 0, 500), .relative_scroll_moves_visual_viewport_first = false, .instant_scroll_is_for_user_input = false, .smooth_scroll = {} };
+    ScrollRequest jump { .stable_node_id = {}, .request_id = 2, .jump_offset = Gfx::FloatPoint { 0, 40 }, .visual_viewport_scale = {}, .relative_scroll = scroll_by(10, 0, 500), .relative_scroll_moves_visual_viewport_first = false, .instant_scroll_is_for_user_input = false, .smooth_scroll = {} };
     request.fold_later(jump);
 
     EXPECT_EQ(request.request_id, 2u);
@@ -54,8 +54,8 @@ TEST_CASE(relative_scroll_after_a_jump_replaces_the_one_before)
 
 TEST_CASE(later_relative_scroll_folds_into_the_one_before)
 {
-    ScrollRequest request { .stable_node_id = {}, .request_id = 1, .jump_offset = Gfx::FloatPoint { 0, 40 }, .visual_viewport_scale = {}, .relative_scroll = scroll_by(500, 0, 500), .instant_scroll_is_for_user_input = false, .smooth_scroll = {} };
-    ScrollRequest later { .stable_node_id = {}, .request_id = 2, .jump_offset = {}, .visual_viewport_scale = {}, .relative_scroll = scroll_by(-100, 0, 500), .instant_scroll_is_for_user_input = false, .smooth_scroll = {} };
+    ScrollRequest request { .stable_node_id = {}, .request_id = 1, .jump_offset = Gfx::FloatPoint { 0, 40 }, .visual_viewport_scale = {}, .relative_scroll = scroll_by(500, 0, 500), .relative_scroll_moves_visual_viewport_first = false, .instant_scroll_is_for_user_input = false, .smooth_scroll = {} };
+    ScrollRequest later { .stable_node_id = {}, .request_id = 2, .jump_offset = {}, .visual_viewport_scale = {}, .relative_scroll = scroll_by(-100, 0, 500), .relative_scroll_moves_visual_viewport_first = false, .instant_scroll_is_for_user_input = false, .smooth_scroll = {} };
     request.fold_later(later);
 
     EXPECT_EQ(request.jump_offset, Gfx::FloatPoint(0, 40));
