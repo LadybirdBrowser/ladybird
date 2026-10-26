@@ -369,9 +369,7 @@ impl FcRunCacheArenaStore {
         if let Some(entry) = self.entries.borrow_mut().get_mut(slot as usize) {
             *entry = None;
         }
-        if let Some(damage) = self.inline_layout_damage.borrow_mut().get_mut(slot as usize) {
-            *damage = InlineLayoutDamage::default();
-        }
+        self.forget_inline_layout_damage(slot);
     }
 
     pub(crate) fn note_inline_layout_damage(&self, box_: Node) {
@@ -401,18 +399,19 @@ impl FcRunCacheArenaStore {
         }
     }
 
-    fn take_inline_layout_damage(&self, box_: Node) -> u32 {
-        let mut damage = self.inline_layout_damage.borrow_mut();
-        let Some(entry) = damage.get_mut(box_.slot_index() as usize) else {
-            return 0;
-        };
-        let result = if entry.generation == box_.generation() {
-            entry.structural_epoch_bumps
-        } else {
-            0
-        };
-        *entry = InlineLayoutDamage::default();
-        result
+    /// How many structural changes the inline content of `box_` saw since its entry was stored.
+    fn inline_layout_damage_since_stored(&self, box_: Node) -> u32 {
+        self.inline_layout_damage
+            .borrow()
+            .get(box_.slot_index() as usize)
+            .filter(|damage| damage.generation == box_.generation())
+            .map_or(0, |damage| damage.structural_epoch_bumps)
+    }
+
+    fn forget_inline_layout_damage(&self, slot: u32) {
+        if let Some(damage) = self.inline_layout_damage.borrow_mut().get_mut(slot as usize) {
+            *damage = InlineLayoutDamage::default();
+        }
     }
 
     /// A matching entry stays stored and hands out a shared handle. A stale
@@ -486,6 +485,8 @@ impl FcRunCacheArenaStore {
             None => entries[slot as usize] = Some(std::sync::Arc::new(entry)),
         }
         drop(entries);
+        // The damage counts the structural changes since the stored entry's run.
+        self.forget_inline_layout_damage(slot);
         if let Some(journal) = self.store_journals.borrow_mut().last_mut() {
             journal.push(slot);
         }
@@ -504,6 +505,7 @@ impl FcRunCacheArenaStore {
                 && !keep(slot, entry.validity)
             {
                 *stored = None;
+                self.forget_inline_layout_damage(slot);
             }
         }
     }
@@ -575,7 +577,7 @@ impl FcRunCacheAttempt {
         }
         let store = callbacks.arena().fc_run_cache_store();
         let validity = run_root_validity(callbacks, box_);
-        let structural_epoch_bumps = store.take_inline_layout_damage(box_);
+        let structural_epoch_bumps = store.inline_layout_damage_since_stored(box_);
         if let Some(entry) = store.matching(box_.slot_index(), validity, key) {
             return Err(entry);
         }
