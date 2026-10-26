@@ -207,11 +207,14 @@ struct ScrollRequest {
     // Whether the instant scroll is the main thread's response to user input, rather than a script's or its own.
     bool instant_scroll_is_for_user_input { false };
     Optional<RequestedSmoothScroll> smooth_scroll;
+    // Whether the request scrolls for input that ends the momentum scrolling the box, such as a key.
+    bool takes_over_from_momentum { false };
 
     // A request made later in the same frame aborts the smooth scroll of this one, which never got under way.
     void fold_later(ScrollRequest const& later)
     {
         request_id = later.request_id;
+        takes_over_from_momentum |= later.takes_over_from_momentum;
         if (later.jump_offset.has_value() || later.relative_scroll.has_value())
             instant_scroll_is_for_user_input = later.instant_scroll_is_for_user_input;
         if (later.jump_offset.has_value()) {

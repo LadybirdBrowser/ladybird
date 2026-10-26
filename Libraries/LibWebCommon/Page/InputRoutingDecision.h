@@ -45,6 +45,7 @@ namespace Web {
     X(LeftDuringScrollbarDrag, "left-during-scrollbar-drag")                                            \
     X(GestureEndAbsorbedByFling, "gesture-end-absorbed-by-fling")                                       \
     X(FlingStarted, "fling-started")                                                                    \
+    X(MomentumInterrupted, "momentum-interrupted")                                                      \
     X(NotDispatchedByCompositor, "not-dispatched-by-compositor")                                        \
     X(ConsumedByCompositor, "consumed-by-compositor")                                                   \
     X(ForwardedToPage, "forwarded-to-page")                                                             \

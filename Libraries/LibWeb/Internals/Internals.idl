@@ -73,6 +73,7 @@ interface Internals {
 
     undefined sendText(HTMLElement target, DOMString text, optional unsigned short modifiers = 0);
     undefined sendTextThroughUIProcess(DOMString text);
+    undefined sendKeyThroughUIProcess(DOMString keyName);
     undefined grantTransientActivation();
     // These send input as the UI process would send the user's, after the compositor has every frame rendered so far,
     // and resolve once the UI process reports that the input has been handled.

@@ -1,0 +1,4 @@
+After the key: moved 100, scrollend events: 1
+After the key behind a momentum step: moved 130, scrollend events: 1
+After the key, before a new gesture: moved 100
+The new gesture moved 100

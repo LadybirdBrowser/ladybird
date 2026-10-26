@@ -98,6 +98,7 @@ public:
 
     void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
     void send_text_through_ui_process(Utf16String const&);
+    void send_key_through_ui_process(Utf16String const& key_name);
     void grant_transient_activation();
     void click_through_ui_process(double x, double y, GC::Ref<WebIDL::Promise>);
     void perform_actions(Utf16String const&, GC::Ref<WebIDL::Promise>);

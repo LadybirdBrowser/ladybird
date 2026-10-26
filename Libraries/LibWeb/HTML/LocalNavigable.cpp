@@ -7148,11 +7148,13 @@ Compositing::ScrollRequest& LocalNavigable::unsent_scroll_request_for(Web::Async
     auto& state = m_scroll_request_states.ensure(stable_node_id);
     if (!state.unsent_request.has_value()) {
         state.last_request_id = ++m_last_scroll_request_id;
-        state.unsent_request = Compositing::ScrollRequest { .stable_node_id = stable_node_id, .request_id = state.last_request_id, .jump_offset = {}, .visual_viewport_scale = {}, .relative_scroll = {}, .relative_scroll_moves_visual_viewport_first = false, .instant_scroll_is_for_user_input = false, .smooth_scroll = {} };
+        state.unsent_request = Compositing::ScrollRequest { .stable_node_id = stable_node_id, .request_id = state.last_request_id, .jump_offset = {}, .visual_viewport_scale = {}, .relative_scroll = {}, .relative_scroll_moves_visual_viewport_first = false, .instant_scroll_is_for_user_input = false, .smooth_scroll = {}, .takes_over_from_momentum = false };
         // The request goes with the next frame, which it takes one being committed for.
         if (auto document = active_document())
             document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
     }
+    if (m_user_scroll_gesture_hold_of_current_input && m_user_scroll_gesture_hold_of_current_input->takes_over_momentum())
+        state.unsent_request->takes_over_from_momentum = true;
     return state.unsent_request.value();
 }
 
@@ -7978,8 +7980,9 @@ bool LocalNavigable::has_inclusive_ancestor_with_visibility_hidden() const
     return false;
 }
 
-UserScrollGestureHold::UserScrollGestureHold(LocalNavigable& navigable, Optional<Web::AsyncScrollNodeStableID> held_box)
+UserScrollGestureHold::UserScrollGestureHold(LocalNavigable& navigable, TakesOverMomentum takes_over_momentum, Optional<Web::AsyncScrollNodeStableID> held_box)
     : m_navigable(navigable)
+    , m_takes_over_momentum(takes_over_momentum)
 {
     if (held_box.has_value())
         hold(held_box.value());

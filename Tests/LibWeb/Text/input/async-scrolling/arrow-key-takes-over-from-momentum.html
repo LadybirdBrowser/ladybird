@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 20000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        let scrollends = 0;
+        document.addEventListener("scrollend", () => scrollends++);
+        const nextScrollend = () => new Promise(resolve => document.addEventListener("scrollend", resolve, { once: true }));
+
+        const flingThenPressDown = async ({ whileMomentumStepIsPending = false } = {}) => {
+            internals.wheelThroughUIProcess(400, 300, 0, 0, true, "began");
+            for (let step = 0; step < 3; step++)
+                await internals.wheelThroughUIProcess(400, 300, 0, 50, true, "ongoing");
+            for (let step = 0; step < 3; step++) {
+                await internals.wheelThroughUIProcess(400, 300, 0, 30, true, "momentum");
+                await animationFrame();
+            }
+            const offsetBeforeKey = window.scrollY;
+            // With input still on its way to WebContent, the compositor leaves the key's scroll to WebContent.
+            if (whileMomentumStepIsPending)
+                internals.wheelThroughUIProcess(400, 300, 0, 30, true, "momentum");
+            internals.sendKeyThroughUIProcess("Down");
+            // WebContent's request for the key's scroll ends the momentum once it reaches the compositor with a frame, which
+            // the key's scroll past where the pending step goes shows.
+            if (whileMomentumStepIsPending) {
+                while (window.scrollY <= offsetBeforeKey + 30)
+                    await new Promise(resolve => document.addEventListener("scroll", resolve, { once: true }));
+            }
+            return offsetBeforeKey;
+        };
+
+        // The momentum left after the key press scrolls nothing, so the key's scroll runs to its end.
+        let ended = nextScrollend();
+        let offsetBeforeKey = await flingThenPressDown();
+        for (let step = 0; step < 5; step++)
+            await internals.wheelThroughUIProcess(400, 300, 0, 30, true, "momentum");
+        await internals.wheelThroughUIProcess(400, 300, 0, 0, true, "ended");
+        await ended;
+        await new Promise(resolve => setTimeout(resolve, 700));
+        println(`After the key: moved ${window.scrollY - offsetBeforeKey}, scrollend events: ${scrollends}`);
+
+        // The momentum stops for a key that WebContent scrolls for too.
+        scrollends = 0;
+        ended = nextScrollend();
+        offsetBeforeKey = await flingThenPressDown({ whileMomentumStepIsPending: true });
+        for (let step = 0; step < 5; step++)
+            await internals.wheelThroughUIProcess(400, 300, 0, 30, true, "momentum");
+        await internals.wheelThroughUIProcess(400, 300, 0, 0, true, "ended");
+        await ended;
+        await new Promise(resolve => setTimeout(resolve, 700));
+        println(`After the key behind a momentum step: moved ${window.scrollY - offsetBeforeKey}, scrollend events: ${scrollends}`);
+
+        // A new gesture after the key press scrolls as any other.
+        scrollends = 0;
+        ended = nextScrollend();
+        offsetBeforeKey = await flingThenPressDown();
+        for (let step = 0; step < 2; step++)
+            await internals.wheelThroughUIProcess(400, 300, 0, 30, true, "momentum");
+        await ended;
+        const offsetBeforeNewGesture = window.scrollY;
+        println(`After the key, before a new gesture: moved ${offsetBeforeNewGesture - offsetBeforeKey}`);
+        ended = nextScrollend();
+        internals.wheelThroughUIProcess(400, 300, 0, 0, true, "began");
+        for (let step = 0; step < 2; step++)
+            await internals.wheelThroughUIProcess(400, 300, 0, 50, true, "ongoing");
+        await internals.wheelThroughUIProcess(400, 300, 0, 0, true, "ended");
+        await ended;
+        println(`The new gesture moved ${window.scrollY - offsetBeforeNewGesture}`);
+    });
+</script>

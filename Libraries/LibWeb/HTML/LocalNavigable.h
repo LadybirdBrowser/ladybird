@@ -767,15 +767,22 @@ class WEB_API UserScrollGestureHold {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    explicit UserScrollGestureHold(LocalNavigable&, Optional<Web::AsyncScrollNodeStableID> held_box = {});
+    // Whether the held input ends the momentum scrolling a box it scrolls, as a key does.
+    enum class TakesOverMomentum {
+        No,
+        Yes,
+    };
+    explicit UserScrollGestureHold(LocalNavigable&, TakesOverMomentum = TakesOverMomentum::No, Optional<Web::AsyncScrollNodeStableID> held_box = {});
     ~UserScrollGestureHold();
 
     void hold(Web::AsyncScrollNodeStableID);
     void release(Web::AsyncScrollNodeStableID);
     ReadonlySpan<Web::AsyncScrollNodeStableID> held_boxes() const { return m_held_boxes; }
+    bool takes_over_momentum() const { return m_takes_over_momentum == TakesOverMomentum::Yes; }
 
 private:
     GC::Weak<LocalNavigable> m_navigable;
+    TakesOverMomentum m_takes_over_momentum { TakesOverMomentum::No };
     Vector<Web::AsyncScrollNodeStableID, 1> m_held_boxes;
 };
 
