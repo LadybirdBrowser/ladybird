@@ -16,7 +16,7 @@ inputs:
     description: 'Path to the vcpkg binary cache directory'
     required: true
   vcpkg_cache_primary_key:
-    description: 'Primary vcpkg binary cache key'
+    description: 'Primary vcpkg binary cache key, or empty to skip saving the vcpkg binary cache'
     required: true
 
 runs:
@@ -43,6 +43,7 @@ runs:
         ccache -s
 
     - name: 'vcpkg binary cache'
+      if: ${{ inputs.vcpkg_cache_primary_key != '' }}
       uses: actions/cache/save@v6
       with:
         path: ${{ inputs.vcpkg_cache_path }}
