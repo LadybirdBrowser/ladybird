@@ -26,6 +26,7 @@ Pass	font-feature-settings
 Pass	font-kerning
 Pass	font-language-override
 Pass	font-optical-sizing
+Pass	font-palette
 Pass	font-size
 Pass	font-size-adjust
 Pass	font-style

@@ -543,6 +543,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'font-language-override': 'normal'
 'fontOpticalSizing': 'auto'
 'font-optical-sizing': 'auto'
+'fontPalette': 'normal'
+'font-palette': 'normal'
 'fontSize': '16px'
 'font-size': '16px'
 'fontSizeAdjust': 'none'

@@ -2,16 +2,16 @@ Harness status: OK
 
 Found 35 tests
 
-26 Pass
-9 Fail
-Fail	Can set 'font-palette' to CSS-wide keywords: initial
-Fail	Can set 'font-palette' to CSS-wide keywords: inherit
-Fail	Can set 'font-palette' to CSS-wide keywords: unset
-Fail	Can set 'font-palette' to CSS-wide keywords: revert
-Fail	Can set 'font-palette' to var() references:  var(--A)
-Fail	Can set 'font-palette' to the 'normal' keyword: normal
-Fail	Can set 'font-palette' to the 'light' keyword: light
-Fail	Can set 'font-palette' to the 'dark' keyword: dark
+34 Pass
+1 Fail
+Pass	Can set 'font-palette' to CSS-wide keywords: initial
+Pass	Can set 'font-palette' to CSS-wide keywords: inherit
+Pass	Can set 'font-palette' to CSS-wide keywords: unset
+Pass	Can set 'font-palette' to CSS-wide keywords: revert
+Pass	Can set 'font-palette' to var() references:  var(--A)
+Pass	Can set 'font-palette' to the 'normal' keyword: normal
+Pass	Can set 'font-palette' to the 'light' keyword: light
+Pass	Can set 'font-palette' to the 'dark' keyword: dark
 Pass	Setting 'font-palette' to a length: 0px throws TypeError
 Pass	Setting 'font-palette' to a length: -3.14em throws TypeError
 Pass	Setting 'font-palette' to a length: 3.14cm throws TypeError

@@ -23,6 +23,7 @@ font-feature-settings: normal
 font-kerning: auto
 font-language-override: normal
 font-optical-sizing: auto
+font-palette: normal
 font-size: 16px
 font-size-adjust: none
 font-style: normal
