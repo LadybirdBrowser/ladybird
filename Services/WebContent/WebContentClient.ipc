@@ -258,6 +258,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_request_key_event_for_testing(Web::PageId page_id, Web::KeyEvent event) =|
     did_request_spelling_menu_action_for_testing(Web::PageId page_id, Web::SpellingMenuActionForTesting action, u32 guess_index) =|
     did_request_webdriver_mouse_event(Web::PageId page_id, u64 request_id, Web::HTML::CrossProcessId local_root_id, Web::MouseEvent event) =|
+    did_request_pinch_event_for_testing(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Web::PinchEvent event) =|
     did_request_set_system_visibility_state(Web::PageId page_id, Web::HTML::VisibilityState visibility_state) =|
     request_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters) =|
     revoke_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id) =|

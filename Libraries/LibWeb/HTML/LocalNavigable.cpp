@@ -5662,7 +5662,7 @@ bool LocalNavigable::adopt_async_viewport_scroll_delta(CSSPixelPoint scroll_delt
     return m_viewport_scroll_offset != viewport_scroll_offset;
 }
 
-bool LocalNavigable::adopt_async_visual_viewport_scroll_delta(CSSPixelPoint scroll_delta)
+bool LocalNavigable::adopt_async_visual_viewport_scroll(Optional<float> scale, CSSPixelPoint scroll_delta)
 {
     auto document = active_document();
     if (!document)
@@ -5670,7 +5670,11 @@ bool LocalNavigable::adopt_async_visual_viewport_scroll_delta(CSSPixelPoint scro
 
     defer_user_scroll_settlement();
 
+    // A zoom moves the offset as well, which is then only in range for the new scale.
     auto visual_viewport = document->visual_viewport();
+    auto scale_before_adoption = visual_viewport->scale();
+    if (scale.has_value())
+        visual_viewport->set_scale_zoomed_by_compositor(scale.value());
 
     auto max_x = m_viewport_size.width().to_double() - visual_viewport->width();
     auto max_y = m_viewport_size.height().to_double() - visual_viewport->height();
@@ -5681,7 +5685,7 @@ bool LocalNavigable::adopt_async_visual_viewport_scroll_delta(CSSPixelPoint scro
         min(max_y, max(0.0, visual_y + scroll_delta.y().to_double())) - visual_y,
     };
     if (visual_delta.is_zero())
-        return false;
+        return visual_viewport->scale() != scale_before_adoption;
 
     visual_viewport->scroll_by(visual_delta);
     queue_scrollend_event(*document, *visual_viewport, {}, ScrollTrigger::UserInput);
@@ -5783,7 +5787,7 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
         if (async_scroll_offset.stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport) {
             if (async_scroll_offset.stable_node_id.node_id != document->unique_id())
                 continue;
-            if (adopt_async_visual_viewport_scroll_delta(css_scroll_delta)) {
+            if (adopt_async_visual_viewport_scroll(async_scroll_offset.visual_viewport_scale, css_scroll_delta)) {
                 adopted_any_scroll_offset = true;
                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async visual viewport delta {},{}",
                     async_scroll_offset.unadopted_scroll_delta.x(), async_scroll_offset.unadopted_scroll_delta.y());

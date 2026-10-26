@@ -798,6 +798,11 @@ void ViewImplementation::enqueue_webdriver_mouse_event(Badge<WebContentPage>, We
     enqueue_input_event(move(event));
 }
 
+void ViewImplementation::enqueue_pinch_event_for_testing(Badge<WebContentPage>, Web::PinchEvent event)
+{
+    enqueue_input_event(event);
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#activation-triggering-input-event
 static bool is_activation_triggering_input_event(Web::InputEvent const& event)
 {
@@ -943,8 +948,12 @@ void ViewImplementation::send_input_event(size_t index)
             pending.endpoint->async_drag_event(cloned_event);
         },
         [&](Web::PinchEvent const& event) {
-            pending.endpoint->handle_pinch_event_in_compositor(event);
-            pending.endpoint->async_pinch_event(event);
+            // The compositor zooms for the event when it can, then forwards the event to WebContent behind the scroll
+            // updates that produced, or hands it back for direct dispatch.
+            if (pending.endpoint->handle_and_dispatch_pinch_event_in_compositor(event))
+                pending.routed_through_compositor = true;
+            else
+                pending.endpoint->async_pinch_event(event);
         });
 }
 
@@ -1261,6 +1270,9 @@ void ViewImplementation::did_not_dispatch_input_event_through_compositor(Badge<W
         },
         [&](Web::MouseEvent const& event) {
             pending.endpoint->async_mouse_event(event.clone_without_browser_data());
+        },
+        [&](Web::PinchEvent const& event) {
+            pending.endpoint->async_pinch_event(event);
         },
         [](auto const&) {
             VERIFY_NOT_REACHED();

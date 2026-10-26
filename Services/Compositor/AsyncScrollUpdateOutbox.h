@@ -21,6 +21,12 @@ public:
         u64 sequence { 0 };
         Web::AsyncScrollNodeStableID stable_node_id;
         Gfx::FloatPoint compositor_scroll_offset;
+        Optional<float> visual_viewport_scale;
+    };
+
+    struct VisualViewportState {
+        Gfx::FloatPoint scroll_offset;
+        float scale { 1 };
     };
 
     Compositing::AsyncScrollOperationID allocate_operation_id() { return ++m_last_allocated_operation_id; }
@@ -34,6 +40,8 @@ public:
     Compositing::PendingAsyncScrollUpdates take_updates(bool user_scroll_gesture_in_progress);
 
     ReadonlySpan<UnreconciledScrollOffset> unreconciled_scroll_offsets() const { return m_unreconciled_scroll_offsets; }
+    // Where the compositor zoomed and panned the document's visual viewport to, until WebContent has adopted it.
+    Optional<VisualViewportState> unadopted_visual_viewport_state(Web::UniqueNodeID document_id) const;
     void retire_scroll_offsets_adopted_by(u64 adopted_sequence);
 
 private:

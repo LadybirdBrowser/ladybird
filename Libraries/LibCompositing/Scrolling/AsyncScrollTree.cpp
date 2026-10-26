@@ -228,6 +228,7 @@ Optional<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeI
                 .compositor_scroll_offset = scroll_offset_for_node(*node, scroll_state_snapshot),
                 .unadopted_scroll_delta = delta - remaining_delta,
                 .last_relative_scroll_delta = {},
+                .visual_viewport_scale = {},
             };
         }
 

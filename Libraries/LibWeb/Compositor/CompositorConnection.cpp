@@ -822,6 +822,12 @@ void CompositorConnection::key_event(u64 page_id, Web::KeyEvent event)
         on_key_event(Web::PageId { page_id }, move(event));
 }
 
+void CompositorConnection::pinch_event(u64 page_id, Web::PinchEvent event)
+{
+    if (on_pinch_event)
+        on_pinch_event(Web::PageId { page_id }, event);
+}
+
 void CompositorConnection::mouse_event(u64 page_id, Web::MouseEvent event)
 {
     if (on_mouse_event)

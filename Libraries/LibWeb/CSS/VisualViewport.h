@@ -51,6 +51,7 @@ public:
 
     [[nodiscard]] Gfx::AffineTransform transform() const;
     void zoom(CSSPixelPoint position, double scale_delta);
+    void set_scale_zoomed_by_compositor(double scale);
     CSSPixelPoint map_to_layout_viewport(CSSPixelPoint) const;
     CSSPixelPoint map_from_layout_viewport(CSSPixelPoint) const;
     CSSPixelRect map_from_layout_viewport(CSSPixelRect const&) const;

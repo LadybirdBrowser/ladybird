@@ -503,7 +503,7 @@ void EventLoop::process_input_events() const
                     return page.handle_drag_and_drop_event(*root, drag_event.type, drag_event.position, drag_event.screen_position, drag_event.button, drag_event.buttons, drag_event.modifiers, move(drag_event.files));
                 },
                 [&](Web::PinchEvent& pinch_event) {
-                    return page.handle_pinch_event(*root, pinch_event.position, pinch_event.modifiers, pinch_event.scale_delta);
+                    return page.handle_pinch_event(*root, pinch_event.position, pinch_event.modifiers, pinch_event.scale_delta, pinch_event.async_zoom_performed_default_action);
                 });
 
             finish_handling_coalesced_input_events(event);

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const vv = window.visualViewport;
+        const nextWheelEvent = (options, handler = () => {}) => new Promise(resolve => {
+            window.addEventListener("wheel", event => {
+                handler(event);
+                resolve(event);
+            }, { ...options, once: true });
+        });
+
+        // A passive listener does not hold the pinch back, so the compositor zooms before the page sees the event,
+        // which can then no longer be canceled.
+        let wheelEvent = nextWheelEvent({ passive: true });
+        internals.pinchThroughUIProcess(400, 300, 1.0);
+        let event = await wheelEvent;
+        while (vv.scale === 1)
+            await animationFrame();
+        println(`passive listener: ctrlKey=${event.ctrlKey} cancelable=${event.cancelable} scale=${vv.scale}`);
+
+        internals.resetZoom();
+        await animationFrame();
+        await animationFrame();
+
+        // A listener that may cancel the event holds the pinch back until the page has seen it, and canceling it keeps
+        // the page from zooming.
+        wheelEvent = nextWheelEvent({ passive: false }, event => event.preventDefault());
+        await animationFrame();
+        await animationFrame();
+        internals.pinchThroughUIProcess(400, 300, 1.0);
+        event = await wheelEvent;
+        await animationFrame();
+        await animationFrame();
+        println(`canceling listener: ctrlKey=${event.ctrlKey} cancelable=${event.cancelable} defaultPrevented=${event.defaultPrevented} scale=${vv.scale} compositor scale=${internals.compositorScrollState().visualViewportScale}`);
+    });
+</script>

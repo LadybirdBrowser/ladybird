@@ -50,11 +50,12 @@ Compositing::PendingAsyncScrollUpdates AsyncScrollUpdateOutbox::take_updates(boo
                 continue;
             unreconciled.sequence = updates.sequence;
             unreconciled.compositor_scroll_offset = scroll_offset.compositor_scroll_offset;
+            unreconciled.visual_viewport_scale = scroll_offset.visual_viewport_scale;
             replaced = true;
             break;
         }
         if (!replaced)
-            m_unreconciled_scroll_offsets.append({ updates.sequence, scroll_offset.stable_node_id, scroll_offset.compositor_scroll_offset });
+            m_unreconciled_scroll_offsets.append({ updates.sequence, scroll_offset.stable_node_id, scroll_offset.compositor_scroll_offset, scroll_offset.visual_viewport_scale });
     }
     AK::swap(updates.completed_operation_ids, m_completed_operation_ids);
     AK::swap(updates.operation_ids_taken_over_by_user_input, m_operation_ids_taken_over_by_user_input);
@@ -64,6 +65,21 @@ Compositing::PendingAsyncScrollUpdates AsyncScrollUpdateOutbox::take_updates(boo
     m_user_scroll_gesture_ended = false;
     m_published_user_scroll_gesture_in_progress = updates.user_scroll_gesture_in_progress;
     return updates;
+}
+
+Optional<AsyncScrollUpdateOutbox::VisualViewportState> AsyncScrollUpdateOutbox::unadopted_visual_viewport_state(Web::UniqueNodeID document_id) const
+{
+    Web::AsyncScrollNodeStableID visual_viewport { .node_id = document_id, .kind = Web::AsyncScrollNodeKind::VisualViewport };
+    // The updates that are still to be published are the latest.
+    for (auto const& pending : m_pending_scroll_offsets) {
+        if (pending.stable_node_id == visual_viewport && pending.visual_viewport_scale.has_value())
+            return VisualViewportState { pending.compositor_scroll_offset, pending.visual_viewport_scale.value() };
+    }
+    for (auto const& unreconciled : m_unreconciled_scroll_offsets) {
+        if (unreconciled.stable_node_id == visual_viewport && unreconciled.visual_viewport_scale.has_value())
+            return VisualViewportState { unreconciled.compositor_scroll_offset, unreconciled.visual_viewport_scale.value() };
+    }
+    return {};
 }
 
 void AsyncScrollUpdateOutbox::retire_scroll_offsets_adopted_by(u64 adopted_sequence)

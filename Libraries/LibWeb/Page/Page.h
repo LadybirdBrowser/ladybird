@@ -197,7 +197,7 @@ public:
     EventResult handle_mousecancel(HTML::LocalNavigable& root);
     EventResult handle_mousewheel(HTML::LocalNavigable& root, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, double wheel_tick_120ths_x, double wheel_tick_120ths_y, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target);
     EventResult handle_drag_and_drop_event(HTML::LocalNavigable& root, DragEvent::Type, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
-    EventResult handle_pinch_event(HTML::LocalNavigable& root, DevicePixelPoint point, unsigned modifiers, double scale);
+    EventResult handle_pinch_event(HTML::LocalNavigable& root, DevicePixelPoint point, unsigned modifiers, double scale, bool async_zoom_performed_default_action);
 
     EventResult handle_mouseup(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
     EventResult handle_mousedown(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
@@ -845,6 +845,7 @@ public:
     virtual void page_did_request_key_event_for_testing([[maybe_unused]] Web::KeyEvent event) { }
     virtual void page_did_request_spelling_menu_action_for_testing([[maybe_unused]] SpellingMenuActionForTesting action, [[maybe_unused]] u32 guess_index) { }
     virtual void page_did_request_webdriver_mouse_event([[maybe_unused]] HTML::CrossProcessId local_root_id, [[maybe_unused]] Web::MouseEvent event, GC::Ref<GC::Function<void()>> on_handled) { on_handled->function()(); }
+    virtual void page_did_request_pinch_event_for_testing([[maybe_unused]] HTML::CrossProcessId local_root_id, [[maybe_unused]] Web::PinchEvent const& event) { }
     virtual void page_did_request_set_system_visibility_state([[maybe_unused]] HTML::VisibilityState visibility_state) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }
     virtual bool page_did_request_has_populated_document_for_testing([[maybe_unused]] HTML::CrossProcessId navigable_id) { return false; }

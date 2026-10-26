@@ -40,6 +40,7 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::AsyncScrollOffset const& off
     TRY(encoder.encode(offset.compositor_scroll_offset));
     TRY(encoder.encode(offset.unadopted_scroll_delta));
     TRY(encoder.encode(offset.last_relative_scroll_delta));
+    TRY(encoder.encode(offset.visual_viewport_scale));
     return {};
 }
 
@@ -51,6 +52,7 @@ ErrorOr<Compositing::AsyncScrollOffset> decode(Decoder& decoder)
         .compositor_scroll_offset = TRY(decoder.decode<Gfx::FloatPoint>()),
         .unadopted_scroll_delta = TRY(decoder.decode<Gfx::FloatPoint>()),
         .last_relative_scroll_delta = TRY(decoder.decode<Gfx::FloatPoint>()),
+        .visual_viewport_scale = TRY(decoder.decode<Optional<float>>()),
     };
 }
 

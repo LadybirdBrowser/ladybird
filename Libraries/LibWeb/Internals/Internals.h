@@ -123,6 +123,7 @@ public:
     void wheel(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase, Bindings::WheelTicks const&, GC::Ref<WebIDL::Promise>);
     GC::Ref<JS::Object> compositor_scroll_state(GC::Ptr<DOM::Element> scroller);
     void pinch(double x, double y, double scale_delta, WebIDL::UnsignedShort modifiers);
+    void pinch_through_ui_process(double x, double y, double scale_delta);
     void reset_zoom();
 
     Utf16String current_cursor();

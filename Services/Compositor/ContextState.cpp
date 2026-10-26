@@ -119,6 +119,12 @@ void ContextState::dispatch_key_event_to_web_content(Web::KeyEvent const& event)
     m_web_content_client.dispatch_key_event_to_web_content(*m_page_id, event);
 }
 
+void ContextState::dispatch_pinch_event_to_web_content(Web::PinchEvent const& event)
+{
+    VERIFY(m_page_id.has_value());
+    m_web_content_client.dispatch_pinch_event_to_web_content(*m_page_id, event);
+}
+
 void ContextState::stop_presenting_to_client()
 {
     end_keyboard_scroll_gesture();
@@ -152,8 +158,7 @@ void ContextState::install_display_list_update(
     auto async_scrolling_state = Compositing::async_scrolling_state_from_display_list(*m_scene.display_list());
     auto async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
     m_wheel_gesture_routing.did_install_scrolling_state(async_scrolling_state);
-    if (m_scene.has_async_visual_viewport_transform() && !m_wheel_gesture_routing.admits_async_pinch())
-        m_scene.drop_async_visual_viewport_transform();
+    reapply_unadopted_visual_viewport_state();
 
     auto was_dragging_scrollbar = m_scrollbar_controller.has_captured_scrollbar();
     m_scrollbar_controller.set_scrollbars(async_scrolling_state.scrollbars);
@@ -218,6 +223,7 @@ void ContextState::update_scroll_state(Compositing::ScrollStateSnapshot&& scroll
     if (!m_has_async_scrolling_state)
         return;
 
+    reapply_unadopted_visual_viewport_state();
     auto reconciled_viewport_scroll_offset = reapply_unreconciled_async_scroll_offsets();
     rebuild_wheel_hit_test_targets();
     if (reconciled_viewport_scroll_offset.has_value()) {
@@ -610,10 +616,23 @@ ContextState::ContextUpdateResult ContextState::handle_pinch_event(Web::PinchEve
         * Gfx::scale_matrix(Gfx::FloatVector3 { applied_scale, applied_scale, 1 })
         * Gfx::translation_matrix(Gfx::FloatVector3 { -position.x(), -position.y(), 0 });
 
+    auto old_scroll_offset = visual_viewport_scroll_offset(transform);
     transform.matrix = gesture_transform * transform.matrix;
     clamp_visual_viewport_transform_to_viewport(transform, m_async_scrolling_viewport_rect);
     m_scene.set_async_visual_viewport_transform(transform);
     rebuild_wheel_hit_test_targets();
+
+    if (auto document_id = m_async_scroll_tree.document_id(); document_id.has_value()) {
+        auto new_scroll_offset = visual_viewport_scroll_offset(transform);
+        Compositing::AsyncScrollOffset scroll_offset {
+            .stable_node_id = { .node_id = document_id.value(), .kind = Web::AsyncScrollNodeKind::VisualViewport },
+            .compositor_scroll_offset = new_scroll_offset,
+            .unadopted_scroll_delta = new_scroll_offset - old_scroll_offset,
+            .last_relative_scroll_delta = {},
+            .visual_viewport_scale = transform.matrix[0, 0],
+        };
+        store_pending_async_scroll_offsets({ &scroll_offset, 1 });
+    }
 
     return {
         .accepted = true,
@@ -1120,6 +1139,7 @@ Optional<Gfx::IntRect> ContextState::advance_smooth_scroll_animations(MonotonicT
                 .compositor_scroll_offset = *new_offset,
                 .unadopted_scroll_delta = scroll_delta,
                 .last_relative_scroll_delta = {},
+                .visual_viewport_scale = {},
             });
             changed_scroll_offset = true;
             if (m_async_scroll_tree.scroll_node_is_viewport(*node_id))
@@ -1515,6 +1535,7 @@ String ContextState::scroll_state_for_testing(Web::AsyncScrollNodeStableID stret
     stretch_object.set("x"sv, stretch.x());
     stretch_object.set("y"sv, stretch.y());
     scroll_state.set("stretch"sv, move(stretch_object));
+    scroll_state.set("visualViewportScale"sv, m_scene.visual_viewport_scale().value_or(1.0f));
     return scroll_state.serialized();
 }
 
@@ -1733,6 +1754,7 @@ Optional<ContextState::VisualViewportScrollDelta> ContextState::apply_visual_vie
             .compositor_scroll_offset = visual_viewport_scroll_offset(transform),
             .unadopted_scroll_delta = consumed_delta.scaled(1.0f / scale),
             .last_relative_scroll_delta = {},
+            .visual_viewport_scale = scale,
         },
         .consumed_delta = consumed_delta,
     };
@@ -1745,6 +1767,28 @@ Gfx::FloatPoint ContextState::pan_visual_viewport_by(Gfx::FloatPoint delta_in_sc
         return {};
     store_pending_async_scroll_offsets({ &visual_viewport_scroll_delta->scroll_offset, 1 });
     return visual_viewport_scroll_delta->consumed_delta;
+}
+
+// The visual context tree carries the visual viewport as the main thread last left it, which the zooming and panning
+// that it has yet to adopt still go over.
+void ContextState::reapply_unadopted_visual_viewport_state()
+{
+    Optional<AsyncScrollUpdateOutbox::VisualViewportState> state;
+    if (auto document_id = m_async_scroll_tree.document_id(); document_id.has_value())
+        state = m_async_scroll_update_outbox.unadopted_visual_viewport_state(document_id.value());
+    if (!state.has_value() || !m_scene.visual_context_tree().has_value()) {
+        if (m_scene.has_async_visual_viewport_transform())
+            m_scene.drop_async_visual_viewport_transform();
+        return;
+    }
+
+    auto transform = m_scene.current_visual_context_tree().visual_viewport_transform();
+    auto scale = state.value().scale;
+    transform.matrix[0, 0] = scale;
+    transform.matrix[1, 1] = scale;
+    transform.matrix[0, 3] = -state.value().scroll_offset.x() * scale;
+    transform.matrix[1, 3] = -state.value().scroll_offset.y() * scale;
+    m_scene.set_async_visual_viewport_transform(transform);
 }
 
 Optional<Gfx::FloatPoint> ContextState::reapply_unreconciled_async_scroll_offsets()
@@ -2003,6 +2047,7 @@ Optional<PendingFrame> ContextState::apply_scrollbar_drag(ScrollbarController::D
         .compositor_scroll_offset = *new_scroll_offset,
         .unadopted_scroll_delta = *new_scroll_offset - *old_scroll_offset,
         .last_relative_scroll_delta = {},
+        .visual_viewport_scale = {},
     });
     store_pending_async_scroll_offsets(scroll_offsets);
 

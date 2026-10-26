@@ -140,7 +140,7 @@ public:
     Web::CompositorContextId compositor_context_id();
     // Returns whether the event was posted; a page without a compositor sends it to WebContent itself.
     bool handle_and_dispatch_key_event_in_compositor(Web::KeyEvent const&, bool allow_keyboard_scroll);
-    void handle_pinch_event_in_compositor(Web::PinchEvent const&);
+    bool handle_and_dispatch_pinch_event_in_compositor(Web::PinchEvent const&);
     // Returns whether the event was posted; a page without a compositor sends it to WebContent itself.
     bool handle_and_dispatch_mouse_event_in_compositor(Web::MouseEvent const&);
     void did_consume_input_event_in_compositor(u64 event_id);
@@ -352,6 +352,7 @@ private:
     virtual void did_update_primary_selection(String text) override;
     virtual void did_update_session_history_entry_scroll_restoration_mode(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::ScrollRestorationMode scroll_restoration_mode) override;
     virtual void did_request_webdriver_mouse_event(u64 request_id, Web::HTML::CrossProcessId local_root_id, Web::MouseEvent event) override;
+    virtual void did_request_pinch_event_for_testing(Web::HTML::CrossProcessId local_root_id, Web::PinchEvent event) override;
     virtual void request_unload_check(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId check_id) override;
     Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Web::HTML::WorkerAgentStartRequest request);
     Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(Web::HTML::EnvironmentId environment_id);

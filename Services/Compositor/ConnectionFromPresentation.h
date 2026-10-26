@@ -39,7 +39,7 @@ private:
     virtual void did_dispatch_input_event(Web::CompositorContextId, u64 event_id, bool async_scroll_performed_default_action) override;
 
     virtual void handle_and_dispatch_key_event(Web::CompositorContextId, Web::KeyEvent, bool allow_keyboard_scroll) override;
-    virtual void handle_pinch_event(Web::CompositorContextId, Web::PinchEvent) override;
+    virtual void handle_and_dispatch_pinch_event(Web::CompositorContextId, Web::PinchEvent) override;
     virtual void handle_and_dispatch_mouse_event(Web::CompositorContextId, Web::MouseEvent) override;
     virtual void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id) override;
     virtual void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) override;

@@ -179,6 +179,7 @@ struct WEBCOMMON_API PinchEvent {
     Web::DevicePixelPoint position;
     Web::UIEvents::KeyModifier modifiers { Web::UIEvents::KeyModifier::Mod_None };
     double scale_delta;
+    bool async_zoom_performed_default_action { false };
     u64 id { 0 };
 };
 
