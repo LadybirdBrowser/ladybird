@@ -44,9 +44,8 @@ ALLOWED = {
 IN_ONE_LIBRARY = {
     "libjs_rust": (
         {"libweb_bindings_rust"},
-        "a dependency of libweb_bindings_rust alone, whose archive both LibWeb's library and the JavaScript tools "
-        "link in a build with LibWeb; a build without LibWeb imports the crate itself, as the one Rust archive of "
-        "LibJS's library (Libraries/LibJS/CMakeLists.txt)",
+        "a dependency of libweb_bindings_rust alone, whose archive LibWeb's library links; standalone JavaScript "
+        "tools link the crate independently, and no process uses both (Libraries/LibJS/CMakeLists.txt)",
     ),
     "libweb_rust": (
         {"libweb_bindings_rust"},

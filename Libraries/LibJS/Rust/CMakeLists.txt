@@ -10,12 +10,8 @@ generate_rust_ffi_headers(
         LibJS/Embedding/Layout.h
 )
 
-# The runtime crate. When LibWeb is built, LibWeb's crate builds it as a dependency, with the same features, and
-# LibWeb's library links it (Libraries/LibWeb/CMakeLists.txt).
-if (LIBJS_FOLDED_INTO_LIBWEB)
-    return()
-endif()
-
+# Build the runtime independently for standalone JavaScript tools. LibWeb's crate also builds it as a dependency,
+# with the same features, for LibWeb's library (Libraries/LibWeb/CMakeLists.txt).
 import_rust_crate(
     MANIFEST_PATH Cargo.toml
     CRATE_NAME libjs_rust

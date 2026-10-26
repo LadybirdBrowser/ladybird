@@ -97,8 +97,7 @@ function(import_rust_crate)
     _rust_crate_link_runtime_libraries(${ARG_CRATE_NAME})
 
     # The archive on its own, without the initializer and the kept symbols of the library that imports the crate, for a
-    # target that takes a crate the archive bundles out of it, as the JavaScript tools take the LibJS runtime out of
-    # LibWeb's crate.
+    # target that takes a crate the archive bundles out of it.
     add_library(${ARG_CRATE_NAME}_archive STATIC IMPORTED GLOBAL)
     set_target_properties(${ARG_CRATE_NAME}_archive PROPERTIES IMPORTED_LOCATION "${output_lib}")
     add_dependencies(${ARG_CRATE_NAME}_archive ${ARG_CRATE_NAME}-build)
@@ -136,8 +135,7 @@ endfunction()
 #
 # Defines the object library <crate>_init, whose one object sets up the panic hook and the demangler of the crate in
 # whatever links the object. import_rust_crate() defines it for the crate it imports; a target that takes a crate out
-# of the archive of another import, as the JavaScript tools take the LibJS runtime out of LibWeb's crate, defines it for
-# that crate.
+# of the archive of another import defines it for that crate.
 function(add_rust_crate_initializer crate)
     set(RUST_CRATE_NAME ${crate})
     configure_file("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/RustCrateInit.cpp.in"

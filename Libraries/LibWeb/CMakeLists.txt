@@ -1170,9 +1170,6 @@ sync_rust_crate_ffi_headers(
 )
 add_dependencies(LibWeb libweb_rust-ffi-headers)
 target_link_libraries(libweb_bindings_rust INTERFACE LibGfx LibGC LibUnicode)
-# The JavaScript tools link the LibJS runtime from this archive. It calls into LibGC and LibUnicode, so those must come
-# after the archive on the link line.
-target_link_libraries(libweb_bindings_rust_archive INTERFACE LibGC LibUnicode)
 test_rust_crate(MANIFEST_PATH Bindings/Rust/Cargo.toml CRATE_NAME libweb_bindings_rust)
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust)
 
