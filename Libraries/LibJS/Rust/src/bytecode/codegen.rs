@@ -5307,6 +5307,7 @@ fn emit_delete_reference(generator: &mut Generator, operand: &Expression) -> Sco
 /// Used when the spec requires evaluating the assignment target reference
 /// before performing some other operation (like iterating a spread element).
 enum EvaluatedReference {
+    Binding(ResolvedBinding),
     Member {
         base: ScopedOperand,
         property: ScopedOperand,
@@ -5429,6 +5430,7 @@ fn emit_evaluate_member_reference(generator: &mut Generator, target: &Expression
 /// Store a value to a pre-evaluated reference.
 fn emit_store_to_evaluated_reference(generator: &mut Generator, reference: &EvaluatedReference, value: &ScopedOperand) {
     match reference {
+        EvaluatedReference::Binding(binding) => emit_set_resolved_binding(generator, binding, value),
         EvaluatedReference::Member {
             base,
             property,
@@ -8335,6 +8337,25 @@ fn emit_set_variable_with_mode(
     }
 }
 
+fn emit_evaluate_binding_reference(
+    generator: &mut Generator,
+    entry: &BindingEntry,
+    mode: BindingMode,
+) -> Option<EvaluatedReference> {
+    if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
+        return Some(emit_evaluate_member_reference(generator, expression));
+    }
+    if !matches!(mode, BindingMode::Set) {
+        return None;
+    }
+    let identifier = match (&entry.alias, &entry.name) {
+        (Some(BindingEntryAlias::Identifier(identifier)), _)
+        | (None, Some(BindingEntryName::Identifier(identifier))) => *identifier,
+        _ => return None,
+    };
+    emit_resolve_binding_for_identifier_assignment(generator, identifier).map(EvaluatedReference::Binding)
+}
+
 fn assign_binding_entry_alias(
     generator: &mut Generator,
     entry: &BindingEntry,
@@ -8433,11 +8454,7 @@ fn generate_array_binding_pattern(
         if entry.is_rest {
             // 13.15.5.3 AssignmentRestElement: ... DestructuringAssignmentTarget
             // Step 1: Evaluate the reference BEFORE iterating remaining elements.
-            let evaluated_ref = if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
-                Some(emit_evaluate_member_reference(generator, expression))
-            } else {
-                None
-            };
+            let evaluated_ref = emit_evaluate_binding_reference(generator, entry, mode);
 
             // Rest element: collect remaining into array.
             // NB: Allocate register unconditionally, then re-allocate in the
@@ -8497,11 +8514,7 @@ fn generate_array_binding_pattern(
 
         // 13.15.5.5 AssignmentElement: DestructuringAssignmentTarget Initializer(opt)
         // Step 1: Evaluate the reference BEFORE calling IteratorStepValue.
-        let evaluated_ref = if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
-            Some(emit_evaluate_member_reference(generator, expression))
-        } else {
-            None
-        };
+        let evaluated_ref = emit_evaluate_binding_reference(generator, entry, mode);
 
         // For elisions (name is None), we still advance the iterator
         // but don't bind anything.
@@ -8753,11 +8766,7 @@ fn generate_object_binding_pattern(
         if entry.is_rest {
             // AssignmentRestProperty : `...` DestructuringAssignmentTarget
             // 1. Let _lRef_ be ? Evaluation of |DestructuringAssignmentTarget|.
-            let evaluated_ref = if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
-                Some(emit_evaluate_member_reference(generator, expression))
-            } else {
-                None
-            };
+            let evaluated_ref = emit_evaluate_binding_reference(generator, entry, mode);
 
             // Rest element: copy object excluding already-destructured properties.
             let copy = generator.allocate_register();
@@ -8786,11 +8795,7 @@ fn generate_object_binding_pattern(
                 // 1. If |DestructuringAssignmentTarget| is neither an |ObjectLiteral| nor an |ArrayLiteral|, then
                 //    a. Let _lRef_ be ? Evaluation of |DestructuringAssignmentTarget|.
                 // 2. Let _v_ be ? GetV(_value_, _propertyName_).
-                evaluated_ref = if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
-                    Some(emit_evaluate_member_reference(generator, expression))
-                } else {
-                    None
-                };
+                evaluated_ref = emit_evaluate_binding_reference(generator, entry, mode);
                 emit_get_by_id(generator, &value, object, name, None);
                 if has_rest {
                     let name_val = generator.add_constant_string(arena.name_of(*ident).clone());
@@ -8811,11 +8816,7 @@ fn generate_object_binding_pattern(
                 // 1. If |DestructuringAssignmentTarget| is neither an |ObjectLiteral| nor an |ArrayLiteral|, then
                 //    a. Let _lRef_ be ? Evaluation of |DestructuringAssignmentTarget|.
                 // 2. Let _v_ be ? GetV(_value_, _propertyName_).
-                evaluated_ref = if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
-                    Some(emit_evaluate_member_reference(generator, expression))
-                } else {
-                    None
-                };
+                evaluated_ref = emit_evaluate_binding_reference(generator, entry, mode);
                 emit_get_by_value(generator, &value, object, &property_name, None);
             }
             None => {
