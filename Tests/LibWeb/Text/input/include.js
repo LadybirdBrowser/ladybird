@@ -146,12 +146,16 @@ function printInputTrace(trace, { stages } = {}) {
     }
 }
 
+// The offset has stopped once it holds for as long as five frames take at 60 Hz, however often frames come.
 async function scrollOffsetStopsChanging(readScrollOffset) {
-    let previousScrollOffset = null;
-    while (previousScrollOffset !== readScrollOffset()) {
-        previousScrollOffset = readScrollOffset();
-        for (let frame = 0; frame < 5; frame++) {
-            await animationFrame();
+    const settleDuration = (5 * 1000) / 60;
+    let scrollOffset = readScrollOffset();
+    let lastChangeTime = performance.now();
+    while (performance.now() - lastChangeTime < settleDuration) {
+        await animationFrame();
+        if (readScrollOffset() !== scrollOffset) {
+            scrollOffset = readScrollOffset();
+            lastChangeTime = performance.now();
         }
     }
 }

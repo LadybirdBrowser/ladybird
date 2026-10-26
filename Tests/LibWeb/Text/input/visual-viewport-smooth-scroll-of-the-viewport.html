@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const vv = window.visualViewport;
+        internals.pinch(0, 0, 1.0);
+        await animationFrame();
+        println(`scale: ${vv.scale}`);
+
+        const events = [];
+        vv.addEventListener("scrollend", () => events.push("visual viewport"));
+        document.addEventListener("scrollend", () => events.push("document"));
+
+        // The visual viewport takes all of the scroll, which is as smooth as the scroll of the viewport asks for.
+        const scrollPromise = window.scrollBy({ top: 100, behavior: "smooth" });
+        println(`visual viewport offset right after the call: ${vv.offsetTop}`);
+        await scrollPromise;
+        println(`visual viewport offset once the scroll resolved: ${vv.offsetTop}`);
+        println(`layout viewport offset: ${window.scrollY}`);
+
+        await animationFrame();
+        println(`scrollend events: ${events.join(", ")}`);
+    });
+</script>

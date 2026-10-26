@@ -20,7 +20,7 @@
         println(`Initial: pageTop=${vv.pageTop}, scale=${vv.scale}`);
 
         // First, zoom in
-        vv.addEventListener("resize", function onResize() {
+        vv.addEventListener("resize", async function onResize() {
             vv.removeEventListener("resize", onResize);
 
             println(`After zoom: pageTop=${vv.pageTop}, scale=${vv.scale}, offsetTop=${vv.offsetTop}`);
@@ -29,23 +29,21 @@
 
             // Scroll down
             internals.wheel(100, 100, 0, scrollDelta);
+            await scrollOffsetStopsChanging(() => vv.pageTop);
 
-            // Poll for changes since scroll events may not fire for visual viewport panning
-            requestAnimationFrame(() => {
-                const pageTopAfter = vv.pageTop;
-                const scrolled = pageTopAfter - pageTopBefore;
+            const pageTopAfter = vv.pageTop;
+            const scrolled = pageTopAfter - pageTopBefore;
 
-                println(`pageTop changed by: ${scrolled}`);
+            println(`pageTop changed by: ${scrolled}`);
 
-                // The scroll amount should be approximately equal to the requested delta
-                // Allow small tolerance for floating point
-                if (Math.abs(scrolled - scrollDelta) < 1) {
-                    println("PASS");
-                } else {
-                    println(`FAIL: Expected scroll of ${scrollDelta}, got ${scrolled}`);
-                }
-                done();
-            });
+            // The scroll amount should be approximately equal to the requested delta
+            // Allow small tolerance for floating point
+            if (Math.abs(scrolled - scrollDelta) < 1) {
+                println("PASS");
+            } else {
+                println(`FAIL: Expected scroll of ${scrollDelta}, got ${scrolled}`);
+            }
+            done();
         });
 
         requestAnimationFrame(() => {

@@ -4973,6 +4973,12 @@ Optional<CSSPixelPoint> LocalNavigable::scroll_offset_for(Web::AsyncScrollNodeSt
         return m_viewport_scroll_offset;
     }
 
+    if (stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport) {
+        if (stable_node_id.node_id != document->unique_id())
+            return {};
+        return document->visual_viewport()->offset();
+    }
+
     auto* element = element_for_async_scroll_node_stable_id(*document, stable_node_id);
     if (!element)
         return {};
@@ -5020,6 +5026,15 @@ bool LocalNavigable::set_scroll_offset_for(Web::AsyncScrollNodeStableID stable_n
         auto old_scroll_offset = m_viewport_scroll_offset;
         perform_scroll_of_viewport_scrolling_box(scroll_offset);
         return old_scroll_offset != m_viewport_scroll_offset;
+    }
+
+    if (stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport) {
+        if (stable_node_id.node_id != document->unique_id())
+            return false;
+        auto visual_viewport = document->visual_viewport();
+        auto delta = scroll_offset - visual_viewport->offset();
+        visual_viewport->scroll_by(delta);
+        return !delta.is_zero();
     }
 
     if (!element_for_async_scroll_node_stable_id(*document, stable_node_id))
@@ -5124,6 +5139,11 @@ static GC::Ptr<DOM::EventTarget> scroll_event_target_for_async_scroll_node(DOM::
         if (stable_node_id.node_id != document.unique_id())
             return {};
         return document;
+    }
+    if (stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport) {
+        if (stable_node_id.node_id != document.unique_id())
+            return {};
+        return document.visual_viewport();
     }
     return element_for_async_scroll_node_stable_id(document, stable_node_id);
 }
@@ -5625,9 +5645,7 @@ void LocalNavigable::process_main_thread_smooth_scrolls()
             continue;
         }
 
-        auto elapsed_since_last_tick = now - smooth_scroll.last_tick;
-        auto minimum_tick_duration = AK::Duration::from_milliseconds(1);
-        smooth_scroll.elapsed += max(elapsed_since_last_tick, minimum_tick_duration);
+        smooth_scroll.elapsed += now - smooth_scroll.last_tick;
         smooth_scroll.last_tick = now;
         auto sample = smooth_scroll.animation.sample(smooth_scroll.elapsed);
         set_scroll_offset_for(smooth_scroll.stable_node_id, sample.offset.to_type<CSSPixels>());
@@ -7172,7 +7190,9 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Web
         return scroll_promise;
     }
 
-    if (has_compositor_context()) {
+    // NB: The compositor has no scroll node for the visual viewport, so the main thread animates it.
+    bool compositor_can_animate = has_compositor_context() && stable_node_id.kind != Web::AsyncScrollNodeKind::VisualViewport;
+    if (compositor_can_animate) {
         // NB: Do not adopt compositor progress while replacing one smooth scroll
         //     with another. All listeners in the current JavaScript task must
         //     observe the same main-thread scroll offset. The compositor starts
@@ -7199,7 +7219,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Web
 
     // NB: A page can lack compositor scroll state before its first paint. Keep
     //     the same algorithm on the main thread in that case.
-    if (has_compositor_context()) {
+    if (compositor_can_animate) {
         // NB: The compositor rejected the replacement, so consume its last
         //     offset before falling back to a main-thread animation.
         adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::FromCompositor);
@@ -7498,6 +7518,9 @@ bool LocalNavigable::scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::Scr
         Web::AsyncScrollNodeStableID viewport_stable_node_id { .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport };
         if (auto destination = in_flight_user_scroll_destination(viewport_stable_node_id, animation_kind); destination.has_value())
             page_position += *destination - viewport_scroll_offset();
+        Web::AsyncScrollNodeStableID visual_viewport_stable_node_id { .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport };
+        if (auto destination = in_flight_user_scroll_destination(visual_viewport_stable_node_id, animation_kind); destination.has_value())
+            page_position += destination.value() - vv->offset();
         return page_position;
     };
 
@@ -7558,26 +7581,33 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
     // 14. Perform a scroll of the viewport’s scrolling box to its current scroll position + (layout dx, layout dy)
     //     with element as the associated element, and behavior as the scroll behavior. Let scrollPromise1 be the
     //     Promise returned from this step.
+    // NB: Performed after step 15, below.
     TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*doc) };
 
     // 15. Perform a scroll of vv’s scrolling box to its current scroll position + (visual dx, visual dy) with element
     //     as the associated element, and behavior as the scroll behavior. Let scrollPromise2 be the Promise returned
     //     from this step.
-    // FIXME: Get a Promise from this.
     // AD-HOC: Step 15 is performed before step 14 so that the visual viewport's scroll and scrollend events are
     //         dispatched before the window's.
     CSSPixelPoint visual_delta { visual_dx, visual_dy };
-    vv->scroll_by(visual_delta);
     if (visual_delta.is_zero())
         doc->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
-    else
-        queue_scrollend_event(*doc, *vv, {}, trigger);
+    Web::AsyncScrollNodeStableID visual_viewport_stable_node_id { .node_id = doc->unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport };
+    auto scroll_promise_2 = perform_a_scroll_of_a_scrolling_box(visual_viewport_stable_node_id, vv->offset() + visual_delta, behavior, doc->document_element(), trigger, {}, DestinationSnapping::SelectSnapPosition, animation_kind, scroll_kind);
 
-    auto scroll_promise = perform_a_scroll_of_the_layout_viewport({ layout_dx, layout_dy }, behavior, trigger, relative_displacement, scroll_kind, animation_kind);
+    auto scroll_promise_1 = perform_a_scroll_of_the_layout_viewport({ layout_dx, layout_dy }, behavior, trigger, relative_displacement, scroll_kind, animation_kind);
+
+    // 16. Let scrollPromise be a new Promise.
+    auto scroll_promise = WebIDL::create_promise_for(*doc);
 
     // 17. Return scrollPromise, and run the remaining steps in parallel.
     // 18. Resolve scrollPromise when both scrollPromise1 and scrollPromise2 have settled.
-    // FIXME: Actually wait for visual viewport scrolling to settle as well.
+    auto& realm = HTML::relevant_realm(*doc);
+    TemporaryExecutionContext execution_context_for_promise_reactions { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+    WebIDL::wait_for_all(
+        realm, { { scroll_promise_1, scroll_promise_2 } },
+        [scroll_promise](auto const&) { WebIDL::resolve_promise(scroll_promise); },
+        [scroll_promise](JS::Value) { WebIDL::resolve_promise(scroll_promise); });
     return scroll_promise;
 }
 
