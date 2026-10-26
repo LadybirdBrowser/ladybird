@@ -191,7 +191,7 @@ impl IteratorConstructor {
         Ok(Value::from_object(wrapper))
     }
 
-    // 1 Iterator.zip ( iterables [ , options ] ), https://tc39.es/proposal-joint-iteration/#sec-iterator.zip
+    // 27.1.3.2.4 Iterator.zip ( iterables [ , options ] ), https://tc39.es/ecma262/#sec-iterator.zip
     fn zip(vm: &Vm) -> ThrowCompletionOr<Value> {
         let realm = current_realm(vm);
 
@@ -243,7 +243,8 @@ impl IteratorConstructor {
             // i. Let iter be Completion(GetIteratorFlattenable(next, REJECT-PRIMITIVES)).
             let iterator = get_iterator_flattenable(vm, next, PrimitiveHandling::RejectPrimitives);
 
-            // ii. IfAbruptCloseIterators(iter, the list-concatenation of « inputIter » and iters).
+            // ii. Let needClosing be the list-concatenation of « inputIter » and iters.
+            // iii. IfAbruptCloseIterators(iter, needClosing).
             let iterator = match iterator {
                 // NB: We don't use TRY_OR_CLOSE_ITERATORS above in order to avoid creating a separate vector for the
                 //     IteratorCloseAll invocation. IteratorCloseAll would close the list in reverse order, which we
@@ -255,7 +256,7 @@ impl IteratorConstructor {
                 Ok(iterator) => iterator,
             };
 
-            // iii. Append iter to iters.
+            // iv. Append iter to iters.
             zip_iterator.append_iterator(vm, iterator);
         }
 
@@ -267,7 +268,7 @@ impl IteratorConstructor {
             match padding_option {
                 // a. If paddingOption is undefined, then
                 None => {
-                    // i. Perform the following steps iterCount times:
+                    // i. Repeat iterCount times:
                     for _ in 0..iterator_count {
                         // 1. Append undefined to padding.
                         zip_iterator.append_padding(vm, Value::UNDEFINED);
@@ -286,7 +287,7 @@ impl IteratorConstructor {
                     // iii. Let usingIterator be true.
                     let mut using_iterator = true;
 
-                    // iv. Perform the following steps iterCount times:
+                    // iv. Repeat iterCount times:
                     for _ in 0..iterator_count {
                         // 1. If usingIterator is true, then
                         if using_iterator {
@@ -300,10 +301,10 @@ impl IteratorConstructor {
 
                             match next {
                                 // c. If next is DONE, then
-                                // i. Set usingIterator to false.
+                                //     i. Set usingIterator to false.
                                 None => using_iterator = false,
                                 // d. Else,
-                                // i. Append next to padding.
+                                //     i. Append next to padding.
                                 Some(next) => zip_iterator.append_padding(vm, next),
                             }
                         }
@@ -329,15 +330,15 @@ impl IteratorConstructor {
             }
         }
 
-        // 15. Let finishResults be a new Abstract Closure with parameters (results) that captures nothing and performs the
-        //     following steps when called:
+        // 15. Let finishResults be a new Abstract Closure with parameters (results) that captures nothing and performs
+        //     the following steps when called:
         zip_iterator.set_finish_results(ZipFinishResults::CreateArrayFromList);
 
         // 16. Return IteratorZip(iters, mode, padding, finishResults).
         Ok(Value::from_object(iterator_zip(vm, realm, zip_iterator)))
     }
 
-    // 2 Iterator.zipKeyed ( iterables [ , options ] ), https://tc39.es/proposal-joint-iteration/#sec-iterator.zipkeyed
+    // 27.1.3.2.5 Iterator.zipKeyed ( iterables [ , options ] ), https://tc39.es/ecma262/#sec-iterator.zipkeyed
     fn zip_keyed(vm: &Vm) -> ThrowCompletionOr<Value> {
         let realm = current_realm(vm);
 
@@ -378,16 +379,16 @@ impl IteratorConstructor {
             let key_value = all_keys.get(index).expect("the index is within the keys");
             let key = PropertyKey::from_value(vm, key_value).must();
 
-            // a. Let desc be Completion(iterables.[[GetOwnProperty]](key)).
-            // b. IfAbruptCloseIterators(desc, iters).
-            let description = try_or_close_iterators!(
+            // a. Let propertyDesc be Completion(iterables.[[GetOwnProperty]](key)).
+            // b. IfAbruptCloseIterators(propertyDesc, iters).
+            let property_description = try_or_close_iterators!(
                 vm,
                 &zip_iterator.open_iterators(vm),
                 iterables.internal_get_own_property(vm, &key)
             );
 
-            // c. If desc is not undefined and desc.[[Enumerable]] is true, then
-            if description.is_some_and(|description| description.enumerable == Some(true)) {
+            // c. If propertyDesc is not undefined and propertyDesc.[[Enumerable]] is true, then
+            if property_description.is_some_and(|property_description| property_description.enumerable == Some(true)) {
                 // i. Let value be Completion(Get(iterables, key)).
                 // ii. IfAbruptCloseIterators(value, iters).
                 let value = try_or_close_iterators!(vm, &zip_iterator.open_iterators(vm), iterables.get(vm, &key));
@@ -419,7 +420,7 @@ impl IteratorConstructor {
             match padding_option {
                 // a. If paddingOption is undefined, then
                 None => {
-                    // i. Perform the following steps iterCount times:
+                    // i. Repeat iterCount times:
                     for _ in 0..iterator_count {
                         // 1. Append undefined to padding.
                         zip_iterator.append_padding(vm, Value::UNDEFINED);
@@ -443,8 +444,8 @@ impl IteratorConstructor {
             }
         }
 
-        // 15. Let finishResults be a new Abstract Closure with parameters (results) that captures keys and iterCount and
-        //     performs the following steps when called:
+        // 15. Let finishResults be a new Abstract Closure with parameters (results) that captures keys and iterCount
+        //     and performs the following steps when called:
         zip_iterator.set_finish_results(ZipFinishResults::CreateObjectFromKeys { iterator_count });
 
         // 16. Return IteratorZip(iters, mode, padding, finishResults).
@@ -658,7 +659,6 @@ impl ZipIterator {
                     let step_value_result = iterator_step_value(vm, &iterator);
 
                     // b. If result is an abrupt completion, then
-                    // c. Set result to ! result.
                     let step_value = match step_value_result {
                         Err(throw) => {
                             // i. Remove iter from openIters.
@@ -669,6 +669,7 @@ impl ZipIterator {
                         }
                         Ok(step_value) => step_value,
                     };
+                    // c. Set result to ! result.
 
                     // d. If result is DONE, then
                     match step_value {
@@ -680,13 +681,13 @@ impl ZipIterator {
                             match self.mode {
                                 // ii. If mode is "shortest", then
                                 ZipMode::Shortest => {
-                                    // i. Return ? IteratorCloseAll(openIters, ReturnCompletion(undefined)).
+                                    // 1. Return ? IteratorCloseAll(openIters, ReturnCompletion(undefined)).
                                     return self.close_all_open_iterators(vm, Completion::normal(Value::UNDEFINED));
                                 }
 
                                 // iii. Else if mode is "strict", then
                                 ZipMode::Strict => {
-                                    // i. If i ≠ 0, then
+                                    // 1. If i ≠ 0, then
                                     if i != 0 {
                                         // i. Return ? IteratorCloseAll(openIters, ThrowCompletion(a newly created TypeError object)).
                                         let error = vm.throw_completion::<Value>(
@@ -697,7 +698,7 @@ impl ZipIterator {
                                         return self.close_all_open_iterators(vm, Completion::from(error));
                                     }
 
-                                    // ii. For each integer k such that 1 ≤ k < iterCount, in ascending order, do
+                                    // 2. For each integer k such that 1 ≤ k < iterCount, in ascending order, do
                                     for k in 1..iterator_count {
                                         // i. Assert: iters[k] is not null.
                                         let iterator_k = self.iterators.borrow()[k]
@@ -707,7 +708,6 @@ impl ZipIterator {
                                         let step_result = iterator_step(vm, &iterator_k);
 
                                         // iii. If open is an abrupt completion, then
-                                        // iv. Set open to ! open.
                                         let open = match step_result {
                                             Err(throw) => {
                                                 // i. Remove iters[k] from openIters.
@@ -718,6 +718,7 @@ impl ZipIterator {
                                             }
                                             Ok(open) => open,
                                         };
+                                        // iv. Set open to ! open.
 
                                         // v. If open is DONE, then
                                         if matches!(open, IterationResult::Done) {
@@ -736,22 +737,22 @@ impl ZipIterator {
                                         }
                                     }
 
-                                    // iii. Return ReturnCompletion(undefined).
+                                    // 3. Return ReturnCompletion(undefined).
                                     return Ok(HelperIterationResult::new(Value::UNDEFINED, true));
                                 }
 
                                 // iv. Else,
                                 ZipMode::Longest => {
-                                    // i. Assert: mode is "longest".
-                                    // ii. If openIters is empty, return ReturnCompletion(undefined).
+                                    // 1. Assert: mode is "longest".
+                                    // 2. If openIters is empty, return ReturnCompletion(undefined).
                                     if self.open_iterator_count() == 0 {
                                         return Ok(HelperIterationResult::new(Value::UNDEFINED, true));
                                     }
 
-                                    // iii. Set iters[i] to null.
+                                    // 3. Set iters[i] to null.
                                     self.iterators.borrow_mut(vm)[i] = None;
 
-                                    // iv. Set result to padding[i].
+                                    // 4. Set result to padding[i].
                                     result = self.padding.borrow()[i];
                                 }
                             }
@@ -772,8 +773,7 @@ impl ZipIterator {
     }
 
     pub fn on_abrupt_completion(&self, vm: &Vm, completion: Completion) -> ThrowCompletionOr<Value> {
-        // vi. If completion is an abrupt completion, then
-        //     1. Return ? IteratorCloseAll(openIters, completion).
+        // vi. IfAbruptCloseIterators(completion, openIters).
         iterator_close_all(vm, &self.open_iterators(vm), completion).into_throw_completion_or()
     }
 
@@ -856,7 +856,7 @@ impl ZipIterator {
     }
 }
 
-// 3 IteratorZip ( iters, mode, padding, finishResults ), https://tc39.es/proposal-joint-iteration/#sec-IteratorZip
+// 27.1.3.4.1 IteratorZip ( iters, mode, padding, finishResults ), https://tc39.es/ecma262/#sec-iteratorzip
 fn iterator_zip(vm: &Vm, realm: Gc<Realm>, zip_iterator: Gc<ZipIterator>) -> Gc<IteratorHelper> {
     // 1. Let iterCount be the number of elements in iters.
     // 2. Let openIters be a copy of iters.
